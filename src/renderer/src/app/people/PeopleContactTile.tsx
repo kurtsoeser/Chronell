@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from 'react'
+import { useMemo, type MouseEvent, type ReactNode } from 'react'
 import { Star } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { PeopleContactView, PeopleListSort } from '@shared/types'
@@ -37,13 +37,15 @@ export function PeopleContactTile({
   sortBy,
   accountColor,
   selected,
-  onSelect
+  onSelect,
+  onContextMenu
 }: {
   contact: PeopleContactView
   sortBy: PeopleListSort
   accountColor?: string | null
   selected: boolean
   onSelect: () => void
+  onContextMenu?: (contact: PeopleContactView, event: MouseEvent) => void
 }): JSX.Element {
   const { t } = useTranslation()
   const label = peopleListPrimaryLabel(contact, sortBy)
@@ -73,6 +75,14 @@ export function PeopleContactTile({
     <button
       type="button"
       onClick={onSelect}
+      onContextMenu={
+        onContextMenu
+          ? (e): void => {
+              e.preventDefault()
+              onContextMenu(contact, e)
+            }
+          : undefined
+      }
       className={cn(
         'relative flex w-full flex-col overflow-hidden rounded-2xl border border-border bg-card text-left shadow-md',
         'transition-[box-shadow,border-color] hover:border-primary/25 hover:shadow-lg',

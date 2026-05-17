@@ -40,10 +40,13 @@ import { cn } from '@/lib/utils'
 import { bgToRingClass, resolvedAccountColorCss } from '@/lib/avatar-color'
 import { peopleListPrimaryLabel } from '@/app/people/people-display-label'
 import { parsePhonesJson } from '@/app/people/people-contact-json'
+import { ObjectNoteEditor } from '@/components/ObjectNoteEditor'
 
 export type PeopleContactDetailPanelHandle = {
   /** Speichert offene Bearbeitung am aktuellen Kontakt. `false` bei Fehler — Wechsel dann abbrechen. */
   flushEditBeforeLeave: () => Promise<boolean>
+  /** Bearbeitungsmodus für den aktuell angezeigten Kontakt öffnen. */
+  startEdit: () => void
 }
 
 type PeopleEditForm = {
@@ -183,9 +186,13 @@ export const PeopleContactDetailPanel = forwardRef<PeopleContactDetailPanelHandl
         } finally {
           setSaveBusy(false)
         }
+      },
+      startEdit: (): void => {
+        resetForm()
+        setEditing(true)
       }
     }),
-    [t]
+    [resetForm, t]
   )
 
   const phonesDisplay = useMemo(() => parsePhonesJson(selected.phonesJson), [selected.phonesJson])
@@ -364,7 +371,17 @@ export const PeopleContactDetailPanel = forwardRef<PeopleContactDetailPanelHandl
         />
       ) : null}
 
-      <header className="shrink-0 border-b border-border bg-gradient-to-b from-secondary/25 to-card">
+      <header className="relative shrink-0 border-b border-border bg-gradient-to-b from-secondary/25 to-card">
+        <div className="absolute right-4 top-4 z-10 sm:right-5">
+          <ObjectNoteEditor
+            target={{
+              kind: 'people_contact',
+              contactId: selected.id,
+              title: detailTitle
+            }}
+            anchorAlign="right"
+          />
+        </div>
         <div
           className="flex flex-col gap-4 border-l-[3px] border-solid px-4 py-4 sm:px-5 sm:py-5 md:flex-row md:items-start md:gap-6"
           style={{ borderLeftColor: resolvedAccountColorCss(account?.color) }}
@@ -575,7 +592,7 @@ export const PeopleContactDetailPanel = forwardRef<PeopleContactDetailPanelHandl
                 <div className="min-w-0 sm:col-span-2">
                   <div className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                     <StickyNote className="h-3.5 w-3.5 shrink-0" />
-                    {t('people.shell.notes')}
+                    {t('people.shell.providerNotes')}
                   </div>
                   <p className="whitespace-pre-wrap rounded-md border border-border/60 bg-muted/15 p-3 text-foreground">
                     {selected.notes}

@@ -103,6 +103,7 @@ import {
   type NoteLinksBundle,
   type NoteEntityLinkTarget,
   type NoteLinkTargetCandidate,
+  type PeopleContactLinkedNote,
   type UserNoteLinkAddInput,
   type UserNoteLinkRemoveInput,
   type UserNoteListFilters,
@@ -110,6 +111,7 @@ import {
   type UserNoteListInRangeFilters,
   type UserNoteListItem,
   type UserNoteMailUpsertInput,
+  type UserNotePeopleContactUpsertInput,
   type UserNoteMoveToSectionInput,
   type UserNoteScheduleInput,
   type UserNoteStandaloneCreateInput,
@@ -347,6 +349,10 @@ const api = {
       ipcRenderer.invoke(IPC.notes.getMail, messageId),
     upsertMail: (input: UserNoteMailUpsertInput): Promise<UserNote> =>
       ipcRenderer.invoke(IPC.notes.upsertMail, input),
+    getPeopleContact: (contactId: number): Promise<UserNote | null> =>
+      ipcRenderer.invoke(IPC.notes.getPeopleContact, contactId),
+    upsertPeopleContact: (input: UserNotePeopleContactUpsertInput): Promise<UserNote> =>
+      ipcRenderer.invoke(IPC.notes.upsertPeopleContact, input),
     getCalendar: (key: UserNoteCalendarKey): Promise<UserNote | null> =>
       ipcRenderer.invoke(IPC.notes.getCalendar, key),
     upsertCalendar: (input: UserNoteCalendarUpsertInput): Promise<UserNote> =>
@@ -360,7 +366,8 @@ const api = {
       ipcRenderer.invoke(IPC.notes.list, filters ?? {}),
     search: (filters: UserNoteSearchFilters): Promise<UserNoteListItem[]> =>
       ipcRenderer.invoke(IPC.notes.search, filters),
-    getById: (id: number): Promise<UserNote | null> => ipcRenderer.invoke(IPC.notes.getById, id),
+    getById: (id: number): Promise<UserNoteListItem | null> =>
+      ipcRenderer.invoke(IPC.notes.getById, id),
     patchDisplay: (input: UserNotePatchDisplayInput): Promise<UserNote> =>
       ipcRenderer.invoke(IPC.notes.patchDisplay, input),
     listInRange: (filters: UserNoteListInRangeFilters): Promise<UserNoteListItem[]> =>
@@ -392,7 +399,9 @@ const api = {
         excludeNoteId?: number
         limit?: number
       }): Promise<NoteLinkTargetCandidate[]> =>
-        ipcRenderer.invoke(IPC.notes.linksSearchTargets, args)
+        ipcRenderer.invoke(IPC.notes.linksSearchTargets, args),
+      listForContact: (contactId: number): Promise<PeopleContactLinkedNote[]> =>
+        ipcRenderer.invoke(IPC.notes.listForContact, contactId)
     },
     attachments: {
       list: (noteId: number): Promise<UserNoteAttachment[]> =>

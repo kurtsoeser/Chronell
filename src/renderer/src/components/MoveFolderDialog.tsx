@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { X, Loader2, AlertCircle, Folder as FolderIcon, Home } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { ModalPanel, ModalRoot } from '@/components/motion/Modal'
 import { buildFolderTree, flattenTree } from '@/lib/folder-tree'
 import type { MailFolder } from '@shared/types'
 
@@ -45,7 +46,7 @@ export function MoveFolderDialog({
     return allVisible.filter((n) => !forbidden.has(n.folder.id))
   }, [folder, allFolders])
 
-  if (!open || !folder) return null
+  if (!folder) return null
 
   async function handleMove(): Promise<void> {
     setBusy(true)
@@ -62,14 +63,8 @@ export function MoveFolderDialog({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        className="w-[460px] max-w-[90vw] rounded-xl border border-border bg-card text-foreground shadow-2xl"
-        onClick={(e): void => e.stopPropagation()}
-      >
+    <ModalRoot open={open} zIndex={50} onBackdropClick={onClose}>
+      <ModalPanel className="w-[460px] max-w-[90vw] rounded-xl border border-border bg-card text-foreground shadow-2xl">
         <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
           <h2 className="text-sm font-semibold">
             Ordner verschieben:{' '}
@@ -157,7 +152,7 @@ export function MoveFolderDialog({
             Verschieben
           </button>
         </div>
-      </div>
-    </div>
+      </ModalPanel>
+    </ModalRoot>
   )
 }

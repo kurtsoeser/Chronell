@@ -12,6 +12,7 @@ import {
 import { showAppPrompt } from '@/stores/app-dialog'
 import type { NotionSavedDestination, NotionSearchPageHit } from '@shared/types'
 import { cn } from '@/lib/utils'
+import { ModalPanel, ModalRoot } from '@/components/motion/Modal'
 import { useNotionDestinationPickerStore } from '@/stores/notion-destination-picker'
 
 interface PickerRow {
@@ -246,7 +247,7 @@ export function NotionDestinationPickerDialog(): JSX.Element | null {
     }))
   }, [query, searchHits])
 
-  if (!open || !kind) return null
+  if (!kind) return null
 
   function handlePick(pageId: string): void {
     close({ mode: 'append', pageId })
@@ -308,20 +309,15 @@ export function NotionDestinationPickerDialog(): JSX.Element | null {
     kind === 'mail' ? t('notion.pickerTitleMail') : t('notion.pickerTitleCalendar')
 
   return (
-    <div
-      className="fixed inset-0 z-[300] flex items-start justify-center bg-black/55 pt-[12vh] backdrop-blur-sm"
-      role="presentation"
-      onClick={handleClose}
-      onKeyDown={(e): void => {
-        if (e.key === 'Escape') handleClose()
-      }}
+    <ModalRoot
+      open={open}
+      zIndex={300}
+      centerClassName="items-start justify-center bg-black/55 pt-[12vh]"
+      onBackdropClick={handleClose}
     >
-      <div
-        role="dialog"
-        aria-modal="true"
+      <ModalPanel
         aria-labelledby="notion-picker-title"
         className="flex max-h-[min(480px,72vh)] w-[min(420px,94vw)] flex-col overflow-hidden rounded-xl border border-border bg-card text-foreground shadow-2xl"
-        onClick={(e): void => e.stopPropagation()}
       >
         <div className="border-b border-border/60 px-3 py-2.5">
           <div className="relative">
@@ -416,7 +412,7 @@ export function NotionDestinationPickerDialog(): JSX.Element | null {
           <Star className="h-3 w-3 fill-amber-400 text-amber-400" aria-hidden />
           {t('notion.pickerFavoritesHint')}
         </div>
-      </div>
-    </div>
+      </ModalPanel>
+    </ModalRoot>
   )
 }

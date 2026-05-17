@@ -90,7 +90,7 @@ function AppShellFallback(): JSX.Element {
   return (
     <div className="flex min-h-0 flex-1 items-center justify-center bg-background text-muted-foreground">
       <div className="flex flex-col items-center gap-3">
-        <div className="h-9 w-9 animate-pulse rounded-md bg-muted" />
+        <div className="h-9 w-9 rounded-md bg-muted shell-fade-pulse" />
         <span className="text-sm">{t('app.loadingShell')}</span>
       </div>
     </div>

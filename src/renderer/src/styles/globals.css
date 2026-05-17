@@ -59,6 +59,9 @@
     /* Start-Dashboard: staerkeres Frosting, darunter app-chrome sichtbar */
     --dashboard-glass-blur: 28px;
     --dashboard-glass-tint: 220 20% 98% / 0.44;
+
+    --motion-duration-fast: 120ms;
+    --motion-duration-normal: 200ms;
   }
 
   .dark {
@@ -327,10 +330,62 @@
     animation: glass-pop-in 0.18s ease-out both;
   }
 
+  @keyframes toast-check-pop {
+    0% {
+      transform: scale(1);
+    }
+    45% {
+      transform: scale(1.08);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+
+  .toast-check-pop {
+    animation: toast-check-pop 0.25s ease-out both;
+  }
+
+  @keyframes shell-fade-pulse {
+    0%,
+    100% {
+      opacity: 0.45;
+    }
+    50% {
+      opacity: 0.75;
+    }
+  }
+
+  .shell-fade-pulse {
+    animation: shell-fade-pulse 2.2s ease-in-out infinite;
+  }
+
+  @keyframes list-item-exit {
+    from {
+      opacity: 1;
+      max-height: 120px;
+      transform: translateX(0) scale(1);
+    }
+    to {
+      opacity: 0;
+      max-height: 0;
+      transform: translateX(-12px) scale(0.98);
+    }
+  }
+
+  .list-item-exit-collapse {
+    animation: list-item-exit var(--motion-duration-fast) ease-in forwards;
+    overflow: hidden;
+  }
+
   @media (prefers-reduced-motion: reduce) {
-    .glass-animate-in {
+    .glass-animate-in,
+    .toast-check-pop,
+    .shell-fade-pulse,
+    .list-item-exit-collapse {
       animation: none;
     }
+
     .glass-panel,
     .glass-panel-elevated,
     .glass-sidebar,

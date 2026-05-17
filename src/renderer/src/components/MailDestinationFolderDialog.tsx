@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { X, Loader2, Folder as FolderIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { ModalPanel, ModalRoot } from '@/components/motion/Modal'
 import { buildFolderTree, flattenTree } from '@/lib/folder-tree'
 import { sidebarWellKnownFolderDisplayName } from '@/lib/sidebar-well-known'
 import type { MailFolder } from '@shared/types'
@@ -42,14 +43,8 @@ export function MailDestinationFolderDialog({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-[95] flex items-center justify-center bg-black/60 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        className="w-[440px] max-w-[92vw] rounded-xl border border-border bg-card text-foreground shadow-2xl"
-        onClick={(e): void => e.stopPropagation()}
-      >
+    <ModalRoot open={open} zIndex={95} centerClassName="items-center justify-center" onBackdropClick={onClose}>
+      <ModalPanel className="w-[440px] max-w-[92vw] rounded-xl border border-border bg-card text-foreground shadow-2xl">
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <h2 className="text-sm font-semibold">{t('mail.move.browseTitle')}</h2>
           <button
@@ -106,7 +101,7 @@ export function MailDestinationFolderDialog({
             </div>
           )}
         </div>
-      </div>
-    </div>
+      </ModalPanel>
+    </ModalRoot>
   )
 }

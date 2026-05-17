@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
-import { createPortal } from 'react-dom'
+
+import { ModalPanel, ModalRoot } from '@/components/motion/Modal'
 import { useTranslation } from 'react-i18next'
 import { useAccountsStore } from '@/stores/accounts'
 import { useAppModeStore } from '@/stores/app-mode'
@@ -56,8 +57,15 @@ import type {
 import { formatBytes } from '@/lib/format-bytes'
 import { AccountSetupLocalDataSection } from '@/components/AccountSetupLocalDataSection'
 import {
+  APP_ID,
+  APP_PRODUCT_NAME,
+  APP_VERSION,
+  formatAppReleaseDate
+} from '@shared/app-version'
+import {
   Cloud,
   Contact,
+  Info,
   X,
   Plus,
   Loader2,
@@ -77,14 +85,15 @@ import {
   HardDrive
 } from 'lucide-react'
 
-type SettingsTab = 'general' | 'accounts' | 'mail' | 'calendar' | 'contacts'
+type SettingsTab = 'general' | 'accounts' | 'mail' | 'calendar' | 'contacts' | 'info'
 
 const SETTINGS_SUB_DEFAULT: Record<SettingsTab, string> = {
   general: 'language',
   accounts: 'connected',
   mail: 'sync',
   calendar: 'timezone',
-  contacts: 'workspace'
+  contacts: 'workspace',
+  info: 'about'
 }
 
 type CalSidebarAccountLoad = {
@@ -235,7 +244,8 @@ export function AccountSetupDialog({
         { id: 'accounts' as const, label: t('settings.tabAccounts') },
         { id: 'mail' as const, label: t('settings.tabMail') },
         { id: 'calendar' as const, label: t('settings.tabCalendar') },
-        { id: 'contacts' as const, label: t('settings.tabContacts') }
+        { id: 'contacts' as const, label: t('settings.tabContacts') },
+        { id: 'info' as const, label: t('settings.tabInfo') }
       ] satisfies Array<{ id: SettingsTab; label: string }>,
     [t]
   )
@@ -398,6 +408,8 @@ export function AccountSetupDialog({
           { id: 'microsoft', label: t('settings.contactsMicrosoftHeading') },
           { id: 'accountsLink', label: t('settings.contactsGoAccounts') }
         ]
+      case 'info':
+        return [{ id: 'about', label: t('settings.infoAboutHeading') }]
       default:
         return []
     }
@@ -1154,19 +1166,12 @@ export function AccountSetupDialog({
     }
   }
 
-  return createPortal(
+  return (
     <>
-    <div
-      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm"
-      role="presentation"
-      onClick={onClose}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
+    <ModalRoot open={open} zIndex={200} onBackdropClick={onClose}>
+      <ModalPanel
         aria-labelledby="settings-dialog-title"
         className="flex max-h-[92vh] w-[min(960px,96vw)] max-w-[96vw] flex-col overflow-hidden rounded-xl border border-border bg-card text-foreground shadow-2xl"
-        onClick={(e): void => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
           <h2 id="settings-dialog-title" className="text-sm font-semibold">
@@ -2385,6 +2390,30 @@ export function AccountSetupDialog({
             </div>
           )}
 
+          {activeTab === 'info' && (
+            <div role="tabpanel" aria-label={t('settings.infoPanelAria')} className="space-y-5">
+              {subNavId.info === 'about' && (
+              <section className="space-y-4 rounded-md border border-border/60 bg-muted/20 p-4">
+                <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  <Info className="h-3.5 w-3.5" aria-hidden />
+                  {t('settings.infoAboutHeading')}
+                </h3>
+                <p className="text-sm font-semibold text-foreground">{APP_PRODUCT_NAME}</p>
+                <p className="text-xs leading-relaxed text-muted-foreground">{t('settings.infoProductLine')}</p>
+                <dl className="grid gap-3 text-xs sm:grid-cols-[minmax(7rem,auto)_1fr]">
+                  <dt className="font-medium text-muted-foreground">{t('settings.infoVersionLabel')}</dt>
+                  <dd className="tabular-nums text-foreground">{APP_VERSION}</dd>
+                  <dt className="font-medium text-muted-foreground">{t('settings.infoReleaseDateLabel')}</dt>
+                  <dd className="text-foreground">{formatAppReleaseDate(locale)}</dd>
+                </dl>
+                <p className="text-[10px] leading-relaxed text-muted-foreground">
+                  {t('settings.infoBuildNote', { appId: APP_ID })}
+                </p>
+              </section>
+              )}
+            </div>
+          )}
+
           {activeTab === 'contacts' && (
             <div role="tabpanel" aria-label={t('settings.contactsPanelAria')} className="space-y-5">
               {subNavId.contacts === 'workspace' && (
@@ -2451,10 +2480,9 @@ export function AccountSetupDialog({
             </div>
           )}
         </div>
-      </div>
-    </div>
+      </ModalPanel>
+    </ModalRoot>
     <BulkUnflagServerDialog open={bulkUnflagOpen} onClose={(): void => setBulkUnflagOpen(false)} />
-    </>,
-    document.body
+    </>
   )
 }

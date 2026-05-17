@@ -4,7 +4,7 @@
 
 **Schlanker, lokaler Mail- und Arbeitsplatz-Client für Windows 11** — gebaut für Menschen, die mit **mehreren Konten** (Microsoft 365 und Gmail) arbeiten und E-Mail nicht nur lesen, sondern in **klare nächste Schritte** verwandeln wollen: ToDos, Snooze, Wiedervorlage, QuickSteps, Workflow-Board und Regeln — alles mit **lokaler SQLite-Datenhaltung** und **Volltextsuche** auf deinem Rechner.
 
-> **Status:** Funktionsfähige Desktop-App (Electron). Multi-Account-Synchronisation über **Microsoft Graph** und **Google (Gmail / Kalender / Kontakte / Tasks)**. Siehe auch Abschnitt [Status & Roadmap](#status--roadmap).
+> **Status:** Funktionsfähige Desktop-App (Electron), **Version 0.9.7** (Stand 17. Mai 2026). Multi-Account-Synchronisation über **Microsoft Graph** und **Google (Gmail / Kalender / Kontakte / Tasks)**. Ausführliches Funktionsprotokoll: [`docs/FUNKTIONSPROTOKOLL.md`](docs/FUNKTIONSPROTOKOLL.md). Siehe auch Abschnitt [Status & Roadmap](#status--roadmap).
 
 ---
 

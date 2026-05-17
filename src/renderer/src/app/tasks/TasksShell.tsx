@@ -19,6 +19,7 @@ import { useAccountsStore } from '@/stores/accounts'
 import { useUndoStore } from '@/stores/undo'
 import { buildAccountColorAndNewContextItems } from '@/lib/account-sidebar-context-menu'
 import { cn } from '@/lib/utils'
+import { useExitingIds } from '@/lib/use-exiting-ids'
 import { useResizableWidth, VerticalSplitter } from '@/components/ResizableSplitter'
 import {
   moduleColumnHeaderDockBarRowClass,
@@ -111,6 +112,7 @@ export function TasksShell(): JSX.Element {
     () => taskAccounts.filter((a) => a.provider === 'microsoft'),
     [taskAccounts]
   )
+  const { isExiting, markExiting } = useExitingIds<string>()
 
   const [sidebarWidth, setSidebarWidth] = useResizableWidth({
     storageKey: 'mailclient.tasksSidebarWidth',
@@ -477,14 +479,12 @@ export function TasksShell(): JSX.Element {
     (task: TaskItemWithContext, event: MouseEvent): void => {
       const key = taskItemKey(task)
       const mod = event.ctrlKey || event.metaKey
-      if (event.shiftKey && selectionAnchorRef.current) {
-        const range = rangeSelectTaskKeys(
-          visibleOrderedKeys,
-          selectionAnchorRef.current,
-          key
-        )
+      const anchor = selectionAnchorRef.current ?? selectedKey
+      if (event.shiftKey && anchor) {
+        const range = rangeSelectTaskKeys(visibleOrderedKeys, anchor, key)
         setCheckedKeys(new Set(range))
         setSelected(task)
+        selectionAnchorRef.current = anchor
       } else if (mod) {
         setCheckedKeys((prev) => toggleKeyInSet(prev, key))
         setSelected(task)
@@ -495,16 +495,8 @@ export function TasksShell(): JSX.Element {
         selectionAnchorRef.current = key
       }
     },
-    [visibleOrderedKeys]
+    [visibleOrderedKeys, selectedKey]
   )
-
-  const handleToggleCheck = useCallback((task: TaskItemWithContext, event: MouseEvent): void => {
-    event.stopPropagation()
-    const key = taskItemKey(task)
-    setCheckedKeys((prev) => toggleKeyInSet(prev, key))
-    selectionAnchorRef.current = key
-    setSelected((s) => s ?? task)
-  }, [])
 
   const selectAllVisible = useCallback((): void => {
     setCheckedKeys(new Set(visibleOrderedKeys))
@@ -629,33 +621,38 @@ export function TasksShell(): JSX.Element {
     if (!opts?.skipConfirm) {
       if (!(await confirmDeleteCloudTasks(t, items.length))) return
     }
-    setSaving(true)
-    try {
-      const deletedKeys = new Set<string>()
-      for (const item of items) {
-        await window.mailClient.tasks.deleteTask({
-          accountId: item.accountId,
-          listId: item.listId,
-          taskId: item.id
-        })
-        deletedKeys.add(taskItemKey(item))
-      }
-      setCheckedKeys((prev) => {
-        const next = new Set(prev)
-        for (const k of deletedKeys) next.delete(k)
-        return next
-      })
-      setSelected((s) => (s && deletedKeys.has(taskItemKey(s)) ? null : s))
-      if (isUnified) {
-        setUnifiedTasks((prev) => prev.filter((x) => !deletedKeys.has(taskItemKey(x))))
-      } else {
-        await loadListTasks()
-      }
-    } catch (e) {
-      setTasksError(e instanceof Error ? e.message : String(e))
-    } finally {
-      setSaving(false)
-    }
+    const keys = items.map((item) => taskItemKey(item))
+    markExiting(keys, () => {
+      void (async (): Promise<void> => {
+        setSaving(true)
+        try {
+          const deletedKeys = new Set<string>()
+          for (const item of items) {
+            await window.mailClient.tasks.deleteTask({
+              accountId: item.accountId,
+              listId: item.listId,
+              taskId: item.id
+            })
+            deletedKeys.add(taskItemKey(item))
+          }
+          setCheckedKeys((prev) => {
+            const next = new Set(prev)
+            for (const k of deletedKeys) next.delete(k)
+            return next
+          })
+          setSelected((s) => (s && deletedKeys.has(taskItemKey(s)) ? null : s))
+          if (isUnified) {
+            setUnifiedTasks((prev) => prev.filter((x) => !deletedKeys.has(taskItemKey(x))))
+          } else {
+            await loadListTasks()
+          }
+        } catch (e) {
+          setTasksError(e instanceof Error ? e.message : String(e))
+        } finally {
+          setSaving(false)
+        }
+      })()
+    })
   }
 
   async function deleteSelectedCloudTask(): Promise<void> {
@@ -860,6 +857,15 @@ export function TasksShell(): JSX.Element {
       handleTasksMutated()
     },
     [closeCreateTaskDialog, handleTasksMutated]
+  )
+
+  const handleInlineTaskCreated = useCallback(
+    (task: TaskItemWithContext): void => {
+      setSelected(task)
+      selectionAnchorRef.current = taskItemKey(task)
+      handleTasksMutated()
+    },
+    [handleTasksMutated]
   )
 
   useEffect(() => {
@@ -1150,8 +1156,6 @@ export function TasksShell(): JSX.Element {
                       <Loader2 className="h-4 w-4 animate-spin" />
                       {t('common.loading')}
                     </div>
-                  ) : displayItems.length === 0 ? (
-                    <p className="p-4 text-xs text-muted-foreground">{t('tasks.shell.emptyTasks')}</p>
                   ) : (
                     <TasksGroupedList
                       items={displayItems}
@@ -1164,9 +1168,16 @@ export function TasksShell(): JSX.Element {
                       checkedKeys={checkedKeys}
                       onSelect={setSelected}
                       onTaskClick={handleTaskClick}
-                      onToggleCheck={handleToggleCheck}
                       onToggleCompleted={(item): void => void toggleCompleted(item)}
                       enableDrag
+                      isItemExiting={isExiting}
+                      inlineCreate={{
+                        selection,
+                        taskAccounts,
+                        loadListsForAccount,
+                        onCreated: handleInlineTaskCreated,
+                        showAccountPicker: isUnified
+                      }}
                     />
                   )}
                 </div>

@@ -169,7 +169,7 @@ export function SnoozePicker({
     <div
       ref={ref}
       style={style}
-      className="w-72 overflow-hidden rounded-lg border border-border bg-popover shadow-xl"
+      className="glass-animate-in w-72 overflow-hidden rounded-lg border border-border bg-popover shadow-xl"
     >
       <div className="border-b border-border bg-secondary/40 px-3 py-2 text-[11px] font-medium text-muted-foreground">
         {currentLabel ? (

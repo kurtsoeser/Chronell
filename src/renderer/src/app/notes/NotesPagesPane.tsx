@@ -28,6 +28,7 @@ export function NotesPagesPane({
   onRenameNoteTitle,
   onPatchNoteDisplay,
   onDeleteNote,
+  isNoteExiting,
   onCopyNote,
   onMoveNote,
   onCreateNote,
@@ -48,6 +49,7 @@ export function NotesPagesPane({
     patch: { iconId?: string | null; iconColor?: string | null }
   ) => void | Promise<void>
   onDeleteNote: (note: UserNoteListItem) => void | Promise<void>
+  isNoteExiting: (noteId: number) => boolean
   onCopyNote: (note: UserNoteListItem) => void | Promise<void>
   onMoveNote: (note: UserNoteListItem, sectionId: number | null) => void | Promise<void>
   onCreateNote: () => void
@@ -143,6 +145,7 @@ export function NotesPagesPane({
                 onRenameTitle={onRenameNoteTitle}
                 onPatchDisplay={onPatchNoteDisplay}
                 onContextMenu={openContextMenu}
+                isExiting={isNoteExiting(note.id)}
                 sectionLabel={
                   showSectionLabels ? sectionLabelForNote(note, sections, t) : undefined
                 }

@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { X, Loader2, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { ModalPanel, ModalRoot } from '@/components/motion/Modal'
 import type { MetaFolderExcRowState, MetaFolderUiPreset } from '@/components/meta-folder-ui-types'
 import { buildMetaFolderRuleSummaryDe, MetaFolderRuleFlow } from '@/components/MetaFolderRuleVisual'
 import type {
@@ -427,14 +428,8 @@ export function MetaFolderDialog({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        className="flex max-h-[90vh] w-[min(520px,94vw)] flex-col overflow-hidden rounded-xl border border-border bg-card text-foreground shadow-2xl"
-        onClick={(e): void => e.stopPropagation()}
-      >
+    <ModalRoot open={open} zIndex={50} onBackdropClick={onClose}>
+      <ModalPanel className="flex max-h-[90vh] w-[min(520px,94vw)] flex-col overflow-hidden rounded-xl border border-border bg-card text-foreground shadow-2xl">
         <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-3.5">
           <div>
             <h2 className="text-sm font-semibold">{isEdit ? 'Meta-Ordner bearbeiten' : 'Neuer Meta-Ordner'}</h2>
@@ -637,7 +632,7 @@ export function MetaFolderDialog({
             {isEdit ? 'Speichern' : 'Anlegen'}
           </button>
         </div>
-      </div>
-    </div>
+      </ModalPanel>
+    </ModalRoot>
   )
 }

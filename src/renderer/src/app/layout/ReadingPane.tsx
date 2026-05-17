@@ -46,6 +46,8 @@ import {
 import { isMailClientRuntimeComplete } from '@/lib/mail-client-runtime'
 import { useSanitizedHtmlShadowRoot } from '@/lib/use-sanitized-html-shadow-root'
 import { cn } from '@/lib/utils'
+import { ContentCrossfade } from '@/components/motion/ContentCrossfade'
+import { LoadingIndicator } from '@/components/motion/LoadingIndicator'
 import { Avatar } from '@/components/Avatar'
 import { profilePhotoSrcForEmail } from '@/lib/contact-avatar'
 import { InlineReplyBar } from '@/components/InlineReplyBar'
@@ -571,16 +573,17 @@ export function ReadingPane({
           }
         />
       ) : messageLoading && !selectedMessage ? (
-        <div className="flex flex-1 items-center justify-center text-xs text-muted-foreground">
-          {t('mail.readingPane.loadingMail')}
-        </div>
+        <LoadingIndicator className="flex-1" label={t('mail.readingPane.loadingMail')} />
       ) : !selectedMessage ? (
         <EmptyState
           title={t('mail.readingPane.notFoundTitle')}
           body={t('mail.readingPane.notFoundBody')}
         />
       ) : (
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <ContentCrossfade
+          contentKey={selectedMessageId}
+          className="flex min-h-0 flex-1 flex-col overflow-hidden"
+        >
           {conversationThreadStrip}
           <MailReader
             message={selectedMessage}
@@ -592,7 +595,7 @@ export function ReadingPane({
             onReply={(): void => openReply('reply', selectedMessage)}
             onForward={(): void => openForward(selectedMessage)}
           />
-        </div>
+        </ContentCrossfade>
       )}
     </section>
   )

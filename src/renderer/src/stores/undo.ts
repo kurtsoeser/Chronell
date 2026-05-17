@@ -30,9 +30,6 @@ export const useUndoStore = create<UndoState>((set, get) => ({
     const id = toastIdCounter++
     const durationMs = entry.durationMs ?? 6000
     set((s) => ({ toasts: [...s.toasts, { ...entry, id, durationMs }] }))
-    if (durationMs > 0) {
-      window.setTimeout(() => get().dismissToast(id), durationMs)
-    }
     return id
   },
 

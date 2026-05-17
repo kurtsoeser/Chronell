@@ -1,7 +1,7 @@
 import type { CalendarEventView, ConnectedAccount } from '@shared/types'
 import type { WorkItem } from '@shared/work-item'
 import { buildCalendarIncludeCalendars } from '@/lib/build-calendar-include-calendars'
-import { loadMasterWorkItems } from '@/app/work-items/load-master-work-items'
+import { loadMasterWorkItemsForMegaRange } from '@/app/work-items/load-master-work-items-for-range'
 import { calendarEventToWorkItem } from '@/app/work-items/work-item-mapper'
 import { filterWorkItemsInRange } from '@/app/work-items/work-item-range'
 
@@ -15,6 +15,8 @@ export interface MegaWorkItemsLoadOptions {
   rangeStart: Date
   rangeEnd: Date
   includeCompletedMail?: boolean
+  /** Cloud-Tasks nur aus lokalem SQLite-Cache (schneller erster Abruf). */
+  cacheOnlyTasks?: boolean
 }
 
 export async function loadMegaWorkItems(
@@ -27,7 +29,10 @@ export async function loadMegaWorkItems(
   const endIso = rangeEnd.toISOString()
 
   const [master, graphEvents] = await Promise.all([
-    loadMasterWorkItems(taskAccounts, { includeCompletedMail: opts.includeCompletedMail ?? true }),
+    loadMasterWorkItemsForMegaRange(taskAccounts, rangeStart, rangeEnd, {
+      includeCompletedMail: opts.includeCompletedMail ?? true,
+      cacheOnlyTasks: opts.cacheOnlyTasks
+    }),
     loadCalendarEventsInRange(calendarAccounts, startIso, endIso)
   ])
 

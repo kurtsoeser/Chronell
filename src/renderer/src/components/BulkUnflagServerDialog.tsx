@@ -6,6 +6,7 @@ import { useAccountsStore } from '@/stores/accounts'
 import { useConnectivityStore } from '@/stores/connectivity'
 import { showAppConfirm } from '@/stores/app-dialog'
 import { cn } from '@/lib/utils'
+import { ModalPanel, ModalRoot } from '@/components/motion/Modal'
 
 export function BulkUnflagServerDialog({
   open,
@@ -126,13 +127,11 @@ export function BulkUnflagServerDialog({
   if (!open) return null
 
   return (
-    <div
-      className="fixed inset-0 z-[210] flex items-center justify-center bg-black/50 p-4"
-      role="dialog"
-      aria-modal
-      aria-labelledby="bulk-unflag-title"
-    >
-      <div className="relative flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-border bg-background shadow-xl">
+    <ModalRoot open={open} zIndex={210} overlayClassName="p-4" onBackdropClick={(): void => { if (!runBusy) onClose() }}>
+      <ModalPanel
+        aria-labelledby="bulk-unflag-title"
+        className="relative flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-border bg-background shadow-xl"
+      >
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <h2 id="bulk-unflag-title" className="text-sm font-semibold text-foreground">
             {t('settings.bulkUnflagTitle')}
@@ -266,7 +265,7 @@ export function BulkUnflagServerDialog({
             </>
           )}
         </div>
-      </div>
-    </div>
+      </ModalPanel>
+    </ModalRoot>
   )
 }

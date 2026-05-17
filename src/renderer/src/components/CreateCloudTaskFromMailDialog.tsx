@@ -5,6 +5,7 @@ import type { MailListItem, TaskListRow } from '@shared/types'
 import { useAccountsStore } from '@/stores/accounts'
 import { accountSupportsCloudTasks, cloudTaskAccountOptionLabel } from '@/lib/cloud-task-accounts'
 import { cn } from '@/lib/utils'
+import { ModalPanel, ModalRoot } from '@/components/motion/Modal'
 
 function dueDateInputValue(dueIso: string | null | undefined): string {
   if (!dueIso) return ''
@@ -136,16 +137,8 @@ export function CreateCloudTaskFromMailDialog({
     messageAccount != null && !accountSupportsCloudTasks(messageAccount) && taskAccounts.length > 0
 
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        className="w-[480px] max-w-[92vw] rounded-xl border border-border bg-card text-foreground shadow-2xl"
-        onClick={(e): void => e.stopPropagation()}
-      >
+    <ModalRoot open={open} zIndex={100} centerClassName="items-center justify-center" onBackdropClick={onClose}>
+      <ModalPanel className="w-[480px] max-w-[92vw] rounded-xl border border-border bg-card text-foreground shadow-2xl">
         <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
           <h2 className="text-sm font-semibold">{t('mail.createCloudTask.title')}</h2>
           <button
@@ -259,7 +252,7 @@ export function CreateCloudTaskFromMailDialog({
             {t('mail.createCloudTask.submit')}
           </button>
         </div>
-      </div>
-    </div>
+      </ModalPanel>
+    </ModalRoot>
   )
 }

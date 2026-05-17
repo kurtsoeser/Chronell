@@ -99,11 +99,17 @@ export default {
           '0%': { transform: 'scale(1)' },
           '50%': { transform: 'scale(1.25)' },
           '100%': { transform: 'scale(1)' }
+        },
+        'toast-check-pop': {
+          '0%': { transform: 'scale(1)' },
+          '45%': { transform: 'scale(1.08)' },
+          '100%': { transform: 'scale(1)' }
         }
       },
       animation: {
         'pulse-soft': 'pulse-soft 1.8s ease-in-out infinite',
-        'star-pop': 'star-pop 220ms ease-out'
+        'star-pop': 'star-pop 220ms ease-out',
+        'toast-check-pop': 'toast-check-pop 250ms ease-out both'
       },
       fontFamily: {
         sans: [

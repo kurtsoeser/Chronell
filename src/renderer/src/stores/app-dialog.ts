@@ -27,6 +27,12 @@ export interface AppDialogOpenState {
   choiceActions: AppDialogChoiceAction[]
 }
 
+type PendingResolve =
+  | { kind: 'alert'; fn: () => void }
+  | { kind: 'confirm'; fn: (ok: boolean) => void; ok: boolean }
+  | { kind: 'choice'; fn: (id: string | null) => void; id: string | null }
+  | { kind: 'prompt'; fn: (r: string | null) => void; result: string | null }
+
 interface AppDialogStore extends AppDialogOpenState {
   _finish:
     | (() => void)
@@ -34,8 +40,10 @@ interface AppDialogStore extends AppDialogOpenState {
     | ((s: string | null) => void)
     | ((id: string | null) => void)
     | null
+  _pendingResolve: PendingResolve | null
   setInputValue: (v: string) => void
   _resolveAndClose: (value?: boolean | string | null | void) => void
+  purgeAfterExit: () => void
 }
 
 const initial: AppDialogOpenState & {
@@ -45,6 +53,7 @@ const initial: AppDialogOpenState & {
     | ((s: string | null) => void)
     | ((id: string | null) => void)
     | null
+  _pendingResolve: PendingResolve | null
   choiceActions: AppDialogChoiceAction[]
 } = {
   open: false,
@@ -59,7 +68,8 @@ const initial: AppDialogOpenState & {
   placeholder: '',
   inputValue: '',
   choiceActions: [],
-  _finish: null
+  _finish: null,
+  _pendingResolve: null
 }
 
 export const useAppDialogStore = create<AppDialogStore>((set, get) => ({
@@ -74,29 +84,44 @@ export const useAppDialogStore = create<AppDialogStore>((set, get) => ({
     const fn = s._finish
     const k = s.kind
     const iv = s.inputValue
-    set({ ...initial })
-    if (!fn || !k) return
+    if (!fn || !k || !s.open) return
+
+    let pending: PendingResolve
     if (k === 'alert') {
-      ;(fn as () => void)()
-      return
+      pending = { kind: 'alert', fn: fn as () => void }
+    } else if (k === 'confirm') {
+      pending = { kind: 'confirm', fn: fn as (ok: boolean) => void, ok: value === true }
+    } else if (k === 'choice') {
+      pending = {
+        kind: 'choice',
+        fn: fn as (id: string | null) => void,
+        id: typeof value === 'string' && value.length > 0 ? value : null
+      }
+    } else {
+      const out =
+        value === null || value === false
+          ? null
+          : typeof value === 'string'
+            ? value
+            : iv
+      pending = { kind: 'prompt', fn: fn as (r: string | null) => void, result: out }
     }
-    if (k === 'confirm') {
-      ;(fn as (ok: boolean) => void)(value === true)
-      return
+    set({ open: false, _pendingResolve: pending })
+  },
+
+  purgeAfterExit(): void {
+    const pending = get()._pendingResolve
+    set({ ...initial, _pendingResolve: null })
+    if (!pending) return
+    if (pending.kind === 'alert') {
+      pending.fn()
+    } else if (pending.kind === 'confirm') {
+      pending.fn(pending.ok)
+    } else if (pending.kind === 'choice') {
+      pending.fn(pending.id)
+    } else {
+      pending.fn(pending.result)
     }
-    if (k === 'choice') {
-      ;(fn as (id: string | null) => void)(
-        typeof value === 'string' && value.length > 0 ? value : null
-      )
-      return
-    }
-    const out =
-      value === null || value === false
-        ? null
-        : typeof value === 'string'
-          ? value
-          : iv
-    ;(fn as (r: string | null) => void)(out)
   }
 }))
 

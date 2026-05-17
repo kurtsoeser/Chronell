@@ -42,6 +42,10 @@ export type DashboardTileId =
   | 'world_clock'
   | 'next_online_meeting'
   | 'desk_note'
+  | 'work_all'
+  | 'notes_new'
+  | 'notes_overview'
+  | 'notes_last'
 
 export const DASHBOARD_TILE_IDS: DashboardTileId[] = [
   'todo_all',
@@ -65,6 +69,10 @@ export const DASHBOARD_TILE_IDS: DashboardTileId[] = [
   'world_clock',
   'next_online_meeting',
   'desk_note',
+  'work_all',
+  'notes_new',
+  'notes_overview',
+  'notes_last',
   'composer'
 ]
 
@@ -122,7 +130,12 @@ const LEGACY_GRID_LAYOUT: Record<DashboardTileId, LegacyGridCell> = {
   /** Neue Zusatzkacheln unterhalb der Standardansicht, ohne bestehende Kacheln zu verschieben. */
   next_online_meeting: { x: 0, y: 31, w: 4, h: 5 },
   world_clock: { x: 4, y: 31, w: 2, h: 6 },
-  desk_note: { x: 6, y: 31, w: 4, h: 5 }
+  desk_note: { x: 6, y: 31, w: 4, h: 5 },
+  /** Alle Aufgaben (Mail + Cloud + Termine) — ergänzt unterhalb der Standardkacheln. */
+  work_all: { x: 0, y: 36, w: 4, h: 10 },
+  notes_new: { x: 4, y: 36, w: 2, h: 5 },
+  notes_overview: { x: 6, y: 36, w: 3, h: 10 },
+  notes_last: { x: 9, y: 36, w: 3, h: 10 }
 }
 
 /** Referenzbreite fuer Raster→Pixel (Defaults + Migration). */

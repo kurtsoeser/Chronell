@@ -19,6 +19,7 @@ interface EntityLinkRow {
   task_account_id: string | null
   task_list_id: string | null
   task_id: string | null
+  people_contact_id: number | null
   created_at: string
 }
 
@@ -45,6 +46,8 @@ function rowToTarget(row: EntityLinkRow): NoteEntityLinkTarget {
         listId: row.task_list_id!,
         taskId: row.task_id!
       }
+    case 'people_contact':
+      return { kind: 'people_contact', contactId: row.people_contact_id! }
     default:
       throw new Error(`Unbekannter Verknuepfungstyp: ${row.target_kind}`)
   }
@@ -103,6 +106,31 @@ function resolveTitleSubtitle(
         subtitle: t?.due_iso?.slice(0, 10) ?? null
       }
     }
+    case 'people_contact': {
+      const c = db
+        .prepare(
+          `SELECT display_name, given_name, surname, primary_email, company
+           FROM people_contacts WHERE id = ?`
+        )
+        .get(row.people_contact_id!) as
+        | {
+            display_name: string | null
+            given_name: string | null
+            surname: string | null
+            primary_email: string | null
+            company: string | null
+          }
+        | undefined
+      const name =
+        c?.display_name?.trim() ||
+        [c?.given_name, c?.surname].filter(Boolean).join(' ').trim() ||
+        c?.primary_email?.trim() ||
+        'Kontakt'
+      return {
+        title: name,
+        subtitle: c?.company?.trim() || c?.primary_email?.trim() || null
+      }
+    }
     default:
       return { title: '—', subtitle: null }
   }
@@ -140,7 +168,7 @@ export function listNoteLinksBundle(fromNoteId: number): NoteLinksBundle {
     .prepare(
       `SELECT id, from_note_id, target_kind, to_note_id, mail_message_id,
               calendar_account_id, calendar_graph_event_id,
-              task_account_id, task_list_id, task_id, created_at
+              task_account_id, task_list_id, task_id, people_contact_id, created_at
        FROM user_note_entity_links
        WHERE from_note_id = ?
        ORDER BY created_at ASC, id ASC`
@@ -151,7 +179,7 @@ export function listNoteLinksBundle(fromNoteId: number): NoteLinksBundle {
     .prepare(
       `SELECT id, from_note_id, target_kind, to_note_id, mail_message_id,
               calendar_account_id, calendar_graph_event_id,
-              task_account_id, task_list_id, task_id, created_at
+              task_account_id, task_list_id, task_id, people_contact_id, created_at
        FROM user_note_entity_links
        WHERE target_kind = 'note' AND to_note_id = ?
        ORDER BY created_at ASC, id ASC`
@@ -202,6 +230,12 @@ function assertTargetExists(target: NoteEntityLinkTarget): void {
         )
         .get(accountId, listId, taskId)
       if (!row) throw new Error('Aufgabe nicht im Cache.')
+      break
+    }
+    case 'people_contact': {
+      assertPositiveId(target.contactId, 'Kontakt-ID')
+      const row = db.prepare('SELECT 1 FROM people_contacts WHERE id = ?').get(target.contactId)
+      if (!row) throw new Error('Kontakt nicht gefunden.')
       break
     }
     default:
@@ -263,6 +297,15 @@ export function addNoteEntityLink(fromNoteId: number, target: NoteEntityLinkTarg
         )
         .run(fromNoteId, target.accountId.trim(), target.listId.trim(), target.taskId.trim())
       break
+    case 'people_contact':
+      result = db
+        .prepare(
+          `INSERT INTO user_note_entity_links
+           (from_note_id, target_kind, people_contact_id, created_at)
+           VALUES (?, 'people_contact', ?, datetime('now'))`
+        )
+        .run(fromNoteId, target.contactId)
+      break
     default:
       throw new Error('Unbekannter Verknuepfungstyp.')
   }
@@ -309,7 +352,7 @@ export function listEntityLinksForSettingsBackup(
     .prepare(
       `SELECT from_note_id, target_kind, to_note_id, mail_message_id,
               calendar_account_id, calendar_graph_event_id,
-              task_account_id, task_list_id, task_id, created_at
+              task_account_id, task_list_id, task_id, people_contact_id, created_at
        FROM user_note_entity_links ORDER BY id`
     )
     .all() as EntityLinkRow[]
@@ -346,6 +389,10 @@ export function listEntityLinksForSettingsBackup(
           taskListId: row.task_list_id,
           taskId: row.task_id
         })
+        break
+      case 'people_contact':
+        if (row.people_contact_id == null) continue
+        out.push({ ...base, peopleContactId: row.people_contact_id })
         break
       default:
         break
@@ -393,6 +440,13 @@ export function replaceAllEntityLinksFromBackup(
               accountId: link.taskAccountId,
               listId: link.taskListId,
               taskId: link.taskId
+            })
+            break
+          case 'people_contact':
+            if (link.peopleContactId == null) continue
+            addNoteEntityLink(fromNoteId, {
+              kind: 'people_contact',
+              contactId: link.peopleContactId
             })
             break
           default:
@@ -492,4 +546,38 @@ export function replaceAllNoteLinksFromBackup(
 
 export function deleteAllLinksForNote(noteId: number): void {
   deleteAllEntityLinksForNote(noteId)
+}
+
+export interface PeopleContactLinkedNoteRow {
+  noteId: number
+  linkId: number
+  title: string | null
+  body: string
+  updatedAt: string
+}
+
+export function listNotesLinkedToPeopleContact(contactId: number): PeopleContactLinkedNoteRow[] {
+  assertPositiveId(contactId, 'Kontakt-ID')
+  const rows = getDb()
+    .prepare(
+      `SELECT n.id AS note_id, l.id AS link_id, n.title, n.body, n.updated_at
+       FROM user_note_entity_links l
+       JOIN user_notes n ON n.id = l.from_note_id
+       WHERE l.target_kind = 'people_contact' AND l.people_contact_id = ?
+       ORDER BY n.updated_at DESC, n.id DESC`
+    )
+    .all(contactId) as Array<{
+    note_id: number
+    link_id: number
+    title: string | null
+    body: string
+    updated_at: string
+  }>
+  return rows.map((r) => ({
+    noteId: r.note_id,
+    linkId: r.link_id,
+    title: r.title,
+    body: r.body,
+    updatedAt: r.updated_at
+  }))
 }

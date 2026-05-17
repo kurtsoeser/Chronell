@@ -21,5 +21,6 @@ describe('noteEntityLinkTargetsEqual', () => {
         taskId: 't'
       })
     ).toBe('task:a:l:t')
+    expect(noteEntityLinkTargetKey({ kind: 'people_contact', contactId: 7 })).toBe('contact:7')
   })
 })

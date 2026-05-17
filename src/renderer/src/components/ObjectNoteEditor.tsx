@@ -1,7 +1,22 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown, ChevronRight, Loader2, Save, StickyNote, X } from 'lucide-react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent
+} from 'react'
+import { createPortal } from 'react-dom'
+import { ChevronDown, ChevronRight, GripHorizontal, Loader2, Save, StickyNote, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import type { UserNote, UserNoteCalendarSource } from '@shared/types'
+import {
+  IPC,
+  type UserNote,
+  type UserNoteCalendarSource,
+  type UserNotePeopleContactUpsertInput
+} from '@shared/types'
 import { cn } from '@/lib/utils'
 import { useUndoStore } from '@/stores/undo'
 import { MarkdownNoteEditorLazy } from './MarkdownNoteEditorLazy'
@@ -24,14 +39,66 @@ export type ObjectNoteTarget =
       eventStartIsoSnapshot?: string | null
       title?: string | null
     }
+  | {
+      kind: 'people_contact'
+      contactId: number
+      title?: string | null
+    }
+
+const POPUP_EDITOR_MIN_H = 120
+const POPUP_MIN_W = 320
+const POPUP_MAX_W = 800
+const POPUP_MIN_H = 260
+const POPUP_MAX_H = 720
+/** ~1,6× frühere 360px – Toolbar in einer Zeile. */
+const POPUP_DEFAULT_W = 576
+const POPUP_DEFAULT_H = 380
+/** Header, Anhänge-Zeile, Hinweis, Fußzeile, Padding, Griff. */
+const POPUP_CHROME_H = 152
+
+/** Über Modul-Spalten, Glass-Panels und Kontextmenüs; unter App-Modals (z-[300]). */
+const NOTE_POPUP_Z = 400
+
+type PopupFrame = { x: number; y: number; w: number; h: number }
+
+function clamp(n: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, n))
+}
+
+function frameFromAnchor(anchor: HTMLElement, align: 'left' | 'right' = 'left'): PopupFrame {
+  const r = anchor.getBoundingClientRect()
+  const vw = window.innerWidth
+  const vh = window.innerHeight
+  const w = clamp(POPUP_DEFAULT_W, POPUP_MIN_W, Math.min(POPUP_MAX_W, vw - 32))
+  const h = clamp(POPUP_DEFAULT_H, POPUP_MIN_H, Math.min(POPUP_MAX_H, vh - 32))
+  let x = align === 'right' ? r.right - w : r.left
+  let y = r.bottom + 8
+  if (x + w > vw - 16) x = vw - 16 - w
+  if (x < 16) x = 16
+  if (y + h > vh - 16) y = Math.max(16, vh - 16 - h)
+  if (y < 16) y = 16
+  return { x, y, w, h }
+}
+
+function clampFrame(frame: PopupFrame): PopupFrame {
+  const vw = window.innerWidth
+  const vh = window.innerHeight
+  const w = clamp(frame.w, POPUP_MIN_W, Math.min(POPUP_MAX_W, vw - 32))
+  const h = clamp(frame.h, POPUP_MIN_H, Math.min(POPUP_MAX_H, vh - 32))
+  const x = clamp(frame.x, 8, Math.max(8, vw - w - 8))
+  const y = clamp(frame.y, 8, Math.max(8, vh - h - 8))
+  return { x, y, w, h }
+}
 
 interface Props {
   target: ObjectNoteTarget
-  variant?: 'button' | 'section'
+  variant?: 'button' | 'section' | 'panel'
   /** Nur bei `variant="section"`: Bereich zunächst eingeklappt; Chevron zum Aufklappen. */
   sectionCollapsedDefault?: boolean
   layout?: MarkdownNoteEditorLayout
   className?: string
+  /** Ausrichtung des Pop-ups relativ zum Button (nur `variant="button"`). */
+  anchorAlign?: 'left' | 'right'
 }
 
 interface DialogProps {
@@ -41,6 +108,7 @@ interface DialogProps {
 
 function targetKey(target: ObjectNoteTarget): string {
   if (target.kind === 'mail') return `mail:${target.messageId}`
+  if (target.kind === 'people_contact') return `contact:${target.contactId}`
   return [
     'calendar',
     target.accountId,
@@ -48,6 +116,86 @@ function targetKey(target: ObjectNoteTarget): string {
     target.calendarRemoteId,
     target.eventRemoteId
   ].join(':')
+}
+
+type NotesPeopleContactApi = {
+  getPeopleContact?: (contactId: number) => Promise<UserNote | null>
+  upsertPeopleContact?: (input: UserNotePeopleContactUpsertInput) => Promise<UserNote>
+}
+
+type MailClientWithInvoke = typeof window.mailClient & {
+  invoke?: (channel: string, payload?: unknown) => Promise<unknown>
+}
+
+async function getPeopleContactNote(contactId: number): Promise<UserNote | null> {
+  const notes = window.mailClient.notes as typeof window.mailClient.notes & NotesPeopleContactApi
+  if (typeof notes.getPeopleContact === 'function') {
+    return notes.getPeopleContact(contactId)
+  }
+  const root = window.mailClient as MailClientWithInvoke
+  if (typeof root.invoke === 'function') {
+    return (await root.invoke(IPC.notes.getPeopleContact, contactId)) as UserNote | null
+  }
+  throw new Error(
+    'Kontakt-Notizen sind nicht verfügbar. Bitte die Anwendung einmal vollständig neu starten.'
+  )
+}
+
+async function upsertPeopleContactNote(input: UserNotePeopleContactUpsertInput): Promise<UserNote> {
+  const notes = window.mailClient.notes as typeof window.mailClient.notes & NotesPeopleContactApi
+  if (typeof notes.upsertPeopleContact === 'function') {
+    return notes.upsertPeopleContact(input)
+  }
+  const root = window.mailClient as MailClientWithInvoke
+  if (typeof root.invoke === 'function') {
+    return (await root.invoke(IPC.notes.upsertPeopleContact, input)) as UserNote
+  }
+  throw new Error(
+    'Kontakt-Notizen sind nicht verfügbar. Bitte die Anwendung einmal vollständig neu starten.'
+  )
+}
+
+async function loadNoteForTarget(target: ObjectNoteTarget): Promise<UserNote | null> {
+  if (target.kind === 'mail') return window.mailClient.notes.getMail(target.messageId)
+  if (target.kind === 'people_contact') {
+    return getPeopleContactNote(target.contactId)
+  }
+  return window.mailClient.notes.getCalendar({
+    accountId: target.accountId,
+    calendarSource: target.calendarSource,
+    calendarRemoteId: target.calendarRemoteId,
+    eventRemoteId: target.eventRemoteId
+  })
+}
+
+async function saveNoteForTarget(
+  target: ObjectNoteTarget,
+  body: string
+): Promise<UserNote> {
+  if (target.kind === 'mail') {
+    return window.mailClient.notes.upsertMail({
+      messageId: target.messageId,
+      title: target.title ?? null,
+      body
+    })
+  }
+  if (target.kind === 'people_contact') {
+    return upsertPeopleContactNote({
+      contactId: target.contactId,
+      title: target.title ?? null,
+      body
+    })
+  }
+  return window.mailClient.notes.upsertCalendar({
+    accountId: target.accountId,
+    calendarSource: target.calendarSource,
+    calendarRemoteId: target.calendarRemoteId,
+    eventRemoteId: target.eventRemoteId,
+    title: target.title ?? null,
+    body,
+    eventTitleSnapshot: target.eventTitleSnapshot ?? target.title ?? null,
+    eventStartIsoSnapshot: target.eventStartIsoSnapshot ?? null
+  })
 }
 
 function formatUpdatedAt(value: string | null, locale: string): string {
@@ -62,7 +210,8 @@ export function ObjectNoteEditor({
   variant = 'button',
   sectionCollapsedDefault = false,
   layout = 'live',
-  className
+  className,
+  anchorAlign = 'left'
 }: Props): JSX.Element {
   const { t, i18n } = useTranslation()
   const pushToast = useUndoStore((s) => s.pushToast)
@@ -74,24 +223,170 @@ export function ObjectNoteEditor({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [dirty, setDirty] = useState(false)
+  const [popupFrame, setPopupFrame] = useState<PopupFrame>({
+    x: 16,
+    y: 16,
+    w: POPUP_DEFAULT_W,
+    h: POPUP_DEFAULT_H
+  })
   const lastSavedBody = useRef('')
+  const anchorRef = useRef<HTMLButtonElement>(null)
+  const popupRef = useRef<HTMLDivElement>(null)
+  const popupFrameRef = useRef(popupFrame)
+  const popupUserPlacedRef = useRef(false)
+  const prevPopupOpenRef = useRef(false)
+  const moveDragRef = useRef<{
+    startX: number
+    startY: number
+    originX: number
+    originY: number
+  } | null>(null)
+  const resizeDragRef = useRef<{
+    startX: number
+    startY: number
+    startW: number
+    startH: number
+  } | null>(null)
+  popupFrameRef.current = popupFrame
   const key = useMemo(() => targetKey(target), [target])
+  const isPopupVariant = variant === 'button' || variant === 'panel'
+  const usePopupPortal = variant === 'button'
+  const markdownHeight = Math.max(
+    POPUP_EDITOR_MIN_H,
+    popupFrame.h - POPUP_CHROME_H
+  )
+
+  useLayoutEffect(() => {
+    if (open && isPopupVariant && !prevPopupOpenRef.current) {
+      if (usePopupPortal && anchorRef.current) {
+        setPopupFrame(frameFromAnchor(anchorRef.current, anchorAlign))
+      } else {
+        setPopupFrame((f) =>
+          clampFrame({ ...f, w: POPUP_DEFAULT_W, h: POPUP_DEFAULT_H, x: f.x, y: f.y })
+        )
+      }
+      popupUserPlacedRef.current = false
+    }
+    if (!open) {
+      popupUserPlacedRef.current = false
+    }
+    prevPopupOpenRef.current = open && isPopupVariant
+  }, [open, isPopupVariant, usePopupPortal, key, anchorAlign])
+
+  useEffect(() => {
+    if (!open || !isPopupVariant) return
+    const onWindowResize = (): void => setPopupFrame((f) => clampFrame(f))
+    window.addEventListener('resize', onWindowResize)
+    return (): void => window.removeEventListener('resize', onWindowResize)
+  }, [open, isPopupVariant])
+
+  useEffect(() => {
+    popupUserPlacedRef.current = false
+    prevPopupOpenRef.current = false
+  }, [key])
+
+  useEffect(() => {
+    if (!open || !usePopupPortal) return
+    function onDocMouseDown(e: MouseEvent): void {
+      if (moveDragRef.current || resizeDragRef.current) return
+      const node = e.target as Node
+      if (anchorRef.current?.contains(node)) return
+      if (popupRef.current?.contains(node)) return
+      setOpen(false)
+    }
+    document.addEventListener('mousedown', onDocMouseDown)
+    return (): void => document.removeEventListener('mousedown', onDocMouseDown)
+  }, [open, usePopupPortal])
+
+  const endMove = useCallback((): void => {
+    moveDragRef.current = null
+    window.removeEventListener('pointermove', onMovePointerMove)
+    window.removeEventListener('pointerup', endMove)
+    window.removeEventListener('pointercancel', endMove)
+  }, [])
+
+  const onMovePointerMove = useCallback((e: PointerEvent): void => {
+    const d = moveDragRef.current
+    if (!d) return
+    popupUserPlacedRef.current = true
+    const { w, h } = popupFrameRef.current
+    const nx = clamp(d.originX + (e.clientX - d.startX), 8, window.innerWidth - w - 8)
+    const ny = clamp(d.originY + (e.clientY - d.startY), 8, window.innerHeight - h - 8)
+    setPopupFrame((f) => clampFrame({ ...f, x: nx, y: ny }))
+  }, [])
+
+  const onHeaderPointerDown = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>): void => {
+      if (!usePopupPortal || e.button !== 0) return
+      if ((e.target as HTMLElement).closest('button')) return
+      e.preventDefault()
+      if (resizeDragRef.current) return
+      moveDragRef.current = {
+        startX: e.clientX,
+        startY: e.clientY,
+        originX: popupFrameRef.current.x,
+        originY: popupFrameRef.current.y
+      }
+      window.addEventListener('pointermove', onMovePointerMove)
+      window.addEventListener('pointerup', endMove)
+      window.addEventListener('pointercancel', endMove)
+    },
+    [usePopupPortal, onMovePointerMove, endMove]
+  )
+
+  const onResizePointerMove = useCallback((e: PointerEvent): void => {
+    const d = resizeDragRef.current
+    if (!d) return
+    popupUserPlacedRef.current = true
+    const { x, y } = popupFrameRef.current
+    const nw = d.startW + (e.clientX - d.startX)
+    const nh = d.startH + (e.clientY - d.startY)
+    setPopupFrame(clampFrame({ x, y, w: nw, h: nh }))
+  }, [])
+
+  const endResize = useCallback((): void => {
+    resizeDragRef.current = null
+    window.removeEventListener('pointermove', onResizePointerMove)
+    window.removeEventListener('pointerup', endResize)
+    window.removeEventListener('pointercancel', endResize)
+  }, [onResizePointerMove])
+
+  const onResizePointerDown = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>): void => {
+      if (e.button !== 0) return
+      e.preventDefault()
+      e.stopPropagation()
+      if (moveDragRef.current) return
+      resizeDragRef.current = {
+        startX: e.clientX,
+        startY: e.clientY,
+        startW: popupFrameRef.current.w,
+        startH: popupFrameRef.current.h
+      }
+      window.addEventListener('pointermove', onResizePointerMove)
+      window.addEventListener('pointerup', endResize)
+      window.addEventListener('pointercancel', endResize)
+    },
+    [onResizePointerMove, endResize]
+  )
+
+  useEffect(() => {
+    return (): void => {
+      window.removeEventListener('pointermove', onMovePointerMove)
+      window.removeEventListener('pointerup', endMove)
+      window.removeEventListener('pointercancel', endMove)
+      window.removeEventListener('pointermove', onResizePointerMove)
+      window.removeEventListener('pointerup', endResize)
+      window.removeEventListener('pointercancel', endResize)
+    }
+  }, [onMovePointerMove, endMove, onResizePointerMove, endResize])
 
   useEffect(() => {
     let cancelled = false
     setLoading(true)
     setError(null)
     setDirty(false)
-    const load =
-      target.kind === 'mail'
-        ? window.mailClient.notes.getMail(target.messageId)
-        : window.mailClient.notes.getCalendar({
-            accountId: target.accountId,
-            calendarSource: target.calendarSource,
-            calendarRemoteId: target.calendarRemoteId,
-            eventRemoteId: target.eventRemoteId
-          })
-    void load
+    void loadNoteForTarget(target)
       .then((loaded) => {
         if (cancelled) return
         setNote(loaded)
@@ -128,8 +423,11 @@ export function ObjectNoteEditor({
 
   useEffect(() => {
     const off = window.mailClient.events.onNotesChanged((payload) => {
-      if (target.kind === 'mail' && payload.messageId !== target.messageId) return
+      if (target.kind === 'mail' && payload.messageId != null && payload.messageId !== target.messageId) {
+        return
+      }
       if (target.kind === 'calendar' && payload.kind && payload.kind !== 'calendar') return
+      if (target.kind === 'people_contact' && payload.kind === 'mail') return
       if (dirty) return
       void reload()
     })
@@ -139,15 +437,7 @@ export function ObjectNoteEditor({
 
   async function reload(): Promise<void> {
     try {
-      const loaded =
-        target.kind === 'mail'
-          ? await window.mailClient.notes.getMail(target.messageId)
-          : await window.mailClient.notes.getCalendar({
-              accountId: target.accountId,
-              calendarSource: target.calendarSource,
-              calendarRemoteId: target.calendarRemoteId,
-              eventRemoteId: target.eventRemoteId
-            })
+      const loaded = await loadNoteForTarget(target)
       setNote(loaded)
       const nextBody = loaded?.body ?? ''
       setBody(nextBody)
@@ -163,23 +453,7 @@ export function ObjectNoteEditor({
     setSaving(true)
     setError(null)
     try {
-      const saved =
-        target.kind === 'mail'
-          ? await window.mailClient.notes.upsertMail({
-              messageId: target.messageId,
-              title: target.title ?? null,
-              body
-            })
-          : await window.mailClient.notes.upsertCalendar({
-              accountId: target.accountId,
-              calendarSource: target.calendarSource,
-              calendarRemoteId: target.calendarRemoteId,
-              eventRemoteId: target.eventRemoteId,
-              title: target.title ?? null,
-              body,
-              eventTitleSnapshot: target.eventTitleSnapshot ?? target.title ?? null,
-              eventStartIsoSnapshot: target.eventStartIsoSnapshot ?? null
-            })
+      const saved = await saveNoteForTarget(target, body)
       setNote(saved)
       lastSavedBody.current = saved.body
       setBody(saved.body)
@@ -202,26 +476,53 @@ export function ObjectNoteEditor({
 
   const hideSectionStickyTitle = variant === 'section' && sectionCollapsedDefault
 
+  const popupPortalStyle: CSSProperties | undefined =
+    usePopupPortal && open
+      ? {
+          position: 'fixed',
+          left: popupFrame.x,
+          top: popupFrame.y,
+          width: popupFrame.w,
+          height: popupFrame.h,
+          zIndex: NOTE_POPUP_Z
+        }
+      : undefined
+
+  const panelPopupStyle: CSSProperties | undefined =
+    variant === 'panel' ? { height: popupFrame.h, position: 'relative' } : undefined
+
   const editor = (
     <div
+      ref={usePopupPortal ? popupRef : undefined}
+      style={popupPortalStyle ?? panelPopupStyle}
       className={cn(
-        'rounded-lg border border-border bg-card p-3 shadow-lg',
-        variant === 'button'
-          ? 'absolute right-0 top-full mt-2 w-[min(360px,calc(100vw-32px))]'
-          : 'shadow-none',
+        'rounded-lg border border-border bg-card shadow-lg',
+        isPopupVariant && 'relative flex flex-col overflow-hidden',
+        variant === 'panel' || variant === 'section' ? 'shadow-none' : 'p-3',
         className
       )}
     >
-      {!hideSectionStickyTitle ? (
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
-            <StickyNote className={cn('h-4 w-4', hasContent && 'fill-amber-300 text-amber-500')} />
-            {t('notes.editor.title')}
+      {!hideSectionStickyTitle && variant !== 'panel' ? (
+        <div
+          className={cn(
+            'flex shrink-0 items-center justify-between gap-2 border-b border-border/60 px-3 py-2',
+            usePopupPortal && 'cursor-grab touch-none active:cursor-grabbing'
+          )}
+          onPointerDown={onHeaderPointerDown}
+          aria-label={usePopupPortal ? t('notes.editor.moveAria') : undefined}
+        >
+          <div className="flex min-w-0 items-center gap-2 text-xs font-semibold text-foreground">
+            {usePopupPortal ? (
+              <GripHorizontal className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+            ) : null}
+            <StickyNote className={cn('h-4 w-4 shrink-0', hasContent && 'fill-amber-300 text-amber-500')} />
+            <span className="truncate">{t('notes.editor.title')}</span>
           </div>
           {variant === 'button' ? (
             <button
               type="button"
               onClick={(): void => setOpen(false)}
+              onPointerDown={(e): void => e.stopPropagation()}
               className="rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
               aria-label={t('common.close')}
             >
@@ -230,11 +531,18 @@ export function ObjectNoteEditor({
           ) : null}
         </div>
       ) : null}
+      <div
+        className={cn(
+          'flex min-h-0 flex-1 flex-col overflow-hidden',
+          isPopupVariant ? 'px-3 pb-3 pt-2' : ''
+        )}
+      >
       {note?.id ? (
-        <NotesAttachmentsPanel noteId={note.id} className="mb-2" />
+        <NotesAttachmentsPanel noteId={note.id} className="mb-2 shrink-0" />
       ) : !loading ? (
-        <p className="mb-2 text-[11px] text-muted-foreground">{t('notes.attachments.requiresSavedNote')}</p>
+        <p className="mb-2 shrink-0 text-[11px] text-muted-foreground">{t('notes.attachments.requiresSavedNote')}</p>
       ) : null}
+      <div className="min-h-0 flex-1 overflow-hidden">
       <MarkdownNoteEditorLazy
         value={body}
         onChange={(nextBody): void => {
@@ -242,12 +550,12 @@ export function ObjectNoteEditor({
           setDirty(true)
         }}
         disabled={loading}
-        height={variant === 'button' ? 220 : 180}
+        height={isPopupVariant ? markdownHeight : 180}
         layout={layout}
-        preview={variant === 'button' ? 'edit' : 'live'}
+        preview={isPopupVariant ? 'edit' : 'live'}
         placeholder={t('notes.editor.placeholder')}
       />
-      <div className="mt-1.5 text-[11px] text-muted-foreground">{t('notes.editor.markdownHint')}</div>
+      </div>
       {error ? <div className="mt-1.5 text-[11px] text-destructive">{error}</div> : null}
       <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
         <span>
@@ -267,8 +575,28 @@ export function ObjectNoteEditor({
           {saving ? t('notes.editor.saving') : t('common.save')}
         </button>
       </div>
+      </div>
+      {isPopupVariant ? (
+        <div
+          aria-label={t('notes.editor.resizeAria')}
+          onPointerDown={onResizePointerDown}
+          className={cn(
+            'absolute bottom-0 right-0 z-[2] h-5 w-5 cursor-nwse-resize rounded-br-lg',
+            'hover:bg-secondary/60'
+          )}
+        >
+          <span
+            className="pointer-events-none absolute bottom-1 right-1 h-2.5 w-2.5 border-b-2 border-r-2 border-muted-foreground/70"
+            aria-hidden
+          />
+        </div>
+      ) : null}
     </div>
   )
+
+  if (variant === 'panel') {
+    return editor
+  }
 
   if (variant === 'section') {
     if (!sectionCollapsedDefault) return editor
@@ -293,15 +621,13 @@ export function ObjectNoteEditor({
     )
   }
 
+  const portaledEditor =
+    open && usePopupPortal ? createPortal(editor, document.body) : null
+
   return (
-    <div
-      className={cn(
-        'relative',
-        /** Ueber App-Modals (z-[300]) und Kontextmenues (~280), damit das Notiz-Pop-up nie verdeckt wird. */
-        open && 'z-[320]'
-      )}
-    >
+    <div className="relative">
       <button
+        ref={anchorRef}
         type="button"
         onClick={(): void => setOpen((v) => !v)}
         className={cn(
@@ -315,7 +641,7 @@ export function ObjectNoteEditor({
         <StickyNote className={cn('h-3 w-3', hasContent && 'fill-amber-300 text-amber-500')} />
         {t('notes.editor.shortLabel')}
       </button>
-      {open ? editor : null}
+      {portaledEditor ?? (open && !usePopupPortal ? editor : null)}
     </div>
   )
 }
@@ -339,16 +665,7 @@ export function ObjectNotePreview(props: {
     let cancelled = false
     setLoading(true)
     setError(null)
-    const load =
-      target.kind === 'mail'
-        ? window.mailClient.notes.getMail(target.messageId)
-        : window.mailClient.notes.getCalendar({
-            accountId: target.accountId,
-            calendarSource: target.calendarSource,
-            calendarRemoteId: target.calendarRemoteId,
-            eventRemoteId: target.eventRemoteId
-          })
-    void load
+    void loadNoteForTarget(target)
       .then((loaded) => {
         if (cancelled) return
         setNote(loaded)
@@ -370,17 +687,10 @@ export function ObjectNotePreview(props: {
     const off = window.mailClient.events.onNotesChanged((payload) => {
       if (target.kind === 'mail' && payload.messageId !== target.messageId) return
       if (target.kind === 'calendar' && payload.kind && payload.kind !== 'calendar') return
+      if (target.kind === 'people_contact' && payload.kind === 'mail') return
       void (async (): Promise<void> => {
         try {
-          const loaded =
-            target.kind === 'mail'
-              ? await window.mailClient.notes.getMail(target.messageId)
-              : await window.mailClient.notes.getCalendar({
-                  accountId: target.accountId,
-                  calendarSource: target.calendarSource,
-                  calendarRemoteId: target.calendarRemoteId,
-                  eventRemoteId: target.eventRemoteId
-                })
+          const loaded = await loadNoteForTarget(target)
           setNote(loaded)
           setBody(loaded?.body ?? '')
         } catch {
@@ -473,7 +783,7 @@ export function ObjectNoteDialog({ target, onClose }: DialogProps): JSX.Element 
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 p-4 backdrop-blur-[2px]"
+      className="fixed inset-0 z-[350] flex items-start justify-center bg-black/45 p-4 pt-[10vh] backdrop-blur-[2px]"
       onMouseDown={(e): void => {
         if (e.target === e.currentTarget) onClose()
       }}
@@ -482,9 +792,9 @@ export function ObjectNoteDialog({ target, onClose }: DialogProps): JSX.Element 
         role="dialog"
         aria-modal="true"
         aria-label={t('notes.editor.open')}
-        className="w-[min(460px,calc(100vw-32px))] rounded-xl border border-border bg-card shadow-2xl"
+        className="w-[min(576px,calc(100vw-32px))] overflow-hidden rounded-xl border border-border bg-card shadow-2xl"
       >
-        <header className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
+        <header className="flex items-center justify-between gap-2 border-b border-border px-3 py-2.5">
           <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
             <StickyNote className="h-4 w-4 text-amber-500" />
             {t('notes.editor.title')}
@@ -500,9 +810,9 @@ export function ObjectNoteDialog({ target, onClose }: DialogProps): JSX.Element 
         </header>
         <ObjectNoteEditor
           target={target}
-          variant="section"
+          variant="panel"
           layout="toggle"
-          className="rounded-t-none border-0 shadow-none"
+          className="rounded-none border-0 shadow-none"
         />
       </div>
     </div>

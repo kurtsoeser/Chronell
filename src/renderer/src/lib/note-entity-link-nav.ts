@@ -4,6 +4,7 @@ import { useCalendarPendingFocusStore } from '@/stores/calendar-pending-focus'
 import { useNotesPendingFocusStore } from '@/stores/notes-pending-focus'
 import { useTasksPendingFocusStore } from '@/stores/tasks-pending-focus'
 import { useMailPendingFocusStore } from '@/stores/mail-pending-focus'
+import { usePeoplePendingFocusStore } from '@/stores/people-pending-focus'
 import { persistTasksViewSelection } from '@/app/tasks/tasks-view-storage'
 
 export async function openNoteEntityLinkTarget(
@@ -57,6 +58,10 @@ export async function openNoteEntityLinkTarget(
         listId: target.listId
       })
       setAppMode('tasks')
+      return
+    case 'people_contact':
+      usePeoplePendingFocusStore.getState().setPendingContactId(target.contactId)
+      setAppMode('people')
       return
     default:
       return

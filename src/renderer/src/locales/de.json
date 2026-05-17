@@ -54,7 +54,9 @@
     "kind": {
       "mail": "Mail",
       "calendar": "Kalender",
-      "standalone": "Freie Notiz"
+      "standalone": "Freie Notiz",
+      "contact": "Kontakt",
+      "task": "Aufgabe"
     },
     "editor": {
       "title": "Notiz",
@@ -69,7 +71,9 @@
       "saveFailed": "Notiz konnte nicht gespeichert werden.",
       "viewSwitcherLabel": "Notizansicht umschalten",
       "markdownTab": "Markdown",
-      "previewTab": "Vorschau"
+      "previewTab": "Vorschau",
+      "resizeAria": "Größe ändern",
+      "moveAria": "Notizfenster verschieben"
     },
     "preview": {
       "loading": "Notiz wird geladen …"
@@ -179,6 +183,7 @@
       "noteNotFound": "Notiz nicht gefunden.",
       "eventNotFound": "Termin nicht gefunden.",
       "taskNotFound": "Aufgabe nicht gefunden.",
+      "contactNotFound": "Kontakt nicht gefunden.",
       "unsupported": "Vorschau für diesen Typ nicht verfügbar."
     },
     "pagesContextMenu": {
@@ -203,7 +208,8 @@
         "note": "Notiz",
         "mail": "E-Mail",
         "calendar_event": "Termin",
-        "cloud_task": "Aufgabe"
+        "cloud_task": "Aufgabe",
+        "people_contact": "Kontakt"
       }
     }
   },
@@ -236,6 +242,8 @@
       "deleteSelected": "Löschen",
       "deleteManyConfirm": "{{count}} Aufgaben wirklich löschen?",
       "checkTaskAria": "Aufgabe auswählen",
+      "inlineCreateTitle": "Neue Aufgabe …",
+      "inlineCreateNotes": "Notizen",
       "emptyTasks": "Keine Aufgaben in dieser Liste.",
       "detailHeading": "Details",
       "fieldTitle": "Titel",
@@ -418,7 +426,13 @@
       "phone": "Telefon",
       "company": "Firma",
       "jobTitle": "Position",
-      "notes": "Notizen",
+      "notes": "Notizen (Konto)",
+      "providerNotes": "Notizen beim Anbieter",
+      "linkedNotesHeading": "App-Notizen",
+      "linkedNotesAdd": "Neue Notiz",
+      "linkedNotesEmpty": "Noch keine verknüpften Notizen.",
+      "linkedNotesDefaultTitle": "Notiz zu {{name}}",
+      "linkedNotesUntitledContact": "Kontakt",
       "favorite": "Favorit",
       "unfavorite": "Favorit entfernen",
       "emailAction": "E-Mail",
@@ -467,6 +481,13 @@
       "deleteContactConfirm": "„{{name}}“ dauerhaft aus dem Konto (Microsoft/Google) und lokal entfernen? Diese Aktion kann nicht rückgängig gemacht werden.",
       "deletingContact": "Wird gelöscht …",
       "deleteContactErrorTitle": "Löschen fehlgeschlagen"
+    },
+    "contactContextMenu": {
+      "copy": "Kopieren",
+      "copyName": "Name",
+      "copyEmail": "E-Mail-Adresse",
+      "copyDetails": "Kontaktdaten",
+      "copied": "In die Zwischenablage kopiert."
     }
   },
   "workflow": {
@@ -647,6 +668,13 @@
     "tabMail": "Mail",
     "tabCalendar": "Kalender",
     "tabContacts": "Kontakte",
+    "tabInfo": "Info",
+    "infoPanelAria": "Info — Einstellungen",
+    "infoAboutHeading": "Über die App",
+    "infoProductLine": "Desktop-Arbeitszentrale für Mail, Kalender, Aufgaben, Notizen und Kontakte — Microsoft 365 und Google in einem Fenster.",
+    "infoVersionLabel": "Version",
+    "infoReleaseDateLabel": "Stand vom",
+    "infoBuildNote": "Technischer Paketname: MailClient · App-ID: {{appId}}",
     "subNavAria": "Unterbereiche",
     "contactsPanelAria": "Kontakte — Einstellungen",
     "contactsWorkspaceHeading": "Kontakte-Ansicht",
@@ -1161,18 +1189,26 @@
       "favoritesSubtitle": "Schnellzugriff",
       "composerTitle": "Neue Mail",
       "composerSubtitle": "Direkt senden",
-      "todoAllTitle": "ToDo · Alle",
-      "todoAllSubtitle": "Überfällig bis später",
-      "todoOverdueTitle": "ToDo · Überfällig",
-      "todoOverdueSubtitle": "Bereits fällig",
-      "todoTodayTitle": "ToDo · Heute",
-      "todoTodaySubtitle": "Fällig heute",
-      "todoTomorrowTitle": "ToDo · Morgen",
-      "todoTomorrowSubtitle": "Fällig morgen",
-      "todoWeekTitle": "ToDo · Diese Woche",
-      "todoWeekSubtitle": "Fällig in dieser Woche",
-      "todoLaterTitle": "ToDo · Später",
-      "todoLaterSubtitle": "Ohne nahen Termin",
+      "todoAllTitle": "E-Mail-ToDo · Alle",
+      "todoAllSubtitle": "Nur Mails mit ToDo-Fälligkeit",
+      "todoOverdueTitle": "E-Mail-ToDo · Überfällig",
+      "todoOverdueSubtitle": "Mail-Aufgaben, bereits fällig",
+      "todoTodayTitle": "E-Mail-ToDo · Heute",
+      "todoTodaySubtitle": "Mail-Aufgaben, heute fällig",
+      "todoTomorrowTitle": "E-Mail-ToDo · Morgen",
+      "todoTomorrowSubtitle": "Mail-Aufgaben, morgen fällig",
+      "todoWeekTitle": "E-Mail-ToDo · Diese Woche",
+      "todoWeekSubtitle": "Mail-Aufgaben, diese Woche",
+      "todoLaterTitle": "E-Mail-ToDo · Später",
+      "todoLaterSubtitle": "Mail-Aufgaben ohne nahes Datum",
+      "workAllTitle": "Alle Aufgaben",
+      "workAllSubtitle": "Mail, Cloud-Aufgaben & Termine",
+      "notesNewTitle": "Neue Notiz",
+      "notesNewSubtitle": "Freie Notiz anlegen",
+      "notesOverviewTitle": "Notizen",
+      "notesOverviewSubtitle": "Zuletzt bearbeitet",
+      "notesLastTitle": "Letzte Notiz",
+      "notesLastSubtitle": "Schnell wieder öffnen",
       "weatherTitle": "Wetter",
       "weatherSubtitle": "Heute und 7-Tage-Vorschau",
       "todayClockTitle": "Datum & Uhrzeit",
@@ -1193,9 +1229,25 @@
       "generic": "Lade …",
       "calendar": "Lade Kalender …",
       "search": "Suche …",
-      "todo": "Lade ToDos …"
+      "todo": "Lade ToDos …",
+      "notes": "Lade Notizen …",
+      "work": "Lade Aufgaben …"
     },
     "todoEmpty": "Keine Mails mit ToDo in dieser Ansicht.",
+    "workAll": {
+      "empty": "Keine offenen Aufgaben — Mail-ToDos, Cloud-Aufgaben und Termine erscheinen hier."
+    },
+    "notesNew": {
+      "action": "Neue Notiz",
+      "hint": "Öffnet den Notizen-Editor mit einer leeren Seite."
+    },
+    "notesOverview": {
+      "empty": "Noch keine Notizen. Lege die erste über „Neue Notiz“ an."
+    },
+    "notesLast": {
+      "empty": "Keine Notiz vorhanden.",
+      "noBody": "Noch kein Inhalt."
+    },
     "inboxHintOpenUnified": "Für die Vorschau bitte „Alle Posteingänge“ öffnen.",
     "inboxEmpty": "Keine Konversationen im einheitlichen Posteingang.",
     "deadlinesHintOpenUnified": "Für diese Übersicht bitte „Alle Posteingänge“ öffnen.",

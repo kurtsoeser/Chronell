@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Loader2, Search, UserPlus, X } from 'lucide-react'
 import type { PeopleContactView } from '@shared/types'
 import { cn } from '@/lib/utils'
+import { ModalPanel, ModalRoot } from '@/components/motion/Modal'
 
 interface Props {
   open: boolean
@@ -64,14 +65,8 @@ export function ComposeContactPickerDialog({ open, accountId, onClose, onPick }:
   }
 
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/55 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        className="flex max-h-[min(420px,80vh)] w-[min(440px,94vw)] flex-col rounded-xl border border-border bg-card shadow-2xl"
-        onClick={(e): void => e.stopPropagation()}
-      >
+    <ModalRoot open={open} zIndex={100} centerClassName="items-center justify-center" onBackdropClick={onClose}>
+      <ModalPanel className="flex max-h-[min(420px,80vh)] w-[min(440px,94vw)] flex-col rounded-xl border border-border bg-card shadow-2xl">
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <div className="flex items-center gap-2">
             <UserPlus className="h-4 w-4 text-muted-foreground" />
@@ -136,7 +131,7 @@ export function ComposeContactPickerDialog({ open, accountId, onClose, onPick }:
               </button>
             ))}
         </div>
-      </div>
-    </div>
+      </ModalPanel>
+    </ModalRoot>
   )
 }

@@ -51,7 +51,7 @@ import { NotesNoteScheduleBlock } from '@/app/notes/NotesNoteScheduleBlock'
 import { NotesSidebarList } from '@/app/notes/NotesSidebarList'
 import { NotesShellSearch } from '@/app/notes/NotesShellSearch'
 import { NotesShellViewToggle, type NotesShellView } from '@/app/notes/NotesShellViewToggle'
-import { formatNoteDate, noteTitle } from '@/app/notes/notes-display-helpers'
+import { formatNoteDate, noteKindLabel, noteTitle } from '@/app/notes/notes-display-helpers'
 import { buildNotesPreviewLinkEntries, linkedItemToPreviewEntry } from '@/app/notes/notes-link-preview-items'
 import {
   persistNotesLinkedPreviewOpen,
@@ -94,6 +94,8 @@ import {
 import { LOCAL_NOTES_ACCOUNT_KEY, buildNoteAccountBuckets } from '@/lib/notes-sidebar-accounts'
 import { GLOBAL_CREATE_EVENT, useGlobalCreateNavigateStore } from '@/lib/global-create'
 import { cn } from '@/lib/utils'
+import { ContentCrossfade } from '@/components/motion/ContentCrossfade'
+import { useExitingIds } from '@/lib/use-exiting-ids'
 import { useAccountsStore } from '@/stores/accounts'
 import { useMailStore } from '@/stores/mail'
 import { useNotesPendingFocusStore } from '@/stores/notes-pending-focus'
@@ -189,6 +191,7 @@ export function NotesShell(): JSX.Element {
   const clearSelectedMessage = useMailStore((s) => s.clearSelectedMessage)
   const pushToast = useUndoStore((s) => s.pushToast)
   const takePendingNoteId = useNotesPendingFocusStore((s) => s.takePendingNoteId)
+  const { isExiting: isNoteExiting, markExiting: markNoteExiting } = useExitingIds<number>()
 
   const [notes, setNotes] = useState<UserNoteListItem[]>([])
   const [loading, setLoading] = useState(false)
@@ -412,10 +415,20 @@ export function NotesShell(): JSX.Element {
     setPreviewColumnWidth((w) => w - delta)
   }, [setPreviewColumnWidth])
 
-  const applyNotePatch = useCallback((note: UserNote): void => {
+  const applyNotePatch = useCallback((note: UserNote | UserNoteListItem): void => {
     setEditing((prev) => (prev?.id === note.id ? { ...prev, ...note } : prev))
-    setNotes((prev) => prev.map((n) => (n.id === note.id ? { ...n, ...note } : n)))
+    setNotes((prev) =>
+      prev.map((n) => (n.id === note.id ? ({ ...n, ...note } as UserNoteListItem) : n))
+    )
   }, [])
+
+  useEffect(() => {
+    if (!editing) return
+    const fresh = notes.find((n) => n.id === editing.id)
+    if (fresh) {
+      setEditing((prev) => (prev?.id === fresh.id ? fresh : prev))
+    }
+  }, [notes, editing?.id])
 
   const patchNoteDisplay = useCallback(
     async (patch: { iconId?: string | null; iconColor?: string | null }): Promise<void> => {
@@ -499,32 +512,41 @@ export function NotesShell(): JSX.Element {
 
   const openEdit = useCallback(
     (note: UserNoteListItem | UserNote): void => {
-      setEditing(note)
-      setEditTitle(note.title ?? '')
-      setEditBody(note.body)
-      setScheduleDraft(null)
-      if (note.kind === 'mail' && note.messageId != null) {
-        void selectMessageWithThreadPreview(note.messageId)
-      } else {
-        clearSelectedMessage()
-      }
+      void (async (): Promise<void> => {
+        let resolved: UserNoteListItem = note as UserNoteListItem
+        try {
+          const fresh = await window.mailClient.notes.getById(note.id)
+          if (fresh) resolved = fresh
+        } catch {
+          // Liste/Cache nutzen, wenn getById fehlschlaegt.
+        }
+        setEditing(resolved)
+        setEditTitle(resolved.title ?? '')
+        setEditBody(resolved.body)
+        setScheduleDraft(null)
+        if (resolved.kind === 'mail' && resolved.messageId != null) {
+          void selectMessageWithThreadPreview(resolved.messageId)
+        } else {
+          clearSelectedMessage()
+        }
+      })()
     },
     [clearSelectedMessage, selectMessageWithThreadPreview]
   )
 
   const openNoteById = useCallback(
     async (id: number): Promise<void> => {
-      const fromList = notes.find((n) => n.id === id)
-      if (fromList) {
-        openEdit(fromList)
-        return
-      }
       try {
         const note = await window.mailClient.notes.getById(id)
-        if (note) openEdit(note)
+        if (note) {
+          openEdit(note)
+          return
+        }
       } catch {
         // ignore
       }
+      const fromList = notes.find((n) => n.id === id)
+      if (fromList) openEdit(fromList)
     },
     [notes, openEdit]
   )
@@ -654,21 +676,26 @@ export function NotesShell(): JSX.Element {
       variant: 'danger'
     })
     if (!ok) return
-    setSaving(true)
-    try {
-      await window.mailClient.notes.delete(note.id)
-      if (editing?.id === note.id) {
-        setEditing(null)
-        clearSelectedMessage()
-      }
-      pushToast({ label: t('notes.shell.deleted'), variant: 'success' })
-      await load()
-      await loadSections()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
-    } finally {
-      setSaving(false)
-    }
+
+    markNoteExiting(note.id, () => {
+      void (async (): Promise<void> => {
+        setSaving(true)
+        try {
+          await window.mailClient.notes.delete(note.id)
+          if (editing?.id === note.id) {
+            setEditing(null)
+            clearSelectedMessage()
+          }
+          pushToast({ label: t('notes.shell.deleted'), variant: 'success' })
+          await load()
+          await loadSections()
+        } catch (e) {
+          setError(e instanceof Error ? e.message : String(e))
+        } finally {
+          setSaving(false)
+        }
+      })()
+    })
   }
 
   const copyNote = useCallback(
@@ -854,6 +881,7 @@ export function NotesShell(): JSX.Element {
           onRenameNoteTitle={renameNoteTitleInList}
           onPatchNoteDisplay={patchNoteDisplayInList}
           onDeleteNote={deleteNote}
+          isNoteExiting={isNoteExiting}
           onCopyNote={copyNote}
           onMoveNote={moveNote}
           onCreateNote={(): void => void createStandalone()}
@@ -907,11 +935,11 @@ export function NotesShell(): JSX.Element {
                 {t('notes.shell.selectNoteHint')}
               </div>
             ) : (
-              <div className="flex min-h-0 flex-1">
+              <ContentCrossfade contentKey={editing.id} className="flex min-h-0 flex-1">
                 <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
                   <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                     <NoteDisplayIcon note={editing} className="h-4 w-4" />
-                    <span>{t(`notes.kind.${editing.kind}`)}</span>
+                    <span>{noteKindLabel(editing, t)}</span>
                     {editing.scheduledStartIso ? (
                       <span className="text-primary">
                         {formatNoteDate(editing.scheduledStartIso, i18n.language)}
@@ -1024,7 +1052,7 @@ export function NotesShell(): JSX.Element {
                     onDockWidthDrag={handlePreviewDockWidthDrag}
                   />
                 ) : null}
-              </div>
+              </ContentCrossfade>
             )}
       </main>
     </>

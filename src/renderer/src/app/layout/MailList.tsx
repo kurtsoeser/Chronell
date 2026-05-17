@@ -3,6 +3,8 @@ import { useShallow } from 'zustand/react/shallow'
 import { GroupedVirtuoso } from 'react-virtuoso'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
+import { motionListItemExit } from '@/lib/motion'
+import { useExitingIds } from '@/lib/use-exiting-ids'
 import { outlookCategoryDotClass } from '@/lib/outlook-category-colors'
 import { useMailStore, type MailFilter, type MailListKind, mailListUsesCrossAccountThreadScope } from '@/stores/mail'
 import { showAppConfirm } from '@/stores/app-dialog'
@@ -251,6 +253,8 @@ export function MailList(): JSX.Element {
     ]
   )
 
+  const { isExiting, markExiting } = useExitingIds<number>()
+
   const rowActions: MailRowHandlers = {
     onReply: (e, m): void => {
       e.stopPropagation()
@@ -268,9 +272,12 @@ export function MailList(): JSX.Element {
       e.stopPropagation()
       const targets =
         bulk && bulk.length > 1 ? dedupeMailListThreadMessagesById(bulk) : [m]
-      void (async (): Promise<void> => {
-        for (const x of targets) await deleteMessageOrRemoveTodoEntry(x.id)
-      })()
+      const ids = targets.map((x) => x.id)
+      markExiting(ids, () => {
+        void (async (): Promise<void> => {
+          for (const x of targets) await deleteMessageOrRemoveTodoEntry(x.id)
+        })()
+      })
     },
     onToggleFlag: (e, m, bulk): void => {
       e.stopPropagation()
@@ -666,6 +673,7 @@ export function MailList(): JSX.Element {
                     }}
                     onContextMail={openMailContext}
                     rowActions={rowActions}
+                    isRowExiting={row.threadMessages.some((m) => isExiting(m.id))}
                   />
                 )
               }
@@ -682,6 +690,7 @@ export function MailList(): JSX.Element {
                     }}
                     onContextMail={openMailContext}
                     rowActions={rowActions}
+                    isRowExiting={isExiting(row.message.id)}
                   />
                 )
             }}
@@ -759,7 +768,8 @@ const ThreadHeadRow = memo(function ThreadHeadRow({
   onToggleExpand,
   onSelectMessage,
   onContextMail,
-  rowActions
+  rowActions,
+  isRowExiting = false
 }: {
   thread: ThreadGroup
   threadMessages: MailListItem[]
@@ -774,6 +784,7 @@ const ThreadHeadRow = memo(function ThreadHeadRow({
   onSelectMessage: (id: number) => void
   onContextMail: (e: React.MouseEvent, msg: MailListItem, opts?: MailListContextOpts) => void
   rowActions: MailRowHandlers
+  isRowExiting?: boolean
 }): JSX.Element {
   const { t } = useTranslation()
   const latest = thread.latestMessage
@@ -844,7 +855,8 @@ const ThreadHeadRow = memo(function ThreadHeadRow({
               ? 'bg-secondary/30'
               : 'bg-secondary/40'
             : 'hover:bg-secondary/40',
-        'cursor-grab active:cursor-grabbing'
+        'cursor-grab active:cursor-grabbing',
+        isRowExiting && motionListItemExit
       )}
       title={
         showInboxAccountStripe && account
@@ -1030,7 +1042,8 @@ const ThreadSubRow = memo(function ThreadSubRow({
   selected,
   onSelectMessage,
   onContextMail,
-  rowActions
+  rowActions,
+  isRowExiting = false
 }: {
   message: MailListItem
   accounts: ConnectedAccount[]
@@ -1040,6 +1053,7 @@ const ThreadSubRow = memo(function ThreadSubRow({
   onSelectMessage: (id: number) => void
   onContextMail: (e: React.MouseEvent, msg: MailListItem, opts?: MailListContextOpts) => void
   rowActions: MailRowHandlers
+  isRowExiting?: boolean
 }): JSX.Element {
   const { t } = useTranslation()
   const folder = findFolderForMessage(message, foldersByAccount)
@@ -1071,7 +1085,8 @@ const ThreadSubRow = memo(function ThreadSubRow({
         'group/subrow relative cursor-grab border-b border-dotted border-border/55 bg-background/25 pb-0.5 pl-3 ml-7 active:cursor-grabbing',
         stripeAccount ? '' : 'border-l border-border/50',
         message.isVipSender && 'ring-1 ring-amber-500/25 ring-inset',
-        selected && 'bg-secondary/35'
+        selected && 'bg-secondary/35',
+        isRowExiting && motionListItemExit
       )}
       title={
         stripeAccount

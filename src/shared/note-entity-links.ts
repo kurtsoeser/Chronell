@@ -2,7 +2,8 @@ export const NOTE_ENTITY_LINK_TARGET_KINDS = [
   'note',
   'mail',
   'calendar_event',
-  'cloud_task'
+  'cloud_task',
+  'people_contact'
 ] as const
 
 export type NoteEntityLinkTargetKind = (typeof NOTE_ENTITY_LINK_TARGET_KINDS)[number]
@@ -12,6 +13,7 @@ export type NoteEntityLinkTarget =
   | { kind: 'mail'; messageId: number }
   | { kind: 'calendar_event'; accountId: string; graphEventId: string }
   | { kind: 'cloud_task'; accountId: string; listId: string; taskId: string }
+  | { kind: 'people_contact'; contactId: number }
 
 export interface NoteEntityLinkedItem {
   linkId: number
@@ -46,6 +48,8 @@ export function noteEntityLinkTargetKey(target: NoteEntityLinkTarget): string {
       return `calendar:${target.accountId}:${target.graphEventId}`
     case 'cloud_task':
       return `task:${target.accountId}:${target.listId}:${target.taskId}`
+    case 'people_contact':
+      return `contact:${target.contactId}`
     default:
       return 'unknown'
   }

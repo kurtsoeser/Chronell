@@ -979,5 +979,89 @@ export const MIGRATIONS: Migration[] = [
         VALUES (new.id, new.subject, new.from_addr, new.from_name, new.body_text);
       END;
     `
+  },
+  {
+    version: 37,
+    description: 'Notizen: Verknuepfungen zu Kontakten (people_contact)',
+    sql: `
+      CREATE TABLE user_note_entity_links_new (
+        id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+        from_note_id            INTEGER NOT NULL REFERENCES user_notes(id) ON DELETE CASCADE,
+        target_kind             TEXT NOT NULL,
+        to_note_id              INTEGER NULL REFERENCES user_notes(id) ON DELETE CASCADE,
+        mail_message_id         INTEGER NULL,
+        calendar_account_id     TEXT NULL,
+        calendar_graph_event_id TEXT NULL,
+        task_account_id         TEXT NULL,
+        task_list_id            TEXT NULL,
+        task_id                 TEXT NULL,
+        people_contact_id       INTEGER NULL REFERENCES people_contacts(id) ON DELETE CASCADE,
+        created_at              TEXT NOT NULL,
+        CHECK (
+          (target_kind = 'note' AND to_note_id IS NOT NULL
+            AND mail_message_id IS NULL AND calendar_account_id IS NULL
+            AND calendar_graph_event_id IS NULL AND task_account_id IS NULL
+            AND task_list_id IS NULL AND task_id IS NULL AND people_contact_id IS NULL)
+          OR (target_kind = 'mail' AND mail_message_id IS NOT NULL
+            AND to_note_id IS NULL AND calendar_account_id IS NULL
+            AND calendar_graph_event_id IS NULL AND task_account_id IS NULL
+            AND task_list_id IS NULL AND task_id IS NULL AND people_contact_id IS NULL)
+          OR (target_kind = 'calendar_event'
+            AND calendar_account_id IS NOT NULL AND calendar_graph_event_id IS NOT NULL
+            AND to_note_id IS NULL AND mail_message_id IS NULL
+            AND task_account_id IS NULL AND task_list_id IS NULL AND task_id IS NULL
+            AND people_contact_id IS NULL)
+          OR (target_kind = 'cloud_task'
+            AND task_account_id IS NOT NULL AND task_list_id IS NOT NULL AND task_id IS NOT NULL
+            AND to_note_id IS NULL AND mail_message_id IS NULL
+            AND calendar_account_id IS NULL AND calendar_graph_event_id IS NULL
+            AND people_contact_id IS NULL)
+          OR (target_kind = 'people_contact' AND people_contact_id IS NOT NULL
+            AND to_note_id IS NULL AND mail_message_id IS NULL
+            AND calendar_account_id IS NULL AND calendar_graph_event_id IS NULL
+            AND task_account_id IS NULL AND task_list_id IS NULL AND task_id IS NULL)
+        ),
+        CHECK (target_kind != 'note' OR from_note_id != to_note_id)
+      );
+
+      INSERT INTO user_note_entity_links_new (
+        id, from_note_id, target_kind, to_note_id, mail_message_id,
+        calendar_account_id, calendar_graph_event_id,
+        task_account_id, task_list_id, task_id, people_contact_id, created_at
+      )
+      SELECT
+        id, from_note_id, target_kind, to_note_id, mail_message_id,
+        calendar_account_id, calendar_graph_event_id,
+        task_account_id, task_list_id, task_id, NULL, created_at
+      FROM user_note_entity_links;
+
+      DROP TABLE user_note_entity_links;
+      ALTER TABLE user_note_entity_links_new RENAME TO user_note_entity_links;
+
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_unq_note_entity_link_note
+        ON user_note_entity_links(from_note_id, to_note_id)
+        WHERE target_kind = 'note';
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_unq_note_entity_link_mail
+        ON user_note_entity_links(from_note_id, mail_message_id)
+        WHERE target_kind = 'mail';
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_unq_note_entity_link_calendar
+        ON user_note_entity_links(from_note_id, calendar_account_id, calendar_graph_event_id)
+        WHERE target_kind = 'calendar_event';
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_unq_note_entity_link_task
+        ON user_note_entity_links(from_note_id, task_account_id, task_list_id, task_id)
+        WHERE target_kind = 'cloud_task';
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_unq_note_entity_link_contact
+        ON user_note_entity_links(from_note_id, people_contact_id)
+        WHERE target_kind = 'people_contact';
+
+      CREATE INDEX IF NOT EXISTS idx_note_entity_links_from
+        ON user_note_entity_links(from_note_id);
+      CREATE INDEX IF NOT EXISTS idx_note_entity_links_to_note
+        ON user_note_entity_links(to_note_id)
+        WHERE target_kind = 'note';
+      CREATE INDEX IF NOT EXISTS idx_note_entity_links_people_contact
+        ON user_note_entity_links(people_contact_id)
+        WHERE target_kind = 'people_contact';
+    `
   }
 ]

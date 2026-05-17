@@ -1,7 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
-import { Virtuoso } from 'react-virtuoso'
+import { GroupedVirtuoso } from 'react-virtuoso'
 
-import { Loader2, RefreshCw, Search, Star, LayoutGrid, LayoutList, UserPlus } from 'lucide-react'
+import {
+  ChevronDown,
+  ChevronRight,
+  Loader2,
+  RefreshCw,
+  Search,
+  Star,
+  LayoutGrid,
+  LayoutList,
+  UserPlus
+} from 'lucide-react'
 
 import { useTranslation } from 'react-i18next'
 
@@ -27,22 +37,31 @@ import { useAccountsStore } from '@/stores/accounts'
 
 import { cn } from '@/lib/utils'
 
-import { resolvedAccountColorCss } from '@/lib/avatar-color'
-
 import { VerticalSplitter, useResizableWidth } from '@/components/ResizableSplitter'
 
 import { PeopleContactDetailPanel, type PeopleContactDetailPanelHandle } from '@/app/people/PeopleContactDetailPanel'
 import { PeopleContactListAvatar } from '@/app/people/PeopleContactListAvatar'
 import { PeopleNewContactDialog } from '@/app/people/PeopleNewContactDialog'
 import { peopleListPrimaryLabel } from '@/app/people/people-display-label'
-import { groupPeopleListRows } from '@/app/people/people-list-groups'
+import {
+  groupPeopleListRows,
+  peopleListGroupCollapseKey
+} from '@/app/people/people-list-groups'
 import { useContactPhotoDataUrl } from '@/app/people/useContactPhotoDataUrl'
 import { PeopleContactTile } from '@/app/people/PeopleContactTile'
 import { PeopleShellSortableAccountNavRow } from '@/app/people/PeopleShellAccountNavRow'
 import { ContextMenu, type ContextMenuItem } from '@/components/ContextMenu'
 import { buildAccountColorAndNewContextItems } from '@/lib/account-sidebar-context-menu'
 import {
+  buildPeopleContactContextMenuItems,
+  formatPeopleContactClipboardText
+} from '@/lib/people-contact-context-menu'
+import { showAppAlert, showAppConfirm } from '@/stores/app-dialog'
+import { useComposeStore } from '@/stores/compose'
+import { useUndoStore } from '@/stores/undo'
+import {
   ModuleColumnHeaderIconButton,
+  moduleColumnHeaderActionsClass,
   moduleColumnHeaderIconGlyphClass,
   moduleColumnHeaderNavShellBarClass,
   moduleColumnHeaderShellBarClass,
@@ -142,6 +161,8 @@ export function PeopleShell(): JSX.Element {
 
   const [viewMode, setViewMode] = useState<PeopleListViewMode>(() => readStoredPeopleView())
 
+  const [collapsedPeopleGroups, setCollapsedPeopleGroups] = useState<Set<string>>(() => new Set())
+
   const [counts, setCounts] = useState<PeopleNavCounts | null>(null)
 
   const [rows, setRows] = useState<PeopleContactView[]>([])
@@ -168,6 +189,15 @@ export function PeopleShell(): JSX.Element {
     y: number
     items: ContextMenuItem[]
   } | null>(null)
+
+  const [contactContextMenu, setContactContextMenu] = useState<{
+    x: number
+    y: number
+    contact: PeopleContactView
+  } | null>(null)
+
+  const openNewTo = useComposeStore((s) => s.openNewTo)
+  const pushToast = useUndoStore((s) => s.pushToast)
 
   useEffect(() => {
     const pending = useGlobalCreateNavigateStore.getState().takePendingAfterNavigate()
@@ -412,6 +442,109 @@ export function PeopleShell(): JSX.Element {
 
   }, [])
 
+  const copyContactText = useCallback(
+    async (text: string): Promise<void> => {
+      if (!navigator.clipboard?.writeText) {
+        await showAppAlert(t('calendar.errors.clipboardUnsupported'))
+        return
+      }
+      try {
+        await navigator.clipboard.writeText(text)
+        pushToast({ label: t('people.contactContextMenu.copied'), variant: 'success' })
+      } catch {
+        await showAppAlert(t('calendar.errors.clipboardWriteFailed'))
+      }
+    },
+    [pushToast, t]
+  )
+
+  const openContactContextMenu = useCallback((contact: PeopleContactView, event: MouseEvent): void => {
+    event.preventDefault()
+    event.stopPropagation()
+    setContactContextMenu({ x: event.clientX, y: event.clientY, contact })
+  }, [])
+
+  const handleContactDelete = useCallback(
+    async (contact: PeopleContactView): Promise<void> => {
+      const name = peopleListPrimaryLabel(contact, sortBy)
+      const ok = await showAppConfirm(t('people.shell.deleteContactConfirm', { name }), {
+        title: t('people.shell.deleteContactTitle'),
+        variant: 'danger',
+        confirmLabel: t('people.shell.deleteContact')
+      })
+      if (!ok) return
+      try {
+        await window.mailClient.people.deleteContact(contact.id)
+        setSelected((cur) => (cur?.id === contact.id ? null : cur))
+        await loadCounts()
+        await loadList({ skipFlush: true })
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e)
+        await showAppAlert(msg, { title: t('people.shell.deleteContactErrorTitle') })
+      }
+    },
+    [loadCounts, loadList, sortBy, t]
+  )
+
+  const contactContextMenuItems =
+    contactContextMenu != null
+      ? buildPeopleContactContextMenuItems({
+          t,
+          contact: contactContextMenu.contact,
+          sortBy,
+          onEdit: async (c): Promise<void> => {
+            setContactContextMenu(null)
+            await commitDetailThen(() => {
+              setSelected(c)
+              window.setTimeout(() => detailPanelRef.current?.startEdit(), 0)
+            })
+          },
+          onEmail: (c): void => {
+            setContactContextMenu(null)
+            const to = c.primaryEmail?.trim()
+            if (!to) return
+            void commitDetailThen(() => {
+              setSelected(c)
+              openNewTo(c.accountId, to)
+            })
+          },
+          onToggleFavorite: async (c): Promise<void> => {
+            setContactContextMenu(null)
+            await window.mailClient.people.setFavorite({
+              accountId: c.accountId,
+              provider: c.provider,
+              remoteId: c.remoteId,
+              isFavorite: !c.isFavorite
+            })
+            await loadList({ skipFlush: true })
+          },
+          onCopyName: async (c): Promise<void> => {
+            setContactContextMenu(null)
+            await copyContactText(peopleListPrimaryLabel(c, sortBy))
+          },
+          onCopyEmail: async (c): Promise<void> => {
+            setContactContextMenu(null)
+            const email = c.primaryEmail?.trim()
+            if (!email) return
+            await copyContactText(email)
+          },
+          onCopyDetails: async (c): Promise<void> => {
+            setContactContextMenu(null)
+            const text = formatPeopleContactClipboardText(
+              c,
+              peopleListPrimaryLabel(c, sortBy),
+              sortBy,
+              t
+            )
+            await copyContactText(text)
+          },
+          onDelete: async (c): Promise<void> => {
+            setContactContextMenu(null)
+            await handleContactDelete(c)
+          }
+        })
+      : []
+
 
 
   useEffect(() => {
@@ -619,7 +752,45 @@ export function PeopleShell(): JSX.Element {
 
   const listGroups = useMemo(() => groupPeopleListRows(rows, sortBy), [rows, sortBy])
 
+  useEffect(() => {
+    setCollapsedPeopleGroups(new Set())
+  }, [sortBy])
 
+  const isPeopleGroupCollapsed = useCallback(
+    (letter: string): boolean =>
+      collapsedPeopleGroups.has(peopleListGroupCollapseKey(sortBy, letter)),
+    [collapsedPeopleGroups, sortBy]
+  )
+
+  const togglePeopleGroup = useCallback(
+    (letter: string): void => {
+      const key = peopleListGroupCollapseKey(sortBy, letter)
+      setCollapsedPeopleGroups((prev) => {
+        const next = new Set(prev)
+        if (next.has(key)) next.delete(key)
+        else next.add(key)
+        return next
+      })
+    },
+    [sortBy]
+  )
+
+  const listGroupCounts = useMemo(
+    () =>
+      listGroups.map((g) =>
+        isPeopleGroupCollapsed(g.letter) ? 0 : g.items.length
+      ),
+    [listGroups, isPeopleGroupCollapsed]
+  )
+
+  const listFlatContacts = useMemo(() => {
+    const flat: PeopleContactView[] = []
+    for (const g of listGroups) {
+      if (isPeopleGroupCollapsed(g.letter)) continue
+      flat.push(...g.items)
+    }
+    return flat
+  }, [listGroups, isPeopleGroupCollapsed])
 
   const groupHeaderLabel = useCallback(
 
@@ -639,7 +810,34 @@ export function PeopleShell(): JSX.Element {
 
   )
 
-
+  const renderPeopleGroupHeader = useCallback(
+    (letter: string, itemCount: number): JSX.Element => {
+      const isCollapsed = isPeopleGroupCollapsed(letter)
+      const header = groupHeaderLabel(letter)
+      return (
+        <button
+          type="button"
+          aria-expanded={!isCollapsed}
+          className={cn(
+            'sticky top-0 z-[1] flex w-full items-center gap-1.5 border-b border-border bg-background/95 px-3 py-1.5 text-left',
+            'text-xs font-semibold uppercase tracking-wide text-muted-foreground',
+            'backdrop-blur supports-[backdrop-filter]:bg-background/75 hover:bg-muted/20'
+          )}
+          onClick={(): void => togglePeopleGroup(letter)}
+          aria-label={t('people.shell.groupSectionAria', { letter: header })}
+        >
+          {isCollapsed ? (
+            <ChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden />
+          ) : (
+            <ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden />
+          )}
+          <span>{header}</span>
+          <span className="ml-auto tabular-nums">{itemCount}</span>
+        </button>
+      )
+    },
+    [groupHeaderLabel, isPeopleGroupCollapsed, t, togglePeopleGroup]
+  )
 
   const renderContactRow = useCallback(
 
@@ -657,7 +855,7 @@ export function PeopleShell(): JSX.Element {
 
       return (
 
-        <li key={`${c.accountId}:${c.provider}:${c.remoteId}`}>
+        <div key={`${c.accountId}:${c.provider}:${c.remoteId}`} role="listitem">
 
           <button
 
@@ -669,15 +867,15 @@ export function PeopleShell(): JSX.Element {
 
             }}
 
+            onContextMenu={(e): void => openContactContextMenu(c, e)}
+
             className={cn(
 
-              'flex w-full items-center gap-3 border-l-2 border-solid py-2.5 pl-2.5 pr-3 text-left transition-colors',
+              'flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors',
 
               active ? 'bg-secondary' : 'hover:bg-secondary/60'
 
             )}
-
-            style={{ borderLeftColor: resolvedAccountColorCss(acc?.color) }}
 
           >
 
@@ -715,13 +913,13 @@ export function PeopleShell(): JSX.Element {
 
           </button>
 
-        </li>
+        </div>
 
       )
 
     },
 
-    [accountById, selected, sortBy, commitDetailThen]
+    [accountById, openContactContextMenu, selected, sortBy, commitDetailThen]
 
   )
 
@@ -761,19 +959,170 @@ export function PeopleShell(): JSX.Element {
 
           }}
 
+          onContextMenu={openContactContextMenu}
+
         />
 
       )
 
     },
 
-    [accountById, selected, sortBy, commitDetailThen]
+    [accountById, openContactContextMenu, selected, sortBy, commitDetailThen]
 
   )
 
+  const renderViewModeToggle = (): JSX.Element => (
+    <div
+      role="group"
+      aria-label={t('people.shell.viewModeAria')}
+      className={moduleColumnHeaderActionsClass}
+    >
+      <ModuleColumnHeaderIconButton
+        variant="toolbar"
+        aria-pressed={viewMode === 'list'}
+        title={t('people.shell.viewList')}
+        onClick={(): void => setViewModePersist('list')}
+      >
+        <LayoutList className={moduleColumnHeaderIconGlyphClass} aria-hidden />
+        <span className="sr-only">{t('people.shell.viewList')}</span>
+      </ModuleColumnHeaderIconButton>
+      <ModuleColumnHeaderIconButton
+        variant="toolbar"
+        aria-pressed={viewMode === 'tiles'}
+        title={t('people.shell.viewTiles')}
+        onClick={(): void => setViewModePersist('tiles')}
+      >
+        <LayoutGrid className={moduleColumnHeaderIconGlyphClass} aria-hidden />
+        <span className="sr-only">{t('people.shell.viewTiles')}</span>
+      </ModuleColumnHeaderIconButton>
+    </div>
+  )
 
+  const renderContactsColumnHeader = (): JSX.Element => (
+    <header className={moduleColumnHeaderShellBarClass}>
+      <div className={cn(moduleColumnHeaderTitleClass, 'min-w-0 truncate')}>{listColumnTitle}</div>
+      <div className="flex shrink-0 items-center gap-2">
+        <span className="tabular-nums text-muted-foreground">
+          {t('people.shell.listCount', { count: rows.length })}
+        </span>
+        {renderViewModeToggle()}
+      </div>
+    </header>
+  )
 
+  const renderContactsColumnToolbar = (): JSX.Element => (
+    <div className={moduleColumnHeaderSubToolbarClass}>
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <input
+          type="search"
+          value={query}
+          onChange={(e): void => setQuery(e.target.value)}
+          placeholder={t('people.shell.searchPlaceholder')}
+          className="w-full rounded-md border border-border bg-card py-2 pl-9 pr-3 text-sm outline-none ring-primary focus:ring-1"
+        />
+      </div>
+      <label className="block text-xs text-muted-foreground">
+        <span className="mb-1 block">{t('people.shell.sortBy')}</span>
+        <select
+          value={sortBy}
+          onChange={(e): void => {
+            const v = e.target.value
+            if (v === 'displayName' || v === 'givenName' || v === 'surname') setSortByPersist(v)
+          }}
+          className="w-full rounded-md border border-border bg-card px-2 py-1.5 text-sm text-foreground outline-none ring-primary focus:ring-1"
+        >
+          <option value="displayName">{t('people.shell.sortDisplayName')}</option>
+          <option value="givenName">{t('people.shell.sortGivenName')}</option>
+          <option value="surname">{t('people.shell.sortSurname')}</option>
+        </select>
+      </label>
+    </div>
+  )
 
+  const renderContactsMain = (): JSX.Element => (
+    <div
+      key={`people-contact-list-${sortBy}-${viewMode}`}
+      className={cn(
+        'min-h-0 flex-1',
+        viewMode === 'list' && rows.length >= GROUPED_LIST_VIRTUALIZE_THRESHOLD
+          ? 'overflow-hidden'
+          : 'overflow-y-auto'
+      )}
+    >
+      {listLoading ? (
+        <div className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          {t('common.loading')}
+        </div>
+      ) : rows.length === 0 ? (
+        <div className="p-6 text-center text-sm text-muted-foreground">
+          <p>{t('people.shell.emptyList')}</p>
+          <p className="mt-1 text-xs">{t('people.shell.emptyHint')}</p>
+        </div>
+      ) : viewMode === 'list' ? (
+        rows.length >= GROUPED_LIST_VIRTUALIZE_THRESHOLD ? (
+          <GroupedVirtuoso
+            style={{ height: '100%' }}
+            groupCounts={listGroupCounts}
+            computeItemKey={(index): string => {
+              const c = listFlatContacts[index]
+              return c ? `${c.accountId}:${c.provider}:${c.remoteId}` : `idx:${index}`
+            }}
+            groupContent={(groupIndex): JSX.Element | null => {
+              const g = listGroups[groupIndex]
+              if (!g) return null
+              return renderPeopleGroupHeader(g.letter, g.items.length)
+            }}
+            itemContent={(index): JSX.Element | null => {
+              const c = listFlatContacts[index]
+              return c ? renderContactRow(c) : null
+            }}
+          />
+        ) : (
+          <div className="min-w-0">
+            {listGroups.map((g, idx) => {
+              const header = groupHeaderLabel(g.letter)
+              const collapsed = isPeopleGroupCollapsed(g.letter)
+              return (
+                <section
+                  key={`${sortBy}-${g.letter}-${idx}`}
+                  className="min-w-0"
+                  aria-label={t('people.shell.groupSectionAria', { letter: header })}
+                >
+                  {renderPeopleGroupHeader(g.letter, g.items.length)}
+                  {!collapsed ? (
+                    <div role="list">{g.items.map((c) => renderContactRow(c))}</div>
+                  ) : null}
+                </section>
+              )
+            })}
+          </div>
+        )
+      ) : (
+        <div className="min-w-0 space-y-1 pb-2">
+          {listGroups.map((g, idx) => {
+            const header = groupHeaderLabel(g.letter)
+            const collapsed = isPeopleGroupCollapsed(g.letter)
+            return (
+              <section
+                key={`tiles-${sortBy}-${g.letter}-${idx}`}
+                className="min-w-0"
+                aria-label={t('people.shell.groupSectionAria', { letter: header })}
+              >
+                {renderPeopleGroupHeader(g.letter, g.items.length)}
+                {!collapsed ? (
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(420px,1fr))] gap-4 p-3">
+                    {g.items.map((c) => renderContactTile(c))}
+                  </div>
+                ) : null}
+              </section>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
 
   function navButton(
 
@@ -1122,305 +1471,31 @@ export function PeopleShell(): JSX.Element {
           onDrag={(delta): void => setNavWidth((w) => w + delta)}
         />
 
-        <div
-          style={{ width: listColumnWidth }}
-          className="flex min-h-0 shrink-0 flex-col border-r border-border bg-background"
-        >
-            <header className={moduleColumnHeaderShellBarClass}>
-              <div className={cn(moduleColumnHeaderTitleClass, 'min-w-0 truncate')}>
-                {listColumnTitle}
-              </div>
-              <span className="shrink-0 text-muted-foreground">
-                {t('people.shell.listCount', { count: rows.length })}
-              </span>
-            </header>
-
-            <div className={moduleColumnHeaderSubToolbarClass}>
-
-              <div className="relative">
-
-                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-
-                <input
-
-                  type="search"
-
-                  value={query}
-
-                  onChange={(e): void => setQuery(e.target.value)}
-
-                  placeholder={t('people.shell.searchPlaceholder')}
-
-                  className="w-full rounded-md border border-border bg-card py-2 pl-9 pr-3 text-sm outline-none ring-primary focus:ring-1"
-
-                />
-
-              </div>
-
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-
-                <label className="block min-w-0 flex-1 text-xs text-muted-foreground">
-
-                  <span className="mb-1 block">{t('people.shell.sortBy')}</span>
-
-                  <select
-
-                    value={sortBy}
-
-                    onChange={(e): void => {
-
-                      const v = e.target.value
-
-                      if (v === 'displayName' || v === 'givenName' || v === 'surname') setSortByPersist(v)
-
-                    }}
-
-                    className="w-full rounded-md border border-border bg-card px-2 py-1.5 text-sm text-foreground outline-none ring-primary focus:ring-1"
-
-                  >
-
-                    <option value="displayName">{t('people.shell.sortDisplayName')}</option>
-
-                    <option value="givenName">{t('people.shell.sortGivenName')}</option>
-
-                    <option value="surname">{t('people.shell.sortSurname')}</option>
-
-                  </select>
-
-                </label>
-
-                <div
-
-                  role="group"
-
-                  aria-label={t('people.shell.viewModeAria')}
-
-                  className="flex shrink-0 gap-0.5 self-stretch rounded-md border border-border bg-secondary/25 p-0.5 sm:self-auto"
-
-                >
-
-                  <button
-
-                    type="button"
-
-                    aria-pressed={viewMode === 'list'}
-
-                    title={t('people.shell.viewList')}
-
-                    onClick={(): void => setViewModePersist('list')}
-
-                    className={cn(
-
-                      'flex flex-1 items-center justify-center rounded px-2 py-1.5 sm:flex-initial',
-
-                      viewMode === 'list'
-
-                        ? 'bg-card text-foreground shadow-sm'
-
-                        : 'text-muted-foreground hover:bg-secondary/80 hover:text-foreground'
-
-                    )}
-
-                  >
-
-                    <LayoutList className="h-4 w-4" aria-hidden />
-
-                    <span className="sr-only">{t('people.shell.viewList')}</span>
-
-                  </button>
-
-                  <button
-
-                    type="button"
-
-                    aria-pressed={viewMode === 'tiles'}
-
-                    title={t('people.shell.viewTiles')}
-
-                    onClick={(): void => setViewModePersist('tiles')}
-
-                    className={cn(
-
-                      'flex flex-1 items-center justify-center rounded px-2 py-1.5 sm:flex-initial',
-
-                      viewMode === 'tiles'
-
-                        ? 'bg-card text-foreground shadow-sm'
-
-                        : 'text-muted-foreground hover:bg-secondary/80 hover:text-foreground'
-
-                    )}
-
-                  >
-
-                    <LayoutGrid className="h-4 w-4" aria-hidden />
-
-                    <span className="sr-only">{t('people.shell.viewTiles')}</span>
-
-                  </button>
-
-                </div>
-
-              </div>
-
-            </div>
-
+        {viewMode === 'list' ? (
+          <>
             <div
-              key={`people-contact-list-${sortBy}-${viewMode}`}
-              className={cn(
-                'min-h-0 flex-1',
-                viewMode === 'list' && rows.length >= GROUPED_LIST_VIRTUALIZE_THRESHOLD
-                  ? 'overflow-hidden'
-                  : 'overflow-y-auto'
-              )}
+              style={{ width: listColumnWidth }}
+              className="flex min-h-0 shrink-0 flex-col border-r border-border bg-background"
             >
-
-              {listLoading ? (
-
-                <div className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground">
-
-                  <Loader2 className="h-5 w-5 animate-spin" />
-
-                  {t('common.loading')}
-
-                </div>
-
-              ) : rows.length === 0 ? (
-
-                <div className="p-6 text-center text-sm text-muted-foreground">
-
-                  <p>{t('people.shell.emptyList')}</p>
-
-                  <p className="mt-1 text-xs">{t('people.shell.emptyHint')}</p>
-
-                </div>
-
-              ) : (
-
-                viewMode === 'list' ? (
-
-                  rows.length >= GROUPED_LIST_VIRTUALIZE_THRESHOLD ? (
-
-                    <Virtuoso
-                      style={{ height: '100%' }}
-                      data={rows}
-                      itemContent={(_index, c): JSX.Element | null =>
-                        c ? renderContactRow(c) : null
-                      }
-                    />
-
-                  ) : (
-
-                  <div className="min-w-0 divide-y divide-border">
-
-                    {listGroups.map((g, idx) => {
-
-                      const header = groupHeaderLabel(g.letter)
-
-                      return (
-
-                        <div
-                          key={`${sortBy}-${g.letter}-${idx}`}
-                          className="min-w-0"
-                          role="group"
-                          aria-label={t('people.shell.groupSectionAria', { letter: header })}
-                        >
-
-                          <div
-
-                            className={cn(
-
-                              'sticky top-0 z-[1] border-b border-border bg-background/95 px-3 py-1.5',
-
-                              'text-xs font-semibold uppercase tracking-wide text-muted-foreground',
-
-                              'backdrop-blur supports-[backdrop-filter]:bg-background/75'
-
-                            )}
-
-                          >
-
-                            {header}
-
-                          </div>
-
-                          <ul className="divide-y divide-border">{g.items.map((c) => renderContactRow(c))}</ul>
-
-                        </div>
-
-                      )
-
-                    })}
-
-                  </div>
-
-                  )
-
-                ) : (
-
-                  <div className="min-w-0 space-y-1 pb-2">
-
-                    {listGroups.map((g, idx) => {
-
-                      const header = groupHeaderLabel(g.letter)
-
-                      return (
-
-                        <div
-                          key={`tiles-${sortBy}-${g.letter}-${idx}`}
-                          className="min-w-0"
-                          role="group"
-                          aria-label={t('people.shell.groupSectionAria', { letter: header })}
-                        >
-
-                          <div
-
-                            className={cn(
-
-                              'sticky top-0 z-[1] border-b border-border bg-background/95 px-3 py-1.5',
-
-                              'text-xs font-semibold uppercase tracking-wide text-muted-foreground',
-
-                              'backdrop-blur supports-[backdrop-filter]:bg-background/75'
-
-                            )}
-
-                          >
-
-                            {header}
-
-                          </div>
-
-                          <div className="grid grid-cols-[repeat(auto-fill,minmax(450px,1fr))] gap-4 p-3">
-
-                            {g.items.map((c) => renderContactTile(c))}
-
-                          </div>
-
-                        </div>
-
-                      )
-
-                    })}
-
-                  </div>
-
-                )
-
-              )}
-
+              {renderContactsColumnHeader()}
+              {renderContactsColumnToolbar()}
+              {renderContactsMain()}
             </div>
-
+            <VerticalSplitter
+              onDrag={(delta): void => setListColumnWidth((w) => w + delta)}
+              ariaLabel={t('people.shell.splitterListAria')}
+            />
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-card">
+              {detailBody}
+            </div>
+          </>
+        ) : (
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
+            {renderContactsColumnHeader()}
+            {renderContactsColumnToolbar()}
+            {renderContactsMain()}
           </div>
-
-        <VerticalSplitter
-          onDrag={(delta): void => setListColumnWidth((w) => w + delta)}
-          ariaLabel={t('people.shell.splitterListAria')}
-        />
-
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-card">
-          {detailBody}
-        </div>
+        )}
       </div>
 
       <PeopleNewContactDialog
@@ -1463,6 +1538,15 @@ export function PeopleShell(): JSX.Element {
 
         />
 
+      ) : null}
+
+      {contactContextMenu ? (
+        <ContextMenu
+          x={contactContextMenu.x}
+          y={contactContextMenu.y}
+          items={contactContextMenuItems}
+          onClose={(): void => setContactContextMenu(null)}
+        />
       ) : null}
 
     </section>

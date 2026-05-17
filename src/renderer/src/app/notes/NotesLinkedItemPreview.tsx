@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import type { CalendarEventView, ConnectedAccount, UserNote } from '@shared/types'
+import type { CalendarEventView, ConnectedAccount, PeopleContactView, UserNote } from '@shared/types'
 import type { NoteEntityLinkTarget } from '@shared/note-entity-links'
 import { CalendarEventPreview } from '@/app/calendar/CalendarEventPreview'
 import { CloudTaskItemPreview } from '@/app/calendar/CloudTaskItemPreview'
@@ -36,6 +36,7 @@ export function NotesLinkedItemPreview({
   const [linkedNote, setLinkedNote] = useState<UserNote | null>(null)
   const [calendarEvent, setCalendarEvent] = useState<CalendarEventView | null>(null)
   const [cloudTask, setCloudTask] = useState<TaskItemWithContext | null>(null)
+  const [linkedContact, setLinkedContact] = useState<PeopleContactView | null>(null)
 
   useEffect(() => {
     if (target.kind !== 'mail') return
@@ -62,6 +63,7 @@ export function NotesLinkedItemPreview({
     setLinkedNote(null)
     setCalendarEvent(null)
     setCloudTask(null)
+    setLinkedContact(null)
 
     void (async (): Promise<void> => {
       try {
@@ -90,6 +92,12 @@ export function NotesLinkedItemPreview({
               row.accountId === target.accountId && row.graphEventId === target.graphEventId
           )
           if (!cancelled) setCalendarEvent(ev ?? null)
+          return
+        }
+
+        if (target.kind === 'people_contact') {
+          const contact = await window.mailClient.people.getById(target.contactId)
+          if (!cancelled) setLinkedContact(contact)
           return
         }
 
@@ -220,6 +228,37 @@ export function NotesLinkedItemPreview({
     }
     return (
       <CloudTaskItemPreview task={cloudTask} accountDisplayName={accountLabel ?? undefined} />
+    )
+  }
+
+  if (target.kind === 'people_contact') {
+    if (!linkedContact) {
+      return (
+        <div className="flex flex-1 items-center justify-center p-6 text-center text-xs text-muted-foreground">
+          {t('notes.preview.contactNotFound')}
+        </div>
+      )
+    }
+    const name =
+      linkedContact.displayName?.trim() ||
+      [linkedContact.givenName, linkedContact.surname].filter(Boolean).join(' ').trim() ||
+      linkedContact.primaryEmail?.trim() ||
+      t('people.shell.linkedNotesUntitledContact')
+    return (
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
+        <div className="text-sm font-semibold text-foreground">{name}</div>
+        {linkedContact.primaryEmail ? (
+          <p className="text-xs text-muted-foreground">{linkedContact.primaryEmail}</p>
+        ) : null}
+        {linkedContact.company?.trim() ? (
+          <p className="text-xs text-muted-foreground">{linkedContact.company}</p>
+        ) : null}
+        {linkedContact.notes?.trim() ? (
+          <p className="whitespace-pre-wrap rounded-md border border-border/60 bg-muted/15 p-3 text-xs text-foreground">
+            {linkedContact.notes}
+          </p>
+        ) : null}
+      </div>
     )
   }
 

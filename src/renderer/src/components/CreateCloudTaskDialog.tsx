@@ -8,10 +8,12 @@ import {
   datetimeLocalValueToIso,
   isoToDatetimeLocalValue
 } from '@/app/work-items/work-item-datetime'
+import { persistTasksCalendarCreateAccountId } from '@/app/tasks/tasks-calendar-create-storage'
 import {
-  persistTasksCalendarCreateAccountId,
-  readTasksCalendarCreateAccountId
-} from '@/app/tasks/tasks-calendar-create-storage'
+  pickDefaultListId,
+  resolvePreferredAccountId,
+  resolvePreferredListId
+} from '@/app/tasks/tasks-create-defaults'
 import {
   scheduleFromCalendarCreateRange,
   type CalendarCreateRange
@@ -19,35 +21,7 @@ import {
 import type { TaskItemWithContext, TasksViewSelection } from '@/app/tasks/tasks-types'
 import { cloudTaskAccountOptionLabel } from '@/lib/cloud-task-accounts'
 import { cn } from '@/lib/utils'
-
-function pickDefaultListId(rows: TaskListRow[]): string | null {
-  if (rows.length === 0) return null
-  return rows.find((r) => r.isDefault)?.id ?? rows[0]!.id
-}
-
-function resolvePreferredAccountId(
-  taskAccounts: ConnectedAccount[],
-  selection: TasksViewSelection | null
-): string {
-  if (selection?.kind === 'list') {
-    const hit = taskAccounts.find((a) => a.id === selection.accountId)
-    if (hit) return hit.id
-  }
-  const stored = readTasksCalendarCreateAccountId()
-  if (stored && taskAccounts.some((a) => a.id === stored)) return stored
-  return taskAccounts[0]?.id ?? ''
-}
-
-function resolvePreferredListId(
-  selection: TasksViewSelection | null,
-  accountId: string,
-  lists: TaskListRow[]
-): string {
-  if (selection?.kind === 'list' && selection.accountId === accountId && selection.listId) {
-    if (lists.some((l) => l.id === selection.listId)) return selection.listId
-  }
-  return pickDefaultListId(lists) ?? ''
-}
+import { ModalPanel, ModalRoot } from '@/components/motion/Modal'
 
 export interface CreateCloudTaskDialogProps {
   open: boolean
@@ -189,16 +163,8 @@ export function CreateCloudTaskDialog({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm"
-      onClick={onClose}
-    >
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="flex max-h-[min(90vh,720px)] w-[520px] max-w-[92vw] flex-col rounded-xl border border-border bg-card text-foreground shadow-2xl"
-          onClick={(e): void => e.stopPropagation()}
-        >
+    <ModalRoot open={open} zIndex={100} centerClassName="items-center justify-center" onBackdropClick={onClose}>
+      <ModalPanel className="flex max-h-[min(90vh,720px)] w-[520px] max-w-[92vw] flex-col rounded-xl border border-border bg-card text-foreground shadow-2xl">
           <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-3.5">
             <h2 className="text-sm font-semibold">{t('tasks.create.title')}</h2>
             <button
@@ -336,7 +302,7 @@ export function CreateCloudTaskDialog({
               {t('tasks.create.submit')}
             </button>
           </div>
-        </div>
-      </div>
+      </ModalPanel>
+    </ModalRoot>
   )
 }

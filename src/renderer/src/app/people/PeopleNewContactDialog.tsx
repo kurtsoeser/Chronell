@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { AlertCircle, Loader2, X } from 'lucide-react'
 import type { ConnectedAccount, PeopleContactView, PeopleCreateContactInput } from '@shared/types'
 import { cn } from '@/lib/utils'
+import { ModalPanel, ModalRoot } from '@/components/motion/Modal'
 
 interface Props {
   open: boolean
@@ -93,14 +94,8 @@ export function PeopleNewContactDialog({
     'mt-0.5 w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm outline-none ring-primary focus:ring-1'
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        className="max-h-[90vh] w-[480px] max-w-[92vw] overflow-hidden rounded-xl border border-border bg-card text-foreground shadow-2xl"
-        onClick={(e): void => e.stopPropagation()}
-      >
+    <ModalRoot open={open} zIndex={50} onBackdropClick={onClose}>
+      <ModalPanel className="max-h-[90vh] w-[480px] max-w-[92vw] overflow-hidden rounded-xl border border-border bg-card text-foreground shadow-2xl">
         <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
           <h2 className="text-sm font-semibold">{t('people.shell.newContactTitle')}</h2>
           <button
@@ -221,7 +216,7 @@ export function PeopleNewContactDialog({
             {busy ? t('people.shell.creatingContact') : t('people.shell.createContact')}
           </button>
         </div>
-      </div>
-    </div>
+      </ModalPanel>
+    </ModalRoot>
   )
 }

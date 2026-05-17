@@ -1,6 +1,6 @@
 {
   "name": "mailclient",
-  "version": "0.0.1",
+  "version": "0.9.7",
   "description": "Schlanker, lokaler Mail-Workflow-Client fuer Windows 11 mit Multi-Account-Support fuer Microsoft 365 und Gmail",
   "main": "out/main/index.js",
   "author": "Kurt Soeser",

@@ -17,6 +17,13 @@ import {
 import { closeAllTeamsChatPopouts } from './teams-chat-popout'
 import { pruneStaleAttachmentCache } from './attachment-cache'
 import { applyPendingChromiumCachePurgeOnStartup } from './local-data-service'
+import {
+  configureChronellAppPaths,
+  migrateLegacyUserDataIfNeeded
+} from './user-data-migration'
+import { APP_PRODUCT_NAME } from '@shared/app-version'
+
+configureChronellAppPaths()
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 const isDev = !app.isPackaged
@@ -96,7 +103,7 @@ function createMainWindow(): void {
     show: false,
     autoHideMenuBar: true,
     backgroundColor: '#0e0e12',
-    title: 'MailClient',
+    title: APP_PRODUCT_NAME,
     webPreferences: {
       preload: join(__dirname, '../preload/index.mjs'),
       sandbox: false,
@@ -120,6 +127,14 @@ function createMainWindow(): void {
 }
 
 app.whenReady().then(async () => {
+  const migration = await migrateLegacyUserDataIfNeeded().catch((e) => {
+    console.error('[migration] fehlgeschlagen:', e)
+    return { status: 'skipped' as const, reason: 'error' }
+  })
+  if (migration.status === 'migrated') {
+    console.log('[migration] Konten & Einstellungen übernommen von', migration.from)
+  }
+
   registerMailFrameExternalRedirect()
   await applyPendingChromiumCachePurgeOnStartup().catch((e) =>
     console.warn('[startup] chromium-cache purge:', e)

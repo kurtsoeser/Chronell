@@ -5,6 +5,7 @@ import {
   Loader2,
   Mail,
   StickyNote,
+  User,
   X
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -15,18 +16,21 @@ import type {
   NoteLinksBundle
 } from '@shared/note-entity-links'
 import { cn } from '@/lib/utils'
+import { ModalPanel, ModalRoot } from '@/components/motion/Modal'
 
 const PICKER_KINDS: NoteEntityLinkTargetKind[] = [
   'note',
   'mail',
   'calendar_event',
-  'cloud_task'
+  'cloud_task',
+  'people_contact'
 ]
 
 function kindIcon(kind: NoteEntityLinkTargetKind): typeof StickyNote {
   if (kind === 'mail') return Mail
   if (kind === 'calendar_event') return CalendarDays
   if (kind === 'cloud_task') return CheckSquare
+  if (kind === 'people_contact') return User
   return StickyNote
 }
 
@@ -88,21 +92,11 @@ export function NoteEntityLinkPickerDialog({
     }
   }
 
-  if (!open) return null
-
   return (
-    <div
-      className="fixed inset-0 z-[320] flex items-center justify-center bg-black/40 p-4"
-      onMouseDown={(e): void => {
-        if (e.target === e.currentTarget) onClose()
-      }}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
+    <ModalRoot open={open} zIndex={320} overlayClassName="p-4" onBackdropClick={onClose}>
+      <ModalPanel
         aria-labelledby="note-link-picker-title"
         className="flex max-h-[min(520px,90vh)] w-full max-w-md flex-col overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-xl"
-        onMouseDown={(e): void => e.stopPropagation()}
       >
         <header className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-4 py-3">
           <h2 id="note-link-picker-title" className="text-sm font-semibold">
@@ -190,7 +184,7 @@ export function NoteEntityLinkPickerDialog({
             {t('common.loading')}
           </footer>
         ) : null}
-      </div>
-    </div>
+      </ModalPanel>
+    </ModalRoot>
   )
 }

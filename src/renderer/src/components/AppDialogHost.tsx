@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef } from 'react'
-import { createPortal } from 'react-dom'
 import { AlertTriangle, Info } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { ModalPanel, ModalRoot } from '@/components/motion/Modal'
+import { useAnimatedPresence } from '@/lib/use-animated-presence'
 import { useAppDialogStore } from '@/stores/app-dialog'
 
 /**
@@ -22,11 +23,21 @@ export function AppDialogHost(): JSX.Element | null {
   const choiceActions = useAppDialogStore((s) => s.choiceActions)
   const setInputValue = useAppDialogStore((s) => s.setInputValue)
   const resolveAndClose = useAppDialogStore((s) => s._resolveAndClose)
+  const purgeAfterExit = useAppDialogStore((s) => s.purgeAfterExit)
 
-  const panelRef = useRef<HTMLDivElement>(null)
+  const { mounted } = useAnimatedPresence(open)
+  const wasMountedRef = useRef(false)
+
   const confirmBtnRef = useRef<HTMLButtonElement>(null)
   const okBtnRef = useRef<HTMLButtonElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (wasMountedRef.current && !mounted && !open) {
+      purgeAfterExit()
+    }
+    wasMountedRef.current = mounted
+  }, [mounted, open, purgeAfterExit])
 
   useEffect(() => {
     if (!open) return
@@ -34,8 +45,6 @@ export function AppDialogHost(): JSX.Element | null {
       if (kind === 'prompt') {
         inputRef.current?.focus()
         inputRef.current?.select()
-      } else if (kind === 'confirm' && variant === 'danger') {
-        confirmBtnRef.current?.focus()
       } else if (kind === 'confirm') {
         confirmBtnRef.current?.focus()
       } else {
@@ -63,31 +72,27 @@ export function AppDialogHost(): JSX.Element | null {
     return (): void => window.removeEventListener('keydown', onKeyDown)
   }, [onKeyDown])
 
-  if (!open || kind == null || typeof document === 'undefined') return null
+  if (!mounted || kind == null || typeof document === 'undefined') return null
 
   const Icon = variant === 'danger' ? AlertTriangle : Info
 
-  return createPortal(
-    <div
-      className="fixed inset-0 z-[300] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
-      role="presentation"
-      onClick={(): void => {
-        if (kind === 'alert') resolveAndClose(undefined)
-        else if (kind === 'confirm' || kind === 'choice') resolveAndClose(false)
-        else resolveAndClose(null)
-      }}
+  const backdropClose = (): void => {
+    if (kind === 'alert') resolveAndClose(undefined)
+    else if (kind === 'confirm' || kind === 'choice') resolveAndClose(false)
+    else resolveAndClose(null)
+  }
+
+  return (
+    <ModalRoot
+      open={open}
+      zIndex={300}
+      overlayClassName="p-4"
+      onBackdropClick={backdropClose}
     >
-      <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
+      <ModalPanel
         aria-labelledby={title ? 'app-dialog-title' : undefined}
         aria-describedby="app-dialog-desc"
-        className={cn(
-          'w-full max-w-md rounded-xl border border-border bg-card text-foreground shadow-2xl',
-          'animate-in fade-in zoom-in-95 duration-150'
-        )}
-        onClick={(e): void => e.stopPropagation()}
+        className="w-full max-w-md rounded-xl border border-border bg-card text-foreground shadow-2xl"
       >
         <div className="flex gap-3 border-b border-border px-5 py-4">
           <div
@@ -98,7 +103,10 @@ export function AppDialogHost(): JSX.Element | null {
                 : 'border-border bg-muted/50 text-muted-foreground'
             )}
           >
-            <Icon className="h-5 w-5" aria-hidden />
+            <Icon
+              className={cn('h-5 w-5', variant === 'danger' && 'animate-pulse-soft')}
+              aria-hidden
+            />
           </div>
           <div className="min-w-0 flex-1 pt-0.5">
             {title ? (
@@ -216,8 +224,7 @@ export function AppDialogHost(): JSX.Element | null {
             </>
           )}
         </div>
-      </div>
-    </div>,
-    document.body
+      </ModalPanel>
+    </ModalRoot>
   )
 }

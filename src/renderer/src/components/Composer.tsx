@@ -275,7 +275,7 @@ function ComposerWindow({
       <button
         type="button"
         onClick={(): void => focus(draft.id)}
-        className="pointer-events-auto flex h-9 items-center gap-2 rounded-t-md border border-b-0 border-border bg-card px-3 text-xs font-medium text-foreground shadow-lg hover:bg-card/80"
+        className="pointer-events-auto flex h-9 items-center gap-2 rounded-t-md border border-b-0 border-border bg-card px-3 text-xs font-medium text-foreground shadow-lg transition-all duration-200 ease-out hover:bg-card/80"
         style={{
           position: 'fixed',
           right: 24 + index * 18,
@@ -303,7 +303,7 @@ function ComposerWindow({
 
   return (
     <div
-      className="pointer-events-auto fixed flex flex-col overflow-hidden rounded-lg border border-border bg-card text-foreground shadow-2xl"
+      className="pointer-events-auto fixed flex flex-col overflow-hidden rounded-lg border border-border bg-card text-foreground shadow-2xl transition-all duration-200 ease-out"
       onMouseDown={(): void => focus(draft.id)}
       onDragEnter={handleDragEnter}
       onDragOver={handleDragOver}

@@ -103,6 +103,45 @@ export function searchNoteLinkTargets(
     }
   }
 
+  if (out.length < limit) {
+    const contactLimit = limit - out.length
+    const contactSql = q
+      ? `SELECT id, display_name, given_name, surname, primary_email, company
+         FROM people_contacts
+         WHERE LOWER(COALESCE(display_name,'')) LIKE ?
+            OR LOWER(COALESCE(given_name,'')) LIKE ?
+            OR LOWER(COALESCE(surname,'')) LIKE ?
+            OR LOWER(COALESCE(primary_email,'')) LIKE ?
+            OR LOWER(COALESCE(company,'')) LIKE ?
+         ORDER BY COALESCE(display_name, surname, given_name) COLLATE NOCASE LIMIT ?`
+      : `SELECT id, display_name, given_name, surname, primary_email, company
+         FROM people_contacts
+         ORDER BY COALESCE(display_name, surname, given_name) COLLATE NOCASE LIMIT ?`
+    const contactParams = q
+      ? [`%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`, contactLimit]
+      : [contactLimit]
+    const contacts = db.prepare(contactSql).all(...contactParams) as Array<{
+      id: number
+      display_name: string | null
+      given_name: string | null
+      surname: string | null
+      primary_email: string | null
+      company: string | null
+    }>
+    for (const c of contacts) {
+      const name =
+        c.display_name?.trim() ||
+        [c.given_name, c.surname].filter(Boolean).join(' ').trim() ||
+        c.primary_email?.trim() ||
+        'Kontakt'
+      out.push({
+        target: { kind: 'people_contact', contactId: c.id },
+        title: name,
+        subtitle: c.company?.trim() || c.primary_email?.trim() || null
+      })
+    }
+  }
+
   if (q && out.length < limit) {
     const taskLimit = limit - out.length
     const tasks = db

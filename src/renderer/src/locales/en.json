@@ -54,7 +54,9 @@
     "kind": {
       "mail": "Mail",
       "calendar": "Calendar",
-      "standalone": "Standalone note"
+      "standalone": "Standalone note",
+      "contact": "Contact",
+      "task": "Task"
     },
     "editor": {
       "title": "Note",
@@ -69,7 +71,9 @@
       "saveFailed": "Could not save note.",
       "viewSwitcherLabel": "Switch note view",
       "markdownTab": "Markdown",
-      "previewTab": "Preview"
+      "previewTab": "Preview",
+      "resizeAria": "Resize",
+      "moveAria": "Move note window"
     },
     "preview": {
       "loading": "Loading note…"
@@ -179,6 +183,7 @@
       "noteNotFound": "Note not found.",
       "eventNotFound": "Event not found.",
       "taskNotFound": "Task not found.",
+      "contactNotFound": "Contact not found.",
       "unsupported": "Preview not available for this type."
     },
     "pagesContextMenu": {
@@ -203,7 +208,8 @@
         "note": "Note",
         "mail": "Email",
         "calendar_event": "Event",
-        "cloud_task": "Task"
+        "cloud_task": "Task",
+        "people_contact": "Contact"
       }
     }
   },
@@ -236,6 +242,8 @@
       "deleteSelected": "Delete",
       "deleteManyConfirm": "Delete {{count}} tasks?",
       "checkTaskAria": "Select task",
+      "inlineCreateTitle": "New task…",
+      "inlineCreateNotes": "Notes",
       "emptyTasks": "No tasks in this list.",
       "detailHeading": "Details",
       "fieldTitle": "Title",
@@ -418,7 +426,13 @@
       "phone": "Phone",
       "company": "Company",
       "jobTitle": "Job title",
-      "notes": "Notes",
+      "notes": "Notes (account)",
+      "providerNotes": "Provider notes",
+      "linkedNotesHeading": "App notes",
+      "linkedNotesAdd": "New note",
+      "linkedNotesEmpty": "No linked notes yet.",
+      "linkedNotesDefaultTitle": "Note for {{name}}",
+      "linkedNotesUntitledContact": "Contact",
       "favorite": "Favorite",
       "unfavorite": "Remove favorite",
       "emailAction": "Email",
@@ -467,6 +481,13 @@
       "deleteContactConfirm": "Permanently remove “{{name}}” from your Microsoft/Google account and from this device? This cannot be undone.",
       "deletingContact": "Deleting …",
       "deleteContactErrorTitle": "Delete failed"
+    },
+    "contactContextMenu": {
+      "copy": "Copy",
+      "copyName": "Name",
+      "copyEmail": "Email address",
+      "copyDetails": "Contact details",
+      "copied": "Copied to clipboard."
     }
   },
   "workflow": {
@@ -647,6 +668,13 @@
     "tabMail": "Mail",
     "tabCalendar": "Calendar",
     "tabContacts": "Contacts",
+    "tabInfo": "Info",
+    "infoPanelAria": "Info — settings",
+    "infoAboutHeading": "About the app",
+    "infoProductLine": "Desktop workspace for mail, calendar, tasks, notes, and contacts — Microsoft 365 and Google in one window.",
+    "infoVersionLabel": "Version",
+    "infoReleaseDateLabel": "As of",
+    "infoBuildNote": "Technical package name: MailClient · App ID: {{appId}}",
     "subNavAria": "Sections",
     "contactsPanelAria": "Contacts — settings",
     "contactsWorkspaceHeading": "Contacts view",
@@ -1161,18 +1189,26 @@
       "favoritesSubtitle": "Quick access",
       "composerTitle": "New mail",
       "composerSubtitle": "Send directly",
-      "todoAllTitle": "To-do · All",
-      "todoAllSubtitle": "Overdue through later",
-      "todoOverdueTitle": "To-do · Overdue",
-      "todoOverdueSubtitle": "Already due",
-      "todoTodayTitle": "To-do · Today",
-      "todoTodaySubtitle": "Due today",
-      "todoTomorrowTitle": "To-do · Tomorrow",
-      "todoTomorrowSubtitle": "Due tomorrow",
-      "todoWeekTitle": "To-do · This week",
-      "todoWeekSubtitle": "Due this calendar week",
-      "todoLaterTitle": "To-do · Later",
-      "todoLaterSubtitle": "No near due date",
+      "todoAllTitle": "Mail to-do · All",
+      "todoAllSubtitle": "Messages with a due bucket only",
+      "todoOverdueTitle": "Mail to-do · Overdue",
+      "todoOverdueSubtitle": "Mail tasks already due",
+      "todoTodayTitle": "Mail to-do · Today",
+      "todoTodaySubtitle": "Mail tasks due today",
+      "todoTomorrowTitle": "Mail to-do · Tomorrow",
+      "todoTomorrowSubtitle": "Mail tasks due tomorrow",
+      "todoWeekTitle": "Mail to-do · This week",
+      "todoWeekSubtitle": "Mail tasks due this week",
+      "todoLaterTitle": "Mail to-do · Later",
+      "todoLaterSubtitle": "Mail tasks without a near date",
+      "workAllTitle": "All work items",
+      "workAllSubtitle": "Mail, cloud tasks & events",
+      "notesNewTitle": "New note",
+      "notesNewSubtitle": "Create a standalone note",
+      "notesOverviewTitle": "Notes",
+      "notesOverviewSubtitle": "Recently edited",
+      "notesLastTitle": "Last note",
+      "notesLastSubtitle": "Resume quickly",
       "weatherTitle": "Weather",
       "weatherSubtitle": "Today and 7-day outlook",
       "todayClockTitle": "Date & time",
@@ -1193,9 +1229,25 @@
       "generic": "Loading…",
       "calendar": "Loading calendar…",
       "search": "Searching…",
-      "todo": "Loading to-dos…"
+      "todo": "Loading to-dos…",
+      "notes": "Loading notes…",
+      "work": "Loading work items…"
     },
     "todoEmpty": "No messages with a to-do in this view.",
+    "workAll": {
+      "empty": "No open work items — mail to-dos, cloud tasks and events appear here."
+    },
+    "notesNew": {
+      "action": "New note",
+      "hint": "Opens the notes editor with a blank page."
+    },
+    "notesOverview": {
+      "empty": "No notes yet. Create your first one via “New note”."
+    },
+    "notesLast": {
+      "empty": "No note available.",
+      "noBody": "No content yet."
+    },
     "inboxHintOpenUnified": "Open “All inboxes” for this preview.",
     "inboxEmpty": "No conversations in the unified inbox.",
     "deadlinesHintOpenUnified": "Open “All inboxes” for this summary.",

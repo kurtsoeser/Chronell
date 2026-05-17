@@ -10,6 +10,7 @@ import type {
   UserNoteListInRangeFilters,
   UserNoteListItem,
   UserNoteMailUpsertInput,
+  UserNotePeopleContactUpsertInput,
   UserNoteMoveToSectionInput,
   UserNoteScheduleInput,
   UserNoteScheduleFields,
@@ -19,7 +20,9 @@ import type {
 } from '@shared/types'
 import { NOTE_DEFAULT_APPOINTMENT_MINUTES } from '@shared/note-calendar-span'
 import {
+  addNoteEntityLink,
   deleteAllLinksForNote,
+  listNoteLinksBundle,
   replaceAllNoteLinksFromBackup
 } from './user-note-entity-links-repo'
 
@@ -67,7 +70,8 @@ const NOTE_PRIMARY_LINK_SUBQUERY = `(
     WHEN 'mail' THEN 1
     WHEN 'calendar_event' THEN 2
     WHEN 'cloud_task' THEN 3
-    ELSE 4
+    WHEN 'people_contact' THEN 4
+    ELSE 5
   END,
   l.id ASC
   LIMIT 1
@@ -152,7 +156,8 @@ function parsePrimaryLinkKind(value: string | null): UserNoteListItem['primaryLi
     value === 'note' ||
     value === 'mail' ||
     value === 'calendar_event' ||
-    value === 'cloud_task'
+    value === 'cloud_task' ||
+    value === 'people_contact'
   ) {
     return value
   }
@@ -254,6 +259,169 @@ export function upsertMailNote(input: UserNoteMailUpsertInput): UserNote {
   const note = getMailNote(input.messageId)
   if (!note) throw new Error('Notiz konnte nicht gelesen werden.')
   return note
+}
+
+function ensurePeopleContactEntityLink(noteId: number, contactId: number): void {
+  const hasLink = listNoteLinksBundle(noteId).outgoing.some(
+    (item) => item.target.kind === 'people_contact' && item.target.contactId === contactId
+  )
+  if (!hasLink) {
+    addNoteEntityLink(noteId, { kind: 'people_contact', contactId })
+  }
+}
+
+export function getPrimaryNoteForPeopleContact(contactId: number): UserNote | null {
+  assertPositiveId(contactId, 'Kontakt-ID')
+  const row = getDb()
+    .prepare(
+      `SELECT n.id
+       FROM user_notes n
+       JOIN user_note_entity_links l ON l.from_note_id = n.id
+       WHERE l.target_kind = 'people_contact' AND l.people_contact_id = ?
+       ORDER BY n.updated_at DESC, n.id DESC
+       LIMIT 1`
+    )
+    .get(contactId) as { id: number } | undefined
+  if (!row) return null
+  return getNoteById(row.id)
+}
+
+/** Freie Notiz mit passendem Titel ohne Kontakt-Verknuepfung (Reparatur aelterer Eintraege). */
+function findUnlinkedStandaloneNoteByTitle(title: string | null | undefined): UserNote | null {
+  const trimmed = title?.trim()
+  if (!trimmed) return null
+  const row = getDb()
+    .prepare(
+      `SELECT n.id
+       FROM user_notes n
+       WHERE n.kind = 'standalone'
+         AND TRIM(COALESCE(n.title, '')) = ? COLLATE NOCASE
+         AND NOT EXISTS (
+           SELECT 1 FROM user_note_entity_links l
+           WHERE l.from_note_id = n.id AND l.target_kind = 'people_contact'
+         )
+       ORDER BY n.updated_at DESC, n.id DESC
+       LIMIT 1`
+    )
+    .get(trimmed) as { id: number } | undefined
+  if (!row) return null
+  return getNoteById(row.id)
+}
+
+type PeopleContactNameRow = {
+  display_name: string | null
+  given_name: string | null
+  surname: string | null
+  primary_email: string | null
+}
+
+function peopleContactTitleCandidates(row: PeopleContactNameRow): string[] {
+  const out = new Set<string>()
+  const add = (value: string | null | undefined): void => {
+    const trimmed = value?.trim()
+    if (trimmed) out.add(trimmed)
+  }
+  add(row.display_name)
+  const given = row.given_name?.trim() || ''
+  const sur = row.surname?.trim() || ''
+  if (given && sur) {
+    add(`${given} ${sur}`)
+    add(`${sur} ${given}`)
+  } else {
+    add(given || sur)
+  }
+  add(row.primary_email)
+  return [...out]
+}
+
+function findUnlinkedStandaloneNoteForContact(
+  contactId: number,
+  titleHint?: string | null
+): UserNote | null {
+  const byHint = findUnlinkedStandaloneNoteByTitle(titleHint)
+  if (byHint) return byHint
+
+  const contact = getDb()
+    .prepare(
+      `SELECT display_name, given_name, surname, primary_email
+       FROM people_contacts WHERE id = ?`
+    )
+    .get(contactId) as PeopleContactNameRow | undefined
+  if (!contact) return null
+
+  for (const title of peopleContactTitleCandidates(contact)) {
+    const note = findUnlinkedStandaloneNoteByTitle(title)
+    if (note) return note
+  }
+  return null
+}
+
+/** Verknuepft eine freie Notiz anhand des Titels mit genau einem passenden Kontakt. */
+export function tryAutoLinkNoteToContactByTitle(noteId: number): boolean {
+  assertPositiveId(noteId, 'Notiz-ID')
+  const note = getNoteById(noteId)
+  if (!note || note.kind !== 'standalone') return false
+
+  const hasContactLink = listNoteLinksBundle(noteId).outgoing.some(
+    (item) => item.target.kind === 'people_contact'
+  )
+  if (hasContactLink) return false
+
+  const title = note.title?.trim()
+  if (!title) return false
+
+  const contacts = getDb()
+    .prepare(
+      `SELECT id FROM people_contacts
+       WHERE TRIM(COALESCE(display_name, '')) = ? COLLATE NOCASE
+          OR TRIM(COALESCE(given_name, '') || ' ' || COALESCE(surname, '')) = ? COLLATE NOCASE
+          OR TRIM(COALESCE(surname, '') || ' ' || COALESCE(given_name, '')) = ? COLLATE NOCASE
+          OR TRIM(COALESCE(primary_email, '')) = ? COLLATE NOCASE`
+    )
+    .all(title, title, title, title) as Array<{ id: number }>
+
+  if (contacts.length !== 1) return false
+
+  ensurePeopleContactEntityLink(noteId, contacts[0]!.id)
+  return true
+}
+
+export function getPeopleContactNoteForEditor(contactId: number): UserNote | null {
+  assertPositiveId(contactId, 'Kontakt-ID')
+  return (
+    getPrimaryNoteForPeopleContact(contactId) ??
+    findUnlinkedStandaloneNoteForContact(contactId, null)
+  )
+}
+
+export function upsertPrimaryNoteForPeopleContact(
+  input: UserNotePeopleContactUpsertInput
+): UserNote {
+  assertPositiveId(input.contactId, 'Kontakt-ID')
+  const contactExists = getDb()
+    .prepare('SELECT 1 FROM people_contacts WHERE id = ?')
+    .get(input.contactId)
+  if (!contactExists) throw new Error('Kontakt nicht gefunden.')
+
+  const existing =
+    getPrimaryNoteForPeopleContact(input.contactId) ??
+    findUnlinkedStandaloneNoteForContact(input.contactId, input.title)
+  if (existing) {
+    const updated = updateStandaloneNote({
+      id: existing.id,
+      title: input.title ?? existing.title,
+      body: input.body
+    })
+    ensurePeopleContactEntityLink(updated.id, input.contactId)
+    return updated
+  }
+
+  const created = createStandaloneNote({
+    title: input.title ?? null,
+    body: input.body
+  })
+  ensurePeopleContactEntityLink(created.id, input.contactId)
+  return created
 }
 
 export function getCalendarNote(key: UserNoteCalendarKey): UserNote | null {
@@ -399,6 +567,31 @@ export function getNoteById(id: number): UserNote | null {
   assertPositiveId(id, 'Notiz-ID')
   const row = getDb().prepare<[number], UserNoteRow>(`SELECT ${NOTE_SELECT} FROM user_notes WHERE id = ?`).get(id)
   return row ? rowToNote(row) : null
+}
+
+export function getNoteListItemById(id: number): UserNoteListItem | null {
+  assertPositiveId(id, 'Notiz-ID')
+  tryAutoLinkNoteToContactByTitle(id)
+  const row = getDb()
+    .prepare(
+      `SELECT
+         ${NOTE_SELECT_N},
+         m.subject as mail_subject,
+         m.account_id as mail_account_id,
+         m.from_addr as mail_from_addr,
+         m.from_name as mail_from_name,
+         m.snippet as mail_snippet,
+         m.sent_at as mail_sent_at,
+         m.received_at as mail_received_at,
+         m.is_read as mail_is_read,
+         m.has_attachments as mail_has_attachments,
+         ${NOTE_PRIMARY_LINK_SUBQUERY} as primary_link_kind
+       FROM user_notes n
+       LEFT JOIN messages m ON m.id = n.message_id
+       WHERE n.id = ?`
+    )
+    .get(id) as UserNoteListRow | undefined
+  return row ? rowToListItem(row) : null
 }
 
 export function setNoteSchedule(input: UserNoteScheduleInput): UserNote {

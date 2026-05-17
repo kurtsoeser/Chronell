@@ -18,6 +18,7 @@ import {
   type UserNoteListItem,
   type UserNoteSearchFilters,
   type UserNoteMailUpsertInput,
+  type UserNotePeopleContactUpsertInput,
   type UserNoteMoveToSectionInput,
   type UserNoteScheduleInput,
   type UserNoteStandaloneCreateInput,
@@ -25,7 +26,8 @@ import {
   type UserNoteStandaloneUpdateInput,
   type UserNoteAttachment,
   type UserNoteAttachmentAddCloudInput,
-  type UserNoteAttachmentAddLocalInput
+  type UserNoteAttachmentAddLocalInput,
+  type PeopleContactLinkedNote
 } from '@shared/types'
 import {
   addCloudNoteAttachment,
@@ -45,6 +47,7 @@ import {
 import {
   addNoteEntityLink,
   listNoteLinksBundle,
+  listNotesLinkedToPeopleContact,
   removeNoteEntityLink,
   removeNoteEntityLinkIncoming
 } from '../db/user-note-entity-links-repo'
@@ -55,7 +58,11 @@ import {
   deleteNote,
   getCalendarNote,
   getMailNote,
+  getPeopleContactNoteForEditor,
+  getPrimaryNoteForPeopleContact,
+  tryAutoLinkNoteToContactByTitle,
   getNoteById,
+  getNoteListItemById,
   listNotes,
   listNotesInRange,
   searchNotes,
@@ -64,7 +71,8 @@ import {
   setNoteSchedule,
   updateStandaloneNote,
   upsertCalendarNote,
-  upsertMailNote
+  upsertMailNote,
+  upsertPrimaryNoteForPeopleContact
 } from '../db/user-notes-repo'
 import { broadcastNotesChanged } from './ipc-broadcasts'
 
@@ -78,6 +86,24 @@ export function registerNotesIpc(): void {
     broadcastNotesChanged({ kind: 'mail', noteId: note.id, messageId: note.messageId })
     return note
   })
+
+  ipcMain.handle(
+    IPC.notes.getPeopleContact,
+    (_event, contactId: number): UserNote | null => {
+      const id = typeof contactId === 'number' ? contactId : 0
+      if (!id) return null
+      return getPeopleContactNoteForEditor(id)
+    }
+  )
+
+  ipcMain.handle(
+    IPC.notes.upsertPeopleContact,
+    (_event, input: UserNotePeopleContactUpsertInput): UserNote => {
+      const note = upsertPrimaryNoteForPeopleContact(input)
+      broadcastNotesChanged({ kind: 'standalone', noteId: note.id })
+      return note
+    }
+  )
 
   ipcMain.handle(IPC.notes.getCalendar, (_event, key: UserNoteCalendarKey): UserNote | null =>
     getCalendarNote(key)
@@ -124,7 +150,10 @@ export function registerNotesIpc(): void {
     (_event, filters: UserNoteSearchFilters): UserNoteListItem[] => searchNotes(filters)
   )
 
-  ipcMain.handle(IPC.notes.getById, (_event, id: number): UserNote | null => getNoteById(id))
+  ipcMain.handle(
+    IPC.notes.getById,
+    (_event, id: number): UserNoteListItem | null => getNoteListItemById(id)
+  )
 
   ipcMain.handle(IPC.notes.patchDisplay, (_event, input: UserNotePatchDisplayInput): UserNote => {
     const noteId = typeof input?.noteId === 'number' ? input.noteId : 0
@@ -187,6 +216,9 @@ export function registerNotesIpc(): void {
   ipcMain.handle(IPC.notes.linksList, (_event, fromNoteId: number): NoteLinksBundle => {
     const id = typeof fromNoteId === 'number' ? fromNoteId : 0
     if (!id) return { outgoing: [], incoming: [] }
+    if (tryAutoLinkNoteToContactByTitle(id)) {
+      broadcastNotesChanged({ kind: 'standalone', noteId: id })
+    }
     return listNoteLinksBundle(id)
   })
 
@@ -222,6 +254,15 @@ export function registerNotesIpc(): void {
         excludeNoteId: args?.excludeNoteId,
         limit: args?.limit
       })
+    }
+  )
+
+  ipcMain.handle(
+    IPC.notes.listForContact,
+    (_event, contactId: number): PeopleContactLinkedNote[] => {
+      const id = typeof contactId === 'number' ? contactId : 0
+      if (!id) return []
+      return listNotesLinkedToPeopleContact(id)
     }
   )
 

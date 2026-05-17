@@ -14,6 +14,10 @@ import { TasksListViewMenu } from '@/components/TasksListViewMenu'
 import { ContextMenu, type ContextMenuItem } from '@/components/ContextMenu'
 import { MegaTimelineList } from '@/app/mega/MegaTimelineList'
 import { loadMegaWorkItems } from '@/app/work-items/load-mega-work-items'
+import {
+  buildMegaTimelineCacheKey,
+  useMegaTimelineCacheStore
+} from '@/stores/mega-timeline-cache'
 import { toggleWorkItemCompleted } from '@/app/work-items/work-item-actions'
 import { openWorkItemInCalendar } from '@/app/work-items/work-item-calendar-nav'
 import {
@@ -161,13 +165,27 @@ export function CalendarTimelinePane({
 
   const filterCounts = useMemo(() => megaTimelineFilterCounts(items), [items])
 
+  const includeCompletedMail = true
+
   const fetchRange = useCallback(
-    async (rangeStart: Date, rangeEnd: Date): Promise<WorkItem[]> => {
+    async (
+      rangeStart: Date,
+      rangeEnd: Date,
+      fetchOpts?: { cacheOnlyTasks?: boolean }
+    ): Promise<WorkItem[]> => {
       const result = await loadMegaWorkItems(taskAccounts, calendarAccounts, {
         rangeStart,
         rangeEnd,
-        includeCompletedMail: true
+        includeCompletedMail,
+        cacheOnlyTasks: fetchOpts?.cacheOnlyTasks
       })
+      const key = buildMegaTimelineCacheKey(
+        taskAccounts,
+        rangeStart,
+        rangeEnd,
+        includeCompletedMail
+      )
+      useMegaTimelineCacheStore.getState().setEntry(key, result.items, result.hiddenMailMessageIds)
       return result.items
     },
     [taskAccounts, calendarAccounts]
@@ -186,22 +204,53 @@ export function CalendarTimelinePane({
   )
 
   const reload = useCallback(
-    async (opts?: { silent?: boolean }): Promise<void> => {
+    async (opts?: { silent?: boolean; force?: boolean }): Promise<void> => {
       const silent = opts?.silent === true
-      if (!silent) {
+      const force = opts?.force === true
+      const start = loadedStartRef.current
+      const end = loadedEndRef.current
+      const cacheKey = buildMegaTimelineCacheKey(
+        taskAccounts,
+        start,
+        end,
+        includeCompletedMail
+      )
+      const { getFreshEntry, getStaleEntry } = useMegaTimelineCacheStore.getState()
+
+      const fresh = !force ? getFreshEntry(cacheKey) : null
+      if (fresh) {
+        setItems(fresh.items)
+        applySelectionAfterLoad(fresh.items)
+        return
+      }
+
+      const stale = !force ? getStaleEntry(cacheKey) : null
+      if (stale) {
+        setItems(stale.items)
+        applySelectionAfterLoad(stale.items)
+      } else if (!silent) {
         setLoading(true)
         onLoadingChange?.(true)
       }
+
       setError(null)
       try {
-        const start = loadedStartRef.current
-        const end = loadedEndRef.current
-        const loaded = await fetchRange(start, end)
+        const useFastTaskCache = !force && !silent && !stale
+        if (useFastTaskCache) {
+          const fast = await fetchRange(start, end, { cacheOnlyTasks: true })
+          setItems(fast)
+          applySelectionAfterLoad(fast)
+          if (!silent) {
+            setLoading(false)
+            onLoadingChange?.(false)
+          }
+        }
+        const loaded = await fetchRange(start, end, { cacheOnlyTasks: false })
         setItems(loaded)
         applySelectionAfterLoad(loaded)
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e))
-        if (!silent) setItems([])
+        if (!silent && !stale) setItems([])
       } finally {
         if (!silent) {
           setLoading(false)
@@ -209,7 +258,7 @@ export function CalendarTimelinePane({
         }
       }
     },
-    [fetchRange, applySelectionAfterLoad, onLoadingChange]
+    [fetchRange, applySelectionAfterLoad, onLoadingChange, taskAccounts]
   )
 
   const resetRangeToToday = useCallback((size: TimelineWindowSize): void => {
@@ -282,6 +331,7 @@ export function CalendarTimelinePane({
   )
 
   useEffect(() => {
+    useMegaTimelineCacheStore.getState().clear()
     resetRangeToToday(windowSize)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- Kontowechsel: Fenster ab heute neu
   }, [taskAccountIdsKey])
@@ -304,13 +354,13 @@ export function CalendarTimelinePane({
     }
     if (reloadSignal === lastReloadSignal.current) return
     lastReloadSignal.current = reloadSignal
-    void reload({ silent: true })
+    void reload({ silent: true, force: true })
   }, [reloadSignal, reload])
 
   const cloudTaskCreatedSignal = useCreateCloudTaskUiStore((s) => s.createdSignal)
   useEffect(() => {
     if (cloudTaskCreatedSignal === 0) return
-    void reload({ silent: true })
+    void reload({ silent: true, force: true })
   }, [cloudTaskCreatedSignal, reload])
 
   useEffect(() => {
@@ -318,7 +368,7 @@ export function CalendarTimelinePane({
     const scheduleSilentReload = (): void => {
       if (debounceTimer) clearTimeout(debounceTimer)
       debounceTimer = setTimeout(() => {
-        void reload({ silent: true })
+        void reload({ silent: true, force: true })
       }, 280)
     }
     const offCal = window.mailClient.events.onCalendarChanged(scheduleSilentReload)

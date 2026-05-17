@@ -54,6 +54,7 @@ import {
 } from '@/app/work-items/work-item-datetime'
 import { cloudTaskAccountOptionLabel } from '@/lib/cloud-task-accounts'
 import { cn } from '@/lib/utils'
+import { ModalPanel, ModalRoot } from '@/components/motion/Modal'
 import { openExternalUrl } from '@/lib/open-external'
 import { useAccountsStore } from '@/stores/accounts'
 import { outlookCategoryDotClass } from '@/lib/outlook-category-colors'
@@ -1198,18 +1199,15 @@ export function CalendarEventDialog({
   const submitLabel = isTaskCreate ? t('tasks.create.submit') : t('calendar.eventDialog.save')
 
   return (
-    <div
-      className="fixed inset-0 z-[100] flex justify-end bg-black/45 backdrop-blur-[2px]"
-      onClick={onClose}
-      onKeyDown={(ev): void => {
-        if (ev.key === 'Escape') onClose()
-      }}
-      role="presentation"
+    <ModalRoot
+      open={open}
+      zIndex={100}
+      centerClassName="justify-end bg-black/45 backdrop-blur-[2px]"
+      onBackdropClick={onClose}
     >
-      <aside
-        ref={panelRef}
+      <ModalPanel
+        variant="drawer-right"
         className="calendar-event-panel flex h-[100dvh] max-h-[100dvh] w-full max-w-[630px] flex-col overflow-hidden border-l border-border bg-card text-foreground shadow-2xl"
-        onClick={(ev): void => ev.stopPropagation()}
       >
         <header className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-4 py-3">
           {mode === 'create' && taskAccounts.length > 0 ? (
@@ -1974,7 +1972,7 @@ export function CalendarEventDialog({
             </button>
           </footer>
         </form>
-      </aside>
+      </ModalPanel>
 
       {schedulePicker && schedulePickerPos ? (
         <div
@@ -2117,6 +2115,6 @@ export function CalendarEventDialog({
           ) : null}
         </div>
       ) : null}
-    </div>
+    </ModalRoot>
   )
 }

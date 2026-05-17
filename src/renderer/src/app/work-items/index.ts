@@ -74,5 +74,9 @@ export {
   dueDateInputValue
 } from '@/app/work-items/work-item-datetime'
 export { loadMasterWorkItems, listMailCloudTaskLinks } from '@/app/work-items/load-master-work-items'
+export {
+  loadMasterWorkItemsForMegaRange,
+  megaFetchRangeWithBuffer
+} from '@/app/work-items/load-master-work-items-for-range'
 export { loadMegaWorkItems } from '@/app/work-items/load-mega-work-items'
 export { toggleWorkItemCompleted, completeCloudWorkItem } from '@/app/work-items/work-item-actions'

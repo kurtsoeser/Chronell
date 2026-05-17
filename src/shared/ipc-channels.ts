@@ -52,6 +52,8 @@ export const IPC = {
   notes: {
     getMail: 'notes:get-mail',
     upsertMail: 'notes:upsert-mail',
+    getPeopleContact: 'notes:get-people-contact',
+    upsertPeopleContact: 'notes:upsert-people-contact',
     getCalendar: 'notes:get-calendar',
     upsertCalendar: 'notes:upsert-calendar',
     createStandalone: 'notes:create-standalone',
@@ -73,6 +75,7 @@ export const IPC = {
     linksAdd: 'notes:links:add',
     linksRemove: 'notes:links:remove',
     linksSearchTargets: 'notes:links:search-targets',
+    listForContact: 'notes:list-for-contact',
     patchDisplay: 'notes:patch-display',
     attachmentsList: 'notes:attachments:list',
     attachmentsAddLocal: 'notes:attachments:add-local',

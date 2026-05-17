@@ -4,6 +4,7 @@ import { GripVertical } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { UserNoteListItem } from '@shared/types'
 import { cn } from '@/lib/utils'
+import { motionListItemExit } from '@/lib/motion'
 import { noteDragId } from '@/lib/notes-sidebar-dnd'
 import { NoteDisplayIcon } from '@/components/NoteDisplayIcon'
 import { CalendarEventIconPicker } from '@/components/CalendarEventIconPicker'
@@ -45,7 +46,8 @@ export function NotesPageRow({
   onRenameTitle,
   onPatchDisplay,
   onContextMenu,
-  sectionLabel
+  sectionLabel,
+  isExiting = false
 }: {
   note: UserNoteListItem
   active: boolean
@@ -57,6 +59,7 @@ export function NotesPageRow({
   ) => void | Promise<void>
   onContextMenu?: (note: UserNoteListItem, event: MouseEvent) => void
   sectionLabel?: string
+  isExiting?: boolean
 }): JSX.Element {
   const { t } = useTranslation()
   const untitled = t('notes.shell.untitled')
@@ -85,7 +88,8 @@ export function NotesPageRow({
     <div
       className={cn(
         'flex min-w-0 items-center gap-0.5 rounded-md transition-colors',
-        active ? 'bg-secondary font-medium text-foreground' : 'hover:bg-secondary/60'
+        active ? 'bg-secondary font-medium text-foreground' : 'hover:bg-secondary/60',
+        isExiting && motionListItemExit
       )}
       onContextMenu={
         onContextMenu

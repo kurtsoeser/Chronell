@@ -9,6 +9,7 @@ import {
   Mail,
   Plus,
   StickyNote,
+  User,
   X
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -28,13 +29,15 @@ const PICKER_KINDS: NoteEntityLinkTargetKind[] = [
   'note',
   'mail',
   'calendar_event',
-  'cloud_task'
+  'cloud_task',
+  'people_contact'
 ]
 
 function kindIcon(kind: NoteEntityLinkTargetKind): typeof StickyNote {
   if (kind === 'mail') return Mail
   if (kind === 'calendar_event') return CalendarDays
   if (kind === 'cloud_task') return CheckSquare
+  if (kind === 'people_contact') return User
   return StickyNote
 }
 

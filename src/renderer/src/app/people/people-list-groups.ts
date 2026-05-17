@@ -2,6 +2,10 @@ import type { PeopleContactView, PeopleListSort } from '@shared/types'
 
 export type PeopleListGroup = { letter: string; items: PeopleContactView[] }
 
+export function peopleListGroupCollapseKey(sortBy: PeopleListSort, letter: string): string {
+  return `${sortBy}:${letter}`
+}
+
 /** A–Z, Ziffern als `0-9`, alles andere als `#` (leerer Kopf → `#`). */
 export function letterBucketForSortHead(source: string): string {
   const s = source.trim()

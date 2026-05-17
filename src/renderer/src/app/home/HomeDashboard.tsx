@@ -12,6 +12,10 @@ import {
   Globe,
   Inbox,
   Infinity as InfinityIcon,
+  BookOpen,
+  FilePlus,
+  FileText,
+  Layers,
   ListTodo,
   Loader2,
   Moon,
@@ -37,6 +41,7 @@ import type {
   SnoozedMessageItem,
   TodoDueKindList
 } from '@shared/types'
+import type { WorkItem } from '@shared/work-item'
 import { cn } from '@/lib/utils'
 import { requestFocusMainSearch } from '@/lib/search-focus'
 import { indexMessagesByThread, type ThreadGroup } from '@/lib/thread-group'
@@ -77,6 +82,10 @@ import { DashboardMiniWeek } from '@/app/home/DashboardMiniWeek'
 import { DashboardWeatherTile } from '@/app/home/DashboardWeatherTile'
 import { DashboardNextMeetingTile } from '@/app/home/DashboardNextMeetingTile'
 import { DashboardDeskNoteTile } from '@/app/home/DashboardDeskNoteTile'
+import { DashboardNotesNewTile } from '@/app/home/DashboardNotesNewTile'
+import { DashboardNotesPreviewTile } from '@/app/home/DashboardNotesPreviewTile'
+import { DashboardWorkAllTile } from '@/app/home/DashboardWorkAllTile'
+import { openWorkItemInCalendar } from '@/app/work-items/work-item-calendar-nav'
 import { pushRecentSearch, readRecentSearches } from '@/app/home/dashboard-recent-searches'
 import type { DashboardCustomTileStored } from '@/app/home/dashboard-custom-tiles'
 import {
@@ -331,6 +340,7 @@ export function HomeDashboard(): JSX.Element {
     later: MailListItem[]
   }>({ all: [], overdue: [], today: [], tomorrow: [], week: [], later: [] })
   const [dashTodoLoading, setDashTodoLoading] = useState(true)
+  const [workReloadSignal, setWorkReloadSignal] = useState(0)
 
   useEffect(() => {
     const sid = useMailStore.getState().selectedMessageId
@@ -428,6 +438,7 @@ export function HomeDashboard(): JSX.Element {
       void loadWaiting()
       void loadSnoozed()
       void loadDashboardTodos()
+      setWorkReloadSignal((n) => n + 1)
       refreshLinkedCalendarPreview({ force: true })
     })
     return (): void => {
@@ -437,6 +448,7 @@ export function HomeDashboard(): JSX.Element {
 
   useEffect(() => {
     const offCal = window.mailClient.events.onCalendarChanged(() => {
+      setWorkReloadSignal((n) => n + 1)
       refreshLinkedCalendarPreview({ force: true })
     })
     return offCal
@@ -455,8 +467,33 @@ export function HomeDashboard(): JSX.Element {
     void loadWaiting()
     void loadSnoozed()
     void loadDashboardTodos()
+    setWorkReloadSignal((n) => n + 1)
     refreshLinkedCalendarPreview({ force: true })
   }, [loadDashboardTodos, loadSnoozed, loadWaiting, refreshLinkedCalendarPreview, refreshNow])
+
+  const openWorkItemFromDashboard = useCallback(
+    async (item: WorkItem): Promise<void> => {
+      if (item.kind === 'mail_todo') {
+        await openMessageInFolder(item.messageId)
+        setAppMode('mail')
+        return
+      }
+      if (item.kind === 'cloud_task') {
+        setAppMode('work')
+        return
+      }
+      openWorkItemInCalendar(item, setAppMode)
+    },
+    [openMessageInFolder, setAppMode]
+  )
+
+  const openWorkFullCb = useCallback((): void => {
+    setAppMode('work')
+  }, [setAppMode])
+
+  const openNotesFullCb = useCallback((): void => {
+    setAppMode('notes')
+  }, [setAppMode])
 
   const mailContextHandlers = useMemo<MailContextHandlers>(
     () => ({
@@ -989,6 +1026,20 @@ export function HomeDashboard(): JSX.Element {
               void openDashboardMailContext(e, message)
             }}
             t={t}
+          />
+        )
+      },
+      {
+        id: 'work_all' as const,
+        icon: Layers,
+        title: t('dashboard.tiles.workAllTitle'),
+        subtitle: t('dashboard.tiles.workAllSubtitle'),
+        onOpenFull: openWorkFullCb,
+        body: (
+          <DashboardWorkAllTile
+            accounts={accounts}
+            reloadSignal={workReloadSignal}
+            onOpenItem={(item): void => void openWorkItemFromDashboard(item)}
           />
         )
       },
@@ -1649,6 +1700,30 @@ export function HomeDashboard(): JSX.Element {
         body: <DashboardDeskNoteTile />
       },
       {
+        id: 'notes_new' as const,
+        icon: FilePlus,
+        title: t('dashboard.tiles.notesNewTitle'),
+        subtitle: t('dashboard.tiles.notesNewSubtitle'),
+        onOpenFull: openNotesFullCb,
+        body: <DashboardNotesNewTile />
+      },
+      {
+        id: 'notes_overview' as const,
+        icon: BookOpen,
+        title: t('dashboard.tiles.notesOverviewTitle'),
+        subtitle: t('dashboard.tiles.notesOverviewSubtitle'),
+        onOpenFull: openNotesFullCb,
+        body: <DashboardNotesPreviewTile mode="overview" />
+      },
+      {
+        id: 'notes_last' as const,
+        icon: FileText,
+        title: t('dashboard.tiles.notesLastTitle'),
+        subtitle: t('dashboard.tiles.notesLastSubtitle'),
+        onOpenFull: openNotesFullCb,
+        body: <DashboardNotesPreviewTile mode="last" />
+      },
+      {
         id: 'composer' as const,
         icon: PenLine,
         title: t('dashboard.tiles.composerTitle'),
@@ -1685,8 +1760,12 @@ export function HomeDashboard(): JSX.Element {
       openInboxFullCb,
       openSnoozedFullCb,
       openThreadMessageCb,
+      openNotesFullCb,
       openTodoFullCb,
       openWaitingFullCb,
+      openWorkFullCb,
+      openWorkItemFromDashboard,
+      workReloadSignal,
       recentSearches,
       runDashSearch,
       runSearchWithQuery,

@@ -261,7 +261,7 @@ export interface SettingsBackupUserNoteLinkSnapshot {
 /** Verknuepfung einer Notiz mit Mail, Kalender, Aufgabe oder anderer Notiz. */
 export interface SettingsBackupEntityLinkSnapshot {
   fromNoteIndex: number
-  targetKind: 'note' | 'mail' | 'calendar_event' | 'cloud_task'
+  targetKind: 'note' | 'mail' | 'calendar_event' | 'cloud_task' | 'people_contact'
   toNoteIndex?: number
   mailMessageId?: number
   calendarAccountId?: string
@@ -269,7 +269,17 @@ export interface SettingsBackupEntityLinkSnapshot {
   taskAccountId?: string
   taskListId?: string
   taskId?: string
+  peopleContactId?: number
   createdAt: string
+}
+
+/** Freie Notiz, die per Entity-Link mit einem Kontakt verknuepft ist. */
+export interface PeopleContactLinkedNote {
+  noteId: number
+  linkId: number
+  title: string | null
+  body: string
+  updatedAt: string
 }
 
 /** Benutzerdefinierte Kalenderfarbe in der Sidebar (Graph-Kalender-ID). */
@@ -1454,6 +1464,7 @@ export interface UserNoteListItem extends UserNote {
     | 'mail'
     | 'calendar_event'
     | 'cloud_task'
+    | 'people_contact'
     | null
 }
 
@@ -1463,6 +1474,12 @@ export interface UserNoteMailUpsertInput extends UserNoteScheduleFields {
   body: string
   sectionId?: number | null
   sortOrder?: number
+}
+
+export interface UserNotePeopleContactUpsertInput {
+  contactId: number
+  title?: string | null
+  body: string
 }
 
 export interface UserNoteCalendarKey {

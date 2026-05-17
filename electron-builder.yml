@@ -1,5 +1,5 @@
 appId: at.kurtsoeser.mailclient
-productName: MailClient
+productName: Chronell
 copyright: Copyright (c) 2026 Kurt Soeser
 
 directories:
@@ -33,5 +33,9 @@ nsis:
   perMachine: false
   allowToChangeInstallationDirectory: true
   deleteAppDataOnUninstall: false
+  uninstallDisplayName: Chronell
+  guid: 7c4e8f2a-9b1d-4e6a-a3f5-2d8c1b0e9f7a
+  include: build/installer.nsh
+  runAfterFinish: true
 
 publish: null
