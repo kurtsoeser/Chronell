@@ -134,6 +134,7 @@ body {
 
   .starfield,
   .co,
+  .celestial--hero .co,
   .chronos-sundial::after,
   .chronos-timeline::before,
   .chronos-timeline::after,
@@ -469,6 +470,7 @@ main {
   padding: 4rem 0 5rem;
   text-align: center;
   position: relative;
+  overflow: visible;
 }
 
 /* Celestial / Chronos decorations */
@@ -521,78 +523,94 @@ main {
   animation-direction: var(--dir, normal);
 }
 
-.co-h1 {
-  --sz: min(42rem, 90vw);
-  --dur: 48s;
-  top: -8rem;
+/* Hero orbits: centered on logo hub */
+.celestial--hero {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  overflow: visible;
+  z-index: 0;
 }
 
-.co-h2 {
+.celestial--hero .co {
+  top: 50%;
+  left: 50%;
+  margin-left: calc(var(--sz) / -2);
+  margin-top: calc(var(--sz) * var(--ry, 1) / -2);
+  transform: translate(-50%, -50%) scaleX(var(--sx, 1));
+  animation-name: celestial-spin-hub;
+}
+
+.celestial--hero .cs {
+  transform: rotate(var(--ang, 0deg)) translateY(calc(var(--sz) / -2 * var(--ry, 1)));
+}
+
+@keyframes celestial-spin-hub {
+  to {
+    transform: translate(-50%, -50%) scaleX(var(--sx, 1)) rotate(360deg);
+  }
+}
+
+.celestial--hero .co-h1 {
+  --sz: min(42rem, 90vw);
+  --dur: 48s;
+}
+
+.celestial--hero .co-h2 {
   --sz: min(28rem, 70vw);
   --dur: 32s;
   --dir: reverse;
-  top: 2rem;
   border-color: color-mix(in srgb, var(--brand-sky) 28%, transparent);
 }
 
-.co-h3 {
+.celestial--hero .co-h3 {
   --sz: min(52rem, 95vw);
   --sx: 1.42;
   --ry: 0.68;
   --dur: 70s;
-  top: -12rem;
   opacity: 0.38;
 }
 
-.co-h4 {
+.celestial--hero .co-h4 {
   --sz: min(18rem, 45vw);
   --dur: 24s;
-  top: 6rem;
-  left: 22%;
   opacity: 0.65;
 }
 
-.co-h5 {
+.celestial--hero .co-h5 {
   --sz: min(36rem, 80vw);
   --sx: 0.72;
   --ry: 1.28;
   --dur: 55s;
   --dir: reverse;
-  top: -4rem;
-  left: 78%;
   opacity: 0.4;
 }
 
-.co-h6 {
+.celestial--hero .co-h6 {
   --sz: min(24rem, 55vw);
   --dur: 40s;
-  top: 18%;
-  left: 12%;
 }
 
-.co-h7 {
+.celestial--hero .co-h7 {
   --sz: min(30rem, 65vw);
   --dur: 65s;
   --dir: reverse;
-  top: 8%;
-  left: 88%;
   border-color: color-mix(in srgb, var(--brand-sky) 25%, transparent);
 }
 
-.co-h8 {
+.celestial--hero .co-h8 {
   --sz: min(14rem, 35vw);
   --dur: 20s;
-  top: 28%;
-  left: 50%;
   opacity: 0.7;
 }
 
-.co-h9 {
+.celestial--hero .co-h9 {
   --sz: min(58rem, 100vw);
   --sx: 1.2;
   --ry: 0.82;
   --dur: 88s;
-  top: -16rem;
   opacity: 0.28;
 }
 
@@ -893,8 +911,7 @@ main {
   border-radius: 999px;
 }
 
-.feature-card--highlight,
-.feature-tile--highlight,
+.feature-tile--new,
 .screenshot-frame--highlight {
   border-color: color-mix(in srgb, var(--brand-sky) 45%, transparent);
   box-shadow:
@@ -916,7 +933,7 @@ main {
   border-radius: 999px;
 }
 
-.feature-card--highlight {
+.feature-tile--new {
   position: relative;
 }
 
@@ -936,10 +953,16 @@ main {
 }
 
 .hero-logo-wrap {
-  margin-bottom: 1.75rem;
+  position: relative;
+  display: inline-block;
+  margin: 0 auto 1.75rem;
+  z-index: 1;
+  overflow: visible;
 }
 
 .hero-logo {
+  position: relative;
+  z-index: 1;
   width: min(14rem, 58vw);
   height: auto;
   margin-inline: auto;
@@ -1469,62 +1492,38 @@ main {
   margin: 0;
 }
 
-/* Feature cards */
-.feature-trio {
-  display: grid;
-  gap: 1.25rem;
-  grid-template-columns: 1fr;
-}
-
-@media (min-width: 900px) {
-  .feature-trio {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (min-width: 1100px) {
-  .feature-trio {
-    grid-template-columns: repeat(4, 1fr);
-  }
-}
-
-.feature-card {
-  padding: 1.75rem;
-}
-
-.feature-card h3 {
-  margin: 0 0 0.75rem;
-  font-size: 1.15rem;
-  color: hsl(var(--chronell-primary));
-}
-
-.feature-card p {
-  margin: 0;
-  font-size: 0.92rem;
-  color: hsl(220 10% 78%);
-}
-
+/* Feature tiles */
 .feature-grid {
   display: grid;
-  gap: 1rem;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  margin-top: 3rem;
+  gap: 1.25rem;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  margin-top: 2.5rem;
 }
 
 .feature-tile {
-  padding: 1.25rem;
-  border-radius: var(--radius);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 11.5rem;
+  height: 100%;
+  padding: 1.5rem;
+  border-radius: var(--radius-lg);
 }
 
-.feature-tile h4 {
-  margin: 0 0 0.35rem;
-  font-size: 0.95rem;
+.feature-tile h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: hsl(var(--chronell-primary));
+  line-height: 1.25;
 }
 
 .feature-tile p {
   margin: 0;
-  font-size: 0.82rem;
+  font-size: 0.88rem;
+  line-height: 1.5;
   color: hsl(var(--muted));
+  flex: 1;
 }
 
 .icon-wrap {
@@ -1548,16 +1547,6 @@ main {
   width: 1.65rem;
   height: 1.65rem;
   color: var(--brand-sky);
-}
-
-.feature-card .icon-wrap {
-  width: 3.5rem;
-  height: 3.5rem;
-}
-
-.feature-card .feature-icon {
-  width: 1.85rem;
-  height: 1.85rem;
 }
 
 /* Screenshots */

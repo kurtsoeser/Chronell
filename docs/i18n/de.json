@@ -147,47 +147,61 @@
     "p3": "Chronell ist eine Schaltzentrale für Menschen, die mit mehreren Konten arbeiten und ihren Tag selbst gestalten wollen."
   },
   "features": {
-    "eyebrow": "Für Handlung gebaut",
+    "eyebrow": "Für Deinen Workflow gebaut",
     "title": "Was Chronell liefert",
-    "triage": {
-      "title": "Entscheiden — Mail-Triage",
-      "body": "Nachrichten werden zu ToDos mit Fälligkeits-Buckets. Auto-Ordner für „In Bearbeitung“ und „Erledigt“. Snooze, Waiting for, QuickSteps per Klick."
-    },
-    "tasks": {
-      "title": "Aufgaben — M365 & Google",
-      "body": "Microsoft To Do und Google Tasks im gleichen Fenster: Listen, Fälligkeit, „Alle Arbeit“ mit Kanban — verbunden mit Mail und Kalender."
-    },
-    "calendar": {
-      "title": "Planen — einheitlicher Kalender",
-      "body": "Microsoft- und Google-Kalender plus Mail-ToDos, Cloud-Aufgaben und geplante Notizen — mit Zeitliste und Terminplanung (Book with me)."
-    },
-    "bookings": {
-      "title": "Buchen — Microsoft Bookings",
-      "body": "Buchungsseiten, Leistungen und anstehende Termine für dein Team — direkt in Chronell, ohne Outlook-Web-Tab. Persönliche „Book with me“-Links bleiben im Kalender."
-    },
-    "accounts": {
-      "title": "Erfassen — alle Konten",
-      "body": "Alle Postfächer in einem Fenster. Meta-Ordner über Konten hinweg. Globale Suche mit Ctrl+K über lokalen Volltext-Index."
-    },
     "grid": {
-      "bookings": "Microsoft Bookings",
-      "bookingsDesc": "Unternehmens-Buchungsseiten, Services, Termine — M365",
-      "work": "Alle Arbeit",
-      "workDesc": "Mail-ToDos und Cloud-Aufgaben in Liste oder Kanban",
-      "notes": "Kernnotizen",
-      "notesDesc": "Notizen zu Mails, Terminen und freien Seiten",
-      "rules": "Visuelle Regeln",
-      "rulesDesc": "Bedingungen und Aktionen mit Dry-Run",
-      "people": "Personen",
-      "peopleDesc": "Kontakte lokal gecacht von M365 und Google",
-      "home": "Home-Dashboard",
-      "homeDesc": "Anpassbare Kacheln für deinen Tag",
-      "chat": "Teams-Chat",
-      "chatDesc": "Microsoft Teams neben der Mail",
-      "offline": "Offline lesen",
-      "offlineDesc": "Dein Cache bleibt nutzbar",
-      "privacy": "Lokal by design",
-      "privacyDesc": "SQLite auf deinem Gerät — OAuth nur zu Anbietern"
+      "bookings": {
+        "title": "Microsoft Bookings",
+        "desc": "Buchungsseiten, Leistungen und Termine für dein Team — in der App, ohne Outlook-Web-Tab."
+      },
+      "triage": {
+        "title": "Mail-Triage",
+        "desc": "Nachrichten zu ToDos mit Fälligkeit, Snooze, Waiting for und QuickSteps — der Posteingang wird zum Entscheidungspunkt."
+      },
+      "tasks": {
+        "title": "Aufgaben (M365 & Google)",
+        "desc": "Microsoft To Do und Google Tasks in einem Fenster — Listen, Fälligkeit, verbunden mit Mail und Kalender."
+      },
+      "calendar": {
+        "title": "Einheitlicher Kalender",
+        "desc": "M365- und Google-Kalender, Mail-ToDos und geplante Notizen — mit Zeitliste und Book with me."
+      },
+      "work": {
+        "title": "Alle Arbeit",
+        "desc": "Mail-ToDos und Cloud-Aufgaben in einer Liste oder im Kanban — nach Fälligkeit sortiert."
+      },
+      "notes": {
+        "title": "Kernnotizen",
+        "desc": "Notizen zu Mails, Terminen und freien Seiten — verknüpft mit deinem Workflow."
+      },
+      "rules": {
+        "title": "Visuelle Regeln",
+        "desc": "Bedingungen und Aktionen mit Dry-Run — Automatisierung ohne Code."
+      },
+      "people": {
+        "title": "Personen",
+        "desc": "Kontakte von M365 und Google, lokal gecacht und schnell durchsuchbar."
+      },
+      "home": {
+        "title": "Home-Dashboard",
+        "desc": "Anpassbare Kacheln für deinen Tag — Überblick beim Start."
+      },
+      "chat": {
+        "title": "Teams-Chat",
+        "desc": "Microsoft Teams neben Mail und Kalender — ohne App-Wechsel."
+      },
+      "accounts": {
+        "title": "Konten & Suche",
+        "desc": "Alle Postfächer und Meta-Ordner in einem Fenster — globale Suche mit lokalem Volltext-Index."
+      },
+      "offline": {
+        "title": "Offline lesen",
+        "desc": "Dein lokaler Cache bleibt nutzbar — auch ohne Verbindung."
+      },
+      "privacy": {
+        "title": "Lokal by design",
+        "desc": "SQLite auf deinem Gerät — OAuth nur zu Microsoft und Google."
+      }
     }
   },
   "screenshots": {

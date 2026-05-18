@@ -147,47 +147,61 @@
     "p3": "Chronell is a command center for people who juggle multiple accounts and want to own their day."
   },
   "features": {
-    "eyebrow": "Built for action",
+    "eyebrow": "Built for your workflow",
     "title": "What Chronell delivers",
-    "triage": {
-      "title": "Decide — mail triage",
-      "body": "Turn messages into to-dos with due buckets. Auto folders for in progress and done. Snooze, waiting-for, and one-click quick steps."
-    },
-    "tasks": {
-      "title": "Tasks — M365 & Google",
-      "body": "Microsoft To Do and Google Tasks in one window: lists, due dates, All Work with kanban — tied to mail and calendar."
-    },
-    "calendar": {
-      "title": "Plan — unified calendar",
-      "body": "Microsoft and Google calendars plus mail to-dos, cloud tasks, and scheduled notes — with a timeline view and Book with me scheduling."
-    },
-    "bookings": {
-      "title": "Book — Microsoft Bookings",
-      "body": "Booking pages, services, and upcoming appointments for your team — inside Chronell, without an Outlook web tab. Personal Book with me links stay in Calendar."
-    },
-    "accounts": {
-      "title": "Capture — all accounts",
-      "body": "Every mailbox in one window. Meta-folders across accounts. Global search with Ctrl+K over local full-text index."
-    },
     "grid": {
-      "bookings": "Microsoft Bookings",
-      "bookingsDesc": "Business booking pages, services, appointments — M365",
-      "work": "All Work",
-      "workDesc": "Mail to-dos and cloud tasks in list or kanban",
-      "notes": "Core notes",
-      "notesDesc": "Notes on mail, events, and standalone pages",
-      "rules": "Visual rules",
-      "rulesDesc": "Conditions and actions with dry-run",
-      "people": "People",
-      "peopleDesc": "Contacts cached locally from M365 and Google",
-      "home": "Home dashboard",
-      "homeDesc": "Customizable tiles for your day",
-      "chat": "Teams chat",
-      "chatDesc": "Microsoft Teams alongside mail",
-      "offline": "Offline reading",
-      "offlineDesc": "Your cache stays readable",
-      "privacy": "Local by design",
-      "privacyDesc": "SQLite on your device — OAuth to providers only"
+      "bookings": {
+        "title": "Microsoft Bookings",
+        "desc": "Booking pages, services, and appointments for your team — in the app, no Outlook web tab."
+      },
+      "triage": {
+        "title": "Mail triage",
+        "desc": "Turn messages into to-dos with due dates, snooze, waiting-for, and quick steps — your inbox becomes a decision point."
+      },
+      "tasks": {
+        "title": "Tasks (M365 & Google)",
+        "desc": "Microsoft To Do and Google Tasks in one window — lists, due dates, tied to mail and calendar."
+      },
+      "calendar": {
+        "title": "Unified calendar",
+        "desc": "M365 and Google calendars, mail to-dos, and scheduled notes — with timeline and Book with me."
+      },
+      "work": {
+        "title": "All Work",
+        "desc": "Mail to-dos and cloud tasks in one list or kanban — sorted by due date."
+      },
+      "notes": {
+        "title": "Core notes",
+        "desc": "Notes on mail, events, and standalone pages — linked to your workflow."
+      },
+      "rules": {
+        "title": "Visual rules",
+        "desc": "Conditions and actions with dry-run — automation without code."
+      },
+      "people": {
+        "title": "People",
+        "desc": "Contacts from M365 and Google, cached locally and fast to search."
+      },
+      "home": {
+        "title": "Home dashboard",
+        "desc": "Customizable tiles for your day — overview at a glance."
+      },
+      "chat": {
+        "title": "Teams chat",
+        "desc": "Microsoft Teams next to mail and calendar — no app switching."
+      },
+      "accounts": {
+        "title": "Accounts & search",
+        "desc": "Every mailbox and meta-folder in one window — global search with local full-text index."
+      },
+      "offline": {
+        "title": "Offline reading",
+        "desc": "Your local cache stays usable — even without a connection."
+      },
+      "privacy": {
+        "title": "Local by design",
+        "desc": "SQLite on your device — OAuth to Microsoft and Google only."
+      }
     }
   },
   "screenshots": {
