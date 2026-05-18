@@ -11,7 +11,7 @@
     <title>Chronell</title>
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Chronell" />
-    <meta property="og:description" content="Mail, Aufgaben und Kalender in einem Windows-11-Desktop — Microsoft 365 und Google kombiniert." />
+    <meta property="og:description" content="Mail, Aufgaben, Kalender und Microsoft Bookings in einem Windows-11-Desktop — Microsoft 365 und Google kombiniert." />
     <meta property="og:image" content="https://kurtsoeser.github.io/Chronell/assets/chronell-logo.png" />
     <link rel="icon" href="assets/favicon.png" type="image/png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -23,7 +23,9 @@
     <link rel="stylesheet" href="css/site.css" />
   </head>
   <body>
-    <div class="mesh-bg" aria-hidden="true"></div>
+    <div class="mesh-bg" aria-hidden="true">
+      <div class="starfield"></div>
+    </div>
 
     <header class="site-header">
       <div class="container">
@@ -60,8 +62,17 @@
 
     <main>
       <section class="hero section">
-        <div class="hero-orbit hero-orbit-1" aria-hidden="true"><span class="hero-orbit-star"></span></div>
-        <div class="hero-orbit hero-orbit-2" aria-hidden="true"></div>
+        <div class="celestial celestial--hero" aria-hidden="true">
+          <div class="co co-h1"><span class="cs cs-bright" style="--ang:0deg"></span></div>
+          <div class="co co-h2"></div>
+          <div class="co co-h3"><span class="cs" style="--ang:45deg"></span><span class="cs cs-sm cs-dim" style="--ang:225deg"></span></div>
+          <div class="co co-h4"><span class="cs cs-sm" style="--ang:120deg"></span></div>
+          <div class="co co-h5"><span class="cs" style="--ang:300deg"></span></div>
+          <div class="co co-h6"><span class="cs cs-dim" style="--ang:90deg"></span></div>
+          <div class="co co-h7"><span class="cs cs-sm cs-bright" style="--ang:200deg"></span></div>
+          <div class="co co-h8"><span class="cs cs-xs" style="--ang:15deg"></span><span class="cs cs-xs cs-dim" style="--ang:195deg"></span></div>
+          <div class="co co-h9"><span class="cs cs-dim" style="--ang:160deg"></span></div>
+        </div>
         <div class="container">
           <div class="hero-logo-wrap reveal">
             <img src="assets/chronell-logo.png" alt="Chronell" class="hero-logo" width="224" height="auto" />
@@ -70,11 +81,15 @@
             <span class="hero-badge-dot" aria-hidden="true"></span>
             <span data-i18n="hero.badge">Beta · Windows 11 · gebaut in Österreich</span>
           </p>
+          <p class="hero-whats-new reveal reveal-delay-1">
+            <span class="hero-whats-new-label" data-i18n="whatsNew.label">Neu in der Beta</span>
+            <span data-i18n="whatsNew.bookings">Microsoft Bookings — Buchungsseiten, Leistungen und Termine in der App</span>
+          </p>
           <h1 class="hero-tagline reveal reveal-delay-1">
-            <span data-i18n="hero.taglineLine1">Mail ist Input.</span><br />
-            <span data-i18n="hero.taglineLine2Prefix">Dein </span
-            ><span class="accent" data-i18n="hero.taglineLine2Accent">Arbeitstag</span
-            ><span data-i18n="hero.taglineLine2Suffix"> ist das System.</span>
+            <span data-i18n="hero.taglineLine1">Manage deine Zeit -</span><br />
+            <span data-i18n="hero.taglineLine2Prefix">nicht deine </span
+            ><span class="accent" data-i18n="hero.taglineLine2Accent">Inbox</span
+            ><span data-i18n="hero.taglineLine2Suffix"></span>
           </h1>
           <p class="hero-positioning reveal reveal-delay-1" data-i18n="hero.positioning">
             Chronell ist kein E-Mail-Client. Es ist ein System für deine Zeit.
@@ -119,7 +134,10 @@
                   </div>
                   <div class="mockup-sidebar-divider"></div>
                   <div class="mockup-sidebar-item">
-                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><span data-i18n="hero.mockup.calendar">Kalender</span>
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>                    <span data-i18n="hero.mockup.calendar">Kalender</span>
+                  </div>
+                  <div class="mockup-sidebar-item mockup-sidebar-item--accent">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg><span data-i18n="hero.mockup.bookings">Bookings</span>
                   </div>
                   <div class="mockup-sidebar-item">
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span data-i18n="hero.mockup.tasks">Aufgaben</span>
@@ -151,6 +169,11 @@
       </section>
 
       <section class="quote-section">
+        <div class="celestial celestial--quote" aria-hidden="true">
+          <div class="co co-q1"><span class="cs cs-xs" style="--ang:30deg"></span></div>
+          <div class="co co-q2"><span class="cs cs-sm cs-dim" style="--ang:250deg"></span></div>
+          <div class="chronos-sundial"></div>
+        </div>
         <div class="container">
           <blockquote class="quote-block glass-panel-elevated reveal" data-i18n="quote.text">
             Dein Posteingang ist kein Arbeitsplatz.
@@ -159,6 +182,11 @@
       </section>
 
       <section id="method" class="section">
+        <div class="celestial celestial--method" aria-hidden="true">
+          <div class="co co-m1"><span class="cs cs-xs cs-dim" style="--ang:70deg"></span></div>
+          <div class="chronos-timeline"></div>
+          <div class="co co-m2"><span class="cs cs-sm" style="--ang:310deg"></span></div>
+        </div>
         <div class="container">
           <div class="method-intro text-center reveal">
             <span class="section-eyebrow" data-i18n="method.eyebrow">Die Chronell-Methode</span>
@@ -280,6 +308,11 @@
                   <td data-i18n="compare.table.weightC"></td>
                   <td data-i18n="compare.table.weightT"></td>
                 </tr>
+                <tr>
+                  <td data-i18n="compare.table.bookings">Bookings</td>
+                  <td data-i18n="compare.table.bookingsC"></td>
+                  <td data-i18n="compare.table.bookingsT"></td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -326,24 +359,35 @@
             <h2 class="section-title" data-i18n="features.title">Was Chronell liefert</h2>
           </div>
           <div class="feature-trio">
-            <article class="feature-card glass-panel-elevated reveal">
+            <article class="feature-card glass-panel-elevated reveal feature-card--highlight">
+              <span class="feature-new-badge" data-i18n="whatsNew.label">Neu</span>
+              <span class="icon-wrap"><svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9v.01"/><path d="M9 12v.01"/><path d="M9 15v.01"/><path d="M9 18v.01"/></svg></span>
+              <h3 data-i18n="features.bookings.title">Microsoft Bookings</h3>
+              <p data-i18n="features.bookings.body"></p>
+            </article>
+            <article class="feature-card glass-panel-elevated reveal reveal-delay-1">
               <span class="icon-wrap"><svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><path d="M22 6l-10 7L2 6"/></svg></span>
               <h3 data-i18n="features.triage.title">Mail-Triage</h3>
               <p data-i18n="features.triage.body"></p>
             </article>
-            <article class="feature-card glass-panel-elevated reveal reveal-delay-1">
+            <article class="feature-card glass-panel-elevated reveal reveal-delay-2">
               <span class="icon-wrap"><svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>
               <h3 data-i18n="features.tasks.title">Aufgaben</h3>
               <p data-i18n="features.tasks.body"></p>
             </article>
-            <article class="feature-card glass-panel-elevated reveal reveal-delay-2">
+            <article class="feature-card glass-panel-elevated reveal reveal-delay-3">
               <span class="icon-wrap"><svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span>
               <h3 data-i18n="features.calendar.title">Kalender</h3>
               <p data-i18n="features.calendar.body"></p>
             </article>
           </div>
           <div class="feature-grid">
-            <div class="feature-tile glass-panel reveal">
+            <div class="feature-tile glass-panel reveal feature-tile--highlight">
+              <span class="icon-wrap"><svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg></span>
+              <h4 data-i18n="features.grid.bookings">Bookings</h4>
+              <p data-i18n="features.grid.bookingsDesc"></p>
+            </div>
+            <div class="feature-tile glass-panel reveal reveal-delay-1">
               <span class="icon-wrap"><svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></span>
               <h4 data-i18n="features.grid.work">Alle Arbeit</h4>
               <p data-i18n="features.grid.workDesc"></p>
@@ -416,7 +460,18 @@
                 <span class="screenshot-placeholder" data-i18n="screenshots.placeholder">Screenshot folgt</span>
               </div>
             </figure>
-            <figure class="screenshot-frame reveal reveal-delay-2">
+            <figure class="screenshot-frame reveal reveal-delay-2 screenshot-frame--highlight">
+              <div class="app-chrome">
+                <img src="assets/chronell-icon.png" alt="" class="app-chrome-icon" width="16" height="16" />
+                <span class="app-chrome-title">Chronell</span>
+              </div>
+              <div class="screenshot-body">
+                <span class="screenshot-icon-wrap"><svg class="screenshot-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg></span>
+                <span class="screenshot-label" data-i18n="screenshots.bookings">Microsoft Bookings</span>
+                <span class="screenshot-placeholder" data-i18n="screenshots.placeholder">Screenshot folgt</span>
+              </div>
+            </figure>
+            <figure class="screenshot-frame reveal reveal-delay-3">
               <div class="app-chrome">
                 <img src="assets/chronell-icon.png" alt="" class="app-chrome-icon" width="16" height="16" />
                 <span class="app-chrome-title">Chronell</span>
@@ -427,7 +482,7 @@
                 <span class="screenshot-placeholder" data-i18n="screenshots.placeholder">Screenshot folgt</span>
               </div>
             </figure>
-            <figure class="screenshot-frame reveal reveal-delay-3">
+            <figure class="screenshot-frame reveal reveal-delay-4">
               <div class="app-chrome">
                 <img src="assets/chronell-icon.png" alt="" class="app-chrome-icon" width="16" height="16" />
                 <span class="app-chrome-title">Chronell</span>
@@ -452,6 +507,7 @@
             <span class="module-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg><span data-i18n="modules.home">Home</span></span>
             <span class="module-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><path d="M22 6l-10 7L2 6"/></svg><span data-i18n="modules.mail">Mail</span></span>
             <span class="module-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><span data-i18n="modules.calendar">Kalender</span></span>
+            <span class="module-pill module-pill--new"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg><span data-i18n="modules.bookings">Bookings</span></span>
             <span class="module-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span data-i18n="modules.tasks">Aufgaben</span></span>
             <span class="module-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg><span data-i18n="modules.work">Alle Arbeit</span></span>
             <span class="module-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><span data-i18n="modules.people">Personen</span></span>
@@ -497,6 +553,12 @@
       </section>
 
       <section class="cta-band">
+        <div class="celestial celestial--cta" aria-hidden="true">
+          <div class="co co-c1"><span class="cs cs-xs" style="--ang:0deg"></span></div>
+          <div class="co co-c2"><span class="cs cs-sm cs-dim" style="--ang:140deg"></span></div>
+          <div class="chronos-pendulum"></div>
+          <div class="chronos-hour-ring"></div>
+        </div>
         <div class="container">
           <div class="cta-inner glass-panel-elevated reveal">
             <h2 data-i18n="cta.title">Bereit für Chronell?</h2>

@@ -174,12 +174,12 @@ function tryStartOnPort(port: number, expectedState: string): Promise<LoopbackSe
 }
 
 function renderClosingPage(message: string): string {
-  return `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>MailClient</title>
+  return `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>Chronell</title>
 <style>body{font-family:system-ui,Segoe UI,sans-serif;background:#0e0e12;color:#e6e6e8;
 display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
 .card{background:#16161c;border:1px solid #26262e;padding:32px 40px;border-radius:12px;max-width:480px;text-align:center}
 h1{font-size:18px;margin:0 0 8px}p{font-size:14px;color:#9a9aa3;margin:0}
-</style></head><body><div class="card"><h1>MailClient</h1><p>${message}</p></div></body></html>`
+</style></head><body><div class="card"><h1>Chronell</h1><p>${message}</p></div></body></html>`
 }
 
 export type LoginMicrosoftOptions = {

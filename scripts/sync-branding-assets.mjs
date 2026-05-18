@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 /**
- * Kopiert Master-Branding aus resources/branding/ in Renderer-public, Electron-Icon und docs/assets.
- * Erzeugt verkleinerte PNG/ICO für Fensterleiste und Favicon (Windows braucht ≤256 px, kein 2k-PNG).
+ * Master-Icon: docs/assets/chronell-icon.svg → PNG/ICO für Windows-Build, Favicon, Renderer.
  * Nach Logo-Tausch: npm run sync-branding
  */
 import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
@@ -9,13 +8,25 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
-const iconSvg = join(root, 'resources', 'branding', 'Chromell-icon.svg')
-const iconPng = join(root, 'resources', 'branding', 'chronell-icon.png')
-const logoPng = join(root, 'resources', 'branding', 'chronell-logo.png')
 
-if (!existsSync(iconSvg)) {
-  console.error('Fehlt:', iconSvg)
+const iconSvgCandidates = [
+  join(root, 'docs', 'assets', 'chronell-icon.svg'),
+  join(root, 'resources', 'branding', 'chronell-icon.svg'),
+  join(root, 'resources', 'branding', 'Chromell-icon.svg')
+]
+
+const iconSvg = iconSvgCandidates.find((p) => existsSync(p))
+if (!iconSvg) {
+  console.error('Chronell-Icon-SVG fehlt. Erwartet z. B.: docs/assets/chronell-icon.svg')
   process.exit(1)
+}
+
+const brandingDir = join(root, 'resources', 'branding')
+mkdirSync(brandingDir, { recursive: true })
+const brandingSvg = join(brandingDir, 'chronell-icon.svg')
+if (iconSvg !== brandingSvg) {
+  copyFileSync(iconSvg, brandingSvg)
+  console.log('→', brandingSvg)
 }
 
 const svgTargets = [
@@ -29,19 +40,21 @@ for (const dest of svgTargets) {
   console.log('→', dest)
 }
 
-async function rasterizeIcons() {
-  if (!existsSync(iconPng)) {
-    console.warn('Hinweis: Kein Raster-Icon —', iconPng)
-    return
-  }
+const logoPng = join(root, 'resources', 'branding', 'chronell-logo.png')
 
+async function rasterizeIcons() {
   let sharp
   let toIco
   try {
     sharp = (await import('sharp')).default
     toIco = (await import('to-ico')).default
   } catch {
-    console.warn('sharp/to-ico nicht installiert — kopiere PNG unverändert (npm i -D sharp to-ico empfohlen)')
+    console.warn('sharp/to-ico nicht installiert — npm i -D sharp to-ico')
+    const fallbackPng = join(root, 'resources', 'branding', 'chronell-icon.png')
+    if (!existsSync(fallbackPng)) {
+      console.error('Kein Raster-Fallback:', fallbackPng)
+      process.exit(1)
+    }
     const fallbackTargets = [
       join(root, 'resources', 'icon.png'),
       join(root, 'src', 'renderer', 'public', 'favicon.png'),
@@ -50,16 +63,17 @@ async function rasterizeIcons() {
     ]
     for (const dest of fallbackTargets) {
       mkdirSync(dirname(dest), { recursive: true })
-      copyFileSync(iconPng, dest)
+      copyFileSync(fallbackPng, dest)
       console.log('→', dest)
     }
     return
   }
 
-  const src = sharp(iconPng)
   const transparent = { r: 0, g: 0, b: 0, alpha: 0 }
+  const src = sharp(iconSvg, { density: 300 })
   const resize = (size) =>
     src.clone().resize(size, size, { fit: 'contain', background: transparent }).png().toBuffer()
+
   const png256 = await resize(256)
   const png128 = await resize(128)
   const png48 = await resize(48)
@@ -68,6 +82,7 @@ async function rasterizeIcons() {
 
   const rasterTargets = [
     [join(root, 'resources', 'icon.png'), png256],
+    [join(brandingDir, 'chronell-icon.png'), png256],
     [join(root, 'src', 'renderer', 'public', 'favicon.png'), png32],
     [join(root, 'src', 'renderer', 'public', 'favicon-256.png'), png256],
     [join(root, 'docs', 'assets', 'chronell-icon.png'), png256],

@@ -26,11 +26,14 @@ exports.default = async function afterPackEmbedIcon(context) {
   const rcedit = require('rcedit')
   const appInfo = packager.appInfo
 
+  const productName = appInfo.productName || 'Chronell'
   await rcedit(exePath, {
     icon: iconPath,
     'version-string': {
-      FileDescription: appInfo.productName,
-      ProductName: appInfo.productName,
+      FileDescription: productName,
+      ProductName: productName,
+      InternalName: productName,
+      OriginalFilename: `${packager.appInfo.productFilename}.exe`,
       LegalCopyright: appInfo.copyright || ''
     },
     'file-version': appInfo.shortVersion || appInfo.version,

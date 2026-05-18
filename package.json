@@ -1,6 +1,6 @@
 {
   "name": "mailclient",
-  "version": "0.9.11",
+  "version": "0.9.13",
   "description": "Schlanker, lokaler Mail-Workflow-Client fuer Windows 11 mit Multi-Account-Support fuer Microsoft 365 und Gmail",
   "main": "out/main/index.js",
   "author": "Kurt Soeser",
@@ -12,7 +12,9 @@
     "start": "electron-vite preview",
     "build": "electron-vite build",
     "build:analyze": "cross-env ANALYZE_BUNDLE=1 electron-vite build",
-    "build:win": "npm run sync-branding && npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win",
+    "prebuild:win": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/prepare-win-version.ps1",
+    "build:win:inner": "npm run sync-branding && npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win",
+    "build:win": "npm run prebuild:win && npm run build:win:inner",
     "release:local": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/update-local.ps1",
     "release:local:install": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/update-local.ps1 -RunInstaller",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",

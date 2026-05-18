@@ -131,6 +131,16 @@ body {
   .hero-badge-dot {
     animation: none;
   }
+
+  .starfield,
+  .co,
+  .chronos-sundial::after,
+  .chronos-timeline::before,
+  .chronos-timeline::after,
+  .chronos-pendulum,
+  .chronos-hour-ring {
+    animation: none;
+  }
 }
 
 @media (prefers-reduced-transparency: reduce) {
@@ -461,48 +471,463 @@ main {
   position: relative;
 }
 
-.hero-orbit {
+/* Celestial / Chronos decorations */
+.starfield {
   position: absolute;
-  border-radius: 50%;
-  border: 1px solid color-mix(in srgb, var(--brand-violet) 35%, transparent);
+  inset: 0;
   pointer-events: none;
-  opacity: 0.55;
+  opacity: 0.45;
+  background-image:
+    radial-gradient(1px 1px at 12% 22%, color-mix(in srgb, var(--brand-sky) 80%, transparent), transparent),
+    radial-gradient(1px 1px at 78% 14%, color-mix(in srgb, var(--brand-violet) 70%, transparent), transparent),
+    radial-gradient(1.5px 1.5px at 44% 68%, color-mix(in srgb, var(--brand-sky) 90%, transparent), transparent),
+    radial-gradient(1px 1px at 88% 72%, color-mix(in srgb, var(--brand-royal) 75%, transparent), transparent),
+    radial-gradient(1px 1px at 24% 84%, color-mix(in srgb, var(--brand-violet) 65%, transparent), transparent),
+    radial-gradient(1px 1px at 62% 38%, color-mix(in srgb, white 55%, transparent), transparent);
+  animation: starfield-twinkle 8s ease-in-out infinite alternate;
 }
 
-.hero-orbit-1 {
-  width: min(42rem, 90vw);
-  height: min(42rem, 90vw);
-  top: -8rem;
-  left: 50%;
-  transform: translateX(-50%);
-  animation: orbit-spin 48s linear infinite;
+@keyframes starfield-twinkle {
+  0% {
+    opacity: 0.35;
+  }
+  100% {
+    opacity: 0.55;
+  }
 }
 
-.hero-orbit-2 {
-  width: min(28rem, 70vw);
-  height: min(28rem, 70vw);
-  top: 2rem;
-  left: 50%;
-  transform: translateX(-50%);
-  border-color: color-mix(in srgb, var(--brand-sky) 30%, transparent);
-  animation: orbit-spin 32s linear infinite reverse;
-}
-
-.hero-orbit-star {
+.celestial {
   position: absolute;
-  top: 0.5rem;
-  right: 18%;
-  width: 0.65rem;
-  height: 0.65rem;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.co {
+  --sz: 20rem;
+  --ry: 1;
+  --sx: 1;
+  position: absolute;
+  left: 50%;
+  width: var(--sz);
+  height: calc(var(--sz) * var(--ry));
+  margin-left: calc(var(--sz) / -2);
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--brand-violet) 32%, transparent);
+  opacity: 0.5;
+  transform: translateX(-50%) scaleX(var(--sx));
+  animation: celestial-spin var(--dur, 40s) linear infinite;
+  animation-direction: var(--dir, normal);
+}
+
+.co-h1 {
+  --sz: min(42rem, 90vw);
+  --dur: 48s;
+  top: -8rem;
+}
+
+.co-h2 {
+  --sz: min(28rem, 70vw);
+  --dur: 32s;
+  --dir: reverse;
+  top: 2rem;
+  border-color: color-mix(in srgb, var(--brand-sky) 28%, transparent);
+}
+
+.co-h3 {
+  --sz: min(52rem, 95vw);
+  --sx: 1.42;
+  --ry: 0.68;
+  --dur: 70s;
+  top: -12rem;
+  opacity: 0.38;
+}
+
+.co-h4 {
+  --sz: min(18rem, 45vw);
+  --dur: 24s;
+  top: 6rem;
+  left: 22%;
+  opacity: 0.65;
+}
+
+.co-h5 {
+  --sz: min(36rem, 80vw);
+  --sx: 0.72;
+  --ry: 1.28;
+  --dur: 55s;
+  --dir: reverse;
+  top: -4rem;
+  left: 78%;
+  opacity: 0.4;
+}
+
+.co-h6 {
+  --sz: min(24rem, 55vw);
+  --dur: 40s;
+  top: 18%;
+  left: 12%;
+}
+
+.co-h7 {
+  --sz: min(30rem, 65vw);
+  --dur: 65s;
+  --dir: reverse;
+  top: 8%;
+  left: 88%;
+  border-color: color-mix(in srgb, var(--brand-sky) 25%, transparent);
+}
+
+.co-h8 {
+  --sz: min(14rem, 35vw);
+  --dur: 20s;
+  top: 28%;
+  left: 50%;
+  opacity: 0.7;
+}
+
+.co-h9 {
+  --sz: min(58rem, 100vw);
+  --sx: 1.2;
+  --ry: 0.82;
+  --dur: 88s;
+  top: -16rem;
+  opacity: 0.28;
+}
+
+.co-q1 {
+  --sz: 11rem;
+  --dur: 36s;
+  top: 10%;
+  left: 8%;
+  opacity: 0.45;
+}
+
+.co-q2 {
+  --sz: 8rem;
+  --sx: 0.85;
+  --ry: 1.15;
+  --dur: 28s;
+  --dir: reverse;
+  bottom: 15%;
+  right: 6%;
+  left: auto;
+  margin-left: 0;
+  margin-right: -4rem;
+  transform: scaleX(var(--sx));
+  animation-name: celestial-spin-alt;
+}
+
+.co-m1 {
+  --sz: 9rem;
+  --dur: 42s;
+  top: 12%;
+  right: 4%;
+  left: auto;
+  margin-left: 0;
+  margin-right: -4.5rem;
+  animation-name: celestial-spin-alt;
+}
+
+.co-m2 {
+  --sz: 14rem;
+  --sx: 1.25;
+  --ry: 0.75;
+  --dur: 58s;
+  --dir: reverse;
+  bottom: 8%;
+  left: 6%;
+}
+
+.co-c1 {
+  --sz: 7rem;
+  --dur: 26s;
+  top: 20%;
+  left: 10%;
+}
+
+.co-c2 {
+  --sz: 10rem;
+  --sx: 1.1;
+  --ry: 0.9;
+  --dur: 34s;
+  --dir: reverse;
+  bottom: 18%;
+  right: 8%;
+  left: auto;
+  margin-left: 0;
+  margin-right: -5rem;
+  animation-name: celestial-spin-alt;
+}
+
+.cs {
+  --star-size: 0.55rem;
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: var(--star-size);
+  height: var(--star-size);
+  margin-left: calc(var(--star-size) / -2);
+  margin-top: calc(var(--star-size) / -2);
   background: var(--brand-sky);
   clip-path: polygon(50% 0%, 64% 36%, 100% 50%, 64% 64%, 50% 100%, 36% 64%, 0% 50%, 36% 36%);
-  box-shadow: 0 0 14px var(--brand-sky);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--brand-sky) 80%, transparent);
+  transform: rotate(var(--ang, 0deg)) translateY(calc(var(--sz) / -2 * var(--ry, 1)));
 }
 
-@keyframes orbit-spin {
+.cs-sm {
+  --star-size: 0.42rem;
+}
+
+.cs-xs {
+  --star-size: 0.32rem;
+}
+
+.cs-bright {
+  background: color-mix(in srgb, white 85%, var(--brand-sky));
+  box-shadow: 0 0 16px var(--brand-sky);
+}
+
+.cs-dim {
+  opacity: 0.55;
+  background: var(--brand-violet);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--brand-violet) 60%, transparent);
+}
+
+@keyframes celestial-spin {
   to {
-    transform: translateX(-50%) rotate(360deg);
+    transform: translateX(-50%) scaleX(var(--sx, 1)) rotate(360deg);
   }
+}
+
+@keyframes celestial-spin-alt {
+  to {
+    transform: scaleX(var(--sx, 1)) rotate(360deg);
+  }
+}
+
+.chronos-sundial {
+  position: absolute;
+  right: 12%;
+  top: 50%;
+  width: 5rem;
+  height: 5rem;
+  margin-top: -2.5rem;
+  border-radius: 50%;
+  border: 1px dashed color-mix(in srgb, var(--brand-violet) 35%, transparent);
+  opacity: 0.35;
+}
+
+.chronos-sundial::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 50%;
+  width: 1px;
+  height: 42%;
+  margin-left: -0.5px;
+  background: linear-gradient(to top, var(--brand-sky), transparent);
+  transform-origin: bottom center;
+  animation: sundial-hand 90s linear infinite;
+}
+
+.chronos-timeline {
+  position: absolute;
+  left: 5%;
+  right: 5%;
+  top: 42%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--brand-sky) 40%, transparent) 20%,
+    color-mix(in srgb, var(--brand-violet) 40%, transparent) 80%,
+    transparent
+  );
+  opacity: 0.4;
+}
+
+.chronos-timeline::before,
+.chronos-timeline::after {
+  content: '';
+  position: absolute;
+  top: -3px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--brand-sky);
+  box-shadow: 0 0 10px var(--brand-sky);
+  animation: timeline-pulse 3s ease-in-out infinite;
+}
+
+.chronos-timeline::before {
+  left: 18%;
+}
+
+.chronos-timeline::after {
+  right: 22%;
+  animation-delay: 1.4s;
+  background: var(--brand-violet);
+  box-shadow: 0 0 10px var(--brand-violet);
+}
+
+.chronos-pendulum {
+  position: absolute;
+  left: 50%;
+  top: 8%;
+  width: 1px;
+  height: 4.5rem;
+  margin-left: -0.5px;
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--brand-violet) 50%, transparent), transparent);
+  transform-origin: top center;
+  animation: pendulum-swing 5.5s ease-in-out infinite;
+  opacity: 0.45;
+}
+
+.chronos-pendulum::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 0.45rem;
+  height: 0.45rem;
+  margin-left: -0.225rem;
+  border-radius: 50%;
+  background: var(--brand-sky);
+  box-shadow: 0 0 10px var(--brand-sky);
+}
+
+.chronos-hour-ring {
+  position: absolute;
+  right: 14%;
+  bottom: 12%;
+  width: 4.5rem;
+  height: 4.5rem;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--brand-sky) 30%, transparent);
+  opacity: 0.35;
+  animation: hour-ring 120s linear infinite;
+}
+
+.chronos-hour-ring::before {
+  content: '';
+  position: absolute;
+  inset: 0.65rem;
+  border-radius: 50%;
+  border-top: 1px solid var(--brand-sky);
+  opacity: 0.6;
+}
+
+@keyframes sundial-hand {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes timeline-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
+@keyframes pendulum-swing {
+  0%,
+  100% {
+    transform: rotate(-14deg);
+  }
+  50% {
+    transform: rotate(14deg);
+  }
+}
+
+@keyframes hour-ring {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.quote-section,
+#method,
+.cta-band {
+  position: relative;
+}
+
+.hero-whats-new {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem 0.75rem;
+  max-width: 36rem;
+  margin: -0.5rem auto 1.25rem;
+  padding: 0.55rem 1rem;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: hsl(220 10% 82%);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--brand-royal) 22%, transparent),
+    color-mix(in srgb, var(--brand-violet) 14%, transparent)
+  );
+  border: 1px solid color-mix(in srgb, var(--brand-sky) 35%, transparent);
+  border-radius: var(--radius);
+  box-shadow: 0 0 28px color-mix(in srgb, var(--brand-royal) 25%, transparent);
+}
+
+.hero-whats-new-label {
+  flex-shrink: 0;
+  padding: 0.15rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: hsl(var(--foreground));
+  background: var(--brand-gradient);
+  border-radius: 999px;
+}
+
+.feature-card--highlight,
+.feature-tile--highlight,
+.screenshot-frame--highlight {
+  border-color: color-mix(in srgb, var(--brand-sky) 45%, transparent);
+  box-shadow:
+    var(--glass-shadow-sm),
+    0 0 32px color-mix(in srgb, var(--brand-royal) 22%, transparent);
+}
+
+.feature-new-badge {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: hsl(var(--foreground));
+  background: var(--brand-gradient);
+  border-radius: 999px;
+}
+
+.feature-card--highlight {
+  position: relative;
+}
+
+.module-pill--new {
+  border-color: color-mix(in srgb, var(--brand-sky) 50%, transparent);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--brand-royal) 30%, transparent);
+}
+
+.mockup-sidebar-item--accent {
+  color: var(--brand-sky);
+  background: color-mix(in srgb, var(--brand-royal) 18%, transparent);
 }
 
 .hero .container {
@@ -1053,7 +1478,13 @@ main {
 
 @media (min-width: 900px) {
   .feature-trio {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1100px) {
+  .feature-trio {
+    grid-template-columns: repeat(4, 1fr);
   }
 }
 
@@ -1497,3 +1928,4 @@ main {
 .reveal-delay-1 { transition-delay: 0.1s; }
 .reveal-delay-2 { transition-delay: 0.2s; }
 .reveal-delay-3 { transition-delay: 0.3s; }
+.reveal-delay-4 { transition-delay: 0.4s; }

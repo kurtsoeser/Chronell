@@ -64,64 +64,28 @@ function Read-PackageVersion([string] $PackageJsonPath) {
   return [string] $pkg.version
 }
 
-function Parse-SemVer([string] $Version) {
-  if ($Version -notmatch '^(\d+)\.(\d+)\.(\d+)$') {
-    throw "Ungültige Version '$Version' (erwartet: major.minor.patch)."
-  }
-  return [pscustomobject]@{
-    Major = [int] $Matches[1]
-    Minor = [int] $Matches[2]
-    Patch = [int] $Matches[3]
-  }
-}
+function Invoke-PrepareWinVersion {
+  param(
+    [string] $Bump,
+    [switch] $NoBump,
+    [switch] $NoPrompt
+  )
 
-function Bump-SemVerString([string] $Version, [string] $Part) {
-  $v = Parse-SemVer $Version
-  switch ($Part) {
-    'major' {
-      $v.Major++
-      $v.Minor = 0
-      $v.Patch = 0
-    }
-    'minor' {
-      $v.Minor++
-      $v.Patch = 0
-    }
-    'patch' {
-      $v.Patch++
-    }
-    default { throw "Unbekannter Bump-Typ: $Part" }
+  $prepareScript = Join-Path $PSScriptRoot 'prepare-win-version.ps1'
+  $cliArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $prepareScript)
+  if ($NoBump) {
+    $cliArgs += '-NoBump'
   }
-  return "$($v.Major).$($v.Minor).$($v.Patch)"
-}
-
-function Set-PackageVersion([string] $PackageJsonPath, [string] $NewVersion) {
-  $raw = Get-Content -LiteralPath $PackageJsonPath -Raw -Encoding UTF8
-  if ($raw -match '"version"\s*:\s*"([0-9]+\.[0-9]+\.[0-9]+)"' -and $Matches[1] -eq $NewVersion) {
-    Write-Host '  package.json: Version bereits aktuell.' -ForegroundColor DarkGray
-    return
+  if ($NoPrompt) {
+    $cliArgs += '-NoPrompt'
   }
-  $updated = $raw -replace '("version"\s*:\s*")[^"]+(")', "`${1}$NewVersion`${2}"
-  if ($updated -eq $raw) {
-    throw "version in package.json konnte nicht aktualisiert werden."
+  if ($PSBoundParameters.ContainsKey('Bump')) {
+    $cliArgs += @('-Bump', $Bump)
   }
-  [System.IO.File]::WriteAllText($PackageJsonPath, $updated, [System.Text.UTF8Encoding]::new($false))
-}
-
-function Set-AppVersionTs([string] $AppVersionPath, [string] $NewVersion, [string] $ReleaseDateIso) {
-  $raw = Get-Content -LiteralPath $AppVersionPath -Raw -Encoding UTF8
-  $versionOk = $raw -match "export const APP_VERSION = '$([regex]::Escape($NewVersion))'"
-  $dateOk = $raw -match "export const APP_RELEASE_DATE_ISO = '$([regex]::Escape($ReleaseDateIso))'"
-  if ($versionOk -and $dateOk) {
-    Write-Host '  app-version.ts: bereits aktuell.' -ForegroundColor DarkGray
-    return
+  & powershell.exe @cliArgs
+  if ($LASTEXITCODE -ne 0) {
+    throw "prepare-win-version.ps1 fehlgeschlagen (Exit-Code $LASTEXITCODE)."
   }
-  $updated = $raw -replace "export const APP_VERSION = '[^']+'", "export const APP_VERSION = '$NewVersion'"
-  $updated = $updated -replace "export const APP_RELEASE_DATE_ISO = '[^']+'", "export const APP_RELEASE_DATE_ISO = '$ReleaseDateIso'"
-  if ($updated -eq $raw) {
-    throw "app-version.ts konnte nicht aktualisiert werden (unerwartetes Dateiformat)."
-  }
-  [System.IO.File]::WriteAllText($AppVersionPath, $updated, [System.Text.UTF8Encoding]::new($false))
 }
 
 function Test-ChronellRunning {
@@ -181,34 +145,6 @@ Gesperrte Ordner spaeter manuell loeschen, wenn nichts mehr laeuft.
   }
 }
 
-function Read-VersionBumpChoice {
-  param(
-    [string] $CurrentVersion,
-    [string] $NextVersion,
-    [string] $BumpLabel
-  )
-
-  Write-Host ''
-  Write-Host "Aktuelle Version: $CurrentVersion" -ForegroundColor White
-  Write-Host ''
-  Write-Host "  [J] Neue Versionsnummer ($BumpLabel)" -ForegroundColor Green
-  Write-Host "      -> $NextVersion" -ForegroundColor DarkGray
-  Write-Host '  [N] Gleiche Version neu bauen (Setup überschreiben)' -ForegroundColor Yellow
-  Write-Host "      -> $CurrentVersion" -ForegroundColor DarkGray
-  Write-Host ''
-
-  while ($true) {
-    $answer = (Read-Host 'Auswahl [J/n]').Trim()
-    if ($answer -eq '' -or $answer -match '^(j|ja|y|yes)$') {
-      return $true
-    }
-    if ($answer -match '^(n|nein|no)$') {
-      return $false
-    }
-    Write-Host 'Bitte J (neue Version) oder N (überschreiben) eingeben.' -ForegroundColor Yellow
-  }
-}
-
 function Find-SetupExe([string] $RepoRoot, [string] $Version) {
   $candidates = @(
     (Join-Path $RepoRoot "release\$Version\Chronell-$Version-setup.exe"),
@@ -233,7 +169,6 @@ $repoRoot = Get-RepoRoot
 Set-Location -LiteralPath $repoRoot
 
 $packageJson = Join-Path $repoRoot 'package.json'
-$appVersionTs = Join-Path $repoRoot 'src\shared\app-version.ts'
 
 Write-Step 'Chronell - lokales Update-Build'
 Write-Host "Projekt: $repoRoot" -ForegroundColor DarkGray
@@ -246,45 +181,28 @@ if (Test-ChronellRunning) {
   }
 }
 
-$version = Read-PackageVersion $packageJson
-$releaseDate = Get-Date -Format 'yyyy-MM-dd'
-
-$bumpKind = if ($PSBoundParameters.ContainsKey('Bump')) { $Bump } else { 'patch' }
-$wantBump = -not $NoBump
-
+Write-Step 'Version vorbereiten'
+$prepareParams = @{}
+if ($PSBoundParameters.ContainsKey('Bump')) {
+  $prepareParams.Bump = $Bump
+}
 if ($NoBump) {
-  $wantBump = $false
-} elseif ($NoPrompt) {
-  $wantBump = $true
-} else {
-  $nextVersion = Bump-SemVerString $version $bumpKind
-  $bumpLabel = switch ($bumpKind) {
-    'major' { 'Major' }
-    'minor' { 'Minor' }
-    default { 'Patch' }
-  }
-  $wantBump = Read-VersionBumpChoice -CurrentVersion $version -NextVersion $nextVersion -BumpLabel $bumpLabel
+  $prepareParams.NoBump = $true
 }
-
-if ($wantBump) {
-  $newVersion = Bump-SemVerString $version $bumpKind
-  Write-Step "Version: $version -> $newVersion ($bumpKind)"
-  Set-PackageVersion $packageJson $newVersion
-  Set-AppVersionTs $appVersionTs $newVersion $releaseDate
-  $version = $newVersion
-} else {
-  Write-Step "Version unverändert: $version (wird überschrieben neu gebaut)"
-  Set-AppVersionTs $appVersionTs $version $releaseDate
+if ($NoPrompt) {
+  $prepareParams.NoPrompt = $true
 }
+Invoke-PrepareWinVersion @prepareParams
+$version = Read-PackageVersion $packageJson
 
 if (-not $SkipBuild) {
   Write-Step 'Aufräumen: alte win-unpacked Artefakte (optional, bei Sperre wird übersprungen)'
   Clear-ReleaseWinUnpackedArtifacts -RepoRoot $repoRoot -CurrentVersion $version
 
-  Write-Step 'Build: npm run build:win (kann einige Minuten dauern)'
-  npm run build:win
+  Write-Step 'Build: npm run build:win:inner (kann einige Minuten dauern)'
+  npm run build:win:inner
   if ($LASTEXITCODE -ne 0) {
-    throw "build:win fehlgeschlagen (Exit-Code $LASTEXITCODE)."
+    throw "build:win:inner fehlgeschlagen (Exit-Code $LASTEXITCODE)."
   }
 } else {
   Write-Step 'Build übersprungen (-SkipBuild)'

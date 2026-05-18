@@ -1,5 +1,7 @@
 appId: at.kurtsoeser.mailclient
 productName: Chronell
+# package.json "name" ist mailclient — ohne executableName heißt die EXE sonst mailclient.exe
+executableName: Chronell
 copyright: Copyright (c) 2026 Kurt Soeser
 
 directories:
@@ -36,6 +38,7 @@ afterPack: scripts/after-pack-embed-icon.cjs
 
 win:
   icon: icon.ico
+  legalTrademarks: Chronell
   signAndEditExecutable: false
   target:
     - target: nsis
@@ -46,6 +49,7 @@ win:
 nsis:
   installerIcon: icon.ico
   uninstallerIcon: icon.ico
+  shortcutName: Chronell
   oneClick: false
   # true = klassische Installation unter C:\Program Files\Chronell (Admin-Rechte beim Setup)
   perMachine: true

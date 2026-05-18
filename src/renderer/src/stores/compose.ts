@@ -256,7 +256,6 @@ function openReadingPaneDraft(
     attachments: [],
     expectReply: false,
     expectReplyDays: 7,
-    embedInReadingPane: true,
     linkedMessageId: null,
     ...defaultComposeFields(accountId),
     ...patch,

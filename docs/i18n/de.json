@@ -1,7 +1,7 @@
 {
   "meta": {
-    "title": "Chronell — Steuere deine Zeit, nicht deinen Posteingang",
-    "description": "Chronell ist kein E-Mail-Client. Es ist ein System für deine Zeit — Microsoft 365 und Google in einer Desktop-Arbeitszentrale mit Mail, Aufgaben und Kalender für Windows 11."
+    "title": "Chronell — Manage deine Zeit, nicht deine Inbox",
+    "description": "Chronell ist kein E-Mail-Client. Es ist ein System für deine Zeit — Mail, Aufgaben, Kalender und Microsoft Bookings in einer Desktop-Arbeitszentrale für Windows 11."
   },
   "nav": {
     "method": "Die Methode",
@@ -19,12 +19,12 @@
   },
   "hero": {
     "badge": "Beta · Windows 11 · gebaut in Österreich",
-    "taglineLine1": "Mail ist Input.",
-    "taglineLine2Prefix": "Dein ",
-    "taglineLine2Accent": "Arbeitstag",
-    "taglineLine2Suffix": " ist das System.",
+    "taglineLine1": "Manage deine Zeit -",
+    "taglineLine2Prefix": "nicht deine ",
+    "taglineLine2Accent": "Inbox",
+    "taglineLine2Suffix": "",
     "positioning": "Chronell ist kein E-Mail-Client. Es ist ein System für deine Zeit.",
-    "subline": "Microsoft 365 und Google in einer Desktop-Arbeitszentrale — Mail-Triage, Aufgaben, einheitlicher Kalender, lokale Suche. Für Windows 11.",
+    "subline": "Microsoft 365 und Google in einer Desktop-Arbeitszentrale — Mail-Triage, Aufgaben, einheitlicher Kalender, Microsoft Bookings und lokale Suche. Für Windows 11.",
     "ctaDownload": "Für Windows herunterladen",
     "ctaMethod": "Methode entdecken",
     "mockup": {
@@ -34,6 +34,7 @@
       "waiting": "Warte auf",
       "done": "Erledigt",
       "calendar": "Kalender",
+      "bookings": "Bookings",
       "tasks": "Aufgaben",
       "notes": "Kernnotizen",
       "badge": "→ Heute · 14:00"
@@ -53,7 +54,7 @@
       "subtitle": "Alles an einem Ort",
       "b1": "E-Mails, Aufgaben, Notizen und Termine gehören zusammen — nicht in getrennte Apps.",
       "b2": "Kein Tab-Chaos. Keine Kontextwechsel.",
-      "app": "Acht Module, M365 + Google, Meta-Ordner, globale Suche."
+      "app": "Neun Module inkl. Bookings, M365 + Google, Meta-Ordner, globale Suche."
     },
     "decide": {
       "title": "Entscheiden",
@@ -67,7 +68,7 @@
       "subtitle": "Zeit ist die echte Ressource",
       "b1": "Aufgaben ohne Zeit sind wertlos — alles bekommt Zeit, Kontext, Priorität.",
       "b2": "Ein Kalender für Termine, Mail-Aufgaben, Cloud-Tasks und Notizen.",
-      "app": "Einheitlicher Kalender, Zeitliste, Fälligkeits-Buckets."
+      "app": "Einheitlicher Kalender, Book with me, Microsoft Bookings, Zeitliste."
     },
     "execute": {
       "title": "Umsetzen",
@@ -111,7 +112,10 @@
       "accountsT": "Getrennte Apps und Logins",
       "weight": "Gewicht",
       "weightC": "Schlanker Electron, virtualisierte Listen",
-      "weightT": "Volle Office-Web- oder schwere Suites"
+      "weightT": "Volle Office-Web- oder schwere Suites",
+      "bookings": "Bookings",
+      "bookingsC": "Unternehmens-Bookings in der App; Book with me im Kalender",
+      "bookingsT": "Oft nur in Outlook Web / separaten Tabs"
     },
     "disclaimer": "Chronell ersetzt nicht jedes Enterprise-Outlook- oder Exchange-Admin-Szenario. Stärken: Workflow, lokale Daten, Multi-Provider, moderne UI für Power-User.",
     "detailed": {
@@ -155,13 +159,19 @@
     },
     "calendar": {
       "title": "Planen — einheitlicher Kalender",
-      "body": "Microsoft- und Google-Kalender plus Mail-ToDos, Cloud-Aufgaben und geplante Notizen — mit Zeitliste für deinen Tag."
+      "body": "Microsoft- und Google-Kalender plus Mail-ToDos, Cloud-Aufgaben und geplante Notizen — mit Zeitliste und Terminplanung (Book with me)."
+    },
+    "bookings": {
+      "title": "Buchen — Microsoft Bookings",
+      "body": "Buchungsseiten, Leistungen und anstehende Termine für dein Team — direkt in Chronell, ohne Outlook-Web-Tab. Persönliche „Book with me“-Links bleiben im Kalender."
     },
     "accounts": {
       "title": "Erfassen — alle Konten",
       "body": "Alle Postfächer in einem Fenster. Meta-Ordner über Konten hinweg. Globale Suche mit Ctrl+K über lokalen Volltext-Index."
     },
     "grid": {
+      "bookings": "Microsoft Bookings",
+      "bookingsDesc": "Unternehmens-Buchungsseiten, Services, Termine — M365",
       "work": "Alle Arbeit",
       "workDesc": "Mail-ToDos und Cloud-Aufgaben in Liste oder Kanban",
       "notes": "Kernnotizen",
@@ -186,15 +196,17 @@
     "placeholder": "Screenshot folgt",
     "triage": "Mail-Triage",
     "calendar": "Einheitlicher Kalender",
+    "bookings": "Microsoft Bookings",
     "work": "Alle Arbeit",
     "dashboard": "Home-Dashboard"
   },
   "modules": {
     "eyebrow": "Ein Fenster",
-    "title": "Acht Module, null Tab-Chaos",
+    "title": "Neun Module, null Tab-Chaos",
     "home": "Home",
     "mail": "Mail",
     "calendar": "Kalender",
+    "bookings": "Bookings",
     "tasks": "Aufgaben",
     "work": "Alle Arbeit",
     "people": "Personen",
@@ -214,6 +226,10 @@
     "author": "Kurt Soeser",
     "rights": "Alle Rechte vorbehalten.",
     "imprint": "Impressum (Platzhalter)"
+  },
+  "whatsNew": {
+    "label": "Neu in der Beta",
+    "bookings": "Microsoft Bookings — Buchungsseiten, Leistungen und Termine direkt in Chronell"
   },
   "cta": {
     "title": "Bereit für Chronell?",
