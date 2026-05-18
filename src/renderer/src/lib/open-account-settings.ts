@@ -5,14 +5,17 @@ export type OpenAccountSettingsTab =
   | 'accounts'
   | 'mail'
   | 'calendar'
+  | 'bookings'
   | 'contacts'
   | 'notes'
   | 'info'
 
 export type OpenAccountSettingsDetail = {
   tab?: OpenAccountSettingsTab
-  /** Unterpunkt im Mail-Tab (z. B. `rules`). */
+  /** Unterpunkt im Mail-Tab (z. B. `rules`, `signatures`). */
   mailSubNav?: string
+  /** Unterpunkt im Bookings-Tab (z. B. `personal`, `access`). */
+  bookingsSubNav?: string
 }
 
 export function requestOpenAccountSettings(detail: OpenAccountSettingsDetail = {}): void {

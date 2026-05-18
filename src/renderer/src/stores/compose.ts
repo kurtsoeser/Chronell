@@ -14,6 +14,7 @@ import {
   withReplyPrefix
 } from '@/lib/compose-helpers'
 import { sanitizeComposeHtmlFragment } from '@/lib/sanitize-compose-html'
+import { initialSignatureForAccount } from '@/lib/signature-templates'
 import { useAccountsStore } from '@/stores/accounts'
 
 export type ComposeMode = 'new' | 'reply' | 'replyAll' | 'forward'
@@ -58,6 +59,8 @@ export interface ComposeDraft {
   prependPlain: string
   /** Signatur/Footer (HTML), wird zwischen Nutzer-Text und Zitat eingefuegt. */
   signatureRichHtml: string
+  /** Aktive Signaturvorlage (nach Auswahl im Composer); `null` = frei bearbeitet. */
+  signatureTemplateId?: string | null
   /** Quoted-Body unterhalb des User-Texts. */
   quotedHtml: string
   /** Datei-Anhaenge (nicht-inline). Inline-Bilder werden direkt im HTML als data: gehalten. */
@@ -115,28 +118,20 @@ function newId(): string {
   return `cmp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 }
 
-function initialSignatureHtmlForAccount(accountId: string): string {
-  const acc = useAccountsStore.getState().accounts.find((a) => a.id === accountId)
-  if (!acc?.signatureTemplates?.length) return ''
-  const defId = acc.defaultSignatureTemplateId
-  if (defId === null || defId === undefined || defId === '') return ''
-  const tpl = acc.signatureTemplates.find((t) => t.id === defId)
-  const raw = tpl?.html?.trim() ?? ''
-  if (!raw) return ''
-  return sanitizeComposeHtmlFragment(raw)
-}
-
 function defaultComposeFields(accountId: string): Pick<
   ComposeDraft,
   | 'signatureRichHtml'
+  | 'signatureTemplateId'
   | 'referenceAttachments'
   | 'importance'
   | 'isDeliveryReceiptRequested'
   | 'isReadReceiptRequested'
   | 'scheduledSendAt'
 > {
+  const sig = initialSignatureForAccount(accountId)
   return {
-    signatureRichHtml: initialSignatureHtmlForAccount(accountId),
+    signatureRichHtml: sig.html,
+    signatureTemplateId: sig.templateId,
     referenceAttachments: [],
     importance: 'normal',
     isDeliveryReceiptRequested: false,

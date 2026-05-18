@@ -2,7 +2,8 @@ import type { CalendarEventWorkItem, WorkItem } from '@shared/work-item'
 import {
   isCalendarEventDismissed,
   isCalendarEventForceOpen,
-  readTimelineAutoDismissEndedEvents
+  readTimelineAutoDismissEndedEvents,
+  setCalendarEventDismissed
 } from '@/app/calendar/calendar-event-dismiss-storage'
 
 export function calendarEventEndMs(item: CalendarEventWorkItem): number {
@@ -27,10 +28,26 @@ export function isCalendarEventEffectivelyDone(
   return false
 }
 
+/** Nach Terminende dauerhaft als erledigt speichern (nur Kalendertermine). */
+export function syncAutoDismissedCalendarEvents(
+  items: WorkItem[],
+  nowMs = Date.now()
+): void {
+  if (!readTimelineAutoDismissEndedEvents()) return
+  for (const item of items) {
+    if (item.kind !== 'calendar_event') continue
+    if (isCalendarEventForceOpen(item.stableKey)) continue
+    if (isCalendarEventDismissed(item.stableKey)) continue
+    if (!isCalendarEventEnded(item, nowMs)) continue
+    setCalendarEventDismissed(item.stableKey, true)
+  }
+}
+
 export function applyCalendarCompletionState(
   items: WorkItem[],
   nowMs = Date.now()
 ): WorkItem[] {
+  syncAutoDismissedCalendarEvents(items, nowMs)
   const autoDismiss = readTimelineAutoDismissEndedEvents()
   return items.map((item) => {
     if (item.kind !== 'calendar_event') return item

@@ -1,5 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { AlertTriangle, CalendarClock, Copy, Link2, Loader2, Send, Trash2, X } from 'lucide-react'
+import {
+  AlertTriangle,
+  Building2,
+  CalendarClock,
+  Copy,
+  Link2,
+  Loader2,
+  Send,
+  Trash2,
+  X
+} from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { format, parseISO } from 'date-fns'
 import { de as deFns, enUS as enUSFns } from 'date-fns/locale'
@@ -10,6 +20,7 @@ import type { SchedulingSlot } from '@shared/scheduling-types'
 import { useLocaleStore } from '@/stores/locale'
 import { openExternalUrl } from '@/lib/open-external'
 import { requestOpenAccountSettings } from '@/lib/open-account-settings'
+import { useAppModeStore } from '@/stores/app-mode'
 import { showAppAlert } from '@/stores/app-dialog'
 import { RecipientTokenField } from '@/components/RecipientTokenField'
 import { sendSchedulingInvitationMail } from '@/app/calendar/scheduling-send-mail'
@@ -56,6 +67,7 @@ export function CalendarSchedulingPanel({
   className
 }: CalendarSchedulingPanelProps): JSX.Element {
   const { t } = useTranslation()
+  const setAppMode = useAppModeStore((s) => s.setMode)
   const appLocale = useLocaleStore((s) => s.locale)
   const invitationLocale = appLocale === 'en' ? 'en' : 'de'
   const dateFnsLoc = invitationLocale === 'de' ? deFns : enUSFns
@@ -449,6 +461,14 @@ export function CalendarSchedulingPanel({
         >
           <Copy className="h-3.5 w-3.5" aria-hidden />
           {copiedLink ? t('calendar.bookWithMe.copied') : t('calendar.scheduling.copyBookingLink')}
+        </button>
+        <button
+          type="button"
+          onClick={(): void => setAppMode('bookings')}
+          className="inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-md border border-border bg-background text-xs font-medium hover:bg-secondary/80"
+        >
+          <Building2 className="h-3.5 w-3.5" aria-hidden />
+          {t('calendar.scheduling.openBusinessBookings')}
         </button>
         <button
           type="button"

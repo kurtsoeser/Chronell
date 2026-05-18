@@ -16,6 +16,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import {
   LayoutGrid,
+  Building2,
   Calendar,
   GripVertical,
   House,
@@ -48,6 +49,7 @@ const MODULE_DEFS: Array<{
   { id: 'home', labelKey: 'topbar.modeHome', icon: House },
   { id: 'mail', labelKey: 'topbar.modeMail', icon: Inbox },
   { id: 'calendar', labelKey: 'topbar.modeCalendar', icon: Calendar },
+  { id: 'bookings', labelKey: 'topbar.modeBookings', icon: Building2 },
   { id: 'tasks', labelKey: 'topbar.modeTasks', icon: ListTodo },
   { id: 'work', labelKey: 'topbar.modeWork', icon: ListChecks },
   { id: 'people', labelKey: 'topbar.modePeople', icon: Users },

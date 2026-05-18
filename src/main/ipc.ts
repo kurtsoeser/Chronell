@@ -12,8 +12,10 @@ import { registerLocalDataIpc } from './ipc/register-local-data-ipc'
 import { registerWeatherIpc } from './ipc/register-weather-ipc'
 import { registerLocationIpc } from './ipc/register-location-ipc'
 import { registerPeopleIpc } from './ipc/register-people-ipc'
+import { registerBookingsIpc } from './ipc/register-bookings-ipc'
 import { registerNotionIpc } from './ipc/register-notion-ipc'
 import { registerTeamsChatPopoutIpc } from './ipc/register-teams-chat-popout-ipc'
+import { registerMailReadingPopoutIpc } from './ipc/register-mail-reading-popout-ipc'
 import { ensureAccountProfilePhotosForMissing } from './ipc/ipc-helpers'
 import { broadcastSyncStatus, broadcastMailChanged, broadcastNotesChanged } from './ipc/ipc-broadcasts'
 
@@ -32,8 +34,10 @@ export function registerIpcHandlers(): void {
   registerWeatherIpc()
   registerLocationIpc()
   registerPeopleIpc()
+  registerBookingsIpc()
   registerNotionIpc()
   registerTeamsChatPopoutIpc()
+  registerMailReadingPopoutIpc()
 
   setImmediate(() => {
     void ensureAccountProfilePhotosForMissing().catch((e) =>

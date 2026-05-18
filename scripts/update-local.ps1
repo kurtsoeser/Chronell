@@ -10,14 +10,18 @@
 
 .EXAMPLE
   .\scripts\update-local.ps1
-  Patch-Version erhöhen, bauen, Explorer mit Setup öffnen.
+  Fragt interaktiv: neue Version oder gleiche Version neu bauen.
 
 .EXAMPLE
   .\scripts\update-local.ps1 -NoBump
-  Gleiche Version neu bauen (z. B. nach weiteren Fixes).
+  Gleiche Version neu bauen (ohne Rückfrage).
 
 .EXAMPLE
-  .\scripts\update-local.ps1 -Bump minor -RunInstaller
+  .\scripts\update-local.ps1 -NoPrompt
+  Keine Rückfrage — Patch-Version erhöhen (wie früher).
+
+.EXAMPLE
+  .\scripts\update-local.ps1 -Bump minor -NoPrompt -RunInstaller
   Minor-Version, bauen, Setup direkt starten.
 #>
 [CmdletBinding()]
@@ -26,6 +30,9 @@ param(
   [string] $Bump = 'patch',
 
   [switch] $NoBump,
+
+  # Ohne interaktive Versions-Abfrage (z. B. CI oder explizit -Bump/-NoBump).
+  [switch] $NoPrompt,
 
   [switch] $SkipBuild,
 
@@ -90,6 +97,10 @@ function Bump-SemVerString([string] $Version, [string] $Part) {
 
 function Set-PackageVersion([string] $PackageJsonPath, [string] $NewVersion) {
   $raw = Get-Content -LiteralPath $PackageJsonPath -Raw -Encoding UTF8
+  if ($raw -match '"version"\s*:\s*"([0-9]+\.[0-9]+\.[0-9]+)"' -and $Matches[1] -eq $NewVersion) {
+    Write-Host '  package.json: Version bereits aktuell.' -ForegroundColor DarkGray
+    return
+  }
   $updated = $raw -replace '("version"\s*:\s*")[^"]+(")', "`${1}$NewVersion`${2}"
   if ($updated -eq $raw) {
     throw "version in package.json konnte nicht aktualisiert werden."
@@ -99,10 +110,16 @@ function Set-PackageVersion([string] $PackageJsonPath, [string] $NewVersion) {
 
 function Set-AppVersionTs([string] $AppVersionPath, [string] $NewVersion, [string] $ReleaseDateIso) {
   $raw = Get-Content -LiteralPath $AppVersionPath -Raw -Encoding UTF8
+  $versionOk = $raw -match "export const APP_VERSION = '$([regex]::Escape($NewVersion))'"
+  $dateOk = $raw -match "export const APP_RELEASE_DATE_ISO = '$([regex]::Escape($ReleaseDateIso))'"
+  if ($versionOk -and $dateOk) {
+    Write-Host '  app-version.ts: bereits aktuell.' -ForegroundColor DarkGray
+    return
+  }
   $updated = $raw -replace "export const APP_VERSION = '[^']+'", "export const APP_VERSION = '$NewVersion'"
   $updated = $updated -replace "export const APP_RELEASE_DATE_ISO = '[^']+'", "export const APP_RELEASE_DATE_ISO = '$ReleaseDateIso'"
   if ($updated -eq $raw) {
-    throw "app-version.ts konnte nicht aktualisiert werden."
+    throw "app-version.ts konnte nicht aktualisiert werden (unerwartetes Dateiformat)."
   }
   [System.IO.File]::WriteAllText($AppVersionPath, $updated, [System.Text.UTF8Encoding]::new($false))
 }
@@ -116,6 +133,80 @@ function Test-ChronellRunning {
     }
   }
   return $false
+}
+
+function Remove-WinUnpackedArtifact([string] $UnpackedPath) {
+  if (-not (Test-Path -LiteralPath $UnpackedPath)) {
+    return $true
+  }
+  try {
+    Remove-Item -LiteralPath $UnpackedPath -Recurse -Force -ErrorAction Stop
+    Write-Host "  Entfernt: $UnpackedPath" -ForegroundColor DarkGray
+    return $true
+  } catch {
+    Write-Warning "Konnte nicht entfernen (Prozess nutzt Dateien noch?): $UnpackedPath"
+    Write-Host "  $($_.Exception.Message)" -ForegroundColor DarkGray
+    return $false
+  }
+}
+
+function Clear-ReleaseWinUnpackedArtifacts([string] $RepoRoot, [string] $CurrentVersion) {
+  $releaseRoot = Join-Path $RepoRoot 'release'
+  if (-not (Test-Path -LiteralPath $releaseRoot)) {
+    return
+  }
+
+  $failed = 0
+  $currentUnpacked = Join-Path $releaseRoot "$CurrentVersion\win-unpacked"
+  if (-not (Remove-WinUnpackedArtifact $currentUnpacked)) {
+    $failed++
+  }
+
+  Get-ChildItem -Path $releaseRoot -Directory -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -ne $CurrentVersion } |
+    ForEach-Object {
+      $unpacked = Join-Path $_.FullName 'win-unpacked'
+      if (-not (Remove-WinUnpackedArtifact $unpacked)) {
+        $failed++
+      }
+    }
+
+  if ($failed -gt 0) {
+    Write-Host ''
+    Write-Warning @'
+Einige alte Build-Ordner sind gesperrt (Chronell/Electron noch offen?).
+Der Build laeuft trotzdem — release/** wird nicht ins Paket gepackt.
+Gesperrte Ordner spaeter manuell loeschen, wenn nichts mehr laeuft.
+'@
+  }
+}
+
+function Read-VersionBumpChoice {
+  param(
+    [string] $CurrentVersion,
+    [string] $NextVersion,
+    [string] $BumpLabel
+  )
+
+  Write-Host ''
+  Write-Host "Aktuelle Version: $CurrentVersion" -ForegroundColor White
+  Write-Host ''
+  Write-Host "  [J] Neue Versionsnummer ($BumpLabel)" -ForegroundColor Green
+  Write-Host "      -> $NextVersion" -ForegroundColor DarkGray
+  Write-Host '  [N] Gleiche Version neu bauen (Setup überschreiben)' -ForegroundColor Yellow
+  Write-Host "      -> $CurrentVersion" -ForegroundColor DarkGray
+  Write-Host ''
+
+  while ($true) {
+    $answer = (Read-Host 'Auswahl [J/n]').Trim()
+    if ($answer -eq '' -or $answer -match '^(j|ja|y|yes)$') {
+      return $true
+    }
+    if ($answer -match '^(n|nein|no)$') {
+      return $false
+    }
+    Write-Host 'Bitte J (neue Version) oder N (überschreiben) eingeben.' -ForegroundColor Yellow
+  }
 }
 
 function Find-SetupExe([string] $RepoRoot, [string] $Version) {
@@ -158,18 +249,38 @@ if (Test-ChronellRunning) {
 $version = Read-PackageVersion $packageJson
 $releaseDate = Get-Date -Format 'yyyy-MM-dd'
 
-if (-not $NoBump) {
-  $newVersion = Bump-SemVerString $version $Bump
-  Write-Step "Version: $version -> $newVersion ($Bump)"
+$bumpKind = if ($PSBoundParameters.ContainsKey('Bump')) { $Bump } else { 'patch' }
+$wantBump = -not $NoBump
+
+if ($NoBump) {
+  $wantBump = $false
+} elseif ($NoPrompt) {
+  $wantBump = $true
+} else {
+  $nextVersion = Bump-SemVerString $version $bumpKind
+  $bumpLabel = switch ($bumpKind) {
+    'major' { 'Major' }
+    'minor' { 'Minor' }
+    default { 'Patch' }
+  }
+  $wantBump = Read-VersionBumpChoice -CurrentVersion $version -NextVersion $nextVersion -BumpLabel $bumpLabel
+}
+
+if ($wantBump) {
+  $newVersion = Bump-SemVerString $version $bumpKind
+  Write-Step "Version: $version -> $newVersion ($bumpKind)"
   Set-PackageVersion $packageJson $newVersion
   Set-AppVersionTs $appVersionTs $newVersion $releaseDate
   $version = $newVersion
 } else {
-  Write-Step "Version unverändert: $version (-NoBump)"
+  Write-Step "Version unverändert: $version (wird überschrieben neu gebaut)"
   Set-AppVersionTs $appVersionTs $version $releaseDate
 }
 
 if (-not $SkipBuild) {
+  Write-Step 'Aufräumen: alte win-unpacked Artefakte (optional, bei Sperre wird übersprungen)'
+  Clear-ReleaseWinUnpackedArtifacts -RepoRoot $repoRoot -CurrentVersion $version
+
   Write-Step 'Build: npm run build:win (kann einige Minuten dauern)'
   npm run build:win
   if ($LASTEXITCODE -ne 0) {

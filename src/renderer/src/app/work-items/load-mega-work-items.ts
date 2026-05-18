@@ -3,7 +3,7 @@ import type { WorkItem } from '@shared/work-item'
 import { buildCalendarIncludeCalendars } from '@/lib/build-calendar-include-calendars'
 import { loadMasterWorkItemsForMegaRange } from '@/app/work-items/load-master-work-items-for-range'
 import { calendarEventToWorkItem } from '@/app/work-items/work-item-mapper'
-import { filterWorkItemsInRange } from '@/app/work-items/work-item-range'
+import { filterWorkItemsForMegaTimeline } from '@/app/work-items/work-item-range'
 
 export interface MegaWorkItemsLoadResult {
   items: WorkItem[]
@@ -38,8 +38,9 @@ export async function loadMegaWorkItems(
 
   const eventItems = graphEvents.map(calendarEventToWorkItem)
   const merged = [...master.items, ...eventItems]
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
   return {
-    items: filterWorkItemsInRange(merged, rangeStart, rangeEnd),
+    items: filterWorkItemsForMegaTimeline(merged, rangeStart, rangeEnd, timeZone),
     hiddenMailMessageIds: master.hiddenMailMessageIds,
     calendarEvents: graphEvents
   }

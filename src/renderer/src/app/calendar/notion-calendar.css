@@ -719,3 +719,12 @@
 .calendar-shell-header-area-actions {
   grid-area: shell-actions;
 }
+
+/** Bookings-Detail: fester Körper in scrollbarem Panel (kein Vollbild-Flex). */
+.bookings-embedded-calendar.calendar-notion-shell {
+  overflow: hidden;
+}
+
+.bookings-embedded-calendar.calendar-notion-shell .fc {
+  height: 100%;
+}

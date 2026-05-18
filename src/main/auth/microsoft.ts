@@ -39,7 +39,11 @@ export const MICROSOFT_SCOPES = [
   /** OneDrive: Dateien als Cloud-Anhang auswaehlen (`/me/drive/...`). */
   'Files.Read.All',
   /** SharePoint: verfolgte Sites (`/me/followedSites`) und Site-Bibliotheken. */
-  'Sites.Read.All'
+  'Sites.Read.All',
+  /** Microsoft Bookings: Unternehmens-Buchungsseiten lesen (`/solutions/bookingBusinesses`). */
+  'Bookings.Read.All',
+  /** Microsoft Bookings: Termine in Buchungskalendern lesen/schreiben. */
+  'BookingsAppointment.ReadWrite.All'
 ] as const
 
 const LOOPBACK_PORT_RANGE = { start: 47813, end: 47830 } as const

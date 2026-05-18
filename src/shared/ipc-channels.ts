@@ -49,6 +49,15 @@ export const IPC = {
     getAlwaysOnTop: 'teams-chat-popout:get-always-on-top',
     setAlwaysOnTop: 'teams-chat-popout:set-always-on-top'
   },
+  mailReadingPopout: {
+    open: 'mail-reading-popout:open',
+    close: 'mail-reading-popout:close',
+    closeAll: 'mail-reading-popout:close-all',
+    focus: 'mail-reading-popout:focus',
+    isOpen: 'mail-reading-popout:is-open',
+    getAlwaysOnTop: 'mail-reading-popout:get-always-on-top',
+    setAlwaysOnTop: 'mail-reading-popout:set-always-on-top'
+  },
   notes: {
     getMail: 'notes:get-mail',
     upsertMail: 'notes:upsert-mail',
@@ -204,6 +213,13 @@ export const IPC = {
     clearPlannedSchedule: 'tasks:clear-planned-schedule',
     listMailCloudTaskLinks: 'tasks:list-mail-cloud-task-links',
     createMailCloudTaskFromMessage: 'tasks:create-mail-cloud-task-from-message'
+  },
+  bookings: {
+    listBusinesses: 'bookings:list-businesses',
+    getBusiness: 'bookings:get-business',
+    listServices: 'bookings:list-services',
+    listStaffMembers: 'bookings:list-staff-members',
+    listAppointments: 'bookings:list-appointments'
   },
   people: {
     list: 'people:list',

@@ -1,5 +1,6 @@
 import type { MailListItem, TodoDueKindList } from '@shared/types'
 import { parseOpenTodoDueKind, rankOpenTodoBucket } from '@/lib/todo-due-bucket'
+import { pickThreadLatestMessage, pickThreadRootMessage } from '@/lib/thread-display-pick'
 
 export interface ThreadGroup {
   threadKey: string
@@ -50,12 +51,14 @@ function isSyntheticSingleMessageKey(threadKey: string, scoped: boolean): boolea
  * an, fuer die es im aktuellen Ordner keine Mail gibt. `rootMessage` wird dabei
  * auf die chronologisch aelteste Nachricht gesetzt.
  */
+type ThreadAccumulator = ThreadGroup & { members: MailListItem[] }
+
 export function groupMessagesIntoThreads(
   messages: MailListItem[],
   extraByThread?: Record<string, MailListItem[]>,
   namespaceThreadKeysByAccount = false
 ): ThreadGroup[] {
-  const groups = new Map<string, ThreadGroup>()
+  const groups = new Map<string, ThreadAccumulator>()
 
   function addToGroup(msg: MailListItem, isFolderMail: boolean): void {
     const threadKey = threadGroupingKey(msg, namespaceThreadKeysByAccount)
@@ -72,29 +75,15 @@ export function groupMessagesIntoThreads(
         isFlagged: msg.isFlagged,
         latestMessage: msg,
         rootMessage: msg,
-        participantNames: msg.fromName ? [msg.fromName] : msg.fromAddr ? [msg.fromAddr] : []
+        participantNames: [],
+        members: [msg]
       })
     } else {
       existing.messageCount += 1
       if (!msg.isRead) existing.unreadCount += 1
       if (msg.hasAttachments) existing.hasAttachments = true
       if (msg.isFlagged) existing.isFlagged = true
-
-      const existingDate = existing.latestMessage.receivedAt ?? existing.latestMessage.sentAt ?? ''
-      const candidateDate = msg.receivedAt ?? msg.sentAt ?? ''
-      if (candidateDate > existingDate) {
-        existing.latestMessage = msg
-      }
-
-      const rootIso = existing.rootMessage.receivedAt ?? existing.rootMessage.sentAt ?? ''
-      if (candidateDate && (!rootIso || candidateDate < rootIso)) {
-        existing.rootMessage = msg
-      }
-
-      const participantLabel = msg.fromName || msg.fromAddr
-      if (participantLabel && !existing.participantNames.includes(participantLabel)) {
-        existing.participantNames.push(participantLabel)
-      }
+      existing.members.push(msg)
     }
   }
 
@@ -112,7 +101,29 @@ export function groupMessagesIntoThreads(
     }
   }
 
-  return Array.from(groups.values()).sort((a, b) => {
+  const finalized: ThreadGroup[] = []
+  for (const acc of groups.values()) {
+    const rootMessage = pickThreadRootMessage(acc.members)
+    const latestMessage = pickThreadLatestMessage(acc.members)
+    const participantNames: string[] = []
+    for (const m of acc.members) {
+      const label = m.fromName || m.fromAddr
+      if (label && !participantNames.includes(label)) participantNames.push(label)
+    }
+    finalized.push({
+      threadKey: acc.threadKey,
+      accountId: acc.accountId,
+      messageCount: acc.messageCount,
+      unreadCount: acc.unreadCount,
+      hasAttachments: acc.hasAttachments,
+      isFlagged: acc.isFlagged,
+      rootMessage,
+      latestMessage,
+      participantNames
+    })
+  }
+
+  return finalized.sort((a, b) => {
     const ad = a.latestMessage.receivedAt ?? a.latestMessage.sentAt ?? ''
     const bd = b.latestMessage.receivedAt ?? b.latestMessage.sentAt ?? ''
     if (ad === bd) return 0

@@ -14,6 +14,11 @@ import { useSnoozeUiStore } from '@/stores/snooze-ui'
 import { useUndoStore } from '@/stores/undo'
 import { indexMessagesByThread, type ThreadGroup } from '@/lib/thread-group'
 import {
+  messageListDateIso,
+  pickThreadLatestMessage,
+  pickThreadRootMessage
+} from '@/lib/thread-display-pick'
+import {
   buildMailboxFlagExcludedFolderIds,
   threadMatchesMailboxFlaggedFilter
 } from '@/lib/mail-flagged-mailbox-view'
@@ -750,11 +755,6 @@ function threadSubFirstToDisplay(toAddrs: string | null | undefined): string {
   return raw.length > 0 ? raw : ''
 }
 
-function messageListDateIso(m: MailListItem): string | null {
-  const iso = m.receivedAt ?? m.sentAt
-  return iso && iso.trim().length > 0 ? iso : null
-}
-
 const ThreadHeadRow = memo(function ThreadHeadRow({
   thread,
   threadMessages,
@@ -787,8 +787,12 @@ const ThreadHeadRow = memo(function ThreadHeadRow({
   isRowExiting?: boolean
 }): JSX.Element {
   const { t } = useTranslation()
-  const latest = thread.latestMessage
-  const root = thread.rootMessage
+  const displayMessages = useMemo((): MailListItem[] => {
+    const deduped = dedupeMailListThreadMessagesById(threadMessages)
+    return deduped.length > 0 ? deduped : [thread.rootMessage]
+  }, [threadMessages, thread.rootMessage])
+  const root = useMemo(() => pickThreadRootMessage(displayMessages), [displayMessages])
+  const latest = useMemo(() => pickThreadLatestMessage(displayMessages), [displayMessages])
   const senderPhoto = profilePhotoSrcForEmail(accounts, profilePhotoDataUrls, root.fromAddr)
   const hasMultiple = thread.messageCount > 1
   const outlookExpandHeader = hasMultiple && expanded

@@ -7,13 +7,18 @@ directories:
   output: release/${version}
 
 files:
+  - '!release/**'
+  - '!docs/**'
   - '!**/.vscode/*'
+  - '!**/.cursor/**'
   - '!src/*'
   - '!electron.vite.config.{js,ts,mjs,cjs}'
   - '!{.eslintignore,.eslintrc.cjs,.prettierignore,.prettierrc.json,tsconfig.*,electron-builder.yml}'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
   - '!{tailwind.config.js,postcss.config.js,eslint.config.js}'
   - '!npm-install.log'
+  - '!**/*.pptx'
+  - '!**/~$*'
 
 asarUnpack:
   - resources/**
@@ -25,10 +30,13 @@ extraResources:
   - from: resources/icon.png
     to: icon.png
 
-# signAndEditExecutable: true bettet Icon + Metadaten per rcedit ein (ohne Zertifikat kein Signieren).
-# false = EXE behält Electron-Standardicon (Taskleiste, Startmenü, Programmordner).
+# signAndEditExecutable: false — vermeidet winCodeSign-7z/Symlink-Fehler ohne Admin/Developer Mode.
+# Icon + EXE-Metadaten: scripts/after-pack-embed-icon.cjs (rcedit, nach dem Packen).
+afterPack: scripts/after-pack-embed-icon.cjs
+
 win:
   icon: icon.ico
+  signAndEditExecutable: false
   target:
     - target: nsis
       arch:

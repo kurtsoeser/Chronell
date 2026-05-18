@@ -40,8 +40,18 @@ const AccountSetupNotionPanel = lazy(
 const AccountSetupRulesPanel = lazy(
   () => import('@/components/account-setup/AccountSetupRulesPanel')
 )
-const SettingsTopbarModulesSection = lazy(
-  () => import('@/components/account-setup/SettingsTopbarModulesSection')
+const AccountSetupSignaturesPanel = lazy(
+  () => import('@/components/account-setup/AccountSetupSignaturesPanel')
+)
+const SettingsTopbarModulesSection = lazy(() =>
+  import('@/components/account-setup/SettingsTopbarModulesSection').then((m) => ({
+    default: m.SettingsTopbarModulesSection
+  }))
+)
+const SettingsBookingsSection = lazy(() =>
+  import('@/components/account-setup/SettingsBookingsSection').then((m) => ({
+    default: m.SettingsBookingsSection
+  }))
 )
 const AccountSetupNotesPanel = lazy(
   () => import('@/components/account-setup/AccountSetupNotesPanel')
@@ -95,13 +105,14 @@ import {
   HardDrive
 } from 'lucide-react'
 
-type SettingsTab = 'general' | 'accounts' | 'mail' | 'calendar' | 'contacts' | 'notes' | 'info'
+type SettingsTab = 'general' | 'accounts' | 'mail' | 'calendar' | 'bookings' | 'contacts' | 'notes' | 'info'
 
 const SETTINGS_SUB_DEFAULT: Record<SettingsTab, string> = {
   general: 'language',
   accounts: 'connected',
   mail: 'sync',
   calendar: 'timezone',
+  bookings: 'overview',
   contacts: 'workspace',
   notes: 'workspace',
   info: 'about'
@@ -212,13 +223,16 @@ interface Props {
   initialTab?: SettingsTab
   /** Unterpunkt im Mail-Tab (z. B. `rules`). */
   initialMailSubNav?: string
+  /** Unterpunkt im Bookings-Tab (z. B. `personal`, `access`). */
+  initialBookingsSubNav?: string
 }
 
 export function AccountSetupDialog({
   open,
   onClose,
   initialTab,
-  initialMailSubNav
+  initialMailSubNav,
+  initialBookingsSubNav
 }: Props): JSX.Element | null {
   const {
     config,
@@ -255,6 +269,7 @@ export function AccountSetupDialog({
         { id: 'accounts' as const, label: t('settings.tabAccounts') },
         { id: 'mail' as const, label: t('settings.tabMail') },
         { id: 'calendar' as const, label: t('settings.tabCalendar') },
+        { id: 'bookings' as const, label: t('settings.tabBookings') },
         { id: 'contacts' as const, label: t('settings.tabContacts') },
         { id: 'notes' as const, label: t('settings.tabNotes') },
         { id: 'info' as const, label: t('settings.tabInfo') }
@@ -373,7 +388,10 @@ export function AccountSetupDialog({
     if (initialTab === 'mail' && initialMailSubNav) {
       setSubNavId((prev) => ({ ...prev, mail: initialMailSubNav }))
     }
-  }, [open, initialTab, initialMailSubNav])
+    if (initialTab === 'bookings' && initialBookingsSubNav) {
+      setSubNavId((prev) => ({ ...prev, bookings: initialBookingsSubNav }))
+    }
+  }, [open, initialTab, initialMailSubNav, initialBookingsSubNav])
 
   useEffect(() => {
     if (!open) return
@@ -385,6 +403,30 @@ export function AccountSetupDialog({
     }
     window.addEventListener('mailclient:settings-calendar-subnav', onCalendarSubNav)
     return () => window.removeEventListener('mailclient:settings-calendar-subnav', onCalendarSubNav)
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    const onGeneralSubNav = (e: Event): void => {
+      const id = (e as CustomEvent<{ id?: string }>).detail?.id
+      if (!id) return
+      setActiveTab('general')
+      setSubNavId((prev) => ({ ...prev, general: id }))
+    }
+    window.addEventListener('mailclient:settings-general-subnav', onGeneralSubNav)
+    return () => window.removeEventListener('mailclient:settings-general-subnav', onGeneralSubNav)
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    const onBookingsSubNav = (e: Event): void => {
+      const id = (e as CustomEvent<{ id?: string }>).detail?.id
+      if (!id) return
+      setActiveTab('bookings')
+      setSubNavId((prev) => ({ ...prev, bookings: id }))
+    }
+    window.addEventListener('mailclient:settings-bookings-subnav', onBookingsSubNav)
+    return () => window.removeEventListener('mailclient:settings-bookings-subnav', onBookingsSubNav)
   }, [open])
 
   const microsoftAccounts = useMemo(
@@ -418,6 +460,7 @@ export function AccountSetupDialog({
           { id: 'sidebarFolders', label: t('settings.mailSidebarFoldersHeading') },
           { id: 'triage', label: t('settings.triageHeading') },
           { id: 'categories', label: t('settings.categoriesHeading') },
+          { id: 'signatures', label: t('settings.signaturesHeading') },
           { id: 'rules', label: t('settings.mailRulesHeading') }
         ]
       case 'calendar':
@@ -426,6 +469,12 @@ export function AccountSetupDialog({
           { id: 'bookWithMe', label: t('settings.bookWithMeHeading') },
           { id: 'api', label: t('settings.calendarApiHeading') },
           { id: 'sidebar', label: t('settings.calendarSidebarHeading') }
+        ]
+      case 'bookings':
+        return [
+          { id: 'overview', label: t('settings.bookingsSubOverview') },
+          { id: 'personal', label: t('settings.bookingsSubPersonal') },
+          { id: 'access', label: t('settings.bookingsSubAccess') }
         ]
       case 'contacts':
         return [
@@ -2229,6 +2278,12 @@ export function AccountSetupDialog({
               </section>
               )}
 
+              {subNavId.mail === 'signatures' && (
+                <Suspense fallback={<AccountSetupPanelFallback />}>
+                  <AccountSetupSignaturesPanel />
+                </Suspense>
+              )}
+
               {subNavId.mail === 'rules' && (
               <section className="-mx-5 -mb-5 flex min-h-0 flex-col">
                 <Suspense fallback={<AccountSetupPanelFallback />}>
@@ -2236,6 +2291,14 @@ export function AccountSetupDialog({
                 </Suspense>
               </section>
               )}
+            </div>
+          )}
+
+          {activeTab === 'bookings' && (
+            <div role="tabpanel" aria-label={t('settings.tabBookings')} className="space-y-5">
+              <Suspense fallback={<AccountSetupPanelFallback />}>
+                <SettingsBookingsSection accounts={accounts} subNavId={subNavId.bookings} />
+              </Suspense>
             </div>
           )}
 

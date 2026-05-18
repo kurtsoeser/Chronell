@@ -80,6 +80,8 @@ import {
   type TeamsChatPopoutOpenInput,
   type TeamsChatPopoutRef,
   type TeamsChatPopoutListItem,
+  type MailReadingPopoutOpenInput,
+  type MailReadingPopoutRef,
   type SettingsBackupExportResult,
   type SettingsBackupPickResult,
   type SettingsBackupPayload,
@@ -120,6 +122,16 @@ import {
   type UserNoteAttachment,
   type UserNoteAttachmentAddLocalInput,
   type UserNoteAttachmentAddCloudInput,
+  type BookingsAppointmentRow,
+  type BookingsBusinessDetail,
+  type BookingsBusinessRow,
+  type BookingsGetBusinessInput,
+  type BookingsListAppointmentsInput,
+  type BookingsListBusinessesInput,
+  type BookingsListServicesInput,
+  type BookingsListStaffMembersInput,
+  type BookingsStaffMemberRow,
+  type BookingsServiceRow,
   type PeopleContactView,
   type PeopleCreateContactInput,
   type PeopleListInput,
@@ -343,6 +355,21 @@ const api = {
       ipcRenderer.invoke(IPC.teamsChatPopout.getAlwaysOnTop, ref),
     setAlwaysOnTop: (ref: TeamsChatPopoutRef & { alwaysOnTop: boolean }): Promise<void> =>
       ipcRenderer.invoke(IPC.teamsChatPopout.setAlwaysOnTop, ref)
+  },
+  mailReadingPopout: {
+    open: (input: MailReadingPopoutOpenInput): Promise<void> =>
+      ipcRenderer.invoke(IPC.mailReadingPopout.open, input),
+    close: (ref: MailReadingPopoutRef): Promise<void> =>
+      ipcRenderer.invoke(IPC.mailReadingPopout.close, ref),
+    closeAll: (): Promise<void> => ipcRenderer.invoke(IPC.mailReadingPopout.closeAll),
+    focus: (ref: MailReadingPopoutRef): Promise<boolean> =>
+      ipcRenderer.invoke(IPC.mailReadingPopout.focus, ref),
+    isOpen: (ref: MailReadingPopoutRef): Promise<boolean> =>
+      ipcRenderer.invoke(IPC.mailReadingPopout.isOpen, ref),
+    getAlwaysOnTop: (ref: MailReadingPopoutRef): Promise<boolean> =>
+      ipcRenderer.invoke(IPC.mailReadingPopout.getAlwaysOnTop, ref),
+    setAlwaysOnTop: (ref: MailReadingPopoutRef & { alwaysOnTop: boolean }): Promise<void> =>
+      ipcRenderer.invoke(IPC.mailReadingPopout.setAlwaysOnTop, ref)
   },
   notes: {
     getMail: (messageId: number): Promise<UserNote | null> =>
@@ -724,6 +751,18 @@ const api = {
       input: TasksCreateMailCloudTaskFromMessageInput
     ): Promise<TaskItemRow> => ipcRenderer.invoke(IPC.tasks.createMailCloudTaskFromMessage, input)
   },
+  bookings: {
+    listBusinesses: (input: BookingsListBusinessesInput): Promise<BookingsBusinessRow[]> =>
+      ipcRenderer.invoke(IPC.bookings.listBusinesses, input),
+    getBusiness: (input: BookingsGetBusinessInput): Promise<BookingsBusinessDetail> =>
+      ipcRenderer.invoke(IPC.bookings.getBusiness, input),
+    listServices: (input: BookingsListServicesInput): Promise<BookingsServiceRow[]> =>
+      ipcRenderer.invoke(IPC.bookings.listServices, input),
+    listStaffMembers: (input: BookingsListStaffMembersInput): Promise<BookingsStaffMemberRow[]> =>
+      ipcRenderer.invoke(IPC.bookings.listStaffMembers, input),
+    listAppointments: (input: BookingsListAppointmentsInput): Promise<BookingsAppointmentRow[]> =>
+      ipcRenderer.invoke(IPC.bookings.listAppointments, input)
+  },
   people: {
     list: (input: PeopleListInput): Promise<PeopleContactView[]> =>
       ipcRenderer.invoke(IPC.people.list, input),
@@ -881,6 +920,13 @@ const api = {
       ipcRenderer.on('teams-chat-popout:closed', listener)
       return (): void => {
         ipcRenderer.off('teams-chat-popout:closed', listener)
+      }
+    },
+    onMailReadingPopoutClosed: (handler: (payload: MailReadingPopoutRef) => void): (() => void) => {
+      const listener = (_e: IpcRendererEvent, payload: MailReadingPopoutRef): void => handler(payload)
+      ipcRenderer.on('mail-reading-popout:closed', listener)
+      return (): void => {
+        ipcRenderer.off('mail-reading-popout:closed', listener)
       }
     }
   },

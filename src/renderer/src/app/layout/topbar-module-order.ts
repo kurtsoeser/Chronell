@@ -5,6 +5,7 @@ export const DEFAULT_TOPBAR_MODULE_ORDER: AppShellMode[] = [
   'home',
   'mail',
   'calendar',
+  'bookings',
   'tasks',
   'work',
   'people',

@@ -5,10 +5,18 @@ import { initI18n } from './i18n'
 import { App } from './App'
 import { TeamsChatPopoutShell } from './app/chat/TeamsChatPopoutShell'
 import { isTeamsChatPopoutWindow } from './app/chat/teams-chat-popout-route'
+import { MailReadingPopoutShell } from './app/layout/MailReadingPopoutShell'
+import { isMailReadingPopoutWindow } from './app/layout/mail-reading-popout-route'
 import './styles/globals.css'
 import './stores/theme'
 
-const RootShell = isTeamsChatPopoutWindow() ? TeamsChatPopoutShell : App
+function resolveRootShell(): typeof App {
+  if (isMailReadingPopoutWindow()) return MailReadingPopoutShell
+  if (isTeamsChatPopoutWindow()) return TeamsChatPopoutShell
+  return App
+}
+
+const RootShell = resolveRootShell()
 
 document.title = APP_PRODUCT_NAME
 

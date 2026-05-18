@@ -395,6 +395,15 @@ export function CalendarTimelinePane({
     persistWorkListViewPrefs(listViewPrefs)
   }, [listViewPrefs])
 
+  useEffect(() => {
+    if (!autoDismissEndedEvents) return
+    const tick = (): void => {
+      setItems((prev) => applyCalendarCompletionState(prev))
+    }
+    const id = window.setInterval(tick, 30 * 60_000)
+    return (): void => window.clearInterval(id)
+  }, [autoDismissEndedEvents])
+
   const handleSelect = useCallback(
     (item: WorkItem): void => {
       setSelected(item)

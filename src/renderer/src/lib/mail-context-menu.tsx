@@ -389,6 +389,144 @@ export function buildMailContextItems(
 
     {
 
+      id: 'todo-today',
+
+      label: mailContextTodoViewLabel(tr, 'today'),
+
+      icon: CheckSquare,
+
+      iconClassName: 'text-yellow-400',
+
+      onSelect: (): void => {
+
+        void (async (): Promise<void> => {
+
+          for (const id of ids) await h.setTodoForMessage(id, 'today')
+
+        })()
+
+      }
+
+    },
+
+    {
+
+      id: 'todo-tomorrow',
+
+      label: mailContextTodoViewLabel(tr, 'tomorrow'),
+
+      icon: CheckSquare,
+
+      iconClassName: 'text-yellow-400',
+
+      onSelect: (): void => {
+
+        void (async (): Promise<void> => {
+
+          for (const id of ids) await h.setTodoForMessage(id, 'tomorrow')
+
+        })()
+
+      }
+
+    },
+
+    {
+
+      id: 'todo-week',
+
+      label: mailContextTodoViewLabel(tr, 'this_week'),
+
+      icon: CheckSquare,
+
+      iconClassName: 'text-yellow-400',
+
+      onSelect: (): void => {
+
+        void (async (): Promise<void> => {
+
+          for (const id of ids) await h.setTodoForMessage(id, 'this_week')
+
+        })()
+
+      }
+
+    },
+
+    {
+
+      id: 'todo-later',
+
+      label: mailContextTodoViewLabel(tr, 'later'),
+
+      icon: CheckSquare,
+
+      iconClassName: 'text-yellow-400',
+
+      onSelect: (): void => {
+
+        void (async (): Promise<void> => {
+
+          for (const id of ids) await h.setTodoForMessage(id, 'later')
+
+        })()
+
+      }
+
+    },
+
+    {
+
+      id: 'todo-done',
+
+      label: mailContextTodoViewLabel(tr, 'done'),
+
+      icon: CircleCheckBig,
+
+      iconClassName: 'text-emerald-500',
+
+      onSelect: (): void => {
+
+        void (async (): Promise<void> => {
+
+          for (const id of ids) await h.completeTodoForMessage(id)
+
+        })()
+
+      }
+
+    },
+
+    ...(ui.allowsCloudTaskCreate && !isBulk
+
+      ? [
+
+          { id: 'sep-cloud-task', label: '', separator: true },
+
+          {
+
+            id: 'create-cloud-task',
+
+            label: tr ? tr('mail.createCloudTask.menu') : 'Als Cloud-Aufgabe anlegen',
+
+            icon: ListTodo,
+
+            onSelect: (): void => {
+
+              useCreateCloudTaskUiStore.getState().open(msg)
+
+            }
+
+          }
+
+        ]
+
+      : []),
+
+    { id: 'sep-todo', label: '', separator: true },
+
+    {
+
       id: 'reply',
 
       label: 'Antworten',
@@ -562,144 +700,6 @@ export function buildMailContextItems(
       }
 
     },
-
-    { id: 'sep-todo', label: '', separator: true },
-
-    {
-
-      id: 'todo-today',
-
-      label: mailContextTodoViewLabel(tr, 'today'),
-
-      icon: CheckSquare,
-
-      iconClassName: 'text-yellow-400',
-
-      onSelect: (): void => {
-
-        void (async (): Promise<void> => {
-
-          for (const id of ids) await h.setTodoForMessage(id, 'today')
-
-        })()
-
-      }
-
-    },
-
-    {
-
-      id: 'todo-tomorrow',
-
-      label: mailContextTodoViewLabel(tr, 'tomorrow'),
-
-      icon: CheckSquare,
-
-      iconClassName: 'text-yellow-400',
-
-      onSelect: (): void => {
-
-        void (async (): Promise<void> => {
-
-          for (const id of ids) await h.setTodoForMessage(id, 'tomorrow')
-
-        })()
-
-      }
-
-    },
-
-    {
-
-      id: 'todo-week',
-
-      label: mailContextTodoViewLabel(tr, 'this_week'),
-
-      icon: CheckSquare,
-
-      iconClassName: 'text-yellow-400',
-
-      onSelect: (): void => {
-
-        void (async (): Promise<void> => {
-
-          for (const id of ids) await h.setTodoForMessage(id, 'this_week')
-
-        })()
-
-      }
-
-    },
-
-    {
-
-      id: 'todo-later',
-
-      label: mailContextTodoViewLabel(tr, 'later'),
-
-      icon: CheckSquare,
-
-      iconClassName: 'text-yellow-400',
-
-      onSelect: (): void => {
-
-        void (async (): Promise<void> => {
-
-          for (const id of ids) await h.setTodoForMessage(id, 'later')
-
-        })()
-
-      }
-
-    },
-
-    {
-
-      id: 'todo-done',
-
-      label: mailContextTodoViewLabel(tr, 'done'),
-
-      icon: CircleCheckBig,
-
-      iconClassName: 'text-emerald-500',
-
-      onSelect: (): void => {
-
-        void (async (): Promise<void> => {
-
-          for (const id of ids) await h.completeTodoForMessage(id)
-
-        })()
-
-      }
-
-    },
-
-    ...(ui.allowsCloudTaskCreate && !isBulk
-
-      ? [
-
-          { id: 'sep-cloud-task', label: '', separator: true },
-
-          {
-
-            id: 'create-cloud-task',
-
-            label: tr ? tr('mail.createCloudTask.menu') : 'Als Cloud-Aufgabe anlegen',
-
-            icon: ListTodo,
-
-            onSelect: (): void => {
-
-              useCreateCloudTaskUiStore.getState().open(msg)
-
-            }
-
-          }
-
-        ]
-
-      : []),
 
     { id: 'sep-wait', label: '', separator: true },
 

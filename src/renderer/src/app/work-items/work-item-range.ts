@@ -1,5 +1,8 @@
 import type { WorkItem } from '@shared/work-item'
-import { workItemEffectiveSortIso } from '@/app/work-items/work-item-bucket'
+import {
+  classifyWorkItemBucket,
+  workItemEffectiveSortIso
+} from '@/app/work-items/work-item-bucket'
 
 /** Liegt der Eintrag im halboffenen Intervall [rangeStart, rangeEnd)? */
 export function workItemOverlapsRange(
@@ -28,6 +31,22 @@ export function filterWorkItemsInRange(
   rangeEnd: Date
 ): WorkItem[] {
   return items.filter((item) => workItemOverlapsRange(item, rangeStart, rangeEnd))
+}
+
+/** Zeitliste: Fenster plus offene überfällige Mails/Aufgaben (nicht Kalendertermine). */
+export function filterWorkItemsForMegaTimeline(
+  items: WorkItem[],
+  rangeStart: Date,
+  rangeEnd: Date,
+  timeZone: string,
+  nowMs = Date.now()
+): WorkItem[] {
+  return items.filter((item) => {
+    if (workItemOverlapsRange(item, rangeStart, rangeEnd)) return true
+    if (item.kind === 'calendar_event') return false
+    if (item.completed) return false
+    return classifyWorkItemBucket(item, timeZone, nowMs) === 'overdue'
+  })
 }
 
 export function mergeWorkItemsByStableKey(

@@ -58,7 +58,7 @@ async function loadMailTodosForMegaRange(
 ): Promise<MailListItem[]> {
   const { fetchStart, fetchEnd } = megaFetchRangeWithBuffer(rangeStart, rangeEnd)
 
-  const [scheduled, laterBucket] = await Promise.all([
+  const [scheduled, laterBucket, overdueBucket] = await Promise.all([
     window.mailClient.mail.listTodoMessagesInRange({
       accountId: null,
       rangeStartIso: fetchStart.toISOString(),
@@ -67,6 +67,9 @@ async function loadMailTodosForMegaRange(
     }),
     window.mailClient.mail
       .listTodoMessages({ accountId: null, dueKind: 'later', limit: 400 })
+      .catch((): MailListItem[] => []),
+    window.mailClient.mail
+      .listTodoMessages({ accountId: null, dueKind: 'overdue', limit: 400 })
       .catch((): MailListItem[] => [])
   ])
 
@@ -77,6 +80,7 @@ async function loadMailTodosForMegaRange(
   })
 
   let merged = mergeMailListsUnique(scheduled, undatedInRange)
+  merged = mergeMailListsUnique(merged, overdueBucket)
 
   if (includeCompleted) {
     const done = await window.mailClient.mail

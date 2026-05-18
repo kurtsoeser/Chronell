@@ -74,9 +74,11 @@ export function setCalendarEventForceOpen(stableKey: string, forceOpen: boolean)
 
 export function readTimelineAutoDismissEndedEvents(): boolean {
   try {
-    return window.localStorage.getItem(AUTO_DISMISS_ENDED_KEY) === '1'
+    const raw = window.localStorage.getItem(AUTO_DISMISS_ENDED_KEY)
+    if (raw === null) return true
+    return raw === '1'
   } catch {
-    return false
+    return true
   }
 }
 

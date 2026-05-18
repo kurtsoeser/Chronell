@@ -1,27 +1,35 @@
 import { useMemo, useState } from 'react'
-import { BookmarkPlus, ChevronDown, Star, Trash2 } from 'lucide-react'
+import { BookmarkPlus, ChevronDown, Save, Settings2, Star, Trash2 } from 'lucide-react'
 import type { AccountSignatureTemplate } from '@shared/types'
 import { useAccountsStore } from '@/stores/accounts'
 import { showAppAlert, showAppConfirm, showAppPrompt } from '@/stores/app-dialog'
 import { sanitizeComposeHtmlFragment } from '@/lib/sanitize-compose-html'
+import {
+  newSignatureTemplateId,
+  removeSignatureTemplate,
+  sortSignatureTemplates,
+  upsertSignatureTemplate
+} from '@/lib/signature-templates'
+import { requestOpenAccountSettings } from '@/lib/open-account-settings'
 import { cn } from '@/lib/utils'
 
 interface Props {
   accountId: string
   signatureRichHtml: string
   onSignatureHtmlChange: (html: string) => void
+  /** ID der geladenen Vorlage; `null` = frei bearbeitet. */
+  activeTemplateId?: string | null
+  onActiveTemplateIdChange?: (id: string | null) => void
   /** Schmalere Abstaende (Dashboard-Kachel). */
   compact?: boolean
-}
-
-function newTemplateId(): string {
-  return `sig-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
 }
 
 export function SignatureTemplateControls({
   accountId,
   signatureRichHtml,
   onSignatureHtmlChange,
+  activeTemplateId = null,
+  onActiveTemplateIdChange,
   compact
 }: Props): JSX.Element {
   const accounts = useAccountsStore((s) => s.accounts)
@@ -33,19 +41,34 @@ export function SignatureTemplateControls({
   const [manageOpen, setManageOpen] = useState(false)
   const [applyKey, setApplyKey] = useState(0)
 
-  const sorted = useMemo(
-    () => [...templates].sort((a, b) => a.name.localeCompare(b.name, 'de')),
-    [templates]
-  )
+  const sorted = useMemo(() => sortSignatureTemplates(templates), [templates])
+
+  const activeTemplate = activeTemplateId
+    ? templates.find((t) => t.id === activeTemplateId)
+    : undefined
+
+  const setActiveId = (id: string | null): void => {
+    onActiveTemplateIdChange?.(id)
+  }
 
   const applyById = (id: string): void => {
     const tpl = templates.find((t) => t.id === id)
     if (!tpl) return
     onSignatureHtmlChange(sanitizeComposeHtmlFragment(tpl.html))
+    setActiveId(id)
     setApplyKey((k) => k + 1)
   }
 
-  const saveCurrentAsTemplate = (): void => {
+  const persistTemplates = async (next: AccountSignatureTemplate[]): Promise<void> => {
+    try {
+      await patchAccountSignatures(accountId, { signatureTemplates: next })
+    } catch (e) {
+      console.warn('[signature] Speichern:', e)
+      void showAppAlert(e instanceof Error ? e.message : String(e), { title: 'Signaturvorlage' })
+    }
+  }
+
+  const saveCurrentAsNewTemplate = (): void => {
     void (async (): Promise<void> => {
       const raw = signatureRichHtml.trim()
       if (!raw) {
@@ -56,22 +79,37 @@ export function SignatureTemplateControls({
       }
       const name = await showAppPrompt('Name der neuen Signaturvorlage:', {
         title: 'Vorlage speichern',
-        defaultValue: 'Meine Signatur',
+        defaultValue: activeTemplate?.name ?? 'Meine Signatur',
         placeholder: 'z. B. Geschäftlich'
       })
       if (name === null) return
       const trimmed = name.trim()
       if (!trimmed) return
       const html = sanitizeComposeHtmlFragment(raw)
-      const next: AccountSignatureTemplate[] = [
-        ...templates,
-        { id: newTemplateId(), name: trimmed, html }
-      ]
-      try {
-        await patchAccountSignatures(accountId, { signatureTemplates: next })
-      } catch (e) {
-        console.warn('[signature] Speichern:', e)
+      const id = newSignatureTemplateId()
+      const next = upsertSignatureTemplate(templates, { id, name: trimmed, html })
+      await persistTemplates(next)
+      setActiveId(id)
+    })()
+  }
+
+  const updateActiveTemplate = (): void => {
+    void (async (): Promise<void> => {
+      if (!activeTemplateId || !activeTemplate) {
+        saveCurrentAsNewTemplate()
+        return
       }
+      const raw = signatureRichHtml.trim()
+      if (!raw) {
+        void showAppAlert('Die Signatur ist leer — nichts zu speichern.', { title: 'Signaturvorlage' })
+        return
+      }
+      const next = upsertSignatureTemplate(templates, {
+        id: activeTemplateId,
+        name: activeTemplate.name,
+        html: raw
+      })
+      await persistTemplates(next)
     })()
   }
 
@@ -93,13 +131,16 @@ export function SignatureTemplateControls({
         confirmLabel: 'Löschen'
       })
       if (!ok) return
-      const next = templates.filter((t) => t.id !== tpl.id)
+      const next = removeSignatureTemplate(templates, tpl.id)
       const newDefault = defaultId === tpl.id ? null : defaultId
       try {
         await patchAccountSignatures(accountId, {
           signatureTemplates: next,
           defaultSignatureTemplateId: newDefault
         })
+        if (activeTemplateId === tpl.id) {
+          setActiveId(null)
+        }
       } catch (e) {
         console.warn('[signature] Löschen:', e)
       }
@@ -114,8 +155,18 @@ export function SignatureTemplateControls({
     ? 'inline-flex shrink-0 items-center gap-0.5 rounded border border-border/60 bg-background px-1 py-0.5 text-[10px] text-muted-foreground hover:bg-secondary hover:text-foreground'
     : 'inline-flex shrink-0 items-center gap-1 rounded border border-border/60 bg-background px-2 py-1 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground'
 
+  const btnPrimaryClass = cn(
+    btnClass,
+    'border-primary/40 text-foreground hover:bg-primary/10'
+  )
+
   return (
     <div className={cn('flex flex-col gap-1', compact ? '' : 'gap-1.5')}>
+      {activeTemplate && (
+        <p className={cn('text-muted-foreground', compact ? 'text-[9px]' : 'text-[10px]')}>
+          Bearbeitest: <span className="font-medium text-foreground">{activeTemplate.name}</span>
+        </p>
+      )}
       <div className={cn('flex flex-wrap items-center gap-1', compact ? '' : 'gap-1.5')}>
         <select
           key={`apply-${applyKey}`}
@@ -129,6 +180,7 @@ export function SignatureTemplateControls({
             if (!v) return
             if (v === '__empty__') {
               onSignatureHtmlChange('')
+              setActiveId(null)
               return
             }
             applyById(v)
@@ -143,9 +195,30 @@ export function SignatureTemplateControls({
           ))}
         </select>
 
-        <button type="button" className={btnClass} title="Aktuelle Signatur als Vorlage speichern" onClick={saveCurrentAsTemplate}>
+        {activeTemplate ? (
+          <button
+            type="button"
+            className={btnPrimaryClass}
+            title="Änderungen in die gewählte Vorlage schreiben"
+            onClick={updateActiveTemplate}
+          >
+            <Save className={compact ? 'h-3 w-3' : 'h-3.5 w-3.5'} />
+            {!compact && <span>Vorlage aktualisieren</span>}
+          </button>
+        ) : null}
+
+        <button
+          type="button"
+          className={btnClass}
+          title={
+            activeTemplate
+              ? 'Aktuelle Signatur als neue Vorlage speichern'
+              : 'Aktuelle Signatur als Vorlage speichern'
+          }
+          onClick={saveCurrentAsNewTemplate}
+        >
           <BookmarkPlus className={compact ? 'h-3 w-3' : 'h-3.5 w-3.5'} />
-          {!compact && <span>Speichern</span>}
+          {!compact && <span>{activeTemplate ? 'Als neu speichern' : 'Speichern'}</span>}
         </button>
 
         <div className="flex items-center gap-0.5">
@@ -182,6 +255,16 @@ export function SignatureTemplateControls({
             {!compact && <span>Verwalten</span>}
           </button>
         )}
+
+        <button
+          type="button"
+          className={btnClass}
+          title="Signaturvorlagen in den Einstellungen bearbeiten"
+          onClick={(): void => requestOpenAccountSettings({ tab: 'mail', mailSubNav: 'signatures' })}
+        >
+          <Settings2 className={compact ? 'h-3 w-3' : 'h-3.5 w-3.5'} />
+          {!compact && <span>Einstellungen</span>}
+        </button>
       </div>
 
       {manageOpen && templates.length > 0 && (
@@ -196,7 +279,17 @@ export function SignatureTemplateControls({
               key={t.id}
               className="flex items-center justify-between gap-2 rounded px-1 py-0.5 hover:bg-secondary/60"
             >
-              <span className="min-w-0 truncate">{t.name}</span>
+              <button
+                type="button"
+                className={cn(
+                  'min-w-0 flex-1 truncate text-left',
+                  t.id === activeTemplateId && 'font-medium text-primary'
+                )}
+                title="In den Editor laden"
+                onClick={(): void => applyById(t.id)}
+              >
+                {t.name}
+              </button>
               <button
                 type="button"
                 className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-destructive/15 hover:text-destructive"

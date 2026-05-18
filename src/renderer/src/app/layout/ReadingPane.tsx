@@ -23,7 +23,8 @@ import {
   Tag,
   CheckSquare,
   Unlink,
-  SquareArrowOutUpRight
+  SquareArrowOutUpRight,
+  PictureInPicture2
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -55,6 +56,7 @@ import { MailCategoriesPopover } from '@/components/MailCategoriesPopover'
 import { ObjectNoteEditor } from '@/components/ObjectNoteEditor'
 import type { AttachmentMeta, MailFull, ConnectedAccount, MailQuickStep } from '@shared/types'
 import { outlookCategoryDotClass } from '@/lib/outlook-category-colors'
+import type { IsolatedMailView } from '@/app/layout/use-isolated-mail-view'
 
 /** `datetime-local` im Browser (lokale Zeit) aus ISO-String. */
 function toDatetimeLocalValue(iso: string | null | undefined): string {
@@ -82,23 +84,22 @@ export type ReadingPaneProps = {
   hideChromeWhenEmpty?: boolean
   /** Mail-Arbeitsbereich: Vorschau als schwebendes Fenster loesen. */
   onRequestUndock?: () => void
+  /** Vorschau als Pop-up (bleibt beim Modulwechsel sichtbar). */
+  onRequestGlobalPopout?: (opts?: { osWindow?: boolean }) => void
+  /** Eigenes Fenster / globales Pop-up: feste Nachricht inkl. Konversation. */
+  isolatedView?: IsolatedMailView
 }
 
 export function ReadingPane({
   emptySelectionTitle,
   emptySelectionBody,
   hideChromeWhenEmpty = false,
-  onRequestUndock
+  onRequestUndock,
+  onRequestGlobalPopout,
+  isolatedView
 }: ReadingPaneProps = {}): JSX.Element {
   const { t, i18n } = useTranslation()
-  const {
-    selectedMessage,
-    selectedMessageId,
-    listKind,
-    foldersByAccount,
-    messageLoading,
-    threadMessages
-  } = useMailStore(
+  const storeMail = useMailStore(
     useShallow((s) => ({
       selectedMessage: s.selectedMessage,
       selectedMessageId: s.selectedMessageId,
@@ -108,6 +109,12 @@ export function ReadingPane({
       threadMessages: s.threadMessages
     }))
   )
+  const selectedMessage = isolatedView?.selectedMessage ?? storeMail.selectedMessage
+  const selectedMessageId = isolatedView?.selectedMessageId ?? storeMail.selectedMessageId
+  const listKind = storeMail.listKind
+  const foldersByAccount = storeMail.foldersByAccount
+  const messageLoading = isolatedView?.messageLoading ?? storeMail.messageLoading
+  const threadMessages = isolatedView?.threadMessages ?? storeMail.threadMessages
   const {
     setMessageRead,
     toggleMessageFlag,
@@ -119,7 +126,7 @@ export function ReadingPane({
     completeTodoForMessage,
     setWaitingForMessage,
     clearWaitingForMessage,
-    selectMessage
+    selectMessage: selectMessageInStore
   } = useMailStore(
     useShallow((s) => ({
       setMessageRead: s.setMessageRead,
@@ -135,6 +142,7 @@ export function ReadingPane({
       selectMessage: s.selectMessage
     }))
   )
+  const selectMessage = isolatedView?.selectMessage ?? selectMessageInStore
   const accounts = useAccountsStore((s) => s.accounts)
   const profilePhotoDataUrls = useAccountsStore((s) => s.profilePhotoDataUrls)
   const autoLoadImages = useAccountsStore((s) => s.config?.autoLoadImages ?? true)
@@ -469,6 +477,17 @@ export function ReadingPane({
           ))}
         </select>
 
+        {onRequestGlobalPopout ? (
+          <button
+            type="button"
+            title={t('mail.readingPane.popoutTitle')}
+            onClick={(e): void => onRequestGlobalPopout({ osWindow: e.shiftKey })}
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-secondary hover:text-foreground"
+          >
+            <PictureInPicture2 className="h-3.5 w-3.5" />
+          </button>
+        ) : null}
+
         {onRequestUndock ? (
           <button
             type="button"
@@ -662,10 +681,9 @@ function MailReader({
             .catch(() => undefined)
         }
 
-        // Inline-Bilder nachladen, wenn welche da sind und der Body sie
-        // referenziert.
+        // Inline-Bilder fuer cid:-Referenzen im HTML nachladen (Signatur, Logo, …).
         const hasInline = items.some((a) => a.isInline)
-        if (hasInline && message.bodyHtml && hasAnyImages(message.bodyHtml)) {
+        if (hasInline && message.bodyHtml) {
           return window.mailClient.mail.fetchInlineImages(messageId).then((map) => {
             if (!cancelled) setInlineImages(map)
           })
@@ -683,24 +701,19 @@ function MailReader({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [message.id])
 
-  // Wir zeigen ALLE Anhaenge an – auch Inline-Bilder. Lediglich extreme
-  // Mini-Eintraege (< 200 Byte, also typische Tracking-Pixel) filtern
-  // wir raus. Echte Anhaenge kommen zuerst, Inline danach.
-  const visibleAttachments = useMemo(() => {
-    const filtered = attachments.filter((a) => {
-      if ((a.size ?? 0) > 0 && (a.size ?? 0) < 200) return false
-      return true
-    })
-    return [...filtered].sort((a, b) => {
-      if (a.isInline === b.isInline) return 0
-      return a.isInline ? 1 : -1
-    })
-  }, [attachments])
-
-  const realAttachmentCount = useMemo(
-    () => visibleAttachments.filter((a) => !a.isInline).length,
-    [visibleAttachments]
+  // Nur echte Anhaenge in der Leiste; Inline-Bilder werden im Mail-Body
+  // per cid:-Ersetzung dargestellt (wie vom Absender eingebettet).
+  const visibleAttachments = useMemo(
+    () =>
+      attachments.filter((a) => {
+        if (a.isInline) return false
+        if ((a.size ?? 0) > 0 && (a.size ?? 0) < 200) return false
+        return true
+      }),
+    [attachments]
   )
+
+  const realAttachmentCount = visibleAttachments.length
 
   // Anhang-Bar nur zeigen, wenn auch wirklich etwas da ist. Den Lade-
   // Indikator zeigen wir bewusst NUR, wenn die DB schon weiss, dass die
@@ -794,29 +807,17 @@ function MailReader({
               <Tag className="h-3 w-3" />
               {t('mail.readingPane.categories')}
             </button>
-            {visibleAttachments.length > 0 && (
+            {realAttachmentCount > 0 && (
               <span
-                className={cn(
-                  'inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium',
-                  realAttachmentCount > 0
-                    ? 'bg-status-flagged/15 text-status-flagged'
-                    : 'bg-secondary text-muted-foreground'
-                )}
-                title={
-                  realAttachmentCount > 0
-                    ? `${realAttachmentCount} ${realAttachmentCount === 1 ? t('mail.readingPane.attachment_one') : t('mail.readingPane.attachment_other')}`
-                    : `${visibleAttachments.length} ${
-                        visibleAttachments.length === 1
-                          ? t('mail.readingPane.inlineImage_one')
-                          : t('mail.readingPane.inlineImage_other')
-                      }`
-                }
+                className="inline-flex shrink-0 items-center gap-1 rounded-full bg-status-flagged/15 px-2 py-0.5 text-[11px] font-medium text-status-flagged"
+                title={`${realAttachmentCount} ${
+                  realAttachmentCount === 1
+                    ? t('mail.readingPane.attachment_one')
+                    : t('mail.readingPane.attachment_other')
+                }`}
               >
                 <Paperclip className="h-3 w-3" />
-                {realAttachmentCount > 0 ? realAttachmentCount : visibleAttachments.length}
-                {realAttachmentCount === 0 && (
-                  <span className="text-[10px] font-normal opacity-70">{t('mail.readingPane.inlineBadge')}</span>
-                )}
+                {realAttachmentCount}
               </span>
             )}
             <button
@@ -972,65 +973,41 @@ function AttachmentBar({
     }
   }
 
-  const realCount = attachments.filter((a) => !a.isInline).length
+  const count = attachments.length
 
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       <div className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
         <Paperclip className="h-3 w-3" />
-        {realCount > 0
-          ? `${realCount} ${realCount === 1 ? t('mail.readingPane.attachment_one') : t('mail.readingPane.attachment_other')}`
-          : `${attachments.length} ${
-              attachments.length === 1
-                ? t('mail.readingPane.inlineImage_one')
-                : t('mail.readingPane.inlineImage_other')
-            }`}
+        {`${count} ${count === 1 ? t('mail.readingPane.attachment_one') : t('mail.readingPane.attachment_other')}`}
       </div>
       {attachments.map((a) => {
         const Icon = pickAttachmentIcon(a)
         const isBusy = busyId === a.id
-        const isInline = a.isInline
         return (
           <div
             key={a.id}
-            className={cn(
-              'group flex items-center gap-1.5 overflow-hidden rounded-md border pl-2 pr-1 transition-colors',
-              isInline
-                ? 'border-dashed border-border/60 bg-transparent hover:bg-secondary/40'
-                : 'border-border bg-secondary/40 hover:bg-secondary'
-            )}
+            className="group flex items-center gap-1.5 overflow-hidden rounded-md border border-border bg-secondary/40 pl-2 pr-1 transition-colors hover:bg-secondary"
           >
             <button
               type="button"
               onClick={(): void => void open(a)}
               disabled={isBusy}
-              title={
-                t('mail.readingPane.openAttachmentTitle', {
-                  name: a.name,
-                  size: a.size != null ? ` (${formatBytes(a.size)})` : ''
-                }) + (isInline ? t('mail.readingPane.openAttachmentInlineSuffix') : '')
-              }
-              className={cn(
-                'flex max-w-[260px] items-center gap-1.5 py-1 text-left text-[11px] disabled:opacity-50',
-                isInline ? 'text-muted-foreground' : 'text-foreground'
-              )}
+              title={t('mail.readingPane.openAttachmentTitle', {
+                name: a.name,
+                size: a.size != null ? ` (${formatBytes(a.size)})` : ''
+              })}
+              className="flex max-w-[260px] items-center gap-1.5 py-1 text-left text-[11px] text-foreground disabled:opacity-50"
             >
               {isBusy ? (
                 <Loader2 className="h-3 w-3 shrink-0 animate-spin" />
               ) : (
                 <Icon className="h-3 w-3 shrink-0 text-muted-foreground" />
               )}
-              <span className={cn('truncate', isInline ? 'italic' : 'font-medium')}>
-                {a.name}
-              </span>
+              <span className="truncate font-medium">{a.name}</span>
               {a.size != null && (
                 <span className="shrink-0 text-[10px] text-muted-foreground">
                   {formatBytes(a.size)}
-                </span>
-              )}
-              {isInline && (
-                <span className="shrink-0 rounded bg-secondary/60 px-1 text-[9px] uppercase tracking-wide text-muted-foreground">
-                  {t('mail.readingPane.attachmentInlineChip')}
                 </span>
               )}
             </button>
@@ -1131,12 +1108,4 @@ function escapeHtml(s: string): string {
 
 function hasExternalImages(html: string): boolean {
   return /<img\b[^>]*\bsrc\s*=\s*["']?https?:/i.test(html)
-}
-
-function hasCidImages(html: string): boolean {
-  return /\bsrc\s*=\s*["']?cid:/i.test(html)
-}
-
-function hasAnyImages(html: string): boolean {
-  return /<img\b/i.test(html)
 }

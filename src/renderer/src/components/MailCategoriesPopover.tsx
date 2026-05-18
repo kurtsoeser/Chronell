@@ -77,6 +77,15 @@ export function MailCategoriesPopover({
     return (): void => document.removeEventListener('mousedown', onDocMouseDown)
   }, [open, onClose])
 
+  const choiceNames = useMemo(() => {
+    if (isMicrosoft) {
+      const fromMasters = masters.map((m) => m.displayName)
+      const extra = draft.filter((n) => !fromMasters.includes(n))
+      return [...new Set([...fromMasters, ...extra])].sort((a, b) => a.localeCompare(b, 'de'))
+    }
+    return [...new Set([...distinct, ...draft])].sort((a, b) => a.localeCompare(b, 'de'))
+  }, [isMicrosoft, masters, distinct, draft])
+
   if (!open || !account) return null
 
   async function applyCategories(next: string[]): Promise<void> {
@@ -109,15 +118,6 @@ export function MailCategoriesPopover({
     setDraft((d) => Array.from(new Set([...d, t])).sort((a, b) => a.localeCompare(b, 'de')))
     setFreeText('')
   }
-
-  const choiceNames = useMemo(() => {
-    if (isMicrosoft) {
-      const fromMasters = masters.map((m) => m.displayName)
-      const extra = draft.filter((n) => !fromMasters.includes(n))
-      return [...new Set([...fromMasters, ...extra])].sort((a, b) => a.localeCompare(b, 'de'))
-    }
-    return [...new Set([...distinct, ...draft])].sort((a, b) => a.localeCompare(b, 'de'))
-  }, [isMicrosoft, masters, distinct, draft])
 
   return (
     <div

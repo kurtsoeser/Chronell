@@ -49,6 +49,10 @@ const SnoozePickerHost = lazy(async () => {
   const m = await import('./components/SnoozePickerHost')
   return { default: m.SnoozePickerHost }
 })
+const MailReadingPopoutHost = lazy(async () => {
+  const m = await import('./app/layout/MailReadingPopoutHost')
+  return { default: m.MailReadingPopoutHost }
+})
 const CreateCloudTaskFromMailDialogHost = lazy(async () => {
   const m = await import('./components/CreateCloudTaskFromMailDialogHost')
   return { default: m.CreateCloudTaskFromMailDialogHost }
@@ -86,6 +90,10 @@ const PeopleShell = lazy(async () => {
   const m = await import('./app/people/PeopleShell')
   return { default: m.PeopleShell }
 })
+const BookingsShell = lazy(async () => {
+  const m = await import('./app/bookings/BookingsShell')
+  return { default: m.BookingsShell }
+})
 const ComposerStack = lazy(async () => {
   const m = await import('./components/Composer')
   return { default: m.ComposerStack }
@@ -113,6 +121,9 @@ export function App(): JSX.Element {
     OpenAccountSettingsTab | undefined
   >(undefined)
   const [accountDialogInitialMailSubNav, setAccountDialogInitialMailSubNav] = useState<
+    string | undefined
+  >(undefined)
+  const [accountDialogInitialBookingsSubNav, setAccountDialogInitialBookingsSubNav] = useState<
     string | undefined
   >(undefined)
   const accounts = useAccountsStore((s) => s.accounts)
@@ -144,10 +155,12 @@ export function App(): JSX.Element {
 
   function openAccountSettings(
     tab: OpenAccountSettingsTab = 'general',
-    mailSubNav?: string
+    mailSubNav?: string,
+    bookingsSubNav?: string
   ): void {
     setAccountDialogInitialTab(tab)
     setAccountDialogInitialMailSubNav(mailSubNav)
+    setAccountDialogInitialBookingsSubNav(bookingsSubNav)
     setAccountDialogOpen(true)
   }
 
@@ -155,6 +168,7 @@ export function App(): JSX.Element {
     setAccountDialogOpen(false)
     setAccountDialogInitialTab(undefined)
     setAccountDialogInitialMailSubNav(undefined)
+    setAccountDialogInitialBookingsSubNav(undefined)
   }
 
   useEffect(() => {
@@ -209,10 +223,15 @@ export function App(): JSX.Element {
 
   useEffect(() => {
     const onOpenSettings = (e: Event): void => {
-      const ce = e as CustomEvent<{ tab?: OpenAccountSettingsTab; mailSubNav?: string }>
+      const ce = e as CustomEvent<{
+        tab?: OpenAccountSettingsTab
+        mailSubNav?: string
+        bookingsSubNav?: string
+      }>
       const tab = ce.detail?.tab ?? 'general'
       setAccountDialogInitialTab(tab)
       setAccountDialogInitialMailSubNav(ce.detail?.mailSubNav)
+      setAccountDialogInitialBookingsSubNav(ce.detail?.bookingsSubNav)
       setAccountDialogOpen(true)
     }
     window.addEventListener(OPEN_ACCOUNT_SETTINGS_EVENT, onOpenSettings as EventListener)
@@ -228,6 +247,7 @@ export function App(): JSX.Element {
         <Suspense fallback={<AppShellFallback />}>
           {mode === 'home' && <HomeDashboard />}
           {mode === 'calendar' && <CalendarShell />}
+          {mode === 'bookings' && <BookingsShell />}
           {mode === 'tasks' && <TasksShell />}
           {mode === 'work' && <WorkShell />}
           {mode === 'people' && <PeopleShell />}
@@ -255,6 +275,7 @@ export function App(): JSX.Element {
             open={accountDialogOpen}
             initialTab={accountDialogInitialTab}
             initialMailSubNav={accountDialogInitialMailSubNav}
+            initialBookingsSubNav={accountDialogInitialBookingsSubNav}
             onClose={closeAccountSettings}
           />
         </Suspense>
@@ -271,6 +292,9 @@ export function App(): JSX.Element {
       ) : null}
       <Suspense fallback={<div className="pointer-events-none fixed inset-0 z-[200]" aria-hidden />}>
         <ComposerStack />
+      </Suspense>
+      <Suspense fallback={null}>
+        <MailReadingPopoutHost />
       </Suspense>
       {snoozePickerOpen ? (
         <Suspense fallback={null}>

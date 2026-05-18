@@ -104,3 +104,9 @@ export function broadcastTeamsChatPopoutClosed(payload: {
     win.webContents.send('teams-chat-popout:closed', payload)
   }
 }
+
+export function broadcastMailReadingPopoutClosed(payload: { messageId: number }): void {
+  for (const win of BrowserWindow.getAllWindows()) {
+    win.webContents.send('mail-reading-popout:closed', payload)
+  }
+}

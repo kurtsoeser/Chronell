@@ -543,7 +543,9 @@ function ComposerWindow({
           <SignatureTemplateControls
             accountId={draft.accountId}
             signatureRichHtml={draft.signatureRichHtml}
+            activeTemplateId={draft.signatureTemplateId ?? null}
             onSignatureHtmlChange={(html): void => update(draft.id, { signatureRichHtml: html })}
+            onActiveTemplateIdChange={(id): void => update(draft.id, { signatureTemplateId: id })}
           />
         </div>
         <TipTapBody

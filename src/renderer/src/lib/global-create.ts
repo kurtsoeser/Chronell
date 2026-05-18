@@ -7,6 +7,7 @@ export type GlobalCreateKind =
   | 'task'
   | 'calendar_event'
   | 'booking'
+  | 'business_booking'
   | 'note'
   | 'chat'
   | 'contact'
@@ -50,6 +51,8 @@ export function defaultCreateKindForMode(mode: AppShellMode): GlobalCreateKind {
       return 'mail'
     case 'calendar':
       return 'calendar_event'
+    case 'bookings':
+      return 'business_booking'
     case 'tasks':
     case 'work':
       return 'task'
@@ -75,6 +78,8 @@ export function targetShellModeForCreateKind(kind: GlobalCreateKind): AppShellMo
     case 'calendar_event':
     case 'booking':
       return 'calendar'
+    case 'business_booking':
+      return 'bookings'
     case 'note':
       return 'notes'
     case 'chat':

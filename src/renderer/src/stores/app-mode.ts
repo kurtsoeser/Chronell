@@ -4,6 +4,7 @@ export type AppShellMode =
   | 'home'
   | 'mail'
   | 'calendar'
+  | 'bookings'
   | 'tasks'
   | 'work'
   | 'people'
@@ -59,6 +60,7 @@ function readStored(): AppShellMode {
       v === 'home' ||
       v === 'mail' ||
       v === 'calendar' ||
+      v === 'bookings' ||
       v === 'tasks' ||
       v === 'work' ||
       v === 'people' ||

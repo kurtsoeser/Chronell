@@ -24,7 +24,8 @@ import {
   Mail,
   UserPlus,
   Filter,
-  Link2
+  Link2,
+  Building2
 } from 'lucide-react'
 import {
   DndContext,
@@ -68,8 +69,11 @@ import {
   TOPBAR_MODULE_PREFS_CHANGED_EVENT,
   readTopbarModuleHiddenSet,
   readVisibleTopbarModuleOrder,
-  reorderVisibleTopbarModules
+  reorderVisibleTopbarModules,
+  resolveVisibleAppShellMode,
+  setTopbarModuleVisible
 } from '@/app/layout/topbar-module-prefs'
+import { ContextMenu, type ContextMenuItem } from '@/components/ContextMenu'
 import { useMailWorkspaceLayoutStore } from '@/stores/mail-workspace-layout'
 import { useConnectivityStore } from '@/stores/connectivity'
 import { TopbarGlobalSearch } from '@/app/layout/TopbarGlobalSearch'
@@ -94,6 +98,7 @@ function SortableTopbarModeTab({
   icon: Icon,
   active,
   onSelect,
+  onContextMenu,
   dragAria,
   dragTitle
 }: {
@@ -102,6 +107,7 @@ function SortableTopbarModeTab({
   icon: React.ComponentType<{ className?: string }>
   active: boolean
   onSelect: (mode: AppShellMode) => void
+  onContextMenu: (e: React.MouseEvent, id: AppShellMode) => void
   dragAria: string
   dragTitle: string
 }): JSX.Element {
@@ -121,6 +127,7 @@ function SortableTopbarModeTab({
       {...attributes}
       {...listeners}
       onClick={(): void => onSelect(id)}
+      onContextMenu={(e): void => onContextMenu(e, id)}
       title={dragTitle}
       className={cn(
         'relative inline-flex h-12 shrink-0 touch-none items-center gap-1.5 whitespace-nowrap rounded-md px-3 text-xs font-medium transition-colors',
@@ -149,6 +156,7 @@ const TOPBAR_CREATE_KINDS: GlobalCreateKind[] = [
   'task',
   'calendar_event',
   'booking',
+  'business_booking',
   'note',
   'chat',
   'contact',
@@ -165,6 +173,8 @@ function createKindIcon(kind: GlobalCreateKind): React.ComponentType<{ className
       return Calendar
     case 'booking':
       return Link2
+    case 'business_booking':
+      return Building2
     case 'note':
       return StickyNote
     case 'chat':
@@ -219,7 +229,7 @@ function TopbarGlobalCreateSplit({
   }
 
   function isCreateKindDisabled(kind: GlobalCreateKind): boolean {
-    if (kind === 'booking') {
+    if (kind === 'booking' || kind === 'business_booking') {
       return microsoftAccounts.length === 0
     }
     if (kind === 'calendar_event' || kind === 'task' || kind === 'contact') {
@@ -229,7 +239,7 @@ function TopbarGlobalCreateSplit({
   }
 
   function disabledHint(kind: GlobalCreateKind): string | undefined {
-    if (kind === 'booking' && microsoftAccounts.length === 0)
+    if ((kind === 'booking' || kind === 'business_booking') && microsoftAccounts.length === 0)
       return t('topbar.create.noMicrosoftAccount')
     if (kind === 'calendar_event' && graphCapableAccounts.length === 0)
       return t('topbar.create.noCalendarAccount')
@@ -393,6 +403,7 @@ export function Topbar({ onOpenAccountDialog }: Props): JSX.Element {
         { id: 'home' as const, label: t('topbar.modeHome'), icon: House },
         { id: 'mail' as const, label: t('topbar.modeMail'), icon: Inbox },
         { id: 'calendar' as const, label: t('topbar.modeCalendar'), icon: Calendar },
+        { id: 'bookings' as const, label: t('topbar.modeBookings'), icon: Building2 },
         { id: 'tasks' as const, label: t('topbar.modeTasks'), icon: ListTodo },
         { id: 'work' as const, label: t('topbar.modeWork'), icon: ListChecks },
         { id: 'people' as const, label: t('topbar.modePeople'), icon: Users },
@@ -427,6 +438,14 @@ export function Topbar({ onOpenAccountDialog }: Props): JSX.Element {
     [modeOrder, hiddenModules]
   )
 
+  const visibleModuleCount = visibleModeOrder.length
+
+  const [moduleContextMenu, setModuleContextMenu] = useState<{
+    x: number
+    y: number
+    moduleId: AppShellMode
+  } | null>(null)
+
   const orderedShellModes = useMemo(() => {
     const byId = new Map(shellModes.map((m) => [m.id, m]))
     return visibleModeOrder
@@ -459,6 +478,49 @@ export function Topbar({ onOpenAccountDialog }: Props): JSX.Element {
     window.addEventListener(TOPBAR_MODULE_PREFS_CHANGED_EVENT, onPrefsChanged)
     return (): void => window.removeEventListener(TOPBAR_MODULE_PREFS_CHANGED_EVENT, onPrefsChanged)
   }, [])
+
+  const openModuleContextMenu = useCallback((e: React.MouseEvent, moduleId: AppShellMode): void => {
+    e.preventDefault()
+    e.stopPropagation()
+    setModuleContextMenu({ x: e.clientX, y: e.clientY, moduleId })
+  }, [])
+
+  const hideModuleFromTopbar = useCallback(
+    (moduleId: AppShellMode): void => {
+      if (visibleModuleCount <= 1) return
+      setTopbarModuleVisible(moduleId, false)
+      setHiddenModules(readTopbarModuleHiddenSet())
+      if (mode === moduleId) {
+        setAppMode(resolveVisibleAppShellMode(moduleId, [], modeOrder, readTopbarModuleHiddenSet()))
+      }
+      setModuleContextMenu(null)
+    },
+    [mode, modeOrder, setAppMode, visibleModuleCount]
+  )
+
+  const moduleContextMenuItems = useMemo((): ContextMenuItem[] => {
+    if (!moduleContextMenu) return []
+    const { moduleId } = moduleContextMenu
+    const items: ContextMenuItem[] = [
+      {
+        id: 'hide-module',
+        label: t('topbar.moduleHide'),
+        disabled: visibleModuleCount <= 1,
+        onSelect: (): void => hideModuleFromTopbar(moduleId)
+      }
+    ]
+    if (moduleId === 'bookings') {
+      items.push({
+        id: 'bookings-settings',
+        label: t('topbar.moduleSettings'),
+        onSelect: (): void => {
+          setModuleContextMenu(null)
+          requestOpenAccountSettings({ tab: 'bookings' })
+        }
+      })
+    }
+    return items
+  }, [hideModuleFromTopbar, moduleContextMenu, t, visibleModuleCount])
 
   const onTopbarModesDragEnd = useCallback(
     (e: DragEndEvent): void => {
@@ -528,6 +590,7 @@ export function Topbar({ onOpenAccountDialog }: Props): JSX.Element {
                   icon={icon}
                   active={mode === id}
                   onSelect={setAppMode}
+                  onContextMenu={openModuleContextMenu}
                   dragAria={t('topbar.moduleDragAria')}
                   dragTitle={t('topbar.moduleDragTitle')}
                 />
@@ -536,6 +599,15 @@ export function Topbar({ onOpenAccountDialog }: Props): JSX.Element {
           </SortableContext>
         </nav>
       </DndContext>
+
+      {moduleContextMenu ? (
+        <ContextMenu
+          x={moduleContextMenu.x}
+          y={moduleContextMenu.y}
+          items={moduleContextMenuItems}
+          onClose={(): void => setModuleContextMenu(null)}
+        />
+      ) : null}
 
       <div className="min-w-[9rem] max-w-2xl flex-[2] basis-0 px-0.5 sm:min-w-[11rem] sm:px-1">
         <TopbarGlobalSearch />

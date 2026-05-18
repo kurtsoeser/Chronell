@@ -1298,6 +1298,20 @@ export interface TeamsChatPopoutListItem extends TeamsChatPopoutRef {
   alwaysOnTop: boolean
 }
 
+/** Interner Schluessel fuer Mail-Lese-Popout-Fenster (`messageId` als String). */
+export type MailReadingPopoutKey = string
+
+export interface MailReadingPopoutOpenInput {
+  messageId: number
+  title?: string
+  /** Standard: true (immer im Vordergrund). */
+  alwaysOnTop?: boolean
+}
+
+export interface MailReadingPopoutRef {
+  messageId: number
+}
+
 export type UserNoteKind = 'mail' | 'calendar' | 'standalone'
 export type UserNoteCalendarSource = 'microsoft' | 'google'
 
@@ -1628,6 +1642,19 @@ export interface NotionAppendEventInput {
   pageId?: string | null
   localeCode?: 'de' | 'en'
 }
+
+export type {
+  BookingsAppointmentRow,
+  BookingsBusinessDetail,
+  BookingsBusinessRow,
+  BookingsGetBusinessInput,
+  BookingsListAppointmentsInput,
+  BookingsListBusinessesInput,
+  BookingsListServicesInput,
+  BookingsListStaffMembersInput,
+  BookingsServiceRow,
+  BookingsStaffMemberRow
+} from './bookings-types'
 
 export { IPC } from './ipc-channels'
 

@@ -9,6 +9,7 @@ import { CalendarFloatingPanel } from '@/app/calendar/CalendarFloatingPanel'
 import { useMailWorkspaceLayoutStore } from '@/stores/mail-workspace-layout'
 import { useMailPendingFocusStore } from '@/stores/mail-pending-focus'
 import { useMailStore } from '@/stores/mail'
+import { useMailReadingPopoutStore } from '@/stores/mail-reading-popout'
 
 const MAIL_FLOAT_READING_SIZE_KEY = 'mailclient.mailWorkspace.readingFloatSize'
 const MAIL_FLOAT_CALENDAR_SIZE_KEY = 'mailclient.mailWorkspace.calendarFloatSize'
@@ -95,9 +96,18 @@ export function MailWorkspace(props: { onOpenAccountDialog: () => void }): JSX.E
     return { x: Math.max(12, window.innerWidth - calendarFloatWidth - 20), y: 68 }
   }, [bothPanelsFloating, calendarFloatWidth, readingFloatPos.x])
 
+  const openReadingPopout = useMailReadingPopoutStore((s) => s.openFromCurrentSelection)
+
   const requestReadingUndock = useCallback((): void => {
     setReadingPlacement('float')
   }, [setReadingPlacement])
+
+  const requestReadingGlobalPopout = useCallback(
+    (opts?: { osWindow?: boolean }): void => {
+      openReadingPopout({ osWindow: opts?.osWindow === true })
+    },
+    [openReadingPopout]
+  )
   const requestCalendarUndock = useCallback((): void => {
     setCalendarPlacement('float')
   }, [setCalendarPlacement])
@@ -115,7 +125,10 @@ export function MailWorkspace(props: { onOpenAccountDialog: () => void }): JSX.E
       <div className="flex min-w-0 flex-1 overflow-hidden">
         {dockedReading ? (
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-            <ReadingPane onRequestUndock={requestReadingUndock} />
+            <ReadingPane
+              onRequestUndock={requestReadingUndock}
+              onRequestGlobalPopout={requestReadingGlobalPopout}
+            />
           </div>
         ) : dockedCalendar ? (
           <div className="min-h-0 min-w-0 flex-1 bg-background" aria-hidden />
@@ -147,7 +160,7 @@ export function MailWorkspace(props: { onOpenAccountDialog: () => void }): JSX.E
             setReadingPlacement('dock')
           }}
         >
-          <ReadingPane />
+          <ReadingPane onRequestGlobalPopout={requestReadingGlobalPopout} />
         </CalendarFloatingPanel>
       ) : null}
 
