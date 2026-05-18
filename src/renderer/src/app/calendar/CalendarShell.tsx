@@ -59,7 +59,8 @@ import {
 import {
   CALENDAR_KIND_MAIL_TODO,
   mailTodoItemsToFullCalendarEvents,
-  computePersistIsoRangeForMailTodo
+  computePersistIsoRangeForMailTodo,
+  mailTodoFullCalendarEventId
 } from '@/app/calendar/mail-todo-calendar'
 import {
   CALENDAR_KIND_CLOUD_TASK,
@@ -75,8 +76,13 @@ import {
 } from '@/app/calendar/notes-calendar'
 import {
   scheduleRemoveCloudTaskCalendarEventsByTaskKey,
-  scheduleRemoveDuplicateFullCalendarEventsById
+  scheduleRemoveDuplicateFullCalendarEventsById,
+  scheduleRemoveMailTodoCalendarEventsByMessageId
 } from '@/app/calendar/calendar-fc-event-source'
+import {
+  applyOptimisticMailTodoScheduleToItems,
+  syncFullCalendarMailTodoEventFromLayer
+} from '@/app/calendar/optimistic-mail-todo-calendar'
 import { applyCloudTaskPersistTarget } from '@/app/calendar/apply-cloud-task-persist'
 import {
   applyOptimisticCloudTaskPersistToLayer,
@@ -193,6 +199,8 @@ import { CalendarShellOverlayToggles } from '@/app/calendar/shell/CalendarShellO
 import {
   CAL_FLOAT_INBOX_SIZE_KEY,
   CAL_FLOAT_PREVIEW_SIZE_KEY,
+  CAL_SIDE_PANEL_MIN_WIDTH_PX,
+  calendarSidePanelMaxWidthPx,
   migrateLegacyCalendarShellSource,
   parseAccountSidebarOpenFromStorage,
   parseGroupCalSidebarOpenFromStorage,
@@ -876,18 +884,31 @@ export function CalendarShell(): JSX.Element {
   const [previewCloudTask, setPreviewCloudTask] = useState<TaskItemWithContext | null>(null)
   const [previewCloudTaskPlannedFromTimeline, setPreviewCloudTaskPlannedFromTimeline] =
     useState<WorkItemPlannedSchedule | null>(null)
+  const [sidePanelMaxWidth, setSidePanelMaxWidth] = useState(() => calendarSidePanelMaxWidthPx())
+  useEffect(() => {
+    const update = (): void => setSidePanelMaxWidth(calendarSidePanelMaxWidthPx())
+    update()
+    window.addEventListener('resize', update)
+    return (): void => window.removeEventListener('resize', update)
+  }, [])
   const [inboxColumnWidth, setInboxColumnWidth] = useResizableWidth({
     storageKey: 'mailclient.calendarShell.rightInboxWidth',
     defaultWidth: 300,
-    minWidth: 220,
-    maxWidth: 520
+    minWidth: CAL_SIDE_PANEL_MIN_WIDTH_PX,
+    maxWidth: sidePanelMaxWidth
   })
   const [previewPaneWidth, setPreviewPaneWidth] = useResizableWidth({
     storageKey: 'mailclient.calendarShell.readingWidth',
     defaultWidth: 400,
-    minWidth: 280,
-    maxWidth: 900
+    minWidth: CAL_SIDE_PANEL_MIN_WIDTH_PX,
+    maxWidth: sidePanelMaxWidth
   })
+  useEffect(() => {
+    setInboxColumnWidth((w) => Math.min(w, sidePanelMaxWidth))
+  }, [sidePanelMaxWidth, setInboxColumnWidth])
+  useEffect(() => {
+    setPreviewPaneWidth((w) => Math.min(w, sidePanelMaxWidth))
+  }, [sidePanelMaxWidth, setPreviewPaneWidth])
 
   useEffect(() => {
     if (selectedMessageId != null) {
@@ -992,14 +1013,9 @@ export function CalendarShell(): JSX.Element {
     }
   }, [rightPreviewOpen, previewPlacement])
 
-  const inboxFloatWidth = useMemo(
-    () => Math.min(520, Math.max(260, Math.round(inboxColumnWidth))),
-    [inboxColumnWidth]
-  )
-  const previewFloatWidth = useMemo(
-    () => Math.min(560, Math.max(300, Math.round(previewPaneWidth))),
-    [previewPaneWidth]
-  )
+  const inboxFloatWidth = inboxColumnWidth
+  const previewFloatWidth = previewPaneWidth
+  const sidePanelFloatMaxWidthPx = sidePanelMaxWidth
 
   const bothPanelsFloating = useMemo(
     () =>
@@ -1909,6 +1925,22 @@ export function CalendarShell(): JSX.Element {
           return
         }
         try {
+          const api = calendarRef.current?.getApi()
+          const mailTodoFcId = info.event.id || mailTodoFullCalendarEventId(m)
+          const optimisticMail: MailListItem = {
+            ...m,
+            todoStartAt: range.startIso,
+            todoEndAt: range.endIso,
+            todoDueAt: range.endIso
+          }
+
+          flushSync(() => {
+            setMailTodoItems((prev) =>
+              applyOptimisticMailTodoScheduleToItems(prev, m.id, range)
+            )
+          })
+          syncFullCalendarMailTodoEventFromLayer(api, optimisticMail, accountColorById)
+
           await setTodoScheduleForMessage(m.id, range.startIso, range.endIso, {
             skipSelectedRefresh: true
           })
@@ -1916,13 +1948,15 @@ export function CalendarShell(): JSX.Element {
           setError(null)
           setTodoSideListRefreshKey((k) => k + 1)
           timelineReloadRef.current?.()
-          const api = calendarRef.current?.getApi()
+
           if (api) {
-            scheduleRemoveDuplicateFullCalendarEventsById(api, [`mail-todo:${m.id}`])
-            void loadMailTodosForRange(api.view.activeStart, api.view.activeEnd)
+            await loadMailTodosForRange(api.view.activeStart, api.view.activeEnd)
+            syncFullCalendarMailTodoEventFromLayer(api, optimisticMail, accountColorById)
+            scheduleRemoveMailTodoCalendarEventsByMessageId(api, m.id, mailTodoFcId)
+            scheduleRemoveDuplicateFullCalendarEventsById(api, [mailTodoFcId])
           } else {
             const { start, end } = lastRangeRef.current
-            void loadMailTodosForRange(start, end)
+            await loadMailTodosForRange(start, end)
           }
         } catch (e) {
           setError(e instanceof Error ? e.message : String(e))
@@ -1998,6 +2032,7 @@ export function CalendarShell(): JSX.Element {
     [
       reloadCalendarEventsOnly,
       fcTimeZone,
+      accountColorById,
       setTodoScheduleForMessage,
       loadMailTodosForRange,
       taskAccounts,
@@ -3338,6 +3373,7 @@ export function CalendarShell(): JSX.Element {
                 <CalendarGanttTimelineView
                   anchor={ganttAnchor}
                   scale={ganttScale}
+                  hourSlotMinutes={timeGridSlotMinutes}
                   onScaleChange={handleGanttScaleChange}
                   onRangeTitleChange={setRangeTitle}
                   accounts={calendarLinkedAccounts}
@@ -3398,6 +3434,8 @@ export function CalendarShell(): JSX.Element {
             widthPx={inboxFloatWidth}
             minHeightPx={320}
             persistSizeKey={CAL_FLOAT_INBOX_SIZE_KEY}
+            minResizeWidthPx={CAL_SIDE_PANEL_MIN_WIDTH_PX}
+            maxResizeWidthPx={sidePanelFloatMaxWidthPx}
             defaultPosition={inboxFloatPos}
             zIndex={88}
             onClose={(): void => {
@@ -3450,6 +3488,8 @@ export function CalendarShell(): JSX.Element {
             widthPx={previewFloatWidth}
             minHeightPx={360}
             persistSizeKey={CAL_FLOAT_PREVIEW_SIZE_KEY}
+            minResizeWidthPx={CAL_SIDE_PANEL_MIN_WIDTH_PX}
+            maxResizeWidthPx={sidePanelFloatMaxWidthPx}
             defaultPosition={previewFloatPos}
             zIndex={92}
             onClose={(): void => {

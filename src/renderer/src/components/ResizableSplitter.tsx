@@ -98,11 +98,50 @@ interface SplitterProps {
   ariaLabel?: string
 }
 
+function clearSplitterDragChrome(): void {
+  document.body.style.removeProperty('cursor')
+  document.body.style.removeProperty('user-select')
+}
+
 export function VerticalSplitter({ onDrag, ariaLabel }: SplitterProps): JSX.Element {
   const [dragging, setDragging] = useState(false)
   const lastXRef = useRef<number | null>(null)
   const captureTargetRef = useRef<HTMLElement | null>(null)
   const activePointerIdRef = useRef<number | null>(null)
+  const draggingRef = useRef(false)
+  const onDragRef = useRef(onDrag)
+  onDragRef.current = onDrag
+
+  const finishDrag = useCallback((e?: PointerEvent): void => {
+    if (!draggingRef.current) return
+    if (
+      e != null &&
+      activePointerIdRef.current != null &&
+      e.pointerId !== activePointerIdRef.current
+    ) {
+      return
+    }
+
+    const target = captureTargetRef.current
+    const pointerId = e?.pointerId ?? activePointerIdRef.current
+
+    if (target != null && pointerId != null) {
+      try {
+        if (target.hasPointerCapture(pointerId)) {
+          target.releasePointerCapture(pointerId)
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    draggingRef.current = false
+    captureTargetRef.current = null
+    activePointerIdRef.current = null
+    lastXRef.current = null
+    clearSplitterDragChrome()
+    setDragging(false)
+  }, [])
 
   useEffect(() => {
     if (!dragging) return
@@ -115,38 +154,42 @@ export function VerticalSplitter({ onDrag, ariaLabel }: SplitterProps): JSX.Elem
       }
       const delta = e.clientX - lastXRef.current
       lastXRef.current = e.clientX
-      if (delta !== 0) onDrag(delta)
+      if (delta !== 0) onDragRef.current(delta)
     }
 
-    function endDrag(e: PointerEvent): void {
-      if (activePointerIdRef.current != null && e.pointerId !== activePointerIdRef.current) return
-      const target = captureTargetRef.current
-      captureTargetRef.current = null
-      activePointerIdRef.current = null
-      if (target?.hasPointerCapture(e.pointerId)) {
-        try {
-          target.releasePointerCapture(e.pointerId)
-        } catch {
-          // ignore
-        }
-      }
-      setDragging(false)
-      lastXRef.current = null
-      document.body.style.cursor = ''
-      document.body.style.userSelect = ''
+    function onEnd(e: PointerEvent): void {
+      finishDrag(e)
     }
+
+    function onWindowBlur(): void {
+      finishDrag()
+    }
+
+    function onLostCapture(e: PointerEvent): void {
+      finishDrag(e)
+    }
+
+    const captureEl = captureTargetRef.current
+    captureEl?.addEventListener('lostpointercapture', onLostCapture)
 
     document.body.style.cursor = 'col-resize'
     document.body.style.userSelect = 'none'
+
     window.addEventListener('pointermove', onMove)
-    window.addEventListener('pointerup', endDrag)
-    window.addEventListener('pointercancel', endDrag)
+    window.addEventListener('pointerup', onEnd)
+    window.addEventListener('pointercancel', onEnd)
+    window.addEventListener('blur', onWindowBlur)
+
     return (): void => {
+      captureEl?.removeEventListener('lostpointercapture', onLostCapture)
       window.removeEventListener('pointermove', onMove)
-      window.removeEventListener('pointerup', endDrag)
-      window.removeEventListener('pointercancel', endDrag)
+      window.removeEventListener('pointerup', onEnd)
+      window.removeEventListener('pointercancel', onEnd)
+      window.removeEventListener('blur', onWindowBlur)
+      clearSplitterDragChrome()
+      draggingRef.current = false
     }
-  }, [dragging, onDrag])
+  }, [dragging, finishDrag])
 
   return (
     <div
@@ -160,12 +203,16 @@ export function VerticalSplitter({ onDrag, ariaLabel }: SplitterProps): JSX.Elem
         lastXRef.current = e.clientX
         activePointerIdRef.current = e.pointerId
         captureTargetRef.current = el
+        draggingRef.current = true
         try {
           el.setPointerCapture(e.pointerId)
         } catch {
           // ignore
         }
         setDragging(true)
+      }}
+      onLostPointerCapture={(e): void => {
+        finishDrag(e)
       }}
       className={
         'group relative flex w-px shrink-0 cursor-col-resize justify-center bg-border transition-colors hover:bg-primary/50 ' +

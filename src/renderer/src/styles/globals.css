@@ -62,6 +62,11 @@
 
     --motion-duration-fast: 120ms;
     --motion-duration-normal: 200ms;
+
+    /* Verfassen: etwas dunklere Flaeche fuer An/Betreff/Editor (Light) */
+    --compose-surface: 220 16% 93%;
+    --compose-surface-muted: 220 14% 90%;
+    --compose-surface-border: 220 14% 84%;
   }
 
   .dark {
@@ -107,6 +112,11 @@
     --glass-shadow-sm: 0 4px 20px hsl(0 0% 0% / 0.28);
 
     --dashboard-glass-tint: 220 10% 10% / 0.4;
+
+    /* Verfassen: #171717 – deutlicher Kontrast zum Chrome darueber */
+    --compose-surface: 0 0% 9%;
+    --compose-surface-muted: 0 0% 7%;
+    --compose-surface-border: 0 0% 15%;
   }
 
   .dark.palette-midnight {
@@ -399,6 +409,16 @@
 }
 
 @layer components {
+  .compose-editor-surface {
+    display: flex;
+    min-height: 0;
+    flex: 1 1 0%;
+    flex-direction: column;
+    overflow: hidden;
+    background-color: hsl(var(--compose-surface));
+    color: hsl(var(--foreground));
+  }
+
   .markdown-note-editor .w-md-editor {
     border-color: hsl(var(--border));
     background-color: hsl(var(--background));

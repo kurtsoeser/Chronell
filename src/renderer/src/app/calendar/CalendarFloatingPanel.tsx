@@ -44,6 +44,8 @@ interface CalendarFloatingPanelProps {
   minResizeHeightPx?: number
   maxResizeWidthPx?: number
   maxResizeHeightPx?: number
+  /** Wenn false: nur Hoehe aenderbar, Breite bleibt `widthPx`. */
+  resizableWidth?: boolean
   /** Optional: zuletzt gewaehlte Groesse merken (`{w,h}` JSON). */
   persistSizeKey?: string
   /** Initiale linke obere Ecke (px); wird beim ersten Oeffnen gesetzt. */
@@ -75,6 +77,7 @@ export function CalendarFloatingPanel(props: CalendarFloatingPanelProps): JSX.El
     minResizeHeightPx = 280,
     maxResizeWidthPx = 1200,
     maxResizeHeightPx = 1000,
+    resizableWidth = true,
     persistSizeKey,
     defaultPosition,
     onClose,
@@ -157,10 +160,11 @@ export function CalendarFloatingPanel(props: CalendarFloatingPanelProps): JSX.El
       if (persistSizeKey) {
         const stored = readPersistedSize(persistSizeKey)
         if (stored) {
-          w = stored.w
+          if (resizableWidth) w = stored.w
           h = stored.h
         }
       }
+      if (!resizableWidth) w = widthPx
       const x = defaultPosition.x
       const y = defaultPosition.y
       const next = clampSizeToViewport(w, h, x, y)
@@ -174,7 +178,8 @@ export function CalendarFloatingPanel(props: CalendarFloatingPanelProps): JSX.El
     widthPx,
     startH,
     persistSizeKey,
-    clampSizeToViewport
+    clampSizeToViewport,
+    resizableWidth
   ])
 
   useEffect(() => {
@@ -226,12 +231,12 @@ export function CalendarFloatingPanel(props: CalendarFloatingPanelProps): JSX.El
       if (!d) return
       const x = posRef.current.x
       const y = posRef.current.y
-      const nwRaw = d.startW + (e.clientX - d.startX)
+      const nwRaw = resizableWidth ? d.startW + (e.clientX - d.startX) : d.startW
       const nhRaw = d.startH + (e.clientY - d.startY)
       const next = clampSizeToViewport(nwRaw, nhRaw, x, y)
       setSize(next)
     },
-    [clampSizeToViewport]
+    [clampSizeToViewport, resizableWidth]
   )
 
   const endResize = useCallback((): void => {
@@ -342,16 +347,18 @@ export function CalendarFloatingPanel(props: CalendarFloatingPanelProps): JSX.El
       >
         {children}
       </div>
-      <div
-        role="separator"
-        aria-label={t('calendar.floatingPanel.resizeAria')}
-        title={t('calendar.floatingPanel.resizeTitle')}
-        onPointerDown={onResizePointerDown}
-        className={cn(
-          'absolute bottom-0 right-0 z-[2] h-5 w-5 cursor-se-resize rounded-br-[10px]',
-          'border-l border-t border-border/70 bg-muted/60 hover:bg-muted'
-        )}
-      />
+      {resizableWidth ? (
+        <div
+          role="separator"
+          aria-label={t('calendar.floatingPanel.resizeAria')}
+          title={t('calendar.floatingPanel.resizeTitle')}
+          onPointerDown={onResizePointerDown}
+          className={cn(
+            'absolute bottom-0 right-0 z-[2] h-5 w-5 cursor-se-resize rounded-br-[10px]',
+            'border-l border-t border-border/70 bg-muted/60 hover:bg-muted'
+          )}
+        />
+      ) : null}
     </div>,
     document.body
   )

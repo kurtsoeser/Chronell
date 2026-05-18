@@ -13,6 +13,15 @@ export const LEGACY_CAL_SHELL_SOURCE_KEY = 'mailclient.calendar.shellSource'
 export const CAL_FLOAT_INBOX_SIZE_KEY = 'mailclient.calendar.float.inbox'
 export const CAL_FLOAT_PREVIEW_SIZE_KEY = 'mailclient.calendar.float.preview'
 
+/** Mindestbreite Zeitliste / Vorschau (angedockt und Pop-up). */
+export const CAL_SIDE_PANEL_MIN_WIDTH_PX = 180
+
+/** Obere Grenze fuer frei ziehbare rechte Spalten (nahezu volle Fensterbreite). */
+export function calendarSidePanelMaxWidthPx(): number {
+  if (typeof window === 'undefined') return 4000
+  return Math.max(CAL_SIDE_PANEL_MIN_WIDTH_PX, window.innerWidth - 288)
+}
+
 /** Sidebar: Konto-Zweige auf-/zugeklappt (`accountId` -> false = zugeklappt). */
 export const ACCOUNT_SIDEBAR_OPEN_KEY = 'mailclient.calendar.accountSidebarOpen'
 
@@ -262,7 +271,7 @@ export function readTimeGridSlotMinutesFromStorage(): TimeGridSlotMinutes {
   } catch {
     // ignore
   }
-  return 30
+  return 15
 }
 
 export function persistTimeGridSlotMinutes(min: TimeGridSlotMinutes): void {

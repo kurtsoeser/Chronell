@@ -44,7 +44,11 @@ export interface ComposeMessageInput {
   isDeliveryReceiptRequested?: boolean
   isReadReceiptRequested?: boolean
   referenceAttachments?: ComposeReferenceAttachment[]
+  /** Vorhandener Server-Entwurf: PATCH + /send statt neu anlegen. */
+  remoteDraftId?: string | null
 }
+
+export type SendMailResult = { sentFromExistingDraft: boolean }
 
 function toGraphRecipients(recipients: RecipientInput[]): Array<{
   emailAddress: { address: string; name?: string }
@@ -168,7 +172,7 @@ async function uploadLargeAttachment(
   }
 }
 
-export async function sendMail(input: ComposeMessageInput): Promise<void> {
+export async function sendMail(input: ComposeMessageInput): Promise<SendMailResult> {
   const client = await getClientFor(input.accountId)
 
   const { inline, large } = partitionAttachments(input.attachments)
@@ -182,6 +186,15 @@ export async function sendMail(input: ComposeMessageInput): Promise<void> {
     ccRecipients: toGraphRecipients(input.cc ?? []),
     bccRecipients: toGraphRecipients(input.bcc ?? []),
     ...messageFlagPatch(input)
+  }
+
+  const existingDraft = input.remoteDraftId?.trim()
+  if (existingDraft) {
+    await client.api(`/me/messages/${existingDraft}`).patch(baseMessage)
+    await graphDeleteDraftFileAndReferenceAttachments(client, existingDraft)
+    await graphApplyDraftAttachments(client, existingDraft, inline, large, refAtts)
+    await client.api(`/me/messages/${existingDraft}/send`).post({})
+    return { sentFromExistingDraft: true }
   }
 
   // ReferenceAttachments und grosse Dateien erfordern Draft-Pfad.
@@ -198,7 +211,7 @@ export async function sendMail(input: ComposeMessageInput): Promise<void> {
       message: messagePayload,
       saveToSentItems: true
     })
-    return
+    return { sentFromExistingDraft: false }
   }
 
   let draftId: string
@@ -230,6 +243,7 @@ export async function sendMail(input: ComposeMessageInput): Promise<void> {
   }
 
   await client.api(`/me/messages/${draftId}/send`).post({})
+  return { sentFromExistingDraft: false }
 }
 
 export interface SaveMailDraftInput extends ComposeMessageInput {

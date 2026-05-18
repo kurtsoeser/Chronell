@@ -1,6 +1,7 @@
 import {
   addDays,
   addHours,
+  addMinutes,
   addMonths,
   addQuarters,
   addWeeks,
@@ -9,14 +10,15 @@ import {
   endOfDay,
   endOfWeek,
   format,
+  getISOWeek,
   startOfDay,
-  startOfHour,
   startOfMonth,
   startOfQuarter,
   startOfWeek,
   startOfYear
 } from 'date-fns'
 import { de as deFns, enUS as enUSFns } from 'date-fns/locale'
+import type { TimeGridSlotMinutes } from '@/app/calendar/calendar-shell-storage'
 
 export const GANTT_TIMELINE_VIEW_ID = 'ganttTimeline' as const
 
@@ -56,7 +58,7 @@ export const GANTT_SCALE_CONFIG: Record<GanttTimelineScale, GanttScaleConfig> = 
   hour: {
     visibleRange: (anchor) => {
       const day = startOfDay(anchor)
-      return { start: addHours(day, -6), end: addHours(day, 42) }
+      return { start: day, end: addDays(day, 1) }
     },
     navStep: (anchor, dir) => addDays(startOfDay(anchor), dir),
     columnWidthPx: 44,
@@ -68,7 +70,7 @@ export const GANTT_SCALE_CONFIG: Record<GanttTimelineScale, GanttScaleConfig> = 
       return { start: addDays(c, -7), end: addDays(c, 21) }
     },
     navStep: (anchor, dir) => addDays(startOfDay(anchor), dir * 7),
-    columnWidthPx: 52,
+    columnWidthPx: 520,
     snapMs: 24 * 60 * 60 * 1000
   },
   week: {
@@ -79,7 +81,7 @@ export const GANTT_SCALE_CONFIG: Record<GanttTimelineScale, GanttScaleConfig> = 
       return { start, end: addDays(end, 1) }
     },
     navStep: (anchor, dir) => addWeeks(startOfDay(anchor), dir),
-    columnWidthPx: 72,
+    columnWidthPx: 1080,
     snapMs: 24 * 60 * 60 * 1000
   },
   twoWeeks: {
@@ -99,7 +101,7 @@ export const GANTT_SCALE_CONFIG: Record<GanttTimelineScale, GanttScaleConfig> = 
       return { start: addMonths(c, -2), end: addMonths(c, 5) }
     },
     navStep: (anchor, dir) => addMonths(startOfMonth(anchor), dir),
-    columnWidthPx: 96,
+    columnWidthPx: 1000,
     snapMs: 24 * 60 * 60 * 1000
   },
   quarter: {
@@ -143,12 +145,50 @@ export interface GanttHeaderColumn {
   end: Date
   /** Primäre Beschriftung (Zahl oder Uhrzeit). */
   primary: string
-  /** Sekundär (Wochentag / Monat). */
+  /** Sekundär (Wochentag / KW). */
   secondary?: string
   /** Monatszeile darüber (bei Tagesraster). */
   monthLabel?: string
+  /** Tageszeile (Stundenansicht). */
+  dayLabel?: string
   isWeekend?: boolean
   isToday?: boolean
+  /** Aktueller Raster-Slot (Stundenansicht). */
+  isNowSlot?: boolean
+  /** Volle Stunde (Stundenansicht, stärkere Gitterlinie). */
+  isHourBoundary?: boolean
+}
+
+/** Lesbare Spaltenbreite pro Slot – feineres Raster = mehr Spalten = breiterer Tag. */
+const HOUR_SLOT_WIDTH_PX: Record<TimeGridSlotMinutes, number> = {
+  5: 14,
+  6: 16,
+  10: 22,
+  12: 26,
+  15: 36,
+  20: 44,
+  30: 56,
+  60: 96
+}
+
+export function ganttHourSlotColumnWidthPx(slotMinutes: TimeGridSlotMinutes): number {
+  return HOUR_SLOT_WIDTH_PX[slotMinutes] ?? 36
+}
+
+export function ganttHourDayWidthPx(slotMinutes: TimeGridSlotMinutes): number {
+  const slotsPerDay = (24 * 60) / slotMinutes
+  return Math.round(slotsPerDay * ganttHourSlotColumnWidthPx(slotMinutes))
+}
+
+function alignGanttRangeStartToSlot(rangeStart: Date, slotMinutes: number): Date {
+  const slotMs = slotMinutes * 60 * 1000
+  const aligned = Math.floor(rangeStart.getTime() / slotMs) * slotMs
+  return new Date(aligned)
+}
+
+function hourSlotPrimaryLabel(t: Date, locale: typeof deFns): string {
+  if (t.getMinutes() !== 0) return ''
+  return format(t, 'HH:mm', { locale })
 }
 
 export function buildGanttHeaderColumns(
@@ -156,29 +196,40 @@ export function buildGanttHeaderColumns(
   rangeEnd: Date,
   scale: GanttTimelineScale,
   localeCode: string,
-  now = new Date()
+  now = new Date(),
+  hourSlotMinutes: TimeGridSlotMinutes = 15
 ): GanttHeaderColumn[] {
   const locale = localeCode.startsWith('de') ? deFns : enUSFns
   const todayStart = startOfDay(now).getTime()
   const cols: GanttHeaderColumn[] = []
 
   if (scale === 'hour') {
-    let t = startOfHour(rangeStart)
+    const slotMinutes = hourSlotMinutes
+    let t = alignGanttRangeStartToSlot(rangeStart, slotMinutes)
+    let prevDayStart: number | null = null
+    let prevMonthKey: string | null = null
+    const nowMs = now.getTime()
     while (t.getTime() < rangeEnd.getTime()) {
-      const end = addHours(t, 1)
+      const end = addMinutes(t, slotMinutes)
+      const slotStartMs = t.getTime()
+      const slotEndMs = end.getTime()
       const dayStart = startOfDay(t).getTime()
+      const monthKey = format(t, 'yyyy-MM', { locale })
+      const isNewDay = prevDayStart == null || dayStart !== prevDayStart
+      const isNewMonth = prevMonthKey == null || monthKey !== prevMonthKey
       cols.push({
         key: t.toISOString(),
         start: t,
         end,
-        primary: format(t, 'HH:mm', { locale }),
-        secondary: dayStart === todayStart ? format(t, 'EEE', { locale }) : undefined,
-        monthLabel:
-          t.getHours() === 0 || cols.length === 0
-            ? format(t, 'MMM yyyy', { locale })
-            : undefined,
-        isToday: dayStart === todayStart
+        primary: hourSlotPrimaryLabel(t, locale),
+        dayLabel: isNewDay ? format(t, 'EEE d. MMM', { locale }) : undefined,
+        monthLabel: isNewMonth ? format(t, 'MMMM yyyy', { locale }) : undefined,
+        isToday: dayStart === todayStart,
+        isNowSlot: nowMs >= slotStartMs && nowMs < slotEndMs,
+        isHourBoundary: t.getMinutes() === 0
       })
+      prevDayStart = dayStart
+      prevMonthKey = monthKey
       t = end
     }
     return cols
@@ -193,12 +244,20 @@ export function buildGanttHeaderColumns(
     while (t.getTime() < rangeEnd.getTime()) {
       const end = addDays(t, stepDays)
       const isToday = startOfDay(t).getTime() === todayStart
+      const weekNum = getISOWeek(t, WEEK_OPTS)
       cols.push({
         key: t.toISOString(),
         start: t,
         end,
         primary: scale === 'day' ? format(t, 'd', { locale }) : format(t, 'd MMM', { locale }),
-        secondary: scale === 'day' ? format(t, 'EEEEE', { locale }) : undefined,
+        secondary:
+          scale === 'day'
+            ? format(t, 'EEEEE', { locale })
+            : scale === 'week'
+              ? localeCode.startsWith('de')
+                ? `KW ${weekNum}`
+                : `W${weekNum}`
+              : undefined,
         monthLabel:
           t.getDate() === 1 || cols.length === 0 ? format(t, 'MMM yyyy', { locale }) : undefined,
         isWeekend: t.getDay() === 0 || t.getDay() === 6,
@@ -260,10 +319,25 @@ export function buildGanttHeaderColumns(
 
 export function ganttTimelineWidthPx(
   columns: GanttHeaderColumn[],
-  scale: GanttTimelineScale
+  columnWidthPx: number
 ): number {
-  const colW = GANTT_SCALE_CONFIG[scale].columnWidthPx
-  return Math.max(columns.length * colW, 480)
+  return Math.max(columns.length * columnWidthPx, 480)
+}
+
+export function ganttColumnWidthPx(
+  scale: GanttTimelineScale,
+  hourSlotMinutes: TimeGridSlotMinutes = 15
+): number {
+  if (scale === 'hour') return ganttHourSlotColumnWidthPx(hourSlotMinutes)
+  return GANTT_SCALE_CONFIG[scale].columnWidthPx
+}
+
+export function ganttSnapMs(
+  scale: GanttTimelineScale,
+  hourSlotMinutes: TimeGridSlotMinutes = 15
+): number {
+  if (scale === 'hour') return hourSlotMinutes * 60 * 1000
+  return GANTT_SCALE_CONFIG[scale].snapMs
 }
 
 export function ganttRangeTitle(

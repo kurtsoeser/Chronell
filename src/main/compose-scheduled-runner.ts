@@ -11,6 +11,7 @@ import {
 import { findFolderByWellKnown } from './db/folders-repo'
 import { runFolderSync } from './sync-runner'
 import { setWaitingForMessage } from './waiting-service'
+import { disposeComposeDraft } from './compose-draft-dispose'
 
 function isComposeSendInput(x: unknown): x is ComposeSendInput {
   if (!x || typeof x !== 'object') return false
@@ -27,8 +28,9 @@ async function sendImmediate(input: ComposeSendInput): Promise<void> {
   const accounts = await listAccounts()
   const acc = accounts.find((a) => a.id === input.accountId)
   if (!acc) throw new Error('Konto nicht gefunden.')
+  let draftConsumedOnSend = false
   if (acc.provider === 'google') {
-    await gmailSendMail(
+    const r = await gmailSendMail(
       {
         accountId: input.accountId,
         subject: input.subject,
@@ -38,13 +40,15 @@ async function sendImmediate(input: ComposeSendInput): Promise<void> {
         bcc: input.bcc,
         attachments: input.attachments,
         replyToRemoteId: input.replyToRemoteId,
-        replyMode: input.replyMode
+        replyMode: input.replyMode,
+        remoteDraftId: input.remoteDraftId
       },
       acc.email,
       acc.displayName
     )
+    draftConsumedOnSend = r.sentFromExistingDraft
   } else {
-    await graphSendMail({
+    const r = await graphSendMail({
       accountId: input.accountId,
       subject: input.subject,
       bodyHtml: input.bodyHtml,
@@ -57,7 +61,18 @@ async function sendImmediate(input: ComposeSendInput): Promise<void> {
       importance: input.importance,
       isDeliveryReceiptRequested: input.isDeliveryReceiptRequested,
       isReadReceiptRequested: input.isReadReceiptRequested,
-      referenceAttachments: input.referenceAttachments
+      referenceAttachments: input.referenceAttachments,
+      remoteDraftId: input.remoteDraftId
+    })
+    draftConsumedOnSend = r.sentFromExistingDraft
+  }
+
+  if (input.remoteDraftId?.trim() || input.linkedMessageId != null) {
+    await disposeComposeDraft({
+      accountId: input.accountId,
+      remoteDraftId: input.remoteDraftId,
+      linkedMessageId: input.linkedMessageId,
+      draftConsumedOnSend
     })
   }
 

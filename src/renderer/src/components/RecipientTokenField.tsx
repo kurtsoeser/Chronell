@@ -4,6 +4,7 @@ import type { ComposeRecipientSuggestion } from '@shared/types'
 import { ComposeContactPickerDialog } from '@/components/ComposeContactPickerDialog'
 import {
   formatRecipientsWithTail,
+  normalizeRecipientSuggestionQuery,
   parseRecipients,
   parseRecipientsWithTail
 } from '@/lib/compose-helpers'
@@ -16,7 +17,8 @@ export function RecipientTokenField({
   accountId,
   showToggle,
   onToggleCcBcc,
-  className
+  className,
+  inEditorSurface
 }: {
   label: string
   value: string
@@ -25,6 +27,8 @@ export function RecipientTokenField({
   showToggle?: boolean
   onToggleCcBcc?: () => void
   className?: string
+  /** Innerhalb der dunkleren Compose-Flaeche (An/Betreff/Editor). */
+  inEditorSurface?: boolean
 }): JSX.Element {
   const { complete, tail } = useMemo(() => parseRecipientsWithTail(value), [value])
   const [suggestions, setSuggestions] = useState<ComposeRecipientSuggestion[]>([])
@@ -36,7 +40,7 @@ export function RecipientTokenField({
 
   const fetchSuggest = useCallback(
     async (q: string): Promise<void> => {
-      const t = q.trim()
+      const t = normalizeRecipientSuggestionQuery(q)
       setLoadingSuggest(true)
       try {
         const list = await window.mailClient.compose.recipientSuggestions({
@@ -86,8 +90,13 @@ export function RecipientTokenField({
     inputRef.current?.focus()
   }
 
+  const rowBorder = inEditorSurface
+    ? 'border-[hsl(var(--compose-surface-border)/0.55)]'
+    : 'border-border/60'
+  const rowPad = inEditorSurface ? 'px-3' : 'px-4'
+
   return (
-    <div className={cn('relative flex items-start border-b border-border/60 px-4 py-2', className)}>
+    <div className={cn('relative flex items-start border-b py-2', rowBorder, rowPad, className)}>
       <div className="mt-1.5 flex w-12 shrink-0 items-center gap-0.5">
         <span className="text-xs text-muted-foreground">{label}</span>
         <button
@@ -106,7 +115,12 @@ export function RecipientTokenField({
           {complete.map((r, idx) => (
             <span
               key={`${r.address}-${idx}`}
-              className="inline-flex max-w-full items-center gap-0.5 rounded-full border border-border/70 bg-secondary/50 px-2 py-0.5 text-[11px] text-foreground"
+              className={cn(
+                'inline-flex max-w-full items-center gap-0.5 rounded-full border px-2 py-0.5 text-[11px] text-foreground',
+                inEditorSurface
+                  ? 'border-[hsl(var(--compose-surface-border)/0.65)] bg-[hsl(var(--compose-surface-muted))]'
+                  : 'border-border/70 bg-secondary/50'
+              )}
             >
               <span className="truncate">
                 {r.name ? `${r.name} <${r.address}>` : r.address}

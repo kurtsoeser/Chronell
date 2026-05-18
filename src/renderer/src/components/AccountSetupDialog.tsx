@@ -53,6 +53,11 @@ const SettingsBookingsSection = lazy(() =>
     default: m.SettingsBookingsSection
   }))
 )
+const SettingsMailListHoverActionsSection = lazy(() =>
+  import('@/components/account-setup/SettingsMailListHoverActionsSection').then((m) => ({
+    default: m.SettingsMailListHoverActionsSection
+  }))
+)
 const AccountSetupNotesPanel = lazy(
   () => import('@/components/account-setup/AccountSetupNotesPanel')
 )
@@ -457,6 +462,7 @@ export function AccountSetupDialog({
         return [
           { id: 'sync', label: t('settings.syncWindowHeading') },
           { id: 'display', label: t('settings.mailDisplayHeading') },
+          { id: 'listHover', label: t('settings.mailListHoverHeading') },
           { id: 'sidebarFolders', label: t('settings.mailSidebarFoldersHeading') },
           { id: 'triage', label: t('settings.triageHeading') },
           { id: 'categories', label: t('settings.categoriesHeading') },
@@ -1872,6 +1878,12 @@ export function AccountSetupDialog({
                   ))}
                 </select>
               </section>
+              )}
+
+              {subNavId.mail === 'listHover' && (
+                <Suspense fallback={null}>
+                  <SettingsMailListHoverActionsSection />
+                </Suspense>
               )}
 
               {subNavId.mail === 'display' && (

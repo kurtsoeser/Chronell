@@ -151,11 +151,35 @@ function toRawBase64Url(raw: string): string {
     .replace(/=+$/, '')
 }
 
+export type GmailSendMailResult = { sentFromExistingDraft: boolean }
+
+/** Entwurf auf Gmail loeschen (Draft-Ressource und/oder Nachrichten-ID). */
+export async function gmailDeleteDraftRemote(
+  accountId: string,
+  draftResourceId?: string | null,
+  messageId?: string | null
+): Promise<void> {
+  const { gmail } = await getGoogleApis(accountId)
+  const dr = draftResourceId?.trim()
+  if (dr) {
+    try {
+      await gmail.users.drafts.delete({ userId: 'me', id: dr })
+      return
+    } catch {
+      // Keine Draft-Ressourcen-ID — weiter mit Nachrichten-ID
+    }
+  }
+  const mid = messageId?.trim()
+  if (mid) {
+    await gmail.users.messages.trash({ userId: 'me', id: mid })
+  }
+}
+
 export async function gmailSendMail(
-  input: GmailComposeInput,
+  input: GmailComposeInput & { remoteDraftId?: string | null },
   fromEmail: string,
   fromName: string
-): Promise<void> {
+): Promise<GmailSendMailResult> {
   const { gmail } = await getGoogleApis(input.accountId)
   const fromLine = fromName.trim()
     ? `${fromName.replace(/"/g, '')} <${fromEmail}>`
@@ -186,13 +210,34 @@ export async function gmailSendMail(
   }
 
   const raw = buildMime(input, fromLine, replyHeaders)
+  const body: { raw: string; threadId?: string } = {
+    raw: toRawBase64Url(raw),
+    ...(threadId && input.replyMode !== 'forward' ? { threadId } : {})
+  }
+
+  const existingDraft = input.remoteDraftId?.trim()
+  if (existingDraft) {
+    try {
+      await gmail.users.drafts.update({
+        userId: 'me',
+        id: existingDraft,
+        requestBody: { message: body }
+      })
+      await gmail.users.drafts.send({
+        userId: 'me',
+        requestBody: { id: existingDraft }
+      })
+      return { sentFromExistingDraft: true }
+    } catch {
+      // `existingDraft` ist vermutlich eine Nachrichten-ID — normal senden
+    }
+  }
+
   await gmail.users.messages.send({
     userId: 'me',
-    requestBody: {
-      raw: toRawBase64Url(raw),
-      ...(threadId && input.replyMode !== 'forward' ? { threadId } : {})
-    }
+    requestBody: body
   })
+  return { sentFromExistingDraft: false }
 }
 
 export interface GmailSaveDraftResult {

@@ -23,6 +23,10 @@ import {
   graphSearchMailEnabledGroupsForCompose
 } from '../graph/compose-recipient-graph'
 import {
+  isCompleteEmailQuery,
+  normalizeRecipientSuggestionQuery
+} from '@shared/compose-recipient-query'
+import {
   addDriveExplorerFavorite,
   listDriveExplorerFavorites,
   removeDriveExplorerFavorite,
@@ -34,6 +38,7 @@ import { setWaitingForMessage } from '../waiting-service'
 import { assertAppOnline } from '../network-status'
 import { findFolderByWellKnown } from '../db/folders-repo'
 import { runFolderSync } from '../sync-runner'
+import { disposeComposeDraft } from '../compose-draft-dispose'
 import {
   listRecentParticipantEmailsForCompose,
   searchMessageParticipantEmails
@@ -68,8 +73,9 @@ export function registerMailComposeIpc(): void {
         }
       }
 
+      let draftConsumedOnSend = false
       if (acc.provider === 'google') {
-        await gmailSendMail(
+        const r = await gmailSendMail(
           {
             accountId: input.accountId,
             subject: input.subject,
@@ -79,13 +85,15 @@ export function registerMailComposeIpc(): void {
             bcc: input.bcc,
             attachments: input.attachments,
             replyToRemoteId: input.replyToRemoteId,
-            replyMode: input.replyMode
+            replyMode: input.replyMode,
+            remoteDraftId: input.remoteDraftId
           },
           acc.email,
           acc.displayName
         )
+        draftConsumedOnSend = r.sentFromExistingDraft
       } else {
-        await graphSendMail({
+        const r = await graphSendMail({
           accountId: input.accountId,
           subject: input.subject,
           bodyHtml: input.bodyHtml,
@@ -98,7 +106,18 @@ export function registerMailComposeIpc(): void {
           importance: input.importance,
           isDeliveryReceiptRequested: input.isDeliveryReceiptRequested,
           isReadReceiptRequested: input.isReadReceiptRequested,
-          referenceAttachments: input.referenceAttachments
+          referenceAttachments: input.referenceAttachments,
+          remoteDraftId: input.remoteDraftId
+        })
+        draftConsumedOnSend = r.sentFromExistingDraft
+      }
+
+      if (input.remoteDraftId?.trim() || input.linkedMessageId != null) {
+        await disposeComposeDraft({
+          accountId: input.accountId,
+          remoteDraftId: input.remoteDraftId,
+          linkedMessageId: input.linkedMessageId,
+          draftConsumedOnSend
         })
       }
 
@@ -210,7 +229,7 @@ export function registerMailComposeIpc(): void {
       const accounts = await listAccounts()
       const acc = accounts.find((a) => a.id === args.accountId)
       if (!acc) return []
-      const q = args.query.trim()
+      const q = normalizeRecipientSuggestionQuery(args.query)
       const limit = 16
       const seen = new Set<string>()
       const out: ComposeRecipientSuggestion[] = []
@@ -274,13 +293,25 @@ export function registerMailComposeIpc(): void {
         if (out.length >= limit) return out
       }
 
+      if (isCompleteEmailQuery(q)) {
+        const email = normalizeRecipientSuggestionQuery(q)
+        const nameMatch = args.query.trim().match(/^(.*?)<[^>]+>\s*$/)
+        const displayName = nameMatch?.[1]?.trim().replace(/^["']|["']$/g, '') || undefined
+        push({
+          email,
+          displayName: displayName || null,
+          source: 'people-local'
+        })
+        if (out.length >= limit) return out
+      }
+
       if (acc.provider === 'microsoft') {
         try {
           for (const r of await graphSearchPeopleForCompose(args.accountId, q, 8)) {
             push(r)
             if (out.length >= limit) return out
           }
-          if (q.length >= 2) {
+          if (q.length >= 2 && !isCompleteEmailQuery(q)) {
             for (const r of await graphSearchDirectoryUsersForCompose(args.accountId, q, 6)) {
               push(r)
               if (out.length >= limit) return out

@@ -72,6 +72,8 @@ export function formatRecipientsWithTail(complete: ParsedRecipient[], tail: stri
   return `${base}, ${t}`
 }
 
+export { normalizeRecipientSuggestionQuery } from '@shared/compose-recipient-query'
+
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, '&amp;')

@@ -6,6 +6,13 @@ import { threadGroupingKey } from '@/lib/thread-group'
 /** extendedProps.calendarKind: Mail-ToDos vs. Graph-Termine. */
 export const CALENDAR_KIND_MAIL_TODO = 'mailTodo' as const
 
+/** Stabile FullCalendar-Event-ID (Todo-Zeile, Fallback Message-ID). */
+export function mailTodoFullCalendarEventId(
+  m: Pick<MailListItem, 'id' | 'todoId'>
+): string {
+  return `mail-todo:${m.todoId ?? m.id}`
+}
+
 const THREAD_APPOINTMENT_MINUTES = 30
 
 function addMinutesIso(iso: string, minutes: number): string {
@@ -166,12 +173,12 @@ export function mailTodoItemsToFullCalendarEvents(
 ): EventInput[] {
   const out: EventInput[] = []
   for (const m of items) {
-    const tid = m.todoId ?? m.id
+    const eventId = mailTodoFullCalendarEventId(m)
     const title = m.subject?.trim() ? m.subject.trim() : '(Mail)'
 
     if (m.todoStartAt && m.todoEndAt) {
       out.push({
-        id: `mail-todo:${tid}`,
+        id: eventId,
         title,
         start: m.todoStartAt,
         end: m.todoEndAt,
@@ -191,7 +198,7 @@ export function mailTodoItemsToFullCalendarEvents(
 
     if (m.todoStartAt) {
       out.push({
-        id: `mail-todo:${tid}`,
+        id: eventId,
         title,
         start: m.todoStartAt,
         end: addMinutesIso(m.todoStartAt, THREAD_APPOINTMENT_MINUTES),
@@ -215,7 +222,7 @@ export function mailTodoItemsToFullCalendarEvents(
     const d0 = utcDateOnly(due)
     const d1 = addOneCalendarDay(d0)
     out.push({
-      id: `mail-todo:${tid}`,
+      id: eventId,
       title,
       start: d0,
       end: d1,

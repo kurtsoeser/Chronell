@@ -33,6 +33,8 @@ import { useMailStore } from '@/stores/mail'
 import { formatBytes } from '@/lib/format-bytes'
 import { useAccountsStore } from '@/stores/accounts'
 import { threadGroupingKey } from '@/lib/thread-group'
+import { dedupeMailListThreadMessagesById } from '@/lib/mail-list-ui'
+import { runMailQuickStep } from '@/lib/run-mail-quickstep'
 import { useComposeStore } from '@/stores/compose'
 import { useThemeStore } from '@/stores/theme'
 import { useSnoozeUiStore } from '@/stores/snooze-ui'
@@ -52,6 +54,7 @@ import { LoadingIndicator } from '@/components/motion/LoadingIndicator'
 import { Avatar } from '@/components/Avatar'
 import { profilePhotoSrcForEmail } from '@/lib/contact-avatar'
 import { InlineReplyBar } from '@/components/InlineReplyBar'
+import { ReadingPaneCompose } from '@/components/ReadingPaneCompose'
 import { MailCategoriesPopover } from '@/components/MailCategoriesPopover'
 import { ObjectNoteEditor } from '@/components/ObjectNoteEditor'
 import type { AttachmentMeta, MailFull, ConnectedAccount, MailQuickStep } from '@shared/types'
@@ -148,6 +151,11 @@ export function ReadingPane({
   const autoLoadImages = useAccountsStore((s) => s.config?.autoLoadImages ?? true)
   const openReply = useComposeStore((s) => s.openReply)
   const openForward = useComposeStore((s) => s.openForward)
+  const openDraftFromMessage = useComposeStore((s) => s.openDraftFromMessage)
+  const popOutCompose = useComposeStore((s) => s.popOutToWindow)
+  const closeCompose = useComposeStore((s) => s.close)
+  const readingPaneDraft = useComposeStore((s) => s.drafts.find((d) => d.embedInReadingPane) ?? null)
+  const selectedFolderId = useMailStore((s) => s.selectedFolderId)
   const openSnoozePicker = useSnoozeUiStore((s) => s.open)
 
   const [quickSteps, setQuickSteps] = useState<MailQuickStep[]>([])
@@ -155,6 +163,49 @@ export function ReadingPane({
   const [todoScheduleStart, setTodoScheduleStart] = useState('')
   const [todoScheduleEnd, setTodoScheduleEnd] = useState('')
   const autoReadAttemptedIds = useRef<Set<number>>(new Set())
+
+  const selectedFolderWellKnown = useMemo(() => {
+    if (selectedMessage?.folderId == null) {
+      if (selectedFolderId == null) return null
+      for (const acc of accounts) {
+        const folder = foldersByAccount[acc.id]?.find((f) => f.id === selectedFolderId)
+        if (folder) return folder.wellKnown ?? null
+      }
+      return null
+    }
+    const folders = foldersByAccount[selectedMessage.accountId] ?? []
+    return folders.find((f) => f.id === selectedMessage.folderId)?.wellKnown ?? null
+  }, [selectedMessage, selectedFolderId, foldersByAccount, accounts])
+
+  const isDraftsFolder = selectedFolderWellKnown === 'drafts'
+
+  useEffect(() => {
+    if (!selectedMessage || messageLoading || !isDraftsFolder) return
+    openDraftFromMessage(selectedMessage)
+  }, [selectedMessage, messageLoading, isDraftsFolder, openDraftFromMessage])
+
+  useEffect(() => {
+    if (!readingPaneDraft || !selectedMessage) return
+    if (isDraftsFolder) return
+
+    const tiesToSelection =
+      readingPaneDraft.linkedMessageId === selectedMessage.id ||
+      readingPaneDraft.replyToMessageId === selectedMessage.id
+
+    const isStandaloneCompose =
+      readingPaneDraft.linkedMessageId == null && readingPaneDraft.replyToMessageId == null
+
+    if (isStandaloneCompose || !tiesToSelection) {
+      closeCompose(readingPaneDraft.id)
+    }
+  }, [
+    selectedMessage?.id,
+    isDraftsFolder,
+    readingPaneDraft?.id,
+    readingPaneDraft?.linkedMessageId,
+    readingPaneDraft?.replyToMessageId,
+    closeCompose
+  ])
 
   useEffect(() => {
     autoReadAttemptedIds.current.clear()
@@ -439,6 +490,7 @@ export function ReadingPane({
 
   return (
     <section className="glass-fill flex min-h-0 flex-1 flex-col overflow-hidden">
+      {!readingPaneDraft && (
       <div className="flex min-h-10 shrink-0 flex-wrap items-center gap-x-1 gap-y-1 border-b border-border px-2 py-1">
         <IconButton
           icon={viewerTheme === 'light' ? Sun : Moon}
@@ -464,9 +516,15 @@ export function ReadingPane({
             const id = Number.parseInt(raw, 10)
             setQuickStepSelectKey((k) => k + 1)
             if (!selectedMessage || !Number.isFinite(id) || id <= 0) return
-            void window.mailClient.mail
-              .runQuickStep({ quickStepId: id, messageId: selectedMessage.id })
-              .catch((err) => console.warn('[ReadingPane] QuickStep:', err))
+            const tk = threadGroupingKey(selectedMessage, true)
+            const threadRow = threadMessages[tk]
+            void runMailQuickStep(
+              id,
+              selectedMessage,
+              threadRow && threadRow.length > 1
+                ? dedupeMailListThreadMessagesById(threadRow)
+                : undefined
+            ).catch((err) => console.warn('[ReadingPane] QuickStep:', err))
           }}
         >
           <option value="">{t('mail.readingPane.quickStepPlaceholder')}</option>
@@ -583,8 +641,15 @@ export function ReadingPane({
           </div>
         ))}
       </div>
+      )}
 
-      {!selectedMessageId ? (
+      {readingPaneDraft ? (
+        <ReadingPaneCompose
+          draft={readingPaneDraft}
+          onPopOut={(): void => popOutCompose(readingPaneDraft.id)}
+          onClose={(): void => closeCompose(readingPaneDraft.id)}
+        />
+      ) : !selectedMessageId ? (
         <EmptyState
           title={emptySelectionTitle ?? t('mail.readingPane.emptyNoSelectionTitle')}
           body={

@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useState, type Ref } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { GroupedVirtuoso } from 'react-virtuoso'
 import { useTranslation } from 'react-i18next'
@@ -11,6 +11,14 @@ import { showAppConfirm } from '@/stores/app-dialog'
 import { useAccountsStore } from '@/stores/accounts'
 import { useComposeStore } from '@/stores/compose'
 import { useSnoozeUiStore } from '@/stores/snooze-ui'
+import { useMailReadingPopoutStore } from '@/stores/mail-reading-popout'
+import { isMailClientRuntimeComplete } from '@/lib/mail-client-runtime'
+import {
+  getVisibleMailListHoverActions,
+  type MailListHoverActionId,
+  type MailListHoverBuiltinActionId
+} from '@/lib/mail-list-hover-actions'
+import { useMailListHoverActionPrefs } from '@/lib/use-mail-list-hover-action-prefs'
 import { useUndoStore } from '@/stores/undo'
 import { indexMessagesByThread, type ThreadGroup } from '@/lib/thread-group'
 import {
@@ -55,7 +63,13 @@ import { MailListViewMenu } from '@/components/MailListViewMenu'
 import { moduleColumnHeaderMailListRowClass } from '@/components/ModuleColumnHeader'
 import { TodoDueBucketBadge } from '@/components/TodoDueBucketBadge'
 import { parseOpenTodoDueKind } from '@/lib/todo-due-bucket'
-import type { ConnectedAccount, MailFolder, MailListItem, TodoDueKindList } from '@shared/types'
+import type {
+  ConnectedAccount,
+  MailFolder,
+  MailListItem,
+  MailQuickStep,
+  TodoDueKindList
+} from '@shared/types'
 import i18n from '@/i18n'
 import {
   Paperclip,
@@ -67,8 +81,31 @@ import {
   Reply,
   Archive,
   Trash2,
-  Clock
+  Clock,
+  PictureInPicture2,
+  Forward,
+  MailOpen,
+  Mail,
+  CheckSquare,
+  Columns3
 } from 'lucide-react'
+import { resolveQuickStepHoverIcon } from '@/lib/mail-quickstep-hover-icon'
+import { runMailQuickStep } from '@/lib/run-mail-quickstep'
+import { useContainerWidth } from '@/hooks/useContainerWidth'
+import { MailListTableColumnsDialog } from '@/components/MailListTableColumnsDialog'
+import {
+  MAIL_LIST_TABLE_BREAKPOINT_PX,
+  buildMailListTableGridTemplate,
+  readMailListTableColumns,
+  type MailListTableColumnId
+} from '@/lib/mail-list-table-columns'
+import { formatMailListDate, threadSubFirstToDisplay } from '@/lib/mail-list-format'
+import {
+  MailListTableCell,
+  MailListTableHeader,
+  MailListTableRowIcons,
+  type MailTableCellCtx
+} from '@/app/layout/mail-list-table-parts'
 
 interface MailContextState {
   x: number
@@ -100,10 +137,33 @@ interface MailRowHandlers {
   onArchive: (e: React.MouseEvent, msg: MailListItem, bulkThread?: MailListItem[]) => void
   onDelete: (e: React.MouseEvent, msg: MailListItem, bulkThread?: MailListItem[]) => void
   onToggleFlag: (e: React.MouseEvent, msg: MailListItem, bulkThread?: MailListItem[]) => void
+  onPopout: (e: React.MouseEvent, msg: MailListItem) => void
+  onForward: (e: React.MouseEvent, msg: MailListItem) => void
+  onSnooze: (e: React.MouseEvent, msg: MailListItem) => void
+  onMarkRead: (e: React.MouseEvent, msg: MailListItem, bulkThread?: MailListItem[]) => void
+  onMarkUnread: (e: React.MouseEvent, msg: MailListItem, bulkThread?: MailListItem[]) => void
+  onTodo: (e: React.MouseEvent, msg: MailListItem) => void
+  onQuickStep: (
+    e: React.MouseEvent,
+    msg: MailListItem,
+    quickStepId: number,
+    bulkThread?: MailListItem[]
+  ) => void
 }
 
 export function MailList(): JSX.Element {
   const { t } = useTranslation()
+  const { ref: listPanelRef, width: listPanelWidth } = useContainerWidth<HTMLElement>()
+  const tableMode = listPanelWidth >= MAIL_LIST_TABLE_BREAKPOINT_PX
+  const [tableColumns, setTableColumns] = useState<MailListTableColumnId[]>(() =>
+    readMailListTableColumns()
+  )
+  const [columnsDialogOpen, setColumnsDialogOpen] = useState(false)
+  const tableGridTemplate = useMemo(
+    () => buildMailListTableGridTemplate(tableColumns),
+    [tableColumns]
+  )
+  const showPreviewInSubject = !tableColumns.includes('preview')
   const {
     messages,
     selectedMessageId,
@@ -173,6 +233,22 @@ export function MailList(): JSX.Element {
   const openReply = useComposeStore((s) => s.openReply)
   const openForward = useComposeStore((s) => s.openForward)
   const openSnoozePicker = useSnoozeUiStore((s) => s.open)
+  const openReadingPopout = useMailReadingPopoutStore((s) => s.openForMessage)
+
+  const [quickSteps, setQuickSteps] = useState<MailQuickStep[]>([])
+  const hoverPrefs = useMailListHoverActionPrefs(quickSteps)
+  const visibleHoverActions = useMemo(
+    () => getVisibleMailListHoverActions(hoverPrefs),
+    [hoverPrefs]
+  )
+
+  useEffect(() => {
+    if (!isMailClientRuntimeComplete()) return
+    void window.mailClient.mail
+      .listQuickSteps()
+      .then(setQuickSteps)
+      .catch(() => setQuickSteps([]))
+  }, [])
 
   const [contextMenu, setContextMenu] = useState<MailContextState | null>(null)
   const [moveFolderPicker, setMoveFolderPicker] = useState<{
@@ -202,6 +278,10 @@ export function MailList(): JSX.Element {
 
   function openReplyForMessage(messageId: number): void {
     void withFullMessage(messageId, (full) => openReply('reply', full))
+  }
+
+  function openForwardForMessage(messageId: number): void {
+    void withFullMessage(messageId, (full) => openForward(full))
   }
 
   const deleteMessageOrRemoveTodoEntry = useCallback(
@@ -299,6 +379,45 @@ export function MailList(): JSX.Element {
           if (!allFlagged && !x.isFlagged) await toggleMessageFlag(x.id)
         }
       })()
+    },
+    onPopout: (e, m): void => {
+      e.stopPropagation()
+      void useMailStore.getState().selectMessageWithThreadPreview(m.id)
+      openReadingPopout(m.id, { osWindow: e.shiftKey })
+    },
+    onForward: (e, m): void => {
+      e.stopPropagation()
+      openForwardForMessage(m.id)
+    },
+    onSnooze: (e, m): void => {
+      e.stopPropagation()
+      openSnoozePicker(m.id, { x: e.clientX, y: e.clientY })
+    },
+    onMarkRead: (e, m, bulk): void => {
+      e.stopPropagation()
+      const targets =
+        bulk && bulk.length > 1 ? dedupeMailListThreadMessagesById(bulk) : [m]
+      void (async (): Promise<void> => {
+        for (const x of targets) await setMessageRead(x.id, true)
+      })()
+    },
+    onMarkUnread: (e, m, bulk): void => {
+      e.stopPropagation()
+      const targets =
+        bulk && bulk.length > 1 ? dedupeMailListThreadMessagesById(bulk) : [m]
+      void (async (): Promise<void> => {
+        for (const x of targets) await setMessageRead(x.id, false)
+      })()
+    },
+    onTodo: (e, m): void => {
+      e.stopPropagation()
+      void setTodoForMessage(m.id, 'today')
+    },
+    onQuickStep: (e, m, quickStepId, bulk): void => {
+      e.stopPropagation()
+      void runMailQuickStep(quickStepId, m, bulk).catch((err) =>
+        console.warn('[MailList] QuickStep:', err)
+      )
     }
   }
 
@@ -508,7 +627,7 @@ export function MailList(): JSX.Element {
   )
 
   return (
-    <section className="glass-fill flex h-full w-full flex-col">
+    <section ref={listPanelRef as Ref<HTMLElement>} className="glass-fill flex h-full w-full flex-col">
       <div className={moduleColumnHeaderMailListRowClass}>
         <div className="flex min-w-0 shrink-0 items-center gap-2">
           {mailListUsesCrossAccountThreadScope(listKind) ? (
@@ -593,13 +712,28 @@ export function MailList(): JSX.Element {
             disabled={loading}
           />
         </div>
-        <div className="shrink-0 text-[10px] text-muted-foreground">
-          {filteredThreads.length}{' '}
-          {filteredThreads.length === 1
-            ? t('mail.list.conversation_one')
-            : t('mail.list.conversation_other')}
+        <div className="flex shrink-0 items-center gap-1.5">
+          <button
+            type="button"
+            onClick={(): void => setColumnsDialogOpen(true)}
+            className="rounded-md border border-border/60 p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
+            title={t('mail.listTableColumns.configureTitle')}
+            aria-label={t('mail.listTableColumns.configureTitle')}
+          >
+            <Columns3 className="h-3.5 w-3.5" />
+          </button>
+          <span className="text-[10px] text-muted-foreground">
+            {filteredThreads.length}{' '}
+            {filteredThreads.length === 1
+              ? t('mail.list.conversation_one')
+              : t('mail.list.conversation_other')}
+          </span>
         </div>
       </div>
+
+      {tableMode && flatRows.length > 0 && !loading && (
+        <MailListTableHeader columns={tableColumns} gridTemplate={tableGridTemplate} />
+      )}
 
       <div className="flex-1 overflow-hidden">
         {loading ? (
@@ -678,7 +812,13 @@ export function MailList(): JSX.Element {
                     }}
                     onContextMail={openMailContext}
                     rowActions={rowActions}
+                    visibleHoverActions={visibleHoverActions}
+                    quickSteps={quickSteps}
                     isRowExiting={row.threadMessages.some((m) => isExiting(m.id))}
+                    tableMode={tableMode}
+                    tableColumns={tableColumns}
+                    tableGridTemplate={tableGridTemplate}
+                    showPreviewInSubject={showPreviewInSubject}
                   />
                 )
               }
@@ -695,13 +835,26 @@ export function MailList(): JSX.Element {
                     }}
                     onContextMail={openMailContext}
                     rowActions={rowActions}
+                    visibleHoverActions={visibleHoverActions}
+                    quickSteps={quickSteps}
                     isRowExiting={isExiting(row.message.id)}
+                    tableMode={tableMode}
+                    tableColumns={tableColumns}
+                    tableGridTemplate={tableGridTemplate}
+                    showPreviewInSubject={showPreviewInSubject}
                   />
                 )
             }}
           />
         )}
       </div>
+
+      <MailListTableColumnsDialog
+        open={columnsDialogOpen}
+        columns={tableColumns}
+        onClose={(): void => setColumnsDialogOpen(false)}
+        onApply={setTableColumns}
+      />
 
       {contextMenu && (
         <ContextMenu
@@ -746,15 +899,6 @@ function wellKnownFolderTitle(wellKnown: string | null, fallbackName: string, tr
   return fallbackName
 }
 
-function threadSubFirstToDisplay(toAddrs: string | null | undefined): string {
-  if (!toAddrs?.trim()) return ''
-  const first = toAddrs.split(/[;,]/)[0]?.trim() ?? ''
-  if (!first) return ''
-  const m = first.match(/<([^>]+)>/)
-  const raw = (m?.[1] ?? first).trim()
-  return raw.length > 0 ? raw : ''
-}
-
 const ThreadHeadRow = memo(function ThreadHeadRow({
   thread,
   threadMessages,
@@ -769,7 +913,13 @@ const ThreadHeadRow = memo(function ThreadHeadRow({
   onSelectMessage,
   onContextMail,
   rowActions,
-  isRowExiting = false
+  visibleHoverActions,
+  quickSteps,
+  isRowExiting = false,
+  tableMode = false,
+  tableColumns = [],
+  tableGridTemplate = '',
+  showPreviewInSubject = true
 }: {
   thread: ThreadGroup
   threadMessages: MailListItem[]
@@ -784,7 +934,13 @@ const ThreadHeadRow = memo(function ThreadHeadRow({
   onSelectMessage: (id: number) => void
   onContextMail: (e: React.MouseEvent, msg: MailListItem, opts?: MailListContextOpts) => void
   rowActions: MailRowHandlers
+  visibleHoverActions: MailListHoverActionId[]
+  quickSteps: MailQuickStep[]
   isRowExiting?: boolean
+  tableMode?: boolean
+  tableColumns?: MailListTableColumnId[]
+  tableGridTemplate?: string
+  showPreviewInSubject?: boolean
 }): JSX.Element {
   const { t } = useTranslation()
   const displayMessages = useMemo((): MailListItem[] => {
@@ -795,7 +951,7 @@ const ThreadHeadRow = memo(function ThreadHeadRow({
   const latest = useMemo(() => pickThreadLatestMessage(displayMessages), [displayMessages])
   const senderPhoto = profilePhotoSrcForEmail(accounts, profilePhotoDataUrls, root.fromAddr)
   const hasMultiple = thread.messageCount > 1
-  const outlookExpandHeader = hasMultiple && expanded
+  const outlookExpandHeader = !tableMode && hasMultiple && expanded
   const dateIso = messageListDateIso(latest)
   const date = dateIso ? formatDate(dateIso) : ''
   const isUnread = thread.unreadCount > 0
@@ -822,6 +978,18 @@ const ThreadHeadRow = memo(function ThreadHeadRow({
     const deduped = dedupeMailListThreadMessagesById(threadMessages)
     return deduped.map((m) => m.id)
   }, [threadMessages])
+
+  const tableCellCtx = useMemo(
+    (): MailTableCellCtx => ({
+      message: latest,
+      root,
+      senderLabel,
+      isUnread,
+      showPreviewInSubject,
+      account
+    }),
+    [latest, root, senderLabel, isUnread, showPreviewInSubject, account]
+  )
 
   function handleHeaderClick(): void {
     if (hasMultiple) {
@@ -892,7 +1060,7 @@ const ThreadHeadRow = memo(function ThreadHeadRow({
           ))}
       </button>
 
-      {!outlookExpandHeader && (
+      {!tableMode && !outlookExpandHeader && (
         <Avatar
           name={root.fromName}
           email={root.fromAddr}
@@ -904,6 +1072,23 @@ const ThreadHeadRow = memo(function ThreadHeadRow({
         />
       )}
 
+      {tableMode ? (
+        <button
+          type="button"
+          onClick={handleHeaderClick}
+          className="grid min-w-0 flex-1 items-center gap-x-1 py-1.5 text-left"
+          style={{ gridTemplateColumns: tableGridTemplate }}
+        >
+          {tableColumns.map((col) => (
+            <MailListTableCell
+              key={col}
+              columnId={col}
+              ctx={tableCellCtx}
+              compactCategories
+            />
+          ))}
+        </button>
+      ) : (
       <button
         type="button"
         onClick={handleHeaderClick}
@@ -1026,11 +1211,18 @@ const ThreadHeadRow = memo(function ThreadHeadRow({
           </>
         )}
       </button>
+      )}
+
+      {tableMode && (
+        <MailListTableRowIcons flagged={thread.isFlagged} hasAttachments={thread.hasAttachments} />
+      )}
 
       <MailRowActions
         message={latest}
         bulkThreadMessages={threadBulkMsgs}
         handlers={rowActions}
+        visibleHoverActions={visibleHoverActions}
+        quickSteps={quickSteps}
         alwaysVisible={false}
         position="top"
       />
@@ -1047,7 +1239,13 @@ const ThreadSubRow = memo(function ThreadSubRow({
   onSelectMessage,
   onContextMail,
   rowActions,
-  isRowExiting = false
+  visibleHoverActions,
+  quickSteps,
+  isRowExiting = false,
+  tableMode = false,
+  tableColumns = [],
+  tableGridTemplate = '',
+  showPreviewInSubject = true
 }: {
   message: MailListItem
   accounts: ConnectedAccount[]
@@ -1057,7 +1255,13 @@ const ThreadSubRow = memo(function ThreadSubRow({
   onSelectMessage: (id: number) => void
   onContextMail: (e: React.MouseEvent, msg: MailListItem, opts?: MailListContextOpts) => void
   rowActions: MailRowHandlers
+  visibleHoverActions: MailListHoverActionId[]
+  quickSteps: MailQuickStep[]
   isRowExiting?: boolean
+  tableMode?: boolean
+  tableColumns?: MailListTableColumnId[]
+  tableGridTemplate?: string
+  showPreviewInSubject?: boolean
 }): JSX.Element {
   const { t } = useTranslation()
   const folder = findFolderForMessage(message, foldersByAccount)
@@ -1073,6 +1277,18 @@ const ThreadSubRow = memo(function ThreadSubRow({
   const stripeAccount = showInboxAccountStripe
     ? accounts.find((a) => a.id === message.accountId)
     : undefined
+
+  const subTableCtx = useMemo(
+    (): MailTableCellCtx => ({
+      message,
+      root: message,
+      senderLabel: primaryLabel,
+      isUnread: !message.isRead,
+      showPreviewInSubject,
+      account: stripeAccount ?? null
+    }),
+    [message, primaryLabel, showPreviewInSubject, stripeAccount]
+  )
 
   return (
     <div
@@ -1109,13 +1325,25 @@ const ThreadSubRow = memo(function ThreadSubRow({
         onClick={(): void => onSelectMessage(message.id)}
         onContextMenu={(e): void => onContextMail(e, message)}
         className={cn(
-          'flex w-full flex-col gap-0.5 rounded py-1.5 pl-2 pr-2 text-left transition-colors',
+          tableMode
+            ? 'grid w-full items-center gap-x-1 rounded py-1 pl-2 pr-2 text-left transition-colors'
+            : 'flex w-full flex-col gap-0.5 rounded py-1.5 pl-2 pr-2 text-left transition-colors',
           selected
             ? 'border-l-2 border-primary bg-secondary/45'
             : 'border-l-2 border-transparent hover:bg-secondary/40'
         )}
+        style={tableMode ? { gridTemplateColumns: tableGridTemplate } : undefined}
       >
-        {sentLike ? (
+        {tableMode ? (
+          tableColumns.map((col) => (
+            <MailListTableCell
+              key={col}
+              columnId={col}
+              ctx={subTableCtx}
+              compactCategories
+            />
+          ))
+        ) : sentLike ? (
           <>
             <div className="flex w-full items-center justify-between gap-2 text-[10px] italic text-muted-foreground">
               <span className="min-w-0 truncate">{primaryLabel}</span>
@@ -1186,6 +1414,8 @@ const ThreadSubRow = memo(function ThreadSubRow({
       <MailRowActions
         message={message}
         handlers={rowActions}
+        visibleHoverActions={visibleHoverActions}
+        quickSteps={quickSteps}
         alwaysVisible={false}
         position="center"
         groupName="subrow"
@@ -1248,6 +1478,8 @@ function MailRowActions({
   message,
   bulkThreadMessages,
   handlers,
+  visibleHoverActions,
+  quickSteps,
   alwaysVisible,
   position,
   groupName = 'row'
@@ -1255,10 +1487,12 @@ function MailRowActions({
   message: MailListItem
   bulkThreadMessages?: MailListItem[]
   handlers: MailRowHandlers
+  visibleHoverActions: MailListHoverActionId[]
+  quickSteps: MailQuickStep[]
   alwaysVisible: boolean
   position: 'top' | 'center'
   groupName?: 'row' | 'subrow'
-}): JSX.Element {
+}): JSX.Element | null {
   const { t } = useTranslation()
   const bulk =
     bulkThreadMessages && bulkThreadMessages.length > 1 ? bulkThreadMessages : undefined
@@ -1275,14 +1509,14 @@ function MailRowActions({
   const archiveTitle = bulk ? t('mail.list.archiveTitleBulk', { count: n }) : t('mail.list.archiveTitle')
   const deleteTitle = bulk ? t('mail.list.deleteTitleBulk', { count: n }) : t('mail.list.deleteTitle')
 
-  // group-hover-Klassen muessen statisch im Code stehen, damit Tailwind
-  // sie beim Build sieht.
   const showClass =
     groupName === 'subrow'
       ? 'opacity-0 group-hover/subrow:opacity-100 focus-within:opacity-100'
       : 'opacity-0 group-hover/row:opacity-100 focus-within:opacity-100'
 
   const baseTop = position === 'top' ? 'top-2' : 'top-1/2 -translate-y-1/2'
+
+  if (visibleHoverActions.length === 0) return null
 
   return (
     <div
@@ -1292,28 +1526,118 @@ function MailRowActions({
         alwaysVisible ? 'opacity-100' : showClass
       )}
     >
-      <RowActionButton
-        title={t('mail.list.rowReplyTitle')}
-        icon={Reply}
-        onClick={(e): void => handlers.onReply(e, message)}
-      />
-      <RowActionButton
-        title={starTitle}
-        icon={Star}
-        highlight={starHighlight}
-        onClick={(e): void => handlers.onToggleFlag(e, message, bulk)}
-      />
-      <RowActionButton
-        title={archiveTitle}
-        icon={Archive}
-        onClick={(e): void => handlers.onArchive(e, message, bulk)}
-      />
-      <RowActionButton
-        title={deleteTitle}
-        icon={Trash2}
-        destructive
-        onClick={(e): void => handlers.onDelete(e, message, bulk)}
-      />
+      {visibleHoverActions.map((actionId) => {
+        if (actionId.startsWith('quickstep:')) {
+          const qid = Number.parseInt(actionId.slice('quickstep:'.length), 10)
+          const qs = quickSteps.find((q) => q.id === qid)
+          if (!qs) return null
+          return (
+            <RowActionButton
+              key={actionId}
+              title={qs.name}
+              icon={resolveQuickStepHoverIcon(qs)}
+              onClick={(e): void => handlers.onQuickStep(e, message, qid, bulk)}
+            />
+          )
+        }
+        const builtin = actionId as MailListHoverBuiltinActionId
+        switch (builtin) {
+          case 'reply':
+            return (
+              <RowActionButton
+                key={actionId}
+                title={t('mail.list.rowReplyTitle')}
+                icon={Reply}
+                onClick={(e): void => handlers.onReply(e, message)}
+              />
+            )
+          case 'flag':
+            return (
+              <RowActionButton
+                key={actionId}
+                title={starTitle}
+                icon={Star}
+                highlight={starHighlight}
+                onClick={(e): void => handlers.onToggleFlag(e, message, bulk)}
+              />
+            )
+          case 'archive':
+            return (
+              <RowActionButton
+                key={actionId}
+                title={archiveTitle}
+                icon={Archive}
+                onClick={(e): void => handlers.onArchive(e, message, bulk)}
+              />
+            )
+          case 'delete':
+            return (
+              <RowActionButton
+                key={actionId}
+                title={deleteTitle}
+                icon={Trash2}
+                destructive
+                onClick={(e): void => handlers.onDelete(e, message, bulk)}
+              />
+            )
+          case 'popout':
+            return (
+              <RowActionButton
+                key={actionId}
+                title={t('mail.list.rowPopoutTitle')}
+                icon={PictureInPicture2}
+                onClick={(e): void => handlers.onPopout(e, message)}
+              />
+            )
+          case 'forward':
+            return (
+              <RowActionButton
+                key={actionId}
+                title={t('mail.list.rowForwardTitle')}
+                icon={Forward}
+                onClick={(e): void => handlers.onForward(e, message)}
+              />
+            )
+          case 'snooze':
+            return (
+              <RowActionButton
+                key={actionId}
+                title={t('mail.list.rowSnoozeTitle')}
+                icon={Clock}
+                onClick={(e): void => handlers.onSnooze(e, message)}
+              />
+            )
+          case 'markRead':
+            return (
+              <RowActionButton
+                key={actionId}
+                title={bulk ? t('mail.list.markReadBulk', { count: n }) : t('mail.list.markRead')}
+                icon={MailOpen}
+                onClick={(e): void => handlers.onMarkRead(e, message, bulk)}
+              />
+            )
+          case 'markUnread':
+            return (
+              <RowActionButton
+                key={actionId}
+                title={bulk ? t('mail.list.markUnreadBulk', { count: n }) : t('mail.list.markUnread')}
+                icon={Mail}
+                onClick={(e): void => handlers.onMarkUnread(e, message, bulk)}
+              />
+            )
+          case 'todo':
+            return (
+              <RowActionButton
+                key={actionId}
+                title={t('mail.list.rowTodoTitle')}
+                icon={CheckSquare}
+                onClick={(e): void => handlers.onTodo(e, message)}
+              />
+            )
+          default:
+            return null
+        }
+      })}
     </div>
   )
 }

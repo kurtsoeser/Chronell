@@ -78,10 +78,14 @@ interface Props {
   /** Kompakter Editor (z.B. Signatur). */
   variant?: 'default' | 'compact'
   /**
-   * Mindesthoehe des Editor-Inhalts (nur `variant === 'default'`).
-   * Standard: `min-h-[220px]`.
+   * Mindesthoehe des Editor-Inhalts.
+   * Standard: `min-h-[220px]` (default), `min-h-[7.5rem]` (compact).
    */
   editorMinHeightClass?: string
+  /** Wenn false: kein Flex-Grow (z.B. feste Signatur-Zeile). Standard: true. */
+  fillHeight?: boolean
+  /** Toolbar/Rahmen an die dunklere Compose-Flaeche anpassen. */
+  inEditorSurface?: boolean
 }
 
 const TEXT_COLORS: Array<{ value: string; label: string }> = [
@@ -112,8 +116,13 @@ export function TipTapBody({
   placeholder,
   variant = 'default',
   editorMinHeightClass,
-  onPickImages
+  fillHeight = true,
+  onPickImages,
+  inEditorSurface = false
 }: Props): JSX.Element {
+  const contentMinHeight =
+    editorMinHeightClass ??
+    (variant === 'compact' ? 'min-h-[7.5rem]' : 'min-h-[220px]')
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [colorPickerOpen, setColorPickerOpen] = useState<'text' | 'highlight' | null>(null)
 
@@ -151,7 +160,7 @@ export function TipTapBody({
       attributes: {
         class: cn(
           'max-w-none px-4 py-3 text-sm leading-relaxed text-foreground focus:outline-none',
-          variant === 'compact' ? 'min-h-[88px]' : editorMinHeightClass ?? 'min-h-[220px]',
+          contentMinHeight,
           '[&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5',
           '[&_h1]:text-2xl [&_h1]:font-bold [&_h1]:mt-3 [&_h1]:mb-2',
           '[&_h2]:text-xl  [&_h2]:font-bold [&_h2]:mt-3 [&_h2]:mb-2',
@@ -188,7 +197,7 @@ export function TipTapBody({
       <div
         className={cn(
           'animate-pulse rounded bg-muted/40',
-          variant === 'compact' ? 'min-h-[88px]' : editorMinHeightClass ?? 'min-h-[220px]'
+          contentMinHeight
         )}
       />
     )
@@ -258,18 +267,30 @@ export function TipTapBody({
       })
   }
 
+  const surfaceBorder = inEditorSurface
+    ? 'border-[hsl(var(--compose-surface-border)/0.45)]'
+    : 'border-border/40'
+
   return (
-    <div className={cn('flex min-h-0 flex-1 flex-col border-t border-border/40', className)}>
+    <div
+      className={cn(
+        'flex min-h-0 flex-col border-t',
+        surfaceBorder,
+        fillHeight ? 'flex-1' : 'shrink-0',
+        className
+      )}
+    >
       <Toolbar
         editor={editor}
         variant={variant}
+        inEditorSurface={inEditorSurface}
         onLink={handleInsertLink}
         onUnlink={handleRemoveLink}
         onImage={handleInsertImages}
         colorPickerOpen={colorPickerOpen}
         setColorPickerOpen={setColorPickerOpen}
       />
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className={cn('min-h-0 overflow-y-auto', fillHeight ? 'flex-1' : 'max-h-[13.5rem]')}>
         <EditorContent editor={editor} />
       </div>
       <input
@@ -287,6 +308,7 @@ export function TipTapBody({
 function Toolbar({
   editor,
   variant,
+  inEditorSurface,
   onLink,
   onUnlink,
   onImage,
@@ -295,14 +317,24 @@ function Toolbar({
 }: {
   editor: Editor
   variant: 'default' | 'compact'
+  inEditorSurface?: boolean
   onLink: () => void
   onUnlink: () => void
   onImage: () => void
   colorPickerOpen: 'text' | 'highlight' | null
   setColorPickerOpen: (v: 'text' | 'highlight' | null) => void
 }): JSX.Element {
+  const toolbarChrome = inEditorSurface
+    ? 'border-[hsl(var(--compose-surface-border)/0.5)] bg-[hsl(var(--compose-surface-muted))]'
+    : 'border-border/50 bg-secondary/30'
+
   return (
-    <div className="flex shrink-0 flex-wrap items-center gap-0.5 border-b border-border/50 bg-secondary/30 px-2 py-1">
+    <div
+      className={cn(
+        'flex shrink-0 flex-wrap items-center gap-0.5 border-b px-2 py-1',
+        toolbarChrome
+      )}
+    >
       {/* Block-Style */}
       <BarBtn
         active={editor.isActive('paragraph') && !editor.isActive('heading')}

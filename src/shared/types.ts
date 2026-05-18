@@ -1720,6 +1720,13 @@ export interface ComposeSendInput {
    * statt sofort gesendet (Anhaenge-Groesse beachten).
    */
   scheduledSendAt?: string | null
+  /**
+   * Bereits gespeicherter Server-Entwurf: nach dem Senden aus «Entwürfe» entfernen
+   * (bzw. ueber diesen Entwurf senden).
+   */
+  remoteDraftId?: string | null
+  /** Lokale Mail-ID des Entwurfs in der DB (Ordner Entwuerfe). */
+  linkedMessageId?: number | null
 }
 
 /** Server-Entwurf speichern (Ordner «Entwürfe» / Gmail-Drafts). */
@@ -1866,6 +1873,8 @@ export interface MailQuickStep {
   icon: string | null
   shortcut: string | null
   sortOrder: number
+  /** Abgeleitet aus actions_json: Icon wie ToDo-Bucket (Heute, Morgen, Erledigt, …). */
+  visualBucket?: TodoDueKindList | null
 }
 
 export type MailActionType =

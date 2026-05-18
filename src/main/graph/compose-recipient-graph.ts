@@ -2,6 +2,7 @@ import { GraphError } from '@microsoft/microsoft-graph-client'
 import { createGraphClient } from './client'
 import { loadConfig } from '../config'
 import type { ComposeDriveExplorerEntry, ComposeRecipientSuggestion } from '@shared/types'
+import { graphPeopleSearchQuery } from '@shared/compose-recipient-query'
 
 function readGraphStatusCode(e: unknown): number | undefined {
   if (e instanceof GraphError) return e.statusCode
@@ -458,8 +459,8 @@ export async function graphSearchPeopleForCompose(
   query: string,
   limit: number
 ): Promise<ComposeRecipientSuggestion[]> {
-  const q = query.trim()
-  if (q.length < 1) return []
+  const q = graphPeopleSearchQuery(query)
+  if (!q || q.length < 1) return []
   const client = await getClientFor(accountId)
   const res = (await client
     .api('/me/people')

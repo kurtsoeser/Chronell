@@ -1,11 +1,49 @@
 import { getDb } from './index'
-import type { MailQuickStep } from '@shared/types'
+import type { MailQuickStep, TodoDueKindList, TodoDueKindOpen } from '@shared/types'
+
+const OPEN_TODO_KINDS = new Set<TodoDueKindOpen>(['today', 'tomorrow', 'this_week', 'later'])
+
+function parseTodoDueKind(v: unknown): TodoDueKindOpen | null {
+  if (typeof v !== 'string') return null
+  if (OPEN_TODO_KINDS.has(v as TodoDueKindOpen)) return v as TodoDueKindOpen
+  return null
+}
+
+function inferQuickStepVisualBucket(actionsJson: string, name: string): TodoDueKindList | null {
+  try {
+    const actions = JSON.parse(actionsJson) as unknown
+    if (Array.isArray(actions)) {
+      for (const raw of actions) {
+        if (!raw || typeof raw !== 'object') continue
+        const type = (raw as { type?: unknown }).type
+        if (type === 'addTodo') {
+          const dueKind = parseTodoDueKind((raw as { dueKind?: unknown }).dueKind)
+          if (dueKind) return dueKind
+        }
+      }
+      const types = actions
+        .filter((a): a is { type?: unknown } => !!a && typeof a === 'object')
+        .map((a) => a.type)
+      if (types.includes('markRead') && types.includes('archive')) return 'done'
+    }
+  } catch {
+    // ignore
+  }
+  const n = name.toLowerCase()
+  if (n.includes('heute')) return 'today'
+  if (n.includes('morgen')) return 'tomorrow'
+  if (n.includes('woche')) return 'this_week'
+  if (n.includes('später') || n.includes('spaeter')) return 'later'
+  if (n.includes('erledigt') || n.includes('archiv') || n.includes('gelesen')) return 'done'
+  return null
+}
 
 interface QuickStepListRow {
   id: number
   name: string
   icon: string | null
   shortcut: string | null
+  actions_json: string
   sort_order: number
   enabled: number
 }
@@ -20,7 +58,8 @@ function rowToListItem(r: QuickStepListRow): MailQuickStep {
     name: r.name,
     icon: r.icon,
     shortcut: r.shortcut,
-    sortOrder: r.sort_order
+    sortOrder: r.sort_order,
+    visualBucket: inferQuickStepVisualBucket(r.actions_json, r.name)
   }
 }
 
@@ -28,7 +67,7 @@ export function listMailQuickSteps(): MailQuickStep[] {
   const db = getDb()
   const rows = db
     .prepare<[], QuickStepListRow>(
-      `SELECT id, name, icon, shortcut, sort_order, enabled
+      `SELECT id, name, icon, shortcut, actions_json, sort_order, enabled
        FROM quicksteps
        WHERE enabled = 1
        ORDER BY sort_order ASC, id ASC`

@@ -16,6 +16,7 @@ import {
 import { sanitizeComposeHtmlFragment } from '@/lib/sanitize-compose-html'
 import { initialSignatureForAccount } from '@/lib/signature-templates'
 import { useAccountsStore } from '@/stores/accounts'
+import { useMailStore } from '@/stores/mail'
 
 export type ComposeMode = 'new' | 'reply' | 'replyAll' | 'forward'
 
@@ -86,6 +87,10 @@ export interface ComposeDraft {
   error?: string | null
   /** Wenn true: nur in der Startseiten-Kachel, nicht als schwebendes Composer-Fenster. */
   embedInDashboard?: boolean
+  /** Wenn true: im Mail-Lesefenster (Vorschau-Spalte) statt Pop-up. */
+  embedInReadingPane?: boolean
+  /** Lokale Mail-ID bei Bearbeitung eines Server-Entwurfs. */
+  linkedMessageId?: number | null
   /**
    * Nach erfolgreichem Speichern in «Entwürfe» am Server (Graph: Message-Id,
    * Gmail: Draft-Ressourcen-ID). Bei Konto-Wechsel im Composer zuruecksetzen.
@@ -100,6 +105,10 @@ interface ComposeState {
   openNew: (accountId: string) => void
   /** Neuer Entwurf mit vorausgefuelltem An-Feld (E-Mail-Adresse). */
   openNewTo: (accountId: string, to: string) => void
+  /** Server-Entwurf in der Vorschau-Spalte bearbeiten. */
+  openDraftFromMessage: (message: MailFull) => void
+  /** Eingebetteten Vorschau-Composer als schwebendes Pop-up oeffnen. */
+  popOutToWindow: (id: string) => void
   openReply: (mode: 'reply' | 'replyAll', message: MailFull) => void
   openForward: (message: MailFull) => void
   close: (id: string) => void
@@ -215,50 +224,88 @@ function buildComposeOutgoingBundle(draft: ComposeDraft): ComposeOutgoingBundle 
   }
 }
 
+function closeReadingPaneDrafts(get: () => ComposeState, set: (fn: (s: ComposeState) => Partial<ComposeState>) => void): void {
+  const ids = get().drafts.filter((d) => d.embedInReadingPane).map((d) => d.id)
+  if (ids.length === 0) return
+  set((s) => {
+    const next = s.drafts.filter((d) => !d.embedInReadingPane)
+    const activeId = s.activeId && ids.includes(s.activeId) ? (next[next.length - 1]?.id ?? null) : s.activeId
+    return { drafts: next, activeId }
+  })
+}
+
+function openReadingPaneDraft(
+  get: () => ComposeState,
+  set: (fn: (s: ComposeState) => Partial<ComposeState>) => void,
+  patch: Partial<ComposeDraft> & Pick<ComposeDraft, 'accountId'>
+): string {
+  closeReadingPaneDrafts(get, set)
+  const accountId = patch.accountId
+  const draft: ComposeDraft = {
+    id: newId(),
+    accountId,
+    mode: 'new',
+    to: '',
+    cc: '',
+    bcc: '',
+    showCcBcc: false,
+    subject: '',
+    prependRichHtml: '',
+    prependPlain: '',
+    quotedHtml: '',
+    attachments: [],
+    expectReply: false,
+    expectReplyDays: 7,
+    embedInReadingPane: true,
+    linkedMessageId: null,
+    ...defaultComposeFields(accountId),
+    ...patch,
+    embedInReadingPane: true
+  }
+  set((s) => ({ drafts: [...s.drafts, draft], activeId: draft.id }))
+  return draft.id
+}
+
 export const useComposeStore = create<ComposeState>((set, get) => ({
   drafts: [],
   activeId: null,
 
   openNew(accountId: string): void {
-    const draft: ComposeDraft = {
-      id: newId(),
-      accountId,
-      mode: 'new',
-      to: '',
-      cc: '',
-      bcc: '',
-      showCcBcc: false,
-      subject: '',
-      prependRichHtml: '',
-      prependPlain: '',
-      quotedHtml: '',
-      attachments: [],
-      expectReply: false,
-      expectReplyDays: 7,
-      ...defaultComposeFields(accountId)
-    }
-    set((s) => ({ drafts: [...s.drafts, draft], activeId: draft.id }))
+    openReadingPaneDraft(get, set, { accountId })
+    useMailStore.getState().clearSelectedMessage()
   },
 
   openNewTo(accountId: string, to: string): void {
-    const draft: ComposeDraft = {
-      id: newId(),
-      accountId,
-      mode: 'new',
-      to: to.trim(),
-      cc: '',
-      bcc: '',
-      showCcBcc: false,
-      subject: '',
-      prependRichHtml: '',
-      prependPlain: '',
-      quotedHtml: '',
-      attachments: [],
-      expectReply: false,
-      expectReplyDays: 7,
-      ...defaultComposeFields(accountId)
+    openReadingPaneDraft(get, set, { accountId, to: to.trim() })
+    useMailStore.getState().clearSelectedMessage()
+  },
+
+  openDraftFromMessage(message: MailFull): void {
+    const existing = get().drafts.find(
+      (d) => d.embedInReadingPane && d.linkedMessageId === message.id
+    )
+    if (existing) {
+      set({ activeId: existing.id })
+      return
     }
-    set((s) => ({ drafts: [...s.drafts, draft], activeId: draft.id }))
+    const bodyHtml = message.bodyHtml?.trim()
+    const bodyText = message.bodyText?.trim()
+    openReadingPaneDraft(get, set, {
+      accountId: message.accountId,
+      to: message.toAddrs ?? '',
+      cc: message.ccAddrs ?? '',
+      showCcBcc: Boolean(message.ccAddrs?.trim()),
+      subject: message.subject ?? '',
+      prependRichHtml: bodyHtml ?? '',
+      prependPlain: bodyHtml ? '' : (bodyText ?? ''),
+      linkedMessageId: message.id,
+      savedRemoteDraftId: message.remoteId
+    })
+  },
+
+  popOutToWindow(id: string): void {
+    get().update(id, { embedInReadingPane: false })
+    get().focus(id)
   },
 
   ensureDashboardEmbedDraft(accountId: string): string {
@@ -287,11 +334,22 @@ export const useComposeStore = create<ComposeState>((set, get) => ({
   },
 
   openReply(mode: 'reply' | 'replyAll', message: MailFull): void {
+    const existing = get().drafts.find(
+      (d) =>
+        d.embedInReadingPane &&
+        d.replyToMessageId === message.id &&
+        (d.mode === 'reply' || d.mode === 'replyAll') &&
+        d.mode === mode
+    )
+    if (existing) {
+      set({ activeId: existing.id })
+      return
+    }
+
     const cc =
       mode === 'replyAll' ? [message.ccAddrs, message.toAddrs].filter(Boolean).join(', ') : ''
 
-    const draft: ComposeDraft = {
-      id: newId(),
+    openReadingPaneDraft(get, set, {
       accountId: message.accountId,
       mode,
       to: message.fromAddr
@@ -300,43 +358,31 @@ export const useComposeStore = create<ComposeState>((set, get) => ({
           : message.fromAddr
         : '',
       cc,
-      bcc: '',
       showCcBcc: cc.length > 0,
       subject: withReplyPrefix(message.subject),
-      prependRichHtml: '',
-      prependPlain: '',
       quotedHtml: buildReplyBody(message),
-      attachments: [],
       replyToRemoteId: message.remoteId,
-      replyToMessageId: message.id,
-      expectReply: false,
-      expectReplyDays: 7,
-      ...defaultComposeFields(message.accountId)
-    }
-    set((s) => ({ drafts: [...s.drafts, draft], activeId: draft.id }))
+      replyToMessageId: message.id
+    })
   },
 
   openForward(message: MailFull): void {
-    const draft: ComposeDraft = {
-      id: newId(),
+    const existing = get().drafts.find(
+      (d) => d.embedInReadingPane && d.replyToMessageId === message.id && d.mode === 'forward'
+    )
+    if (existing) {
+      set({ activeId: existing.id })
+      return
+    }
+
+    openReadingPaneDraft(get, set, {
       accountId: message.accountId,
       mode: 'forward',
-      to: '',
-      cc: '',
-      bcc: '',
-      showCcBcc: false,
       subject: withForwardPrefix(message.subject),
-      prependRichHtml: '',
-      prependPlain: '',
       quotedHtml: buildForwardBody(message),
-      attachments: [],
       replyToRemoteId: message.remoteId,
-      replyToMessageId: message.id,
-      expectReply: false,
-      expectReplyDays: 7,
-      ...defaultComposeFields(message.accountId)
-    }
-    set((s) => ({ drafts: [...s.drafts, draft], activeId: draft.id }))
+      replyToMessageId: message.id
+    })
   },
 
   close(id: string): void {
@@ -456,6 +502,8 @@ export const useComposeStore = create<ComposeState>((set, get) => ({
         referenceAttachments,
         replyToRemoteId: draft.replyToRemoteId,
         replyMode: draft.mode === 'new' ? undefined : draft.mode,
+        remoteDraftId: draft.savedRemoteDraftId ?? undefined,
+        linkedMessageId: draft.linkedMessageId ?? undefined,
         trackWaitingOnMessageId:
           draft.expectReply && draft.replyToMessageId != null
             ? draft.replyToMessageId

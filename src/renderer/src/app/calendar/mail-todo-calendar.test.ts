@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { MailListItem } from '@shared/types'
 import {
   mailTodoConversationsToFullCalendarEvents,
+  mailTodoFullCalendarEventId,
   mailTodoItemsToFullCalendarEvents
 } from './mail-todo-calendar'
 
@@ -26,9 +27,17 @@ function mail(partial: Partial<MailListItem> & Pick<MailListItem, 'id' | 'accoun
     snoozedUntil: null,
     todoDueAt: partial.todoDueAt ?? '2026-05-16',
     todoStartAt: partial.todoStartAt ?? null,
-    todoEndAt: partial.todoEndAt ?? null
+    todoEndAt: partial.todoEndAt ?? null,
+    todoId: partial.todoId ?? null
   }
 }
+
+describe('mailTodoFullCalendarEventId', () => {
+  it('nutzt todoId wenn vorhanden (nicht message id)', () => {
+    expect(mailTodoFullCalendarEventId({ id: 1, todoId: 99 })).toBe('mail-todo:99')
+    expect(mailTodoFullCalendarEventId({ id: 1 })).toBe('mail-todo:1')
+  })
+})
 
 describe('mailTodoItemsToFullCalendarEvents', () => {
   it('erzeugt pro Message ein Event', () => {
@@ -41,6 +50,12 @@ describe('mailTodoItemsToFullCalendarEvents', () => {
     expect(events.map((e) => e.id)).toEqual(['mail-todo:1', 'mail-todo:2'])
     expect(events[0]?.extendedProps?.mailMessage).toMatchObject({ id: 1 })
     expect(events[1]?.extendedProps?.mailMessage).toMatchObject({ id: 2 })
+  })
+
+  it('verwendet todoId fuer Event-ID wenn gesetzt', () => {
+    const items = [mail({ id: 1, accountId: 'a1', todoId: 42 })]
+    const events = mailTodoItemsToFullCalendarEvents(items, { a1: '#f00' })
+    expect(events[0]?.id).toBe('mail-todo:42')
   })
 })
 

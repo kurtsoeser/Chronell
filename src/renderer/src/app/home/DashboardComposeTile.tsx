@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 import { formatBytes } from '@/lib/format-bytes'
 import { useAccountsStore } from '@/stores/accounts'
 import { useComposeStore, type ComposeAttachmentFile } from '@/stores/compose'
+import { useComposeAutoSave } from '@/hooks/useComposeAutoSave'
 
 const MAX_ATTACHMENTS_TOTAL_BYTES = 24 * 1024 * 1024
 
@@ -46,6 +47,8 @@ export function DashboardComposeTile(): JSX.Element {
 
   const draft = embedDraft
   const attachmentsTotal = draft?.attachments.reduce((s, a) => s + a.size, 0) ?? 0
+
+  useComposeAutoSave(draft?.id ?? '', Boolean(draft))
 
   const addFiles = useCallback(
     async (files: File[]): Promise<void> => {
@@ -107,6 +110,19 @@ export function DashboardComposeTile(): JSX.Element {
       }}
     >
       <div className="flex shrink-0 items-center gap-2 border-b border-border/50 px-2 py-1.5 text-[11px]">
+        <button
+          type="button"
+          disabled={draft.busy}
+          title={t('mail.composeTile.saveDraft')}
+          onClick={(): void => void saveRemoteDraft(draft.id)}
+          className={cn(
+            'inline-flex shrink-0 items-center gap-1 rounded-md border border-border px-2 py-0.5 font-medium text-foreground hover:bg-secondary',
+            draft.busy && 'pointer-events-none opacity-50'
+          )}
+        >
+          <Save className="h-3.5 w-3.5" />
+          {t('mail.composeTile.saveDraft')}
+        </button>
         <span className="text-muted-foreground">{t('mail.composeTile.from')}</span>
         {accounts.length > 1 ? (
           <select
@@ -166,13 +182,14 @@ export function DashboardComposeTile(): JSX.Element {
         />
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <TipTapBody
           valueHtml={draft.prependRichHtml}
           onChangeHtml={(v): void => update(draft.id, { prependRichHtml: v })}
-          className="min-h-[100px] border-0 bg-transparent px-1 py-1 text-[11px]"
+          className="min-h-0 flex-1 border-0 bg-transparent px-1 py-1 text-[11px]"
+          fillHeight
         />
-        <div className="border-t border-border/40 bg-secondary/10 px-1 py-0.5">
+        <div className="shrink-0 border-t border-border/40 bg-secondary/10 px-1 py-0.5">
           <div className="flex flex-wrap items-start justify-between gap-1 px-1 pb-0.5">
             <span className="shrink-0 text-[9px] font-medium uppercase tracking-wide text-muted-foreground">
               {t('mail.composeTile.signature', { defaultValue: 'Signatur' })}
@@ -188,6 +205,7 @@ export function DashboardComposeTile(): JSX.Element {
           </div>
           <TipTapBody
             variant="compact"
+            fillHeight={false}
             valueHtml={draft.signatureRichHtml}
             onChangeHtml={(v): void => update(draft.id, { signatureRichHtml: v })}
             className="border-0 bg-transparent px-0 py-0 text-[11px]"
@@ -254,19 +272,6 @@ export function DashboardComposeTile(): JSX.Element {
       )}
 
       <div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-border px-2 py-1.5">
-        <button
-          type="button"
-          disabled={draft.busy}
-          title={t('mail.composeTile.saveDraft')}
-          onClick={(): void => void saveRemoteDraft(draft.id)}
-          className={cn(
-            'inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[11px] font-medium text-foreground hover:bg-secondary',
-            draft.busy && 'pointer-events-none opacity-50'
-          )}
-        >
-          <Save className="h-3.5 w-3.5" />
-          {t('mail.composeTile.saveDraft')}
-        </button>
         <button
           type="button"
           disabled={draft.busy}

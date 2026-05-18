@@ -8,6 +8,7 @@ import {
   type MutableRefObject,
   type Ref
 } from 'react'
+import { flushSync } from 'react-dom'
 import FullCalendar from '@fullcalendar/react'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
@@ -24,8 +25,19 @@ import {
 import type { MailListItem, ConnectedAccount } from '@shared/types'
 import { accountColorToCssBackground } from '@/lib/avatar-color'
 import { MIME_THREAD_IDS, readDraggedWorkflowMessageIds } from '@/lib/workflow-dnd'
-import { scheduleRemoveDuplicateFullCalendarEventsById } from '@/app/calendar/calendar-fc-event-source'
-import { CALENDAR_KIND_MAIL_TODO, mailTodoItemsToFullCalendarEvents } from './mail-todo-calendar'
+import {
+  scheduleRemoveDuplicateFullCalendarEventsById,
+  scheduleRemoveMailTodoCalendarEventsByMessageId
+} from '@/app/calendar/calendar-fc-event-source'
+import {
+  applyOptimisticMailTodoScheduleToItems,
+  syncFullCalendarMailTodoEventFromLayer
+} from '@/app/calendar/optimistic-mail-todo-calendar'
+import {
+  CALENDAR_KIND_MAIL_TODO,
+  mailTodoFullCalendarEventId,
+  mailTodoItemsToFullCalendarEvents
+} from './mail-todo-calendar'
 import { useCalendarFcEventContent } from '@/app/calendar/use-calendar-fc-event-content'
 import './notion-calendar.css'
 
@@ -217,17 +229,32 @@ export function MailTodoCalendar({
         return
       }
       try {
+        const api = calendarRef.current?.getApi()
+        const mailTodoFcId = info.event.id || mailTodoFullCalendarEventId(m)
+        const optimisticMail: MailListItem = {
+          ...m,
+          todoStartAt: range.startIso,
+          todoEndAt: range.endIso,
+          todoDueAt: range.endIso
+        }
+
+        flushSync(() => {
+          setItems((prev) => applyOptimisticMailTodoScheduleToItems(prev, m.id, range))
+        })
+        syncFullCalendarMailTodoEventFromLayer(api, optimisticMail, accountColorById)
+
         await onScheduleMessages([m.id], range.startIso, range.endIso)
-        scheduleRemoveDuplicateFullCalendarEventsById(calendarRef.current?.getApi(), [
-          `mail-todo:${m.id}`
-        ])
+
         const { start, end } = lastRangeRef.current
-        void loadRange(start, end)
+        await loadRange(start, end)
+        syncFullCalendarMailTodoEventFromLayer(api, optimisticMail, accountColorById)
+        scheduleRemoveMailTodoCalendarEventsByMessageId(api, m.id, mailTodoFcId)
+        scheduleRemoveDuplicateFullCalendarEventsById(api, [mailTodoFcId])
       } catch {
         info.revert()
       }
     },
-    [onScheduleMessages, timeZone]
+    [onScheduleMessages, timeZone, loadRange, accountColorById]
   )
 
   useLayoutEffect(() => {

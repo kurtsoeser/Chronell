@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useResizableWidth, VerticalSplitter } from '@/components/ResizableSplitter'
 import { Sidebar } from '@/app/layout/Sidebar'
@@ -31,12 +31,26 @@ export function MailWorkspace(props: { onOpenAccountDialog: () => void }): JSX.E
     minWidth: 180,
     maxWidth: 480
   })
+  const [listMaxWidth, setListMaxWidth] = useState(1200)
+  useEffect(() => {
+    const update = (): void => {
+      setListMaxWidth(Math.max(720, Math.min(1400, Math.floor(window.innerWidth * 0.62))))
+    }
+    update()
+    window.addEventListener('resize', update)
+    return (): void => window.removeEventListener('resize', update)
+  }, [])
+
   const [listWidth, setListWidth] = useResizableWidth({
     storageKey: 'mailclient.listWidth',
     defaultWidth: 384,
     minWidth: 260,
-    maxWidth: 720
+    maxWidth: listMaxWidth
   })
+
+  useEffect(() => {
+    setListWidth((w) => Math.min(w, listMaxWidth))
+  }, [listMaxWidth, setListWidth])
   const [calendarColWidth, setCalendarColWidth] = useResizableWidth({
     storageKey: 'mailclient.inboxCalendarColumnWidth',
     defaultWidth: 348,

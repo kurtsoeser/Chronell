@@ -1,5 +1,5 @@
 /**
- * In-Memory-Cache (TTL) für die Kalender-Zeitliste — sofortige Anzeige nach Modulwechsel.
+ * In-Memory-Cache (TTL) für Kalender-Zeitliste und Gantt-Zeitleiste.
  */
 import { create } from 'zustand'
 import type { ConnectedAccount } from '@shared/types'
@@ -7,6 +7,8 @@ import type { WorkItem } from '@shared/work-item'
 
 /** Gleiche TTL wie Posteingangs-Agenda (Modulwechsel). */
 export const MEGA_TIMELINE_STALE_MS = 120_000
+
+const MAX_CACHE_ENTRIES = 16
 
 export function buildMegaTimelineCacheKey(
   taskAccounts: ConnectedAccount[],
@@ -21,7 +23,7 @@ export function buildMegaTimelineCacheKey(
   return `${ids}\n${rangeStart.toISOString()}\n${rangeEnd.toISOString()}\n${includeCompletedMail ? 1 : 0}`
 }
 
-interface MegaTimelineCacheEntry {
+export interface MegaTimelineCacheEntry {
   key: string
   items: WorkItem[]
   hiddenMailMessageIds: number[]
@@ -29,7 +31,7 @@ interface MegaTimelineCacheEntry {
 }
 
 interface MegaTimelineCacheState {
-  entry: MegaTimelineCacheEntry | null
+  entries: Map<string, MegaTimelineCacheEntry>
 
   getFreshEntry: (key: string) => MegaTimelineCacheEntry | null
   getStaleEntry: (key: string) => MegaTimelineCacheEntry | null
@@ -41,34 +43,43 @@ interface MegaTimelineCacheState {
   clear: () => void
 }
 
+function evictOldest(entries: Map<string, MegaTimelineCacheEntry>): void {
+  while (entries.size > MAX_CACHE_ENTRIES) {
+    const oldest = entries.keys().next().value
+    if (oldest == null) break
+    entries.delete(oldest)
+  }
+}
+
 export const useMegaTimelineCacheStore = create<MegaTimelineCacheState>((set, get) => ({
-  entry: null,
+  entries: new Map(),
 
   getFreshEntry(key: string): MegaTimelineCacheEntry | null {
-    const { entry } = get()
-    if (!entry || entry.key !== key) return null
+    const entry = get().entries.get(key)
+    if (!entry) return null
     if (Date.now() - entry.fetchedAt >= MEGA_TIMELINE_STALE_MS) return null
     return entry
   },
 
   getStaleEntry(key: string): MegaTimelineCacheEntry | null {
-    const { entry } = get()
-    if (!entry || entry.key !== key || entry.items.length === 0) return null
+    const entry = get().entries.get(key)
+    if (!entry || entry.items.length === 0) return null
     return entry
   },
 
   setEntry(key: string, items: WorkItem[], hiddenMailMessageIds: number[]): void {
-    set({
-      entry: {
-        key,
-        items,
-        hiddenMailMessageIds,
-        fetchedAt: Date.now()
-      }
+    const entries = new Map(get().entries)
+    entries.set(key, {
+      key,
+      items,
+      hiddenMailMessageIds,
+      fetchedAt: Date.now()
     })
+    evictOldest(entries)
+    set({ entries })
   },
 
   clear(): void {
-    set({ entry: null })
+    set({ entries: new Map() })
   }
 }))

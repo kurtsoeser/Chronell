@@ -1,24 +1,7 @@
 import type { TodoDueKindList } from '@shared/types'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
-import {
-  AlertTriangle,
-  Calendar,
-  Sunrise,
-  CalendarRange,
-  CalendarClock,
-  CheckCircle2,
-  type LucideIcon
-} from 'lucide-react'
-
-const ICONS: Record<TodoDueKindList, LucideIcon> = {
-  overdue: AlertTriangle,
-  today: Calendar,
-  tomorrow: Sunrise,
-  this_week: CalendarRange,
-  later: CalendarClock,
-  done: CheckCircle2
-}
+import { TODO_DUE_BUCKET_ICONS } from '@/lib/todo-due-bucket-icons'
 
 interface Props {
   kind: TodoDueKindList
@@ -32,7 +15,7 @@ interface Props {
  */
 export function TodoDueBucketBadge({ kind, compact = false, className }: Props): JSX.Element {
   const { t } = useTranslation()
-  const Icon = ICONS[kind]
+  const Icon = TODO_DUE_BUCKET_ICONS[kind]
   const overdue = kind === 'overdue'
   const title = t(`mail.todoBucket.${kind}`)
   const shortLabel = t(`mail.todoNav.${kind}`)

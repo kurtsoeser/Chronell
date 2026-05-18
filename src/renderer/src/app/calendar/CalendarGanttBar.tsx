@@ -1,3 +1,4 @@
+import { useCallback, useState } from 'react'
 import { Calendar, Mail, Square } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { ConnectedAccount } from '@shared/types'
@@ -7,9 +8,13 @@ import { tailwindAccountBgToHex } from '@/lib/calendar-event-chip-style'
 import { resolvedAccountColorCss } from '@/lib/avatar-color'
 import { calendarEventIconIsExplicit, resolveCalendarEventIcon } from '@/lib/calendar-event-icons'
 import { resolveEntityIconColor } from '@shared/entity-icon-color'
-import type { GanttPlacedBar } from '@/app/calendar/calendar-gantt-layout'
-
-const ROW_HEIGHT = 32
+import {
+  GANTT_ROW_HEIGHT,
+  ganttBarTopPx,
+  type GanttPlacedBar
+} from '@/app/calendar/calendar-gantt-layout'
+import { formatGanttBarTooltip } from '@/app/calendar/gantt-bar-tooltip'
+import { GanttBarHoverTooltip } from '@/components/GanttBarHoverTooltip'
 
 function accountFillHex(account?: ConnectedAccount): string | null {
   if (!account) return null
@@ -83,6 +88,7 @@ function barColors(item: WorkItem, account?: ConnectedAccount): {
 
 export interface CalendarGanttBarProps {
   bar: GanttPlacedBar
+  allDayRowCount: number
   account?: ConnectedAccount
   selected: boolean
   onSelect: () => void
@@ -93,6 +99,7 @@ export interface CalendarGanttBarProps {
 
 export function CalendarGanttBar({
   bar,
+  allDayRowCount,
   account,
   selected,
   onSelect,
@@ -100,8 +107,20 @@ export function CalendarGanttBar({
   onPointerDownResizeStart,
   onPointerDownResizeEnd
 }: CalendarGanttBarProps): JSX.Element {
-  const { t } = useTranslation()
-  const { item, leftPx, widthPx, row, editable } = bar
+  const { t, i18n } = useTranslation()
+  const { item, interval, leftPx, widthPx, editable } = bar
+  const [hoverTip, setHoverTip] = useState<{ x: number; y: number } | null>(null)
+  const tooltipText = formatGanttBarTooltip(item, interval, i18n.language)
+
+  const showTip = useCallback((e: React.MouseEvent): void => {
+    setHoverTip({ x: e.clientX, y: e.clientY })
+  }, [])
+  const moveTip = useCallback((e: React.MouseEvent): void => {
+    setHoverTip({ x: e.clientX, y: e.clientY })
+  }, [])
+  const hideTip = useCallback((): void => {
+    setHoverTip(null)
+  }, [])
   const colors = barColors(item, account)
   const KindIcon = kindIcon(item)
 
@@ -117,26 +136,32 @@ export function CalendarGanttBar({
   const DisplayIcon = EventIcon ?? KindIcon
 
   return (
+    <>
     <button
       type="button"
       className={cn(
         'calendar-gantt-bar group absolute flex min-w-[6px] items-center gap-1 overflow-hidden rounded-md border border-black/10 px-1.5 py-0.5 text-left text-[11px] font-medium shadow-sm transition-shadow',
+        bar.lane === 'allDay' && 'calendar-gantt-bar--all-day',
         selected && 'ring-2 ring-primary ring-offset-1 ring-offset-background',
         editable ? 'cursor-grab active:cursor-grabbing' : 'cursor-default opacity-90'
       )}
       style={{
         left: leftPx,
         width: widthPx,
-        top: 12 + row * ROW_HEIGHT,
-        height: ROW_HEIGHT - 6,
+        top: ganttBarTopPx(bar, allDayRowCount),
+        height: GANTT_ROW_HEIGHT - 6,
         ...colors
       }}
-      title={item.title}
+      aria-label={tooltipText}
+      onMouseEnter={showTip}
+      onMouseMove={moveTip}
+      onMouseLeave={hideTip}
       onClick={(e): void => {
         e.stopPropagation()
         onSelect()
       }}
       onPointerDown={(e): void => {
+        hideTip()
         if (!editable) return
         const target = e.target as HTMLElement
         if (target.closest('[data-gantt-resize]')) return
@@ -176,7 +201,14 @@ export function CalendarGanttBar({
         <span className="sr-only">{t('calendar.gantt.readOnlyBar')}</span>
       ) : null}
     </button>
+    <GanttBarHoverTooltip
+      text={tooltipText}
+      anchorX={hoverTip?.x ?? 0}
+      anchorY={hoverTip?.y ?? 0}
+      visible={hoverTip != null}
+    />
+    </>
   )
 }
 
-export { ROW_HEIGHT as GANTT_ROW_HEIGHT }
+export { GANTT_ROW_HEIGHT }

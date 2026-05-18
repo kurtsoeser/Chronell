@@ -7,6 +7,7 @@ import {
   useState,
   type MutableRefObject
 } from 'react'
+import { startOfDay } from 'date-fns'
 import { ChevronDown, Loader2, Plus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { ConnectedAccount } from '@shared/types'
@@ -17,11 +18,17 @@ import { loadMegaWorkItems } from '@/app/work-items/load-mega-work-items'
 import { applyCalendarCompletionState } from '@/app/calendar/calendar-event-completion'
 import { megaFetchRangeWithBuffer } from '@/app/work-items/load-master-work-items-for-range'
 import {
+  buildMegaTimelineCacheKey,
+  useMegaTimelineCacheStore
+} from '@/stores/mega-timeline-cache'
+import type { TimeGridSlotMinutes } from '@/app/calendar/calendar-shell-storage'
+import {
   buildGanttHeaderColumns,
-  GANTT_SCALE_CONFIG,
   GANTT_TIMELINE_SCALES,
+  ganttColumnWidthPx,
   ganttNowLineX,
   ganttRangeTitle,
+  ganttSnapMs,
   ganttTimelineWidthPx,
   ganttVisibleRange,
   ganttXToMs,
@@ -30,7 +37,9 @@ import {
   type GanttTimelineScale
 } from '@/app/calendar/calendar-gantt-scale'
 import {
+  GANTT_LANE_GAP,
   ganttBarAreaHeightPx,
+  ganttTimedBandTopPx,
   intervalFromGanttDrag,
   layoutGanttBars,
   type GanttBarInterval,
@@ -40,6 +49,16 @@ import { CalendarGanttBar } from '@/app/calendar/CalendarGanttBar'
 import '@/app/calendar/calendar-gantt-timeline.css'
 
 type DragMode = 'move' | 'resize-start' | 'resize-end'
+
+function GanttNowLine({ leftPx, variant }: { leftPx: number; variant: 'header' | 'body' }): JSX.Element {
+  return (
+    <div
+      className={cn('calendar-gantt-now-line', variant === 'header' && 'calendar-gantt-now-line--header')}
+      style={{ left: leftPx }}
+      aria-hidden
+    />
+  )
+}
 
 interface ActiveDrag {
   mode: DragMode
@@ -66,6 +85,8 @@ export interface CalendarGanttTimelineViewProps {
   scrollToTodaySignal?: number
   onNewEventClick?: () => void
   newEventDisabled?: boolean
+  /** Raster in der Stunden-Zeitleiste (Strg+Umschalt+. / ,). */
+  hourSlotMinutes?: TimeGridSlotMinutes
 }
 
 export function CalendarGanttTimelineView({
@@ -82,7 +103,8 @@ export function CalendarGanttTimelineView({
   onLoadingChange,
   scrollToTodaySignal = 0,
   onNewEventClick,
-  newEventDisabled
+  newEventDisabled,
+  hourSlotMinutes = 15
 }: CalendarGanttTimelineViewProps): JSX.Element {
   const { t, i18n } = useTranslation()
   const storeAccounts = useAccountsStore((s) => s.accounts)
@@ -99,6 +121,19 @@ export function CalendarGanttTimelineView({
   const scrollRef = useRef<HTMLDivElement>(null)
   const [dragPreview, setDragPreview] = useState<GanttPlacedBar | null>(null)
   const activeDragRef = useRef<ActiveDrag | null>(null)
+  const onLoadingChangeRef = useRef(onLoadingChange)
+  onLoadingChangeRef.current = onLoadingChange
+  const lastReloadSignalRef = useRef<number | undefined>(undefined)
+
+  const includeCompletedMail = true
+  const taskAccountIdsKey = useMemo(
+    () =>
+      taskAccounts
+        .map((a) => a.id)
+        .sort()
+        .join('|'),
+    [taskAccounts]
+  )
 
   const { start: rangeStart, end: rangeEnd } = useMemo(
     () => ganttVisibleRange(anchor, scale),
@@ -108,24 +143,63 @@ export function CalendarGanttTimelineView({
   const rangeEndMs = rangeEnd.getTime()
 
   const columns = useMemo(
-    () => buildGanttHeaderColumns(rangeStart, rangeEnd, scale, i18n.language),
-    [rangeStart, rangeEnd, scale, i18n.language]
+    () =>
+      buildGanttHeaderColumns(
+        rangeStart,
+        rangeEnd,
+        scale,
+        i18n.language,
+        new Date(),
+        hourSlotMinutes
+      ),
+    [rangeStart, rangeEnd, scale, i18n.language, hourSlotMinutes]
+  )
+  const colWidthPx = useMemo(
+    () => ganttColumnWidthPx(scale, hourSlotMinutes),
+    [scale, hourSlotMinutes]
   )
   const timelineWidthPx = useMemo(
-    () => ganttTimelineWidthPx(columns, scale),
-    [columns, scale]
+    () => ganttTimelineWidthPx(columns, colWidthPx),
+    [columns, colWidthPx]
   )
-  const colWidthPx = GANTT_SCALE_CONFIG[scale].columnWidthPx
-  const snapMs = GANTT_SCALE_CONFIG[scale].snapMs
+  const snapMs = useMemo(() => ganttSnapMs(scale, hourSlotMinutes), [scale, hourSlotMinutes])
 
-  const placedBars = useMemo(() => {
+  const ganttLayout = useMemo(() => {
     return layoutGanttBars(items, rangeStartMs, rangeEndMs, timelineWidthPx)
   }, [items, rangeStartMs, rangeEndMs, timelineWidthPx])
 
-  const displayBars = dragPreview ? placedBars.map((b) => (b.item.stableKey === dragPreview.item.stableKey ? dragPreview : b)) : placedBars
-  const rowCount = displayBars.reduce((m, b) => Math.max(m, b.row + 1), 0)
-  const bodyHeightPx = ganttBarAreaHeightPx(rowCount)
-  const nowLineX = ganttNowLineX(new Date(), rangeStart, rangeEnd, timelineWidthPx)
+  const { allDayRowCount, timedRowCount } = ganttLayout
+  const placedBars = ganttLayout.bars
+
+  const displayBars = dragPreview
+    ? placedBars.map((b) =>
+        b.item.stableKey === dragPreview.item.stableKey ? dragPreview : b
+      )
+    : placedBars
+  const bodyHeightPx = ganttBarAreaHeightPx(allDayRowCount, timedRowCount)
+  const timedBandTopPx = ganttTimedBandTopPx(allDayRowCount)
+
+  const [nowMs, setNowMs] = useState(() => Date.now())
+  useEffect(() => {
+    const tick = (): void => setNowMs(Date.now())
+    const id = window.setInterval(tick, 60_000)
+    const onVis = (): void => {
+      if (document.visibilityState === 'visible') tick()
+    }
+    document.addEventListener('visibilitychange', onVis)
+    return (): void => {
+      window.clearInterval(id)
+      document.removeEventListener('visibilitychange', onVis)
+    }
+  }, [])
+
+  const nowLineX = useMemo(
+    () => ganttNowLineX(new Date(nowMs), rangeStart, rangeEnd, timelineWidthPx),
+    [nowMs, rangeStart, rangeEnd, timelineWidthPx]
+  )
+  const showNowLine = nowLineX != null
+  const isHourViewToday =
+    scale === 'hour' && startOfDay(anchor).getTime() === startOfDay(new Date()).getTime()
 
   const accountById = useMemo(() => new Map(accounts.map((a) => [a.id, a] as const)), [accounts])
 
@@ -133,47 +207,123 @@ export function CalendarGanttTimelineView({
     onRangeTitleChange(ganttRangeTitle(rangeStart, rangeEnd, i18n.language))
   }, [rangeStart, rangeEnd, i18n.language, onRangeTitleChange])
 
-  const loadItems = useCallback(async (): Promise<void> => {
-    const { fetchStart, fetchEnd } = megaFetchRangeWithBuffer(rangeStart, rangeEnd)
-    setLoading(true)
-    onLoadingChange?.(true)
-    setError(null)
-    try {
+  const fetchRange = useCallback(
+    async (
+      fetchStart: Date,
+      fetchEnd: Date,
+      fetchOpts?: { cacheOnlyTasks?: boolean }
+    ): Promise<WorkItem[]> => {
       const result = await loadMegaWorkItems(taskAccounts, taskAccounts, {
         rangeStart: fetchStart,
         rangeEnd: fetchEnd,
-        includeCompletedMail: true
+        includeCompletedMail,
+        cacheOnlyTasks: fetchOpts?.cacheOnlyTasks
       })
-      setItems(applyCalendarCompletionState(result.items))
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
-      setItems([])
-    } finally {
-      setLoading(false)
-      onLoadingChange?.(false)
-    }
-  }, [rangeStart, rangeEnd, taskAccounts, onLoadingChange])
+      const key = buildMegaTimelineCacheKey(
+        taskAccounts,
+        fetchStart,
+        fetchEnd,
+        includeCompletedMail
+      )
+      useMegaTimelineCacheStore.getState().setEntry(key, result.items, result.hiddenMailMessageIds)
+      return applyCalendarCompletionState(result.items)
+    },
+    [taskAccounts]
+  )
+
+  const loadItems = useCallback(
+    async (opts?: { force?: boolean; silent?: boolean }): Promise<void> => {
+      const force = opts?.force === true
+      const silent = opts?.silent === true
+      const { fetchStart, fetchEnd } = megaFetchRangeWithBuffer(rangeStart, rangeEnd)
+      const cacheKey = buildMegaTimelineCacheKey(
+        taskAccounts,
+        fetchStart,
+        fetchEnd,
+        includeCompletedMail
+      )
+      const { getFreshEntry, getStaleEntry } = useMegaTimelineCacheStore.getState()
+
+      const fresh = !force ? getFreshEntry(cacheKey) : null
+      if (fresh) {
+        setItems(applyCalendarCompletionState(fresh.items))
+        return
+      }
+
+      const stale = !force ? getStaleEntry(cacheKey) : null
+      if (stale) {
+        setItems(applyCalendarCompletionState(stale.items))
+      } else if (!silent) {
+        setLoading(true)
+        onLoadingChangeRef.current?.(true)
+      }
+
+      setError(null)
+      try {
+        const useFastTaskCache = !force && !silent && !stale
+        if (useFastTaskCache) {
+          const fast = await fetchRange(fetchStart, fetchEnd, { cacheOnlyTasks: true })
+          setItems(fast)
+          if (!silent) {
+            setLoading(false)
+            onLoadingChangeRef.current?.(false)
+          }
+        }
+        const loaded = await fetchRange(fetchStart, fetchEnd, { cacheOnlyTasks: false })
+        setItems(loaded)
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e))
+        if (!silent && !stale) setItems([])
+      } finally {
+        if (!silent) {
+          setLoading(false)
+          onLoadingChangeRef.current?.(false)
+        }
+      }
+    },
+    [rangeStart, rangeEnd, taskAccounts, fetchRange]
+  )
 
   useEffect(() => {
     void loadItems()
-  }, [loadItems, reloadSignal])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Bereich/Konten
+  }, [rangeStartMs, rangeEndMs, scale, taskAccountIdsKey])
 
   useEffect(() => {
     if (!reloadRef) return
     reloadRef.current = (): void => {
-      void loadItems()
+      void loadItems({ force: true })
     }
     return (): void => {
       reloadRef.current = null
     }
   }, [reloadRef, loadItems])
 
+  useEffect(() => {
+    if (reloadSignal === undefined) return
+    if (lastReloadSignalRef.current === undefined) {
+      lastReloadSignalRef.current = reloadSignal
+      return
+    }
+    if (reloadSignal === lastReloadSignalRef.current) return
+    lastReloadSignalRef.current = reloadSignal
+    void loadItems({ silent: true, force: true })
+  }, [reloadSignal, loadItems])
+
+  useEffect(() => {
+    useMegaTimelineCacheStore.getState().clear()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Kontowechsel
+  }, [taskAccountIdsKey])
+
   useLayoutEffect(() => {
-    if (scrollToTodaySignal <= 0 || !scrollRef.current || nowLineX == null) return
+    if (!scrollRef.current || nowLineX == null) return
+    const shouldScroll =
+      scrollToTodaySignal > 0 || (scale === 'hour' && isHourViewToday)
+    if (!shouldScroll) return
     const el = scrollRef.current
     const target = Math.max(0, nowLineX - el.clientWidth * 0.3)
     el.scrollLeft = target
-  }, [scrollToTodaySignal, nowLineX, scale])
+  }, [scrollToTodaySignal, nowLineX, scale, isHourViewToday, rangeStartMs])
 
   useEffect(() => {
     if (!scaleMenuOpen) return
@@ -332,7 +482,7 @@ export function CalendarGanttTimelineView({
   const scaleLabel = (s: GanttTimelineScale): string => t(`calendar.gantt.scales.${s}`)
 
   return (
-    <div className="calendar-gantt-root">
+    <div className={cn('calendar-gantt-root', scale === 'hour' && 'calendar-gantt-root--hour')}>
       <div className="calendar-gantt-toolbar">
         <div className="relative" ref={scaleMenuRef}>
           <button
@@ -392,6 +542,7 @@ export function CalendarGanttTimelineView({
 
       <div className="calendar-gantt-scroll" ref={scrollRef}>
         <div className="calendar-gantt-header-sticky" style={{ width: timelineWidthPx }}>
+          {showNowLine ? <GanttNowLine leftPx={nowLineX} variant="header" /> : null}
           {columns.some((c) => c.monthLabel) ? (
             <div className="calendar-gantt-header-row">
               {columns.map((col) => (
@@ -405,6 +556,22 @@ export function CalendarGanttTimelineView({
               ))}
             </div>
           ) : null}
+          {columns.some((c) => c.dayLabel) ? (
+            <div className="calendar-gantt-header-row">
+              {columns.map((col) => (
+                <div
+                  key={`d-${col.key}`}
+                  className={cn(
+                    'calendar-gantt-header-day',
+                    col.isToday && 'calendar-gantt-header-day--today'
+                  )}
+                  style={{ width: colWidthPx }}
+                >
+                  {col.dayLabel ?? ''}
+                </div>
+              ))}
+            </div>
+          ) : null}
           <div className="calendar-gantt-header-row">
             {columns.map((col) => (
               <div
@@ -412,33 +579,61 @@ export function CalendarGanttTimelineView({
                 className={cn(
                   'calendar-gantt-header-col',
                   col.isWeekend && 'calendar-gantt-header-col--weekend',
-                  col.isToday && 'calendar-gantt-header-col--today'
+                  scale === 'hour' && col.isHourBoundary && 'calendar-gantt-header-col--hour',
+                  scale === 'hour' && col.isNowSlot && 'calendar-gantt-header-col--now',
+                  scale !== 'hour' && col.isToday && 'calendar-gantt-header-col--today',
+                  scale === 'month' && 'calendar-gantt-header-col--month'
                 )}
                 style={{ width: colWidthPx }}
               >
                 {col.secondary ? (
                   <span className="calendar-gantt-header-secondary">{col.secondary}</span>
                 ) : null}
-                <span className="calendar-gantt-header-primary">{col.primary}</span>
+                {col.primary ? (
+                  <span className="calendar-gantt-header-primary">{col.primary}</span>
+                ) : null}
               </div>
             ))}
           </div>
         </div>
 
         <div className="calendar-gantt-body" style={{ width: timelineWidthPx, height: bodyHeightPx }}>
+          {allDayRowCount > 0 ? (
+            <>
+              <div
+                className="calendar-gantt-all-day-band"
+                style={{ height: timedBandTopPx - 4 }}
+                aria-hidden
+              />
+              <div className="calendar-gantt-all-day-label">
+                {t('calendar.gantt.allDayLane')}
+              </div>
+            </>
+          ) : null}
+          {allDayRowCount > 0 ? (
+            <div
+              className="calendar-gantt-lane-divider"
+              style={{ top: timedBandTopPx - GANTT_LANE_GAP / 2 }}
+              aria-hidden
+            />
+          ) : null}
           {columns.map((col, i) => (
             <div
               key={`g-${col.key}`}
               className={cn(
                 'calendar-gantt-grid-col',
-                col.isWeekend && 'calendar-gantt-grid-col--weekend'
+                col.isWeekend && 'calendar-gantt-grid-col--weekend',
+                scale === 'hour' &&
+                  col.isHourBoundary &&
+                  'calendar-gantt-grid-col--hour',
+                scale === 'hour' &&
+                  !col.isHourBoundary &&
+                  'calendar-gantt-grid-col--subhour'
               )}
               style={{ left: i * colWidthPx, width: colWidthPx }}
             />
           ))}
-          {nowLineX != null ? (
-            <div className="calendar-gantt-now-line" style={{ left: nowLineX }} aria-hidden />
-          ) : null}
+          {showNowLine ? <GanttNowLine leftPx={nowLineX} variant="body" /> : null}
           <div className="calendar-gantt-bar-layer" style={{ height: bodyHeightPx }}>
             {displayBars.length === 0 && !loading ? (
               <p className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground">
@@ -449,6 +644,7 @@ export function CalendarGanttTimelineView({
               <CalendarGanttBar
                 key={bar.item.stableKey}
                 bar={bar}
+                allDayRowCount={allDayRowCount}
                 account={accountById.get(bar.item.accountId)}
                 selected={selectedKey === bar.item.stableKey}
                 onSelect={(): void => onSelect(bar.item)}

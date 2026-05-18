@@ -1,16 +1,17 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { CALENDAR_KIND_MAIL_TODO } from '@/app/calendar/mail-todo-calendar'
 import {
   removeCloudTaskCalendarEventsByTaskKey,
   removeDuplicateFullCalendarEventsById,
+  removeMailTodoCalendarEventsByMessageId,
   scheduleRemoveDuplicateFullCalendarEventsById
 } from '@/app/calendar/calendar-fc-event-source'
 
 describe('removeDuplicateFullCalendarEventsById', () => {
   it('entfernt Duplikate mit gleicher id, behält das erste', () => {
-    const removed: string[] = []
-    const first = { id: 'ev-1', remove: vi.fn() }
-    const second = { id: 'ev-1', remove: vi.fn(() => removed.push('ev-1-b')) }
-    const third = { id: 'ev-2', remove: vi.fn() }
+    const first = { id: 'ev-1', allDay: false, remove: vi.fn() }
+    const second = { id: 'ev-1', allDay: false, remove: vi.fn() }
+    const third = { id: 'ev-2', allDay: false, remove: vi.fn() }
     const api = {
       getEvents: () => [first, second, third]
     }
@@ -18,6 +19,52 @@ describe('removeDuplicateFullCalendarEventsById', () => {
     expect(first.remove).not.toHaveBeenCalled()
     expect(second.remove).toHaveBeenCalledOnce()
     expect(third.remove).not.toHaveBeenCalled()
+  })
+
+  it('bevorzugt zeitgebundenes Event gegenüber Ganztag bei gleicher id', () => {
+    const allDay = { id: 'mail-todo:1', allDay: true, remove: vi.fn() }
+    const timed = { id: 'mail-todo:1', allDay: false, remove: vi.fn() }
+    const api = { getEvents: () => [allDay, timed] }
+    removeDuplicateFullCalendarEventsById(api as never, ['mail-todo:1'])
+    expect(allDay.remove).toHaveBeenCalledOnce()
+    expect(timed.remove).not.toHaveBeenCalled()
+  })
+})
+
+describe('removeMailTodoCalendarEventsByMessageId', () => {
+  it('entfernt alle Mail-ToDo-Events einer Message ausser keepEventId', () => {
+    const staleAllDay = {
+      id: 'mail-todo:99',
+      allDay: true,
+      extendedProps: {
+        calendarKind: CALENDAR_KIND_MAIL_TODO,
+        mailMessage: { id: 7 }
+      },
+      remove: vi.fn()
+    }
+    const timed = {
+      id: 'mail-todo:99',
+      allDay: false,
+      extendedProps: {
+        calendarKind: CALENDAR_KIND_MAIL_TODO,
+        mailMessage: { id: 7 }
+      },
+      remove: vi.fn()
+    }
+    const other = {
+      id: 'mail-todo:100',
+      allDay: false,
+      extendedProps: {
+        calendarKind: CALENDAR_KIND_MAIL_TODO,
+        mailMessage: { id: 8 }
+      },
+      remove: vi.fn()
+    }
+    const api = { getEvents: () => [staleAllDay, timed, other] }
+    removeMailTodoCalendarEventsByMessageId(api as never, 7, 'mail-todo:99')
+    expect(staleAllDay.remove).toHaveBeenCalledOnce()
+    expect(timed.remove).not.toHaveBeenCalled()
+    expect(other.remove).not.toHaveBeenCalled()
   })
 })
 

@@ -30,6 +30,7 @@ import { useAccountsStore } from '@/stores/accounts'
 import type { MailTemplate } from '@shared/types'
 import { sanitizeComposeHtmlFragment } from '@/lib/sanitize-compose-html'
 import { applyTemplateVariables } from '@/lib/template-variables'
+import { useComposeAutoSave } from '@/hooks/useComposeAutoSave'
 
 const MAX_ATTACHMENTS_TOTAL_BYTES = 24 * 1024 * 1024 // 24 MB
 const DEFAULT_WINDOW_WIDTH = 760
@@ -41,7 +42,10 @@ const WINDOW_MARGIN = 16
 export function ComposerStack(): JSX.Element | null {
   const drafts = useComposeStore((s) => s.drafts)
   const activeId = useComposeStore((s) => s.activeId)
-  const floatingDrafts = useMemo(() => drafts.filter((d) => !d.embedInDashboard), [drafts])
+  const floatingDrafts = useMemo(
+    () => drafts.filter((d) => !d.embedInDashboard && !d.embedInReadingPane),
+    [drafts]
+  )
   if (floatingDrafts.length === 0) return null
 
   return (
@@ -110,6 +114,8 @@ function ComposerWindow({
   }, [minimized, draft.id])
   const account = accounts.find((a) => a.id === draft.accountId) ?? accounts[0]
   const isMicrosoft = account?.provider === 'microsoft'
+
+  useComposeAutoSave(draft.id, !minimized)
 
   const attachmentsTotal = draft.attachments.reduce((s, a) => s + a.size, 0)
   const windowState = draft.windowState ?? getInitialWindowState(index)
@@ -325,6 +331,26 @@ function ComposerWindow({
         <span className="min-w-0 flex-1 truncate px-1 font-medium">
           {draft.subject || titleForMode(draft.mode)}
         </span>
+        <button
+          type="button"
+          onClick={(e): void => {
+            e.stopPropagation()
+            void saveRemoteDraft(draft.id)
+          }}
+          disabled={draft.busy}
+          title={
+            draft.savedRemoteDraftId
+              ? 'Entwurf am Server aktualisieren (Ordner Entwürfe)'
+              : 'Entwurf im Server-Ordner «Entwürfe» speichern'
+          }
+          className={cn(
+            'flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground hover:bg-secondary hover:text-foreground',
+            draft.busy && 'pointer-events-none opacity-50'
+          )}
+        >
+          <Save className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">Entwurf</span>
+        </button>
         <div className="relative shrink-0" ref={sendOptionsRef}>
           <button
             type="button"
@@ -455,7 +481,9 @@ function ComposerWindow({
         )}
       </div>
 
+      <div className="compose-editor-surface">
       <RecipientTokenField
+        inEditorSurface
         label="An:"
         accountId={draft.accountId}
         value={draft.to}
@@ -466,12 +494,14 @@ function ComposerWindow({
       {draft.showCcBcc && (
         <>
           <RecipientTokenField
+            inEditorSurface
             label="Cc:"
             accountId={draft.accountId}
             value={draft.cc}
             onChange={(v): void => update(draft.id, { cc: v })}
           />
           <RecipientTokenField
+            inEditorSurface
             label="Bcc:"
             accountId={draft.accountId}
             value={draft.bcc}
@@ -480,7 +510,7 @@ function ComposerWindow({
         </>
       )}
 
-      <div className="flex items-center border-b border-border/60 px-4 py-2">
+      <div className="flex items-center border-b border-[hsl(var(--compose-surface-border)/0.55)] px-3 py-2">
         <span className="w-12 shrink-0 text-xs text-muted-foreground">Betreff:</span>
         <input
           type="text"
@@ -489,6 +519,39 @@ function ComposerWindow({
           placeholder="(Kein Betreff)"
           className="flex-1 bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground"
         />
+      </div>
+
+      <TipTapBody
+        inEditorSurface
+        className="min-h-0 flex-1 border-t-0"
+        valueHtml={draft.prependRichHtml}
+        onChangeHtml={(v): void => update(draft.id, { prependRichHtml: v })}
+        autoFocus
+        fillHeight
+      />
+
+      <div className="shrink-0 border-t border-[hsl(var(--compose-surface-border)/0.5)] bg-[hsl(var(--compose-surface-muted))]">
+        <div className="flex flex-wrap items-start justify-between gap-2 px-3 pt-2">
+          <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            Signatur / Footer
+          </div>
+          <SignatureTemplateControls
+            accountId={draft.accountId}
+            signatureRichHtml={draft.signatureRichHtml}
+            activeTemplateId={draft.signatureTemplateId ?? null}
+            onSignatureHtmlChange={(html): void => update(draft.id, { signatureRichHtml: html })}
+            onActiveTemplateIdChange={(id): void => update(draft.id, { signatureTemplateId: id })}
+          />
+        </div>
+        <TipTapBody
+          inEditorSurface
+          variant="compact"
+          fillHeight={false}
+          className="border-t-0"
+          valueHtml={draft.signatureRichHtml}
+          onChangeHtml={(v): void => update(draft.id, { signatureRichHtml: v })}
+        />
+      </div>
       </div>
 
       {(draft.attachments.length > 0 ||
@@ -528,32 +591,6 @@ function ComposerWindow({
           </div>
         </div>
       )}
-
-      <TipTapBody
-        valueHtml={draft.prependRichHtml}
-        onChangeHtml={(v): void => update(draft.id, { prependRichHtml: v })}
-        autoFocus
-      />
-
-      <div className="shrink-0 border-t border-border/50 bg-secondary/10">
-        <div className="flex flex-wrap items-start justify-between gap-2 px-4 pt-2">
-          <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-            Signatur / Footer
-          </div>
-          <SignatureTemplateControls
-            accountId={draft.accountId}
-            signatureRichHtml={draft.signatureRichHtml}
-            activeTemplateId={draft.signatureTemplateId ?? null}
-            onSignatureHtmlChange={(html): void => update(draft.id, { signatureRichHtml: html })}
-            onActiveTemplateIdChange={(id): void => update(draft.id, { signatureTemplateId: id })}
-          />
-        </div>
-        <TipTapBody
-          variant="compact"
-          valueHtml={draft.signatureRichHtml}
-          onChangeHtml={(v): void => update(draft.id, { signatureRichHtml: v })}
-        />
-      </div>
 
       {draft.quotedHtml && (
         <div className="border-t border-border/60 bg-background/40 px-4 py-2">
@@ -613,27 +650,6 @@ function ComposerWindow({
       )}
 
       <div className="flex shrink-0 items-center gap-2 border-t border-border px-4 py-2">
-        <button
-          type="button"
-          onClick={(): void => {
-            void saveRemoteDraft(draft.id)
-          }}
-          disabled={draft.busy}
-          title={
-            draft.savedRemoteDraftId
-              ? 'Entwurf am Server aktualisieren (Ordner Entwürfe)'
-              : 'Entwurf im Server-Ordner «Entwürfe» speichern'
-          }
-          className={cn(
-            'flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium transition-colors',
-            draft.busy
-              ? 'text-muted-foreground opacity-50'
-              : 'text-foreground hover:bg-secondary'
-          )}
-        >
-          <Save className="h-3.5 w-3.5" />
-          Entwurf speichern
-        </button>
         <button
           type="button"
           onClick={(): void => {
