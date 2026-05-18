@@ -136,7 +136,12 @@ function Read-VersionBumpChoice {
   Write-Host ''
 
   while ($true) {
-    $answer = (Read-Host 'Auswahl [J/n]').Trim()
+    $raw = Read-Host 'Auswahl [J/n]'
+    if ($null -eq $raw) {
+      Write-Host 'Keine Eingabe möglich (nicht-interaktiv): gleiche Version wird neu gebaut.' -ForegroundColor DarkGray
+      return $false
+    }
+    $answer = $raw.Trim()
     if ($answer -eq '' -or $answer -match '^(j|ja|y|yes)$') {
       return $true
     }

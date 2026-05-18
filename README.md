@@ -1,250 +1,310 @@
-# MailClient
+# Chronell
 
-> **Chronell** — Marketing-Homepage: **[kurtsoeser.github.io/Chronell](https://kurtsoeser.github.io/Chronell/)** (nach Aktivierung von GitHub Pages, siehe [`docs/DEPLOY.md`](docs/DEPLOY.md)). Quellen der Landing Page: Ordner [`docs/`](docs/).
+**Chronell** ist eine Desktop-Arbeitszentrale für Windows 11 — kein klassischer E-Mail-Client zum bloßen Lesen von Listen, sondern ein System, **Zeit und Handlung** zu steuern: Mail-Triage, Aufgaben, Kalender, Microsoft Bookings und mehr in **einem Fenster**, mit **Microsoft 365** und **Google** kombiniert und **lokaler SQLite-Datenhaltung** auf deinem Rechner.
 
-**Schlanker, lokaler Mail- und Arbeitsplatz-Client für Windows 11** — gebaut für Menschen, die mit **mehreren Konten** (Microsoft 365 und Gmail) arbeiten und E-Mail nicht nur lesen, sondern in **klare nächste Schritte** verwandeln wollen: ToDos, Snooze, Wiedervorlage, QuickSteps, Workflow-Board und Regeln — alles mit **lokaler SQLite-Datenhaltung** und **Volltextsuche** auf deinem Rechner.
+| | |
+|---|---|
+| **Homepage & Download** | [kurtsoeser.github.io/Chronell](https://kurtsoeser.github.io/Chronell/) |
+| **Aktuelle Version** | **0.9.13** (18. Mai 2026) |
+| **Windows-Installer** | [GitHub Release](https://github.com/kurtsoeser/Chronell/releases/latest) oder [direkt von Pages](https://kurtsoeser.github.io/Chronell/release/latest/Chronell-setup.exe) |
+| **Technischer Repo-Name** | MailClient · **App-ID:** `at.kurtsoeser.chronell` |
+| **Ausführliches Protokoll** | [`docs/FUNKTIONSPROTOKOLL.md`](docs/FUNKTIONSPROTOKOLL.md) |
+| **Landing Page (Quellen)** | [`docs/`](docs/) · Deploy: [`docs/DEPLOY.md`](docs/DEPLOY.md) |
 
-> **Status:** Funktionsfähige Desktop-App (Electron), **Version 0.9.7** (Stand 17. Mai 2026). Multi-Account-Synchronisation über **Microsoft Graph** und **Google (Gmail / Kalender / Kontakte / Tasks)**. Ausführliches Funktionsprotokoll: [`docs/FUNKTIONSPROTOKOLL.md`](docs/FUNKTIONSPROTOKOLL.md). Siehe auch Abschnitt [Status & Roadmap](#status--roadmap).
+> **Status:** Funktionsfähige Beta für **Windows 11**. Multi-Account-Synchronisation über **Microsoft Graph** und **Google APIs** (Gmail, Kalender, Kontakte, Tasks). Die Oberfläche ist auf **Deutsch** und **Englisch** verfügbar.
 
 ---
 
 ## Inhaltsverzeichnis
 
-- [Warum MailClient?](#warum-mailclient)
-- [Was die App kann — Überblick](#was-die-app-kann--überblick)
-- [Die Module im Detail](#die-module-im-detail)
-- [Mail-Workflow: Besonderheiten](#mail-workflow-besonderheiten)
-- [Kalender, Aufgaben, Personen, Notizen](#kalender-aufgaben-personen-notizen)
-- [Regeln & Automatisierung](#regeln--automatisierung)
-- [Chat & eingebettete Dienste](#chat--eingebettete-dienste)
-- [Datenschutz, Sicherheit, lokale Daten](#datenschutz-sicherheit-lokale-daten)
-- [Warum eine Alternative zu Outlook, Web & Co.?](#warum-eine-alternative-zu-outlook-web--co)
+- [Warum Chronell?](#warum-chronell)
+- [Neuigkeiten (0.9.x)](#neuigkeiten-09x)
+- [Die neun Module](#die-neun-module)
+- [Funktionen im Überblick](#funktionen-im-überblick)
+- [Mail & Triage](#mail--triage)
+- [Kalender & Terminplanung](#kalender--terminplanung)
+- [Microsoft Bookings](#microsoft-bookings)
+- [Alle Arbeit, Aufgaben, Notizen, Personen](#alle-arbeit-aufgaben-notizen-personen)
+- [Home-Dashboard, Chat, Regeln](#home-dashboard-chat-regeln)
+- [Datenschutz & lokale Daten](#datenschutz--lokale-daten)
+- [Chronell vs. Outlook & Web](#chronell-vs-outlook--web)
+- [Download & Installation](#download--installation)
 - [Tech-Stack](#tech-stack)
-- [Voraussetzungen](#voraussetzungen)
-- [Setup & Entwicklung](#setup--entwicklung)
-- [Build (Windows-Installer)](#build-windows-installer)
-- [OAuth für Endnutzer und Unternehmen](#oauth-für-endnutzer-und-unternehmen)
-- [Tests](#tests)
+- [Entwicklung & Build](#entwicklung--build)
+- [OAuth für Endnutzer](#oauth-für-endnutzer)
 - [Projektstruktur](#projektstruktur)
-- [Konzept & Roadmap](#konzept--roadmap)
+- [Roadmap](#roadmap)
 - [Lizenz](#lizenz)
 
 ---
 
-## Warum MailClient?
+## Warum Chronell?
 
-Klassische Mail-Clients zeigen Listen. **MailClient** ist auf einen **Handlungs-Workflow** ausgelegt: Posteingang entlasten, Prioritäten setzen, Mails mit Fälligkeiten und ToDos verknüpfen, wiederkehrende Aktionen als **QuickSteps** speichern und optional ein **Kanban-ähnliches Workflow-Board** nutzen — in einem **einheitlichen Fenster** neben **Kalender**, **Aufgaben**, **Kontakten**, **Notizen** und einem **Chat-/Teams-Bereich**.
+Klassische Mail-Clients zeigen Listen. **Chronell** ist auf einen **Workflow für deinen Tag** ausgelegt:
 
-Typische Zielgruppe:
+- Posteingang **entlasten** und jede Nachricht zur **Entscheidung** machen (erledigen, planen, snoozen, delegieren)
+- **Mail-ToDos**, Cloud-Aufgaben und Termine in **einer Zeitleiste** sehen
+- **Microsoft Bookings** (Team-Buchungsseiten) neben Mail und Kalender — ohne Outlook-Web-Tab
+- **Mehrere Konten** (M365 + Google) in **einer Oberfläche**, mit **schneller lokaler Volltextsuche**
 
-- **Power-User** mit Microsoft 365 und/oder Gmail  
-- **Mehrere Postfächer** (beruflich/privat) in einer Oberfläche  
-- Wunsch nach **schneller lokaler Suche** und **offline-orientierter** Datenhaltung (Cache + DB), ohne auf moderne UI zu verzichten  
+Typische Zielgruppe: Power-User mit Microsoft 365 und/oder Gmail, mehrere Postfächer, Wunsch nach **offline-tauglichem Cache** und moderner UI.
 
 ---
 
-## Was die App kann — Überblick
+## Neuigkeiten (0.9.x)
+
+| Bereich | Was neu ist |
+|--------|-------------|
+| **Microsoft Bookings** | Eigenes Modul: Buchungsseiten, Leistungen, Termine aus Microsoft Graph — für M365-Konten mit Bookings-Lizenz |
+| **Book with me** | Persönliche Buchungslinks im Kalender (Terminplanung), getrennt von Unternehmens-Bookings |
+| **Kalender Gantt** | Zeitstrahl-Ansicht mit skalierbaren Intervallen; Mail-ToDos, Tasks und Termine auf einer Timeline |
+| **Modul „Alle Arbeit“** | Vereinheitlichte Liste/Kanban-Ansicht für Mail-ToDos, Cloud-Tasks und Termine (ersetzt den früheren Top-Level-Modus „Workflow“) |
+| **Notizen** | Entity-Links zwischen Notizen, Mails, Terminen, Tasks und Kontakten |
+| **Home-Dashboard** | Erweiterte Kacheln (Wetter, Fristen, Alle Arbeit, Notizen, …), freies Pixel-Layout |
+| **Branding & Installer** | Produktname **Chronell**, Windows-Setup `Chronell-setup.exe`, Migration von `%APPDATA%\mailclient` → `Chronell` |
+| **Homepage** | Öffentliche Seite mit Download, DE/EN — [kurtsoeser.github.io/Chronell](https://kurtsoeser.github.io/Chronell/) |
+
+---
+
+## Die neun Module
+
+Die obere Leiste gliedert die App in **neun Modi** (Reihenfolge anpassbar, einzelne Tabs ausblendbar):
+
+| Modul | Zweck |
+|-------|--------|
+| **Home** | Persönliches Dashboard mit konfigurierbaren Kacheln |
+| **Mail** | Postfächer, Lesepane, Triage, Rich-Text-Compose |
+| **Kalender** | Multi-Kalender (M365 + Google), Zeitliste, Gantt-Zeitstrahl |
+| **Bookings** | **Microsoft Bookings** — Buchungsseiten, Leistungen, Termine (M365) |
+| **Aufgaben** | Microsoft To Do + Google Tasks |
+| **Alle Arbeit** | Mail-ToDos, Cloud-Tasks und Termine in Liste oder Kanban |
+| **Personen** | Kontakte (Graph + Google), lokal gecacht |
+| **Notizen** | Kernnotizen an Mails/Terminen oder freistehend, Markdown, Verknüpfungen |
+| **Chat** | Microsoft Teams + WhatsApp Web (eingebettet) |
+
+**Querschnitt:** Globale Suche (Ctrl+K), „Neu …“-Dialog, Snooze, QuickSteps, geplanter Versand, Notion-Export, Ersteinrichtungs-Assistent, DE/EN.
+
+---
+
+## Funktionen im Überblick
 
 | Bereich | Kurzbeschreibung |
 |--------|-------------------|
-| **Konten** | Mehrere Konten; Anbieter **Microsoft 365** (Graph) und **Google** (Gmail & zugehörige APIs). Ersteinrichtungs-Assistent, Konto-Einstellungen inkl. optionaler **eigener OAuth-App**. |
-| **Mail** | Ordner, Threads, Lesepane, **virtualisierte** Listen (große Postfächer), Suche (inkl. **FTS5**), Entwürfe, **Rich-Text-Compose** (TipTap), Anhänge, Kategorien (Outlook), Snooze, „Waiting for“, Mail-ToDos, Archivieren, Verschieben, **Rückgängig**-Pfad über Nachrichtenaktionen. |
-| **Workflow** | **Workflow-Board** mit Spalten (Posteingang, überfällige/offene ToDos nach Fälligkeit, Heute/Morgen/Woche/Später, Erledigt) und Verknüpfung mit **QuickSteps**; Drag-and-Drop; pro Konto konfigurierbare **Workflow-Mail-Ordner** (z. B. „In Bearbeitung“ / „Erledigt“). |
-| **Kalender** | Kalenderansichten für **Microsoft**- und **Google**-Kalender; Terminbearbeitung in der UI; Anbindung an Mail-ToDos / Kalender-Kontext (siehe Schema & UI). |
-| **Aufgaben** | **Microsoft To Do** (Graph **todo**-Tasklisten) und **Google Tasks** — zentraler Aufgaben-Modus. |
-| **Personen** | Kontakte synchronisieren und lokal cachen; Detailansicht; Fotos über Graph/Google wo verfügbar. |
-| **Notizen** | Notizen zu **Mails**, zu **Kalenderterminen** und **freistehende** Notizen (Markdown-/Editor-Komponenten). |
-| **Regeln** | **Visuelle Regel-Engine**: Bedingungen (Absender, Betreff, Body, Anhänge, List-Id, Ordner, …) und Aktionen (verschieben, Tags, gelesen/markiert, ToDo, Snooze, weiterleiten, …); Trigger u. a. **bei Eingang** und **manuell**. |
-| **Chat** | Chat-Oberfläche mit **Microsoft Teams**-Integration (u. a. eingebettete Webviews / Graph-Anbindung je nach Kontext). |
-| **Home-Dashboard** | Startseite mit **Kacheln** (Wetter, Uhr, Mini-Kalender, nächster Termin, Compose-Kachel, benutzerdefinierte Kacheln, …), **Drag-and-Drop**-Layout, Konfiguration. |
-| **Sonstiges** | **Theming** (Hell/Dunkel/System), **Akzentfarben**, **DE/EN**-Oberfläche (i18n), **Globale Tastenkürzel**, **Einstellungs-Backup**, **Geplanter Versand** (Warteschlange im Main-Prozess), **List-Unsubscribe**-Felder im Datenmodell, **VIP-Absender**, **Meta-Ordner** (such-/filterbasierte Sammelansichten über Konten hinweg). |
+| **Konten** | Mehrere Konten parallel; **Microsoft 365** (Graph) und **Google**; optional eigene OAuth-App |
+| **Mail** | Virtualisierte Listen, FTS5-Suche, TipTap-Compose, Snooze, Waiting for, Mail-ToDos, QuickSteps, Meta-Ordner, Kategorien |
+| **Kalender** | Tag/Woche/Monat/Jahr, Zeitliste, Gantt; Termine inkl. Serien; Mail-ToDos & Tasks im Kalender |
+| **Bookings** | Unternehmens-Bookings in der App; Verwaltung/Veröffentlichung weiter in Outlook Web |
+| **Aufgaben** | To Do + Google Tasks, Listen-, Kanban- und Kalenderansicht |
+| **Alle Arbeit** | Einheitliche WorkItems aus Mail, Tasks und Kalender |
+| **Personen** | Kontakte mit Fotos, Notizen-Verknüpfungen, Compose |
+| **Notizen** | Abschnitte, Seiten, Anhänge (lokal/Cloud), Entity-Links |
+| **Regeln** | Visuelle Mail-Regeln (Einstellungen → Mail → Regeln), Dry-Run |
+| **Chat** | Teams-Chats, WhatsApp Web, abdockbare Popouts |
+| **Home** | Kacheln für Posteingang, Fristen, Kalender, Compose, Wetter, … |
+| **System** | Hell/Dunkel, Akzentfarben, Einstellungs-Backup, `prefers-reduced-motion` |
 
 ---
 
-## Die Module im Detail
+## Mail & Triage
 
-Die App ist in **Modi** gegliedert (obere Leiste; Reihenfolge der Tabs ist anpassbar):
-
-1. **Home** — persönliches Dashboard statt „leerer Start“.  
-2. **Mail** — klassischer Arbeitsbereich mit Sidebar (Konten, Ordner, Favoriten), Filter/Tabs und Lesepane.  
-3. **Workflow** — Board-Ansicht zur Triaging- und ToDo-Steuerung.  
-4. **Kalender** — Multi-Kalender, Woche/Monat/Agenda-orientierte Bedienung (je nach Implementierungsstand der Shell).  
-5. **Aufgaben** — zentrale Task-Liste über verbundene Konten.  
-6. **Personen** — Kontaktliste und Detailpanel.  
-7. **Notizen** — gebündelte Notizen-Verwaltung.  
-8. **Regeln** — Editor und Ausführungs-Logik für Mail-Regeln.  
-9. **Chat** — Teams-/Chat-Fokus.
-
-Diese Modularität soll **Kontextwechsel** (Mail ↔ Kalender ↔ Tasks) ohne Wechsel des Programms erleichtern.
+- **Mail-ToDos** mit Fälligkeits-Buckets (überfällig, heute, morgen, Woche, später, erledigt)
+- **Snooze** und **Waiting for** (Wiedervorlage / auf Antwort warten)
+- **QuickSteps** — konfigurierbare Aktionsketten mit Tastenkürzeln
+- **Meta-Ordner** — virtuelle, kontenübergreifende Such-/Filteransichten
+- **Workflow-Ordner** pro Konto (z. B. „In Bearbeitung“ / „Erledigt“) für Triage
+- **Rich-Text-Compose** (TipTap), Anhänge, Entwürfe, Vorlagen, **geplanter Versand**
+- **Rückgängig** über Nachrichtenaktionen; Verknüpfung Mail ↔ Cloud-Task
+- **Notion:** Mail als Block an Notion-Seite senden
+- Lange Listen: **react-virtuoso** (virtualisiert)
 
 ---
 
-## Mail-Workflow: Besonderheiten
+## Kalender & Terminplanung
 
-### ToDos, die an Mails hängen
-
-Mails können in **ToDos** überführt werden — inkl. **Fälligkeits-Buckets** (heute, morgen, diese Woche, später, erledigt). Das Datenbankschema unterstützt außerdem **optionale Kalender-Zeiträume** pro ToDo (Start/Ende), sodass Aufgaben und Terminplanung zusammendenken können.
-
-### Snooze & „Waiting for“
-
-- **Snooze:** Mails zeitlich **ausblenden** und zu einem **Wiedervorlage-Zeitpunkt** zurückholen.  
-- **Waiting for:** Erinnerung / Frist „auf Antwort warten“ — sinnvoll für Follow-ups ohne die Mail zu verlieren.
-
-### QuickSteps
-
-**QuickSteps** sind **konfigurierbare Aktionsketten** (z. B. „Gelesen & Archiv“, „ToDo Heute“) mit optionalen Tastenkürzeln und Sortierung. Sie lassen sich mit dem Workflow-Board koppeln, um **Ein-Klick-Triage** zu ermöglichen.
-
-### Meta-Ordner
-
-**Meta-Ordner** sind **virtuelle Ordner**: app-weite Such- und Filterkriterien über **alle Konten** — nützlich für projektbezogene oder rollenbasierte Sichten ohne duplizierte Ordner in jedem Konto.
-
-### Regeln, Tags, VIP
-
-- **Tags** auf Nachrichtenebene (lokal verwaltet, Regeln können sie setzen).  
-- **VIP-Absender** pro Konto (hervorgehobene oder priorisierte Sicht — je nach UI-Anbindung).  
-- **Mail-Regeln** mit Ausführungs-Historie (welche Regel auf welche Nachricht).
-
-### Schreiben & Entwürfe
-
-- **Composer** mit Rich-Text (**TipTap**), Anhängen, Entwurfs-Speicherung.  
-- **Vorlagen** mit Variablen (z. B. Platzhalter für Anrede — siehe Template-Logik).  
-- **Geplanter Versand:** Nachrichten können für einen späteren Zeitpunkt **eingeplant** werden (Queue im Main-Prozess).
-
-### Performance
-
-Lange Listen werden mit **react-virtuoso** virtualisiert, damit große Ordner flüssig bleiben.
+- **Microsoft-** und **Google-Kalender** in einer Shell (FullCalendar)
+- Ansichten: Tag, Woche, Monat, Jahr, Quartal, Listenwoche, N-Tage-Raster
+- **Zeitliste** — kombinierte Timeline aus ToDos, Tasks und Terminen (abdockbar)
+- **Gantt-Zeitstrahl** — skalierbare Intervalle, Drag & Drop für geplante Zeiten
+- Termine inkl. **Serien/Wiederholung**; Drag & Resize mit Persistenz
+- **Terminplanung (Book with me):** persönliche Buchungslinks, Einladung per Mail, Sprung zu Bookings
+- Notizen an Terminen; Kalender-Vorlauf pro Konto konfigurierbar
 
 ---
 
-## Kalender, Aufgaben, Personen, Notizen
+## Microsoft Bookings
 
-- **Kalender:** Synchronisation über **Microsoft Graph** und **Google Calendar**; Darstellung und Dialoge für Termine in der Renderer-Shell.  
-- **Aufgaben:** Kombination aus **Graph-Tasks** und **Google Tasks** im dedizierten Modus.  
-- **Personen:** Lokaler **SQLite-Cache** der Kontakte inkl. Sync-Zustand — schnelles Blättern und Suche lokal.  
-- **Notizen:** Drei Arten — **zu einer Mail**, **zu einem Kalendertermin** (inkl. Anbieter- und Remote-IDs) und **freistehend**. So bleiben Kontext-Notizen beim Wechseln zwischen Mail und Kalender auffindbar.
+> Erfordert ein **Microsoft-365-Konto** mit **Bookings-Lizenz** und passenden **Graph-Berechtigungen** (Admin-Einwilligung ggf. nötig).
 
----
+Im Modul **Bookings**:
 
-## Regeln & Automatisierung
+- **Buchungsseiten** (Businesses) des Teams auflisten und auswählen
+- **Leistungen** und **anstehende Termine** in der App anzeigen
+- Öffentliche Buchungs-URL kopieren oder in Outlook Bookings verwalten
+- Termin-Vorschau mit Sprung zu Outlook Web
 
-Die Regel-Definitionen sind als **JSON** strukturiert (Bedingungsbäume mit UND/ODER, Felder wie Von, An, Betreff, Body, Anhänge, List-Id, Konto, Ordner, Wichtigkeit, Gelesen-Status). **Aktionen** umfassen unter anderem:
+**Book with me** (persönliche 1:1-Buchungsseite) wird im **Kalender** unter Terminplanung verwaltet — getrennt von Unternehmens-Bookings.
 
-- in Ordner **verschieben**  
-- **Tag** setzen  
-- als gelesen/markiert markieren  
-- **ToDo** anlegen  
-- **Snooze** (mit Presets)  
-- **Weiterleiten**, **Auto-Antwort** (Konzept), **Löschen**, **Stopp** der weiteren Regeln  
-
-Trigger: mindestens **bei Eingang** und **manuell** — sinnvoll für servernahe Logik plus manuelles Nachziehen.
+Einstellungen: **Einstellungen → Bookings** (Übersicht, Book with me, Zugriff & Konten).
 
 ---
 
-## Chat & eingebettete Dienste
+## Alle Arbeit, Aufgaben, Notizen, Personen
 
-Im **Chat-Modul** steht **Microsoft Teams** im Fokus (Chats/Channels über die verfügbaren Graph-/Webview-Pfade). Das ist bewusst **komplementär** zur Mail: schneller Sprung zwischen „Nachricht schreiben“ und „Team-Kanal“, ohne den Browser zu wechseln.
+### Alle Arbeit
+
+- Vereinheitlichte **`WorkItem`**-Sicht: `mail_todo`, `cloud_task`, `calendar_event`
+- Listen- und **Kanban-Ansicht** nach Fälligkeit
+- Vorschau-Panel, geplante Arbeitszeiten, Kontextmenüs
+
+### Aufgaben
+
+- **Microsoft To Do** und **Google Tasks** zentral
+- Listen-, Kanban- und Kalenderansicht; Anlegen auch aus Mail-Kontext
+
+### Notizen
+
+- An **Mail**, an **Termin** oder **freistehend** (Kernnotizen)
+- Abschnittsbaum, Markdown-Editor, Listen-/Kalenderansicht
+- **Entity-Links** (Notiz ↔ Mail ↔ Termin ↔ Task ↔ Kontakt)
+- Anhänge lokal und über M365/OneDrive
+
+### Personen
+
+- Kontakte von M365 + Google, lokal gecacht
+- Listen- und Kachelansicht, Detailpanel, Compose, verknüpfte Notizen
 
 ---
 
-## Datenschutz, Sicherheit, lokale Daten
+## Home-Dashboard, Chat, Regeln
 
-- **Lokale Datenbank (SQLite):** Mails und Metadaten werden **auf dem Gerät** gespeichert; Suche läuft über **FTS5**-Indexe auf dem lokalen Index.  
-- **OAuth:** Anmeldung über die offiziellen Microsoft-/Google-Flows; sensible Build-Konfiguration über Umgebungsvariablen (siehe [.env.example](.env.example)).  
-- **Electron-Sicherheit:** `contextIsolation`, Preload-IPC-Brücke — keine direkte `nodeIntegration` im Renderer nach gängigem Muster.  
-- **Geheimnisse:** `.env` ist **nicht** im Repository; nur `.env.example` als Vorlage.
+### Home-Dashboard
 
-Für **Unternehmens-Deployments** gelten die üblichen Admin-Fälle (Tenant-Consent bei Microsoft, Google OAuth-Verifizierung bei Workspace) — siehe [OAuth für Endnutzer und Unternehmen](#oauth-für-endnutzer-und-unternehmen).
+- **Freies Pixel-Layout** (ziehen, skalieren, pinnen)
+- Kacheln u. a.: Posteingang, ToDo-Buckets, Snooze, Suche, Mini-Kalender, Fristen, Wetter, Compose, **Alle Arbeit**, Notizen
+- Benutzerdefinierte Kacheln mit Sprung zu Ordner, Termin oder Mail
+
+### Chat
+
+- **Microsoft Teams** (Graph)
+- **WhatsApp Web** eingebettet
+- Abdockbare Teams-Popouts, „Always on top“
+
+### Regeln
+
+- Visuelle **Regel-Engine** (Bedingungen + Aktionen: verschieben, Tag, ToDo, Snooze, …)
+- Trigger: bei Eingang, manuell; Ausführungs-Historie
+- **Ort in der UI:** Einstellungen → Mail → Regeln
 
 ---
 
-## Warum eine Alternative zu Outlook, Web & Co.?
+## Datenschutz & lokale Daten
 
-| Aspekt | MailClient | Typischer Web-Client / Suite |
-|--------|------------|------------------------------|
-| **Fokus** | Workflow: ToDo, Snooze, Board, QuickSteps, Regeln in **einer** Desktop-Oberfläche | Oft stark listen- oder modul-zentriert (viele Browser-Tabs) |
-| **Lokale Suche & Cache** | SQLite + FTS, Daten bleiben **gerätenah** | Abhängig vom Anbieter; oft serverzentrierte Suche |
-| **Multi-Account M365 + Google** | **Kombinierbar** in einer App | Nutzer wechseln häufig zwischen Outlook-Web, Gmail, Kalender separat |
-| **Ressourcen** | Schlanker **Electron**-Stack, virtualisierte Listen | Vollständige Office-Web- oder schwere Desktop-Suites |
-| **Anpassbarkeit** | Open Source **am Code** (Repo); Regeln, QuickSteps, Meta-Ordner | Durch Produktstrategie des Anbieters begrenzt |
+- **SQLite** auf dem Gerät: Mails, Metadaten, Kontakte, Notizen — Suche über **FTS5**
+- **OAuth** nur zu Microsoft/Google; keine eigenen Server für Mail-Inhalte
+- **Electron:** `contextIsolation`, Preload-IPC — keine `nodeIntegration` im Renderer
+- Geheimnisse nur lokal (`.env` nicht im Repo; Vorlage: [`.env.example`](.env.example))
 
-**Ehrlich gesagt:** MailClient ist kein Ersatz für **jedes** Enterprise-Feature von Outlook (z. B. tiefe Exchange-Admin-Szenarien, alle Policy-Edge-Cases). Stärken liegen bei **Workflow**, **lokaler Datenhaltung**, **Multi-Provider** und einer **modernen UI** für Einzelpersonen und kleine Teams, die Gmail und M365 **parallel** nutzen.
+---
+
+## Chronell vs. Outlook & Web
+
+| Aspekt | Chronell | Typisch Outlook / Web |
+|--------|----------|------------------------|
+| **Fokus** | Zeit & Handlung: Triage, ToDos, Zeitliste, Bookings in einem Desktop | Listen- und Tab-Chaos |
+| **Multi-Provider** | M365 + Google kombiniert | Getrennte Apps |
+| **Lokale Suche** | SQLite + FTS5 auf dem Gerät | Oft serverzentriert |
+| **Bookings** | Modul in der App (Graph) | Meist nur Outlook Web |
+| **Anpassung** | Open Source am Code; QuickSteps, Meta-Ordner, Regeln | Produktstrategie des Anbieters |
+
+**Ehrlich:** Chronell ersetzt nicht jedes Enterprise-Outlook-Szenario (Exchange-Admin, Compliance-Archivierung). Stärken: **Workflow**, **lokale Daten**, **Multi-Provider**, moderne UI.
+
+---
+
+## Download & Installation
+
+### Endnutzer (Windows 11)
+
+1. Installer von der [Homepage](https://kurtsoeser.github.io/Chronell/) oder [GitHub Releases](https://github.com/kurtsoeser/Chronell/releases/latest) laden  
+2. `Chronell-setup.exe` ausführen und installieren  
+3. Beim ersten Start: **Ersteinrichtungs-Assistent** (Microsoft/Google anmelden)
+
+**Upgrade von älteren MailClient-Builds:** Daten unter `%APPDATA%\mailclient` werden beim ersten Start von Chronell automatisch nach `%APPDATA%\Chronell` migriert.
+
+### Maintainer: Installer veröffentlichen
+
+```powershell
+npm run build:win
+npm run publish:docs-release
+```
+
+Kopiert den Setup nach `docs/release/<version>/` und `docs/release/latest/`, aktualisiert `latest.json` / `versions.json`, optional GitHub Release. Anschließend `docs/release/` committen und pushen (GitHub Pages). Details: [`docs/DEPLOY.md`](docs/DEPLOY.md).
+
+> Installer sind ~90 MB. GitHub erlaubt bis **100 MB pro Datei** im Repo; bei größeren Builds: Git LFS oder nur GitHub Releases.
 
 ---
 
 ## Tech-Stack
 
-- **Electron 33** (Main + Preload + Renderer)  
-- **React 18** + **TypeScript**  
-- **electron-vite** (Vite)  
-- **TailwindCSS** + shadcn/ui-inspirierte Patterns + **Radix** + **lucide-react**  
-- **Zustand** für UI-State  
-- **react-virtuoso** für Mail-/Listen-Performance  
-- **better-sqlite3** (Main) für lokale Persistenz  
-- **@azure/msal-node**, **Microsoft Graph**, Google APIs (Gmail, Calendar, People, Tasks, …)  
-- **electron-builder** (NSIS-Installer für Windows x64)  
-- **Vitest** für Unit-Tests ausgewählter Logik  
-- **i18next** — **Deutsch** und **Englisch**
+- **Electron 33** · **React 18** · **TypeScript** · **electron-vite**
+- **Tailwind CSS** · **Radix UI** · **lucide-react** · **Zustand**
+- **TipTap** (Compose/Notizen) · **FullCalendar** · **react-virtuoso**
+- **better-sqlite3** (Main) · **FTS5**
+- **Microsoft Graph** · **Google APIs** (Gmail, Calendar, People, Tasks, Bookings, …)
+- **MSAL** · **electron-builder** (NSIS, Windows x64)
+- **Vitest** · **i18next** (DE/EN)
 
 ---
 
-## Voraussetzungen
+## Entwicklung & Build
 
-- **Node.js ≥ 20** (getestet mit 22)  
-- **Windows 11** (primäres Zielsystem für Build und UI)
+### Voraussetzungen
 
----
+- **Node.js ≥ 20** (empfohlen: 22)
+- **Windows 11** (primäres Zielsystem)
 
-## Setup & Entwicklung
+### Lokal starten
 
 ```powershell
 npm install
 npm run dev
 ```
 
-Startet Vite (Renderer) und Electron mit Hot-Module-Reload.
-
----
-
-## Build (Windows-Installer)
-
-Erzeugt ein Windows-Setup unter `release/<version>/`:
+### Windows-Installer bauen
 
 ```powershell
 npm run build:win
 ```
 
-Hinweis aus `electron-builder.yml`: ohne Codesigning (`signAndEditExecutable: false`) für einfachere lokale Builds; für breite Verteilung später **Authenticode**-Signatur empfohlen.
+Ausgabe: `release/<version>/Chronell-<version>-setup.exe` (lokal, in `.gitignore`).
 
-Die Ordner `release/` (Installer, oft mehrere hundert MB) und `out/` (Vite/Electron-Build) sind **lokal** und stehen in `.gitignore` — bei Bedarf löschen und mit `npm run build` bzw. `npm run build:win` neu erzeugen.
+Ohne interaktive Versionsabfrage (gleiche Version neu bauen):
 
----
+```powershell
+npm run prebuild:win -- -NoBump
+npm run build:win:inner
+```
 
-## OAuth für Endnutzer und Unternehmen
+Hinweis: `signAndEditExecutable: false` in `electron-builder.yml` — für Verteilung später **Authenticode**-Signatur empfohlen.
 
-Für **öffentliche Verteilung** trägt der **Herausgeber** die Azure-App-Registrierung und das Google-Cloud-Projekt **einmal** ein — Endnutzer sehen den **Ersteinrichtungs-Assistenten** und die **Browser-Anmeldung** (Scopes). Technische Client-IDs können per **Build-Umgebung** (`MAILCLIENT_*`) oder optional per **HTTPS-JSON** (`MAILCLIENT_REMOTE_OAUTH_CONFIG_URL`) bereitgestellt werden. Vorlage: [.env.example](.env.example).
-
-- **Microsoft 365:** Wenn der Mandant **Nutzerzustimmung** verbietet, muss ein **Tenant-Admin** einmalig Admin-Zustimmung erteilen:
-
-  `https://login.microsoftonline.com/organizations/v2.0/adminconsent?client_id=<APPLICATION_CLIENT_ID>&redirect_uri=<URL_ENCODED_REDIRECT_URI>`
-
-  Die Redirect-URI muss exakt zur Azure-App passen (Loopback-Flow wie in der App konfiguriert).
-
-- **Google Workspace:** Admins können nicht verifizierte OAuth-Clients einschränken. Für Gmail-/Kalender-Scopes ist bei **öffentlicher Nutzung** oft die **Google OAuth-Verifizierung** nötig; bis dahin nur Testnutzer in der Google Cloud Console.
-
-Eigene Azure-/Google-Registrierungen bleiben unter **Einstellungen → Allgemein → «Eigene OAuth-App»** möglich (lokale Überschreibung der Build-Defaults).
-
-Mehr dazu: [docs/google-oauth-oeffentlich.md](./docs/google-oauth-oeffentlich.md).
-
----
-
-## Tests
+### Tests
 
 ```powershell
 npm run test
 npm run test:watch
 ```
 
-Unit-Tests (Vitest; u. a. `sanitize`-Tests mit jsdom) für Hilfslogik unter `src/renderer/src/lib/`.
+---
+
+## OAuth für Endnutzer
+
+Für öffentliche Verteilung trägt der Herausgeber die Azure- und Google-OAuth-Registrierung einmal ein. Endnutzer nutzen den **Ersteinrichtungs-Assistenten**.
+
+- Build-Zeit: `MAILCLIENT_*` in `.env` oder Remote-JSON (`MAILCLIENT_REMOTE_OAUTH_CONFIG_URL`)
+- **Microsoft 365:** ggf. [Admin-Zustimmung](https://login.microsoftonline.com/organizations/v2.0/adminconsent?client_id=APPLICATION_ID&redirect_uri=REDIRECT_URI) — inkl. Scopes für Mail, Kalender, Tasks, **Bookings**, Teams, …
+- **Google:** bei öffentlicher Nutzung oft OAuth-Verifizierung nötig
+- Eigene Apps: Einstellungen → Allgemein → Eigene OAuth-App
+
+Mehr: [docs/google-oauth-oeffentlich.md](docs/google-oauth-oeffentlich.md)
 
 ---
 
@@ -252,39 +312,39 @@ Unit-Tests (Vitest; u. a. `sanitize`-Tests mit jsdom) für Hilfslogik unter `src
 
 ```
 src/
-  main/           Electron Main (DB, Sync, Graph/Gmail, IPC)
-    ipc/          IPC-Registrierung nach Bereich (Mail, Kalender, Auth, …)
-    lib/          Kleine Main-Helfer (z. B. kooperatives Scheduling)
-  preload/        Sichere IPC-Brücke (contextIsolation)
-  renderer/       React-UI (Modi: Home, Mail, Workflow, Kalender, …)
-    src/
-      app/        Layout, Kalender, Workflow, Regeln, Chat, Home
-      components/ Wiederverwendbare UI-Komponenten
-      stores/     Zustand-Stores
-      lib/        Utilities, Shortcuts, …
-      styles/     Globales CSS (Theme-Tokens)
-  shared/         Geteilte Typen und IPC-Konstanten (Main, Preload, Renderer)
+  main/           Electron Main — DB, Sync, Graph/Gmail/Bookings, IPC
+    ipc/          IPC nach Bereich (mail, calendar, bookings, auth, …)
+    db/           SQLite-Repositories, FTS
+  preload/        Sichere IPC-Brücke
+  renderer/       React-UI
+    src/app/      Shells: home, mail, calendar, bookings, work, tasks, …
+    src/components/
+    src/stores/
+    src/lib/
+  shared/         Typen, IPC-Konstanten, app-version
+docs/             Homepage (GitHub Pages), DEPLOY, release/
+resources/        Branding, Icons
+scripts/          Build, publish-docs-release, Branding-Sync
 ```
 
 ---
 
-## Konzept & Roadmap
+## Roadmap
 
-Ausführliches Produktkonzept: [.cursor/plans/mailclient_konzept_skizze_2f302c68.plan.md](./.cursor/plans/mailclient_konzept_skizze_2f302c68.plan.md) (Vision, Sicherheit, Performance; teils Zukunftsmusik, z. B. Utility-Process für Sync).
+Ausführliches Konzept: [.cursor/plans/mailclient_konzept_skizze_2f302c68.plan.md](.cursor/plans/mailclient_konzept_skizze_2f302c68.plan.md)
 
-Kurzfassung der Plan-Phasen im Dokument:
+**Erreicht (Auswahl):** Multi-Account-Sync, Mail-Workflow, Kalender+Zeitliste, Alle Arbeit, Notizen mit Entity-Links, Home-Dashboard, Bookings, öffentliche Homepage mit Download.
 
-- **MVP 1 – Power Inbox:** Multi-Account-Sync, lokale Suche, Senden  
-- **MVP 2 – Action Inbox:** QuickSteps, ToDo, Snooze, Waiting-for, Templates  
-- **MVP 3 – Workflow & Calendar:** UI-Modi, Kanban, Compose, Kalender, Teams  
-- **Post-MVP:** Regel-Ausbau, **KI-Schicht** (im Datenmodell u. a. mit Feldern für Zusammenfassung/Labels vorbereitet — Produktnutzung folgt der Roadmap)
+**In Arbeit / geplant:** Weitere Bookings-Tiefenintegration, Regel-Ausbau, KI-Schicht (Datenmodell teils vorbereitet), macOS (nicht im aktuellen Fokus).
+
+Vollständiger Ist-Stand: [`docs/FUNKTIONSPROTOKOLL.md`](docs/FUNKTIONSPROTOKOLL.md)
 
 ---
 
 ## Lizenz
 
-`package.json` markiert das Projekt derzeit als **`UNLICENSED`** / **`private`**. Nutzung, Weitergabe und Beiträge richten sich nach den Rechten der Urheber:in — bei Interesse an Zusammenarbeit oder Lizenzierung am besten direkt Kontakt über das GitHub-Profil des Repos.
+`package.json`: **`UNLICENSED`** / **`private`**. Nutzung und Weitergabe nach Vereinbarung mit der Urheber:in.
 
 ---
 
-**Autor:** Kurt Soeser · **Produktname (Installer):** MailClient · **App-ID:** `at.kurtsoeser.mailclient`
+**Autor:** [Kurt Soeser](https://github.com/kurtsoeser) · **Produkt:** Chronell · **Repository:** MailClient
