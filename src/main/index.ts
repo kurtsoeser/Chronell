@@ -1,4 +1,5 @@
-import { app, BrowserWindow, session, type WebContents } from 'electron'
+import { app, BrowserWindow, nativeImage, session, type WebContents } from 'electron'
+import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { registerIpcHandlers } from './ipc'
@@ -94,7 +95,22 @@ app.on('web-contents-created', (_event, contents) => {
   attachExternalNavigationGuards(contents)
 })
 
+function resolveWindowIcon(): ReturnType<typeof nativeImage.createFromPath> | undefined {
+  const candidates = [
+    join(__dirname, '../../resources/icon.png'),
+    join(__dirname, '../../resources/branding/chronell-icon.png'),
+    join(process.resourcesPath, 'icon.png')
+  ]
+  for (const p of candidates) {
+    if (!existsSync(p)) continue
+    const image = nativeImage.createFromPath(p)
+    if (!image.isEmpty()) return image
+  }
+  return undefined
+}
+
 function createMainWindow(): void {
+  const icon = resolveWindowIcon()
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -104,6 +120,7 @@ function createMainWindow(): void {
     autoHideMenuBar: true,
     backgroundColor: '#0e0e12',
     title: APP_PRODUCT_NAME,
+    ...(icon ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.mjs'),
       sandbox: false,
@@ -144,6 +161,8 @@ app.whenReady().then(async () => {
     console.warn('[startup] attachment-cache prune:', e)
   )
   registerIpcHandlers()
+  const appIcon = resolveWindowIcon()
+  if (appIcon) app.setIcon(appIcon)
   createMainWindow()
   startConnectivityMonitoring()
 

@@ -36,8 +36,7 @@ import {
 import {
   SortableContext,
   horizontalListSortingStrategy,
-  useSortable,
-  arrayMove
+  useSortable
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { cn } from '@/lib/utils'
@@ -64,6 +63,12 @@ import {
   persistTopbarModuleOrder,
   reconcileTopbarModuleOrder
 } from '@/app/layout/topbar-module-order'
+import {
+  TOPBAR_MODULE_PREFS_CHANGED_EVENT,
+  readTopbarModuleHiddenSet,
+  readVisibleTopbarModuleOrder,
+  reorderVisibleTopbarModules
+} from '@/app/layout/topbar-module-prefs'
 import { useMailWorkspaceLayoutStore } from '@/stores/mail-workspace-layout'
 import { useConnectivityStore } from '@/stores/connectivity'
 import { TopbarGlobalSearch } from '@/app/layout/TopbarGlobalSearch'
@@ -402,13 +407,19 @@ export function Topbar({ onOpenAccountDialog }: Props): JSX.Element {
   const online = useConnectivityStore((s) => s.online)
 
   const [modeOrder, setModeOrder] = useState(readTopbarModuleOrder)
+  const [hiddenModules, setHiddenModules] = useState(readTopbarModuleHiddenSet)
+
+  const visibleModeOrder = useMemo(
+    () => readVisibleTopbarModuleOrder(modeOrder, hiddenModules),
+    [modeOrder, hiddenModules]
+  )
 
   const orderedShellModes = useMemo(() => {
     const byId = new Map(shellModes.map((m) => [m.id, m]))
-    return modeOrder
+    return visibleModeOrder
       .map((id) => byId.get(id))
       .filter((x): x is (typeof shellModes)[number] => x != null)
-  }, [shellModes, modeOrder])
+  }, [shellModes, visibleModeOrder])
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -427,18 +438,30 @@ export function Topbar({ onOpenAccountDialog }: Props): JSX.Element {
     })
   }, [shellModes])
 
+  useEffect(() => {
+    const onPrefsChanged = (): void => {
+      setModeOrder(readTopbarModuleOrder())
+      setHiddenModules(readTopbarModuleHiddenSet())
+    }
+    window.addEventListener(TOPBAR_MODULE_PREFS_CHANGED_EVENT, onPrefsChanged)
+    return (): void => window.removeEventListener(TOPBAR_MODULE_PREFS_CHANGED_EVENT, onPrefsChanged)
+  }, [])
+
   const onTopbarModesDragEnd = useCallback(
     (e: DragEndEvent): void => {
       const { active, over } = e
       if (!over || active.id === over.id) return
-      const oldIndex = modeOrder.indexOf(active.id as AppShellMode)
-      const newIndex = modeOrder.indexOf(over.id as AppShellMode)
-      if (oldIndex < 0 || newIndex < 0) return
-      const next = arrayMove(modeOrder, oldIndex, newIndex)
+      const next = reorderVisibleTopbarModules(
+        modeOrder,
+        hiddenModules,
+        active.id as AppShellMode,
+        over.id as AppShellMode
+      )
+      if (next.every((id, i) => id === modeOrder[i])) return
       setModeOrder(next)
       persistTopbarModuleOrder(next)
     },
-    [modeOrder]
+    [hiddenModules, modeOrder]
   )
 
   const readingOpenMw = useMailWorkspaceLayoutStore((s) => s.readingOpen)
@@ -482,7 +505,7 @@ export function Topbar({ onOpenAccountDialog }: Props): JSX.Element {
           className="flex h-12 min-h-12 min-w-0 flex-1 items-stretch overflow-x-auto overflow-y-hidden overscroll-x-contain py-0 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]"
           aria-label={t('topbar.modesAria')}
         >
-          <SortableContext items={modeOrder} strategy={horizontalListSortingStrategy}>
+          <SortableContext items={visibleModeOrder} strategy={horizontalListSortingStrategy}>
             <div className="flex min-w-min flex-nowrap items-stretch gap-0.5 pr-1 pl-0.5 sm:gap-1 sm:pl-1">
               {orderedShellModes.map(({ id, label, icon }) => (
                 <SortableTopbarModeTab

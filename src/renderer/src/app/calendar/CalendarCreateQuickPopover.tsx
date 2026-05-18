@@ -3,6 +3,7 @@ import { addDays, addMinutes, format, parseISO, startOfDay } from 'date-fns'
 import { useTranslation } from 'react-i18next'
 import { Calendar as CalendarIcon, CheckSquare, FileText, Loader2, X } from 'lucide-react'
 import type { CalendarGraphCalendarRow, ConnectedAccount, TaskListRow } from '@shared/types'
+import { dueIsoFromClientInput } from '@shared/calendar-datetime'
 import { cloudTaskStableKey } from '@shared/work-item-keys'
 import { applyCloudTaskPersistTarget } from '@/app/calendar/apply-cloud-task-persist'
 import {
@@ -339,7 +340,7 @@ export function CalendarCreateQuickPopover({
     try {
       if (draft.createKind === 'task') {
         const sched = scheduleFromCalendarCreateRange(draft.range, timeZone)
-        const dueIso = sched.dueDate.trim() ? `${sched.dueDate.trim()}T12:00:00.000Z` : null
+        const dueIso = dueIsoFromClientInput(sched.dueDate.trim() || null)
         const plannedStartIso = datetimeLocalValueToIso(isoToDatetimeLocalValue(sched.plannedStartIso))
         const plannedEndIso = datetimeLocalValueToIso(isoToDatetimeLocalValue(sched.plannedEndIso))
         const row = await window.mailClient.tasks.createTask({

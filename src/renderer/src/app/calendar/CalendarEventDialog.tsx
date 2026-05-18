@@ -36,6 +36,7 @@ import type {
   MailMasterCategory,
   TaskListRow
 } from '@shared/types'
+import { dueIsoFromClientInput } from '@shared/calendar-datetime'
 import { cloudTaskStableKey } from '@shared/work-item-keys'
 import { applyCloudTaskPersistTarget } from '@/app/calendar/apply-cloud-task-persist'
 import { CalendarEventRecurrenceSection } from '@/app/calendar/CalendarEventRecurrenceSection'
@@ -949,7 +950,7 @@ export function CalendarEventDialog({
       }
       setBusy(true)
       try {
-        const dueIso = taskDue.trim() ? `${taskDue.trim()}T12:00:00.000Z` : null
+        const dueIso = dueIsoFromClientInput(taskDue.trim() || null)
         const plannedStartIso = datetimeLocalValueToIso(taskPlannedStart)
         const plannedEndIso = datetimeLocalValueToIso(taskPlannedEnd)
         const row = await window.mailClient.tasks.createTask({

@@ -2,22 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { AlertCircle, Loader2, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { MailListItem, TaskListRow } from '@shared/types'
+import { dueIsoFromClientInput } from '@shared/calendar-datetime'
+import { dueDateInputValue } from '@/app/work-items/work-item-datetime'
 import { useAccountsStore } from '@/stores/accounts'
 import { accountSupportsCloudTasks, cloudTaskAccountOptionLabel } from '@/lib/cloud-task-accounts'
 import { cn } from '@/lib/utils'
 import { ModalPanel, ModalRoot } from '@/components/motion/Modal'
-
-function dueDateInputValue(dueIso: string | null | undefined): string {
-  if (!dueIso) return ''
-  if (/^\d{4}-\d{2}-\d{2}/.test(dueIso)) return dueIso.slice(0, 10)
-  try {
-    const d = new Date(dueIso)
-    if (Number.isNaN(d.getTime())) return ''
-    return d.toISOString().slice(0, 10)
-  } catch {
-    return ''
-  }
-}
 
 function pickDefaultListId(rows: TaskListRow[]): string | null {
   if (rows.length === 0) return null
@@ -115,7 +105,7 @@ export function CreateCloudTaskFromMailDialog({
     setBusy(true)
     setError(null)
     try {
-      const dueIso = due.trim() ? `${due.trim()}T12:00:00.000Z` : null
+      const dueIso = dueIsoFromClientInput(due.trim() || null)
       await window.mailClient.tasks.createMailCloudTaskFromMessage({
         messageId: message.id,
         accountId,

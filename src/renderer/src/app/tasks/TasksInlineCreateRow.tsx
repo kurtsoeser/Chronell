@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Circle, Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { ConnectedAccount, TaskListRow } from '@shared/types'
+import { dueIsoFromClientInput } from '@shared/calendar-datetime'
 import { persistTasksCalendarCreateAccountId } from '@/app/tasks/tasks-calendar-create-storage'
 import {
   resolvePreferredAccountId,
@@ -100,7 +101,7 @@ export function TasksInlineCreateRow({
     setBusy(true)
     setError(null)
     try {
-      const dueIso = due.trim() ? `${due.trim()}T12:00:00.000Z` : null
+      const dueIso = dueIsoFromClientInput(due.trim() || null)
       const row = await window.mailClient.tasks.createTask({
         accountId,
         listId,

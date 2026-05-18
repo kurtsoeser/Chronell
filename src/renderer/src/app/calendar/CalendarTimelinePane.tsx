@@ -18,6 +18,11 @@ import {
   buildMegaTimelineCacheKey,
   useMegaTimelineCacheStore
 } from '@/stores/mega-timeline-cache'
+import { applyCalendarCompletionState } from '@/app/calendar/calendar-event-completion'
+import {
+  persistTimelineAutoDismissEndedEvents,
+  readTimelineAutoDismissEndedEvents
+} from '@/app/calendar/calendar-event-dismiss-storage'
 import { toggleWorkItemCompleted } from '@/app/work-items/work-item-actions'
 import { openWorkItemInCalendar } from '@/app/work-items/work-item-calendar-nav'
 import {
@@ -107,6 +112,9 @@ export function CalendarTimelinePane({
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [listViewPrefs, setListViewPrefs] = useState<WorkListViewPrefsV1>(() => readWorkListViewPrefs())
+  const [autoDismissEndedEvents, setAutoDismissEndedEvents] = useState(() =>
+    readTimelineAutoDismissEndedEvents()
+  )
   const [selected, setSelected] = useState<WorkItem | null>(null)
   const [contextMenu, setContextMenu] = useState<{
     x: number
@@ -129,6 +137,9 @@ export function CalendarTimelinePane({
       openLabel: t('tasks.listArrange.statusOpen'),
       doneLabel: t('tasks.listArrange.statusDone'),
       mailSourceLabel: t('work.listArrange.sourceMail'),
+      typeMailLabel: t('tasks.listArrange.typeMail'),
+      typeTaskLabel: t('tasks.listArrange.typeTask'),
+      typeCalendarLabel: t('tasks.listArrange.typeCalendar'),
       formatCalendarDayGroupLabel: (dayKey: string): string => {
         try {
           return format(parseISO(`${dayKey}T12:00:00`), 'EEEE, d. MMMM yyyy', { locale: dfLocale })
@@ -186,7 +197,7 @@ export function CalendarTimelinePane({
         includeCompletedMail
       )
       useMegaTimelineCacheStore.getState().setEntry(key, result.items, result.hiddenMailMessageIds)
-      return result.items
+      return applyCalendarCompletionState(result.items)
     },
     [taskAccounts, calendarAccounts]
   )
@@ -219,14 +230,14 @@ export function CalendarTimelinePane({
 
       const fresh = !force ? getFreshEntry(cacheKey) : null
       if (fresh) {
-        setItems(fresh.items)
+        setItems(applyCalendarCompletionState(fresh.items))
         applySelectionAfterLoad(fresh.items)
         return
       }
 
       const stale = !force ? getStaleEntry(cacheKey) : null
       if (stale) {
-        setItems(stale.items)
+        setItems(applyCalendarCompletionState(stale.items))
         applySelectionAfterLoad(stale.items)
       } else if (!silent) {
         setLoading(true)
@@ -238,7 +249,7 @@ export function CalendarTimelinePane({
         const useFastTaskCache = !force && !silent && !stale
         if (useFastTaskCache) {
           const fast = await fetchRange(start, end, { cacheOnlyTasks: true })
-          setItems(fast)
+          setItems(applyCalendarCompletionState(fast))
           applySelectionAfterLoad(fast)
           if (!silent) {
             setLoading(false)
@@ -246,7 +257,7 @@ export function CalendarTimelinePane({
           }
         }
         const loaded = await fetchRange(start, end, { cacheOnlyTasks: false })
-        setItems(loaded)
+        setItems(applyCalendarCompletionState(loaded))
         applySelectionAfterLoad(loaded)
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e))
@@ -279,7 +290,7 @@ export function CalendarTimelinePane({
       const chunk = await fetchRange(start, end)
       setLoadedStart(start)
       loadedStartRef.current = start
-      setItems((prev) => mergeWorkItemsByStableKey(prev, chunk))
+      setItems((prev) => applyCalendarCompletionState(mergeWorkItemsByStableKey(prev, chunk)))
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -297,7 +308,7 @@ export function CalendarTimelinePane({
       const chunk = await fetchRange(start, end)
       setLoadedEnd(end)
       loadedEndRef.current = end
-      setItems((prev) => mergeWorkItemsByStableKey(prev, chunk))
+      setItems((prev) => applyCalendarCompletionState(mergeWorkItemsByStableKey(prev, chunk)))
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -396,6 +407,10 @@ export function CalendarTimelinePane({
     async (item: WorkItem): Promise<void> => {
       try {
         await toggleWorkItemCompleted(item)
+        if (item.kind === 'calendar_event') {
+          setItems((prev) => applyCalendarCompletionState(prev))
+          return
+        }
         await reload()
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e))
@@ -527,12 +542,31 @@ export function CalendarTimelinePane({
             filter={listViewPrefs.filter}
             filterCounts={filterCounts}
             showAccountArrange={false}
+            timelineArrange
             onArrangeChange={(v): void => setListViewPrefs((p) => ({ ...p, arrange: v }))}
             onChronoChange={(v): void => setListViewPrefs((p) => ({ ...p, chrono: v }))}
             onFilterChange={(v): void => setListViewPrefs((p) => ({ ...p, filter: v }))}
             disabled={loading}
           />
         </div>
+        <label
+          className="flex max-w-[11rem] shrink-0 cursor-pointer items-center gap-1 text-[10px] text-muted-foreground"
+          title={t('mega.shell.autoDismissEndedTitle')}
+        >
+          <input
+            type="checkbox"
+            className="h-3 w-3 rounded border-border"
+            checked={autoDismissEndedEvents}
+            disabled={loading}
+            onChange={(e): void => {
+              const next = e.target.checked
+              setAutoDismissEndedEvents(next)
+              persistTimelineAutoDismissEndedEvents(next)
+              setItems((prev) => applyCalendarCompletionState(prev))
+            }}
+          />
+          <span className="truncate">{t('mega.shell.autoDismissEnded')}</span>
+        </label>
         <label className="flex shrink-0 items-center gap-1 text-[10px] text-muted-foreground">
           <span className="sr-only">{t('mega.shell.windowLabel')}</span>
           <select
@@ -585,6 +619,7 @@ export function CalendarTimelinePane({
         ) : (
           <MegaTimelineList
             groups={groups}
+            arrange={listViewPrefs.arrange}
             accounts={accounts}
             selectedKey={selected?.stableKey ?? null}
             onSelect={handleSelect}

@@ -10,6 +10,12 @@ import {
   type OpenAccountSettingsTab
 } from './lib/open-account-settings'
 import { PENDING_MAIL_RULES_SETTINGS_KEY, useAppModeStore } from './stores/app-mode'
+import {
+  TOPBAR_MODULE_PREFS_CHANGED_EVENT,
+  isTopbarModuleVisible,
+  readTopbarModuleHiddenSet,
+  resolveVisibleAppShellMode
+} from '@/app/layout/topbar-module-prefs'
 import { subscribeConnectivityFromMain } from './stores/connectivity'
 import { useSnoozeUiStore } from './stores/snooze-ui'
 import { useCreateCloudTaskUiStore } from './stores/create-cloud-task-ui'
@@ -114,6 +120,7 @@ export function App(): JSX.Element {
   const accountsLoading = useAccountsStore((s) => s.loading)
   const refreshAccounts = useMailStore((s) => s.refreshAccounts)
   const mode = useAppModeStore((s) => s.mode)
+  const setAppMode = useAppModeStore((s) => s.setMode)
   const snoozePickerOpen = useSnoozeUiStore((s) => s.pendingMessageId != null)
   const cloudTaskDialogOpen = useCreateCloudTaskUiStore((s) => s.pendingMessage != null)
   const notionPickerOpen = useNotionDestinationPickerStore((s) => s.open)
@@ -179,6 +186,26 @@ export function App(): JSX.Element {
       void refreshAccounts(accounts)
     }
   }, [accounts, refreshAccounts])
+
+  useEffect(() => {
+    const hidden = readTopbarModuleHiddenSet()
+    if (!isTopbarModuleVisible(mode, hidden)) {
+      setAppMode(resolveVisibleAppShellMode(mode))
+    }
+  }, [mode, setAppMode])
+
+  useEffect(() => {
+    const onPrefsChanged = (): void => {
+      const hidden = readTopbarModuleHiddenSet()
+      const current = useAppModeStore.getState().mode
+      if (!isTopbarModuleVisible(current, hidden)) {
+        setAppMode(resolveVisibleAppShellMode(current))
+      }
+    }
+    window.addEventListener(TOPBAR_MODULE_PREFS_CHANGED_EVENT, onPrefsChanged)
+    return (): void =>
+      window.removeEventListener(TOPBAR_MODULE_PREFS_CHANGED_EVENT, onPrefsChanged)
+  }, [setAppMode])
 
   useEffect(() => {
     const onOpenSettings = (e: Event): void => {

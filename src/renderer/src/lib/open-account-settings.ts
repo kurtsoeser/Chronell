@@ -1,6 +1,13 @@
 export const OPEN_ACCOUNT_SETTINGS_EVENT = 'mailclient:open-account-settings'
 
-export type OpenAccountSettingsTab = 'general' | 'accounts' | 'mail' | 'calendar' | 'contacts' | 'info'
+export type OpenAccountSettingsTab =
+  | 'general'
+  | 'accounts'
+  | 'mail'
+  | 'calendar'
+  | 'contacts'
+  | 'notes'
+  | 'info'
 
 export type OpenAccountSettingsDetail = {
   tab?: OpenAccountSettingsTab

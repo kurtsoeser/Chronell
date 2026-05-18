@@ -13,6 +13,7 @@ import type {
   LocalDataUsageCategory,
   LocalDataUsageReport
 } from '@shared/types'
+import { APP_PRODUCT_NAME } from '@shared/app-version'
 import { LOCAL_DATA_ARCHIVE_FORMAT_VERSION } from '@shared/types'
 import {
   ATTACHMENT_CACHE_MAX_AGE_MS,
@@ -503,7 +504,7 @@ async function writeExportManifest(
     exportedAt: new Date().toISOString(),
     appVersion: app.getVersion(),
     mode,
-    productName: 'MailClient'
+    productName: APP_PRODUCT_NAME
   }
   await writeFile(manifestPath, JSON.stringify(payload, null, 2), 'utf8')
   return manifestPath

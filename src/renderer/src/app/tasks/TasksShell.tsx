@@ -948,11 +948,6 @@ export function TasksShell(): JSX.Element {
           onMiniMonthPrev={(): void => setMiniMonth((m) => addMonths(m, -1))}
           onMiniMonthNext={(): void => setMiniMonth((m) => addMonths(m, 1))}
           onMiniMonthSelectRange={applyTasksMiniCalendarDayRange}
-          miniMonthFooter={
-            <p className="mt-2 text-[10px] leading-snug text-muted-foreground">
-              {t('tasks.shell.miniCalendarHint')}
-            </p>
-          }
         />
       </div>
       <VerticalSplitter onDrag={onDragSidebar} ariaLabel={t('tasks.shell.splitterSidebar')} />

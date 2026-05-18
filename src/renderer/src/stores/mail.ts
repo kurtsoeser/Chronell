@@ -25,6 +25,11 @@ import {
 } from './mail-nav-persist'
 import type { AccountListMetaEntry, MailFilter, MailListKind } from './mail-store-types'
 import {
+  persistMailListViewPrefsFromState,
+  resolveMailListViewPrefs,
+  type MailListViewScopeInput
+} from './mail-list-view-storage'
+import {
   buildNavigableMessageIds,
   formatSnoozeWake,
   isMailInDeletedItemsFolder,
@@ -179,6 +184,41 @@ interface MailState {
 }
 
 let unsubscribers: Array<() => void> = []
+
+function mailListViewPrefsFields(scope: MailListViewScopeInput): {
+  mailListArrangeBy: MailListArrangeBy
+  mailListChronoOrder: MailListChronoOrder
+  mailFilter: MailFilter
+} {
+  const prefs = resolveMailListViewPrefs(scope)
+  return {
+    mailListArrangeBy: prefs.arrange,
+    mailListChronoOrder: prefs.chrono,
+    mailFilter: prefs.filter
+  }
+}
+
+function persistCurrentMailListViewPrefs(state: {
+  listKind: MailListKind
+  todoDueKind: TodoDueKindList | null
+  selectedFolderAccountId: string | null
+  selectedFolderId: number | null
+  selectedMetaFolderId: number | null
+  mailListArrangeBy: MailListArrangeBy
+  mailListChronoOrder: MailListChronoOrder
+  mailFilter: MailFilter
+}): void {
+  persistMailListViewPrefsFromState({
+    listKind: state.listKind,
+    todoDueKind: state.todoDueKind,
+    selectedFolderAccountId: state.selectedFolderAccountId,
+    selectedFolderId: state.selectedFolderId,
+    selectedMetaFolderId: state.selectedMetaFolderId,
+    arrange: state.mailListArrangeBy,
+    chrono: state.mailListChronoOrder,
+    filter: state.mailFilter
+  })
+}
 
 function unifiedInboxListOptions(state: {
   mailFilter: MailFilter
@@ -522,6 +562,13 @@ export const useMailStore = create<MailState>((set, get) => ({
     folderId: number,
     opts?: SelectMailNavOptions
   ): Promise<void> {
+    const scope: MailListViewScopeInput = {
+      listKind: 'folder',
+      todoDueKind: null,
+      selectedFolderAccountId: accountId,
+      selectedFolderId: folderId,
+      selectedMetaFolderId: null
+    }
     set({
       listKind: 'folder',
       todoDueKind: null,
@@ -534,7 +581,8 @@ export const useMailStore = create<MailState>((set, get) => ({
       collapsedMailListGroupKeys: new Set<string>(),
       threadMessages: {},
       loading: true,
-      error: null
+      error: null,
+      ...mailListViewPrefsFields(scope)
     })
 
     void window.mailClient.mail.setActiveFolder(folderId).catch(() => undefined)
@@ -567,7 +615,14 @@ export const useMailStore = create<MailState>((set, get) => ({
     opts?: SelectMailNavOptions
   ): Promise<void> {
     const unified = dueKind == null
-    set((s) => ({
+    const scope: MailListViewScopeInput = {
+      listKind: 'todo',
+      todoDueKind: dueKind,
+      selectedFolderAccountId: null,
+      selectedFolderId: null,
+      selectedMetaFolderId: null
+    }
+    set({
       listKind: 'todo',
       todoDueKind: dueKind,
       selectedFolderId: null,
@@ -580,10 +635,8 @@ export const useMailStore = create<MailState>((set, get) => ({
       threadMessages: {},
       loading: true,
       error: null,
-      // Einheitliche ToDo-Ansicht: nach Bucket gruppieren, damit "Überfällig",
-      // "Heute", "Morgen" … als Gruppen-Köpfe in der Liste sichtbar werden.
-      mailListArrangeBy: unified ? 'todo_bucket' : s.mailListArrangeBy
-    }))
+      ...mailListViewPrefsFields(scope)
+    })
 
     void window.mailClient.mail.setActiveFolder(null).catch(() => undefined)
 
@@ -612,6 +665,13 @@ export const useMailStore = create<MailState>((set, get) => ({
   },
 
   async selectSnoozedView(opts?: SelectMailNavOptions): Promise<void> {
+    const scope: MailListViewScopeInput = {
+      listKind: 'snoozed',
+      todoDueKind: null,
+      selectedFolderAccountId: null,
+      selectedFolderId: null,
+      selectedMetaFolderId: null
+    }
     set({
       listKind: 'snoozed',
       todoDueKind: null,
@@ -624,7 +684,8 @@ export const useMailStore = create<MailState>((set, get) => ({
       collapsedMailListGroupKeys: new Set<string>(),
       threadMessages: {},
       loading: true,
-      error: null
+      error: null,
+      ...mailListViewPrefsFields(scope)
     })
 
     void window.mailClient.mail.setActiveFolder(null).catch(() => undefined)
@@ -652,6 +713,13 @@ export const useMailStore = create<MailState>((set, get) => ({
   },
 
   async selectWaitingView(opts?: SelectMailNavOptions): Promise<void> {
+    const scope: MailListViewScopeInput = {
+      listKind: 'waiting',
+      todoDueKind: null,
+      selectedFolderAccountId: null,
+      selectedFolderId: null,
+      selectedMetaFolderId: null
+    }
     set({
       listKind: 'waiting',
       todoDueKind: null,
@@ -664,7 +732,8 @@ export const useMailStore = create<MailState>((set, get) => ({
       collapsedMailListGroupKeys: new Set<string>(),
       threadMessages: {},
       loading: true,
-      error: null
+      error: null,
+      ...mailListViewPrefsFields(scope)
     })
 
     void window.mailClient.mail.setActiveFolder(null).catch(() => undefined)
@@ -692,6 +761,13 @@ export const useMailStore = create<MailState>((set, get) => ({
   },
 
   async selectUnifiedInbox(opts?: SelectMailNavOptions): Promise<void> {
+    const scope: MailListViewScopeInput = {
+      listKind: 'unified_inbox',
+      todoDueKind: null,
+      selectedFolderAccountId: null,
+      selectedFolderId: null,
+      selectedMetaFolderId: null
+    }
     set({
       listKind: 'unified_inbox',
       todoDueKind: null,
@@ -705,7 +781,8 @@ export const useMailStore = create<MailState>((set, get) => ({
       threadMessages: {},
       messages: [],
       loading: true,
-      error: null
+      error: null,
+      ...mailListViewPrefsFields(scope)
     })
 
     void window.mailClient.mail.setActiveFolder(null).catch(() => undefined)
@@ -738,6 +815,13 @@ export const useMailStore = create<MailState>((set, get) => ({
   },
 
   async selectMetaFolder(metaFolderId: number, opts?: SelectMailNavOptions): Promise<void> {
+    const scope: MailListViewScopeInput = {
+      listKind: 'meta_folder',
+      todoDueKind: null,
+      selectedFolderAccountId: null,
+      selectedFolderId: null,
+      selectedMetaFolderId: metaFolderId
+    }
     set({
       listKind: 'meta_folder',
       todoDueKind: null,
@@ -751,7 +835,8 @@ export const useMailStore = create<MailState>((set, get) => ({
       threadMessages: {},
       messages: [],
       loading: true,
-      error: null
+      error: null,
+      ...mailListViewPrefsFields(scope)
     })
 
     void window.mailClient.mail.setActiveFolder(null).catch(() => undefined)
@@ -1374,15 +1459,27 @@ export const useMailStore = create<MailState>((set, get) => ({
   },
 
   setMailFilter(filter: MailFilter): void {
-    set({ mailFilter: filter, collapsedMailListGroupKeys: new Set<string>() })
+    set((s) => {
+      const next = { ...s, mailFilter: filter, collapsedMailListGroupKeys: new Set<string>() }
+      persistCurrentMailListViewPrefs(next)
+      return { mailFilter: filter, collapsedMailListGroupKeys: new Set<string>() }
+    })
   },
 
   setMailListArrangeBy(v: MailListArrangeBy): void {
-    set({ mailListArrangeBy: v, collapsedMailListGroupKeys: new Set<string>() })
+    set((s) => {
+      const next = { ...s, mailListArrangeBy: v, collapsedMailListGroupKeys: new Set<string>() }
+      persistCurrentMailListViewPrefs(next)
+      return { mailListArrangeBy: v, collapsedMailListGroupKeys: new Set<string>() }
+    })
   },
 
   setMailListChronoOrder(v: MailListChronoOrder): void {
-    set({ mailListChronoOrder: v, collapsedMailListGroupKeys: new Set<string>() })
+    set((s) => {
+      const next = { ...s, mailListChronoOrder: v, collapsedMailListGroupKeys: new Set<string>() }
+      persistCurrentMailListViewPrefs(next)
+      return { mailListChronoOrder: v, collapsedMailListGroupKeys: new Set<string>() }
+    })
   },
 
   setFlaggedFilterExcludeDeletedJunk(value: boolean): void {

@@ -1,26 +1,31 @@
 {
   "meta": {
     "title": "Chronell — Steuere deine Zeit, nicht deinen Posteingang",
-    "description": "Chronell ist kein E-Mail-Client. Es ist ein System für deine Zeit — Microsoft 365 und Google in einer ruhigen Desktop-Arbeitszentrale für Windows 11."
+    "description": "Chronell ist kein E-Mail-Client. Es ist ein System für deine Zeit — Microsoft 365 und Google in einer Desktop-Arbeitszentrale mit Mail, Aufgaben und Kalender für Windows 11."
   },
   "nav": {
     "method": "Die Methode",
     "compare": "vs Outlook",
     "features": "Features",
     "modules": "Module",
-    "waitlist": "Warteliste",
+    "download": "Download",
     "github": "GitHub",
     "lang": "Sprache"
   },
+  "download": {
+    "versionLabel": "Version {version} (Beta)",
+    "betaNote": "Aktuelle Beta — kostenlos, ohne Warteliste.",
+    "note": "Aktuelle Version für Windows 11."
+  },
   "hero": {
-    "badge": "Indie-Software · gebaut in Österreich",
-    "taglineLine1": "Aus E-Mail wird Plan.",
-    "taglineLine2Prefix": "Aus Plan wird ",
-    "taglineLine2Accent": "Tag",
-    "taglineLine2Suffix": ".",
+    "badge": "Beta · Windows 11 · gebaut in Österreich",
+    "taglineLine1": "Mail ist Input.",
+    "taglineLine2Prefix": "Dein ",
+    "taglineLine2Accent": "Arbeitstag",
+    "taglineLine2Suffix": " ist das System.",
     "positioning": "Chronell ist kein E-Mail-Client. Es ist ein System für deine Zeit.",
-    "subline": "Microsoft 365 und Google in einer ruhigen Desktop-Arbeitszentrale — lokale Suche, Mail-Triage, einheitlicher Kalender. Für Windows 11.",
-    "ctaWaitlist": "Auf die Warteliste",
+    "subline": "Microsoft 365 und Google in einer Desktop-Arbeitszentrale — Mail-Triage, Aufgaben, einheitlicher Kalender, lokale Suche. Für Windows 11.",
+    "ctaDownload": "Für Windows herunterladen",
     "ctaMethod": "Methode entdecken",
     "mockup": {
       "inbox": "Posteingang",
@@ -68,7 +73,7 @@
       "title": "Umsetzen",
       "subtitle": "In Blöcken arbeiten, nicht im Chaos",
       "b1": "Arbeit passiert in fokussierten Zeitblöcken — nicht zwischen E-Mails.",
-      "b2": "Dein System wird planbar, ruhig, kontrollierbar.",
+      "b2": "Dein System wird planbar, fokussiert, kontrollierbar.",
       "app": "Modul „Alle Arbeit“ mit Liste und Kanban nach Fälligkeit."
     }
   },
@@ -124,7 +129,7 @@
       "r3chronell": "SQLite + FTS5, offline, in Millisekunden",
       "r4label": "Modernes UI",
       "r4typical": "Klassisch, Ribbon",
-      "r4chronell": "Windows-11-nativ, dunkel, ruhig",
+      "r4chronell": "Windows-11-nativ, dunkel, modern",
       "r5label": "Apple Mail / iCloud",
       "r5typical": "Eigene Apple-Ökosystem-Apps",
       "r5chronell": "Bewusst nicht — Fokus auf M365 und Google"
@@ -144,9 +149,13 @@
       "title": "Entscheiden — Mail-Triage",
       "body": "Nachrichten werden zu ToDos mit Fälligkeits-Buckets. Auto-Ordner für „In Bearbeitung“ und „Erledigt“. Snooze, Waiting for, QuickSteps per Klick."
     },
+    "tasks": {
+      "title": "Aufgaben — M365 & Google",
+      "body": "Microsoft To Do und Google Tasks im gleichen Fenster: Listen, Fälligkeit, „Alle Arbeit“ mit Kanban — verbunden mit Mail und Kalender."
+    },
     "calendar": {
       "title": "Planen — einheitlicher Kalender",
-      "body": "Microsoft- und Google-Kalender plus Mail-ToDos, Cloud-Tasks und geplante Notizen — mit Zeitliste für deinen Tag."
+      "body": "Microsoft- und Google-Kalender plus Mail-ToDos, Cloud-Aufgaben und geplante Notizen — mit Zeitliste für deinen Tag."
     },
     "accounts": {
       "title": "Erfassen — alle Konten",
@@ -200,15 +209,15 @@
     "platform": "Windows-11-Desktop (Electron) — nur Microsoft 365 und Google, kein IMAP"
   },
   "footer": {
-    "tagline": "Chronell ist kein Tool. Es ist ein ruhiger Ort für deine Arbeit.",
+    "tagline": "Chronell ist kein Tool. Es ist deine Schaltzentrale für Mail, Aufgaben und Zeit.",
     "dev": "Entwickler-Doku",
     "author": "Kurt Soeser",
     "rights": "Alle Rechte vorbehalten.",
     "imprint": "Impressum (Platzhalter)"
   },
   "cta": {
-    "title": "Bereit für ruhigere Arbeit?",
-    "body": "Chronell ist in aktiver Entwicklung für Windows 11. Trag dich in die Warteliste ein — wir melden uns, sobald eine Beta bereitsteht.",
-    "button": "Auf die Warteliste"
+    "title": "Bereit für Chronell?",
+    "body": "Lade die aktuelle Beta für Windows 11 herunter — Installation in wenigen Minuten, Updates ersetzen deine Version ohne Datenverlust.",
+    "button": "Jetzt herunterladen"
   }
 }

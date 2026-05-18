@@ -1,10 +1,12 @@
 const STORAGE_LANG = 'chronell.landing.lang'
 const DEFAULT_LANG = 'de'
-const WAITLIST_URL =
-  'https://github.com/kurtsoeser/Chronell/issues/new?template=chronell-beta-waitlist.yml'
+const RELEASE_MANIFEST = 'release/latest.json'
+const STABLE_DOWNLOAD = 'release/latest/Chronell-setup.exe'
 
 let strings = {}
 let currentLang = DEFAULT_LANG
+let releaseManifest = null
+let releaseDownloadHref = STABLE_DOWNLOAD
 
 function detectLang() {
   const stored = localStorage.getItem(STORAGE_LANG)
@@ -36,6 +38,9 @@ function applyTranslations() {
   document.querySelectorAll('.lang-toggle button').forEach((btn) => {
     btn.classList.toggle('active', btn.dataset.lang === currentLang)
   })
+  if (releaseManifest) {
+    applyDownloadMeta(releaseManifest, releaseDownloadHref)
+  }
 }
 
 async function loadLang(lang) {
@@ -93,25 +98,60 @@ function setupReveal() {
   els.forEach((el) => observer.observe(el))
 }
 
-function setupWaitlistLinks() {
-  document.querySelectorAll('[data-waitlist]').forEach((el) => {
-    el.setAttribute('href', WAITLIST_URL)
-    el.setAttribute('target', '_blank')
-    el.setAttribute('rel', 'noopener noreferrer')
+function formatVersionLabel(manifest) {
+  const tpl = get(strings, 'download.versionLabel')
+  if (!tpl || !manifest?.version) return manifest?.version ?? ''
+  return tpl.replace('{version}', manifest.version)
+}
+
+function applyDownloadMeta(manifest, href) {
+  document.querySelectorAll('[data-download]').forEach((el) => {
+    el.setAttribute('href', href)
+    el.setAttribute('download', manifest?.filename || '')
   })
+
+  const versionEl = document.querySelector('[data-download-version]')
+  if (versionEl && manifest?.version) {
+    versionEl.textContent = formatVersionLabel(manifest)
+    versionEl.hidden = false
+  }
+
+  const noteEl = document.querySelector('[data-download-note]')
+  if (noteEl) {
+    const key = manifest?.beta ? 'download.betaNote' : 'download.note'
+    const text = get(strings, key)
+    if (text) noteEl.textContent = text
+  }
+}
+
+async function setupDownloadLinks() {
+  const fallbackHref = STABLE_DOWNLOAD
+  let manifest = null
+
+  try {
+    const res = await fetch(RELEASE_MANIFEST, { cache: 'no-store' })
+    if (res.ok) manifest = await res.json()
+  } catch {
+    /* manifest optional */
+  }
+
+  const href = manifest?.stableUrl || manifest?.versionedUrl || fallbackHref
+  releaseManifest = manifest
+  releaseDownloadHref = href
+  applyDownloadMeta(manifest, href)
 }
 
 async function init() {
   currentLang = detectLang()
   setupLangToggle()
   setupMobileNav()
-  setupWaitlistLinks()
   try {
     await loadLang(currentLang)
   } catch (e) {
     console.warn('[Chronell landing]', e)
     if (currentLang !== 'en') await loadLang('en')
   }
+  await setupDownloadLinks()
   setupReveal()
 }
 

@@ -7,8 +7,8 @@ import { Avatar } from '@/components/Avatar'
 import { AccountColorStripe } from '@/components/AccountColorStripe'
 import { ModuleNavMiniMonth } from '@/components/ModuleNavMiniMonth'
 import {
-  moduleNavColumnInsetClass,
-  moduleNavColumnScrollClass
+  moduleNavColumnScrollBodyClass,
+  moduleNavColumnScrollBodyStackClass
 } from '@/components/module-shell-layout'
 import {
   persistTasksSidebarAccountExpanded,
@@ -222,16 +222,16 @@ export function TasksShellSidebar({
       <header className={moduleColumnHeaderNavShellBarClass}>
         <span className={moduleColumnHeaderTitleClass}>{t('tasks.shell.title')}</span>
       </header>
-      <div className={cn(moduleNavColumnScrollClass, moduleNavColumnInsetClass)}>
-        <ModuleNavMiniMonth
-          monthAnchor={miniMonth}
-          today={new Date()}
-          onSelectDayRange={onMiniMonthSelectRange}
-          onPrevMonth={onMiniMonthPrev}
-          onNextMonth={onMiniMonthNext}
-          footer={miniMonthFooter}
-        />
-      <nav>
+      <ModuleNavMiniMonth
+        monthAnchor={miniMonth}
+        today={new Date()}
+        onSelectDayRange={onMiniMonthSelectRange}
+        onPrevMonth={onMiniMonthPrev}
+        onNextMonth={onMiniMonthNext}
+        footer={miniMonthFooter}
+      />
+      <div className={moduleNavColumnScrollBodyClass}>
+        <nav className={moduleNavColumnScrollBodyStackClass}>
         {taskAccounts.length === 0 ? (
           <p className="px-2 py-3 text-xs text-muted-foreground">{t('tasks.shell.noAccounts')}</p>
         ) : (
@@ -285,7 +285,7 @@ export function TasksShellSidebar({
             ))}
           </>
         )}
-      </nav>
+        </nav>
       </div>
     </aside>
   )

@@ -22,6 +22,16 @@ const ARRANGE_ORDER: TaskListArrangeBy[] = [
   'none'
 ]
 
+const ARRANGE_ORDER_TIMELINE: TaskListArrangeBy[] = [
+  'calendar_day',
+  'todo_bucket',
+  'due_date',
+  'item_type',
+  'status',
+  'title',
+  'none'
+]
+
 interface Props {
   arrange: TaskListArrangeBy
   chrono: TaskListChronoOrder
@@ -34,6 +44,8 @@ interface Props {
   disabled?: boolean
   /** MEGA-Zeitliste: nur Filter + chronologische Sortierung. */
   hideArrange?: boolean
+  /** Zeitliste: „Liste“ → Gruppierung nach Eintragstyp (E-Mail, Aufgabe, Termin). */
+  timelineArrange?: boolean
 }
 
 export function TasksListViewMenu({
@@ -46,7 +58,8 @@ export function TasksListViewMenu({
   onChronoChange,
   onFilterChange,
   disabled,
-  hideArrange = false
+  hideArrange = false,
+  timelineArrange = false
 }: Props): JSX.Element {
   const { t } = useTranslation()
   const { open, setOpen, btnRef, panelRef, panelStyle } = useAnchoredListViewMenu()
@@ -56,10 +69,15 @@ export function TasksListViewMenu({
     [t]
   )
 
-  const arrangeOptions = useMemo(
-    () => (showAccountArrange ? ARRANGE_ORDER : ARRANGE_ORDER.filter((k) => k !== 'account')),
-    [showAccountArrange]
-  )
+  const arrangeOptions = useMemo(() => {
+    const base = timelineArrange
+      ? ARRANGE_ORDER_TIMELINE
+      : showAccountArrange
+        ? ARRANGE_ORDER
+        : ARRANGE_ORDER.filter((k) => k !== 'account')
+    if (!timelineArrange) return base
+    return base
+  }, [showAccountArrange, timelineArrange])
 
   const summary = useMemo(() => arrangeLabel(arrange), [arrange, arrangeLabel])
 

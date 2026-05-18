@@ -56,10 +56,11 @@ const M_LIST = `
   m.snoozed_until, m.waiting_for_reply_until, m.list_unsubscribe, m.list_unsubscribe_post
 `
 
-/** Offene Mail-ToDos: nur bei aktivem Follow-up (Graph `flagged`; Legacy NULL). */
-const OPEN_TODO_MAIL_FOLLOW_UP_SQL = `(m.follow_up_flag_status IS NULL OR m.follow_up_flag_status = 'flagged')`
-
-/** Erledigt-Liste: ausblenden sobald die Mail `notFlagged` ist (Message = Quelle der Wahrheit). */
+/**
+ * Erledigt-Liste: ausblenden sobald die Mail `notFlagged` ist (Message = Quelle der Wahrheit).
+ * Offene ToDos werden nicht nach `follow_up_flag_status` gefiltert — die `todos`-Zeile
+ * ist die Quelle (auch ohne Outlook-/Gmail-Flag, vgl. Ordnerliste mit LEFT JOIN).
+ */
 const DONE_TODO_MAIL_FOLLOW_UP_SQL = `(m.follow_up_flag_status IS NULL OR m.follow_up_flag_status != 'notFlagged')`
 
 function rowToTodoListItem(
@@ -332,7 +333,6 @@ function listOpenTodoMessagesByDueAtBucket(
        INNER JOIN messages m ON m.id = t.message_id
        WHERE t.status = 'open'
          AND (${whereSql})
-         AND ${OPEN_TODO_MAIL_FOLLOW_UP_SQL}
          ${accountClause}
        ORDER BY
          CASE WHEN t.due_at IS NULL THEN 1 ELSE 0 END,
@@ -383,7 +383,6 @@ export function listAllOpenTodoMessagesMerged(
        FROM todos t
        INNER JOIN messages m ON m.id = t.message_id
        WHERE t.status = 'open'
-         AND ${OPEN_TODO_MAIL_FOLLOW_UP_SQL}
          ${accountClause}
        ORDER BY
          CASE WHEN t.due_at IS NULL THEN 1 ELSE 0 END,
@@ -494,7 +493,6 @@ export function listOpenTodoMessagesWithDueAtInRange(
    INNER JOIN messages m ON m.id = t.message_id
    WHERE t.status = 'open'
      AND (t.due_at IS NOT NULL OR t.todo_start_at IS NOT NULL)
-     AND ${OPEN_TODO_MAIL_FOLLOW_UP_SQL}
      ${accountClause}
    ORDER BY COALESCE(t.todo_start_at, t.due_at, '') DESC
    LIMIT ?`
@@ -533,11 +531,11 @@ export function countOpenTodosGlobal(timeZone: string): TodoOpenCounts {
       }
     >(
       `SELECT
-        COALESCE(SUM(CASE WHEN t.due_at IS NOT NULL AND t.due_at < ? AND ${OPEN_TODO_MAIL_FOLLOW_UP_SQL} THEN 1 ELSE 0 END), 0) as overdue,
-        COALESCE(SUM(CASE WHEN t.due_at IS NOT NULL AND t.due_at >= ? AND t.due_at <= ? AND ${OPEN_TODO_MAIL_FOLLOW_UP_SQL} THEN 1 ELSE 0 END), 0) as today,
-        COALESCE(SUM(CASE WHEN t.due_at IS NOT NULL AND t.due_at >= ? AND t.due_at <= ? AND ${OPEN_TODO_MAIL_FOLLOW_UP_SQL} THEN 1 ELSE 0 END), 0) as tomorrow,
-        COALESCE(SUM(CASE WHEN t.due_at IS NOT NULL AND t.due_at > ? AND t.due_at <= ? AND ${OPEN_TODO_MAIL_FOLLOW_UP_SQL} THEN 1 ELSE 0 END), 0) as this_week,
-        COALESCE(SUM(CASE WHEN (t.due_at IS NULL OR t.due_at > ?) AND ${OPEN_TODO_MAIL_FOLLOW_UP_SQL} THEN 1 ELSE 0 END), 0) as later
+        COALESCE(SUM(CASE WHEN t.due_at IS NOT NULL AND t.due_at < ? THEN 1 ELSE 0 END), 0) as overdue,
+        COALESCE(SUM(CASE WHEN t.due_at IS NOT NULL AND t.due_at >= ? AND t.due_at <= ? THEN 1 ELSE 0 END), 0) as today,
+        COALESCE(SUM(CASE WHEN t.due_at IS NOT NULL AND t.due_at >= ? AND t.due_at <= ? THEN 1 ELSE 0 END), 0) as tomorrow,
+        COALESCE(SUM(CASE WHEN t.due_at IS NOT NULL AND t.due_at > ? AND t.due_at <= ? THEN 1 ELSE 0 END), 0) as this_week,
+        COALESCE(SUM(CASE WHEN t.due_at IS NULL OR t.due_at > ? THEN 1 ELSE 0 END), 0) as later
        FROM todos t
        INNER JOIN messages m ON m.id = t.message_id
        WHERE t.status = 'open'`

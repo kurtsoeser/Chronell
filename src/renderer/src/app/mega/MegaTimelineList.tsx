@@ -1,4 +1,5 @@
-import { Calendar, CheckSquare, Mail, Square, type LucideIcon } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { Calendar, CheckSquare, ChevronDown, ChevronRight, Mail, Square, type LucideIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { ConnectedAccount } from '@shared/types'
 import type { WorkItem } from '@shared/work-item'
@@ -12,6 +13,7 @@ import { classifyWorkItemBucket } from '@/app/work-items/work-item-bucket'
 import { workItemSourceLabel } from '@/app/work-items/work-item-mapper'
 import type { MegaDayGroup } from '@/app/mega/mega-timeline-arrange'
 import { megaItemTimeLabel } from '@/app/mega/mega-timeline-label'
+import type { TaskListArrangeBy } from '@/app/tasks/task-list-arrange'
 
 function kindIconComponent(item: WorkItem): LucideIcon {
   if (item.kind === 'mail_todo') return Mail
@@ -26,6 +28,9 @@ function toggleCompletedAriaLabel(
   completed: boolean,
   t: (key: string) => string
 ): string {
+  if (item.kind === 'calendar_event') {
+    return completed ? t('mega.shell.markAppointmentOpen') : t('mega.shell.markAppointmentDone')
+  }
   if (item.kind === 'mail_todo') {
     return completed ? t('mega.shell.markMailTodoOpen') : t('mega.shell.markMailTodoDone')
   }
@@ -34,6 +39,7 @@ function toggleCompletedAriaLabel(
 
 export interface MegaTimelineListProps {
   groups: MegaDayGroup[]
+  arrange: TaskListArrangeBy
   accounts: ConnectedAccount[]
   selectedKey: string | null
   onSelect: (item: WorkItem) => void
@@ -44,6 +50,7 @@ export interface MegaTimelineListProps {
 
 export function MegaTimelineList({
   groups,
+  arrange,
   accounts,
   selectedKey,
   onSelect,
@@ -54,6 +61,22 @@ export function MegaTimelineList({
   const { t, i18n } = useTranslation()
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
   const accountById = new Map(accounts.map((a) => [a.id, a] as const))
+  const flat = arrange === 'none'
+
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set())
+
+  useEffect(() => {
+    setCollapsed(new Set())
+  }, [arrange])
+
+  const toggleGroup = useCallback((collapseKey: string): void => {
+    setCollapsed((prev) => {
+      const next = new Set(prev)
+      if (next.has(collapseKey)) next.delete(collapseKey)
+      else next.add(collapseKey)
+      return next
+    })
+  }, [])
 
   if (groups.length === 0) {
     return (
@@ -63,13 +86,36 @@ export function MegaTimelineList({
 
   return (
     <ul className="divide-y divide-border">
-      {groups.map((group) => (
+      {groups.map((group) => {
+        const isCollapsed = !flat && collapsed.has(group.groupCollapseKey)
+        const showHeader = !flat && group.dayLabel.trim().length > 0
+        return (
         <li key={group.dayKey}>
-          {group.dayLabel.trim().length > 0 ? (
-            <div className="sticky top-0 z-[1] border-b border-border bg-card/95 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground backdrop-blur-sm">
-              {group.dayLabel}
-            </div>
+          {showHeader ? (
+            <button
+              type="button"
+              aria-expanded={!isCollapsed}
+              className="sticky top-0 z-[1] flex w-full items-center gap-1.5 border-b border-border bg-card/95 px-3 py-1.5 text-left backdrop-blur-sm hover:bg-muted/20"
+              onClick={(): void => toggleGroup(group.groupCollapseKey)}
+            >
+              {isCollapsed ? (
+                <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+              ) : (
+                <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+              )}
+              {group.todoKind != null ? (
+                <TodoDueBucketBadge kind={group.todoKind} />
+              ) : (
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  {group.dayLabel}
+                </span>
+              )}
+              <span className="ml-auto text-[10px] tabular-nums text-muted-foreground">
+                {group.itemCount}
+              </span>
+            </button>
           ) : null}
+          {!isCollapsed ? (
           <ul>
             {group.items.map((item) => {
               const KindIcon = kindIconComponent(item)
@@ -77,7 +123,8 @@ export function MegaTimelineList({
               const account = accountById.get(item.accountId)
               const accountColorCss = account ? resolvedAccountColorCss(account.color) : undefined
               const bucket = classifyWorkItemBucket(item, timeZone)
-              const canToggle = item.kind !== 'calendar_event' && onToggleCompleted
+              const canToggle = Boolean(onToggleCompleted)
+              const showBucketBadge = item.kind !== 'calendar_event' || arrange === 'todo_bucket'
               const draggable = item.kind === 'mail_todo' || item.kind === 'cloud_task'
               const onDragStart = (e: React.DragEvent): void => {
                 if (!draggable || !e.dataTransfer) return
@@ -152,14 +199,12 @@ export function MegaTimelineList({
                         <span
                           className={cn(
                             'truncate text-xs font-medium',
-                            item.completed &&
-                              item.kind !== 'calendar_event' &&
-                              'text-muted-foreground line-through'
+                            item.completed && 'text-muted-foreground line-through'
                           )}
                         >
                           {item.title}
                         </span>
-                        {item.kind !== 'calendar_event' ? (
+                        {showBucketBadge && bucket !== 'done' ? (
                           <TodoDueBucketBadge kind={bucket} />
                         ) : null}
                       </div>
@@ -178,7 +223,7 @@ export function MegaTimelineList({
                         aria-label={toggleCompletedAriaLabel(item, item.completed, t)}
                         onClick={(e): void => {
                           e.stopPropagation()
-                          onToggleCompleted(item)
+                          onToggleCompleted?.(item)
                         }}
                       >
                         <CheckSquare
@@ -194,8 +239,10 @@ export function MegaTimelineList({
               )
             })}
           </ul>
+          ) : null}
         </li>
-      ))}
+        )
+      })}
     </ul>
   )
 }

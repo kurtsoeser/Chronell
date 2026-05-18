@@ -1,6 +1,9 @@
 import type { ReactNode } from 'react'
 import { MiniMonthGrid, type MiniMonthGridProps } from '@/app/calendar/MiniMonthGrid'
-import { moduleNavColumnMiniMonthSectionClass } from '@/components/module-shell-layout'
+import {
+  moduleNavColumnMiniMonthFooterClass,
+  moduleNavColumnMiniMonthShellClass
+} from '@/components/module-shell-layout'
 import { cn } from '@/lib/utils'
 
 export type ModuleNavMiniMonthProps = MiniMonthGridProps & {
@@ -8,16 +11,19 @@ export type ModuleNavMiniMonthProps = MiniMonthGridProps & {
   footer?: ReactNode
 }
 
-/** Mini-Monat in Modul-Nav-Spalten — gleiche Karte wie im Kalender-Modul (`MiniMonthGrid`). */
+/**
+ * Mini-Monat in Modul-Nav-Spalten (Kalender, Aufgaben, Notizen): einheitliche Ränder,
+ * Position unter der Kopfzeile und gleiche Karte (`MiniMonthGrid`).
+ */
 export function ModuleNavMiniMonth({
   className,
   footer,
   ...gridProps
 }: ModuleNavMiniMonthProps): JSX.Element {
   return (
-    <div className={cn(moduleNavColumnMiniMonthSectionClass, className)}>
+    <div className={cn(moduleNavColumnMiniMonthShellClass, className)}>
       <MiniMonthGrid {...gridProps} />
-      {footer}
+      {footer ? <div className={moduleNavColumnMiniMonthFooterClass}>{footer}</div> : null}
     </div>
   )
 }

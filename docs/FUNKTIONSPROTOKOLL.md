@@ -385,7 +385,8 @@ npm run build:win
 Ergebnis: `release/<version>/Chronell-<version>-setup.exe` (z. B. `release/0.9.7/Chronell-0.9.7-setup.exe`).
 
 - **NSIS-Installer** deinstalliert bei gleicher `appId` automatisch die **vorherige Programmversion**, bevor die neue installiert wird (`deleteAppDataOnUninstall: false` — **Roaming-Daten bleiben** erhalten).
-- Installationspfad (typisch): `%LOCALAPPDATA%\Programs\Chronell\`
+- Installationspfad (typisch): `C:\Program Files\Chronell\` (64-Bit; erfordert Admin beim Setup)
+- **Deine Daten** (Konten, DB, Einstellungen): weiterhin `%APPDATA%\Chronell\` — nicht unter Program Files
 
 ### Von `npm run dev` auf die installierte App
 

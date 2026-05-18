@@ -86,6 +86,7 @@ import { DashboardNotesNewTile } from '@/app/home/DashboardNotesNewTile'
 import { DashboardNotesPreviewTile } from '@/app/home/DashboardNotesPreviewTile'
 import { DashboardWorkAllTile } from '@/app/home/DashboardWorkAllTile'
 import { openWorkItemInCalendar } from '@/app/work-items/work-item-calendar-nav'
+import { resolveVisibleAppShellMode } from '@/app/layout/topbar-module-prefs'
 import { pushRecentSearch, readRecentSearches } from '@/app/home/dashboard-recent-searches'
 import type { DashboardCustomTileStored } from '@/app/home/dashboard-custom-tiles'
 import {
@@ -479,7 +480,7 @@ export function HomeDashboard(): JSX.Element {
         return
       }
       if (item.kind === 'cloud_task') {
-        setAppMode('work')
+        setAppMode(resolveVisibleAppShellMode('work', ['tasks', 'calendar']))
         return
       }
       openWorkItemInCalendar(item, setAppMode)
@@ -488,7 +489,7 @@ export function HomeDashboard(): JSX.Element {
   )
 
   const openWorkFullCb = useCallback((): void => {
-    setAppMode('work')
+    setAppMode(resolveVisibleAppShellMode('work', ['tasks', 'calendar']))
   }, [setAppMode])
 
   const openNotesFullCb = useCallback((): void => {

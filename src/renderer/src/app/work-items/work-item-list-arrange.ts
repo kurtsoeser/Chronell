@@ -1,7 +1,6 @@
 import type { TodoDueKindList } from '@shared/types'
 import type { WorkItemView } from '@shared/work-item'
 import { format, parseISO } from 'date-fns'
-import { dateBucketFor } from '@/lib/mail-list-arrange'
 import { groupLabelTodoDueBucketDe, rankOpenTodoBucket } from '@/lib/todo-due-bucket'
 import type {
   TaskListArrangeBy,
@@ -27,8 +26,49 @@ export interface WorkListArrangeContext {
   openLabel: string
   doneLabel: string
   mailSourceLabel: string
+  typeMailLabel?: string
+  typeTaskLabel?: string
+  typeCalendarLabel?: string
+  typeNoteLabel?: string
   /** Kalendertag (yyyy-MM-dd): Lesbare Gruppenüberschrift für Zeitliste / Arbeit. */
   formatCalendarDayGroupLabel?: (dayKeyYyyyMmDd: string) => string
+}
+
+function calendarDayKeyFromIso(iso: string): string | null {
+  if (/^\d{4}-\d{2}-\d{2}/.test(iso)) return iso.slice(0, 10)
+  try {
+    const d = parseISO(iso)
+    if (Number.isNaN(d.getTime())) return null
+    return format(d, 'yyyy-MM-dd')
+  } catch {
+    return null
+  }
+}
+
+function calendarDayGroupForView(
+  isoRaw: string | null | undefined,
+  ctx: WorkListArrangeContext
+): { key: string; label: string; sortKey: string; todoKind: TodoDueKindList | null } {
+  const iso = isoRaw?.trim()
+  if (!iso) {
+    return {
+      key: 'zzzz-no-date',
+      label: ctx.noDueLabel,
+      sortKey: 'zzzz-no-date',
+      todoKind: null
+    }
+  }
+  const dayKey = calendarDayKeyFromIso(iso)
+  if (!dayKey) {
+    return {
+      key: 'zzzz-no-date',
+      label: ctx.noDueLabel,
+      sortKey: 'zzzz-no-date',
+      todoKind: null
+    }
+  }
+  const label = ctx.formatCalendarDayGroupLabel?.(dayKey) ?? dayKey
+  return { key: dayKey, label, sortKey: dayKey, todoKind: null }
 }
 
 function dueSortKey(dueIso: string | null): string {
@@ -86,49 +126,36 @@ function groupKeyForView(
       const label = ctx.todoBucketLabel ? ctx.todoBucketLabel(kind) : groupLabelTodoDueBucketDe(kind)
       return { key: kind, label, sortKey: rankOpenTodoBucket(kind), todoKind: kind }
     }
-    case 'due_date': {
-      if (!item.dueAtIso?.trim()) {
-        return { key: 'no-due', label: ctx.noDueLabel, sortKey: 'zzzz-no-due', todoKind: null }
-      }
-      const b = dateBucketFor(item.dueAtIso)
-      return { key: b.key, label: b.label, sortKey: b.key, todoKind: null }
-    }
-    case 'calendar_day': {
-      const iso = item.effectiveSortIso?.trim()
-      if (!iso) {
+    case 'due_date':
+      return calendarDayGroupForView(
+        item.dueAtIso?.trim() || item.effectiveSortIso?.trim(),
+        ctx
+      )
+    case 'calendar_day':
+      return calendarDayGroupForView(item.effectiveSortIso?.trim(), ctx)
+    case 'item_type': {
+      if (item.kind === 'mail_todo') {
         return {
-          key: 'zzzz-no-date',
-          label: ctx.noDueLabel,
-          sortKey: 'zzzz-no-date',
+          key: 'mail_todo',
+          label: ctx.typeMailLabel ?? ctx.mailSourceLabel,
+          sortKey: 1,
           todoKind: null
         }
       }
-      let dayKey: string
-      if (/^\d{4}-\d{2}-\d{2}/.test(iso)) {
-        dayKey = iso.slice(0, 10)
-      } else {
-        try {
-          const d = parseISO(iso)
-          if (Number.isNaN(d.getTime())) {
-            return {
-              key: 'zzzz-no-date',
-              label: ctx.noDueLabel,
-              sortKey: 'zzzz-no-date',
-              todoKind: null
-            }
-          }
-          dayKey = format(d, 'yyyy-MM-dd')
-        } catch {
-          return {
-            key: 'zzzz-no-date',
-            label: ctx.noDueLabel,
-            sortKey: 'zzzz-no-date',
-            todoKind: null
-          }
+      if (item.kind === 'cloud_task') {
+        return {
+          key: 'cloud_task',
+          label: ctx.typeTaskLabel ?? 'Aufgaben',
+          sortKey: 2,
+          todoKind: null
         }
       }
-      const label = ctx.formatCalendarDayGroupLabel?.(dayKey) ?? dayKey
-      return { key: dayKey, label, sortKey: dayKey, todoKind: null }
+      return {
+        key: 'calendar_event',
+        label: ctx.typeCalendarLabel ?? 'Termine',
+        sortKey: 0,
+        todoKind: null
+      }
     }
     case 'title': {
       const t = (item.title.trim() || '?')[0]!.toUpperCase()
@@ -187,6 +214,15 @@ function sortGroups(
   }
   if (arrange === 'status') {
     g.sort((a, b) => a.key.localeCompare(b.key))
+    return g
+  }
+  if (arrange === 'item_type') {
+    const rank: Record<string, number> = {
+      calendar_event: 0,
+      mail_todo: 1,
+      cloud_task: 2
+    }
+    g.sort((a, b) => (rank[a.key] ?? 99) - (rank[b.key] ?? 99))
     return g
   }
   if (arrange === 'due_date' || arrange === 'calendar_day') {

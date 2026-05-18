@@ -108,8 +108,7 @@ async function graphTodoTimeZone(): Promise<{ iana: string; windows: string }> {
 
 
 /** Graph dueDateTime → ISO für Cache/UI (analog calendar-graph). */
-
-function graphDueToIso(d: GraphDateTimeTimeZone | null | undefined): string | null {
+export function graphDueToIso(d: GraphDateTimeTimeZone | null | undefined): string | null {
 
   if (!d?.dateTime) return null
 
@@ -117,16 +116,15 @@ function graphDueToIso(d: GraphDateTimeTimeZone | null | undefined): string | nu
 
   if (raw.startsWith('0001-01-01')) return null
 
-  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return `${raw}T12:00:00.000Z`
 
   const iana = graphWindowsZoneToIana(d.timeZone)
 
-  const utcIso = utcIsoFromWallDateTime(raw, iana, false, () => iana)
-  if (!utcIso) return null
-  const dateOnly = utcIso.slice(0, 10)
   if (/T00:00:00/.test(raw)) {
-    return `${dateOnly}T12:00:00.000Z`
+    return `${raw.slice(0, 10)}T12:00:00.000Z`
   }
+
+  const utcIso = utcIsoFromWallDateTime(raw, iana, false, () => iana)
   return utcIso
 
 }

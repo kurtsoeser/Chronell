@@ -1,5 +1,6 @@
 import type { MailListItem, TodoDueKindList } from '@shared/types'
 import type { WorkItem } from '@shared/work-item'
+import { isCalendarEventEffectivelyDone } from '@/app/calendar/calendar-event-completion'
 import { classifyTaskItemDueBucket } from '@/app/tasks/task-due-bucket'
 import { parseOpenTodoDueKind } from '@/lib/todo-due-bucket'
 import { classifyDueAtIso, normalizeDueAtIso } from '@/app/work-items/work-item-due'
@@ -26,8 +27,10 @@ export function classifyWorkItemBucket(
   nowMs = Date.now()
 ): TodoDueKindList {
   if (item.kind === 'calendar_event') {
-    const endMs = Date.parse(item.planned.plannedEndIso ?? item.event.endIso)
-    if (Number.isFinite(endMs) && endMs < nowMs) return 'done'
+    if (isCalendarEventEffectivelyDone(item, nowMs)) return 'done'
+    const startIso = item.planned.plannedStartIso ?? item.event.startIso
+    const dueAt = normalizeDueAtIso(startIso, timeZone)
+    if (dueAt) return classifyDueAtIso(dueAt, timeZone, nowMs)
     return 'later'
   }
   if (item.kind === 'cloud_task') {

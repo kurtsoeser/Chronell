@@ -1,22 +1,14 @@
-import { startOfDay } from 'date-fns'
-import type { ConnectedAccount } from '@shared/types'
-
+import type { ConnectedAccount, TodoDueKindList } from '@shared/types'
 import type { WorkItem } from '@shared/work-item'
-
+import { isCalendarEventEffectivelyDone } from '@/app/calendar/calendar-event-completion'
 import { workItemEffectiveSortIso } from '@/app/work-items/work-item-bucket'
-
 import {
-
   computeWorkItemListLayout,
-
+  workListGroupCollapseKey,
   type WorkListArrangeBy,
-
   type WorkListArrangeContext,
-
   type WorkListChronoOrder,
-
   type WorkListFilter
-
 } from '@/app/work-items/work-item-list-arrange'
 
 import { workItemsToViews } from '@/app/work-items/work-item-mapper'
@@ -24,13 +16,12 @@ import { workItemsToViews } from '@/app/work-items/work-item-mapper'
 
 
 export interface MegaDayGroup {
-
   dayKey: string
-
+  groupCollapseKey: string
   dayLabel: string
-
+  todoKind: TodoDueKindList | null
+  itemCount: number
   items: WorkItem[]
-
 }
 
 
@@ -72,39 +63,22 @@ function compareItems(a: WorkItem, b: WorkItem, chrono: WorkListChronoOrder, loc
 
 
 function filterMegaItems(items: WorkItem[], filter: WorkListFilter, nowMs: number): WorkItem[] {
-
-  const startTodayMs = startOfDay(new Date(nowMs)).getTime()
-
   return items.filter((item) => {
 
     if (item.kind === 'calendar_event') {
-
-      const endMs = Date.parse(item.event.endIso)
-
+      const done = isCalendarEventEffectivelyDone(item, nowMs)
       switch (filter) {
-
         case 'all':
-
           return true
-
         case 'open':
-
-          return !Number.isFinite(endMs) || endMs >= startTodayMs
-
+          return !done
         case 'completed':
-
-          return Number.isFinite(endMs) && endMs < startTodayMs
-
+          return done
         case 'overdue':
-
           return false
-
         default:
-
           return true
-
       }
-
     }
 
     switch (filter) {
@@ -170,27 +144,31 @@ export function computeMegaTimelineGroups(
 
 
   return layout.map((g, idx) => {
-
     const mapped = g.items
-
       .map((v) => itemByKey.get(v.stableKey))
-
       .filter((x): x is WorkItem => x != null)
-
     mapped.sort((a, b) => compareItems(a, b, chrono, localeCode))
 
-
-
     const dayKey = `${arrange}:${g.key}:${idx}`
-
+    const groupCollapseKey = workListGroupCollapseKey(arrange, g)
     if (arrange === 'none') {
-
-      return { dayKey, dayLabel: '', items: mapped }
-
+      return {
+        dayKey,
+        groupCollapseKey,
+        dayLabel: '',
+        todoKind: null,
+        itemCount: mapped.length,
+        items: mapped
+      }
     }
-
-    return { dayKey, dayLabel: g.label, items: mapped }
-
+    return {
+      dayKey,
+      groupCollapseKey,
+      dayLabel: g.label,
+      todoKind: g.todoKind,
+      itemCount: mapped.length,
+      items: mapped
+    }
   })
 
 }

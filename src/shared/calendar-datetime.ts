@@ -1,4 +1,4 @@
-import { normalizeDueAtIso, zonedLocalDateTimeToUtcIso } from './zoned-iso-date'
+import { isoDateInTimeZone, normalizeDueAtIso, type AppTimeZone, zonedLocalDateTimeToUtcIso } from './zoned-iso-date'
 
 /** Kalenderlokale Felder (Wochentag 1=Mo … 7=So, wie früher Luxon). */
 export type CalendarZonedParts = {
@@ -122,6 +122,23 @@ export function rruleUntilUtcFromDateOnly(dateOnly: string, calendarIanaTz: stri
   const mi = pad2(d.getUTCMinutes())
   const s = pad2(d.getUTCSeconds())
   return `${y}${mo}${day}T${h}${mi}${s}Z`
+}
+
+/** Kalendertag `yyyy-MM-dd` einer Fälligkeit (UI `type="date"`, Anzeige). */
+export function dueCalendarDateFromIso(
+  dueIso: string,
+  timeZone: AppTimeZone = 'local'
+): string | null {
+  const s = dueIso.trim()
+  if (!s) return null
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s
+  if (/^\d{4}-\d{2}-\d{2}T12:00:00(?:\.\d{3})?Z$/i.test(s)) return s.slice(0, 10)
+  const d = new Date(s)
+  if (Number.isNaN(d.getTime())) {
+    const m = s.match(/^(\d{4}-\d{2}-\d{2})/)
+    return m ? m[1]! : null
+  }
+  return isoDateInTimeZone(d, timeZone)
 }
 
 /** Fälligkeit aus UI/API in einheitliches Storage-ISO. */

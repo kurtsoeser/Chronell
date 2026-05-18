@@ -1,4 +1,5 @@
 import { ipcMain, app, BrowserWindow, Notification } from 'electron'
+import { APP_PRODUCT_NAME } from '@shared/app-version'
 import { IPC, type AppConnectivityState, type GlobalSearchResult } from '@shared/types'
 import { globalSearch } from '../global-search'
 import { updateConfig } from '../config'
@@ -29,7 +30,7 @@ export function registerAppIpc(): void {
 
   ipcMain.handle(IPC.app.showTestNotification, (): void => {
     if (!Notification.isSupported()) return
-    new Notification({ title: 'MailClient', body: 'Benachrichtigungen sind aktiv.' }).show()
+    new Notification({ title: APP_PRODUCT_NAME, body: 'Benachrichtigungen sind aktiv.' }).show()
   })
 
   ipcMain.handle(IPC.app.openExternal, async (event, url: unknown): Promise<void> => {

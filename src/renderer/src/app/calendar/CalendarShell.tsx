@@ -175,6 +175,10 @@ import {
 } from '@/lib/calendar-visibility-storage'
 import { ModuleNavMiniMonth } from '@/components/ModuleNavMiniMonth'
 import {
+  moduleNavColumnScrollBodyClass,
+  moduleNavColumnScrollBodyStackClass
+} from '@/components/module-shell-layout'
+import {
   CalendarShellHeader,
   type CalendarSidebarHiddenRestoreEntry
 } from '@/app/calendar/CalendarShellHeader'
@@ -2545,62 +2549,65 @@ export function CalendarShell(): JSX.Element {
             >
               {!leftSidebarCollapsed ? (
                 <aside className="module-nav-column w-[272px]">
-                  <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-3 py-4">
-                <ModuleNavMiniMonth
-                  monthAnchor={miniMonth}
-                  today={new Date()}
-                  onSelectDayRange={applyMiniCalendarDayRange}
-                  onPrevMonth={(): void => setMiniMonth((m) => addMonths(m, -1))}
-                  onNextMonth={(): void => setMiniMonth((m) => addMonths(m, 1))}
-                />
+                  <ModuleNavMiniMonth
+                    monthAnchor={miniMonth}
+                    today={new Date()}
+                    onSelectDayRange={applyMiniCalendarDayRange}
+                    onPrevMonth={(): void => setMiniMonth((m) => addMonths(m, -1))}
+                    onNextMonth={(): void => setMiniMonth((m) => addMonths(m, 1))}
+                  />
 
-                <CalendarShellOverlayToggles
-                  mailTodoOverlay={mailTodoOverlay}
-                  setMailTodoOverlay={setMailTodoOverlay}
-                  cloudTaskOverlay={cloudTaskOverlay}
-                  setCloudTaskOverlay={setCloudTaskOverlay}
-                  userNoteOverlay={userNoteOverlay}
-                  setUserNoteOverlay={setUserNoteOverlay}
-                  taskAccountsCount={taskAccounts.length}
-                />
+                  <div className={moduleNavColumnScrollBodyClass}>
+                    <div className={moduleNavColumnScrollBodyStackClass}>
+                      <CalendarShellOverlayToggles
+                        mailTodoOverlay={mailTodoOverlay}
+                        setMailTodoOverlay={setMailTodoOverlay}
+                        cloudTaskOverlay={cloudTaskOverlay}
+                        setCloudTaskOverlay={setCloudTaskOverlay}
+                        userNoteOverlay={userNoteOverlay}
+                        setUserNoteOverlay={setUserNoteOverlay}
+                        taskAccountsCount={taskAccounts.length}
+                      />
 
-                <CalendarShellSidebarCalendars
-                  calendarLinkedAccounts={calendarLinkedAccounts}
-                  calendarsByAccount={calendarsByAccount}
-                  sidebarHiddenCalendarKeys={sidebarHiddenCalendarKeys}
-                  hiddenCalendarKeys={hiddenCalendarKeys}
-                  toggleCalendarVisibility={toggleCalendarVisibility}
-                  showAllCalendarsInView={showAllCalendarsInView}
-                  onCalendarRowContextMenu={(clientX, clientY, accountId, cal): void => {
-                    setEventContextMenu(null)
-                    setCalendarFolderContextMenu({
-                      x: clientX,
-                      y: clientY,
-                      items: buildCalendarFolderColorMenuItems(accountId, cal)
-                    })
-                  }}
-                  profilePhotoDataUrls={profilePhotoDataUrls}
-                  setAccountSidebarOpen={setAccountSidebarOpen}
-                  isAccountSidebarOpen={isAccountSidebarOpen}
-                  accountGroupCalSidebarOpen={accountGroupCalSidebarOpen}
-                  setAccountGroupCalSidebarOpen={setAccountGroupCalSidebarOpen}
-                  groupCalendarsLoading={groupCalendarsLoading}
-                  m365GroupCalPaging={m365GroupCalPaging}
-                  fetchMicrosoft365GroupCalendarsIfNeeded={fetchMicrosoft365GroupCalendarsIfNeeded}
-                  fetchMoreMicrosoft365GroupCalendars={fetchMoreMicrosoft365GroupCalendars}
-                  onAccountHeaderContextMenu={openCalendarAccountContextMenu}
-                  syncByAccount={calendarSyncByAccount}
-                  onAccountSync={(accountId): void => {
-                    void (async (): Promise<void> => {
-                      await triggerCalendarAccountSync(accountId)
-                      await reloadCalendarsForAccount(accountId)
-                      reloadVisibleRange({ forceRefresh: true })
-                    })()
-                  }}
-                />
-                </div>
-
-            </aside>
+                      <CalendarShellSidebarCalendars
+                        calendarLinkedAccounts={calendarLinkedAccounts}
+                        calendarsByAccount={calendarsByAccount}
+                        sidebarHiddenCalendarKeys={sidebarHiddenCalendarKeys}
+                        hiddenCalendarKeys={hiddenCalendarKeys}
+                        toggleCalendarVisibility={toggleCalendarVisibility}
+                        showAllCalendarsInView={showAllCalendarsInView}
+                        onCalendarRowContextMenu={(clientX, clientY, accountId, cal): void => {
+                          setEventContextMenu(null)
+                          setCalendarFolderContextMenu({
+                            x: clientX,
+                            y: clientY,
+                            items: buildCalendarFolderColorMenuItems(accountId, cal)
+                          })
+                        }}
+                        profilePhotoDataUrls={profilePhotoDataUrls}
+                        setAccountSidebarOpen={setAccountSidebarOpen}
+                        isAccountSidebarOpen={isAccountSidebarOpen}
+                        accountGroupCalSidebarOpen={accountGroupCalSidebarOpen}
+                        setAccountGroupCalSidebarOpen={setAccountGroupCalSidebarOpen}
+                        groupCalendarsLoading={groupCalendarsLoading}
+                        m365GroupCalPaging={m365GroupCalPaging}
+                        fetchMicrosoft365GroupCalendarsIfNeeded={
+                          fetchMicrosoft365GroupCalendarsIfNeeded
+                        }
+                        fetchMoreMicrosoft365GroupCalendars={fetchMoreMicrosoft365GroupCalendars}
+                        onAccountHeaderContextMenu={openCalendarAccountContextMenu}
+                        syncByAccount={calendarSyncByAccount}
+                        onAccountSync={(accountId): void => {
+                          void (async (): Promise<void> => {
+                            await triggerCalendarAccountSync(accountId)
+                            await reloadCalendarsForAccount(accountId)
+                            reloadVisibleRange({ forceRefresh: true })
+                          })()
+                        }}
+                      />
+                    </div>
+                  </div>
+                </aside>
           ) : null}
 
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">

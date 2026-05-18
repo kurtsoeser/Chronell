@@ -34,7 +34,7 @@ import type {
 } from '@shared/types'
 import type { MiniMonthSelectedRange } from '@/app/calendar/MiniMonthGrid'
 import { ModuleNavMiniMonth } from '@/components/ModuleNavMiniMonth'
-import { moduleNavColumnClass, moduleNavColumnInsetClass } from '@/components/module-shell-layout'
+import { moduleNavColumnClass } from '@/components/module-shell-layout'
 import { NotesLinkedPreviewPane } from '@/app/notes/NotesLinkedPreviewPane'
 import { NotesCalendarPane } from '@/app/notes/NotesCalendarPane'
 import { NotesCalendarToolbar } from '@/app/notes/NotesCalendarToolbar'
@@ -801,34 +801,32 @@ export function NotesShell(): JSX.Element {
           </ModuleColumnHeaderIconButton>
         </header>
 
-        <div className={cn(moduleNavColumnInsetClass, 'shrink-0 border-b border-border py-3')}>
-          <ModuleNavMiniMonth
-            monthAnchor={miniMonth}
-            today={new Date()}
-            selectedRange={selectedRange}
-            onSelectDayRange={(start, end): void =>
-              applyNotesMiniCalendarRange(start, end, setDateFrom, setDateTo, setMiniMonth)
-            }
-            onPrevMonth={(): void => setMiniMonth((m) => addMonths(m, -1))}
-            onNextMonth={(): void => setMiniMonth((m) => addMonths(m, 1))}
-            footer={
-              selectedRange ? (
-                <div className="mt-2 flex items-center justify-between gap-2">
-                  <span className="min-w-0 truncate text-[10px] text-foreground">
-                    {t('notes.shell.dateRangeActive', { range: dateRangeLabel })}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={(): void => clearNotesDateRange(setDateFrom, setDateTo)}
-                    className="shrink-0 text-[10px] font-medium text-primary hover:underline"
-                  >
-                    {t('notes.shell.clearDateRange')}
-                  </button>
-                </div>
-              ) : undefined
-            }
-          />
-        </div>
+        <ModuleNavMiniMonth
+          monthAnchor={miniMonth}
+          today={new Date()}
+          selectedRange={selectedRange}
+          onSelectDayRange={(start, end): void =>
+            applyNotesMiniCalendarRange(start, end, setDateFrom, setDateTo, setMiniMonth)
+          }
+          onPrevMonth={(): void => setMiniMonth((m) => addMonths(m, -1))}
+          onNextMonth={(): void => setMiniMonth((m) => addMonths(m, 1))}
+          footer={
+            selectedRange ? (
+              <div className="flex items-center justify-between gap-2">
+                <span className="min-w-0 truncate text-[10px] text-foreground">
+                  {t('notes.shell.dateRangeActive', { range: dateRangeLabel })}
+                </span>
+                <button
+                  type="button"
+                  onClick={(): void => clearNotesDateRange(setDateFrom, setDateTo)}
+                  className="shrink-0 text-[10px] font-medium text-primary hover:underline"
+                >
+                  {t('notes.shell.clearDateRange')}
+                </button>
+              </div>
+            ) : undefined
+          }
+        />
 
         {shellView === 'list' ? (
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">

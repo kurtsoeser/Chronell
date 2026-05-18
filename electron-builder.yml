@@ -21,6 +21,7 @@ asarUnpack:
 # Ohne Codesigning: vermeidet winCodeSign-Extraktion mit Symlinks (fehlt oft ohne
 # Admin/Entwicklermodus auf Windows). Für Store/verteilbare EXE später Zertifikat + sign:true.
 win:
+  icon: resources/icon.png
   signAndEditExecutable: false
   target:
     - target: nsis
@@ -30,7 +31,8 @@ win:
 
 nsis:
   oneClick: false
-  perMachine: false
+  # true = klassische Installation unter C:\Program Files\Chronell (Admin-Rechte beim Setup)
+  perMachine: true
   allowToChangeInstallationDirectory: true
   deleteAppDataOnUninstall: false
   uninstallDisplayName: Chronell

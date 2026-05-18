@@ -24,6 +24,7 @@ const ARRANGE_VALUES = new Set<TaskListArrangeBy>([
   'calendar_day',
   'todo_bucket',
   'due_date',
+  'item_type',
   'title',
   'account',
   'list',

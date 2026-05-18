@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { AlertCircle, Loader2, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { ConnectedAccount, TaskListRow } from '@shared/types'
+import { dueIsoFromClientInput } from '@shared/calendar-datetime'
 import { cloudTaskStableKey } from '@shared/work-item-keys'
 import { applyCloudTaskPersistTarget } from '@/app/calendar/apply-cloud-task-persist'
 import {
@@ -128,7 +129,7 @@ export function CreateCloudTaskDialog({
     setBusy(true)
     setError(null)
     try {
-      const dueIso = due.trim() ? `${due.trim()}T12:00:00.000Z` : null
+      const dueIso = dueIsoFromClientInput(due.trim() || null)
       const plannedStartIso = datetimeLocalValueToIso(plannedStart)
       const plannedEndIso = datetimeLocalValueToIso(plannedEnd)
       const row = await window.mailClient.tasks.createTask({

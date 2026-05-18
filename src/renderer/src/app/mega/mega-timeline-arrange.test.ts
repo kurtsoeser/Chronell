@@ -159,8 +159,40 @@ describe('computeMegaTimelineGroups', () => {
     expect(groups[0]?.dayLabel).toBe('2026-05-15')
 
     expect(groups[0]?.items.map((i) => i.kind)).toEqual(['calendar_event', 'mail_todo'])
-
+    expect(groups[0]?.groupCollapseKey).toBe('calendar_day:2026-05-15')
   })
 
+  it('ordnet Kalendertermine in ToDo-Buckets nach Starttag ein', () => {
+    const event = calendarEventToWorkItem(sampleEvent())
+    const groups = computeMegaTimelineGroups(
+      [event],
+      'all',
+      'oldest_on_top',
+      'todo_bucket',
+      'de',
+      megaCtx(false),
+      new Map(),
+      TZ,
+      Date.parse('2026-05-15T12:00:00.000Z')
+    )
+    expect(groups.some((g) => g.todoKind === 'today')).toBe(true)
+  })
+
+  it('gruppiert Fälligkeitsdatum nach konkretem Kalendertag, nicht nach ToDo-Bucket', () => {
+    const mail = sampleMail()
+    const groups = computeMegaTimelineGroups(
+      [mail],
+      'all',
+      'oldest_on_top',
+      'due_date',
+      'de',
+      megaCtx(),
+      new Map(),
+      TZ,
+      Date.parse('2026-05-15T12:00:00.000Z')
+    )
+    expect(groups[0]?.dayLabel).toBe('2026-05-16')
+    expect(groups[0]?.dayLabel).not.toMatch(/heute|morgen|woche/i)
+  })
 })
 

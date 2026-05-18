@@ -39,6 +39,12 @@ const AccountSetupNotionPanel = lazy(
 const AccountSetupRulesPanel = lazy(
   () => import('@/components/account-setup/AccountSetupRulesPanel')
 )
+const SettingsTopbarModulesSection = lazy(
+  () => import('@/components/account-setup/SettingsTopbarModulesSection')
+)
+const AccountSetupNotesPanel = lazy(
+  () => import('@/components/account-setup/AccountSetupNotesPanel')
+)
 import { accountColorToCssBackground } from '@/lib/avatar-color'
 import {
   DASHBOARD_GRID_STEP_DEFAULT_PX,
@@ -85,7 +91,7 @@ import {
   HardDrive
 } from 'lucide-react'
 
-type SettingsTab = 'general' | 'accounts' | 'mail' | 'calendar' | 'contacts' | 'info'
+type SettingsTab = 'general' | 'accounts' | 'mail' | 'calendar' | 'contacts' | 'notes' | 'info'
 
 const SETTINGS_SUB_DEFAULT: Record<SettingsTab, string> = {
   general: 'language',
@@ -93,6 +99,7 @@ const SETTINGS_SUB_DEFAULT: Record<SettingsTab, string> = {
   mail: 'sync',
   calendar: 'timezone',
   contacts: 'workspace',
+  notes: 'workspace',
   info: 'about'
 }
 
@@ -245,6 +252,7 @@ export function AccountSetupDialog({
         { id: 'mail' as const, label: t('settings.tabMail') },
         { id: 'calendar' as const, label: t('settings.tabCalendar') },
         { id: 'contacts' as const, label: t('settings.tabContacts') },
+        { id: 'notes' as const, label: t('settings.tabNotes') },
         { id: 'info' as const, label: t('settings.tabInfo') }
       ] satisfies Array<{ id: SettingsTab; label: string }>,
     [t]
@@ -378,6 +386,7 @@ export function AccountSetupDialog({
       case 'general':
         return [
           { id: 'language', label: t('settings.languageSection') },
+          { id: 'modules', label: t('settings.modulesHeading') },
           { id: 'dashboard', label: t('settings.dashboardGridHeading') },
           { id: 'weather', label: t('settings.weatherHeading') },
           { id: 'oauth', label: t('settings.oauthSummary') },
@@ -407,6 +416,14 @@ export function AccountSetupDialog({
           { id: 'google', label: t('settings.contactsGoogleHeading') },
           { id: 'microsoft', label: t('settings.contactsMicrosoftHeading') },
           { id: 'accountsLink', label: t('settings.contactsGoAccounts') }
+        ]
+      case 'notes':
+        return [
+          { id: 'workspace', label: t('settings.notesWorkspaceHeading') },
+          { id: 'sidebar', label: t('settings.notesSidebarHeading') },
+          { id: 'pages', label: t('settings.notesPagesHeading') },
+          { id: 'calendar', label: t('settings.notesCalendarHeading') },
+          { id: 'linked', label: t('settings.notesLinkedHeading') }
         ]
       case 'info':
         return [{ id: 'about', label: t('settings.infoAboutHeading') }]
@@ -1252,6 +1269,12 @@ export function AccountSetupDialog({
                   <option value="en">{t('settings.languageEn')}</option>
                 </select>
               </section>
+              )}
+
+              {subNavId.general === 'modules' && (
+                <Suspense fallback={<AccountSetupPanelFallback />}>
+                  <SettingsTopbarModulesSection />
+                </Suspense>
               )}
 
               {subNavId.general === 'dashboard' && (
@@ -2412,6 +2435,12 @@ export function AccountSetupDialog({
               </section>
               )}
             </div>
+          )}
+
+          {activeTab === 'notes' && (
+            <Suspense fallback={<AccountSetupPanelFallback />}>
+              <AccountSetupNotesPanel section={subNavId.notes} onClose={onClose} />
+            </Suspense>
           )}
 
           {activeTab === 'contacts' && (
