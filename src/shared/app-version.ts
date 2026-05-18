@@ -7,8 +7,8 @@ export const APP_RELEASE_DATE_ISO = '2026-05-18' as const
 /** Marketing / UI product name. */
 export const APP_PRODUCT_NAME = 'Chronell' as const
 
-/** electron-builder `appId`. */
-export const APP_ID = 'at.kurtsoeser.mailclient' as const
+/** electron-builder `appId` / Windows AppUserModelID (Startmenü, Taskleiste). */
+export const APP_ID = 'at.kurtsoeser.chronell' as const
 
 export function formatAppReleaseDate(locale: string): string {
   const tag = locale.startsWith('de') ? 'de-AT' : 'en-GB'

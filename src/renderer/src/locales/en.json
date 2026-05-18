@@ -711,7 +711,7 @@
     "infoProductLine": "Desktop workspace for mail, calendar, tasks, notes, and contacts — Microsoft 365 and Google in one window.",
     "infoVersionLabel": "Version",
     "infoReleaseDateLabel": "As of",
-    "infoBuildNote": "Technical package name: MailClient · App ID: {{appId}}",
+    "infoBuildNote": "App ID: {{appId}}",
     "infoHomepageLink": "Visit website",
     "infoHomepageHint": "Product info, method, and downloads on the public Chronell site.",
     "subNavAria": "Sections",

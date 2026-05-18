@@ -135,7 +135,8 @@ export async function migrateLegacyUserDataIfNeeded(): Promise<UserDataMigration
   return { status: 'migrated', from: legacyDir, to: targetDir }
 }
 
-/** Frühestmöglicher Aufruf: setzt den Anzeigenamen für `userData`-Pfad. */
+/** Frühestmöglicher Aufruf: Anzeigename + userData-Pfad (nicht package.json `mailclient`). */
 export function configureChronellAppPaths(): void {
   app.setName(APP_PRODUCT_NAME)
+  app.setPath('userData', join(app.getPath('appData'), APP_PRODUCT_NAME))
 }

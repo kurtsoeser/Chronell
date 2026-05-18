@@ -24,7 +24,7 @@ function normalizeIconSize(image: NativeImage): NativeImage {
   return image.resize({ width: 256, height: 256, quality: 'best' })
 }
 
-const ICON_FILE_NAMES_WIN = ['icon.ico', 'icon.png', 'branding/chronell-icon.png'] as const
+const ICON_FILE_NAMES_WIN = ['icon.png', 'icon.ico', 'branding/chronell-icon.png'] as const
 const ICON_FILE_NAMES_DEFAULT = ['icon.png', 'icon.ico', 'branding/chronell-icon.png'] as const
 
 /** Lädt das Fenster-/Taskbar-Icon (Windows: bevorzugt ICO, max. 256 px). */

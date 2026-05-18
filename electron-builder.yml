@@ -1,8 +1,13 @@
-appId: at.kurtsoeser.mailclient
+appId: at.kurtsoeser.chronell
 productName: Chronell
-# package.json "name" ist mailclient — ohne executableName heißt die EXE sonst mailclient.exe
+# package.json "name" bleibt mailclient (npm) — executableName steuert die EXE
 executableName: Chronell
 copyright: Copyright (c) 2026 Kurt Soeser
+
+# Im gepackten app.asar sonst weiterhin name: mailclient → Windows/Electron zeigt „MailClient“
+extraMetadata:
+  name: chronell
+  productName: Chronell
 
 directories:
   buildResources: resources
@@ -38,6 +43,7 @@ afterPack: scripts/after-pack-embed-icon.cjs
 
 win:
   icon: icon.ico
+  publisherName: Kurt Soeser
   legalTrademarks: Chronell
   signAndEditExecutable: false
   target:
@@ -56,7 +62,8 @@ nsis:
   allowToChangeInstallationDirectory: true
   deleteAppDataOnUninstall: false
   uninstallDisplayName: Chronell
-  guid: 7c4e8f2a-9b1d-4e6a-a3f5-2d8c1b0e9f7a
+  # Neuer GUID: erzwingt saubere Verknüpfungen; alte „MailClient“-Installation vorher deinstallieren
+  guid: a8f3c2e1-4d5b-4f6a-9c0e-1b2d3e4f5a6b
   include: build/installer.nsh
   runAfterFinish: true
 

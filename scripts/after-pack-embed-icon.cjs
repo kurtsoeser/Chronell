@@ -27,12 +27,14 @@ exports.default = async function afterPackEmbedIcon(context) {
   const appInfo = packager.appInfo
 
   const productName = appInfo.productName || 'Chronell'
+  const companyName = packager.platformSpecificBuildOptions?.publisherName || 'Kurt Soeser'
   await rcedit(exePath, {
     icon: iconPath,
     'version-string': {
       FileDescription: productName,
       ProductName: productName,
       InternalName: productName,
+      CompanyName: companyName,
       OriginalFilename: `${packager.appInfo.productFilename}.exe`,
       LegalCopyright: appInfo.copyright || ''
     },

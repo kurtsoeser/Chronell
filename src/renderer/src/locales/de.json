@@ -711,7 +711,7 @@
     "infoProductLine": "Desktop-Arbeitszentrale für Mail, Kalender, Aufgaben, Notizen und Kontakte — Microsoft 365 und Google in einem Fenster.",
     "infoVersionLabel": "Version",
     "infoReleaseDateLabel": "Stand vom",
-    "infoBuildNote": "Technischer Paketname: MailClient · App-ID: {{appId}}",
+    "infoBuildNote": "App-ID: {{appId}}",
     "infoHomepageLink": "Website besuchen",
     "infoHomepageHint": "Produktinfos, Methode und Download auf der öffentlichen Chronell-Seite.",
     "subNavAria": "Unterbereiche",
