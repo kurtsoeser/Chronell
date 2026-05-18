@@ -108,11 +108,9 @@ function formatVersionLabel(manifest) {
 function applyDownloadMeta(manifest, href) {
   document.querySelectorAll('[data-download]').forEach((el) => {
     el.setAttribute('href', href)
-    if (manifest?.filename) {
-      el.setAttribute('download', manifest.filename)
-    } else {
-      el.removeAttribute('download')
-    }
+    el.removeAttribute('download')
+    el.setAttribute('target', '_blank')
+    el.setAttribute('rel', 'noopener noreferrer')
   })
 
   const versionEl = document.querySelector('[data-download-version]')
@@ -133,8 +131,13 @@ function versionedSetupPath(version) {
   return `release/${version}/Chronell-${version}-setup.exe`
 }
 
-/** @param {string} url relative to site root */
+function isAbsoluteUrl(url) {
+  return /^https?:\/\//i.test(url)
+}
+
+/** @param {string} url */
 async function releaseAssetExists(url) {
+  if (isAbsoluteUrl(url)) return true
   try {
     const res = await fetch(url, { method: 'HEAD', cache: 'no-store' })
     return res.ok
@@ -153,14 +156,14 @@ function collectDownloadCandidates(manifest, versionsIndex) {
     list.push(url)
   }
 
+  if (manifest?.downloadUrl) add(manifest.downloadUrl)
   if (manifest?.stableUrl) add(manifest.stableUrl)
   if (manifest?.versionedUrl) add(manifest.versionedUrl)
   if (manifest?.version) add(versionedSetupPath(manifest.version))
 
-  if (versionsIndex?.latest) {
-    add(versionedSetupPath(versionsIndex.latest))
-    add(versionsIndex.stableUrl)
-  }
+  if (versionsIndex?.downloadUrl) add(versionsIndex.downloadUrl)
+  if (versionsIndex?.latest) add(versionedSetupPath(versionsIndex.latest))
+  if (versionsIndex?.stableUrl) add(versionsIndex.stableUrl)
 
   const entries = versionsIndex?.versions
   if (Array.isArray(entries)) {
@@ -169,6 +172,7 @@ function collectDownloadCandidates(manifest, versionsIndex) {
         add(versionedSetupPath(entry))
         continue
       }
+      if (entry?.downloadUrl) add(entry.downloadUrl)
       if (entry?.setupUrl) add(entry.setupUrl)
       if (entry?.version) add(versionedSetupPath(entry.version))
     }
@@ -181,11 +185,14 @@ function collectDownloadCandidates(manifest, versionsIndex) {
 async function resolveDownloadHref(manifest, versionsIndex) {
   const candidates = collectDownloadCandidates(manifest, versionsIndex)
   for (const url of candidates) {
+    if (isAbsoluteUrl(url)) {
+      return { href: url, manifest }
+    }
     if (await releaseAssetExists(url)) {
-      return { href: url, manifest: manifest ?? { version: versionsIndex?.latest } }
+      return { href: url, manifest }
     }
   }
-  return { href: STABLE_DOWNLOAD, manifest }
+  return { href: candidates[0] || STABLE_DOWNLOAD, manifest }
 }
 
 async function loadVersionsIndex() {
@@ -220,7 +227,8 @@ async function setupDownloadLinks() {
       ? {
           version: versionsIndex.latest,
           beta: versionsIndex.beta ?? true,
-          filename: 'Chronell-setup.exe'
+          filename: 'Chronell-setup.exe',
+          downloadUrl: versionsIndex.downloadUrl
         }
       : null)
 
