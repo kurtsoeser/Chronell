@@ -70,6 +70,7 @@ export function TopbarGlobalSearch(): JSX.Element {
   const [loading, setLoading] = useState(false)
   const [open, setOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const panelStyle = useSearchDropdownPortal(containerRef, open && query.trim().length >= 2, {
     width: Math.min(420, window.innerWidth - 16),
@@ -115,8 +116,10 @@ export function TopbarGlobalSearch(): JSX.Element {
 
   useEffect(() => {
     function onDown(e: MouseEvent): void {
-      if (!containerRef.current) return
-      if (!containerRef.current.contains(e.target as Node)) setOpen(false)
+      const target = e.target as Node
+      if (containerRef.current?.contains(target)) return
+      if (panelRef.current?.contains(target)) return
+      setOpen(false)
     }
     window.addEventListener('mousedown', onDown)
     return (): void => window.removeEventListener('mousedown', onDown)
@@ -254,6 +257,7 @@ export function TopbarGlobalSearch(): JSX.Element {
       {showPanel &&
         createPortal(
           <div
+            ref={panelRef}
             role="listbox"
             aria-label={t('topbar.searchPlaceholder')}
             className="glass-panel-elevated glass-animate-in overflow-y-auto rounded-lg text-popover-foreground shadow-xl"

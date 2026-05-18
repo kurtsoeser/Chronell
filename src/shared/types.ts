@@ -49,6 +49,11 @@ export interface ConnectedAccount {
    * `null`/`undefined` = keine automatische Signatur.
    */
   defaultSignatureTemplateId?: string | null
+  /**
+   * Persoenliche Microsoft-Book-with-me-Buchungsseite (HTTPS).
+   * `null`/`undefined` = nicht gespeichert.
+   */
+  bookWithMeUrl?: string | null
 }
 
 /** Kalender-Referenz fuer gefiltertes Laden (Microsoft Graph- oder Google-Kalender-ID). */
@@ -70,6 +75,8 @@ export interface PatchAccountInput {
   signatureTemplates?: AccountSignatureTemplate[]
   /** Standard-Signatur fuer neue Mails; `null` = leer starten. */
   defaultSignatureTemplateId?: string | null
+  /** Persoenliche Book-with-me-URL; `null` = entfernen. */
+  bookWithMeUrl?: string | null
 }
 
 export interface AuthResult {
@@ -296,6 +303,7 @@ export interface SettingsBackupAccountPreferenceSnapshot {
   calendarLoadAheadDays?: number | null
   signatureTemplates?: AccountSignatureTemplate[]
   defaultSignatureTemplateId?: string | null
+  bookWithMeUrl?: string | null
 }
 
 export interface SettingsBackupNotionDestinationSnapshot {

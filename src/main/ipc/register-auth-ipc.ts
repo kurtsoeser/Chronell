@@ -1,4 +1,5 @@
 import { ipcMain } from 'electron'
+import { normalizeBookWithMeUrl } from '@shared/book-with-me'
 import { IPC, type AccountSignatureTemplate, type ConnectedAccount } from '@shared/types'
 import { normalizeStoredAccountColor } from '@shared/account-colors'
 import { loadConfig } from '../config'
@@ -416,6 +417,7 @@ export function registerAuthIpc(): void {
         calendarLoadAheadDays?: number | null | 'default'
         signatureTemplates?: unknown
         defaultSignatureTemplateId?: string | null
+        bookWithMeUrl?: string | null
       }
       const accountId = typeof body.accountId === 'string' ? body.accountId.trim() : ''
       if (!accountId) {
@@ -425,8 +427,9 @@ export function registerAuthIpc(): void {
       const hasAhead = 'calendarLoadAheadDays' in body
       const hasSig = 'signatureTemplates' in body
       const hasDef = 'defaultSignatureTemplateId' in body
-      if (!hasColor && !hasAhead && !hasSig && !hasDef) {
-        throw new Error('Keine Aenderungen (Farbe, Kalender, Signaturvorlagen).')
+      const hasBookWithMe = 'bookWithMeUrl' in body
+      if (!hasColor && !hasAhead && !hasSig && !hasDef && !hasBookWithMe) {
+        throw new Error('Keine Aenderungen (Farbe, Kalender, Signaturvorlagen, Book with me).')
       }
       const current = await listAccounts()
       const prev = current.find((a) => a.id === accountId)
@@ -481,6 +484,19 @@ export function registerAuthIpc(): void {
           account.defaultSignatureTemplateId = tid
         } else {
           throw new Error('Ungueltige Standard-Signatur.')
+        }
+      }
+      if (hasBookWithMe) {
+        if (body.bookWithMeUrl === null) {
+          account.bookWithMeUrl = null
+        } else if (typeof body.bookWithMeUrl === 'string') {
+          try {
+            account.bookWithMeUrl = normalizeBookWithMeUrl(body.bookWithMeUrl)
+          } catch (e) {
+            throw new Error(e instanceof Error ? e.message : 'Ungueltige Book-with-me-URL.')
+          }
+        } else {
+          throw new Error('Ungueltige Book-with-me-URL.')
         }
       }
       await upsertAccount(account)

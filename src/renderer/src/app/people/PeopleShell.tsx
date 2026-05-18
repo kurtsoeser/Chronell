@@ -168,6 +168,7 @@ export function PeopleShell(): JSX.Element {
   const [rows, setRows] = useState<PeopleContactView[]>([])
 
   const [selected, setSelected] = useState<PeopleContactView | null>(null)
+  const pendingContactId = usePeoplePendingFocusStore((s) => s.pendingContactId)
   const takePendingContactId = usePeoplePendingFocusStore((s) => s.takePendingContactId)
 
   const detailPanelRef = useRef<PeopleContactDetailPanelHandle | null>(null)
@@ -562,6 +563,7 @@ export function PeopleShell(): JSX.Element {
   }, [loadList])
 
   useEffect(() => {
+    if (pendingContactId == null) return
     const pendingId = takePendingContactId()
     if (pendingId == null) return
     const fromRows = rows.find((r) => r.id === pendingId)
@@ -572,7 +574,7 @@ export function PeopleShell(): JSX.Element {
     void window.mailClient.people.getById(pendingId).then((contact) => {
       if (contact) setSelected(contact)
     })
-  }, [rows, takePendingContactId])
+  }, [pendingContactId, rows, takePendingContactId])
 
 
 

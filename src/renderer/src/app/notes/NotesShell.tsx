@@ -190,6 +190,7 @@ export function NotesShell(): JSX.Element {
   const selectMessageWithThreadPreview = useMailStore((s) => s.selectMessageWithThreadPreview)
   const clearSelectedMessage = useMailStore((s) => s.clearSelectedMessage)
   const pushToast = useUndoStore((s) => s.pushToast)
+  const pendingNoteId = useNotesPendingFocusStore((s) => s.pendingNoteId)
   const takePendingNoteId = useNotesPendingFocusStore((s) => s.takePendingNoteId)
   const { isExiting: isNoteExiting, markExiting: markNoteExiting } = useExitingIds<number>()
 
@@ -552,10 +553,11 @@ export function NotesShell(): JSX.Element {
   )
 
   useEffect(() => {
+    if (pendingNoteId == null) return
     const pendingId = takePendingNoteId()
     if (pendingId == null) return
     void openNoteById(pendingId)
-  }, [notes, takePendingNoteId, openNoteById])
+  }, [pendingNoteId, notes, takePendingNoteId, openNoteById])
 
   const createStandalone = useCallback(async (): Promise<void> => {
     setSaving(true)

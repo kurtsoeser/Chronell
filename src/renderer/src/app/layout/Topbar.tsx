@@ -23,7 +23,8 @@ import {
   ChevronDown,
   Mail,
   UserPlus,
-  Filter
+  Filter,
+  Link2
 } from 'lucide-react'
 import {
   DndContext,
@@ -147,6 +148,7 @@ const TOPBAR_CREATE_KINDS: GlobalCreateKind[] = [
   'mail',
   'task',
   'calendar_event',
+  'booking',
   'note',
   'chat',
   'contact',
@@ -161,6 +163,8 @@ function createKindIcon(kind: GlobalCreateKind): React.ComponentType<{ className
       return ListTodo
     case 'calendar_event':
       return Calendar
+    case 'booking':
+      return Link2
     case 'note':
       return StickyNote
     case 'chat':
@@ -198,6 +202,10 @@ function TopbarGlobalCreateSplit({
     () => accounts.filter((a) => a.provider === 'microsoft' || a.provider === 'google'),
     [accounts]
   )
+  const microsoftAccounts = useMemo(
+    () => accounts.filter((a) => a.provider === 'microsoft'),
+    [accounts]
+  )
 
   const PrimaryIcon = useMemo(() => createKindIcon(primaryKind), [primaryKind])
 
@@ -211,6 +219,9 @@ function TopbarGlobalCreateSplit({
   }
 
   function isCreateKindDisabled(kind: GlobalCreateKind): boolean {
+    if (kind === 'booking') {
+      return microsoftAccounts.length === 0
+    }
     if (kind === 'calendar_event' || kind === 'task' || kind === 'contact') {
       return graphCapableAccounts.length === 0
     }
@@ -218,6 +229,8 @@ function TopbarGlobalCreateSplit({
   }
 
   function disabledHint(kind: GlobalCreateKind): string | undefined {
+    if (kind === 'booking' && microsoftAccounts.length === 0)
+      return t('topbar.create.noMicrosoftAccount')
     if (kind === 'calendar_event' && graphCapableAccounts.length === 0)
       return t('topbar.create.noCalendarAccount')
     if (kind === 'task' && graphCapableAccounts.length === 0) return t('topbar.create.noTaskAccount')

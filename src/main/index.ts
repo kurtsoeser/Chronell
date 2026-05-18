@@ -1,5 +1,4 @@
-import { app, BrowserWindow, nativeImage, session, type WebContents } from 'electron'
-import { existsSync } from 'node:fs'
+import { app, BrowserWindow, session, type WebContents } from 'electron'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { registerIpcHandlers } from './ipc'
@@ -22,9 +21,14 @@ import {
   configureChronellAppPaths,
   migrateLegacyUserDataIfNeeded
 } from './user-data-migration'
-import { APP_PRODUCT_NAME } from '@shared/app-version'
+import { APP_ID, APP_PRODUCT_NAME } from '@shared/app-version'
+import { resolveAppWindowIcon } from './app-icon'
 
 configureChronellAppPaths()
+
+if (process.platform === 'win32') {
+  app.setAppUserModelId(APP_ID)
+}
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 const isDev = !app.isPackaged
@@ -95,22 +99,14 @@ app.on('web-contents-created', (_event, contents) => {
   attachExternalNavigationGuards(contents)
 })
 
-function resolveWindowIcon(): ReturnType<typeof nativeImage.createFromPath> | undefined {
-  const candidates = [
-    join(__dirname, '../../resources/icon.png'),
-    join(__dirname, '../../resources/branding/chronell-icon.png'),
-    join(process.resourcesPath, 'icon.png')
-  ]
-  for (const p of candidates) {
-    if (!existsSync(p)) continue
-    const image = nativeImage.createFromPath(p)
-    if (!image.isEmpty()) return image
-  }
-  return undefined
+function applyWindowIcon(win: BrowserWindow): void {
+  const icon = resolveAppWindowIcon()
+  if (!icon) return
+  win.setIcon(icon)
 }
 
 function createMainWindow(): void {
-  const icon = resolveWindowIcon()
+  const icon = resolveAppWindowIcon()
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -133,6 +129,7 @@ function createMainWindow(): void {
   })
 
   mainWindow.on('ready-to-show', () => {
+    if (mainWindow) applyWindowIcon(mainWindow)
     mainWindow?.show()
   })
 
@@ -161,8 +158,6 @@ app.whenReady().then(async () => {
     console.warn('[startup] attachment-cache prune:', e)
   )
   registerIpcHandlers()
-  const appIcon = resolveWindowIcon()
-  if (appIcon) app.setIcon(appIcon)
   createMainWindow()
   startConnectivityMonitoring()
 

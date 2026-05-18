@@ -30,6 +30,7 @@ import {
 } from '@/lib/calendar-visibility-storage'
 import { SIDEBAR_DEFAULT_CAL_ID } from '@/app/calendar/calendar-shell-storage'
 import { AccountPropertiesMenu } from '@/components/AccountPropertiesMenu'
+import { BookWithMeAccountPanel } from '@/components/BookWithMeAccountPanel'
 import { BulkUnflagServerDialog } from '@/components/BulkUnflagServerDialog'
 import { AccountSetupPanelFallback } from '@/components/account-setup/AccountSetupPanelFallback'
 
@@ -62,16 +63,19 @@ import type {
 } from '@shared/types'
 import { formatBytes } from '@/lib/format-bytes'
 import { AccountSetupLocalDataSection } from '@/components/AccountSetupLocalDataSection'
+import { APP_BRANDING } from '@shared/app-branding'
 import {
   APP_ID,
   APP_PRODUCT_NAME,
   APP_VERSION,
   formatAppReleaseDate
 } from '@shared/app-version'
+import { openExternalUrl } from '@/lib/open-external'
 import {
   Cloud,
   Contact,
   Info,
+  ExternalLink,
   X,
   Plus,
   Loader2,
@@ -371,6 +375,18 @@ export function AccountSetupDialog({
     }
   }, [open, initialTab, initialMailSubNav])
 
+  useEffect(() => {
+    if (!open) return
+    const onCalendarSubNav = (e: Event): void => {
+      const id = (e as CustomEvent<{ id?: string }>).detail?.id
+      if (!id) return
+      setActiveTab('calendar')
+      setSubNavId((prev) => ({ ...prev, calendar: id }))
+    }
+    window.addEventListener('mailclient:settings-calendar-subnav', onCalendarSubNav)
+    return () => window.removeEventListener('mailclient:settings-calendar-subnav', onCalendarSubNav)
+  }, [open])
+
   const microsoftAccounts = useMemo(
     () => accounts.filter((a) => a.provider === 'microsoft'),
     [accounts]
@@ -407,6 +423,7 @@ export function AccountSetupDialog({
       case 'calendar':
         return [
           { id: 'timezone', label: t('settings.calendarTzHeading') },
+          { id: 'bookWithMe', label: t('settings.bookWithMeHeading') },
           { id: 'api', label: t('settings.calendarApiHeading') },
           { id: 'sidebar', label: t('settings.calendarSidebarHeading') }
         ]
@@ -2249,6 +2266,10 @@ export function AccountSetupDialog({
               </section>
               )}
 
+              {subNavId.calendar === 'bookWithMe' && (
+              <BookWithMeAccountPanel accounts={accounts} disabled={busy || reconnectingAccountId !== null} />
+              )}
+
               {subNavId.calendar === 'api' && (
               <section className="space-y-2">
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -2421,8 +2442,37 @@ export function AccountSetupDialog({
                   <Info className="h-3.5 w-3.5" aria-hidden />
                   {t('settings.infoAboutHeading')}
                 </h3>
-                <p className="text-sm font-semibold text-foreground">{APP_PRODUCT_NAME}</p>
-                <p className="text-xs leading-relaxed text-muted-foreground">{t('settings.infoProductLine')}</p>
+                <div className="flex gap-4">
+                  <img
+                    src={APP_BRANDING.iconSvgPublicPath}
+                    alt=""
+                    className="h-16 w-16 shrink-0 object-contain"
+                    width={64}
+                    height={64}
+                    draggable={false}
+                  />
+                  <div className="min-w-0 space-y-2">
+                    <p className="text-base font-semibold text-foreground">{APP_PRODUCT_NAME}</p>
+                    <p className="text-xs leading-relaxed text-muted-foreground">
+                      {t('settings.infoProductLine')}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={(): void => {
+                        void openExternalUrl(APP_BRANDING.homepageUrl).catch((err) =>
+                          console.warn('[settings] homepage openExternal', err)
+                        )
+                      }}
+                      className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                      {t('settings.infoHomepageLink')}
+                    </button>
+                    <p className="text-[10px] leading-relaxed text-muted-foreground">
+                      {t('settings.infoHomepageHint')}
+                    </p>
+                  </div>
+                </div>
                 <dl className="grid gap-3 text-xs sm:grid-cols-[minmax(7rem,auto)_1fr]">
                   <dt className="font-medium text-muted-foreground">{t('settings.infoVersionLabel')}</dt>
                   <dd className="tabular-nums text-foreground">{APP_VERSION}</dd>

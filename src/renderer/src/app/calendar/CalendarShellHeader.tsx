@@ -269,6 +269,11 @@ export function CalendarShellHeader(props: CalendarShellHeaderProps): JSX.Elemen
                 active={activeViewId === 'listWeek'}
                 onPick={(): void => changeView('listWeek')}
               />
+              <ViewMenuRow
+                label={t('calendar.views.ganttTimeline')}
+                active={activeViewId === 'ganttTimeline'}
+                onPick={(): void => changeView('ganttTimeline')}
+              />
               <div className="my-1 h-px bg-border" />
               <div
                 className="relative"

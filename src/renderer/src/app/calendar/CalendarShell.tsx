@@ -185,6 +185,10 @@ import {
 import { CalendarShellAlerts } from '@/app/calendar/CalendarShellAlerts'
 import { CalendarShellLoadingOverlay } from '@/app/calendar/CalendarShellLoadingOverlay'
 import { CalendarShellSidebarCalendars } from '@/app/calendar/CalendarShellSidebarCalendars'
+import { CalendarSchedulingPanel } from '@/app/calendar/CalendarSchedulingPanel'
+import { schedulingSlotsToFcEvents } from '@/app/calendar/scheduling-fc-placeholders'
+import { clearSchedulingDraft } from '@/app/calendar/scheduling-draft-storage'
+import type { SchedulingSlot } from '@shared/scheduling-types'
 import { CalendarShellOverlayToggles } from '@/app/calendar/shell/CalendarShellOverlayToggles'
 import {
   CAL_FLOAT_INBOX_SIZE_KEY,
@@ -215,8 +219,18 @@ import {
 } from '@/app/calendar/calendar-shell-storage'
 import {
   fullCalendarEventToPatchSchedule,
+  GANTT_TIMELINE_VIEW_ID,
   MAX_TIME_GRID_SPAN_DAYS
 } from '@/app/calendar/calendar-shell-view-helpers'
+import { CalendarGanttTimelineView } from '@/app/calendar/CalendarGanttTimelineView'
+import { ganttNavStepAnchor } from '@/app/calendar/calendar-gantt-scale'
+import type { GanttBarInterval } from '@/app/calendar/calendar-gantt-layout'
+import { persistWorkItemGanttSchedule } from '@/app/calendar/calendar-gantt-persist'
+import {
+  persistGanttTimelineScale,
+  readGanttTimelineScale
+} from '@/app/calendar/calendar-gantt-timeline-storage'
+import type { GanttTimelineScale } from '@/app/calendar/calendar-gantt-scale'
 import './notion-calendar.css'
 
 function sameStringSet(a: Set<string>, b: Set<string>): boolean {
@@ -251,6 +265,11 @@ export function CalendarShell(): JSX.Element {
   const selectMessage = useMailStore((s) => s.selectMessage)
   const selectMessageWithThreadPreview = useMailStore((s) => s.selectMessageWithThreadPreview)
   const clearSelectedMessage = useMailStore((s) => s.clearSelectedMessage)
+  const calendarPendingEventId = useCalendarPendingFocusStore((s) => s.pendingEvent?.id ?? null)
+  const calendarPendingGotoDateIso = useCalendarPendingFocusStore((s) => s.pendingGotoDateIso)
+  const calendarPendingCreateOnDayIso = useCalendarPendingFocusStore(
+    (s) => s.pendingCreateOnDay?.dateIso ?? null
+  )
   const setTodoScheduleForMessage = useMailStore((s) => s.setTodoScheduleForMessage)
   const refreshNow = useMailStore((s) => s.refreshNow)
   const setMessageRead = useMailStore((s) => s.setMessageRead)
@@ -288,6 +307,11 @@ export function CalendarShell(): JSX.Element {
   const [activeViewId, setActiveViewId] = useState<string>('timeGridWeek')
   const activeViewIdRef = useRef(activeViewId)
   activeViewIdRef.current = activeViewId
+  const isGanttTimelineView = activeViewId === GANTT_TIMELINE_VIEW_ID
+  const [ganttAnchor, setGanttAnchor] = useState(() => new Date())
+  const [ganttScale, setGanttScale] = useState<GanttTimelineScale>(() => readGanttTimelineScale())
+  const [ganttSelectedKey, setGanttSelectedKey] = useState<string | null>(null)
+  const [ganttScrollToTodaySignal, setGanttScrollToTodaySignal] = useState(0)
   const lastDatesSetKeyRef = useRef('')
   const datesSetLoadTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>()
   const [rangeTitle, setRangeTitle] = useState('')
@@ -322,6 +346,12 @@ export function CalendarShell(): JSX.Element {
     anchor: { x: number; y: number }
     range: CalendarCreateRange
   } | null>(null)
+
+  const [schedulingOpen, setSchedulingOpen] = useState(false)
+  const [schedulingSlots, setSchedulingSlots] = useState<SchedulingSlot[]>([])
+  const [schedulingAccountId, setSchedulingAccountId] = useState('')
+  const [schedulingDurationMin, setSchedulingDurationMin] = useState(30)
+  const [schedulingMeetingTitle, setSchedulingMeetingTitle] = useState('')
 
   const dismissQuickCreate = useCallback((): void => {
     calendarRef.current?.getApi().unselect()
@@ -425,6 +455,42 @@ export function CalendarShell(): JSX.Element {
 
   const loadTaskListsForAccount = useCallback(async (accountId: string) => {
     return window.mailClient.tasks.listLists({ accountId })
+  }, [])
+
+  const closeSchedulingPanel = useCallback((): void => {
+    setSchedulingOpen(false)
+  }, [])
+
+  const openSchedulingPanel = useCallback((): void => {
+    if (msAccounts.length === 0) return
+    dismissQuickCreate()
+    clearSchedulingDraft()
+    const preferred =
+      msAccounts.find((a) => a.bookWithMeUrl?.trim()) ?? msAccounts[0]!
+    setSchedulingAccountId(preferred.id)
+    setSchedulingSlots([])
+    setSchedulingDurationMin(30)
+    setSchedulingMeetingTitle(
+      t('calendar.scheduling.defaultMeetingTitle', { name: preferred.displayName })
+    )
+    setSchedulingOpen(true)
+    persistRightPreviewOpen(true)
+    setRightPreviewOpen(true)
+    setPreviewDockStripInDom(true)
+  }, [msAccounts, dismissQuickCreate, t])
+
+  const addSchedulingSlot = useCallback((range: CalendarCreateRange): void => {
+    const slot: SchedulingSlot = {
+      id: `sched-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+      startIso: range.start.toISOString(),
+      endIso: range.end.toISOString(),
+      isAllDay: range.allDay
+    }
+    setSchedulingSlots((prev) =>
+      [...prev, slot].sort(
+        (a, b) => new Date(a.startIso).getTime() - new Date(b.startIso).getTime()
+      )
+    )
   }, [])
 
   useEffect(() => {
@@ -844,18 +910,23 @@ export function CalendarShell(): JSX.Element {
     const pending = useGlobalCreateNavigateStore.getState().takePendingAfterNavigate()
     if (pending === 'calendar_event') {
       window.setTimeout((): void => openCreateCalendarEventDialog(), 0)
+    } else if (pending === 'booking') {
+      window.setTimeout((): void => openSchedulingPanel(), 0)
     }
-  }, [openCreateCalendarEventDialog])
+  }, [openCreateCalendarEventDialog, openSchedulingPanel])
 
   useEffect(() => {
     function onGlobalCreate(e: Event): void {
       const ce = e as CustomEvent<{ kind?: string }>
-      if (ce.detail?.kind !== 'calendar_event') return
-      openCreateCalendarEventDialog()
+      if (ce.detail?.kind === 'calendar_event') {
+        openCreateCalendarEventDialog()
+      } else if (ce.detail?.kind === 'booking') {
+        openSchedulingPanel()
+      }
     }
     window.addEventListener(GLOBAL_CREATE_EVENT, onGlobalCreate as EventListener)
     return (): void => window.removeEventListener(GLOBAL_CREATE_EVENT, onGlobalCreate as EventListener)
-  }, [openCreateCalendarEventDialog])
+  }, [openCreateCalendarEventDialog, openSchedulingPanel])
 
   const openCalendarAccountContextMenu = useCallback(
     (clientX: number, clientY: number, account: ConnectedAccount): void => {
@@ -1010,7 +1081,23 @@ export function CalendarShell(): JSX.Element {
   )
 
   const calendarPreviewBody = useMemo(
-    () => (
+    () =>
+      schedulingOpen ? (
+        <CalendarSchedulingPanel
+          accounts={accounts}
+          slots={schedulingSlots}
+          onSlotsChange={setSchedulingSlots}
+          accountId={schedulingAccountId}
+          onAccountIdChange={setSchedulingAccountId}
+          durationMinutes={schedulingDurationMin}
+          onDurationMinutesChange={setSchedulingDurationMin}
+          meetingTitle={schedulingMeetingTitle}
+          onMeetingTitleChange={setSchedulingMeetingTitle}
+          timeZone={fcTimeZone}
+          onClose={closeSchedulingPanel}
+          className="min-h-0 flex-1"
+        />
+      ) : (
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {previewCloudTask ? (
           <CloudTaskItemPreview
@@ -1044,8 +1131,16 @@ export function CalendarShell(): JSX.Element {
           />
         )}
       </div>
-    ),
+      ),
     [
+      schedulingOpen,
+      accounts,
+      schedulingSlots,
+      schedulingAccountId,
+      schedulingDurationMin,
+      schedulingMeetingTitle,
+      fcTimeZone,
+      closeSchedulingPanel,
       previewCloudTask,
       previewCloudTaskPlanned,
       previewCloudTaskAccountName,
@@ -1581,7 +1676,12 @@ export function CalendarShell(): JSX.Element {
       cancelled2 = true
       window.cancelAnimationFrame(raf2)
     }
-  }, [clearSelectedMessage])
+  }, [
+    clearSelectedMessage,
+    calendarPendingEventId,
+    calendarPendingGotoDateIso,
+    calendarPendingCreateOnDayIso
+  ])
 
   const hideCalendarFromSidebar = useCallback(
     (accountId: string, graphCalendarId: string): void => {
@@ -2105,6 +2205,11 @@ export function CalendarShell(): JSX.Element {
     return [quickCreateRangeToFcPlaceholder(quickCreate.range)]
   }, [quickCreate])
 
+  const schedulingPlaceholderEvents = useMemo((): EventInput[] => {
+    if (!schedulingOpen) return []
+    return schedulingSlotsToFcEvents(schedulingSlots)
+  }, [schedulingOpen, schedulingSlots])
+
   const fcEventSources = useMemo((): EventSourceInput[] => {
     const skipHeavyLayers = shouldSkipHeavyCalendarLayersForMultiMonth(activeViewId)
     const sources: EventSourceInput[] = [{ id: 'graph-calendar', events: graphFcEventsForFc }]
@@ -2120,6 +2225,9 @@ export function CalendarShell(): JSX.Element {
     if (quickCreate) {
       sources.push({ id: 'quick-create-placeholder', events: quickCreatePlaceholderEvents })
     }
+    if (schedulingOpen && schedulingPlaceholderEvents.length > 0) {
+      sources.push({ id: 'scheduling-slots', events: schedulingPlaceholderEvents })
+    }
     return sources
   }, [
     graphFcEventsForFc,
@@ -2131,7 +2239,9 @@ export function CalendarShell(): JSX.Element {
     userNoteOverlay,
     activeViewId,
     quickCreate,
-    quickCreatePlaceholderEvents
+    quickCreatePlaceholderEvents,
+    schedulingOpen,
+    schedulingPlaceholderEvents
   ])
 
   useEffect(() => {
@@ -2253,15 +2363,59 @@ export function CalendarShell(): JSX.Element {
     []
   )
 
-  const changeView = useCallback((viewId: string): void => {
-    const api = calendarRef.current?.getApi()
-    if (!api) return
-    api.changeView(viewId)
-    setActiveViewId(viewId)
-    setViewMenuOpen(false)
-    setDaysSubOpen(false)
-    setSettingsSubOpen(false)
+  const changeView = useCallback(
+    (viewId: string): void => {
+      if (viewId === GANTT_TIMELINE_VIEW_ID) {
+        setGanttAnchor(visibleStart)
+        setActiveViewId(viewId)
+        setViewMenuOpen(false)
+        setDaysSubOpen(false)
+        setSettingsSubOpen(false)
+        return
+      }
+      const api = calendarRef.current?.getApi()
+      if (!api) return
+      api.changeView(viewId)
+      setActiveViewId(viewId)
+      setViewMenuOpen(false)
+      setDaysSubOpen(false)
+      setSettingsSubOpen(false)
+    },
+    [visibleStart]
+  )
+
+  const handleGanttScaleChange = useCallback((scale: GanttTimelineScale): void => {
+    setGanttScale(scale)
+    persistGanttTimelineScale(scale)
   }, [])
+
+  const handleGanttPersistSchedule = useCallback(
+    async (item: WorkItem, interval: GanttBarInterval): Promise<void> => {
+      try {
+        await persistWorkItemGanttSchedule(item, interval, {
+          fcTimeZone,
+          setTodoScheduleForMessage,
+          patchEventSchedule: window.mailClient.calendar.patchEventSchedule
+        })
+        setError(null)
+        timelineReloadRef.current?.()
+        reloadVisibleRange({ silent: true })
+      } catch (e) {
+        const raw = e instanceof Error ? e.message : String(e)
+        setError(raw.startsWith('calendar.') ? t(raw) : raw)
+        throw e
+      }
+    },
+    [fcTimeZone, setTodoScheduleForMessage, reloadVisibleRange, t]
+  )
+
+  const handleGanttWorkItemSelect = useCallback(
+    (item: WorkItem): void => {
+      setGanttSelectedKey(item.stableKey)
+      applyTimelineWorkItemToPreview(item)
+    },
+    [applyTimelineWorkItemToPreview]
+  )
 
   const scrollCalendarTodayIntoView = useCallback((): void => {
     const root = calendarDropRootRef.current
@@ -2327,6 +2481,16 @@ export function CalendarShell(): JSX.Element {
           e.preventDefault()
           setCalendarEventSearchOpen(false)
           setCalendarEventSearchQuery('')
+          return
+        }
+        if (schedulingOpen) {
+          e.preventDefault()
+          closeSchedulingPanel()
+          return
+        }
+        if (quickCreate) {
+          e.preventDefault()
+          dismissQuickCreate()
           return
         }
       }
@@ -2418,7 +2582,16 @@ export function CalendarShell(): JSX.Element {
     }
     window.addEventListener('keydown', onKey)
     return (): void => window.removeEventListener('keydown', onKey)
-  }, [changeView, gotoDateOpen, calendarEventSearchOpen, scrollCalendarTodayIntoView])
+  }, [
+    changeView,
+    gotoDateOpen,
+    calendarEventSearchOpen,
+    scrollCalendarTodayIntoView,
+    schedulingOpen,
+    closeSchedulingPanel,
+    quickCreate,
+    dismissQuickCreate
+  ])
 
   return (
     <>
@@ -2466,9 +2639,28 @@ export function CalendarShell(): JSX.Element {
                   onRestoreCalendarToSidebar={restoreCalendarToSidebar}
                   timeGridSlotMinutes={timeGridSlotMinutes}
                   onTimeGridSlotMinutesChange={(min): void => setTimeGridSlotMinutes(min)}
-                  onCalendarToday={(): void => calendarRef.current?.getApi().today()}
-                  onCalendarPrev={(): void => calendarRef.current?.getApi().prev()}
-                  onCalendarNext={(): void => calendarRef.current?.getApi().next()}
+                  onCalendarToday={(): void => {
+                    if (isGanttTimelineView) {
+                      setGanttAnchor(new Date())
+                      setGanttScrollToTodaySignal((n) => n + 1)
+                      return
+                    }
+                    calendarRef.current?.getApi().today()
+                  }}
+                  onCalendarPrev={(): void => {
+                    if (isGanttTimelineView) {
+                      setGanttAnchor((a) => ganttNavStepAnchor(a, ganttScale, -1))
+                      return
+                    }
+                    calendarRef.current?.getApi().prev()
+                  }}
+                  onCalendarNext={(): void => {
+                    if (isGanttTimelineView) {
+                      setGanttAnchor((a) => ganttNavStepAnchor(a, ganttScale, 1))
+                      return
+                    }
+                    calendarRef.current?.getApi().next()
+                  }}
                   leftSidebarCollapsed={leftSidebarCollapsed}
                   onLeftSidebarCollapsedChange={setLeftSidebarCollapsed}
                 />
@@ -2544,7 +2736,8 @@ export function CalendarShell(): JSX.Element {
                 `cal-slot-${timeGridSlotMinutes}`,
                 activeViewId === MULTI_MONTH_YEAR_VIEW_ID &&
                   'calendar-notion-shell--multimonth-year',
-                quickCreate != null && 'calendar-notion-shell--quick-create-open'
+                quickCreate != null && 'calendar-notion-shell--quick-create-open',
+                schedulingOpen && 'calendar-notion-shell--scheduling-open'
               )}
             >
               {!leftSidebarCollapsed ? (
@@ -2615,7 +2808,10 @@ export function CalendarShell(): JSX.Element {
 
             <div
               ref={calendarDropRootRef}
-              className="relative z-0 flex min-h-0 flex-1 flex-col px-3 pb-3 pt-2"
+              className={cn(
+                'relative z-0 flex min-h-0 flex-1 flex-col px-3 pb-3 pt-2',
+                isGanttTimelineView && 'hidden'
+              )}
             >
               <>
                   <CalendarShellLoadingOverlay visible={loading} />
@@ -2701,6 +2897,15 @@ export function CalendarShell(): JSX.Element {
                   setPreviewCloudTask(null)
                   setPreviewCloudTaskPlannedFromTimeline(null)
                   setPreviewCalendarEvent(null)
+                  if (schedulingOpen) {
+                    addSchedulingSlot({
+                      start: sel.start,
+                      end: sel.end,
+                      allDay: sel.allDay
+                    })
+                    queueMicrotask(() => calendarRef.current?.getApi().unselect())
+                    return
+                  }
                   const js = sel.jsEvent as MouseEvent | undefined
                   setQuickCreate({
                     anchor: {
@@ -2717,7 +2922,8 @@ export function CalendarShell(): JSX.Element {
                 eventDidMount={(info): void => {
                   if (
                     info.event.id === QUICK_CREATE_PLACEHOLDER_EVENT_ID ||
-                    info.el.classList.contains('fc-event-mirror')
+                    info.el.classList.contains('fc-event-mirror') ||
+                    info.event.classNames.includes('fc-scheduling-slot-placeholder')
                   ) {
                     return
                   }
@@ -3127,6 +3333,26 @@ export function CalendarShell(): JSX.Element {
               />
                 </>
             </div>
+            {isGanttTimelineView ? (
+              <div className="relative z-0 flex min-h-0 flex-1 flex-col px-1 pb-3 pt-1">
+                <CalendarGanttTimelineView
+                  anchor={ganttAnchor}
+                  scale={ganttScale}
+                  onScaleChange={handleGanttScaleChange}
+                  onRangeTitleChange={setRangeTitle}
+                  accounts={calendarLinkedAccounts}
+                  selectedKey={ganttSelectedKey}
+                  onSelect={handleGanttWorkItemSelect}
+                  onPersistSchedule={handleGanttPersistSchedule}
+                  reloadSignal={todoSideListRefreshKey}
+                  reloadRef={timelineReloadRef}
+                  onLoadingChange={setTimelineLoading}
+                  scrollToTodaySignal={ganttScrollToTodaySignal}
+                  onNewEventClick={(): void => setEventDialog({ mode: 'create', range: null })}
+                  newEventDisabled={calendarLinkedAccounts.length === 0}
+                />
+              </div>
+            ) : null}
           </div>
         </div>
 

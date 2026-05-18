@@ -101,6 +101,11 @@ function initialSelection(accounts: { id: string }[]): TasksViewSelection | null
 
 export function TasksShell(): JSX.Element {
   const { t } = useTranslation()
+  const pendingTaskKey = useTasksPendingFocusStore((s) =>
+    s.pendingTask
+      ? `${s.pendingTask.accountId}:${s.pendingTask.listId}:${s.pendingTask.taskId}`
+      : null
+  )
   const accounts = useAccountsStore((s) => s.accounts)
   const profilePhotoDataUrls = useAccountsStore((s) => s.profilePhotoDataUrls)
   const patchAccountColor = useAccountsStore((s) => s.patchAccountColor)
@@ -806,6 +811,7 @@ export function TasksShell(): JSX.Element {
   }, [taskAccounts.length, openCreateTaskDialog])
 
   useEffect(() => {
+    if (pendingTaskKey == null) return
     const pendingTask = useTasksPendingFocusStore.getState().takePendingTask()
     if (!pendingTask) return
     const targetKey = `${pendingTask.accountId}:${pendingTask.listId}:${pendingTask.taskId}`
@@ -837,7 +843,7 @@ export function TasksShell(): JSX.Element {
         setSelected({ ...hit, accountId: pendingTask.accountId, listName })
       })
       .catch(() => undefined)
-  }, [listsByAccount])
+  }, [pendingTaskKey, listsByAccount])
 
   useEffect(() => {
     function onGlobalCreate(e: Event): void {

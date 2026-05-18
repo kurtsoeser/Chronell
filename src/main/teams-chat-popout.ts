@@ -1,4 +1,5 @@
 import { app, BrowserWindow, screen } from 'electron'
+import { resolveAppWindowIcon } from './app-icon'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type {
@@ -135,6 +136,7 @@ export function openTeamsChatPopout(input: TeamsChatPopoutOpenInput): void {
   const alwaysOnTop = input.alwaysOnTop === true
   const { x, y } = nextCascadePosition()
 
+  const icon = resolveAppWindowIcon()
   const win = new BrowserWindow({
     width: POPOUT_WIDTH,
     height: POPOUT_HEIGHT,
@@ -147,6 +149,7 @@ export function openTeamsChatPopout(input: TeamsChatPopoutOpenInput): void {
     backgroundColor: '#0e0e12',
     title,
     alwaysOnTop,
+    ...(icon ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.mjs'),
       sandbox: false,

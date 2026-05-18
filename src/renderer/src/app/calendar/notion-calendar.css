@@ -216,6 +216,48 @@
   z-index: 2;
 }
 
+/* Terminplanung (D-light): markierte Verfuegbarkeitsfenster */
+.calendar-notion-shell.calendar-notion-shell--scheduling-open .fc-highlight {
+  border: 2px dashed hsl(45 90% 42% / 0.75) !important;
+  border-radius: 4px;
+  background: repeating-linear-gradient(
+    -45deg,
+    hsl(45 95% 55% / 0.38),
+    hsl(45 95% 55% / 0.38) 5px,
+    hsl(45 90% 72% / 0.22) 5px,
+    hsl(45 90% 72% / 0.22) 10px
+  ) !important;
+  box-shadow: none !important;
+}
+
+.calendar-notion-shell .fc-event.fc-scheduling-slot-placeholder,
+.calendar-notion-shell .fc-bg-event.fc-scheduling-slot-placeholder,
+.calendar-notion-shell .fc-timegrid-event.fc-scheduling-slot-placeholder {
+  background: repeating-linear-gradient(
+    -45deg,
+    hsl(45 95% 55% / 0.42),
+    hsl(45 95% 55% / 0.42) 5px,
+    hsl(45 90% 72% / 0.24) 5px,
+    hsl(45 90% 72% / 0.24) 10px
+  ) !important;
+  background-color: transparent !important;
+  border: 2px solid hsl(45 85% 40% / 0.75) !important;
+  border-radius: 4px;
+  box-shadow: none !important;
+  color: transparent !important;
+  opacity: 1;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.calendar-notion-shell .fc-event.fc-scheduling-slot-placeholder .fc-event-main {
+  display: none !important;
+}
+
+.calendar-notion-shell .fc-timegrid-event-harness:has(.fc-scheduling-slot-placeholder) {
+  z-index: 3;
+}
+
 .calendar-notion-shell .fc-cal-event-custom {
   position: relative;
   height: 100%;

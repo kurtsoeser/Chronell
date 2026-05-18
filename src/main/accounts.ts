@@ -60,7 +60,8 @@ export function accountPreferencesForBackup(
     color: a.color,
     calendarLoadAheadDays: a.calendarLoadAheadDays ?? null,
     signatureTemplates: a.signatureTemplates,
-    defaultSignatureTemplateId: a.defaultSignatureTemplateId ?? null
+    defaultSignatureTemplateId: a.defaultSignatureTemplateId ?? null,
+    bookWithMeUrl: a.bookWithMeUrl ?? null
   }))
 }
 
@@ -96,6 +97,9 @@ export async function mergeAccountPreferencesFromBackup(
     }
     if ('defaultSignatureTemplateId' in p) {
       merged.defaultSignatureTemplateId = p.defaultSignatureTemplateId ?? null
+    }
+    if ('bookWithMeUrl' in p) {
+      merged.bookWithMeUrl = p.bookWithMeUrl ?? null
     }
     return merged
   })

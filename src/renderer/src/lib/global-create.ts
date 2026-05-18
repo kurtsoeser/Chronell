@@ -6,6 +6,7 @@ export type GlobalCreateKind =
   | 'mail'
   | 'task'
   | 'calendar_event'
+  | 'booking'
   | 'note'
   | 'chat'
   | 'contact'
@@ -72,6 +73,7 @@ export function targetShellModeForCreateKind(kind: GlobalCreateKind): AppShellMo
     case 'task':
       return 'tasks'
     case 'calendar_event':
+    case 'booking':
       return 'calendar'
     case 'note':
       return 'notes'

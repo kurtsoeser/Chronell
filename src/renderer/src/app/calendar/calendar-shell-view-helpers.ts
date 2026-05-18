@@ -1,10 +1,14 @@
 import type { TFunction } from 'i18next'
 import { addDays, format } from 'date-fns'
+import { GANTT_TIMELINE_VIEW_ID } from '@/app/calendar/calendar-gantt-scale'
+
+export { GANTT_TIMELINE_VIEW_ID }
 
 /** Maximale Tage in einer `timeGridNDay`-Ansicht (Mini-Kalender-Ziehen + Menü). */
 export const MAX_TIME_GRID_SPAN_DAYS = 21
 
 export function viewIdToLabel(viewId: string, tr: TFunction): string {
+  if (viewId === GANTT_TIMELINE_VIEW_ID) return tr('calendar.views.ganttTimeline')
   if (viewId === 'timeGridDay') return tr('calendar.views.day')
   if (viewId === 'timeGridWeek') return tr('calendar.views.week')
   if (viewId === 'dayGridMonth') return tr('calendar.views.month')

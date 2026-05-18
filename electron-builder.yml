@@ -18,11 +18,17 @@ files:
 asarUnpack:
   - resources/**
 
-# Ohne Codesigning: vermeidet winCodeSign-Extraktion mit Symlinks (fehlt oft ohne
-# Admin/Entwicklermodus auf Windows). Für Store/verteilbare EXE später Zertifikat + sign:true.
+# Icons neben der EXE (für setIcon in Popouts / Laufzeit-Fallback)
+extraResources:
+  - from: resources/icon.ico
+    to: icon.ico
+  - from: resources/icon.png
+    to: icon.png
+
+# signAndEditExecutable: true bettet Icon + Metadaten per rcedit ein (ohne Zertifikat kein Signieren).
+# false = EXE behält Electron-Standardicon (Taskleiste, Startmenü, Programmordner).
 win:
-  icon: resources/icon.png
-  signAndEditExecutable: false
+  icon: icon.ico
   target:
     - target: nsis
       arch:
@@ -30,6 +36,8 @@ win:
   artifactName: ${productName}-${version}-setup.${ext}
 
 nsis:
+  installerIcon: icon.ico
+  uninstallerIcon: icon.ico
   oneClick: false
   # true = klassische Installation unter C:\Program Files\Chronell (Admin-Rechte beim Setup)
   perMachine: true

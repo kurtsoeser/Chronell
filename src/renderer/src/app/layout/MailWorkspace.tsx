@@ -15,13 +15,15 @@ const MAIL_FLOAT_CALENDAR_SIZE_KEY = 'mailclient.mailWorkspace.calendarFloatSize
 
 export function MailWorkspace(props: { onOpenAccountDialog: () => void }): JSX.Element {
   const { t } = useTranslation()
+  const pendingMessageId = useMailPendingFocusStore((s) => s.pendingMessageId)
   const takePendingMessageId = useMailPendingFocusStore((s) => s.takePendingMessageId)
   const openMessageInFolder = useMailStore((s) => s.openMessageInFolder)
 
   useEffect(() => {
+    if (pendingMessageId == null) return
     const pendingId = takePendingMessageId()
     if (pendingId != null) void openMessageInFolder(pendingId)
-  }, [takePendingMessageId, openMessageInFolder])
+  }, [pendingMessageId, takePendingMessageId, openMessageInFolder])
   const [sidebarWidth, setSidebarWidth] = useResizableWidth({
     storageKey: 'mailclient.sidebarWidth',
     defaultWidth: 256,

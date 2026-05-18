@@ -48,6 +48,7 @@ interface AccountsState {
     accountId: string,
     patch: Pick<PatchAccountInput, 'signatureTemplates' | 'defaultSignatureTemplateId'>
   ) => Promise<void>
+  patchAccountBookWithMeUrl: (accountId: string, bookWithMeUrl: string | null) => Promise<void>
   dismissWorkflowMailFoldersIntro: () => Promise<void>
   setFirstRunSetupCompleted: (value: boolean) => Promise<void>
 }
@@ -259,6 +260,16 @@ export const useAccountsStore = create<AccountsState>((set, get) => ({
     set({ error: null })
     try {
       await window.mailClient.auth.patchAccount({ accountId, ...patch })
+    } catch (e) {
+      set({ error: e instanceof Error ? e.message : String(e) })
+      throw e
+    }
+  },
+
+  async patchAccountBookWithMeUrl(accountId: string, bookWithMeUrl: string | null): Promise<void> {
+    set({ error: null })
+    try {
+      await window.mailClient.auth.patchAccount({ accountId, bookWithMeUrl })
     } catch (e) {
       set({ error: e instanceof Error ? e.message : String(e) })
       throw e

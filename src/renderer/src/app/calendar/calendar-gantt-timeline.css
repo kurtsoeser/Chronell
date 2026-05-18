@@ -1,0 +1,143 @@
+.calendar-gantt-root {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.calendar-gantt-toolbar {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.5rem;
+  border-bottom: 1px solid hsl(var(--border));
+  padding: 0.35rem 0.75rem;
+}
+
+.calendar-gantt-scroll {
+  position: relative;
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+}
+
+.calendar-gantt-header-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: hsl(var(--card) / 0.97);
+  backdrop-filter: blur(6px);
+}
+
+.calendar-gantt-header-row {
+  display: flex;
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.calendar-gantt-header-month {
+  flex-shrink: 0;
+  border-right: 1px solid hsl(var(--border) / 0.5);
+  padding: 0.15rem 0.35rem;
+  font-size: 10px;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+  text-align: center;
+}
+
+.calendar-gantt-header-col {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.05rem;
+  border-right: 1px solid hsl(var(--border) / 0.45);
+  padding: 0.2rem 0.15rem;
+  font-size: 11px;
+  color: hsl(var(--muted-foreground));
+}
+
+.calendar-gantt-header-col--weekend {
+  background: hsl(var(--muted) / 0.35);
+}
+
+.calendar-gantt-header-col--today .calendar-gantt-header-primary {
+  display: inline-flex;
+  height: 1.35rem;
+  min-width: 1.35rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: hsl(var(--destructive));
+  color: hsl(var(--destructive-foreground));
+  font-weight: 600;
+}
+
+.calendar-gantt-header-primary {
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.calendar-gantt-header-secondary {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.calendar-gantt-body {
+  position: relative;
+}
+
+.calendar-gantt-grid-col {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-right: 1px solid hsl(var(--border) / 0.35);
+}
+
+.calendar-gantt-grid-col--weekend {
+  background: hsl(var(--muted) / 0.2);
+}
+
+.calendar-gantt-now-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 15;
+  width: 2px;
+  background: hsl(var(--destructive));
+  pointer-events: none;
+}
+
+.calendar-gantt-now-line::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  transform: translate(-50%, -50%);
+  border-radius: 9999px;
+  background: hsl(var(--destructive));
+}
+
+.calendar-gantt-bar-layer {
+  position: relative;
+  min-height: 120px;
+}
+
+.calendar-gantt-scale-menu {
+  position: absolute;
+  left: 0;
+  top: 100%;
+  z-index: 110;
+  margin-top: 0.25rem;
+  min-width: 10rem;
+  border-radius: 0.75rem;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--popover));
+  padding: 0.25rem 0;
+  color: hsl(var(--popover-foreground));
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.18);
+}

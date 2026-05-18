@@ -361,6 +361,14 @@ function parseAccountPreferencesBackup(raw: unknown[]): SettingsBackupAccountPre
             ? row.defaultSignatureTemplateId
             : null
     }
+    if ('bookWithMeUrl' in row) {
+      pref.bookWithMeUrl =
+        row.bookWithMeUrl == null
+          ? null
+          : typeof row.bookWithMeUrl === 'string'
+            ? row.bookWithMeUrl.trim() || null
+            : null
+    }
     out.push(pref)
   }
   return out
