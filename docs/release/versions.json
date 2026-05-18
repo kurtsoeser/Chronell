@@ -1,0 +1,11 @@
+{
+  "latest": "0.9.8",
+  "beta": true,
+  "stableUrl": "release/latest/Chronell-setup.exe",
+  "versions": [
+    {
+      "version": "0.9.8",
+      "setupUrl": "release/0.9.8/Chronell-0.9.8-setup.exe"
+    }
+  ]
+}

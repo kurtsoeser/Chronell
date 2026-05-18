@@ -6,11 +6,13 @@
 .EXAMPLE
   .\scripts\publish-docs-release.ps1
   .\scripts\publish-docs-release.ps1 -Version 0.9.8 -NoOpen
+  .\scripts\publish-docs-release.ps1 -IndexOnly
 #>
 [CmdletBinding()]
 param(
   [string] $Version,
-  [switch] $NoOpen
+  [switch] $NoOpen,
+  [switch] $IndexOnly
 )
 
 Set-StrictMode -Version Latest
@@ -39,23 +41,46 @@ function Find-SetupExe([string] $Ver) {
   return $null
 }
 
-if (-not $Version) { $Version = Read-PackageVersion }
-
-$setupExe = Find-SetupExe $Version
-if (-not $setupExe) {
-  throw "Kein Setup gefunden. Zuerst: npm run build:win (Version $Version)"
-}
-
 $docsRelease = Join-Path $repoRoot 'docs\release'
-$versionDir = Join-Path $docsRelease $Version
 $latestDir = Join-Path $docsRelease 'latest'
 $stableName = 'Chronell-setup.exe'
-$versionedName = "Chronell-$Version-setup.exe"
 
-New-Item -ItemType Directory -Force -Path $versionDir, $latestDir | Out-Null
+function Get-DocsReleaseVersions {
+  $dirs = Get-ChildItem -LiteralPath $docsRelease -Directory -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -match '^\d+\.\d+\.\d+$' }
+  return $dirs | Sort-Object { [version]$_.Name } -Descending
+}
 
-Copy-Item -LiteralPath $setupExe -Destination (Join-Path $versionDir $versionedName) -Force
-Copy-Item -LiteralPath $setupExe -Destination (Join-Path $latestDir $stableName) -Force
+if (-not $Version) {
+  $sorted = Get-DocsReleaseVersions
+  if ($sorted.Count -gt 0) {
+    $Version = $sorted[0].Name
+  } else {
+    $Version = Read-PackageVersion
+  }
+}
+
+if (-not $IndexOnly) {
+  $setupExe = Find-SetupExe $Version
+  if (-not $setupExe) {
+    throw "Kein Setup gefunden. Zuerst: npm run build:win (Version $Version)"
+  }
+
+  $versionDir = Join-Path $docsRelease $Version
+  $versionedName = "Chronell-$Version-setup.exe"
+
+  New-Item -ItemType Directory -Force -Path $versionDir, $latestDir | Out-Null
+
+  Copy-Item -LiteralPath $setupExe -Destination (Join-Path $versionDir $versionedName) -Force
+  Copy-Item -LiteralPath $setupExe -Destination (Join-Path $latestDir $stableName) -Force
+} elseif (-not (Test-Path -LiteralPath (Join-Path $latestDir $stableName))) {
+  $versionedName = "Chronell-$Version-setup.exe"
+  $fromVersioned = Join-Path $docsRelease "$Version\$versionedName"
+  if (Test-Path -LiteralPath $fromVersioned) {
+    New-Item -ItemType Directory -Force -Path $latestDir | Out-Null
+    Copy-Item -LiteralPath $fromVersioned -Destination (Join-Path $latestDir $stableName) -Force
+  }
+}
 
 $appVersionTs = Join-Path $repoRoot 'src\shared\app-version.ts'
 $releasedAt = (Get-Date -Format 'yyyy-MM-dd')
@@ -66,6 +91,7 @@ if (Test-Path -LiteralPath $appVersionTs) {
   }
 }
 
+$versionedName = "Chronell-$Version-setup.exe"
 $manifest = [ordered]@{
   version      = $Version
   releasedAt   = $releasedAt
@@ -77,12 +103,34 @@ $manifest = [ordered]@{
 $manifestPath = Join-Path $docsRelease 'latest.json'
 $manifest | ConvertTo-Json | Set-Content -LiteralPath $manifestPath -Encoding UTF8
 
+$versionRows = @()
+foreach ($dir in Get-DocsReleaseVersions) {
+  $ver = $dir.Name
+  $exeName = "Chronell-$ver-setup.exe"
+  $exePath = Join-Path $dir.FullName $exeName
+  if (-not (Test-Path -LiteralPath $exePath)) { continue }
+  $versionRows += [ordered]@{
+    version  = $ver
+    setupUrl = "release/$ver/$exeName"
+  }
+}
+
+$versionsManifest = [ordered]@{
+  latest    = $Version
+  beta      = $true
+  stableUrl = 'release/latest/Chronell-setup.exe'
+  versions  = @($versionRows)
+}
+$versionsPath = Join-Path $docsRelease 'versions.json'
+$versionsManifest | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $versionsPath -Encoding UTF8
+
 Write-Host ''
 Write-Host 'Installer für Homepage bereit:' -ForegroundColor Green
 Write-Host "  Version:  $Version"
 Write-Host "  Stabil:   docs/release/latest/$stableName"
 Write-Host "  Archiv:   docs/release/$Version/$versionedName"
 Write-Host "  Manifest: docs/release/latest.json"
+Write-Host "  Index:    docs/release/versions.json"
 Write-Host ''
 Write-Host 'Als Nächstes: docs/release committen und pushen (GitHub Pages).' -ForegroundColor DarkGray
 
