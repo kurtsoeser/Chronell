@@ -313,6 +313,8 @@ const api = {
       ipcRenderer.invoke(IPC.config.setSyncWindowDays, days),
     setMailPollIntervalSeconds: (seconds: number): Promise<AppConfig> =>
       ipcRenderer.invoke(IPC.config.setMailPollIntervalSeconds, seconds),
+    setProfileSyncPollIntervalSeconds: (seconds: number): Promise<AppConfig> =>
+      ipcRenderer.invoke(IPC.config.setProfileSyncPollIntervalSeconds, seconds),
     setAutoLoadImages: (value: boolean): Promise<AppConfig> =>
       ipcRenderer.invoke(IPC.config.setAutoLoadImages, value),
     setCalendarTimeZone: (iana: string | null): Promise<AppConfig> =>
@@ -353,6 +355,11 @@ const api = {
       localStorage: Record<string, string>
     ): Promise<import('@shared/types').ProfileSyncRunResult> =>
       ipcRenderer.invoke(IPC.profileSync.syncNow, localStorage),
+    resolveConflict: (
+      resolution: 'pull' | 'push',
+      localStorage: Record<string, string>
+    ): Promise<import('@shared/types').ProfileSyncRunResult> =>
+      ipcRenderer.invoke(IPC.profileSync.resolveConflict, resolution, localStorage),
     cacheUiPrefs: (localStorage: Record<string, string>): Promise<void> =>
       ipcRenderer.invoke(IPC.profileSync.cacheUiPrefs, localStorage)
   },

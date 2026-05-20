@@ -7,6 +7,10 @@ import {
   snapshotLocalStorage
 } from '@/lib/local-storage-snapshot'
 import { formatProfileSyncTimestamp } from '@/lib/format-profile-sync-timestamp'
+import {
+  PROFILE_SYNC_POLL_INTERVAL_PRESETS,
+  clampProfileSyncPollIntervalSeconds
+} from '@shared/profile-sync-poll-interval'
 import type { ProfileDataMode, ProfileSyncRunResult, ProfileSyncStatus } from '@shared/types'
 
 export function AccountSetupCloudSyncSection(): JSX.Element {
@@ -19,12 +23,19 @@ export function AccountSetupCloudSyncSection(): JSX.Element {
   const [email, setEmail] = useState('')
   const [otp, setOtp] = useState('')
   const [otpSent, setOtpSent] = useState(false)
+  const [pollIntervalSeconds, setPollIntervalSeconds] = useState(300)
 
   const refresh = useCallback(async (): Promise<void> => {
     setLoading(true)
     try {
-      const s = await window.mailClient.profileSync.getStatus()
+      const [s, cfg] = await Promise.all([
+        window.mailClient.profileSync.getStatus(),
+        window.mailClient.config.get()
+      ])
       setStatus(s)
+      setPollIntervalSeconds(
+        clampProfileSyncPollIntervalSeconds(cfg.profileSyncPollIntervalSeconds ?? 300)
+      )
       if (s.session?.email) setEmail(s.session.email)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -40,6 +51,21 @@ export function AccountSetupCloudSyncSection(): JSX.Element {
     })
     return offStatus
   }, [refresh])
+
+  async function handlePollIntervalChange(seconds: number): Promise<void> {
+    setError(null)
+    setBusy(true)
+    try {
+      const cfg = await window.mailClient.config.setProfileSyncPollIntervalSeconds(seconds)
+      setPollIntervalSeconds(
+        clampProfileSyncPollIntervalSeconds(cfg.profileSyncPollIntervalSeconds ?? seconds)
+      )
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
 
   async function handleSetMode(mode: ProfileDataMode): Promise<void> {
     setError(null)
@@ -129,8 +155,39 @@ export function AccountSetupCloudSyncSection(): JSX.Element {
     if (r.attachmentsDownloaded > 0) {
       parts.push(t('settings.cloudSync.resultAttachmentsDown', { count: r.attachmentsDownloaded }))
     }
+    if (r.skippedConflict) parts.push(t('settings.cloudSync.resultSkippedConflict'))
     if (parts.length === 0) parts.push(t('settings.cloudSync.resultNoChanges'))
     return parts.join(' · ')
+  }
+
+  async function applySyncResult(r: ProfileSyncRunResult): Promise<void> {
+    if (!r.ok) {
+      setError(r.error)
+      return
+    }
+    if (r.localStorage) {
+      replaceLocalStorageFromBackup(r.localStorage)
+      setNotice(`${formatSyncResult(r)} ${t('settings.cloudSync.reloadHint')}`)
+      window.location.reload()
+      return
+    }
+    setNotice(formatSyncResult(r))
+    await refresh()
+  }
+
+  async function handleResolveConflict(resolution: 'pull' | 'push'): Promise<void> {
+    setError(null)
+    setNotice(null)
+    setBusy(true)
+    try {
+      const ls = snapshotLocalStorage()
+      const r = await window.mailClient.profileSync.resolveConflict(resolution, ls)
+      await applySyncResult(r)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
   }
 
   async function handleSyncNow(): Promise<void> {
@@ -140,18 +197,7 @@ export function AccountSetupCloudSyncSection(): JSX.Element {
     try {
       const ls = snapshotLocalStorage()
       const r = await window.mailClient.profileSync.syncNow(ls)
-      if (!r.ok) {
-        setError(r.error)
-        return
-      }
-      if (r.localStorage) {
-        replaceLocalStorageFromBackup(r.localStorage)
-        setNotice(`${formatSyncResult(r)} ${t('settings.cloudSync.reloadHint')}`)
-        window.location.reload()
-        return
-      }
-      setNotice(formatSyncResult(r))
-      await refresh()
+      await applySyncResult(r)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -184,9 +230,31 @@ export function AccountSetupCloudSyncSection(): JSX.Element {
         </p>
       ) : status ? (
         <div className="space-y-3">
-          {status.conflictRemoteNewer ? (
+          {status.conflictPending ? (
+            <div className="space-y-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-2">
+              <p className="text-[11px] text-amber-100">{t('settings.cloudSync.conflictHint')}</p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={(): void => void handleResolveConflict('pull')}
+                  className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90"
+                >
+                  {t('settings.cloudSync.useCloud')}
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={(): void => void handleResolveConflict('push')}
+                  className="rounded-md border border-amber-500/50 bg-amber-950/40 px-3 py-1.5 text-xs font-medium text-amber-50 hover:bg-amber-950/60"
+                >
+                  {t('settings.cloudSync.useLocal')}
+                </button>
+              </div>
+            </div>
+          ) : status.conflictRemoteNewer ? (
             <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-2 text-[11px] text-amber-100">
-              {t('settings.cloudSync.conflictHint')}
+              {t('settings.cloudSync.conflictRemoteOnly')}
             </p>
           ) : null}
           {status.syncing ? (
@@ -195,7 +263,40 @@ export function AccountSetupCloudSyncSection(): JSX.Element {
               {t('settings.cloudSync.syncing')}
             </p>
           ) : status.autoSyncActive ? (
-            <p className="text-[10px] text-muted-foreground">{t('settings.cloudSync.autoSyncOn')}</p>
+            <p className="text-[10px] text-muted-foreground">
+              {t('settings.cloudSync.autoSyncOn', {
+                minutes: Math.round(pollIntervalSeconds / 60)
+              })}
+            </p>
+          ) : null}
+
+          {dataMode === 'cloud' && configured ? (
+            <div className="space-y-1">
+              <label
+                htmlFor="profile-sync-poll-interval"
+                className="text-[10px] font-medium text-muted-foreground"
+              >
+                {t('settings.cloudSync.pollIntervalLabel')}
+              </label>
+              <select
+                id="profile-sync-poll-interval"
+                disabled={busy}
+                value={String(pollIntervalSeconds)}
+                onChange={(e): void => {
+                  void handlePollIntervalChange(Number(e.target.value))
+                }}
+                className="w-full max-w-xs rounded-md border border-border bg-background px-2.5 py-1.5 text-xs outline-none focus:border-ring disabled:opacity-50"
+              >
+                {PROFILE_SYNC_POLL_INTERVAL_PRESETS.map((sec) => (
+                  <option key={sec} value={sec}>
+                    {t('settings.cloudSync.pollIntervalMinutes', { count: sec / 60 })}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[10px] text-muted-foreground">
+                {t('settings.cloudSync.pollIntervalHint')}
+              </p>
+            </div>
           ) : null}
           <div className="flex flex-wrap gap-2">
             <button

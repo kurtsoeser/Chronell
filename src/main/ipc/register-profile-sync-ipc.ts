@@ -1,7 +1,14 @@
 import { ipcMain } from 'electron'
-import { IPC, type ProfileDataMode, type ProfileSyncRunResult, type ProfileSyncStatus } from '@shared/types'
+import {
+  IPC,
+  type ProfileDataMode,
+  type ProfileSyncResolution,
+  type ProfileSyncRunResult,
+  type ProfileSyncStatus
+} from '@shared/types'
 import {
   getProfileSyncStatus,
+  resolveProfileSyncConflict,
   runProfileSyncNow,
   sendProfileSyncOtp,
   setProfileDataMode,
@@ -19,6 +26,7 @@ export function registerProfileSyncIpc(): void {
   ipcMain.removeHandler(IPC.profileSync.signOut)
   ipcMain.removeHandler(IPC.profileSync.signInMicrosoft365)
   ipcMain.removeHandler(IPC.profileSync.syncNow)
+  ipcMain.removeHandler(IPC.profileSync.resolveConflict)
   ipcMain.removeHandler(IPC.profileSync.cacheUiPrefs)
 
   ipcMain.handle(IPC.profileSync.getStatus, async (): Promise<ProfileSyncStatus> => {
@@ -66,14 +74,21 @@ export function registerProfileSyncIpc(): void {
   ipcMain.handle(
     IPC.profileSync.syncNow,
     async (_event, localStorage: unknown): Promise<ProfileSyncRunResult> => {
-      if (!localStorage || typeof localStorage !== 'object' || Array.isArray(localStorage)) {
-        throw new Error('Ungültiger localStorage-Export.')
+      return runProfileSyncNow(parseProfileSyncLocalStorage(localStorage))
+    }
+  )
+
+  ipcMain.handle(
+    IPC.profileSync.resolveConflict,
+    async (
+      _event,
+      resolution: ProfileSyncResolution,
+      localStorage: unknown
+    ): Promise<ProfileSyncRunResult> => {
+      if (resolution !== 'pull' && resolution !== 'push') {
+        throw new Error('Ungültige Sync-Auflösung.')
       }
-      const flat: Record<string, string> = {}
-      for (const [k, v] of Object.entries(localStorage as Record<string, unknown>)) {
-        if (typeof v === 'string') flat[k] = v
-      }
-      return runProfileSyncNow(flat)
+      return resolveProfileSyncConflict(resolution, parseProfileSyncLocalStorage(localStorage))
     }
   )
 
@@ -90,4 +105,15 @@ export function registerProfileSyncIpc(): void {
       setCachedProfileUiPrefs(flat)
     }
   )
+}
+
+function parseProfileSyncLocalStorage(localStorage: unknown): Record<string, string> {
+  if (!localStorage || typeof localStorage !== 'object' || Array.isArray(localStorage)) {
+    throw new Error('Ungültiger localStorage-Export.')
+  }
+  const flat: Record<string, string> = {}
+  for (const [k, v] of Object.entries(localStorage as Record<string, unknown>)) {
+    if (typeof v === 'string') flat[k] = v
+  }
+  return flat
 }

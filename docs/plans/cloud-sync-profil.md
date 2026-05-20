@@ -60,8 +60,8 @@ Einstellungen → Allgemein → **Cloud-Sync**
 
 ## Phase 2 (Komfort)
 
-- **Auto-Sync:** Beim App-Start (nach ~8 s), alle **90 s** im Hintergrund, **5 s** nach Änderungen an Notizen oder Verbindungen.
+- **Auto-Sync:** Beim App-Start (nach ~8 s), im Hintergrund im eingestellten Intervall (**2–30 Min**, Standard 5; Einstellungen → Cloud-Sync), nur leichter Cloud-Zeitstempel-Check, voller Abruf nur bei Änderungen; **5 s** nach Änderungen an Notizen oder Verbindungen.
 - **UI-Prefs:** Renderer meldet `localStorage` alle 30 s an den Main-Prozess.
-- **Konflikt-Hinweis:** Wenn die Cloud neuer ist als letzter Pull/Upload auf diesem Gerät.
+- **Konflikt-Auswahl:** Wenn die Cloud neuer ist als der letzte Abruf auf diesem Gerät (oder lokale Änderungen + anderer Cloud-Stand), pausiert Auto-Sync. In den Einstellungen: **Cloud-Stand übernehmen** oder **Lokalen Stand hochladen**.
 - **Notiz-Anhänge:** Bucket `chronell-note-attachments` (Migration `20260520120000_chronell_note_attachments_storage.sql`).
 - Push nur bei lokalen Änderungen (`profileCloudLocalDirtyAt`), nicht bei jedem Poll.

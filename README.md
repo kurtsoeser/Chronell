@@ -1,11 +1,11 @@
 # Chronell
 
-**Chronell** ist eine Desktop-Arbeitszentrale für Windows 11 — kein klassischer E-Mail-Client zum bloßen Lesen von Listen, sondern ein System, **Zeit und Handlung** zu steuern: Mail-Triage, Aufgaben, Kalender, Microsoft Bookings und mehr in **einem Fenster**, mit **Microsoft 365** und **Google** kombiniert und **lokaler SQLite-Datenhaltung** auf deinem Rechner.
+**Chronell** ist eine Desktop-Arbeitszentrale für Windows 11 — kein klassischer E-Mail-Client zum bloßen Lesen von Listen, sondern ein System, **Zeit und Handlung** zu steuern: Mail-Triage, **Verbindungen** zwischen allen Objekten, **KI-Vorschläge** zum Verknüpfen, optionales **Cloud-Sync** für dein Profil, Aufgaben, Kalender, Microsoft Bookings und mehr in **einem Fenster**, mit **Microsoft 365** und **Google** kombiniert und **lokaler SQLite-Datenhaltung** auf deinem Rechner.
 
 | | |
 |---|---|
 | **Homepage & Download** | [kurtsoeser.github.io/Chronell](https://kurtsoeser.github.io/Chronell/) |
-| **Aktuelle Version** | **0.9.13** (18. Mai 2026) |
+| **Aktuelle Version** | **0.9.16** (20. Mai 2026) |
 | **Windows-Installer** | [GitHub Release](https://github.com/kurtsoeser/Chronell/releases/latest) oder [direkt von Pages](https://kurtsoeser.github.io/Chronell/release/latest/Chronell-setup.exe) |
 | **Technischer Repo-Name** | MailClient · **App-ID:** `at.kurtsoeser.chronell` |
 | **Ausführliches Protokoll** | [`docs/FUNKTIONSPROTOKOLL.md`](docs/FUNKTIONSPROTOKOLL.md) |
@@ -19,7 +19,9 @@
 
 - [Warum Chronell?](#warum-chronell)
 - [Neuigkeiten (0.9.x)](#neuigkeiten-09x)
-- [Die neun Module](#die-neun-module)
+- [Die zehn Module](#die-zehn-module)
+- [Verbindungen & KI](#verbindungen--ki)
+- [Cloud-Sync (Profil)](#cloud-sync-profil)
 - [Funktionen im Überblick](#funktionen-im-überblick)
 - [Mail & Triage](#mail--triage)
 - [Kalender & Terminplanung](#kalender--terminplanung)
@@ -45,6 +47,8 @@ Klassische Mail-Clients zeigen Listen. **Chronell** ist auf einen **Workflow fü
 - Posteingang **entlasten** und jede Nachricht zur **Entscheidung** machen (erledigen, planen, snoozen, delegieren)
 - **Mail-ToDos**, Cloud-Aufgaben und Termine in **einer Zeitleiste** sehen
 - **Microsoft Bookings** (Team-Buchungsseiten) neben Mail und Kalender — ohne Outlook-Web-Tab
+- **Verbindungen:** Graph über Mail, Notizen, Tasks, Termine und Kontakte — **KI schlägt vor, du bestätigst**
+- **Cloud-Sync:** optional Notizen, Verbindungen, Regeln und UI auf mehreren PCs (E-Mails bleiben bei M365/Google)
 - **Mehrere Konten** (M365 + Google) in **einer Oberfläche**, mit **schneller lokaler Volltextsuche**
 
 Typische Zielgruppe: Power-User mit Microsoft 365 und/oder Gmail, mehrere Postfächer, Wunsch nach **offline-tauglichem Cache** und moderner UI.
@@ -55,20 +59,21 @@ Typische Zielgruppe: Power-User mit Microsoft 365 und/oder Gmail, mehrere Postf�
 
 | Bereich | Was neu ist |
 |--------|-------------|
-| **Microsoft Bookings** | Eigenes Modul: Buchungsseiten, Leistungen, Termine aus Microsoft Graph — für M365-Konten mit Bookings-Lizenz |
-| **Book with me** | Persönliche Buchungslinks im Kalender (Terminplanung), getrennt von Unternehmens-Bookings |
-| **Kalender Gantt** | Zeitstrahl-Ansicht mit skalierbaren Intervallen; Mail-ToDos, Tasks und Termine auf einer Timeline |
-| **Modul „Alle Arbeit“** | Vereinheitlichte Liste/Kanban-Ansicht für Mail-ToDos, Cloud-Tasks und Termine (ersetzt den früheren Top-Level-Modus „Workflow“) |
-| **Notizen** | Entity-Links zwischen Notizen, Mails, Terminen, Tasks und Kontakten |
-| **Home-Dashboard** | Erweiterte Kacheln (Wetter, Fristen, Alle Arbeit, Notizen, …), freies Pixel-Layout |
-| **Branding & Installer** | Produktname **Chronell**, Windows-Setup `Chronell-setup.exe`, Migration von `%APPDATA%\mailclient` → `Chronell` |
-| **Homepage** | Öffentliche Seite mit Download, DE/EN — [kurtsoeser.github.io/Chronell](https://kurtsoeser.github.io/Chronell/) |
+| **Verbindungen** | Eigenes Modul mit interaktivem Graph: Mail, Notizen, Tasks, Termine, Kontakte verknüpfen; Layout speichern, Inseln, Dichte-Scan |
+| **KI-Verbindungen** | Vorschläge & Scans mit **Gemini**, **OpenAI** oder **Ollama (lokal)**; Snippet-Opt-in, Embeddings, Qualitätsprüfung, Audit-Log |
+| **Cloud-Sync** | Optionales Profil über Supabase: Notizen, Verbindungen, Regeln, Workflow, UI — Auto-Sync, Konfliktlösung; **keine** Mail-Inhalte |
+| **Microsoft Bookings** | Buchungsseiten, Leistungen, Termine aus Microsoft Graph |
+| **Book with me** | Persönliche Buchungslinks im Kalender |
+| **Kalender Gantt** | Zeitstrahl mit Mail-ToDos, Tasks und Terminen |
+| **Modul „Alle Arbeit“** | Liste/Kanban + Workflow-Threads mit „Verbindungen mit KI prüfen“ |
+| **Home-Dashboard** | Erweiterte Kacheln, freies Pixel-Layout |
+| **Homepage** | Highlights Verbindungen · KI · Cloud-Sync — [kurtsoeser.github.io/Chronell](https://kurtsoeser.github.io/Chronell/) |
 
 ---
 
-## Die neun Module
+## Die zehn Module
 
-Die obere Leiste gliedert die App in **neun Modi** (Reihenfolge anpassbar, einzelne Tabs ausblendbar):
+Die obere Leiste gliedert die App in **zehn Modi** (Reihenfolge anpassbar, einzelne Tabs ausblendbar):
 
 | Modul | Zweck |
 |-------|--------|
@@ -79,10 +84,11 @@ Die obere Leiste gliedert die App in **neun Modi** (Reihenfolge anpassbar, einze
 | **Aufgaben** | Microsoft To Do + Google Tasks |
 | **Alle Arbeit** | Mail-ToDos, Cloud-Tasks und Termine in Liste oder Kanban |
 | **Personen** | Kontakte (Graph + Google), lokal gecacht |
-| **Notizen** | Kernnotizen an Mails/Terminen oder freistehend, Markdown, Verknüpfungen |
+| **Notizen** | Kernnotizen an Mails/Terminen oder freistehend, Markdown, Entity-Links |
+| **Verbindungen** | Graph aller Verknüpfungen, KI-Scan, Gruppierung, gespeichertes Layout |
 | **Chat** | Microsoft Teams + WhatsApp Web (eingebettet) |
 
-**Querschnitt:** Globale Suche (Ctrl+K), „Neu …“-Dialog, Snooze, QuickSteps, geplanter Versand, Notion-Export, Ersteinrichtungs-Assistent, DE/EN.
+**Querschnitt:** Globale Suche (Ctrl+K), „Neu …“-Dialog, Snooze, QuickSteps, geplanter Versand, Notion-Export, **KI-Verbindungen**, optional **Cloud-Sync**, Ersteinrichtungs-Assistent, DE/EN.
 
 ---
 
@@ -98,7 +104,10 @@ Die obere Leiste gliedert die App in **neun Modi** (Reihenfolge anpassbar, einze
 | **Alle Arbeit** | Einheitliche WorkItems aus Mail, Tasks und Kalender |
 | **Personen** | Kontakte mit Fotos, Notizen-Verknüpfungen, Compose |
 | **Notizen** | Abschnitte, Seiten, Anhänge (lokal/Cloud), Entity-Links |
+| **Verbindungen** | Graph, Palette, KI-Vorschläge/Scan, Embeddings, Dichte |
 | **Regeln** | Visuelle Mail-Regeln (Einstellungen → Mail → Regeln), Dry-Run |
+| **KI-Verbindungen** | Einstellungen → Provider, Snippet-Modus, Audit-Log |
+| **Cloud-Sync** | Einstellungen → Allgemein → Profil (Supabase), optional |
 | **Chat** | Teams-Chats, WhatsApp Web, abdockbare Popouts |
 | **Home** | Kacheln für Posteingang, Fristen, Kalender, Compose, Wetter, … |
 | **System** | Hell/Dunkel, Akzentfarben, Einstellungs-Backup, `prefers-reduced-motion` |
@@ -175,6 +184,40 @@ Einstellungen: **Einstellungen → Bookings** (Übersicht, Book with me, Zugriff
 
 ---
 
+## Verbindungen & KI
+
+Im Modul **Verbindungen**:
+
+- **Graph** aller Entity-Links (Mail, Notiz, Mail-ToDo, Termin, Task, Kontakt)
+- Manuell verknüpfen oder **KI-Vorschläge** laden — jede Verbindung wird **von dir bestätigt**
+- **Provider:** Gemini, OpenAI, **Ollama** (lokal); API-Keys im Secure Store
+- **Scan:** Insel, Mehrfachauswahl, Dichte-Hinweis bei unverbundenen Mails
+- **Datenschutz:** Standard nur Metadaten; Textauszüge nur mit Opt-in (`snippetMode`: off / on / ask)
+- **Embeddings** (Ollama) für besseres Retrieval; **Qualitätsprüfung** bestehender Kanten
+
+Aus **Mail**, **Notizen**, **Alle Arbeit** (Workflow) direkt in den Graph springen.
+
+Einstellungen: **KI-Verbindungen**. Strategie/Roadmap: [`docs/plans/ki-verbindungen-strategie-phase-4-plus.md`](docs/plans/ki-verbindungen-strategie-phase-4-plus.md).
+
+---
+
+## Cloud-Sync (Profil)
+
+**Einstellungen → Allgemein → Cloud-Sync** (optional, Supabase):
+
+| Synchronisiert | Nicht synchronisiert |
+|----------------|----------------------|
+| Notizen, Verbindungen, Regeln, QuickSteps, Workflow, UI-Prefs, … | OAuth-Tokens, **Mail-Inhalte**, Mail-DB-Cache |
+
+- Anmeldung: **Microsoft 365** (empfohlen) oder E-Mail-OTP
+- **Auto-Sync** im Hintergrund (2–30 Min, Standard 5 Min); Push nach Änderungen an Notizen/Verbindungen
+- Bei Konflikt: **Cloud-Stand übernehmen** oder **lokal hochladen**
+- Notiz-Anhänge über Storage-Bucket
+
+Setup & Schema: [`docs/plans/cloud-sync-profil.md`](docs/plans/cloud-sync-profil.md).
+
+---
+
 ## Home-Dashboard, Chat, Regeln
 
 ### Home-Dashboard
@@ -200,7 +243,9 @@ Einstellungen: **Einstellungen → Bookings** (Übersicht, Book with me, Zugriff
 ## Datenschutz & lokale Daten
 
 - **SQLite** auf dem Gerät: Mails, Metadaten, Kontakte, Notizen — Suche über **FTS5**
-- **OAuth** nur zu Microsoft/Google; keine eigenen Server für Mail-Inhalte
+- **OAuth** nur zu Microsoft/Google; **keine** Mail-Inhalte im Cloud-Profil
+- **KI:** Metadaten standardmäßig; Cloud-KI nur mit deinem API-Key; Ollama optional **lokal**
+- **Cloud-Sync:** nur Arbeitsprofil (Notizen, Verbindungen, Regeln, …) — optional
 - **Electron:** `contextIsolation`, Preload-IPC — keine `nodeIntegration` im Renderer
 - Geheimnisse nur lokal (`.env` nicht im Repo; Vorlage: [`.env.example`](.env.example))
 
@@ -214,7 +259,9 @@ Einstellungen: **Einstellungen → Bookings** (Übersicht, Book with me, Zugriff
 | **Multi-Provider** | M365 + Google kombiniert | Getrennte Apps |
 | **Lokale Suche** | SQLite + FTS5 auf dem Gerät | Oft serverzentriert |
 | **Bookings** | Modul in der App (Graph) | Meist nur Outlook Web |
-| **Anpassung** | Open Source am Code; QuickSteps, Meta-Ordner, Regeln | Produktstrategie des Anbieters |
+| **Zusammenhänge** | Verbindungs-Graph + KI-Vorschläge | Getrennte Apps, manuell |
+| **Zweiter PC** | Cloud-Sync für Profil; Mail über M365/Google | Oft Neuaufsetzen |
+| **Anpassung** | QuickSteps, Meta-Ordner, Regeln, Verbindungen | Produktstrategie des Anbieters |
 
 **Ehrlich:** Chronell ersetzt nicht jedes Enterprise-Outlook-Szenario (Exchange-Admin, Compliance-Archivierung). Stärken: **Workflow**, **lokale Daten**, **Multi-Provider**, moderne UI.
 
@@ -327,7 +374,7 @@ src/
     db/           SQLite-Repositories, FTS
   preload/        Sichere IPC-Brücke
   renderer/       React-UI
-    src/app/      Shells: home, mail, calendar, bookings, work, tasks, …
+    src/app/      Shells: home, mail, calendar, bookings, work, connections, …
     src/components/
     src/stores/
     src/lib/
@@ -343,9 +390,9 @@ scripts/          Build, publish-docs-release, Branding-Sync
 
 Ausführliches Konzept: [.cursor/plans/mailclient_konzept_skizze_2f302c68.plan.md](.cursor/plans/mailclient_konzept_skizze_2f302c68.plan.md)
 
-**Erreicht (Auswahl):** Multi-Account-Sync, Mail-Workflow, Kalender+Zeitliste, Alle Arbeit, Notizen mit Entity-Links, Home-Dashboard, Bookings, öffentliche Homepage mit Download.
+**Erreicht (Auswahl):** Multi-Account-Sync, Mail-Workflow, Kalender+Zeitliste, Alle Arbeit, Notizen, **Modul Verbindungen**, **KI-Verbindungen** (Gemini/OpenAI/Ollama), **Cloud-Sync** (Profil), Bookings, Homepage mit DE/EN.
 
-**In Arbeit / geplant:** Weitere Bookings-Tiefenintegration, Regel-Ausbau, KI-Schicht (Datenmodell teils vorbereitet), macOS (nicht im aktuellen Fokus).
+**In Arbeit / geplant:** Weitere Bookings-Tiefenintegration, Regel-Ausbau, macOS (nicht im aktuellen Fokus). KI-Roadmap: [`docs/plans/ki-verbindungen-strategie-phase-4-plus.md`](docs/plans/ki-verbindungen-strategie-phase-4-plus.md).
 
 Vollständiger Ist-Stand: [`docs/FUNKTIONSPROTOKOLL.md`](docs/FUNKTIONSPROTOKOLL.md)
 

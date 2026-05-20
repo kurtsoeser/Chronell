@@ -11,7 +11,7 @@
     <title>Chronell</title>
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Chronell" />
-    <meta property="og:description" content="Mail, Aufgaben, Kalender und Microsoft Bookings in einem Windows-11-Desktop — Microsoft 365 und Google kombiniert." />
+    <meta property="og:description" content="Verbindungen, KI-Vorschläge und Cloud-Sync — plus Mail, Aufgaben, Kalender und Bookings in einem Windows-11-Desktop für Microsoft 365 und Google." />
     <meta property="og:image" content="https://kurtsoeser.github.io/Chronell/assets/chronell-logo.png" />
     <link rel="icon" href="assets/favicon.png" type="image/png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -36,6 +36,7 @@
         <nav class="nav-desktop" aria-label="Main">
           <a href="#method" data-i18n="nav.method">Die Methode</a>
           <a href="#compare" data-i18n="nav.compare">vs Outlook</a>
+          <a href="#highlights" data-i18n="nav.highlights">Neuigkeiten</a>
           <a href="#features" data-i18n="nav.features">Features</a>
           <a href="#modules" data-i18n="nav.modules">Module</a>
         </nav>
@@ -54,6 +55,7 @@
       <nav class="nav-mobile" aria-label="Mobile">
         <a href="#method" data-i18n="nav.method">Die Methode</a>
         <a href="#compare" data-i18n="nav.compare">vs Outlook</a>
+        <a href="#highlights" data-i18n="nav.highlights">Neuigkeiten</a>
         <a href="#features" data-i18n="nav.features">Features</a>
         <a href="#modules" data-i18n="nav.modules">Module</a>
         <a href="release/latest/Chronell-setup.exe" data-download data-i18n="nav.download">Download</a>
@@ -79,7 +81,7 @@
           </div>
           <p class="hero-whats-new reveal reveal-delay-1">
             <span class="hero-whats-new-label" data-i18n="whatsNew.label">Neu in der Beta</span>
-            <span data-i18n="whatsNew.bookings">Microsoft Bookings — Buchungsseiten, Leistungen und Termine in der App</span>
+            <span data-i18n="whatsNew.tagline">Verbindungen · KI-Vorschläge · Cloud-Sync — dein Arbeitsprofil überall</span>
           </p>
           <h1 class="hero-tagline reveal reveal-delay-1">
             <span data-i18n="hero.taglineLine1">Manage deine Zeit -</span><br />
@@ -91,7 +93,7 @@
             Chronell ist kein E-Mail-Client. Es ist ein System für deine Zeit.
           </p>
           <p class="hero-subline reveal reveal-delay-1" data-i18n="hero.subline">
-            Microsoft 365 und Google in einer Desktop-Arbeitszentrale — Mail-Triage, Aufgaben, einheitlicher Kalender, lokale Suche. Für Windows 11.
+            Microsoft 365 und Google in einer Desktop-Arbeitszentrale — Mail-Triage, Verbindungs-Graph mit KI, Cloud-Sync für Notizen &amp; Regeln, Bookings. Für Windows 11.
           </p>
           <div class="hero-ctas reveal reveal-delay-2">
             <a href="release/latest/Chronell-setup.exe" class="btn btn-primary btn-download" data-download>
@@ -140,6 +142,9 @@
                   </div>
                   <div class="mockup-sidebar-item">
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span data-i18n="hero.mockup.notes">Kernnotizen</span>
+                  </div>
+                  <div class="mockup-sidebar-item mockup-sidebar-item--accent">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg><span data-i18n="hero.mockup.connections">Verbindungen</span>
                   </div>
                 </div>
                 <div class="mockup-list">
@@ -309,6 +314,16 @@
                   <td data-i18n="compare.table.bookingsC"></td>
                   <td data-i18n="compare.table.bookingsT"></td>
                 </tr>
+                <tr>
+                  <td data-i18n="compare.table.connections">Verbindungen</td>
+                  <td data-i18n="compare.table.connectionsC"></td>
+                  <td data-i18n="compare.table.connectionsT"></td>
+                </tr>
+                <tr>
+                  <td data-i18n="compare.table.cloudSync">Cloud-Sync</td>
+                  <td data-i18n="compare.table.cloudSyncC"></td>
+                  <td data-i18n="compare.table.cloudSyncT"></td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -343,8 +358,60 @@
               <div class="typical" data-i18n="compare.detailed.r5typical"></div>
               <div class="chronell-col" data-i18n="compare.detailed.r5chronell"></div>
             </div>
+            <div class="compare-detailed-row">
+              <div class="label" data-i18n="compare.detailed.r6label"></div>
+              <div class="typical" data-i18n="compare.detailed.r6typical"></div>
+              <div class="chronell-col" data-i18n="compare.detailed.r6chronell"></div>
+            </div>
+            <div class="compare-detailed-row">
+              <div class="label" data-i18n="compare.detailed.r7label"></div>
+              <div class="typical" data-i18n="compare.detailed.r7typical"></div>
+              <div class="chronell-col" data-i18n="compare.detailed.r7chronell"></div>
+            </div>
           </div>
           <p class="disclaimer reveal" data-i18n="compare.disclaimer"></p>
+        </div>
+      </section>
+
+      <section id="highlights" class="section">
+        <div class="container">
+          <div class="text-center reveal">
+            <span class="section-eyebrow" data-i18n="highlights.eyebrow">Neu ausprobieren</span>
+            <h2 class="section-title" data-i18n="highlights.title">Drei Features, die dein System verbinden</h2>
+            <p class="section-lead" data-i18n="highlights.lead">Vom Posteingang bis zum zweiten PC — ohne Tab-Chaos und ohne dass KI heimlich speichert.</p>
+          </div>
+          <div class="spotlight-grid">
+            <article class="spotlight-card glass-panel-elevated reveal">
+              <span class="spotlight-icon-wrap" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span>
+              <h3 data-i18n="highlights.connections.title">Verbindungen</h3>
+              <p data-i18n="highlights.connections.desc"></p>
+              <ul class="spotlight-bullets">
+                <li data-i18n="highlights.connections.b1"></li>
+                <li data-i18n="highlights.connections.b2"></li>
+                <li data-i18n="highlights.connections.b3"></li>
+              </ul>
+            </article>
+            <article class="spotlight-card glass-panel-elevated reveal reveal-delay-1">
+              <span class="spotlight-icon-wrap" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg></span>
+              <h3 data-i18n="highlights.ai.title">KI-Vorschläge</h3>
+              <p data-i18n="highlights.ai.desc"></p>
+              <ul class="spotlight-bullets">
+                <li data-i18n="highlights.ai.b1"></li>
+                <li data-i18n="highlights.ai.b2"></li>
+                <li data-i18n="highlights.ai.b3"></li>
+              </ul>
+            </article>
+            <article class="spotlight-card glass-panel-elevated reveal reveal-delay-2">
+              <span class="spotlight-icon-wrap" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg></span>
+              <h3 data-i18n="highlights.cloudSync.title">Cloud-Sync</h3>
+              <p data-i18n="highlights.cloudSync.desc"></p>
+              <ul class="spotlight-bullets">
+                <li data-i18n="highlights.cloudSync.b1"></li>
+                <li data-i18n="highlights.cloudSync.b2"></li>
+                <li data-i18n="highlights.cloudSync.b3"></li>
+              </ul>
+            </article>
+          </div>
         </div>
       </section>
 
@@ -357,6 +424,23 @@
           <div class="feature-grid">
             <article class="feature-tile glass-panel-elevated reveal feature-tile--new">
               <span class="feature-new-badge" data-i18n="whatsNew.label">Neu</span>
+              <span class="icon-wrap"><svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span>
+              <h3 data-i18n="features.grid.connections.title">Verbindungen</h3>
+              <p data-i18n="features.grid.connections.desc"></p>
+            </article>
+            <article class="feature-tile glass-panel-elevated reveal reveal-delay-1 feature-tile--new">
+              <span class="feature-new-badge" data-i18n="whatsNew.label">Neu</span>
+              <span class="icon-wrap"><svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg></span>
+              <h3 data-i18n="features.grid.ai.title">KI-Verbindungen</h3>
+              <p data-i18n="features.grid.ai.desc"></p>
+            </article>
+            <article class="feature-tile glass-panel-elevated reveal reveal-delay-2 feature-tile--new">
+              <span class="feature-new-badge" data-i18n="whatsNew.label">Neu</span>
+              <span class="icon-wrap"><svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg></span>
+              <h3 data-i18n="features.grid.cloudSync.title">Cloud-Sync</h3>
+              <p data-i18n="features.grid.cloudSync.desc"></p>
+            </article>
+            <article class="feature-tile glass-panel-elevated reveal reveal-delay-3">
               <span class="icon-wrap"><svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg></span>
               <h3 data-i18n="features.grid.bookings.title">Microsoft Bookings</h3>
               <p data-i18n="features.grid.bookings.desc"></p>
@@ -460,8 +544,8 @@
                 <span class="app-chrome-title">Chronell</span>
               </div>
               <div class="screenshot-body">
-                <span class="screenshot-icon-wrap"><svg class="screenshot-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg></span>
-                <span class="screenshot-label" data-i18n="screenshots.bookings">Microsoft Bookings</span>
+                <span class="screenshot-icon-wrap"><svg class="screenshot-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span>
+                <span class="screenshot-label" data-i18n="screenshots.connections">Verbindungen</span>
                 <span class="screenshot-placeholder" data-i18n="screenshots.placeholder">Screenshot folgt</span>
               </div>
             </figure>
@@ -495,7 +579,7 @@
         <div class="container text-center">
           <div class="reveal">
             <span class="section-eyebrow" data-i18n="modules.eyebrow">Ein Fenster</span>
-            <h2 class="section-title" data-i18n="modules.title">Acht Module, null Tab-Chaos</h2>
+            <h2 class="section-title" data-i18n="modules.title">Zehn Module, null Tab-Chaos</h2>
           </div>
           <div class="modules-row reveal">
             <span class="module-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg><span data-i18n="modules.home">Home</span></span>
@@ -506,6 +590,7 @@
             <span class="module-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg><span data-i18n="modules.work">Alle Arbeit</span></span>
             <span class="module-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><span data-i18n="modules.people">Personen</span></span>
             <span class="module-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span data-i18n="modules.notes">Notizen</span></span>
+            <span class="module-pill module-pill--new"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg><span data-i18n="modules.connections">Verbindungen</span></span>
             <span class="module-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span data-i18n="modules.chat">Chat</span></span>
           </div>
         </div>
@@ -529,6 +614,10 @@
             <div class="trust-item glass-panel reveal reveal-delay-2">
               <span class="trust-icon-wrap"><svg class="trust-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span>
               <p data-i18n="trust.platform"></p>
+            </div>
+            <div class="trust-item glass-panel reveal reveal-delay-3">
+              <span class="trust-icon-wrap"><svg class="trust-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg></span>
+              <p data-i18n="trust.cloudSync"></p>
             </div>
           </div>
         </div>

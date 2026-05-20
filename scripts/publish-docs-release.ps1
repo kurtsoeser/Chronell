@@ -52,6 +52,15 @@ function Get-DocsReleaseVersions {
   return $dirs | Sort-Object { [version]$_.Name } -Descending
 }
 
+function Invoke-GhCli {
+  param([Parameter(Mandatory)][string[]] $GhArgs)
+  # Start-Process zerlegt Argumente mit Leerzeichen (z. B. --title "Chronell 0.9.16")
+  # und gh interpretiert dann "0.9.16" als Release-Name → "no matches found".
+  & gh @GhArgs
+  if ($null -ne $LASTEXITCODE) { return [int] $LASTEXITCODE }
+  return 0
+}
+
 function Publish-GitHubReleaseAsset {
   param(
     [string] $Version,
@@ -70,23 +79,23 @@ function Publish-GitHubReleaseAsset {
 
   Write-Host ''
   Write-Host 'GitHub Release:' -ForegroundColor Cyan
-  $ghReleaseArgs = @(
+  $releaseTitle = "Chronell $Version"
+  $releaseNotes = "Windows-11-Beta-Installer fuer Chronell $Version."
+  $createExit = Invoke-GhCli -GhArgs @(
+    'release', 'create', $ghTag,
+    '--title', $releaseTitle,
+    '--notes', $releaseNotes,
+    '--repo', 'kurtsoeser/Chronell'
+  )
+  if ($createExit -ne 0) {
+    Write-Host '  gh release create übersprungen (Tag existiert evtl. schon).' -ForegroundColor DarkYellow
+  }
+  $uploadExit = Invoke-GhCli -GhArgs @(
     'release', 'upload', $ghTag, $SetupPath,
     '--clobber',
     '--repo', 'kurtsoeser/Chronell'
   )
-  $ghCreateArgs = @(
-    'release', 'create', $ghTag,
-    '--title', "Chronell $Version",
-    '--notes', "Windows-11-Beta-Installer für Chronell $Version.",
-    '--repo', 'kurtsoeser/Chronell'
-  )
-  $create = Start-Process -FilePath 'gh' -ArgumentList $ghCreateArgs -Wait -PassThru -NoNewWindow
-  if ($create.ExitCode -ne 0) {
-    Write-Host '  gh release create übersprungen (Tag existiert evtl. schon).' -ForegroundColor DarkYellow
-  }
-  $upload = Start-Process -FilePath 'gh' -ArgumentList $ghReleaseArgs -Wait -PassThru -NoNewWindow
-  if ($upload.ExitCode -eq 0) {
+  if ($uploadExit -eq 0) {
     Write-Host "  GitHub: $ghDownloadUrl" -ForegroundColor Green
   } else {
     Write-Host '  gh release upload fehlgeschlagen — nur GitHub Pages nutzen.' -ForegroundColor Yellow

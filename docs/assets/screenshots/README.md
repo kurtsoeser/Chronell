@@ -4,6 +4,8 @@ Lege hier PNG-Dateien ab und binde sie in `index.html` ein:
 
 - `mail-triage.png`
 - `calendar.png`
+- `connections.png` — Verbindungs-Graph (Highlight auf der Homepage)
+- `bookings.png`
 - `work.png`
 - `dashboard.png`
 

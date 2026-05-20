@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron'
 import { isValidIanaTimeZone } from '@shared/iana-timezone'
+import { clampProfileSyncPollIntervalSeconds } from '@shared/profile-sync-poll-interval'
 import { IPC, type AppConfig, type AppConfigWeatherLocation } from '@shared/types'
 import { loadConfig, updateConfig } from '../config'
 
@@ -14,6 +15,8 @@ export function registerConfigIpc(): void {
   ipcMain.removeHandler(IPC.config.setWorkflowMailFoldersIntroDismissed)
   ipcMain.removeHandler(IPC.config.setFirstRunSetupCompleted)
   ipcMain.removeHandler(IPC.config.setNotionCredentials)
+  ipcMain.removeHandler(IPC.config.setMailPollIntervalSeconds)
+  ipcMain.removeHandler(IPC.config.setProfileSyncPollIntervalSeconds)
 
   ipcMain.handle(IPC.config.get, async (): Promise<AppConfig> => {
     return loadConfig()
@@ -64,6 +67,18 @@ export function registerConfigIpc(): void {
       }
       const clamped = Math.min(Math.max(Math.floor(seconds), 30), 600)
       return updateConfig({ mailPollIntervalSeconds: clamped })
+    }
+  )
+
+  ipcMain.handle(
+    IPC.config.setProfileSyncPollIntervalSeconds,
+    async (_event, seconds: number): Promise<AppConfig> => {
+      if (!Number.isFinite(seconds)) {
+        throw new Error('Ungueltiges Cloud-Sync-Intervall.')
+      }
+      return updateConfig({
+        profileSyncPollIntervalSeconds: clampProfileSyncPollIntervalSeconds(seconds)
+      })
     }
   )
 

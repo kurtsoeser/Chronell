@@ -6,13 +6,13 @@ Dieses Dokument beschreibt den **aktuellen Funktionsumfang** der Desktop-App. Es
 |------|------|
 | **Produktname (UI)** | Chronell |
 | **Technischer Name / Installer** | MailClient |
-| **Version** | **0.9.7** |
-| **Stand** | **17. Mai 2026** |
+| **Version** | **0.9.16** |
+| **Stand** | **20. Mai 2026** |
 | **App-ID** | `at.kurtsoeser.mailclient` |
 | **Zielplattform** | Windows 11 (primär) |
 | **Autor** | Kurt Soeser |
 
-> **Hinweis zur Versionierung:** Mit **0.9.7** startet die sichtbare Versionsführung in der App (Einstellungen → Info). Vorher war `package.json` noch auf `0.0.1` — der Funktionsumfang entspricht jedoch bereits einem fortgeschrittenen Vor-1.0-Stand.
+> **Hinweis zur Versionierung:** Sichtbare Version in Einstellungen → Info (`src/shared/app-version.ts`, synchron mit `package.json`).
 
 ---
 
@@ -26,16 +26,18 @@ Dieses Dokument beschreibt den **aktuellen Funktionsumfang** der Desktop-App. Es
 6. [Aufgaben (Tasks)](#6-aufgaben-tasks)
 7. [Kalender](#7-kalender)
 8. [Notizen](#8-notizen)
-9. [Personen (Kontakte)](#9-personen-kontakte)
-10. [Home-Dashboard](#10-home-dashboard)
-11. [Chat](#11-chat)
-12. [Regeln und Automatisierung](#12-regeln-und-automatisierung)
-13. [Notion-Integration](#13-notion-integration)
-14. [Einstellungen und System](#14-einstellungen-und-system)
-15. [Datenhaltung, Suche, Sicherheit](#15-datenhaltung-suche-sicherheit)
-16. [Technischer Stack](#16-technischer-stack)
-17. [Bekannte Abweichungen zur README](#17-bekannte-abweichungen-zur-readme)
-18. [Versionshistorie](#18-versionshistorie)
+9. [Verbindungen](#9-verbindungen)
+10. [Personen (Kontakte)](#10-personen-kontakte)
+11. [Home-Dashboard](#11-home-dashboard)
+12. [Chat](#12-chat)
+13. [Regeln und Automatisierung](#13-regeln-und-automatisierung)
+14. [Notion-Integration](#14-notion-integration)
+15. [Einstellungen und System](#15-einstellungen-und-system)
+16. [Datenhaltung, Suche, Sicherheit](#16-datenhaltung-suche-sicherheit)
+17. [Technischer Stack](#17-technischer-stack)
+18. [Bekannte Abweichungen zur README](#18-bekannte-abweichungen-zur-readme)
+19. [Installation (Windows) und Datenmigration](#19-installation-windows-und-datenmigration)
+20. [Versionshistorie](#20-versionshistorie)
 
 ---
 
@@ -54,17 +56,19 @@ Marketing-Homepage: [kurtsoeser.github.io/Chronell](https://kurtsoeser.github.io
 
 ## 2. App-Modi und Navigation
 
-Die App gliedert sich in **acht Hauptmodi** (obere Leiste, Reihenfolge anpassbar):
+Die App gliedert sich in **zehn Hauptmodi** (obere Leiste, Reihenfolge anpassbar):
 
 | Modus | Zweck |
 |-------|--------|
 | **Home** | Persönliches Dashboard mit konfigurierbaren Kacheln |
 | **Mail** | Postfächer, Lesepane, Triage, Compose |
-| **Kalender** | Multi-Kalender, Termine, optionale Zeitliste |
+| **Kalender** | Multi-Kalender, Termine, Zeitliste, Gantt |
+| **Bookings** | Microsoft Bookings — Buchungsseiten, Leistungen, Termine |
 | **Aufgaben** | Microsoft To Do + Google Tasks |
-| **Arbeit** | Vereinheitlichte Sicht auf Mail-ToDos, Cloud-Tasks und Termine |
+| **Arbeit** | Vereinheitlichte Sicht auf Mail-ToDos, Cloud-Tasks und Termine; Workflow-Threads |
 | **Personen** | Kontakte (Graph + Google) |
-| **Notizen** | Kernnotizen mit Abschnitten, Seiten, Verknüpfungen |
+| **Notizen** | Kernnotizen mit Abschnitten, Seiten, Entity-Links |
+| **Verbindungen** | Graph aller Objekt-Verknüpfungen, Palette, KI-Scan, Layout |
 | **Chat** | Microsoft Teams + WhatsApp Web |
 
 **Querschnitt:**
@@ -198,17 +202,9 @@ Das Modul **„Arbeit“** bündelt offene Punkte aus verschiedenen Quellen als 
 - Volltextsuche in der Notizen-Shell
 - **Anhänge**: lokal und Cloud (M365 / OneDrive über Graph)
 
-### Entity-Links (ab 0.9.x)
+### Entity-Links
 
-Bidirektionale Verknüpfungen zwischen:
-
-- Notiz ↔ Notiz  
-- Notiz ↔ Mail  
-- Notiz ↔ Termin  
-- Notiz ↔ Cloud-Task  
-- Notiz ↔ **Kontakt**
-
-Picker-Dialog, Panel „Verknüpfte Objekte“, Vorschau, Navigation ins Zielmodul.
+Bidirektionale Verknüpfungen zwischen Notiz, Mail, Mail-ToDo, Termin, Cloud-Task und Kontakt — Picker in Notizen/Mail, zentral im Modul **Verbindungen** (siehe Abschnitt 9).
 
 ### Datenbank / IPC
 
@@ -217,7 +213,38 @@ Picker-Dialog, Panel „Verknüpfte Objekte“, Vorschau, Navigation ins Zielmod
 
 ---
 
-## 9. Personen (Kontakte)
+## 9. Verbindungen
+
+Eigenes Top-Level-Modul **Verbindungen** (`ConnectionsShell`): interaktiver **Graph** aller lokal gespeicherten Entity-Links.
+
+### Graph & UI
+
+- **Knoten:** Notiz, E-Mail, Mail-ToDo, Termin, Cloud-Task, Kontakt
+- **Kanten:** manuell per Drag vom Knoten-Handle; Verbindungsarten filterbar
+- **Palette** links: Objekte suchen und auf Canvas ziehen
+- **Gruppierung:** nach Konto, Objektart, Insel, Zeit (Monat/Woche/Jahr), Domain, Firma, Kalender-/Task-Liste
+- **Layout:** zoomen, fit view, Inseln verschieben, Anordnung speichern
+- **Dichte:** Anzeige „% Mails ohne Verbindung“ mit Scan-Empfehlung
+- **Vorschau** des gewählten Objekts; Sprung ins Zielmodul
+
+### KI-gestützte Verbindungen
+
+- **Provider:** Gemini, OpenAI, **Ollama (lokal)** — API-Keys im Secure Store
+- **Vorschläge:** Einzelobjekt und **Mehrfach-Scan** (Insel, Auswahl im Graph)
+- **Datenschutz:** Standard nur Metadaten (Betreff, Namen, Daten); Textauszüge max. 500 Zeichen nur mit `snippetMode` / Consent-Dialog
+- **Retrieval:** Heuristik (Zeitfenster, Domain, Betreff) + optional **Embeddings** (Ollama `/api/embed`, SQLite `entity_embeddings`)
+- **Qualität:** bestehende Kanten bewerten (`strong` / `moderate` / `weak` / `questionable`) — keine Auto-Löschung
+- **Audit-Log** in Einstellungen; verworfene Vorschläge in Settings-Sicherung
+- **Proaktive Hinweise:** Badges in Mail-Liste und am Graph (heuristisch / letzter Scan)
+- **Workflow:** aus Modul „Alle Arbeit“ → „Verbindungen mit KI prüfen“; Graph-Kontextmenü startet Scan
+
+**Ort in der UI:** Einstellungen → **KI-Verbindungen**; Haupt-UI: Modus **Verbindungen**.
+
+**Code:** `src/main/ai/`, `src/shared/ai-connections.ts`, `src/renderer/src/app/connections/`
+
+---
+
+## 10. Personen (Kontakte)
 
 - Sync **Microsoft Graph** + **Google People**; lokaler SQLite-Cache
 - Navigation: Alle, Favoriten, nach Anbieter/Konto
@@ -229,7 +256,7 @@ Picker-Dialog, Panel „Verknüpfte Objekte“, Vorschau, Navigation ins Zielmod
 
 ---
 
-## 10. Home-Dashboard
+## 11. Home-Dashboard
 
 - **Freies Pixel-Layout** (v2): ziehen, skalieren, ausblenden, pinnen
 - Konfigurierbare **Rasterweite** (Einstellungen → Allgemein)
@@ -260,7 +287,7 @@ Picker-Dialog, Panel „Verknüpfte Objekte“, Vorschau, Navigation ins Zielmod
 
 ---
 
-## 11. Chat
+## 12. Chat
 
 - **Microsoft Teams** (Graph-Chats, `TeamsChatPanel`)
 - **WhatsApp Web** eingebettet (eigener User-Agent)
@@ -268,7 +295,7 @@ Picker-Dialog, Panel „Verknüpfte Objekte“, Vorschau, Navigation ins Zielmod
 
 ---
 
-## 12. Regeln und Automatisierung
+## 13. Regeln und Automatisierung
 
 Visuelle **Regel-Engine** (JSON-Definitionen im Main):
 
@@ -294,7 +321,7 @@ Visuelle **Regel-Engine** (JSON-Definitionen im Main):
 
 ---
 
-## 13. Notion-Integration
+## 14. Notion-Integration
 
 - Mails und Termine als Blöcke an **Notion-Seiten** senden
 - **Interne Integration** (Integrations-Token, empfohlen) oder **öffentliche OAuth-Integration**
@@ -303,18 +330,38 @@ Visuelle **Regel-Engine** (JSON-Definitionen im Main):
 
 ---
 
-## 14. Einstellungen und System
+## 15. Einstellungen und System
 
 Einstellungen-Dialog (Zahnrad) mit Reitern:
 
 | Reiter | Inhalte |
 |--------|---------|
-| **Allgemein** | Sprache (DE/EN), Dashboard-Raster, Wetter-Ort, OAuth, Notion, Backup |
+| **Allgemein** | Sprache (DE/EN), Dashboard-Raster, Wetter-Ort, OAuth, Notion, **Cloud-Sync**, Backup |
 | **Konten** | Verbundene Konten, Farben, Sync, Cache leeren, Kalender-Vorlauf |
 | **Mail** | Sync-Fenster, Anzeige, Sidebar-Ordner, Triage-Ordner, Kategorien, **Regeln** |
 | **Kalender** | Zeitzone, API, Sidebar-Sichtbarkeit |
 | **Kontakte** | Hinweise, Sprung zum Personen-Modul |
-| **Info** | **Version 0.9.7**, Stand **17. Mai 2026**, Produktname, App-ID |
+| **KI-Verbindungen** | Provider (Gemini/OpenAI/Ollama), Snippet-Modus, Scan-Profile, Audit-Log, Embeddings |
+| **Info** | Version **0.9.16**, Stand **20. Mai 2026**, Produktname, App-ID |
+
+### Cloud-Sync (Profil)
+
+Optional über **Supabase** (`chronell_profile_snapshots`):
+
+| Modus | Verhalten |
+|-------|-----------|
+| **Nur lokal** | Kein Cloud-Profil |
+| **Cloud-Sync** | Anmeldung Microsoft 365 (empfohlen) oder E-Mail-OTP |
+
+**Synchronisiert:** Notizen, Entity-Links/Verbindungen, Regeln, QuickSteps, Workflow-Boards, UI-localStorage-Snapshot, VIP, Meta-Ordner, Triage-Zuordnungen, … — gleicher Umfang wie „Einstellungen sichern“.
+
+**Nicht synchronisiert:** OAuth-Tokens, **Mail-Inhalte**, `mail.db`-Cache.
+
+**Komfort:** Auto-Sync nach App-Start (~8 s), Hintergrund-Intervall **2–30 Min** (Standard 5), Push ~5 s nach Änderungen an Notizen/Verbindungen; leichter Zeitstempel-Check zwischen Vollabrufen; **Konflikt:** Cloud-Stand übernehmen oder lokal hochladen.
+
+**Notiz-Anhänge:** Storage-Bucket `chronell-note-attachments`.
+
+**Ersteinrichtung:** Assistent → Cloud-Sync-Sektion. Planung: [`docs/plans/cloud-sync-profil.md`](plans/cloud-sync-profil.md).
 
 Weitere Systemfunktionen:
 
@@ -326,7 +373,7 @@ Weitere Systemfunktionen:
 
 ---
 
-## 15. Datenhaltung, Suche, Sicherheit
+## 16. Datenhaltung, Suche, Sicherheit
 
 - **SQLite** (`better-sqlite3`) im Main-Prozess: Mails, Metadaten, Kontakte, Notizen, Regeln, …
 - **FTS5**-Indexe für schnelle lokale Suche
@@ -337,7 +384,7 @@ Weitere Systemfunktionen:
 
 ---
 
-## 16. Technischer Stack
+## 17. Technischer Stack
 
 | Schicht | Technologie |
 |---------|-------------|
@@ -358,23 +405,22 @@ Weitere Systemfunktionen:
 
 ---
 
-## 17. Bekannte Abweichungen zur README
+## 18. Bekannte Abweichungen zur README
 
-Die Root-`README.md` beschreibt teils einen älteren Modul-Schnitt. Aktueller Stand:
+Die Root-`README.md` wird mit Meilensteinen nachgezogen. Bei Widersprüchen gilt **dieses Funktionsprotokoll**.
 
-| README (älter) | Ist-Stand (0.9.7) |
-|----------------|-------------------|
-| Modul „Workflow“ | Modul **Arbeit** (`work`) |
-| Modul „Regeln“ als eigener Tab | **Einstellungen → Mail → Regeln** |
-| Notizen: drei Arten | zusätzlich Abschnitte, Seiten, Entity-Links, Anhänge, Kalenderansicht |
-| Chat: Teams | Teams **+ WhatsApp Web** + Popouts |
-| — | Globale Suche, Notion, erweitertes Dashboard |
+| Thema | Ist-Stand (0.9.16) |
+|-------|---------------------|
+| Module | **Zehn** Top-Level-Modi inkl. **Verbindungen** und **Bookings** |
+| Regeln | **Einstellungen → Mail → Regeln** (kein eigener Tab) |
+| Entity-Links | Zentral im Modul **Verbindungen** + in Notizen/Mail |
+| Profil-Sync | **Einstellungen → Allgemein → Cloud-Sync** (optional Supabase) |
 
 Bei Widersprüchen gilt **dieses Funktionsprotokoll**.
 
 ---
 
-## 18. Installation (Windows) und Datenmigration
+## 19. Installation (Windows) und Datenmigration
 
 ### Installer bauen
 
@@ -409,7 +455,14 @@ Marker-Datei nach Migration: `%APPDATA%\Chronell\.chronell-migrated-from-mailcli
 
 ---
 
-## 19. Versionshistorie
+## 20. Versionshistorie
+
+### 0.9.16 — 20. Mai 2026
+
+- **Modul Verbindungen:** Graph, Palette, Gruppierung, Layout speichern, Dichte-Scan
+- **KI-Verbindungen:** Gemini, OpenAI, Ollama; Snippet-Opt-in, Embeddings, Qualitätsprüfung, Audit-Log, Workflow-Integration
+- **Cloud-Sync:** Supabase-Profil (Notizen, Verbindungen, Regeln, UI, …), Auto-Sync, Konfliktlösung, Notiz-Anhänge in Storage
+- Homepage & Doku: Verbindungen, KI, Cloud-Sync als Beta-Highlights
 
 ### 0.9.7 — 17. Mai 2026
 
@@ -427,4 +480,4 @@ Marker-Datei nach Migration: `%APPDATA%\Chronell\.chronell-migrated-from-mailcli
 
 ---
 
-*Letzte Aktualisierung dieses Dokuments: 17. Mai 2026 · Version 0.9.7*
+*Letzte Aktualisierung dieses Dokuments: 20. Mai 2026 · Version 0.9.16*

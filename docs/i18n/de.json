@@ -1,11 +1,12 @@
 {
   "meta": {
     "title": "Chronell — Manage deine Zeit, nicht deine Inbox",
-    "description": "Chronell ist kein E-Mail-Client. Es ist ein System für deine Zeit — Mail, Aufgaben, Kalender und Microsoft Bookings in einer Desktop-Arbeitszentrale für Windows 11."
+    "description": "Chronell verbindet Mail, Aufgaben und Notizen — mit Verbindungs-Graph, KI-Vorschlägen und optionalem Cloud-Sync. Desktop-Arbeitszentrale für Windows 11 mit Microsoft 365 und Google."
   },
   "nav": {
     "method": "Die Methode",
     "compare": "vs Outlook",
+    "highlights": "Neuigkeiten",
     "features": "Features",
     "modules": "Module",
     "download": "Download",
@@ -24,7 +25,7 @@
     "taglineLine2Accent": "Inbox",
     "taglineLine2Suffix": "",
     "positioning": "Chronell ist kein E-Mail-Client. Es ist ein System für deine Zeit.",
-    "subline": "Microsoft 365 und Google in einer Desktop-Arbeitszentrale — Mail-Triage, Aufgaben, einheitlicher Kalender, Microsoft Bookings und lokale Suche. Für Windows 11.",
+    "subline": "Microsoft 365 und Google in einer Desktop-Arbeitszentrale — Mail-Triage, Verbindungs-Graph mit KI, Cloud-Sync für Notizen & Regeln, Bookings. Für Windows 11.",
     "ctaDownload": "Für Windows herunterladen",
     "ctaMethod": "Methode entdecken",
     "mockup": {
@@ -37,6 +38,7 @@
       "bookings": "Bookings",
       "tasks": "Aufgaben",
       "notes": "Kernnotizen",
+      "connections": "Verbindungen",
       "badge": "→ Heute · 14:00"
     }
   },
@@ -54,14 +56,14 @@
       "subtitle": "Alles an einem Ort",
       "b1": "E-Mails, Aufgaben, Notizen und Termine gehören zusammen — nicht in getrennte Apps.",
       "b2": "Kein Tab-Chaos. Keine Kontextwechsel.",
-      "app": "Neun Module inkl. Bookings, M365 + Google, Meta-Ordner, globale Suche."
+      "app": "Zehn Module inkl. Verbindungen, Bookings, M365 + Google, globale Suche."
     },
     "decide": {
       "title": "Entscheiden",
       "subtitle": "Input wird zur Aktion",
       "b1": "Jeder Input wird zur Entscheidung: erledigen, planen, verschieben oder archivieren.",
       "b2": "Der Posteingang ist ein Entscheidungspunkt — kein Lager.",
-      "app": "Mail-ToDos, Snooze, Waiting for, QuickSteps, Triage-Ordner."
+      "app": "Mail-ToDos, Snooze, Verbindungen im Graph, KI-Vorschläge mit Bestätigung."
     },
     "plan": {
       "title": "Planen",
@@ -75,7 +77,7 @@
       "subtitle": "In Blöcken arbeiten, nicht im Chaos",
       "b1": "Arbeit passiert in fokussierten Zeitblöcken — nicht zwischen E-Mails.",
       "b2": "Dein System wird planbar, fokussiert, kontrollierbar.",
-      "app": "Modul „Alle Arbeit“ mit Liste und Kanban nach Fälligkeit."
+      "app": "Modul „Alle Arbeit“ mit Liste, Kanban und Workflow-Threads."
     }
   },
   "compare": {
@@ -95,14 +97,14 @@
       "c1": "Outlook zeigt Nachrichten. Chronell zeigt, was zählt.",
       "c2": "Nicht reagieren. Planen.",
       "c3": "E-Mails sind Input. Zeit zählt.",
-      "c4": "Arbeit passiert nicht im Posteingang. Sie passiert im Kalender."
+      "c4": "Zusammenhänge siehst du im Graph — nicht in zehn Tabs."
     },
     "table": {
       "aspect": "Aspekt",
       "chronell": "Chronell",
       "typical": "Typisch Web / Outlook",
       "focus": "Fokus",
-      "focusC": "Workflow: ToDos, Snooze, Regeln, ein Desktop",
+      "focusC": "Workflow: ToDos, Snooze, Regeln, Verbindungen, ein Desktop",
       "focusT": "Listen-zentriert, viele Browser-Tabs",
       "search": "Suche",
       "searchC": "SQLite + FTS5 auf deinem Gerät",
@@ -115,9 +117,15 @@
       "weightT": "Volle Office-Web- oder schwere Suites",
       "bookings": "Bookings",
       "bookingsC": "Unternehmens-Bookings in der App; Book with me im Kalender",
-      "bookingsT": "Oft nur in Outlook Web / separaten Tabs"
+      "bookingsT": "Oft nur in Outlook Web / separaten Tabs",
+      "connections": "Verbindungen",
+      "connectionsC": "Graph über Mail, Notizen, Tasks, Kontakte — KI schlägt vor, du bestätigst",
+      "connectionsT": "Getrennte Apps, manuelles Merken von Zusammenhängen",
+      "cloudSync": "Profil-Sync",
+      "cloudSyncC": "Optional: Notizen, Verbindungen, Regeln — E-Mails bleiben bei M365/Google",
+      "cloudSyncT": "Oft alles oder nichts; selten nur Arbeitsprofil"
     },
-    "disclaimer": "Chronell ersetzt nicht jedes Enterprise-Outlook- oder Exchange-Admin-Szenario. Stärken: Workflow, lokale Daten, Multi-Provider, moderne UI für Power-User.",
+    "disclaimer": "Chronell ersetzt nicht jedes Enterprise-Outlook- oder Exchange-Admin-Szenario. Stärken: Workflow, lokale Daten, Verbindungen mit KI, Multi-Provider, moderne UI für Power-User.",
     "detailed": {
       "feature": "Funktion",
       "typicalHeader": "Outlook / typisch",
@@ -136,20 +144,64 @@
       "r4chronell": "Windows-11-nativ, dunkel, modern",
       "r5label": "Apple Mail / iCloud",
       "r5typical": "Eigene Apple-Ökosystem-Apps",
-      "r5chronell": "Bewusst nicht — Fokus auf M365 und Google"
+      "r5chronell": "Bewusst nicht — Fokus auf M365 und Google",
+      "r6label": "Zusammenhänge sichtbar machen",
+      "r6typical": "Notizen in OneNote, Mails in Outlook — getrennt",
+      "r6chronell": "Verbindungs-Graph + KI-Scan (Gemini, OpenAI, Ollama lokal)",
+      "r7label": "Zweiter PC / Laptop",
+      "r7typical": "Neu einrichten oder komplettes Konto-Sync",
+      "r7chronell": "Cloud-Sync für Profil (Regeln, Notizen, Verbindungen) — Mail separat"
+    }
+  },
+  "highlights": {
+    "eyebrow": "Neu ausprobieren",
+    "title": "Drei Features, die dein System verbinden",
+    "lead": "Vom Posteingang bis zum zweiten PC — ohne Tab-Chaos und ohne dass KI heimlich speichert.",
+    "connections": {
+      "title": "Verbindungen",
+      "desc": "Sieh dein Arbeitsnetz: Mails, Notizen, Termine, Aufgaben und Kontakte als Graph — nicht als verstreute Tabs.",
+      "b1": "Objekte per Drag & Drop verknüpfen, Inseln gruppieren, Layout speichern",
+      "b2": "Direkt aus Mail, Notizen oder „Alle Arbeit“ ins Modul springen",
+      "b3": "Dichte-Anzeige: wo noch Verbindungen fehlen"
+    },
+    "ai": {
+      "title": "KI-Vorschläge",
+      "desc": "Chronell schlägt passende Verknüpfungen vor — du entscheidest bei jeder einzelnen Verbindung.",
+      "b1": "Gemini, OpenAI oder Ollama lokal — API-Keys im Secure Store",
+      "b2": "Standard nur Metadaten; Textauszüge nur mit deinem Opt-in",
+      "b3": "Insel-Scan, Mail-Badges, Qualität bestehender Links prüfen"
+    },
+    "cloudSync": {
+      "title": "Cloud-Sync",
+      "desc": "Optional dein Arbeitsprofil auf mehreren Windows-PCs — E-Mails syncen weiterhin über Microsoft und Google.",
+      "b1": "Notizen, Verbindungen, Regeln, QuickSteps, Workflow, UI-Einstellungen",
+      "b2": "Auto-Sync im Hintergrund, Konflikt: Cloud oder lokal wählen",
+      "b3": "Keine Mail-Inhalte, keine OAuth-Tokens in der Cloud"
     }
   },
   "limits": {
     "eyebrow": "Ehrliche Grenzen",
     "title": "Was Chronell bewusst nicht ist",
     "p1": "Chronell ist kein vollständiger Ersatz für Outlook in Enterprise-Umgebungen. Komplexe Exchange-Admin-Policies, Mailbox-Delegation oder Compliance-Archivierung sind nicht enthalten — dafür gibt es Outlook.",
-    "p2": "Es gibt keine Apple-Mail- oder iCloud-Anbindung. Chronell konzentriert sich auf Microsoft 365 und Google — die Anbieter, die du in Beruf und Projektarbeit typischerweise nutzt.",
-    "p3": "Chronell ist eine Schaltzentrale für Menschen, die mit mehreren Konten arbeiten und ihren Tag selbst gestalten wollen."
+    "p2": "Cloud-Sync ist Profil-Sync, kein E-Mail-Spiegel: Postfächer bleiben bei den Anbietern. KI-Vorschläge ersetzen kein Nachdenken — sie beschleunigen nur das Verknüpfen.",
+    "p3": "Chronell ist eine Schaltzentrale für Menschen, die mit mehreren Konten arbeiten und Zusammenhänge zwischen Mails, Aufgaben und Notizen sichtbar machen wollen."
   },
   "features": {
     "eyebrow": "Für Deinen Workflow gebaut",
     "title": "Was Chronell liefert",
     "grid": {
+      "connections": {
+        "title": "Verbindungen",
+        "desc": "Interaktiver Graph aller Verknüpfungen — von Mail über Notiz bis Kontakt, mit Filter, Zoom und gespeichertem Layout."
+      },
+      "ai": {
+        "title": "KI-Verbindungen",
+        "desc": "Vorschläge und Scans mit Gemini, OpenAI oder Ollama — inkl. Embeddings, Snippet-Opt-in und Audit-Log in den Einstellungen."
+      },
+      "cloudSync": {
+        "title": "Cloud-Sync",
+        "desc": "Profil über Supabase auf mehreren Geräten — Auto-Sync, Konfliktlösung, Notiz-Anhänge. E-Mails bleiben lokal bzw. bei M365/Google."
+      },
       "bookings": {
         "title": "Microsoft Bookings",
         "desc": "Buchungsseiten, Leistungen und Termine für dein Team — in der App, ohne Outlook-Web-Tab."
@@ -168,11 +220,11 @@
       },
       "work": {
         "title": "Alle Arbeit",
-        "desc": "Mail-ToDos und Cloud-Aufgaben in einer Liste oder im Kanban — nach Fälligkeit sortiert."
+        "desc": "Mail-ToDos und Cloud-Aufgaben in einer Liste oder im Kanban — Workflow-Threads mit KI-Verbindungs-Check."
       },
       "notes": {
         "title": "Kernnotizen",
-        "desc": "Notizen zu Mails, Terminen und freien Seiten — verknüpft mit deinem Workflow."
+        "desc": "Notizen zu Mails, Terminen und freien Seiten — bidirektional mit dem Verbindungs-Graph verknüpft."
       },
       "rules": {
         "title": "Visuelle Regeln",
@@ -200,7 +252,7 @@
       },
       "privacy": {
         "title": "Lokal by design",
-        "desc": "SQLite auf deinem Gerät — OAuth nur zu Microsoft und Google."
+        "desc": "SQLite auf deinem Gerät — OAuth nur zu Microsoft und Google; KI-Keys im Secure Store."
       }
     }
   },
@@ -210,13 +262,14 @@
     "placeholder": "Screenshot folgt",
     "triage": "Mail-Triage",
     "calendar": "Einheitlicher Kalender",
+    "connections": "Verbindungen & Graph",
     "bookings": "Microsoft Bookings",
     "work": "Alle Arbeit",
     "dashboard": "Home-Dashboard"
   },
   "modules": {
     "eyebrow": "Ein Fenster",
-    "title": "Neun Module, null Tab-Chaos",
+    "title": "Zehn Module, null Tab-Chaos",
     "home": "Home",
     "mail": "Mail",
     "calendar": "Kalender",
@@ -225,6 +278,7 @@
     "work": "Alle Arbeit",
     "people": "Personen",
     "notes": "Notizen",
+    "connections": "Verbindungen",
     "chat": "Chat"
   },
   "trust": {
@@ -232,10 +286,11 @@
     "title": "Deine Daten bleiben bei dir",
     "oauth": "Anmeldung über offizielle Microsoft- und Google-OAuth-Flows",
     "local": "Mails und Metadaten in lokaler SQLite — Suche via FTS5",
-    "platform": "Windows-11-Desktop (Electron) — nur Microsoft 365 und Google, kein IMAP"
+    "platform": "Windows-11-Desktop (Electron) — nur Microsoft 365 und Google, kein IMAP",
+    "cloudSync": "Cloud-Sync nur für dein Profil (Notizen, Verbindungen, Regeln) — keine Mail-Inhalte, keine OAuth-Tokens in der Cloud"
   },
   "footer": {
-    "tagline": "Chronell ist kein Tool. Es ist deine Schaltzentrale für Mail, Aufgaben und Zeit.",
+    "tagline": "Chronell ist kein Tool. Es ist deine Schaltzentrale — mit sichtbaren Zusammenhängen zwischen Mail, Aufgaben und Zeit.",
     "dev": "Entwickler-Doku",
     "author": "Kurt Soeser",
     "rights": "Alle Rechte vorbehalten.",
@@ -243,11 +298,11 @@
   },
   "whatsNew": {
     "label": "Neu in der Beta",
-    "bookings": "Microsoft Bookings — Buchungsseiten, Leistungen und Termine direkt in Chronell"
+    "tagline": "Verbindungen · KI-Vorschläge · Cloud-Sync — dein Arbeitsprofil überall"
   },
   "cta": {
-    "title": "Bereit für Chronell?",
-    "body": "Lade die aktuelle Beta für Windows 11 herunter — Installation in wenigen Minuten, Updates ersetzen deine Version ohne Datenverlust.",
+    "title": "Bereit, Zusammenhänge zu sehen?",
+    "body": "Lade die aktuelle Beta für Windows 11 — Verbindungs-Graph, KI-Vorschläge und optional Cloud-Sync in wenigen Minuten. Updates ersetzen deine Version ohne Datenverlust.",
     "button": "Jetzt herunterladen"
   }
 }

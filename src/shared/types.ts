@@ -156,7 +156,7 @@ export interface AppConfig {
   profileCloudLastPushedAt?: string | null
   /** Gesetzt bei lokalen Profil-Änderungen; steuert Auto-Push. */
   profileCloudLocalDirtyAt?: string | null
-  /** Hintergrund-Poll-Intervall in Sekunden (60–600), Standard 90. */
+  /** Hintergrund-Poll-Intervall in Sekunden (120–1800), Standard 300. */
   profileSyncPollIntervalSeconds?: number
 }
 
@@ -181,8 +181,12 @@ export interface ProfileSyncStatus {
   syncing: boolean
   /** Cloud-Snapshot ist neuer als letzter Pull — anderes Gerät hat kürzlich geschrieben. */
   conflictRemoteNewer: boolean
+  /** Cloud und lokaler Stand weichen ab — bitte manuell wählen (kein Auto-Pull/Push). */
+  conflictPending: boolean
   autoSyncActive: boolean
 }
+
+export type ProfileSyncResolution = 'auto' | 'pull' | 'push'
 
 export type ProfileSyncRunResult =
   | {
@@ -191,6 +195,8 @@ export type ProfileSyncRunResult =
       pushed: boolean
       remoteUpdatedAt: string | null
       conflictRemoteNewer: boolean
+      /** Auto-Sync übersprungen, weil ein Konflikt aufgelöst werden muss. */
+      skippedConflict?: boolean
       attachmentsUploaded: number
       attachmentsDownloaded: number
       /** Nach Pull: localStorage-Einträge für den Renderer. */

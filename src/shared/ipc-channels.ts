@@ -15,6 +15,7 @@ export const IPC = {
     setGoogleClientId: 'config:set-google-client-id',
     setSyncWindowDays: 'config:set-sync-window-days',
     setMailPollIntervalSeconds: 'config:set-mail-poll-interval-seconds',
+    setProfileSyncPollIntervalSeconds: 'config:set-profile-sync-poll-interval-seconds',
     setAutoLoadImages: 'config:set-auto-load-images',
     setCalendarTimeZone: 'config:set-calendar-time-zone',
     setWeatherLocation: 'config:set-weather-location',
@@ -304,6 +305,7 @@ export const IPC = {
     signOut: 'profile-sync:sign-out',
     signInMicrosoft365: 'profile-sync:sign-in-microsoft365',
     syncNow: 'profile-sync:sync-now',
+    resolveConflict: 'profile-sync:resolve-conflict',
     cacheUiPrefs: 'profile-sync:cache-ui-prefs'
   },
   localData: {

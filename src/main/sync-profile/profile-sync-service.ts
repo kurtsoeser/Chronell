@@ -2,6 +2,7 @@ import { hostname } from 'node:os'
 import { randomUUID } from 'node:crypto'
 import type {
   ProfileDataMode,
+  ProfileSyncResolution,
   ProfileSyncRunResult,
   ProfileSyncSessionInfo,
   ProfileSyncStatus,
@@ -28,6 +29,20 @@ import { broadcastProfileSyncStatus } from '../ipc/ipc-broadcasts'
 let lastSyncError: string | null = null
 let syncInProgress = false
 
+/** Vermeidet zusaetzliche Supabase-Reads beim Status-Broadcast direkt nach einem Sync. */
+let remoteUpdatedAtCache: { value: string | null; at: number } | null = null
+const REMOTE_STATUS_CACHE_MS = 45_000
+
+function setRemoteUpdatedAtCache(value: string | null): void {
+  remoteUpdatedAtCache = { value, at: Date.now() }
+}
+
+function readCachedRemoteUpdatedAt(): string | null | undefined {
+  if (!remoteUpdatedAtCache) return undefined
+  if (Date.now() - remoteUpdatedAtCache.at > REMOTE_STATUS_CACHE_MS) return undefined
+  return remoteUpdatedAtCache.value
+}
+
 async function ensureProfileDeviceId(): Promise<string> {
   const config = await loadConfig()
   const existing = config.profileDeviceId?.trim()
@@ -46,6 +61,23 @@ function computeConflictRemoteNewer(
   return remoteMs > localPulledAt && remoteMs > localPushedAt
 }
 
+/** Cloud ist neuer als letzter Pull — Auto-Sync wartet auf Nutzerwahl. */
+function computeConflictPending(
+  remoteMs: number,
+  localPulledAt: number,
+  localPushedAt: number,
+  localDirty: boolean,
+  hasRemote: boolean
+): boolean {
+  if (!hasRemote || !Number.isFinite(remoteMs) || remoteMs <= 0) return false
+  if (remoteMs <= localPulledAt) {
+    return localDirty && localPushedAt > 0 && remoteMs > localPushedAt
+  }
+  if (localDirty) return true
+  if (localPushedAt > 0 && remoteMs > localPushedAt) return true
+  return true
+}
+
 export async function getProfileSyncStatus(): Promise<ProfileSyncStatus> {
   const config = await loadConfig()
   const stored = await readStoredSession()
@@ -60,7 +92,10 @@ export async function getProfileSyncStatus(): Promise<ProfileSyncStatus> {
   }
 
   let remoteUpdatedAt: string | null = null
-  if (isSupabaseConfigured() && stored) {
+  const cachedRemote = readCachedRemoteUpdatedAt()
+  if (cachedRemote !== undefined) {
+    remoteUpdatedAt = cachedRemote
+  } else if (isSupabaseConfigured() && stored) {
     try {
       const client = await createAuthenticatedSupabaseClient()
       if (client) {
@@ -72,6 +107,7 @@ export async function getProfileSyncStatus(): Promise<ProfileSyncStatus> {
         if (data && typeof data.updated_at === 'string') {
           remoteUpdatedAt = data.updated_at
         }
+        setRemoteUpdatedAtCache(remoteUpdatedAt)
       }
     } catch {
       /* optional */
@@ -85,6 +121,16 @@ export async function getProfileSyncStatus(): Promise<ProfileSyncStatus> {
   const localPushedAt = config.profileCloudLastPushedAt
     ? Date.parse(config.profileCloudLastPushedAt)
     : 0
+  const localDirty = Boolean(config.profileCloudLocalDirtyAt?.trim())
+  const hasRemote = remoteUpdatedAt != null
+  const conflictRemoteNewer = computeConflictRemoteNewer(remoteMs, localPulledAt, localPushedAt)
+  const conflictPending = computeConflictPending(
+    remoteMs,
+    localPulledAt,
+    localPushedAt,
+    localDirty,
+    hasRemote
+  )
 
   return {
     configured: isSupabaseConfigured(),
@@ -97,7 +143,8 @@ export async function getProfileSyncStatus(): Promise<ProfileSyncStatus> {
     remoteUpdatedAt,
     lastError: lastSyncError,
     syncing: syncInProgress,
-    conflictRemoteNewer: computeConflictRemoteNewer(remoteMs, localPulledAt, localPushedAt),
+    conflictRemoteNewer,
+    conflictPending,
     autoSyncActive: config.profileDataMode === 'cloud' && stored != null
   }
 }
@@ -204,6 +251,7 @@ function parseRemotePayload(raw: unknown): SettingsBackupPayload | null {
 export interface RunProfileSyncOptions {
   localStorage: Record<string, string>
   source: 'manual' | 'auto'
+  resolution?: ProfileSyncResolution
 }
 
 export async function runProfileSyncInternal(
@@ -240,19 +288,26 @@ export async function runProfileSyncInternal(
   let attachmentsDownloaded = 0
 
   try {
-    const { data: remoteRow, error: fetchErr } = await client
+    const resolution = options.resolution ?? 'auto'
+    const useLightPoll = options.source === 'auto' && resolution === 'auto'
+
+    type RemoteRow = Pick<SnapshotRow, 'payload' | 'updated_at' | 'device_id'>
+    let row: RemoteRow | null = null
+
+    const { data: lightRow, error: lightErr } = await client
       .from('chronell_profile_snapshots')
-      .select('payload, updated_at, device_id')
+      .select(useLightPoll ? 'updated_at' : 'payload, updated_at, device_id')
       .eq('user_id', stored.user.id)
       .maybeSingle()
 
-    if (fetchErr) {
-      throw new Error(fetchErr.message)
+    if (lightErr) {
+      throw new Error(lightErr.message)
     }
 
-    const row = remoteRow as Pick<SnapshotRow, 'payload' | 'updated_at' | 'device_id'> | null
+    row = (lightRow as RemoteRow | null) ?? null
     if (row?.updated_at) {
       remoteUpdatedAt = row.updated_at
+      setRemoteUpdatedAtCache(remoteUpdatedAt)
     }
 
     const remoteMs = remoteUpdatedAt ? Date.parse(remoteUpdatedAt) : 0
@@ -262,12 +317,82 @@ export async function runProfileSyncInternal(
     const localPushedAt = config.profileCloudLastPushedAt
       ? Date.parse(config.profileCloudLastPushedAt)
       : 0
+    const localDirty = Boolean(config.profileCloudLocalDirtyAt?.trim())
+    const hasRemote = remoteUpdatedAt != null
     const conflictRemoteNewer = computeConflictRemoteNewer(remoteMs, localPulledAt, localPushedAt)
+    const conflictPending = computeConflictPending(
+      remoteMs,
+      localPulledAt,
+      localPushedAt,
+      localDirty,
+      hasRemote
+    )
 
-    const shouldPull =
-      row?.payload != null && Number.isFinite(remoteMs) && remoteMs > localPulledAt
+    if (resolution === 'auto' && conflictPending) {
+      lastSyncError = null
+      return {
+        ok: true,
+        pulled: false,
+        pushed: false,
+        remoteUpdatedAt,
+        conflictRemoteNewer,
+        skippedConflict: true,
+        attachmentsUploaded: 0,
+        attachmentsDownloaded: 0
+      }
+    }
 
-    if (shouldPull) {
+    const forcePull = resolution === 'pull'
+    const forcePush = resolution === 'push'
+
+    const wouldPull =
+      forcePull ||
+      (resolution === 'auto' &&
+        hasRemote &&
+        Number.isFinite(remoteMs) &&
+        remoteMs > localPulledAt &&
+        !localDirty)
+
+    const wouldPush =
+      forcePush ||
+      (resolution === 'auto' &&
+        (localDirty ||
+          !hasRemote ||
+          !Number.isFinite(remoteMs) ||
+          (Number.isFinite(remoteMs) && remoteMs <= localPulledAt)))
+
+    if (useLightPoll && !wouldPull && !wouldPush) {
+      lastSyncError = null
+      return {
+        ok: true,
+        pulled: false,
+        pushed: false,
+        remoteUpdatedAt,
+        conflictRemoteNewer,
+        attachmentsUploaded: 0,
+        attachmentsDownloaded: 0
+      }
+    }
+
+    if (useLightPoll && wouldPull && row?.payload == null) {
+      const { data: fullRow, error: fullErr } = await client
+        .from('chronell_profile_snapshots')
+        .select('payload, updated_at, device_id')
+        .eq('user_id', stored.user.id)
+        .maybeSingle()
+      if (fullErr) {
+        throw new Error(fullErr.message)
+      }
+      row = (fullRow as RemoteRow | null) ?? null
+      if (row?.updated_at) {
+        remoteUpdatedAt = row.updated_at
+        setRemoteUpdatedAtCache(remoteUpdatedAt)
+      }
+    }
+
+    const shouldPull = wouldPull && row?.payload != null
+
+    if (shouldPull && row?.payload != null) {
       const remotePayload = parseRemotePayload(row.payload)
       if (remotePayload) {
         await applyProfileSyncPayload(remotePayload)
@@ -282,15 +407,16 @@ export async function runProfileSyncInternal(
     }
 
     const configAfterPull = await loadConfig()
-    const localDirty = Boolean(configAfterPull.profileCloudLocalDirtyAt?.trim())
+    const localDirtyAfterPull = Boolean(configAfterPull.profileCloudLocalDirtyAt?.trim())
     const localPayload = await buildProfileSyncPayload(options.localStorage)
-    const localExportMs = Date.parse(localPayload.exportedAt)
 
     const shouldPush =
-      localDirty ||
-      !row ||
-      !Number.isFinite(remoteMs) ||
-      (Number.isFinite(localExportMs) && localExportMs >= remoteMs - 2000)
+      forcePush ||
+      (resolution === 'auto' &&
+        (localDirtyAfterPull ||
+          !hasRemote ||
+          !Number.isFinite(remoteMs) ||
+          (Number.isFinite(remoteMs) && remoteMs <= localPulledAt)))
 
     if (shouldPush) {
       attachmentsUploaded = await pushLocalNoteAttachmentsToCloud(client, stored.user.id)
@@ -309,6 +435,7 @@ export async function runProfileSyncInternal(
       }
       pushed = true
       remoteUpdatedAt = upsertBody.updated_at
+      setRemoteUpdatedAtCache(remoteUpdatedAt)
       await updateConfig({
         profileCloudLastPushedAt: new Date().toISOString(),
         profileCloudLocalDirtyAt: null
@@ -339,7 +466,14 @@ export async function runProfileSyncInternal(
 export async function runProfileSyncNow(
   localStorage: Record<string, string>
 ): Promise<ProfileSyncRunResult> {
-  return runProfileSyncInternal({ localStorage, source: 'manual' })
+  return runProfileSyncInternal({ localStorage, source: 'manual', resolution: 'auto' })
+}
+
+export async function resolveProfileSyncConflict(
+  resolution: 'pull' | 'push',
+  localStorage: Record<string, string>
+): Promise<ProfileSyncRunResult> {
+  return runProfileSyncInternal({ localStorage, source: 'manual', resolution })
 }
 
 export function defaultProfileDeviceLabel(): string {

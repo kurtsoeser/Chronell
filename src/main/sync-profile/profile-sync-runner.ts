@@ -1,3 +1,4 @@
+import { clampProfileSyncPollIntervalSeconds } from '@shared/profile-sync-poll-interval'
 import { loadConfig, loadConfigSync } from '../config'
 import { getCachedProfileUiPrefs } from './profile-sync-ui-prefs-cache'
 import { runProfileSyncInternal } from './profile-sync-service'
@@ -26,8 +27,8 @@ async function runAutoSync(): Promise<void> {
 }
 
 function readPollIntervalMsSync(): number {
-  const s = loadConfigSync().profileSyncPollIntervalSeconds ?? 90
-  return Math.min(Math.max(Math.floor(s), 60), 600) * 1000
+  const s = loadConfigSync().profileSyncPollIntervalSeconds
+  return clampProfileSyncPollIntervalSeconds(s ?? 300) * 1000
 }
 
 export function startProfileSyncRunner(): void {

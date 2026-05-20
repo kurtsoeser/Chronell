@@ -59,7 +59,7 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
   profileCloudLastPulledAt: null,
   profileCloudLastPushedAt: null,
   profileCloudLocalDirtyAt: null,
-  profileSyncPollIntervalSeconds: 90
+  profileSyncPollIntervalSeconds: 300
 }
 
 let remoteOAuthCache: PublisherRemoteOAuthPayload | null | undefined = undefined
@@ -231,6 +231,10 @@ export async function updateConfig(patch: Partial<AppConfig>): Promise<AppConfig
   remoteOAuthCache = undefined
   if ('mailPollIntervalSeconds' in patch) {
     restartMailPollingInterval()
+  }
+  if ('profileSyncPollIntervalSeconds' in patch) {
+    const { restartProfileSyncRunner } = await import('./sync-profile/profile-sync-runner')
+    restartProfileSyncRunner()
   }
   if ('calendarTimeZone' in patch) {
     const { invalidateCalendarDisplayTimeZoneCache } = await import('./calendar-display-config')

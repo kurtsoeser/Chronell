@@ -217,7 +217,7 @@ export function TopbarGlobalSearch(): JSX.Element {
   const showPanel = open && query.trim().length >= 2
 
   return (
-    <div ref={containerRef} className="relative w-full min-w-0 max-w-2xl">
+    <div ref={containerRef} className="relative w-full min-w-0 max-w-[28rem]">
       <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
       <input
         ref={inputRef}
