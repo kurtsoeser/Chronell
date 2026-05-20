@@ -4,15 +4,17 @@ Die Download-Buttons auf der Website laden **`release/latest.json`** und **`rele
 
 **Wichtig:** Nur der Ordner `/release` (Build-Ausgabe) ist in `.gitignore` — **`docs/release/` muss mitcommittet werden**, sonst fehlt der Installer auf GitHub Pages.
 
-## Veröffentlichen (nach `npm run build:win`)
+## Veröffentlichen
+
+Bei `npm run build:win` erscheint nach dem Build eine Abfrage, ob die Version auf GitHub veröffentlicht werden soll (**Ja** = dieses Skript automatisch).
+
+Manuell:
 
 ```powershell
 npm run publish:docs-release
-# oder ohne erneuten Build:
-npm run publish:docs-release -- -NoBuild
 ```
 
-Das Skript kopiert den Installer nach `docs/release/<version>/` und `docs/release/latest/`, aktualisiert `latest.json` und öffnet den Ordner zur Kontrolle.
+Das Skript kopiert den Installer nach `docs/release/<version>/` und `docs/release/latest/`, aktualisiert `latest.json`, lädt das Asset per `gh` auf GitHub Releases hoch und öffnet den Ordner zur Kontrolle.
 
 Anschließend `docs/release/` mit committen und pushen (GitHub Pages aus `/docs`).
 

@@ -234,10 +234,17 @@ Einstellungen: **Einstellungen → Bookings** (Übersicht, Book with me, Zugriff
 
 ```powershell
 npm run build:win
+```
+
+Nach dem Build erscheint die Abfrage, ob die Version auch auf **GitHub** veröffentlicht werden soll (Installer nach `docs/release/`, Manifeste, GitHub Release via `gh`). Bei **Ja** passiert das automatisch; bei **Nein** nur lokaler Build unter `release/<version>/`.
+
+Manuell (ohne erneuten Build):
+
+```powershell
 npm run publish:docs-release
 ```
 
-Kopiert den Setup nach `docs/release/<version>/` und `docs/release/latest/`, aktualisiert `latest.json` / `versions.json`, optional GitHub Release. Anschließend `docs/release/` committen und pushen (GitHub Pages). Details: [`docs/DEPLOY.md`](docs/DEPLOY.md).
+Anschließend `docs/release/` committen und pushen (GitHub Pages). Details: [`docs/DEPLOY.md`](docs/DEPLOY.md).
 
 > Installer sind ~90 MB. GitHub erlaubt bis **100 MB pro Datei** im Repo; bei größeren Builds: Git LFS oder nur GitHub Releases.
 
@@ -282,7 +289,10 @@ Ohne interaktive Versionsabfrage (gleiche Version neu bauen):
 ```powershell
 npm run prebuild:win -- -NoBump
 npm run build:win:inner
+npm run finish:win
 ```
+
+(`prebuild:win` laeuft bei `npm run build:win` automatisch einmal; nicht doppelt aufrufen.)
 
 Hinweis: `signAndEditExecutable: false` in `electron-builder.yml` — für Verteilung später **Authenticode**-Signatur empfohlen.
 

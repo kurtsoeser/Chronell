@@ -12,7 +12,8 @@
 param(
   [string] $Version,
   [switch] $NoOpen,
-  [switch] $IndexOnly
+  [switch] $IndexOnly,
+  [switch] $SkipGitHubRelease
 )
 
 Set-StrictMode -Version Latest
@@ -49,6 +50,47 @@ function Get-DocsReleaseVersions {
   $dirs = Get-ChildItem -LiteralPath $docsRelease -Directory -ErrorAction SilentlyContinue |
     Where-Object { $_.Name -match '^\d+\.\d+\.\d+$' }
   return $dirs | Sort-Object { [version]$_.Name } -Descending
+}
+
+function Publish-GitHubReleaseAsset {
+  param(
+    [string] $Version,
+    [string] $SetupPath,
+    [string] $VersionedAssetName
+  )
+
+  $ghTag = "v$Version"
+  $ghDownloadUrl = "https://github.com/kurtsoeser/Chronell/releases/download/$ghTag/$VersionedAssetName"
+
+  if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
+    Write-Host '  gh CLI nicht gefunden — GitHub Release übersprungen.' -ForegroundColor Yellow
+    Write-Host '  Installation: https://cli.github.com/' -ForegroundColor DarkGray
+    return
+  }
+
+  Write-Host ''
+  Write-Host 'GitHub Release:' -ForegroundColor Cyan
+  $ghReleaseArgs = @(
+    'release', 'upload', $ghTag, $SetupPath,
+    '--clobber',
+    '--repo', 'kurtsoeser/Chronell'
+  )
+  $ghCreateArgs = @(
+    'release', 'create', $ghTag,
+    '--title', "Chronell $Version",
+    '--notes', "Windows-11-Beta-Installer für Chronell $Version.",
+    '--repo', 'kurtsoeser/Chronell'
+  )
+  $create = Start-Process -FilePath 'gh' -ArgumentList $ghCreateArgs -Wait -PassThru -NoNewWindow
+  if ($create.ExitCode -ne 0) {
+    Write-Host '  gh release create übersprungen (Tag existiert evtl. schon).' -ForegroundColor DarkYellow
+  }
+  $upload = Start-Process -FilePath 'gh' -ArgumentList $ghReleaseArgs -Wait -PassThru -NoNewWindow
+  if ($upload.ExitCode -eq 0) {
+    Write-Host "  GitHub: $ghDownloadUrl" -ForegroundColor Green
+  } else {
+    Write-Host '  gh release upload fehlgeschlagen — nur GitHub Pages nutzen.' -ForegroundColor Yellow
+  }
 }
 
 if (-not $Version) {
@@ -140,35 +182,13 @@ Write-Host "  Index:    docs/release/versions.json"
 Write-Host ''
 Write-Host 'Als Nächstes: docs/release committen und pushen (GitHub Pages).' -ForegroundColor DarkGray
 
-if (-not $IndexOnly) {
+if (-not $IndexOnly -and -not $SkipGitHubRelease) {
   $setupForRelease = Join-Path $versionDir $versionedName
   if (-not (Test-Path -LiteralPath $setupForRelease)) {
     $setupForRelease = Join-Path $latestDir $stableName
   }
   if (Test-Path -LiteralPath $setupForRelease) {
-    Write-Host ''
-    Write-Host 'GitHub Release (optional, empfohlen als Spiegel):' -ForegroundColor Cyan
-    $ghReleaseArgs = @(
-      'release', 'upload', $ghTag, $setupForRelease,
-      '--clobber',
-      '--repo', 'kurtsoeser/Chronell'
-    )
-    $ghCreateArgs = @(
-      'release', 'create', $ghTag,
-      '--title', "Chronell $Version",
-      '--notes', "Windows-11-Beta-Installer für Chronell $Version.",
-      '--repo', 'kurtsoeser/Chronell'
-    )
-    $create = Start-Process -FilePath 'gh' -ArgumentList $ghCreateArgs -Wait -PassThru -NoNewWindow
-    if ($create.ExitCode -ne 0) {
-      Write-Host '  gh release create übersprungen (Tag existiert evtl. schon).' -ForegroundColor DarkYellow
-    }
-    $upload = Start-Process -FilePath 'gh' -ArgumentList $ghReleaseArgs -Wait -PassThru -NoNewWindow
-    if ($upload.ExitCode -eq 0) {
-      Write-Host "  GitHub: $ghDownloadUrl" -ForegroundColor Green
-    } else {
-      Write-Host '  gh release upload fehlgeschlagen — nur GitHub Pages nutzen.' -ForegroundColor Yellow
-    }
+    Publish-GitHubReleaseAsset -Version $Version -SetupPath $setupForRelease -VersionedAssetName $versionedName
   }
 }
 

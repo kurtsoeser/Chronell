@@ -4,8 +4,9 @@
   Versionsabfrage und -sync vor einem Windows-Build (package.json + app-version.ts).
 
 .DESCRIPTION
-  Wird von npm run prebuild:win / build:win aufgerufen.
+  Wird automatisch vor npm run build:win ausgefuehrt (npm prebuild:win Hook).
   Fragt interaktiv: neue Patch-Version oder gleiche Version neu bauen.
+  Nach dem Build (postbuild-win.ps1): optional Veröffentlichung auf GitHub.
 
 .EXAMPLE
   .\scripts\prepare-win-version.ps1
