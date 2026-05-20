@@ -12,6 +12,10 @@ import {
 } from '@/lib/entity-links-client'
 import { openConnectionsGraphForRef } from '@/lib/open-connections-graph'
 
+/** Hoehe der Graphen-Vorschau im aufgeklappten Kontext-Bereich (Mail, Kalender, Kontakte, …). */
+const MINI_GRAPH_HEIGHT_PX = 280
+const MINI_GRAPH_MIN_HEIGHT_PX = 240
+
 export function EntityContextMiniGraph({
   anchor,
   active,
@@ -68,9 +72,10 @@ export function EntityContextMiniGraph({
     return (
       <div
         className={cn(
-          'flex h-[140px] items-center justify-center gap-2 text-xs text-muted-foreground',
+          'flex items-center justify-center gap-2 text-xs text-muted-foreground',
           className
         )}
+        style={{ height: MINI_GRAPH_HEIGHT_PX }}
       >
         <Loader2 className="h-3 w-3 animate-spin" />
         {t('common.loading')}
@@ -87,7 +92,10 @@ export function EntityContextMiniGraph({
   }
 
   return (
-    <div className={cn('h-[140px] min-h-[120px] overflow-hidden rounded-md border border-border/60', className)}>
+    <div
+      className={cn('overflow-hidden rounded-md border border-border/60', className)}
+      style={{ height: MINI_GRAPH_HEIGHT_PX, minHeight: MINI_GRAPH_MIN_HEIGHT_PX }}
+    >
       <ConnectionsGraph
         nodes={snap.nodes}
         edges={snap.edges}

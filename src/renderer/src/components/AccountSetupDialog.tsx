@@ -5,6 +5,8 @@ import { useTranslation } from 'react-i18next'
 import { useAccountsStore } from '@/stores/accounts'
 import { useAppModeStore } from '@/stores/app-mode'
 import { useLocaleStore } from '@/stores/locale'
+import { useThemeStore, ACCENT_LIST } from '@/stores/theme'
+import { SettingsThemeColorsSection } from '@/components/account-setup/SettingsThemeColorsSection'
 import type { AppLocale } from '@/i18n'
 import { useMailStore } from '@/stores/mail'
 import { showAppConfirm } from '@/stores/app-dialog'
@@ -282,6 +284,10 @@ export function AccountSetupDialog({
   const mailPreviewScale = useMailPreviewScaleStore((s) => s.scale)
   const setMailPreviewScale = useMailPreviewScaleStore((s) => s.setScale)
   const resetMailPreviewScale = useMailPreviewScaleStore((s) => s.resetScale)
+  const themeMode = useThemeStore((s) => s.mode)
+  const setThemeMode = useThemeStore((s) => s.setMode)
+  const accent = useThemeStore((s) => s.accent)
+  const setAccent = useThemeStore((s) => s.setAccent)
   const setLocale = useLocaleStore((s) => s.setLocale)
 
   const settingsTabOptions = useMemo(
@@ -1368,22 +1374,59 @@ export function AccountSetupDialog({
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   {t('settings.appearanceHeading')}
                 </h3>
-                <p className="text-xs leading-relaxed text-muted-foreground">{t('settings.uiScaleHint')}</p>
-                <SettingsScaleControl
-                  id="mailclient-ui-scale"
-                  label={t('settings.uiScaleLabel')}
-                  value={uiScale}
-                  min={UI_SCALE_MIN}
-                  max={UI_SCALE_MAX}
-                  step={UI_SCALE_STEP}
-                  presets={UI_SCALE_PRESETS}
-                  formatPercent={uiScalePercent}
-                  onChange={setUiScale}
-                  onReset={resetUiScale}
-                  resetLabel={t('settings.scaleReset')}
-                />
-              </section>
-              )}
+              <p className="text-xs leading-relaxed text-muted-foreground">{t('settings.uiScaleHint')}</p>
+              <SettingsScaleControl
+                id="mailclient-ui-scale"
+                label={t('settings.uiScaleLabel')}
+                value={uiScale}
+                min={UI_SCALE_MIN}
+                max={UI_SCALE_MAX}
+                step={UI_SCALE_STEP}
+                presets={UI_SCALE_PRESETS}
+                formatPercent={uiScalePercent}
+                onChange={setUiScale}
+                onReset={resetUiScale}
+                resetLabel={t('settings.scaleReset')}
+              />
+              <div className="mt-3">
+                <label htmlFor="mailclient-theme-mode" className="block text-[11px] font-medium text-foreground mb-1">
+                  {t('topbar.appearance')}
+                </label>
+                <select
+                  id="mailclient-theme-mode"
+                  value={themeMode}
+                  onChange={(e): void => setThemeMode(e.target.value as import('@/stores/theme').ThemeMode)}
+                  className="w-full max-w-xs rounded-md border border-border bg-background px-3 py-1.5 text-xs outline-none focus:border-ring"
+                >
+                  <option value="system">{t('topbar.themeSystem')}</option>
+                  <option value="light">{t('topbar.themeLight')}</option>
+                  <option value="dark">{t('topbar.themeDark')}</option>
+                </select>
+
+                <div className="mt-3">
+                  <label htmlFor="mailclient-theme-accent" className="block text-[11px] font-medium text-foreground mb-1">
+                    {t('settings.accentLabel')}
+                  </label>
+                  <select
+                    id="mailclient-theme-accent"
+                    value={accent}
+                    onChange={(e): void => setAccent(e.target.value as import('@/stores/theme').AccentName)}
+                    className="w-full max-w-xs rounded-md border border-border bg-background px-3 py-1.5 text-xs outline-none focus:border-ring"
+                  >
+                    {ACCENT_LIST.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <SettingsThemeColorsSection />
+
+                <p className="text-[10px] leading-relaxed text-muted-foreground mt-1">{t('settings.themeHint')}</p>
+              </div>
+            </section>
+            )}
 
               {subNavId.general === 'modules' && (
                 <Suspense fallback={<AccountSetupPanelFallback />}>

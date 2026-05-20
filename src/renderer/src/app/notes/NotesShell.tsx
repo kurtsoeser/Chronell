@@ -10,7 +10,6 @@ import {
 } from '@dnd-kit/core'
 import {
   Loader2,
-  Plus,
   Trash2,
   X
 } from 'lucide-react'
@@ -34,7 +33,11 @@ import type {
 } from '@shared/types'
 import type { MiniMonthSelectedRange } from '@/app/calendar/MiniMonthGrid'
 import { ModuleNavMiniMonth } from '@/components/ModuleNavMiniMonth'
-import { moduleNavColumnClass } from '@/components/module-shell-layout'
+import {
+  moduleNavColumnClass,
+  modulePaneStackClass,
+  moduleShellClass
+} from '@/components/module-shell-layout'
 import { NotesCalendarPane } from '@/app/notes/NotesCalendarPane'
 import { NotesCalendarToolbar } from '@/app/notes/NotesCalendarToolbar'
 import { readNotesCalendarFcView } from '@/app/notes/notes-calendar-view-storage'
@@ -60,12 +63,12 @@ import {
   ModuleColumnHeaderIconButton,
   moduleColumnHeaderIconGlyphClass,
   moduleColumnHeaderOutlineSmClass,
-  moduleColumnHeaderNavShellBarClass,
   moduleColumnHeaderShellBarClass,
   moduleColumnHeaderSubToolbarClass,
   moduleColumnHeaderTitleClass
 } from '@/components/ModuleColumnHeader'
 import { useResizableWidth, VerticalSplitter } from '@/components/ResizableSplitter'
+import { useModuleNavColumnWidth } from '@/lib/module-nav-column-width'
 import {
   defaultNavSelection,
   navSelectionLabel,
@@ -94,7 +97,6 @@ import { useUndoStore } from '@/stores/undo'
 
 const ALL_KINDS: UserNoteKind[] = ['mail', 'calendar', 'standalone']
 
-const NOTES_NAV_WIDTH_KEY = 'mailclient.notesShell.navWidth'
 const NOTES_DETAIL_WIDTH_KEY = 'mailclient.notesShell.detailWidth'
 type ScheduleDraft = {
   scheduledStartIso: string | null
@@ -209,12 +211,7 @@ export function NotesShell(): JSX.Element {
   const [calendarFcView, setCalendarFcView] = useState(() => readNotesCalendarFcView())
   const [calendarTitle, setCalendarTitle] = useState('')
 
-  const [navWidth, setNavWidth] = useResizableWidth({
-    storageKey: NOTES_NAV_WIDTH_KEY,
-    defaultWidth: 248,
-    minWidth: 200,
-    maxWidth: 400
-  })
+  const [navWidth, setNavWidth] = useModuleNavColumnWidth()
   const [detailColumnWidth, setDetailColumnWidth] = useResizableWidth({
     storageKey: NOTES_DETAIL_WIDTH_KEY,
     defaultWidth: 300,
@@ -695,26 +692,6 @@ export function NotesShell(): JSX.Element {
         className={cn(moduleNavColumnClass, 'shrink-0')}
         style={{ width: navWidth }}
       >
-        <header className={moduleColumnHeaderNavShellBarClass}>
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col justify-center gap-0.5 py-0.5">
-            <div className="truncate text-xs font-semibold leading-tight text-foreground">
-              {t('notes.shell.title')}
-            </div>
-            <div className="truncate text-[10px] leading-tight text-muted-foreground">
-              {t('notes.shell.subtitle')}
-            </div>
-          </div>
-          <ModuleColumnHeaderIconButton
-            type="button"
-            onClick={(): void => void createStandalone()}
-            disabled={saving}
-            aria-label={t('notes.shell.newStandalone')}
-            title={t('notes.shell.newStandalone')}
-          >
-            <Plus className={moduleColumnHeaderIconGlyphClass} />
-          </ModuleColumnHeaderIconButton>
-        </header>
-
         <ModuleNavMiniMonth
           monthAnchor={miniMonth}
           today={new Date()}
@@ -772,12 +749,7 @@ export function NotesShell(): JSX.Element {
   )
 
   const notesListWorkspace = (
-    <>
-      <VerticalSplitter
-        ariaLabel={t('notes.shell.splitterNavAria')}
-        onDrag={(delta): void => setNavWidth((w) => w + delta)}
-      />
-
+    <div className={cn(modulePaneStackClass, 'flex-row')}>
       <aside
         className="flex min-h-0 shrink-0 flex-col border-r border-border"
         style={{ width: detailColumnWidth }}
@@ -950,16 +922,12 @@ export function NotesShell(): JSX.Element {
               </ContentCrossfade>
             )}
       </main>
-    </>
+    </div>
   )
 
   const notesCalendarWorkspace = (
-    <>
-      <VerticalSplitter
-        ariaLabel={t('notes.shell.splitterNavAria')}
-        onDrag={(delta): void => setNavWidth((w) => w + delta)}
-      />
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col border-l border-border bg-card">
+    <div className={cn(modulePaneStackClass, 'flex-col')}>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <header className={cn(moduleColumnHeaderShellBarClass, 'shrink-0 border-b border-border')}>
           <div className={moduleColumnHeaderTitleClass}>{t('notes.shell.selectNote')}</div>
           <div className="flex min-w-0 shrink-0 items-center gap-1.5">
@@ -986,12 +954,17 @@ export function NotesShell(): JSX.Element {
           className="min-h-0 min-w-0 flex-1"
         />
       </div>
-    </>
+    </div>
   )
 
   return (
-    <section className="flex min-h-0 flex-1 bg-background">
+    <section className={moduleShellClass}>
       {notesNavColumn}
+      <VerticalSplitter
+        variant="moduleNav"
+        ariaLabel={t('common.moduleNavSplitter')}
+        onDrag={(delta): void => setNavWidth((w) => w + delta)}
+      />
       {shellView === 'calendar' ? (
         notesCalendarWorkspace
       ) : (

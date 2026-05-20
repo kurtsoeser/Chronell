@@ -99,7 +99,7 @@ export function NotesPagesSortMenu({
               ref={panelRef}
               role="menu"
               aria-label={t('notes.shell.pagesSortLabel')}
-              className="overflow-y-auto rounded-lg border border-border bg-popover py-1 shadow-xl"
+              className="overflow-y-auto chronell-acrylic-popover py-1"
               style={panelStyle}
             >
               {NOTES_PAGES_SORT_KEYS.map((key) => {

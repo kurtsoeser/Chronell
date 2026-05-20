@@ -123,7 +123,7 @@ export function MailCategoriesPopover({
     <div
       ref={rootRef}
       className={cn(
-        'fixed z-[200] w-[min(22rem,calc(100vw-1.5rem))] rounded-lg border border-border bg-popover p-3 text-xs shadow-xl',
+        'chronell-acrylic-popover fixed z-[200] w-[min(22rem,calc(100vw-1.5rem))] p-3 text-xs',
         'text-popover-foreground'
       )}
       style={{ left: anchor.x, top: anchor.y }}

@@ -29,9 +29,7 @@ import {
   Mails,
   StickyNote,
   PanelLeftClose,
-  PanelRightClose,
   Search,
-  SquareArrowOutUpRight,
   CalendarPlus
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -141,13 +139,7 @@ import {
 } from '@/app/calendar/CalendarCreateQuickPopover'
 import { CalendarEventPreview } from '@/app/calendar/CalendarEventPreview'
 import { ContextMenu, type ContextMenuItem } from '@/components/ContextMenu'
-import {
-  ModuleColumnHeaderIconButton,
-  ModuleColumnHeaderStackedTitle,
-  moduleColumnHeaderDockBarRowClass,
-  moduleColumnHeaderIconGlyphClass,
-  moduleColumnHeaderUppercaseLabelClass
-} from '@/components/ModuleColumnHeader'
+import { CalendarPreviewDockHeader } from '@/app/calendar/CalendarPreviewDockHeader'
 import { CalendarRightZeitlistePanel } from '@/app/calendar/CalendarRightZeitlistePanel'
 import { ObjectNoteDialog, type ObjectNoteTarget } from '@/components/ObjectNoteEditor'
 import {
@@ -173,10 +165,10 @@ import { accountColorToCssBackground } from '@/lib/avatar-color'
 import { ReadingPane } from '@/app/layout/ReadingPane'
 import { GLOBAL_CREATE_EVENT, useGlobalCreateNavigateStore } from '@/lib/global-create'
 import { VerticalSplitter, useResizableWidth } from '@/components/ResizableSplitter'
+import { useModuleNavColumnWidth } from '@/lib/module-nav-column-width'
 import { useCalendarPanelLayoutStore } from '@/stores/calendar-panel-layout'
 import { CalendarFloatingPanel } from '@/app/calendar/CalendarFloatingPanel'
 import { CalendarDockPanelSlide } from '@/app/calendar/CalendarDockPanelSlide'
-import { CalendarDockStripFrame } from '@/app/calendar/CalendarDockStripFrame'
 import { useCalendarMailExternalDrop } from '@/lib/use-calendar-mail-external-drop'
 import { useCalendarCloudTaskExternalDrop } from '@/lib/use-calendar-cloud-task-external-drop'
 import type { CloudTaskDragPayload } from '@/app/tasks/tasks-cloud-task-dnd'
@@ -197,7 +189,9 @@ import {
 import { ModuleNavMiniMonth } from '@/components/ModuleNavMiniMonth'
 import {
   moduleNavColumnScrollBodyClass,
-  moduleNavColumnScrollBodyStackClass
+  moduleNavColumnScrollBodyStackClass,
+  modulePaneStackClass,
+  moduleShellClass
 } from '@/components/module-shell-layout'
 import {
   CalendarShellHeader,
@@ -959,6 +953,11 @@ export function CalendarShell(): JSX.Element {
   const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useState(
     readLeftSidebarCollapsedFromStorage
   )
+  const [moduleNavWidth, setModuleNavWidth] = useModuleNavColumnWidth()
+  const onDragModuleNavWidth = useCallback(
+    (delta: number) => setModuleNavWidth((w) => w + delta),
+    [setModuleNavWidth]
+  )
   const [previewCalendarEvent, setPreviewCalendarEvent] = useState<CalendarEventView | null>(null)
   const [previewCloudTask, setPreviewCloudTask] = useState<TaskItemWithContext | null>(null)
   const [previewCloudTaskPlannedFromTimeline, setPreviewCloudTaskPlannedFromTimeline] =
@@ -1063,11 +1062,6 @@ export function CalendarShell(): JSX.Element {
 
   const [inboxDockStripInDom, setInboxDockStripInDom] = useState(inboxDockShow)
   const [previewDockStripInDom, setPreviewDockStripInDom] = useState(previewDockShow)
-  const [inboxDockHeaderSlotEl, setInboxDockHeaderSlotEl] = useState<HTMLDivElement | null>(null)
-  const bindInboxDockHeaderSlot = useCallback((node: HTMLDivElement | null) => {
-    setInboxDockHeaderSlotEl((prev) => (prev === node ? prev : node))
-  }, [])
-
   useEffect(() => {
     persistLeftSidebarCollapsed(leftSidebarCollapsed)
   }, [leftSidebarCollapsed])
@@ -2819,151 +2813,11 @@ export function CalendarShell(): JSX.Element {
     <>
       <div className="flex h-full min-h-0 flex-1 flex-col">
         <div className="calendar-shell-workspace flex min-h-0 flex-1 flex-col">
-          <div className="calendar-shell-dock-header-row flex shrink-0 flex-row items-stretch border-b border-border">
+          <div className={moduleShellClass}>
             {!leftSidebarCollapsed ? (
-              <div className="module-nav-column w-[272px]">
-                <div className="calendar-shell-column-header flex h-10 min-h-0 shrink-0 items-center px-2 text-xs">
-                  <ModuleColumnHeaderStackedTitle
-                    className="min-w-0 flex-1"
-                    kicker={t('calendar.shell.sidebarBrand')}
-                    title={t('calendar.shell.eventsTitle')}
-                  />
-                </div>
-              </div>
-            ) : (
-              <div className="w-0 shrink-0 overflow-hidden" aria-hidden />
-            )}
-            <div className="flex min-w-0 flex-1 flex-col border-r border-border bg-background">
-              <div className="calendar-shell-header-container flex min-h-0 min-w-0 flex-1 flex-col">
-                <CalendarShellHeader
-                  rangeTitle={rangeTitle}
-                  visibleStart={visibleStart}
-                  rightInboxOpen={rightInboxOpen}
-                  onRightInboxOpenChange={(next): void => {
-                    persistRightInboxOpen(next)
-                    setRightInboxOpen(next)
-                  }}
-                  rightPreviewOpen={rightPreviewOpen}
-                  onRightPreviewOpenChange={(next): void => {
-                    persistRightPreviewOpen(next)
-                    setRightPreviewOpen(next)
-                  }}
-                  viewMenuRef={viewMenuRef}
-                  viewMenuOpen={viewMenuOpen}
-                  setViewMenuOpen={setViewMenuOpen}
-                  activeViewId={activeViewId}
-                  changeView={changeView}
-                  daysSubOpen={daysSubOpen}
-                  setDaysSubOpen={setDaysSubOpen}
-                  settingsSubOpen={settingsSubOpen}
-                  setSettingsSubOpen={setSettingsSubOpen}
-                  calendarSidebarHiddenRestoreEntries={calendarSidebarHiddenRestoreEntries}
-                  onRestoreCalendarToSidebar={restoreCalendarToSidebar}
-                  timeGridSlotMinutes={timeGridSlotMinutes}
-                  onTimeGridSlotMinutesChange={(min): void => setTimeGridSlotMinutes(min)}
-                  onCalendarToday={(): void => {
-                    if (isGanttTimelineView) {
-                      setGanttAnchor(new Date())
-                      setGanttScrollToTodaySignal((n) => n + 1)
-                      return
-                    }
-                    calendarRef.current?.getApi().today()
-                  }}
-                  onCalendarPrev={(): void => {
-                    if (isGanttTimelineView) {
-                      setGanttAnchor((a) => ganttNavStepAnchor(a, ganttScale, -1))
-                      return
-                    }
-                    calendarRef.current?.getApi().prev()
-                  }}
-                  onCalendarNext={(): void => {
-                    if (isGanttTimelineView) {
-                      setGanttAnchor((a) => ganttNavStepAnchor(a, ganttScale, 1))
-                      return
-                    }
-                    calendarRef.current?.getApi().next()
-                  }}
-                  leftSidebarCollapsed={leftSidebarCollapsed}
-                  onLeftSidebarCollapsedChange={setLeftSidebarCollapsed}
-                />
-              </div>
-            </div>
-            {inboxDockStripInDom && inboxPlacement === 'dock' ? (
-              <CalendarDockStripFrame
-                visible={inboxDockShow}
-                panelWidthPx={inboxColumnWidth}
-                className="self-stretch"
-                splitter={<div className="w-px shrink-0 self-stretch bg-border" aria-hidden />}
-              >
-                <div
-                  style={{ width: inboxColumnWidth }}
-                  className="flex h-full min-h-0 shrink-0 flex-col border-l border-border bg-card"
-                >
-                  <div
-                    ref={bindInboxDockHeaderSlot}
-                    className="calendar-shell-dock-inbox-header-slot min-h-0 w-full flex-1 shrink-0"
-                  />
-                </div>
-              </CalendarDockStripFrame>
-            ) : null}
-            {previewDockStripInDom && previewPlacement === 'dock' ? (
-              <CalendarDockStripFrame
-                visible={previewDockShow}
-                panelWidthPx={previewPaneWidth}
-                className="self-stretch"
-                splitter={<div className="w-px shrink-0 self-stretch bg-border" aria-hidden />}
-              >
-                <div
-                  style={{ width: previewPaneWidth }}
-                  className="flex h-full min-h-0 shrink-0 flex-col border-l border-border bg-card"
-                >
-                  <div className="calendar-shell-column-header flex h-full min-h-0 flex-1 flex-col justify-center">
-                    <div className={moduleColumnHeaderDockBarRowClass}>
-                      <span
-                        className={cn(
-                          moduleColumnHeaderUppercaseLabelClass,
-                          'min-w-0 flex-1 text-left'
-                        )}
-                      >
-                        {previewColumnLabel}
-                      </span>
-                      <div className="flex shrink-0 items-center gap-0.5">
-                        <ModuleColumnHeaderIconButton
-                          title={t('calendar.shell.undockPreviewTitle')}
-                          onClick={(): void => setPreviewPlacement('float')}
-                        >
-                          <SquareArrowOutUpRight className={moduleColumnHeaderIconGlyphClass} />
-                        </ModuleColumnHeaderIconButton>
-                        <ModuleColumnHeaderIconButton
-                          title={t('calendar.shell.hidePreviewTitle')}
-                          onClick={(): void => {
-                            persistRightPreviewOpen(false)
-                            setRightPreviewOpen(false)
-                          }}
-                        >
-                          <PanelRightClose className={moduleColumnHeaderIconGlyphClass} />
-                        </ModuleColumnHeaderIconButton>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CalendarDockStripFrame>
-            ) : null}
-          </div>
-
-          <div className="flex min-h-0 flex-1 flex-row">
-            <div
-              className={cn(
-                'calendar-notion-shell flex h-full min-h-0 min-w-0 flex-1 bg-background text-foreground',
-                `cal-slot-${timeGridSlotMinutes}`,
-                activeViewId === MULTI_MONTH_YEAR_VIEW_ID &&
-                  'calendar-notion-shell--multimonth-year',
-                quickCreate != null && 'calendar-notion-shell--quick-create-open',
-                schedulingOpen && 'calendar-notion-shell--scheduling-open'
-              )}
-            >
-              {!leftSidebarCollapsed ? (
-                <aside className="module-nav-column w-[272px]">
+                <>
+                <div style={{ width: moduleNavWidth }} className="flex h-full min-h-0 shrink-0 flex-col">
+                <aside className="module-nav-column h-full min-h-0 w-full">
                   <ModuleNavMiniMonth
                     monthAnchor={miniMonth}
                     today={new Date()}
@@ -3023,8 +2877,79 @@ export function CalendarShell(): JSX.Element {
                     </div>
                   </div>
                 </aside>
+                </div>
+                <VerticalSplitter
+                  variant="moduleNav"
+                  onDrag={onDragModuleNavWidth}
+                  ariaLabel={t('common.moduleNavSplitter')}
+                />
+                </>
           ) : null}
 
+            <div className={cn(modulePaneStackClass, 'flex-row')}>
+            <div
+              className={cn(
+                'calendar-notion-shell flex h-full min-h-0 min-w-0 flex-1 flex-col text-foreground',
+                `cal-slot-${timeGridSlotMinutes}`,
+                activeViewId === MULTI_MONTH_YEAR_VIEW_ID &&
+                  'calendar-notion-shell--multimonth-year',
+                quickCreate != null && 'calendar-notion-shell--quick-create-open',
+                schedulingOpen && 'calendar-notion-shell--scheduling-open'
+              )}
+            >
+              <div className="calendar-shell-header-container shrink-0 border-b border-border">
+                <CalendarShellHeader
+                  rangeTitle={rangeTitle}
+                  visibleStart={visibleStart}
+                  rightInboxOpen={rightInboxOpen}
+                  onRightInboxOpenChange={(next): void => {
+                    persistRightInboxOpen(next)
+                    setRightInboxOpen(next)
+                  }}
+                  rightPreviewOpen={rightPreviewOpen}
+                  onRightPreviewOpenChange={(next): void => {
+                    persistRightPreviewOpen(next)
+                    setRightPreviewOpen(next)
+                  }}
+                  viewMenuRef={viewMenuRef}
+                  viewMenuOpen={viewMenuOpen}
+                  setViewMenuOpen={setViewMenuOpen}
+                  activeViewId={activeViewId}
+                  changeView={changeView}
+                  daysSubOpen={daysSubOpen}
+                  setDaysSubOpen={setDaysSubOpen}
+                  settingsSubOpen={settingsSubOpen}
+                  setSettingsSubOpen={setSettingsSubOpen}
+                  calendarSidebarHiddenRestoreEntries={calendarSidebarHiddenRestoreEntries}
+                  onRestoreCalendarToSidebar={restoreCalendarToSidebar}
+                  timeGridSlotMinutes={timeGridSlotMinutes}
+                  onTimeGridSlotMinutesChange={(min): void => setTimeGridSlotMinutes(min)}
+                  onCalendarToday={(): void => {
+                    if (isGanttTimelineView) {
+                      setGanttAnchor(new Date())
+                      setGanttScrollToTodaySignal((n) => n + 1)
+                      return
+                    }
+                    calendarRef.current?.getApi().today()
+                  }}
+                  onCalendarPrev={(): void => {
+                    if (isGanttTimelineView) {
+                      setGanttAnchor((a) => ganttNavStepAnchor(a, ganttScale, -1))
+                      return
+                    }
+                    calendarRef.current?.getApi().prev()
+                  }}
+                  onCalendarNext={(): void => {
+                    if (isGanttTimelineView) {
+                      setGanttAnchor((a) => ganttNavStepAnchor(a, ganttScale, 1))
+                      return
+                    }
+                    calendarRef.current?.getApi().next()
+                  }}
+                  leftSidebarCollapsed={leftSidebarCollapsed}
+                  onLeftSidebarCollapsedChange={setLeftSidebarCollapsed}
+                />
+              </div>
           <div ref={calendarViewZoomHostRef} className="flex min-h-0 min-w-0 flex-1 flex-col">
             <CalendarShellAlerts error={error} />
 
@@ -3626,10 +3551,6 @@ export function CalendarShell(): JSX.Element {
                 onWorkItemFocused={applyTimelineWorkItemToPreview}
                 onTimelineLoadingChange={setTimelineLoading}
                 listRefreshing={timelineLoading}
-                dockHeaderSlotEl={
-                  inboxPlacement === 'dock' && inboxDockStripInDom ? inboxDockHeaderSlotEl : null
-                }
-                shellDockHeaderRow={inboxPlacement === 'dock' && inboxDockStripInDom}
                 onRequestClose={(): void => {
                   persistRightInboxOpen(false)
                   setRightInboxOpen(false)
@@ -3687,9 +3608,21 @@ export function CalendarShell(): JSX.Element {
           >
             <div
               style={{ width: previewPaneWidth }}
-              className="flex h-full min-h-0 shrink-0 flex-col overflow-hidden border-l border-border bg-card"
+              className="flex h-full min-h-0 shrink-0 flex-col overflow-hidden border-l border-border"
             >
-              {calendarPreviewBody}
+              <CalendarPreviewDockHeader
+                label={previewColumnLabel}
+                undockTitle={t('calendar.shell.undockPreviewTitle')}
+                hideTitle={t('calendar.shell.hidePreviewTitle')}
+                onUndock={(): void => setPreviewPlacement('float')}
+                onHide={(): void => {
+                  persistRightPreviewOpen(false)
+                  setRightPreviewOpen(false)
+                }}
+              />
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                {calendarPreviewBody}
+              </div>
             </div>
           </CalendarDockPanelSlide>
         ) : null}
@@ -3714,6 +3647,7 @@ export function CalendarShell(): JSX.Element {
           </CalendarFloatingPanel>
         ) : null}
         </div>
+      </div>
       </div>
       </div>
 
@@ -3817,7 +3751,7 @@ export function CalendarShell(): JSX.Element {
           }}
         >
           <div
-            className="w-full max-w-sm rounded-xl border border-border bg-popover p-4 shadow-xl"
+            className="chronell-dialog-panel w-full max-w-sm p-4"
             onMouseDown={(e): void => e.stopPropagation()}
           >
             <h2 id="cal-goto-date-title" className="mb-3 text-sm font-semibold text-foreground">

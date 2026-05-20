@@ -96,7 +96,7 @@ export function NoteEntityLinkPickerDialog({
     <ModalRoot open={open} zIndex={320} overlayClassName="p-4" onBackdropClick={onClose}>
       <ModalPanel
         aria-labelledby="note-link-picker-title"
-        className="flex max-h-[min(520px,90vh)] w-full max-w-md flex-col overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-xl"
+        className="chronell-dialog-panel flex max-h-[min(520px,90vh)] w-full max-w-md flex-col overflow-hidden text-popover-foreground"
       >
         <header className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-4 py-3">
           <h2 id="note-link-picker-title" className="text-sm font-semibold">

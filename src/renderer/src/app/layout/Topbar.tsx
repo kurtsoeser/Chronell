@@ -360,7 +360,7 @@ function TopbarGlobalCreateSplit({
             ref={menuRef}
             role="menu"
             aria-label={t('topbar.create.menuAria')}
-            className="glass-panel-elevated glass-animate-in overflow-hidden rounded-lg py-1 text-popover-foreground"
+            className="chronell-acrylic-popover glass-animate-in overflow-hidden py-1 text-popover-foreground"
             style={menuStyle}
           >
             {TOPBAR_CREATE_KINDS.map((kind) => {
@@ -697,7 +697,7 @@ function ThemeToggle(): JSX.Element {
   const darkPalette = useThemeStore((s) => s.darkPalette)
   const setMode = useThemeStore((s) => s.setMode)
   const setAccent = useThemeStore((s) => s.setAccent)
-  const setDarkPalette = useThemeStore((s) => s.setDarkPalette)
+  const applyDarkPaletteVariant = useThemeStore((s) => s.applyDarkPaletteVariant)
   const [open, setOpen] = useState(false)
   const buttonRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
@@ -720,10 +720,10 @@ function ThemeToggle(): JSX.Element {
   const darkPaletteOptions = useMemo(
     () =>
       [
+        { id: 'graphite' as const, label: t('topbar.paletteGraphite') },
         { id: 'default' as const, label: t('topbar.paletteDefault') },
         { id: 'midnight' as const, label: 'Midnight' },
-        { id: 'nord' as const, label: 'Nord' },
-        { id: 'graphite' as const, label: 'Graphite' }
+        { id: 'nord' as const, label: 'Nord' }
       ] satisfies Array<{ id: DarkPalette; label: string }>,
     [t]
   )
@@ -801,7 +801,7 @@ function ThemeToggle(): JSX.Element {
             ref={panelRef}
             role="menu"
             aria-label={t('topbar.appearance')}
-            className="glass-panel-elevated glass-animate-in overflow-hidden rounded-lg py-1 text-popover-foreground"
+            className="chronell-acrylic-popover glass-animate-in overflow-hidden py-1 text-popover-foreground"
             style={panelStyle}
           >
           <div className="px-2.5 pb-1 pt-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -845,7 +845,7 @@ function ThemeToggle(): JSX.Element {
                     type="button"
                     role="menuitemradio"
                     aria-checked={selected}
-                    onClick={(): void => setDarkPalette(id)}
+                    onClick={(): void => applyDarkPaletteVariant(id)}
                     className={cn(
                       'flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs transition-colors hover:bg-secondary/60',
                       selected ? 'text-foreground' : 'text-muted-foreground'

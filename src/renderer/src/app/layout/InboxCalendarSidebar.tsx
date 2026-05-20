@@ -22,7 +22,6 @@ import {
   mailListItemTodoScheduleWindow
 } from '@/app/calendar/mail-todo-calendar'
 import { ModuleNavMiniMonth } from '@/components/ModuleNavMiniMonth'
-import { moduleNavColumnClass } from '@/components/module-shell-layout'
 import { CALENDAR_VISIBILITY_CHANGED_EVENT } from '@/lib/calendar-visibility-storage'
 import {
   ModuleColumnHeaderIconButton,
@@ -192,8 +191,8 @@ export function InboxCalendarSidebar({
   return (
     <aside
       className={cn(
-        moduleNavColumnClass,
-        hideChrome ? 'border-0 border-r-0' : 'border-l border-r-0'
+        'flex h-full min-h-0 shrink-0 flex-col',
+        hideChrome ? 'border-0' : 'border-l border-border'
       )}
       onDragLeave={(e): void => {
         if (e.currentTarget === e.target) stripDragOver()

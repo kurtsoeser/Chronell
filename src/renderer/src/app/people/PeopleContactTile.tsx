@@ -27,7 +27,15 @@ function TileDetailRow({
   return (
     <div className={cn('min-w-0', className)}>
       <dt className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</dt>
-      <dd className="mt-0.5 text-sm leading-snug text-foreground">{children}</dd>
+      <dd className="mt-0.5 min-w-0 text-sm leading-snug text-foreground">
+        {typeof children === 'string' ? (
+          <span className="block truncate" title={children}>
+            {children}
+          </span>
+        ) : (
+          children
+        )}
+      </dd>
     </div>
   )
 }
@@ -102,8 +110,8 @@ export function PeopleContactTile({
         ) : null}
       </div>
 
-      <div className="flex min-h-[8rem] gap-4 p-4">
-        <div className="flex w-[8rem] shrink-0 flex-col items-center gap-2.5 pt-0.5 sm:w-[9rem]">
+      <div className="flex min-h-[8rem] gap-3 p-4">
+        <div className="flex w-[6.75rem] shrink-0 flex-col items-center gap-2 pt-0.5">
           <PeopleContactListAvatar
             contact={contact}
             displayName={label}
@@ -118,22 +126,24 @@ export function PeopleContactTile({
           </div>
         </div>
 
-        <dl className="grid min-w-0 flex-1 content-start gap-2.5 border-l border-border/70 pl-4 sm:grid-cols-2 sm:gap-x-6">
-          <TileDetailRow label={t('people.shell.email')} className="sm:col-span-2">
+        <dl className="grid min-w-0 flex-1 grid-cols-1 content-start gap-2.5 border-l border-border/70 pl-3">
+          <TileDetailRow label={t('people.shell.email')}>
             {contact.primaryEmail || extraEmails.length > 0 ? (
-              <ul className="space-y-0.5">
+              <ul className="min-w-0 space-y-0.5">
                 {contact.primaryEmail ? (
-                  <li className="break-all">{contact.primaryEmail}</li>
+                  <li className="flex min-w-0" title={contact.primaryEmail}>
+                    <span className="min-w-0 truncate">{contact.primaryEmail}</span>
+                  </li>
                 ) : null}
                 {extraEmails.map((e) => (
-                  <li key={e.address} className="break-all">
+                  <li key={e.address} className="flex min-w-0 gap-1" title={e.address}>
                     {e.name ? (
                       <>
-                        <span className="text-muted-foreground">{e.name}: </span>
-                        {e.address}
+                        <span className="shrink-0 text-muted-foreground">{e.name}:</span>
+                        <span className="min-w-0 truncate">{e.address}</span>
                       </>
                     ) : (
-                      e.address
+                      <span className="min-w-0 truncate">{e.address}</span>
                     )}
                   </li>
                 ))}
@@ -148,22 +158,30 @@ export function PeopleContactTile({
           <TileDetailRow label={t('people.shell.fieldOffice')}>{office}</TileDetailRow>
           <TileDetailRow label={t('people.shell.fieldBirthday')}>{birthday}</TileDetailRow>
           <TileDetailRow label={t('people.shell.fieldWeb')}>
-            {webPage ? <span className="break-all">{webPage}</span> : null}
+            {webPage ? (
+              <span className="block truncate" title={webPage}>
+                {webPage}
+              </span>
+            ) : null}
           </TileDetailRow>
           {phones.length > 0 ? (
             <TileDetailRow label={t('people.shell.phone')}>
-              <ul className="space-y-0.5">
+              <ul className="min-w-0 space-y-0.5">
                 {phones.map((p) => (
-                  <li key={`${p.type}:${p.value}`}>
-                    <span className="text-muted-foreground">{p.type}: </span>
-                    {p.value}
+                  <li
+                    key={`${p.type}:${p.value}`}
+                    className="flex min-w-0 gap-1"
+                    title={`${p.type}: ${p.value}`}
+                  >
+                    <span className="shrink-0 text-muted-foreground">{p.type}:</span>
+                    <span className="min-w-0 truncate">{p.value}</span>
                   </li>
                 ))}
               </ul>
             </TileDetailRow>
           ) : null}
           {addresses.length > 0 ? (
-            <TileDetailRow label={t('people.shell.fieldAddress')} className="sm:col-span-2">
+            <TileDetailRow label={t('people.shell.fieldAddress')}>
               <ul className="space-y-2">
                 {addresses.map((addr) => {
                   const lines = formatAddressLines(addr)
@@ -183,7 +201,7 @@ export function PeopleContactTile({
             </TileDetailRow>
           ) : null}
           {notes ? (
-            <TileDetailRow label={t('people.shell.notes')} className="sm:col-span-2">
+            <TileDetailRow label={t('people.shell.notes')}>
               <p className="line-clamp-6 whitespace-pre-wrap rounded-md border border-border/60 bg-muted/15 p-2.5 text-sm">
                 {notes}
               </p>

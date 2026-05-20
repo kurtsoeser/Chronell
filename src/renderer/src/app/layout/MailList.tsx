@@ -659,7 +659,10 @@ export function MailList(): JSX.Element {
   )
 
   return (
-    <section ref={listPanelRef as Ref<HTMLElement>} className="glass-fill flex h-full w-full flex-col">
+    <section
+      ref={listPanelRef as Ref<HTMLElement>}
+      className="flex h-full w-full flex-col"
+    >
       <div className={moduleColumnHeaderMailListRowClass}>
         <div className="flex min-w-0 shrink-0 items-center gap-2">
           {mailListUsesCrossAccountThreadScope(listKind) ? (
@@ -1067,16 +1070,10 @@ const ThreadHeadRow = memo(function ThreadHeadRow({
         void onContextMail(e, latest, threadContextOpts)
       }}
       className={cn(
-        'group/row relative flex w-full items-start gap-2.5 border-b border-border/40 px-3 transition-colors',
+        'chronell-list-row group/row relative flex w-full items-start gap-2.5 px-3',
         outlookExpandHeader ? 'py-1.5' : 'py-2.5',
         latest.isVipSender && 'ring-1 ring-amber-500/35 ring-inset',
-        headSelected
-          ? 'bg-secondary'
-          : threadSelected && !headSelected
-            ? outlookExpandHeader
-              ? 'bg-secondary/30'
-              : 'bg-secondary/40'
-            : 'hover:bg-secondary/40',
+        (headSelected || (threadSelected && !headSelected)) && 'chronell-list-row--selected',
         'cursor-grab active:cursor-grabbing',
         isRowExiting && motionListItemExit
       )}
@@ -1407,8 +1404,8 @@ const ThreadSubRow = memo(function ThreadSubRow({
             ? 'grid w-full items-center gap-x-1 rounded py-1 pl-2 pr-2 text-left transition-colors'
             : 'flex w-full flex-col gap-0.5 rounded py-1.5 pl-2 pr-2 text-left transition-colors',
           selected
-            ? 'border-l-2 border-primary bg-secondary/45'
-            : 'border-l-2 border-transparent hover:bg-secondary/40'
+            ? 'chronell-list-row--selected border-l-2 border-primary'
+            : 'chronell-list-row border-l-2 border-transparent'
         )}
         style={tableMode ? { gridTemplateColumns: tableGridTemplate } : undefined}
       >
@@ -1599,7 +1596,7 @@ function MailRowActions({
   return (
     <div
       className={cn(
-        'absolute right-1 flex items-center gap-0.5 rounded-md border border-border bg-popover/95 px-1 py-0.5 shadow-sm backdrop-blur-sm transition-opacity',
+        'chronell-acrylic-popover absolute right-1 flex items-center gap-0.5 px-1 py-0.5 transition-opacity',
         baseTop,
         alwaysVisible ? 'opacity-100' : showClass
       )}

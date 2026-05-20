@@ -15,10 +15,6 @@ import {
   readTasksSidebarAccountExpanded
 } from '@/app/tasks/tasks-sidebar-tree-storage'
 import type { TasksViewSelection } from '@/app/tasks/tasks-types'
-import {
-  moduleColumnHeaderNavShellBarClass,
-  moduleColumnHeaderTitleClass
-} from '@/components/ModuleColumnHeader'
 
 export interface TasksShellSidebarProps {
   taskAccounts: ConnectedAccount[]
@@ -219,9 +215,6 @@ export function TasksShellSidebar({
 
   return (
     <aside className="module-nav-column w-full">
-      <header className={moduleColumnHeaderNavShellBarClass}>
-        <span className={moduleColumnHeaderTitleClass}>{t('tasks.shell.title')}</span>
-      </header>
       <ModuleNavMiniMonth
         monthAnchor={miniMonth}
         today={new Date()}

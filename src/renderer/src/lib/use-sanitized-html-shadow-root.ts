@@ -2,6 +2,19 @@ import { type RefObject, useLayoutEffect } from 'react'
 import { hrefForExternalOpen, openExternalUrl } from '@/lib/open-external'
 import type { MailViewerTheme } from '@/lib/sanitize'
 
+const MAIL_MODULE_SURFACE_VAR = '--chronell-mail-module-surface'
+
+function syncMailModuleSurfaceVar(host: HTMLElement, viewerTheme?: MailViewerTheme): void {
+  if (viewerTheme !== 'dark') {
+    host.style.removeProperty(MAIL_MODULE_SURFACE_VAR)
+    return
+  }
+  const bg = getComputedStyle(host).backgroundColor
+  if (bg && bg !== 'rgba(0, 0, 0, 0)') {
+    host.style.setProperty(MAIL_MODULE_SURFACE_VAR, bg)
+  }
+}
+
 function linkFromComposedPath(e: Event): Element | null {
   for (const n of e.composedPath()) {
     if (n instanceof Element && n.tagName.toLowerCase() === 'a') {
@@ -43,6 +56,7 @@ export function useSanitizedHtmlShadowRoot(
       shadow = host.attachShadow({ mode: 'open' })
     }
     shadow.innerHTML = shadowInnerHtml
+    syncMailModuleSurfaceVar(host, viewerTheme)
 
     const openFromEvent = (e: MouseEvent): void => {
       if (e.defaultPrevented) return

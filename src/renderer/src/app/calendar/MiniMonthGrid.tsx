@@ -119,12 +119,12 @@ export function MiniMonthGrid({
   }
 
   return (
-    <div className="rounded-xl border border-border bg-card p-3">
+    <div className="rounded-md border border-border bg-card p-3">
       <div className="mb-2 flex items-center justify-between gap-2">
         <button
           type="button"
           onClick={onPrevMonth}
-          className="rounded-md p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
+          className="rounded-sm p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
           aria-label={t('calendar.miniMonth.prevMonthAria')}
         >
           <ChevronLeft className="h-4 w-4" />
@@ -135,7 +135,7 @@ export function MiniMonthGrid({
         <button
           type="button"
           onClick={onNextMonth}
-          className="rounded-md p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
+          className="rounded-sm p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
           aria-label={t('calendar.miniMonth.nextMonthAria')}
         >
           <ChevronRight className="h-4 w-4" />

@@ -39,7 +39,7 @@ export function GanttBarHoverTooltip({
       role="tooltip"
       className={cn(
         'pointer-events-none fixed z-[250] max-w-[min(360px,calc(100vw-16px))]',
-        'whitespace-pre-line rounded-md border border-border bg-popover px-2.5 py-1.5',
+        'chronell-acrylic-tooltip whitespace-pre-line',
         'text-[12px] font-medium leading-snug text-popover-foreground shadow-lg'
       )}
       style={{ left, top }}

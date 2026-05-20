@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useResizableWidth, VerticalSplitter } from '@/components/ResizableSplitter'
+import { cn } from '@/lib/utils'
+import { modulePaneStackClass, moduleShellClass } from '@/components/module-shell-layout'
+import { useModuleNavColumnWidth } from '@/lib/module-nav-column-width'
 import { Sidebar } from '@/app/layout/Sidebar'
 import { MailList } from '@/app/layout/MailList'
 import { ReadingPane } from '@/app/layout/ReadingPane'
@@ -25,12 +28,7 @@ export function MailWorkspace(props: { onOpenAccountDialog: () => void }): JSX.E
     const pendingId = takePendingMessageId()
     if (pendingId != null) void openMessageInFolder(pendingId)
   }, [pendingMessageId, takePendingMessageId, openMessageInFolder])
-  const [sidebarWidth, setSidebarWidth] = useResizableWidth({
-    storageKey: 'mailclient.sidebarWidth',
-    defaultWidth: 256,
-    minWidth: 180,
-    maxWidth: 480
-  })
+  const [sidebarWidth, setSidebarWidth] = useModuleNavColumnWidth()
   const [listMaxWidth, setListMaxWidth] = useState(1200)
   useEffect(() => {
     const update = (): void => {
@@ -127,11 +125,16 @@ export function MailWorkspace(props: { onOpenAccountDialog: () => void }): JSX.E
   }, [setCalendarPlacement])
 
   return (
-    <div className="flex flex-1 overflow-hidden">
+    <div className={moduleShellClass}>
       <div style={{ width: sidebarWidth }} className="h-full shrink-0">
         <Sidebar onOpenAccountDialog={props.onOpenAccountDialog} />
       </div>
-      <VerticalSplitter onDrag={onDragSidebar} ariaLabel={t('mail.workspace.splitterSidebar')} />
+      <VerticalSplitter
+        variant="moduleNav"
+        onDrag={onDragSidebar}
+        ariaLabel={t('common.moduleNavSplitter')}
+      />
+      <div className={cn(modulePaneStackClass, 'flex-row')}>
       <div style={{ width: listWidth }} className="h-full shrink-0 border-r border-border">
         <MailList />
       </div>
@@ -157,6 +160,7 @@ export function MailWorkspace(props: { onOpenAccountDialog: () => void }): JSX.E
             </div>
           </>
         ) : null}
+      </div>
       </div>
 
       {floatReading ? (

@@ -102,12 +102,10 @@ export function ConnectionsObjectPalette({
 
   return (
     <div className={cn('flex min-h-0 flex-col', className)}>
-      <div className="shrink-0 border-b border-border px-3 py-2">
-        <p className="text-xs font-semibold text-foreground">{t('connections.palette.title')}</p>
-        <p className="mt-0.5 text-[10px] text-muted-foreground">{t('connections.palette.hint')}</p>
-      </div>
-
-      <div className="shrink-0 border-b border-border px-2 py-2">
+      <div
+        className="shrink-0 border-b border-border px-2 pb-2 pt-0"
+        title={t('connections.palette.hint')}
+      >
         <p className="mb-1.5 text-[10px] font-medium text-muted-foreground">
           {t('connections.palette.filterLabel')}
         </p>

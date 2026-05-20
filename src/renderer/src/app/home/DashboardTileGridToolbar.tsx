@@ -60,7 +60,7 @@ export function DashboardTileGridToolbar(props: {
         {addPanelOpen ? (
           <div
             ref={addPanelRef}
-            className="absolute left-0 top-full z-[80] mt-1 w-[min(100vw-2rem,22rem)] rounded-lg border border-border bg-popover p-3 text-popover-foreground shadow-md"
+            className="chronell-acrylic-popover absolute left-0 top-full z-[80] mt-1 w-[min(100vw-2rem,22rem)] p-3 text-popover-foreground"
             role="dialog"
             aria-label={t('dashboardGrid.tilesPanelTitle')}
           >

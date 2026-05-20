@@ -88,7 +88,7 @@ export function AccountPropertiesMenu({
       {mainOpen && (
         <div
           role="menu"
-          className="absolute left-0 top-full z-[60] mt-1 w-max min-w-[220px] max-w-[min(280px,calc(100vw-2rem))] rounded-md border border-border bg-popover py-1 text-popover-foreground shadow-lg"
+          className="chronell-acrylic-popover absolute left-0 top-full z-[60] mt-1 w-max min-w-[220px] max-w-[min(280px,calc(100vw-2rem))] py-1 text-popover-foreground"
         >
           <div className="px-0">
             <button

@@ -180,14 +180,32 @@ export function sanitizeMailHtml(html: string, options: { loadImages?: boolean }
   )
 }
 
+import { DARK_PALETTE_SURFACES } from '@/lib/dark-palette-presets'
+import { normalizeHex } from '@/lib/theme-color-utils'
+
+/** Shadow-Host setzt diese Variable (computed .chronell-surface-flat). */
+const MAIL_MODULE_SURFACE_VAR = '--chronell-mail-module-surface'
+
 export type MailViewerTheme = 'light' | 'dark'
+
+/** Standard: Kartenfarbe der App (Fluent Graphite), nicht neutrales Grau. */
+export const MAIL_DARK_SURFACE_DEFAULT_HEX = DARK_PALETTE_SURFACES.graphite.card
+
+export function resolveMailDarkViewerSurfaceHex(surfaceHex?: string): string {
+  return normalizeHex(surfaceHex ?? '') ?? MAIL_DARK_SURFACE_DEFAULT_HEX
+}
 
 /** CSP fuer Mail-/Kalender-srcdoc: kein JS, aber inline-Styles und Bilder (DOMPurify bleibt Pflicht). */
 const mailIframeCspMeta = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data: http: https: blob:; font-src data: http: https:; script-src 'none'; object-src 'none'; base-uri 'none';">`
 
-export function buildIframeSrcDoc(html: string, theme: MailViewerTheme = 'light'): string {
+export function buildIframeSrcDoc(
+  html: string,
+  theme: MailViewerTheme = 'light',
+  darkSurfaceHex?: string
+): string {
   if (theme === 'dark') {
-    return `<!doctype html><html lang="de"><head><meta charset="utf-8">${mailIframeCspMeta}${darkThemeCss}</head><body><div class="mail-html-root">${html}</div></body></html>`
+    const softened = softenLightEmailBackgroundsForDarkViewer(html)
+    return `<!doctype html><html lang="de"><head><meta charset="utf-8">${mailIframeCspMeta}${buildMailIframeDarkThemeCss(darkSurfaceHex)}</head><body>${wrapMailDarkHtmlContent(softened)}</body></html>`
   }
   return `<!doctype html><html lang="de"><head><meta charset="utf-8">${mailIframeCspMeta}${lightThemeCss}</head><body>${html}</body></html>`
 }
@@ -211,12 +229,14 @@ function applyMailPreviewScaleToCss(css: string): string {
 export function buildMailShadowRootInnerHtml(
   html: string,
   theme: MailViewerTheme,
-  scale = 1
+  scale = 1,
+  darkSurfaceHex?: string
 ): string {
   const adapt = (css: string): string => css.replace(':root', ':host').replace(/html,\s*body/g, ':host')
   const scaleHost = mailPreviewScaleHostStyle(scale)
   if (theme === 'dark') {
-    return `${scaleHost}${applyMailPreviewScaleToCss(mailReadingShadowDarkThemeCss)}<div class="mail-html-root">${html}</div>`
+    const softened = softenLightEmailBackgroundsForDarkViewer(html)
+    return `${scaleHost}${applyMailPreviewScaleToCss(buildMailShadowDarkThemeCss(darkSurfaceHex))}${wrapMailDarkHtmlContent(softened)}`
   }
   return `${scaleHost}${applyMailPreviewScaleToCss(adapt(lightThemeCss))}<div class="mail-html-root mail-html-root--light">${html}</div>`
 }
@@ -247,88 +267,104 @@ const lightThemeCss = `
 `
 
 /**
- * Dunkelmodus: grauer Rahmen ueber body-Padding (`MAIL_DARK_SURFACE`).
- * Unter `.mail-html-root` liegt eine undurchsichtige helle Flaeche, dann invertieren wir sie.
- * Reines Weiss wuerde nach invert() zu Schwarz (#000); stattdessen `#d5d5d5` (= invert(#2a2a2a)),
- * damit „leere“ Flaechen nach dem Filter dasselbe Dunkelgrau wie der Rahmen haben.
- * Bilder/SVG/Video doppelt invertieren (wieder naturgetreu).
- * Im iframe `color-scheme: light`, damit keine UA-Dunkel-Anpassungen mit invert() kollidieren.
+ * Dunkelmodus: Flaeche = Host-Variable (gleiche computed color wie .chronell-surface-flat).
+ * Invert nur auf Inhalt; Layer-Hintergrund transparent → Rand/Padding = Modulflaeche, kein Sepia-Rand.
  */
-const MAIL_DARK_SURFACE_HEX = '#2a2a2a'
-/** Vor invert(): Komplement zu MAIL_DARK_SURFACE (gleiches Grau nach invert+hue fuer Achromaten). */
-const MAIL_DARK_PAPER_BEFORE_INVERT_HEX = '#d5d5d5'
+function mailDarkSurfaceCss(surfaceHex?: string): string {
+  const surface = resolveMailDarkViewerSurfaceHex(surfaceHex)
+  return `var(${MAIL_MODULE_SURFACE_VAR}, ${surface})`
+}
 
-const darkThemeCss = `
-  <style>
-    :root { color-scheme: light; }
-    html, body {
-      margin: 0;
-      padding: 14px 18px;
-      box-sizing: border-box;
-      min-height: 100%;
-      background: ${MAIL_DARK_SURFACE_HEX};
-      font: 14px/1.55 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
-      word-wrap: break-word;
-      color-scheme: light;
-    }
-    *, *::before, *::after { box-sizing: inherit; }
-    .mail-html-root {
-      isolation: isolate;
-      forced-color-adjust: none;
-      min-height: calc(100vh - 28px);
-      padding: 0;
-      margin: 0;
-      border-radius: 2px;
-      background: ${MAIL_DARK_PAPER_BEFORE_INVERT_HEX};
-      color: #1f1f23;
-      filter: invert(1) hue-rotate(180deg);
-    }
-    .mail-html-root img,
-    .mail-html-root svg,
-    .mail-html-root video {
-      filter: invert(1) hue-rotate(180deg);
-      forced-color-adjust: none;
-    }
-    img { max-width: 100%; height: auto; }
-    table { max-width: 100%; }
-  </style>
-`
-
-/** Shadow-Root Mail-Leseansicht: kein 100vh-Mindestmaß (iframe-Überbleibsel), sonst kein Scroll im Panel. */
-const mailReadingShadowDarkThemeCss = `
-  <style>
+function buildMailDarkHtmlShellCss(
+  surfaceCss: string,
+  hostSelector: ':root' | ':host',
+  bodyPadding: string,
+  rootMinHeight: string
+): string {
+  const hostBlock =
+    hostSelector === ':host'
+      ? `
     :host {
       color-scheme: light;
       margin: 0;
       padding: 0;
       box-sizing: border-box;
       display: block;
-      background: ${MAIL_DARK_SURFACE_HEX};
-      font: 14px/1.55 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+      background: ${surfaceCss};
+      font: 14px/1.55 'Noto Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       word-wrap: break-word;
-    }
+    }`
+      : `
+    :root { color-scheme: light; }
+    html, body {
+      margin: 0;
+      padding: ${bodyPadding};
+      box-sizing: border-box;
+      min-height: ${rootMinHeight};
+      background: ${surfaceCss};
+      font: 14px/1.55 'Noto Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      word-wrap: break-word;
+      color-scheme: light;
+    }`
+
+  return `
+  <style>
+    ${hostBlock}
     *, *::before, *::after { box-sizing: inherit; }
     .mail-html-root {
+      forced-color-adjust: none;
+      min-height: ${hostSelector === ':host' ? '0' : 'calc(100vh - 28px)'};
+      padding: ${hostSelector === ':host' ? '14px 18px' : '0'};
+      margin: 0;
+      background: ${surfaceCss};
+    }
+    .mail-html-invert-layer {
       isolation: isolate;
       forced-color-adjust: none;
-      min-height: 0;
-      padding: 14px 18px;
       margin: 0;
-      border-radius: 2px;
-      background: ${MAIL_DARK_PAPER_BEFORE_INVERT_HEX};
+      border-radius: 0;
+      background: transparent;
       color: #1f1f23;
-      filter: invert(1) hue-rotate(180deg);
+      filter: invert(1);
     }
-    .mail-html-root img,
-    .mail-html-root svg,
-    .mail-html-root video {
-      filter: invert(1) hue-rotate(180deg);
+    .mail-html-invert-layer img,
+    .mail-html-invert-layer svg,
+    .mail-html-invert-layer video {
+      filter: invert(1);
       forced-color-adjust: none;
     }
     img { max-width: 100%; height: auto; }
     table { max-width: 100%; }
   </style>
 `
+}
+
+function wrapMailDarkHtmlContent(html: string): string {
+  return `<div class="mail-html-root"><div class="mail-html-invert-layer">${html}</div></div>`
+}
+
+/** Entfernt helle Vollflaechen im HTML, damit Invert nicht bräunlich-sepia wirkt. */
+export function softenLightEmailBackgroundsForDarkViewer(html: string): string {
+  if (!html) return html
+  return html
+    .replace(
+      /\bbgcolor\s*=\s*(["']?)(?:#(?:f{3,8}|ffffff)|white)\1/gi,
+      'bgcolor="transparent"'
+    )
+    .replace(
+      /background(?:-color)?\s*:\s*(?:#(?:f{3,8}|ffffff)|white|rgb\s*\(\s*255\s*,\s*255\s*,\s*255\s*\))/gi,
+      'background-color:transparent'
+    )
+}
+
+function buildMailIframeDarkThemeCss(surfaceHex?: string): string {
+  return buildMailDarkHtmlShellCss(mailDarkSurfaceCss(surfaceHex), ':root', '14px 18px', '100%')
+}
+
+/** Shadow-Root Mail-Leseansicht: kein 100vh-Mindestmaß (iframe-Überbleibsel), sonst kein Scroll im Panel. */
+function buildMailShadowDarkThemeCss(surfaceHex?: string): string {
+  return buildMailDarkHtmlShellCss(mailDarkSurfaceCss(surfaceHex), ':host', '0', '0')
+}
 
 /** Kalender-Beschreibung: kein Vollbild-Mindestmaß wie bei Mail (vermeidet leere Scrollbars). */
 export function isEffectivelyEmptyDescriptionHtml(html: string): boolean {
@@ -336,42 +372,13 @@ export function isEffectivelyEmptyDescriptionHtml(html: string): boolean {
   return t.length === 0
 }
 
-const calendarDescriptionDarkThemeCss = `
+function buildCalendarDescriptionDarkThemeCss(surfaceHex?: string): string {
+  return `${buildMailDarkHtmlShellCss(mailDarkSurfaceCss(surfaceHex), ':root', '14px 18px', '100%')}
   <style>
-    :root { color-scheme: light; }
-    html, body {
-      margin: 0;
-      padding: 14px 18px;
-      box-sizing: border-box;
-      background: ${MAIL_DARK_SURFACE_HEX};
-      font: 14px/1.55 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
-      word-wrap: break-word;
-      color-scheme: light;
-      overflow: hidden;
-    }
-    *, *::before, *::after { box-sizing: inherit; }
-    .mail-html-root {
-      isolation: isolate;
-      forced-color-adjust: none;
-      min-height: 0;
-      padding: 0;
-      margin: 0;
-      border-radius: 2px;
-      background: ${MAIL_DARK_PAPER_BEFORE_INVERT_HEX};
-      color: #1f1f23;
-      filter: invert(1) hue-rotate(180deg);
-    }
-    .mail-html-root img,
-    .mail-html-root svg,
-    .mail-html-root video {
-      filter: invert(1) hue-rotate(180deg);
-      forced-color-adjust: none;
-    }
-    img { max-width: 100%; height: auto; }
-    table { max-width: 100%; }
+    html, body { overflow: hidden; }
     pre { padding: 8px 12px; overflow: auto; scrollbar-width: thin; }
-  </style>
-`
+  </style>`
+}
 
 const calendarDescriptionLightThemeCss = `
   <style>
@@ -397,10 +404,12 @@ const calendarDescriptionLightThemeCss = `
 
 export function buildCalendarDescriptionIframeSrcDoc(
   html: string,
-  theme: MailViewerTheme = 'light'
+  theme: MailViewerTheme = 'light',
+  darkSurfaceHex?: string
 ): string {
   if (theme === 'dark') {
-    return `<!doctype html><html lang="de"><head><meta charset="utf-8">${mailIframeCspMeta}${calendarDescriptionDarkThemeCss}</head><body><div class="mail-html-root">${html}</div></body></html>`
+    const softened = softenLightEmailBackgroundsForDarkViewer(html)
+    return `<!doctype html><html lang="de"><head><meta charset="utf-8">${mailIframeCspMeta}${buildCalendarDescriptionDarkThemeCss(darkSurfaceHex)}</head><body>${wrapMailDarkHtmlContent(softened)}</body></html>`
   }
   return `<!doctype html><html lang="de"><head><meta charset="utf-8">${mailIframeCspMeta}${calendarDescriptionLightThemeCss}</head><body>${html}</body></html>`
 }

@@ -105,7 +105,7 @@ export function CalendarSidebarSectionHeader({
         {iconPickerOpen ? (
           <div
             ref={iconPickerRef}
-            className="absolute left-0 top-full z-50 mt-1 w-[168px] rounded-lg border border-border bg-popover p-1.5 shadow-lg"
+            className="chronell-acrylic-popover absolute left-0 top-full z-50 mt-1 w-[168px] p-1.5"
             role="dialog"
             aria-label={t('calendar.shell.sidebarSectionIconPickerTitle')}
           >

@@ -195,7 +195,7 @@ export function LocationAutocompleteInput({
         <div
           id={listboxId}
           role="listbox"
-          className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-lg"
+          className="chronell-acrylic-popover absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden text-popover-foreground"
         >
           {geoAvailable ? (
             <button

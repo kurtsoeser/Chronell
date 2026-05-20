@@ -53,14 +53,14 @@ export function DashboardTileCard(props: {
     <div
       data-dashboard-tile
       className={cn(
-        'relative flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-md',
+        'chronell-dashboard-panel dashboard-tile relative flex min-h-0 min-w-0 flex-col overflow-hidden',
         isSelected && 'ring-2 ring-primary ring-offset-2 ring-offset-background'
       )}
       style={style}
     >
       <div
         className={cn(
-          'flex shrink-0 select-none items-stretch gap-2 border-b border-border bg-secondary/35 px-2 py-1.5',
+          'chronell-dashboard-panel-header dashboard-tile-header flex shrink-0 select-none items-stretch gap-2 px-2 py-1.5',
           'cursor-grab active:cursor-grabbing'
         )}
         onPointerDown={onDragHandlePointerDown}
@@ -69,7 +69,7 @@ export function DashboardTileCard(props: {
         <GripVertical className="h-4 w-4 shrink-0 self-center text-muted-foreground" aria-hidden />
         {tile.icon != null ? (
           <div
-            className="flex shrink-0 items-center justify-center self-stretch border-r border-border/60 pr-2"
+            className="flex shrink-0 items-center justify-center self-stretch border-r border-white/10 pr-2 dark:border-white/10"
             aria-hidden
           >
             {(() => {

@@ -5,6 +5,7 @@ import {
   replaceInlineCidImages,
   sanitizeMailHtml,
   buildMailShadowRootInnerHtml,
+  softenLightEmailBackgroundsForDarkViewer,
   stripUnresolvedCidUrls
 } from './sanitize'
 
@@ -62,6 +63,15 @@ describe('sanitizeMailHtml', () => {
   })
 })
 
+describe('softenLightEmailBackgroundsForDarkViewer', () => {
+  it('ersetzt helle bgcolor durch transparent', () => {
+    const html = '<table bgcolor="#ffffff"><td style="background-color:#fff">x</td></table>'
+    const out = softenLightEmailBackgroundsForDarkViewer(html)
+    expect(out).toContain('bgcolor="transparent"')
+    expect(out).toContain('background-color:transparent')
+  })
+})
+
 describe('buildMailShadowRootInnerHtml', () => {
   it('nutzt :host statt html/body', () => {
     const inner = buildMailShadowRootInnerHtml('<p>x</p>', 'light')
@@ -76,6 +86,16 @@ describe('buildMailShadowRootInnerHtml', () => {
     expect(inner).not.toContain('100vh')
     expect(inner).toContain('min-height: 0')
     expect(inner).toContain('filter: invert(1)')
+  })
+
+  it('dark-Shadow: Modul-Variable, transparenter Invert-Layer, kein Sepia-Papier', () => {
+    const inner = buildMailShadowRootInnerHtml('<p>x</p>', 'dark', 1, '#242424')
+    expect(inner).toContain('mail-html-invert-layer')
+    expect(inner).toContain('var(--chronell-mail-module-surface')
+    expect(inner).toContain('background: transparent')
+    expect(inner).not.toContain('hue-rotate')
+    expect(inner).not.toContain('#e3e2dc')
+    expect(inner).not.toMatch(/\.mail-html-root\s*\{[^}]*filter:\s*invert/)
   })
 
   it('heller Shadow nutzt mail-html-root--light ohne Invert', () => {

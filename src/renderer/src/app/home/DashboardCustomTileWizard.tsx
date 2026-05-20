@@ -135,7 +135,7 @@ export function DashboardCustomTileWizard(props: {
       aria-modal
       aria-label={t('dashboard.customTiles.wizardTitle')}
     >
-      <div className="flex max-h-[min(90vh,32rem)] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-lg">
+      <div className="chronell-dialog-panel flex max-h-[min(90vh,32rem)] w-full max-w-lg flex-col overflow-hidden text-popover-foreground">
         <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
           <h2 className="text-sm font-semibold text-foreground">{t('dashboard.customTiles.wizardTitle')}</h2>
           <button

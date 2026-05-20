@@ -235,7 +235,7 @@ export function TopbarGlobalSearch(): JSX.Element {
         }}
         onFocus={(): void => setOpen(true)}
         placeholder={t('topbar.searchPlaceholder')}
-        className="glass-input h-8 w-full rounded-md border border-border/80 pl-9 pr-14 text-xs text-foreground outline-none placeholder:text-muted-foreground focus:border-ring focus:shadow-[0_0_0_3px_hsl(var(--ring)/0.18)] focus:ring-0"
+        className="glass-input h-8 w-full rounded-sm pl-9 pr-14 text-xs text-foreground outline-none placeholder:text-muted-foreground focus:ring-0"
       />
       <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
         {loading && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
@@ -249,7 +249,7 @@ export function TopbarGlobalSearch(): JSX.Element {
             <X className="h-3 w-3" />
           </button>
         ) : null}
-        <kbd className="hidden rounded border border-border bg-secondary/60 px-1 text-[9px] text-muted-foreground/80 lg:inline">
+        <kbd className="hidden rounded-sm border border-white/10 bg-secondary/50 px-1 text-[9px] text-muted-foreground/80 lg:inline">
           {t('topbar.ctrlK')}
         </kbd>
       </div>
@@ -260,7 +260,7 @@ export function TopbarGlobalSearch(): JSX.Element {
             ref={panelRef}
             role="listbox"
             aria-label={t('topbar.searchPlaceholder')}
-            className="glass-panel-elevated glass-animate-in overflow-y-auto rounded-lg text-popover-foreground shadow-xl"
+            className="chronell-acrylic-popover glass-animate-in overflow-y-auto text-popover-foreground"
             style={panelStyle}
           >
             {loading && !hasAnyResults(results) ? (

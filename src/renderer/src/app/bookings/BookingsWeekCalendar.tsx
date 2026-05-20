@@ -114,7 +114,7 @@ function BookingsCalendarToolbar({
           <ChevronDown className={cn('h-3 w-3', viewMenuOpen && 'rotate-180')} />
         </button>
         {viewMenuOpen ? (
-          <div className="absolute right-0 top-full z-30 mt-1 min-w-[9rem] rounded-md border border-border bg-popover py-1 shadow-lg">
+          <div className="absolute right-0 top-full z-30 mt-1 min-w-[9rem] chronell-acrylic-popover py-1">
             {BOOKINGS_FC_VIEWS.map((id) => (
               <button
                 key={id}

@@ -38,6 +38,7 @@ import { useAccountsStore } from '@/stores/accounts'
 import { cn } from '@/lib/utils'
 
 import { VerticalSplitter, useResizableWidth } from '@/components/ResizableSplitter'
+import { useModuleNavColumnWidth } from '@/lib/module-nav-column-width'
 
 import { PeopleContactDetailPanel, type PeopleContactDetailPanelHandle } from '@/app/people/PeopleContactDetailPanel'
 import { PeopleContactListAvatar } from '@/app/people/PeopleContactListAvatar'
@@ -63,12 +64,16 @@ import {
   ModuleColumnHeaderIconButton,
   moduleColumnHeaderActionsClass,
   moduleColumnHeaderIconGlyphClass,
-  moduleColumnHeaderNavShellBarClass,
   moduleColumnHeaderShellBarClass,
   moduleColumnHeaderSubToolbarClass,
   moduleColumnHeaderTitleClass
 } from '@/components/ModuleColumnHeader'
-import { moduleNavColumnClass, moduleNavColumnScrollClass } from '@/components/module-shell-layout'
+import {
+  moduleNavColumnClass,
+  moduleNavColumnScrollClass,
+  modulePaneStackClass,
+  moduleShellClass
+} from '@/components/module-shell-layout'
 
 import { GLOBAL_CREATE_EVENT, useGlobalCreateNavigateStore } from '@/lib/global-create'
 import { usePeoplePendingFocusStore } from '@/stores/people-pending-focus'
@@ -88,8 +93,6 @@ type NavKey =
 const PEOPLE_SORT_STORAGE_KEY = 'mailclient.people.sortBy'
 
 const PEOPLE_VIEW_STORAGE_KEY = 'mailclient.people.viewMode'
-
-const PEOPLE_NAV_WIDTH_KEY = 'mailclient.peopleShell.navWidth'
 
 type PeopleListViewMode = 'list' | 'tiles'
 
@@ -233,12 +236,7 @@ export function PeopleShell(): JSX.Element {
 
 
 
-  const [navWidth, setNavWidth] = useResizableWidth({
-    storageKey: PEOPLE_NAV_WIDTH_KEY,
-    defaultWidth: 240,
-    minWidth: 200,
-    maxWidth: 400
-  })
+  const [navWidth, setNavWidth] = useModuleNavColumnWidth()
 
   const [listColumnWidth, setListColumnWidth] = useResizableWidth({
     storageKey: 'mailclient.peopleShell.listWidth',
@@ -1014,6 +1012,33 @@ export function PeopleShell(): JSX.Element {
 
   const renderContactsColumnToolbar = (): JSX.Element => (
     <div className={moduleColumnHeaderSubToolbarClass}>
+      <div className="flex items-center justify-end gap-1">
+        <ModuleColumnHeaderIconButton
+          type="button"
+          disabled={syncBusy || peopleAccountSyncId != null}
+          onClick={(): void => void runSyncAll()}
+          aria-label={syncBusy ? t('people.shell.syncing') : t('people.shell.syncAll')}
+          title={syncBusy ? t('people.shell.syncing') : t('people.shell.syncAll')}
+        >
+          {syncBusy ? (
+            <Loader2 className={cn(moduleColumnHeaderIconGlyphClass, 'animate-spin')} />
+          ) : (
+            <RefreshCw className={moduleColumnHeaderIconGlyphClass} />
+          )}
+        </ModuleColumnHeaderIconButton>
+        <ModuleColumnHeaderIconButton
+          type="button"
+          disabled={mailAccounts.length === 0}
+          onClick={(): void => {
+            setNewContactAccountOverride(null)
+            setCreateOpen(true)
+          }}
+          aria-label={t('people.shell.newContact')}
+          title={t('people.shell.newContact')}
+        >
+          <UserPlus className={moduleColumnHeaderIconGlyphClass} />
+        </ModuleColumnHeaderIconButton>
+      </div>
       <div className="relative">
         <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <input
@@ -1114,7 +1139,7 @@ export function PeopleShell(): JSX.Element {
               >
                 {renderPeopleGroupHeader(g.letter, g.items.length)}
                 {!collapsed ? (
-                  <div className="grid grid-cols-[repeat(auto-fill,minmax(420px,1fr))] gap-4 p-3">
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(560px,1fr))] gap-4 p-3">
                     {g.items.map((c) => renderContactTile(c))}
                   </div>
                 ) : null}
@@ -1255,7 +1280,7 @@ export function PeopleShell(): JSX.Element {
 
   return (
 
-    <section className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
+    <section className="flex min-h-0 flex-1 flex-col overflow-hidden">
 
       {error ? (
 
@@ -1269,44 +1294,11 @@ export function PeopleShell(): JSX.Element {
 
 
 
-      <div className="flex min-h-0 flex-1 flex-row overflow-hidden">
+      <div className={moduleShellClass}>
 
         <div style={{ width: navWidth }} className="h-full shrink-0">
           <aside className={cn(moduleNavColumnClass, 'h-full w-full')}>
-            <header className={moduleColumnHeaderNavShellBarClass}>
-              <span className={cn(moduleColumnHeaderTitleClass, 'min-w-0 truncate')}>
-                {t('people.shell.title')}
-              </span>
-              <div className="flex shrink-0 items-center gap-0.5">
-                <ModuleColumnHeaderIconButton
-                  type="button"
-                  disabled={syncBusy || peopleAccountSyncId != null}
-                  onClick={(): void => void runSyncAll()}
-                  aria-label={syncBusy ? t('people.shell.syncing') : t('people.shell.syncAll')}
-                  title={syncBusy ? t('people.shell.syncing') : t('people.shell.syncAll')}
-                >
-                  {syncBusy ? (
-                    <Loader2 className={cn(moduleColumnHeaderIconGlyphClass, 'animate-spin')} />
-                  ) : (
-                    <RefreshCw className={moduleColumnHeaderIconGlyphClass} />
-                  )}
-                </ModuleColumnHeaderIconButton>
-                <ModuleColumnHeaderIconButton
-                  type="button"
-                  disabled={mailAccounts.length === 0}
-                  onClick={(): void => {
-                    setNewContactAccountOverride(null)
-                    setCreateOpen(true)
-                  }}
-                  aria-label={t('people.shell.newContact')}
-                  title={t('people.shell.newContact')}
-                >
-                  <UserPlus className={moduleColumnHeaderIconGlyphClass} />
-                </ModuleColumnHeaderIconButton>
-              </div>
-            </header>
-
-            <div className={cn(moduleNavColumnScrollClass, 'space-y-4 p-3')}>
+            <div className={cn(moduleNavColumnScrollClass, 'space-y-4')}>
           <div className="space-y-1">
 
             <p className="px-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -1469,15 +1461,17 @@ export function PeopleShell(): JSX.Element {
         </div>
 
         <VerticalSplitter
-          ariaLabel={t('people.shell.splitterNavAria')}
+          variant="moduleNav"
+          ariaLabel={t('common.moduleNavSplitter')}
           onDrag={(delta): void => setNavWidth((w) => w + delta)}
         />
 
+        <div className={cn(modulePaneStackClass, 'flex-row')}>
         {viewMode === 'list' ? (
           <>
             <div
               style={{ width: listColumnWidth }}
-              className="flex min-h-0 shrink-0 flex-col border-r border-border bg-background"
+              className="flex min-h-0 shrink-0 flex-col border-r border-border"
             >
               {renderContactsColumnHeader()}
               {renderContactsColumnToolbar()}
@@ -1487,17 +1481,18 @@ export function PeopleShell(): JSX.Element {
               onDrag={(delta): void => setListColumnWidth((w) => w + delta)}
               ariaLabel={t('people.shell.splitterListAria')}
             />
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-card">
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
               {detailBody}
             </div>
           </>
         ) : (
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
             {renderContactsColumnHeader()}
             {renderContactsColumnToolbar()}
             {renderContactsMain()}
           </div>
         )}
+        </div>
       </div>
 
       <PeopleNewContactDialog

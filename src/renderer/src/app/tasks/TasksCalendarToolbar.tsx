@@ -134,7 +134,7 @@ export function TasksCalendarToolbar({
             <ChevronDown className={cn('h-3 w-3', viewMenuOpen && 'rotate-180')} />
           </button>
           {viewMenuOpen ? (
-            <div className="absolute right-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded-md border border-border bg-popover py-1 shadow-lg">
+            <div className="absolute right-0 top-full z-30 mt-1 max-h-64 overflow-y-auto chronell-acrylic-popover py-1">
               {VIEW_OPTIONS.map((id) => (
                 <button
                   key={id}

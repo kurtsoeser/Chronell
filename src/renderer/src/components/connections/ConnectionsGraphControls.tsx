@@ -194,7 +194,7 @@ function ToolbarMenu({
             <div
               ref={panelRef}
               role="dialog"
-              className="overflow-y-auto rounded-xl border border-border bg-popover p-3 text-popover-foreground shadow-xl"
+              className="chronell-acrylic-popover overflow-y-auto p-3 text-popover-foreground"
               style={panelStyle}
             >
               {children}

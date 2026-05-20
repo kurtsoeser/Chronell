@@ -50,7 +50,7 @@ export function DashboardMiniMonth(props: {
       <div className="mb-1 flex items-center justify-between gap-1">
         <button
           type="button"
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border/60 bg-muted/30 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-sm border border-white/10 bg-white/[0.05] text-muted-foreground transition-colors hover:bg-white/[0.1] hover:text-foreground"
           aria-label={t('dashboard.miniMonthPrevMonth')}
           title={t('dashboard.miniMonthPrevMonth')}
           onClick={(): void => {
@@ -64,7 +64,7 @@ export function DashboardMiniMonth(props: {
         </div>
         <button
           type="button"
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border/60 bg-muted/30 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-sm border border-white/10 bg-white/[0.05] text-muted-foreground transition-colors hover:bg-white/[0.1] hover:text-foreground"
           aria-label={t('dashboard.miniMonthNextMonth')}
           title={t('dashboard.miniMonthNextMonth')}
           onClick={(): void => {
@@ -117,10 +117,10 @@ export function DashboardMiniMonth(props: {
                     : undefined
                 }
                 className={cn(
-                  'flex min-h-0 items-center justify-center rounded-md border px-0.5 py-1 text-center transition-colors',
+                  'flex min-h-0 items-center justify-center rounded-sm border px-0.5 py-1 text-center transition-colors',
                   !inMonth && 'border-transparent bg-transparent text-muted-foreground/50 opacity-60',
                   inMonth && isToday && 'border-primary bg-primary/10 text-foreground',
-                  inMonth && !isToday && 'border-border/60 bg-muted/25 text-foreground',
+                  inMonth && !isToday && 'border-white/10 bg-white/[0.04] text-foreground',
                   inMonth && 'cursor-pointer hover:bg-primary/5',
                   !inMonth && 'cursor-pointer hover:opacity-90'
                 )}
@@ -133,10 +133,10 @@ export function DashboardMiniMonth(props: {
             <div
               key={key}
               className={cn(
-                'flex min-h-0 items-center justify-center rounded-md border px-0.5 py-1 text-center transition-colors',
+                'flex min-h-0 items-center justify-center rounded-sm border px-0.5 py-1 text-center transition-colors',
                 !inMonth && 'border-transparent bg-transparent text-muted-foreground/50 opacity-60',
                 inMonth && isToday && 'border-primary bg-primary/10 text-foreground',
-                inMonth && !isToday && 'border-border/60 bg-muted/25 text-foreground'
+                inMonth && !isToday && 'border-white/10 bg-white/[0.04] text-foreground'
               )}
             >
               {dayNum}

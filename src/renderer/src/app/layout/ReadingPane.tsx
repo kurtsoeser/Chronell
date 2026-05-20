@@ -43,7 +43,7 @@ import { threadGroupingKey } from '@/lib/thread-group'
 import { dedupeMailListThreadMessagesById } from '@/lib/mail-list-ui'
 import { runMailQuickStep } from '@/lib/run-mail-quickstep'
 import { useComposeStore } from '@/stores/compose'
-import { useThemeStore } from '@/stores/theme'
+import { resolveMailViewerDarkSurfaceHex, useThemeStore } from '@/stores/theme'
 import {
   mailPreviewScalePercent,
   useMailPreviewScaleStore
@@ -568,7 +568,7 @@ export function ReadingPane({
 
   if (!selectedMessageId && hideChromeWhenEmpty) {
     return (
-      <section className="glass-fill flex min-h-0 flex-1 flex-col overflow-hidden">
+      <section className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <EmptyState
           title={emptySelectionTitle ?? t('mail.readingPane.emptyNoSelectionTitle')}
           body={emptySelectionBody ?? t('mail.readingPane.emptyNoSelectionBody')}
@@ -578,7 +578,7 @@ export function ReadingPane({
   }
 
   return (
-    <section className="glass-fill flex min-h-0 flex-1 flex-col overflow-hidden">
+    <section className="flex min-h-0 flex-1 flex-col overflow-hidden">
       {!readingPaneDraft && (
       <div className="flex min-h-10 shrink-0 flex-wrap items-center gap-x-1 gap-y-1 border-b border-border px-2 py-1">
         <IconButton
@@ -847,6 +847,12 @@ function MailReader({
   const [attachmentsLoading, setAttachmentsLoading] = useState(false)
   const shadowHostRef = useRef<HTMLDivElement>(null)
   const previewScale = useMailPreviewScaleStore((s) => s.scale)
+  const darkPalette = useThemeStore((s) => s.darkPalette)
+  const customColors = useThemeStore((s) => s.customColors)
+  const mailDarkSurfaceHex = useMemo(
+    () => resolveMailViewerDarkSurfaceHex(darkPalette, customColors.dark),
+    [darkPalette, customColors.dark]
+  )
   useMailPreviewZoom(shadowHostRef, { attachKey: message.id })
   const [categoryOpen, setCategoryOpen] = useState(false)
   const [categoryAnchor, setCategoryAnchor] = useState({ x: 0, y: 0 })
@@ -942,8 +948,8 @@ function MailReader({
   }, [message.bodyHtml, message.bodyText, loadImages, viewerTheme, inlineImages, previewScale, t])
 
   const shadowInnerHtml = useMemo(
-    () => buildMailShadowRootInnerHtml(safeHtml, viewerTheme, previewScale),
-    [safeHtml, viewerTheme, previewScale]
+    () => buildMailShadowRootInnerHtml(safeHtml, viewerTheme, previewScale, mailDarkSurfaceHex),
+    [safeHtml, viewerTheme, previewScale, mailDarkSurfaceHex]
   )
   useSanitizedHtmlShadowRoot(shadowHostRef, shadowInnerHtml, 'mail', viewerTheme, previewScale)
 
@@ -1149,7 +1155,7 @@ function MailReader({
 
       <div
         ref={shadowHostRef}
-        className="mail-reading-shadow-host flex min-h-0 min-w-0 flex-1 flex-col overflow-auto touch-pan-y"
+        className="mail-reading-shadow-host chronell-surface-flat flex min-h-0 min-w-0 flex-1 flex-col overflow-auto touch-pan-y"
         style={{ zoom: previewScale }}
         data-mail-viewer-theme={viewerTheme}
         data-mail-preview-scale={String(previewScale)}

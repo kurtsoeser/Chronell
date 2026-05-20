@@ -464,7 +464,7 @@ export function MetaFolderRuleFlow(props: MetaFolderRuleFlowProps): JSX.Element 
             <ChevronDown className={cn('h-3 w-3 transition', addOpen && 'rotate-180')} />
           </button>
           {addOpen && (
-            <div className="absolute left-0 top-full z-20 mt-1 min-w-[180px] rounded-md border border-border bg-popover py-1 text-[11px] shadow-lg">
+            <div className="chronell-acrylic-popover absolute left-0 top-full z-20 mt-1 min-w-[180px] py-1 text-[11px]">
               {!customUnread && (
                 <button
                   type="button"

@@ -238,7 +238,7 @@ export function ConnectionsAiScanPanel({
       : 0
 
   return (
-    <div className="absolute inset-x-0 bottom-0 z-30 flex max-h-[45%] flex-col border-t border-primary/30 bg-card shadow-lg">
+    <div className="chronell-prompt-card absolute inset-x-0 bottom-0 z-30 flex max-h-[45%] flex-col border-t border-primary/25">
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-3 py-2">
         <div className="flex min-w-0 items-center gap-2">
           <Sparkles className="h-4 w-4 shrink-0 text-primary" />

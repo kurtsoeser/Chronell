@@ -86,7 +86,7 @@ export function MailListViewMenu({
             role="menu"
             aria-label={t('mail.listViewMenu.menuAria')}
             className={cn(
-              'z-[400] overflow-y-auto rounded-lg border border-border bg-popover py-1 shadow-xl',
+              'chronell-acrylic-popover z-[400] overflow-y-auto py-1',
               'text-popover-foreground'
             )}
             style={panelStyle}

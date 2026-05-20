@@ -102,7 +102,7 @@ export function DashboardNextMeetingTile({
         <div className="truncate text-[10px] text-muted-foreground/90">{event.accountEmail}</div>
       </div>
 
-      <div className="rounded-lg border border-border/70 bg-muted/25 px-3 py-2">
+      <div className="rounded-lg border border-white/10 bg-white/[0.05] px-3 py-2 backdrop-blur-sm">
         <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
           {t('dashboard.nextMeeting.countdownLabel')}
         </div>

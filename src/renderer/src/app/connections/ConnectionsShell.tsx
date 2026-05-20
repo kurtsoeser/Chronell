@@ -39,11 +39,17 @@ import { ConnectionsEmbeddingIndexBar } from '@/app/connections/ConnectionsEmbed
 import { ConnectionsGraphControls } from '@/components/connections/ConnectionsGraphControls'
 import { ConnectionsObjectPalette } from '@/components/connections/ConnectionsObjectPalette'
 import {
+  moduleColumnHeaderActionsClass,
   moduleColumnHeaderOutlineSmClass,
-  moduleColumnHeaderShellBarClass,
-  moduleColumnHeaderTitleClass
+  moduleColumnHeaderShellBarClass
 } from '@/components/ModuleColumnHeader'
 import { useResizableWidth, VerticalSplitter } from '@/components/ResizableSplitter'
+import {
+  moduleNavColumnClass,
+  modulePaneStackClass,
+  moduleShellClass
+} from '@/components/module-shell-layout'
+import { useModuleNavColumnWidth } from '@/lib/module-nav-column-width'
 import { cn } from '@/lib/utils'
 import {
   fetchEntityLinkGraphDensityStats,
@@ -213,12 +219,7 @@ export function ConnectionsShell(): JSX.Element {
     ReadonlyMap<string, EntityLinkSuggestionCountEntry>
   >(() => new Map())
 
-  const [paletteWidth, setPaletteWidth] = useResizableWidth({
-    storageKey: 'mailclient.connections.paletteWidth',
-    defaultWidth: 280,
-    minWidth: 220,
-    maxWidth: 440
-  })
+  const [paletteWidth, setPaletteWidth] = useModuleNavColumnWidth()
 
   const [previewWidth, setPreviewWidth] = useResizableWidth({
     storageKey: 'mailclient.connections.previewWidth',
@@ -704,141 +705,9 @@ export function ConnectionsShell(): JSX.Element {
   )
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-background">
-      <header className="relative z-20 shrink-0 border-b border-border bg-card">
-        <div className={cn(moduleColumnHeaderShellBarClass, 'gap-2 px-2 sm:px-3')}>
-          <h1 className={cn(moduleColumnHeaderTitleClass, 'shrink-0')}>
-            {t('connections.shell.title')}
-          </h1>
-          <div className="flex min-w-0 flex-1 items-center justify-end gap-1 overflow-x-auto">
-            <ConnectionsGraphControls
-              clusterMode={viewSettings.clusterMode}
-              onClusterModeChange={(mode): void =>
-                setViewSettings((s) => ({ ...s, clusterMode: mode }))
-              }
-              settings={viewSettings}
-              onSettingsChange={setViewSettings}
-            />
-            <div className="relative w-28 shrink-0 sm:w-36 md:w-44">
-              <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="search"
-                value={query}
-                onChange={(e): void => setQuery(e.target.value)}
-                placeholder={t('connections.shell.searchPlaceholder')}
-                className="h-7 w-full rounded-md border border-border bg-background pl-8 pr-2 text-[11px] outline-none focus:border-primary"
-              />
-            </div>
-            {selected ? (
-              <button
-                type="button"
-                disabled={pathBusy || pathPickEnd}
-                onClick={(): void => {
-                  clearPath()
-                  setPathPickEnd(true)
-                }}
-                className={cn(moduleColumnHeaderOutlineSmClass, 'h-7 shrink-0 gap-1 px-2')}
-                title={t('connections.path.findTitle')}
-              >
-                <Route className="h-3.5 w-3.5 shrink-0" />
-                <span className="hidden lg:inline">{t('connections.path.find')}</span>
-              </button>
-            ) : null}
-            {pathOverlay || pathPickEnd ? (
-              <button
-                type="button"
-                onClick={clearPath}
-                className={cn(moduleColumnHeaderOutlineSmClass, 'h-7 shrink-0 px-2')}
-                title={t('connections.path.clear')}
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            ) : null}
-            {density && density.mailUnlinked > 0 ? (
-              <button
-                type="button"
-                onClick={(): void => openScan({ profile: 'sparse_mails' })}
-                className={cn(moduleColumnHeaderOutlineSmClass, 'h-7 shrink-0 gap-1 px-2')}
-                title={t('connections.shell.densityScanTitle')}
-              >
-                <Sparkles className="h-3.5 w-3.5 shrink-0" />
-                <span className="hidden xl:inline">
-                  {t('connections.shell.densityScan', { percent: density.mailUnlinkedPercent })}
-                </span>
-              </button>
-            ) : null}
-            <button
-              type="button"
-              onClick={(): void => (scanPanelOpen ? setScanPanelOpen(false) : openScan())}
-              className={cn(
-                moduleColumnHeaderOutlineSmClass,
-                'h-7 shrink-0 gap-1 px-2',
-                scanPanelOpen && 'border-primary bg-primary/10'
-              )}
-              title={
-                multiSelectedKeys.size > 0
-                  ? t('connections.scan.titleSelection', {
-                      count: multiSelectedKeys.size
-                    })
-                  : t('connections.scan.title')
-              }
-            >
-              <Sparkles className="h-3.5 w-3.5 shrink-0" />
-              <span className="hidden lg:inline">{t('connections.scan.title')}</span>
-            </button>
-            <button
-              type="button"
-              onClick={saveGraphLayout}
-              className={cn(moduleColumnHeaderOutlineSmClass, 'h-7 shrink-0 gap-1 px-2')}
-              title={t('connections.shell.saveLayoutTitle')}
-            >
-              <Save className="h-3.5 w-3.5 shrink-0" />
-              <span className="hidden lg:inline">{t('connections.shell.saveLayout')}</span>
-            </button>
-            <button
-              type="button"
-              onClick={relayoutGraph}
-              disabled={!graph}
-              className={cn(moduleColumnHeaderOutlineSmClass, 'h-7 shrink-0 gap-1 px-2')}
-              title={t('connections.shell.relayoutTitle')}
-            >
-              <RefreshCw className="h-3.5 w-3.5 shrink-0" />
-              <span className="hidden lg:inline">{t('connections.shell.relayout')}</span>
-            </button>
-          </div>
-        </div>
-        <p
-          className={cn(
-            'truncate border-t border-border/50 px-2 py-1 text-[11px] text-muted-foreground sm:px-3',
-            (pathPickEnd || pathNotFound || pathHops != null) && 'text-foreground'
-          )}
-        >
-          {pathPickEnd
-            ? t('connections.path.pickEndHint')
-            : pathNotFound
-              ? t('connections.path.none')
-              : pathHops != null
-                ? t('connections.path.result', { hops: pathHops })
-                : density && density.mailInRange > 0
-                  ? t('connections.shell.densityHint', {
-                      percent: density.mailUnlinkedPercent,
-                      count: density.mailUnlinked
-                    })
-                  : graph
-                    ? t('connections.shell.stats', {
-                        nodes: graph.nodes.length,
-                        edges: graph.edges.length
-                      })
-                    : t('connections.shell.subtitle')}
-        </p>
-        <ConnectionsEmbeddingIndexBar />
-      </header>
-
-      <div className="flex min-h-0 flex-1">
-        <aside
-          style={{ width: paletteWidth }}
-          className="flex h-full shrink-0 flex-col border-r border-border bg-card/30"
-        >
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className={moduleShellClass}>
+        <aside style={{ width: paletteWidth }} className={cn(moduleNavColumnClass, 'shrink-0')}>
           <ConnectionsObjectPalette
             className="min-h-0 flex-1"
             selectedKey={selectedKey}
@@ -846,11 +715,144 @@ export function ConnectionsShell(): JSX.Element {
           />
         </aside>
         <VerticalSplitter
+          variant="moduleNav"
           onDrag={onDragPaletteWidth}
-          ariaLabel={t('connections.shell.splitterPalette')}
+          ariaLabel={t('common.moduleNavSplitter')}
         />
 
-        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+        <div className={cn(modulePaneStackClass, 'min-h-0 flex-col')}>
+          <div className="relative z-20 shrink-0 border-b border-border">
+            <div className={moduleColumnHeaderShellBarClass}>
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+                <ConnectionsGraphControls
+                  clusterMode={viewSettings.clusterMode}
+                  onClusterModeChange={(mode): void =>
+                    setViewSettings((s) => ({ ...s, clusterMode: mode }))
+                  }
+                  settings={viewSettings}
+                  onSettingsChange={setViewSettings}
+                />
+                <div className="relative w-28 shrink-0 sm:w-36 md:w-44">
+                  <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    type="search"
+                    value={query}
+                    onChange={(e): void => setQuery(e.target.value)}
+                    placeholder={t('connections.shell.searchPlaceholder')}
+                    className="h-7 w-full rounded-md border border-border bg-background pl-8 pr-2 text-[11px] outline-none focus:border-primary"
+                  />
+                </div>
+                {selected ? (
+                  <button
+                    type="button"
+                    disabled={pathBusy || pathPickEnd}
+                    onClick={(): void => {
+                      clearPath()
+                      setPathPickEnd(true)
+                    }}
+                    className={cn(moduleColumnHeaderOutlineSmClass, 'h-7 shrink-0 gap-1 px-2')}
+                    title={t('connections.path.findTitle')}
+                  >
+                    <Route className="h-3.5 w-3.5 shrink-0" />
+                    <span className="hidden lg:inline">{t('connections.path.find')}</span>
+                  </button>
+                ) : null}
+                {pathOverlay || pathPickEnd ? (
+                  <button
+                    type="button"
+                    onClick={clearPath}
+                    className={cn(moduleColumnHeaderOutlineSmClass, 'h-7 shrink-0 px-2')}
+                    title={t('connections.path.clear')}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                ) : null}
+              </div>
+              <div className={cn(moduleColumnHeaderActionsClass, 'gap-1')}>
+                <button
+                  type="button"
+                  onClick={saveGraphLayout}
+                  className={cn(moduleColumnHeaderOutlineSmClass, 'h-7 shrink-0 gap-1 px-2')}
+                  title={t('connections.shell.saveLayoutTitle')}
+                >
+                  <Save className="h-3.5 w-3.5 shrink-0" />
+                  <span className="hidden lg:inline">{t('connections.shell.saveLayout')}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={relayoutGraph}
+                  disabled={!graph}
+                  className={cn(moduleColumnHeaderOutlineSmClass, 'h-7 shrink-0 gap-1 px-2')}
+                  title={t('connections.shell.relayoutTitle')}
+                >
+                  <RefreshCw className="h-3.5 w-3.5 shrink-0" />
+                  <span className="hidden lg:inline">{t('connections.shell.relayout')}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={(): void => (scanPanelOpen ? setScanPanelOpen(false) : openScan())}
+                  className={cn(
+                    moduleColumnHeaderOutlineSmClass,
+                    'h-7 shrink-0 gap-1 px-2',
+                    scanPanelOpen && 'border-primary bg-primary/10'
+                  )}
+                  title={
+                    multiSelectedKeys.size > 0
+                      ? t('connections.scan.titleSelection', {
+                          count: multiSelectedKeys.size
+                        })
+                      : t('connections.scan.title')
+                  }
+                >
+                  <Sparkles className="h-3.5 w-3.5 shrink-0" />
+                  <span className="hidden lg:inline">{t('connections.scan.title')}</span>
+                </button>
+                {density && density.mailUnlinked > 0 ? (
+                  <button
+                    type="button"
+                    onClick={(): void => openScan({ profile: 'sparse_mails' })}
+                    className={cn(moduleColumnHeaderOutlineSmClass, 'h-7 shrink-0 gap-1 px-2')}
+                    title={t('connections.shell.densityScanTitle')}
+                  >
+                    <Sparkles className="h-3.5 w-3.5 shrink-0" />
+                    <span className="hidden xl:inline">
+                      {t('connections.shell.densityScan', {
+                        percent: density.mailUnlinkedPercent
+                      })}
+                    </span>
+                  </button>
+                ) : null}
+              </div>
+            </div>
+            <p
+              className={cn(
+                'truncate border-t border-border/50 px-2 py-1 text-[11px] text-muted-foreground sm:px-3',
+                (pathPickEnd || pathNotFound || pathHops != null) && 'text-foreground'
+              )}
+            >
+              {pathPickEnd
+                ? t('connections.path.pickEndHint')
+                : pathNotFound
+                  ? t('connections.path.none')
+                  : pathHops != null
+                    ? t('connections.path.result', { hops: pathHops })
+                    : density && density.mailInRange > 0
+                      ? t('connections.shell.densityHint', {
+                          percent: density.mailUnlinkedPercent,
+                          count: density.mailUnlinked
+                        })
+                      : graph
+                        ? t('connections.shell.stats', {
+                            nodes: graph.nodes.length,
+                            edges: graph.edges.length
+                          })
+                        : t('connections.shell.subtitle')}
+            </p>
+            <ConnectionsEmbeddingIndexBar />
+          </div>
+
+          <div className="flex min-h-0 min-w-0 flex-1 flex-row">
+          <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
           {loading && !graph ? (
             <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -927,7 +929,7 @@ export function ConnectionsShell(): JSX.Element {
             onAccepted={(): void => void loadGraph()}
             onFocusItem={handleFocusScanItem}
           />
-        </div>
+          </div>
 
         {selected ? (
           <>
@@ -955,6 +957,8 @@ export function ConnectionsShell(): JSX.Element {
             {t('connections.shell.selectNodeHint')}
           </aside>
         )}
+          </div>
+        </div>
       </div>
       {canvasCreateDialogs}
       {nodeContextMenu ? (

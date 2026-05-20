@@ -1,4 +1,5 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { resolveMailViewerDarkSurfaceHex, useThemeStore } from '@/stores/theme'
 import {
   buildMailShadowRootInnerHtml,
   isEffectivelyEmptyDescriptionHtml,
@@ -28,6 +29,12 @@ export function RichTextNotesPreview({
 }: RichTextNotesPreviewProps): JSX.Element {
   const shadowHostRef = useRef<HTMLDivElement>(null)
   const [contentHeight, setContentHeight] = useState(48)
+  const darkPalette = useThemeStore((s) => s.darkPalette)
+  const customColors = useThemeStore((s) => s.customColors)
+  const mailDarkSurfaceHex = useMemo(
+    () => resolveMailViewerDarkSurfaceHex(darkPalette, customColors.dark),
+    [darkPalette, customColors.dark]
+  )
 
   const rawHtml = useMemo(() => notesToPreviewHtml(notes), [notes])
   const isEmpty = useMemo(() => isEffectivelyEmptyDescriptionHtml(rawHtml), [rawHtml])
@@ -38,8 +45,9 @@ export function RichTextNotesPreview({
   }, [rawHtml, isEmpty])
 
   const shadowInnerHtml = useMemo(
-    () => (isEmpty ? '' : buildMailShadowRootInnerHtml(safeHtml, viewerTheme)),
-    [isEmpty, safeHtml, viewerTheme]
+    () =>
+      isEmpty ? '' : buildMailShadowRootInnerHtml(safeHtml, viewerTheme, 1, mailDarkSurfaceHex),
+    [isEmpty, safeHtml, viewerTheme, mailDarkSurfaceHex]
   )
 
   useSanitizedHtmlShadowRoot(shadowHostRef, shadowInnerHtml, 'task', viewerTheme)
@@ -72,7 +80,7 @@ export function RichTextNotesPreview({
     >
       <div
         ref={shadowHostRef}
-        className="mail-reading-shadow-host block w-full border-0"
+        className="mail-reading-shadow-host chronell-surface-flat block w-full border-0"
         data-mail-viewer-theme={viewerTheme}
         style={{ height: frameHeight, minHeight: 48 }}
         role="document"

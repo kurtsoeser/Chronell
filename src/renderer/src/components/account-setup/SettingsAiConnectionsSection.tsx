@@ -258,7 +258,7 @@ export function SettingsAiConnectionsSection(): JSX.Element {
       </div>
 
       {isOllama ? (
-        <div className="max-w-md space-y-2 rounded-lg border border-border/80 bg-background/40 p-3">
+        <div className="chronell-prompt-card max-w-md space-y-2 p-3">
           <label className="flex flex-col gap-1">
             <span className="text-[11px] font-medium text-foreground">
               {t('settings.aiConnections.ollamaBaseUrl')}
@@ -378,7 +378,7 @@ export function SettingsAiConnectionsSection(): JSX.Element {
         </div>
       ) : null}
 
-      <div className="max-w-md space-y-2 rounded-lg border border-border/80 bg-background/40 p-3">
+      <div className="chronell-prompt-card max-w-md space-y-2 p-3">
         <p className="text-[11px] font-medium text-foreground">
           {t('settings.aiConnections.embeddingsHeading')}
         </p>
@@ -657,7 +657,7 @@ export function SettingsAiConnectionsSection(): JSX.Element {
       </div>
 
       {settings.enabled ? (
-        <div className="max-w-md space-y-2 rounded-lg border border-border/80 bg-background/40 p-3">
+        <div className="chronell-prompt-card max-w-md space-y-2 p-3">
           <p className="text-[11px] font-medium text-foreground">
             {t('settings.aiConnections.domainProfilesTitle')}
           </p>
@@ -731,7 +731,7 @@ export function SettingsAiConnectionsSection(): JSX.Element {
       ) : null}
 
       {settings.enabled && auditRows.length > 0 ? (
-        <div className="max-w-md rounded-lg border border-border/80 bg-background/40 p-3">
+        <div className="chronell-prompt-card max-w-md p-3">
           <p className="mb-2 text-[11px] font-medium text-foreground">
             {t('settings.aiConnections.auditTitle')}
           </p>
@@ -883,7 +883,7 @@ function ProviderApiKeyBlock({
   t: (key: string) => string
 }): JSX.Element {
   return (
-    <div className="rounded-lg border border-border/80 bg-background/40 p-3">
+    <div className="chronell-prompt-card p-3">
       <span className="mb-2 block text-[11px] font-medium text-foreground">{label}</span>
       <div className="flex flex-wrap items-center gap-2">
         <input

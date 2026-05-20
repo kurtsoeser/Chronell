@@ -1,0 +1,431 @@
+/**
+ * Chronell Fluent 2 Design Tokens
+ * Siehe .cursor/design-grundlagen-fluent.md
+ *
+ * Global Tokens (roh) → Alias (--color-*) → Shadcn-HSL (--background, …)
+ * Material: Mica (Shell) | Solid (Flächen) | Acrylic (temporär) | Smoke (modal)
+ */
+
+@layer base {
+  :root {
+    --chronell-font-family:
+      'Noto Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+    /* Radius – produktiv, leicht abgerundet (nicht „pill“) */
+    --radius-xs: 2px;
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 8px;
+    --radius-xl: 10px;
+    --radius-panel: 14px;
+    --radius-dashboard-tile: 8px;
+
+    /** Abstand Topbar → Modulinhalt (Mica-Streifen, Fluent/OneNote). */
+    --chronell-module-chrome-gap: 8px;
+
+    /* Motion (Fluent §13) */
+    --motion-ease: cubic-bezier(0.16, 1, 0.3, 1);
+    --motion-fast: 120ms;
+    --motion-normal: 180ms;
+    --motion-slow: 260ms;
+
+    /* Global palette – Light */
+    --global-grey-50: #f6f7fa;
+    --global-grey-100: #eef1f5;
+    --global-grey-150: #e9ecf2;
+    --global-grey-200: #e5e9f1;
+    --global-grey-800: #3f4652;
+    --global-grey-900: #111318;
+    --global-blue-400: #3478f6;
+    --global-indigo-500: #4f63f1;
+    --global-violet-600: #5a4fe6;
+
+    /* Alias – Light */
+    --chronell-bg-app: var(--global-grey-50);
+    --chronell-bg-shell: var(--global-grey-100);
+    --chronell-bg-sidebar: var(--global-grey-150);
+    --chronell-bg-card: rgba(255, 255, 255, 0.88);
+    --chronell-bg-card-solid: #ffffff;
+    --chronell-bg-card-hover: #f2f5fa;
+    --chronell-bg-muted: var(--global-grey-200);
+    --chronell-border-subtle: rgba(15, 23, 42, 0.08);
+    --chronell-border-strong: rgba(15, 23, 42, 0.14);
+    --chronell-text-primary: #111318;
+    --chronell-text-secondary: #3f4652;
+    --chronell-text-muted: #6b7280;
+    --chronell-accent-primary: var(--global-blue-400);
+    --chronell-accent-secondary: var(--global-indigo-500);
+    --chronell-accent-orbit: var(--global-violet-600);
+    --chronell-focus-ring: rgba(52, 120, 246, 0.55);
+
+    --chronell-shadow-elevated: 0 8px 28px hsl(224 25% 14% / 0.1);
+    --chronell-shadow-panel: 0 24px 70px hsl(224 25% 14% / 0.12);
+    --chronell-inset-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+
+    --chronell-acrylic-bg: rgba(255, 255, 255, 0.82);
+    --chronell-acrylic-blur: 24px;
+    --chronell-smoke-bg: rgba(0, 0, 0, 0.45);
+
+    /* Shadcn-HSL (Light) – aus Alias abgeleitet */
+    --background: 220 20% 97%;
+    --sidebar: 220 18% 95%;
+    --card: 0 0% 100%;
+    --popover: 0 0% 100%;
+    --muted: 220 16% 93%;
+    --secondary: 220 16% 93%;
+    --accent: 220 14% 91%;
+    --foreground: 222 47% 11%;
+    --foreground-secondary: 220 9% 46%;
+    --foreground-muted: 220 9% 65%;
+    --card-foreground: 222 47% 11%;
+    --popover-foreground: 222 47% 11%;
+    --sidebar-foreground: 222 47% 11%;
+    --muted-foreground: 220 9% 46%;
+    --secondary-foreground: 222 47% 11%;
+    --accent-foreground: 222 47% 11%;
+    --border: 220 27% 92%;
+    --input: 220 27% 92%;
+    --radius: var(--radius-sm);
+  }
+
+  .dark {
+    --global-blue-400: #6ea8ff;
+    --global-indigo-500: #667bff;
+    --global-violet-600: #5a5de6;
+
+    --chronell-bg-app: hsl(var(--background));
+    --chronell-bg-shell: color-mix(in srgb, hsl(var(--sidebar)) 72%, hsl(var(--background)));
+    --chronell-bg-sidebar: hsl(var(--sidebar));
+    --chronell-bg-card: color-mix(in srgb, hsl(var(--card)) 92%, transparent);
+    --chronell-bg-card-solid: hsl(var(--card));
+    --chronell-bg-card-hover: color-mix(in srgb, hsl(var(--muted)) 55%, hsl(var(--card)));
+    --chronell-bg-muted: hsl(var(--muted));
+    --chronell-border-subtle: rgba(255, 255, 255, 0.075);
+    --chronell-border-strong: rgba(255, 255, 255, 0.14);
+    --chronell-text-primary: #f5f5f7;
+    --chronell-text-secondary: #c8cad0;
+    --chronell-text-muted: #8d9099;
+    --chronell-accent-primary: var(--global-blue-400);
+    --chronell-accent-secondary: var(--global-indigo-500);
+    --chronell-accent-orbit: var(--global-violet-600);
+    --chronell-focus-ring: rgba(110, 168, 255, 0.75);
+
+    --chronell-shadow-elevated:
+      0 20px 60px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.045);
+    --chronell-shadow-panel:
+      0 30px 90px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    --chronell-inset-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+
+    --chronell-acrylic-bg: rgba(30, 31, 38, 0.72);
+    --chronell-acrylic-blur: 28px;
+    --chronell-smoke-bg: rgba(0, 0, 0, 0.58);
+
+    /* Shadcn-HSL (Dark) – Fallback Graphit-Standard; live via theme.ts + Dunkel-Variante */
+    --background: 0 0% 7%;
+    --sidebar: 0 0% 10%;
+    --card: 0 0% 14%;
+    --popover: 0 0% 15%;
+    --muted: 0 0% 21%;
+    --secondary: 0 0% 17%;
+    --accent: 0 0% 19%;
+    --foreground: 0 0% 100%;
+    --foreground-secondary: 220 9% 65%;
+    --foreground-muted: 220 9% 46%;
+    --card-foreground: 0 0% 100%;
+    --popover-foreground: 0 0% 100%;
+    --sidebar-foreground: 0 0% 98%;
+    --muted-foreground: 220 9% 65%;
+    --secondary-foreground: 0 0% 100%;
+    --accent-foreground: 0 0% 100%;
+    --border: 0 0% 100% / 0.075;
+    --input: 0 0% 100% / 0.1;
+  }
+
+  body {
+    font-family: var(--chronell-font-family);
+  }
+}
+
+@layer utilities {
+  /** L0 – Mica-inspirierter App-Hintergrund (Fluent §6.1) */
+  .chronell-mica-shell,
+  .app-chrome-root {
+    background-color: var(--chronell-bg-app);
+    background-image:
+      radial-gradient(circle at 18% -2%, rgba(52, 120, 246, 0.06), transparent 34%),
+      radial-gradient(circle at 88% 8%, rgba(90, 79, 230, 0.05), transparent 38%),
+      linear-gradient(180deg, var(--chronell-bg-app) 0%, var(--chronell-bg-shell) 100%);
+    color: var(--chronell-text-primary);
+  }
+
+  .dark .chronell-mica-shell,
+  .dark .app-chrome-root {
+    background-image:
+      radial-gradient(circle at 20% 0%, rgba(110, 168, 255, 0.1), transparent 32%),
+      radial-gradient(circle at 85% 15%, rgba(90, 93, 230, 0.12), transparent 36%),
+      linear-gradient(180deg, #0b0c10 0%, var(--chronell-bg-app) 100%);
+  }
+
+  /** L1 – Topbar / Shell-Leiste (Solid, kein Acrylic) */
+  .chronell-shell-bar,
+  .glass-topbar {
+    background: color-mix(in srgb, var(--chronell-bg-shell) 94%, transparent);
+    border-bottom: 1px solid var(--chronell-border-subtle);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow: var(--chronell-inset-highlight);
+    transition:
+      background-color var(--motion-normal) var(--motion-ease),
+      border-color var(--motion-normal) var(--motion-ease);
+  }
+
+  /** L2 – Solide Flaechen (Karten, Panels, Spalten) */
+  .chronell-surface {
+    background: var(--chronell-bg-card);
+    border: 1px solid var(--chronell-border-subtle);
+    box-shadow: var(--chronell-shadow-elevated);
+    transition:
+      background-color var(--motion-normal) var(--motion-ease),
+      border-color var(--motion-normal) var(--motion-ease),
+      box-shadow var(--motion-normal) var(--motion-ease);
+  }
+
+  .chronell-surface-raised:hover {
+    background: var(--chronell-bg-card-hover);
+    border-color: color-mix(in srgb, var(--chronell-accent-primary) 22%, var(--chronell-border-subtle));
+  }
+
+  /** Dashboard-Kacheln – Fluent Panel (§12.1, weniger Glass, mehr Solid) */
+  .chronell-dashboard-panel,
+  .dashboard-tile {
+    background: var(--chronell-bg-card);
+    border: 1px solid var(--chronell-border-subtle);
+    border-radius: var(--radius-dashboard-tile);
+    box-shadow: var(--chronell-shadow-panel);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    transition:
+      background-color var(--motion-normal) var(--motion-ease),
+      border-color var(--motion-normal) var(--motion-ease),
+      transform var(--motion-fast) var(--motion-ease),
+      box-shadow var(--motion-normal) var(--motion-ease);
+  }
+
+  .chronell-dashboard-panel:hover,
+  .dashboard-tile:hover {
+    background: color-mix(in srgb, var(--chronell-bg-card-hover) 92%, transparent);
+    border-color: color-mix(in srgb, var(--chronell-accent-primary) 22%, var(--chronell-border-subtle));
+  }
+
+  .chronell-dashboard-panel-header,
+  .dashboard-tile-header {
+    border-bottom: 1px solid var(--chronell-border-subtle);
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--chronell-bg-shell) 65%, transparent) 0%,
+      transparent 100%
+    );
+  }
+
+  /** L4 – Acrylic (nur temporaer: Menüs, Popover) */
+  .chronell-acrylic-tooltip {
+    background: var(--chronell-acrylic-bg);
+    -webkit-backdrop-filter: blur(16px) saturate(125%);
+    backdrop-filter: blur(16px) saturate(125%);
+    border: 1px solid var(--chronell-border-strong);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--chronell-shadow-elevated);
+  }
+
+  .chronell-acrylic,
+  .chronell-acrylic-popover,
+  .glass-panel,
+  .glass-panel-elevated {
+    background: var(--chronell-acrylic-bg);
+    -webkit-backdrop-filter: blur(var(--chronell-acrylic-blur)) saturate(135%);
+    backdrop-filter: blur(var(--chronell-acrylic-blur)) saturate(135%);
+    border: 1px solid var(--chronell-border-strong);
+    border-radius: var(--radius-md);
+    box-shadow:
+      0 32px 80px rgba(0, 0, 0, 0.42),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    transition:
+      background-color var(--motion-normal) var(--motion-ease),
+      border-color var(--motion-normal) var(--motion-ease);
+  }
+
+  /** L5 – Smoke (modale Overlays) */
+  .chronell-smoke {
+    background: var(--chronell-smoke-bg);
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+  }
+
+  /** Dauerflaechen: kein Frosting (Mail-Spalten etc.) */
+  .chronell-surface-flat,
+  .glass-fill {
+    background: color-mix(in srgb, var(--chronell-bg-card-solid) 96%, transparent);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    border-color: var(--chronell-border-subtle);
+  }
+
+  /**
+   * Modul-Workspace: Nav-Spalte auf Mica (App-Chrome), Inhalt als abgerundete Pane.
+   * Siehe OneNote / Outlook / WPF Gallery (Fluent 2).
+   */
+  .chronell-module-shell {
+    display: flex;
+    min-height: 0;
+    flex: 1 1 0%;
+    overflow: hidden;
+    box-sizing: border-box;
+    padding: var(--chronell-module-chrome-gap) 0 0;
+    background: transparent;
+  }
+
+  .module-nav-column {
+    display: flex;
+    height: 100%;
+    min-height: 0;
+    flex-shrink: 0;
+    flex-direction: column;
+    background: transparent;
+    border-right: none;
+    color: hsl(var(--sidebar-foreground));
+  }
+
+  .chronell-module-pane-stack {
+    display: flex;
+    min-height: 0;
+    min-width: 0;
+    flex: 1 1 0%;
+    overflow: hidden;
+    border: none;
+    border-top-left-radius: var(--radius-panel);
+    background: color-mix(in srgb, var(--chronell-bg-card-solid) 96%, transparent);
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .dark .chronell-module-pane-stack {
+    background: color-mix(in srgb, var(--chronell-bg-card-solid) 94%, transparent);
+    box-shadow: none;
+  }
+
+  /** Dashboard-Hintergrund: Mica-Tint, dezenter Orbit-Glow */
+  .dashboard-glass-canvas {
+    background-color: color-mix(in srgb, var(--chronell-bg-app) 55%, transparent);
+    background-image:
+      radial-gradient(720px 440px at 14% 22%, rgba(110, 168, 255, 0.14), transparent 62%),
+      radial-gradient(640px 400px at 92% 14%, rgba(102, 123, 255, 0.1), transparent 56%),
+      radial-gradient(560px 360px at 52% 86%, rgba(90, 93, 230, 0.07), transparent 58%);
+    filter: brightness(0.88) saturate(0.92);
+    -webkit-backdrop-filter: blur(var(--dashboard-glass-blur, 28px)) saturate(1.35);
+    backdrop-filter: blur(var(--dashboard-glass-blur, 28px)) saturate(1.35);
+  }
+
+  .dark .dashboard-glass-canvas {
+    background-image:
+      radial-gradient(700px 420px at 12% 24%, rgba(102, 123, 255, 0.18), transparent 60%),
+      radial-gradient(620px 380px at 90% 16%, rgba(110, 168, 255, 0.12), transparent 54%),
+      radial-gradient(540px 340px at 50% 88%, rgba(90, 93, 230, 0.08), transparent 56%);
+  }
+
+  [data-dashboard-tile] .border-border,
+  [data-dashboard-tile] .border-border\/60,
+  [data-dashboard-tile] .border-border\/70,
+  [data-dashboard-tile] .border-border\/80 {
+    border-color: var(--chronell-border-subtle);
+  }
+
+  /** Modul-Spaltenkoepfe (Mail, Kalender, …) */
+  .chronell-column-header {
+    border-bottom: 1px solid var(--chronell-border-subtle);
+  }
+
+  .chronell-column-header--card {
+    background: color-mix(in srgb, var(--chronell-bg-card-solid) 96%, transparent);
+  }
+
+  .chronell-column-header--nav {
+    background: transparent;
+  }
+
+  /** Listenzeilen (Mail, Aufgaben, …) */
+  .chronell-list-row {
+    border-bottom: 1px solid color-mix(in srgb, var(--chronell-border-subtle) 65%, transparent);
+    transition: background-color var(--motion-normal) var(--motion-ease);
+  }
+
+  .chronell-list-row:hover {
+    background: color-mix(in srgb, var(--chronell-bg-muted) 50%, transparent);
+  }
+
+  .chronell-list-row--selected {
+    background: color-mix(in srgb, var(--chronell-bg-muted) 80%, transparent);
+    box-shadow: inset 2px 0 0 var(--chronell-accent-primary);
+  }
+
+  /** Kalender: aktueller / selektierter Termin (Fluent §12.2) */
+  .chronell-calendar-event-active,
+  .calendar-gantt-bar--selected {
+    background: linear-gradient(135deg, rgba(72, 92, 190, 0.96), rgba(52, 63, 145, 0.96)) !important;
+    border: 1px solid rgba(130, 160, 255, 0.28) !important;
+    color: #f5f5f7 !important;
+    box-shadow:
+      0 18px 42px rgba(72, 92, 190, 0.24),
+      inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+  }
+
+  /** AI / Copilot-Karten (Fluent §12.3) */
+  .chronell-prompt-card {
+    background: color-mix(in srgb, var(--chronell-bg-card-solid) 68%, transparent);
+    border: 1px solid color-mix(in srgb, var(--chronell-accent-secondary) 32%, var(--chronell-border-subtle));
+    border-radius: var(--radius-md);
+    box-shadow:
+      0 16px 48px rgba(0, 0, 0, 0.28),
+      inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+
+  .chronell-dialog-panel {
+    background: var(--chronell-bg-card);
+    border: 1px solid var(--chronell-border-subtle);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--chronell-shadow-panel);
+  }
+
+  .chronell-menu-row:hover {
+    background: color-mix(in srgb, var(--chronell-bg-muted) 45%, transparent);
+  }
+
+  .chronell-menu-row--selected {
+    background: color-mix(in srgb, var(--chronell-accent-primary) 14%, var(--chronell-bg-muted));
+    color: var(--chronell-text-primary);
+  }
+
+  @media (prefers-reduced-transparency: reduce) {
+    .chronell-acrylic,
+    .chronell-acrylic-popover,
+    .glass-panel,
+    .glass-panel-elevated {
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+      background: hsl(var(--popover));
+    }
+
+    .chronell-dashboard-panel,
+    .dashboard-tile {
+      background: hsl(var(--card));
+    }
+
+    .dashboard-glass-canvas {
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+      filter: none;
+      background-image: none;
+      background-color: hsl(var(--background));
+    }
+  }
+}

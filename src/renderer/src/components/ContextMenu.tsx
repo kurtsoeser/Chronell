@@ -144,7 +144,7 @@ function ContextMenuFlyout({
     <div
       data-mailclient-context-menu=""
       style={style}
-      className="glass-animate-in flex flex-col overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-xl"
+      className="chronell-acrylic-popover glass-animate-in flex flex-col overflow-hidden text-popover-foreground"
       role="menu"
       onMouseEnter={onFlyoutEnter}
       onMouseLeave={onFlyoutLeave}
@@ -330,7 +330,7 @@ export function ContextMenu({ x, y, items, onClose }: Props): JSX.Element {
     <div
       ref={ref}
       data-mailclient-context-menu=""
-      className="glass-animate-in fixed min-w-[200px] max-w-[min(280px,calc(100vw-2rem))] overflow-visible rounded-md border border-border bg-popover py-1 text-popover-foreground shadow-lg"
+      className="chronell-acrylic-popover glass-animate-in fixed min-w-[200px] max-w-[min(280px,calc(100vw-2rem))] overflow-visible py-1 text-popover-foreground"
       style={{ left: adjustedX, top: adjustedY, zIndex: CONTEXT_MENU_Z }}
       role="menu"
     >

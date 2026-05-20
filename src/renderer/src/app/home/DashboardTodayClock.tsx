@@ -173,8 +173,9 @@ export function DashboardTodayClock({
       />
       <div
         className={cn(
-          'relative flex min-h-0 flex-1 flex-col items-center justify-center gap-1 rounded-lg border border-border/60',
-          'bg-gradient-to-b from-card/90 to-muted/25 px-2 py-2 shadow-sm backdrop-blur-[2px]'
+          'relative flex min-h-0 flex-1 flex-col items-center justify-center gap-1 rounded-lg',
+          'border border-white/10 bg-gradient-to-b from-white/10 to-transparent px-2 py-2 backdrop-blur-md',
+          'dark:border-white/10 dark:from-white/[0.08] dark:to-transparent'
         )}
       >
         {isWorldClock ? (
@@ -188,7 +189,7 @@ export function DashboardTodayClock({
               aria-expanded={isTimeZoneMenuOpen}
               className={cn(
                 'absolute right-2 top-2 z-20 inline-flex h-7 w-7 items-center justify-center rounded-full',
-                'border border-border/70 bg-background/85 text-muted-foreground shadow-sm backdrop-blur',
+                'border border-white/15 bg-background/50 text-muted-foreground backdrop-blur-md',
                 'transition hover:border-primary/50 hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring/40'
               )}
             >
@@ -200,7 +201,7 @@ export function DashboardTodayClock({
                 role="dialog"
                 aria-label={t('dashboard.clock.timeZoneMenuTitle')}
                 className={cn(
-                  'absolute right-2 top-10 z-30 w-56 rounded-lg border border-border bg-popover p-2 text-popover-foreground',
+                  'chronell-acrylic-popover absolute right-2 top-10 z-30 w-56 p-2 text-popover-foreground',
                   'shadow-lg ring-1 ring-black/5'
                 )}
               >

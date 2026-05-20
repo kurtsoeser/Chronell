@@ -36,12 +36,12 @@ export function MenuRow({
       title={title}
       onClick={onPick}
       className={cn(
-        'flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition-colors',
+        'chronell-menu-row flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors',
         disabled
           ? 'cursor-not-allowed text-muted-foreground/50'
           : selected
-            ? 'bg-secondary text-foreground'
-            : 'text-foreground hover:bg-secondary/70'
+            ? 'chronell-menu-row--selected text-foreground'
+            : 'text-foreground'
       )}
     >
       <span className="flex w-4 shrink-0 justify-center">

@@ -1998,7 +1998,7 @@ export function CalendarEventDialog({
           ref={schedulePickerRef}
           role="dialog"
           aria-label={t('calendar.eventDialog.schedulePickerAria')}
-          className="fixed z-[220] w-[208px] max-w-[calc(100vw-16px)] overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-xl"
+          className="chronell-acrylic-popover fixed z-[220] w-[208px] max-w-[calc(100vw-16px)] overflow-hidden text-popover-foreground"
           style={{ top: schedulePickerPos.top, left: schedulePickerPos.left }}
           onMouseDown={(ev): void => ev.stopPropagation()}
           onClick={(ev): void => ev.stopPropagation()}

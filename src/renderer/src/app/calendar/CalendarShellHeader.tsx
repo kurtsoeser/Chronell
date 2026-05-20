@@ -134,12 +134,12 @@ export function CalendarShellHeader(props: CalendarShellHeaderProps): JSX.Elemen
   const weekNavBtnClass = moduleColumnHeaderToolbarToggleClass(false)
 
   const viewMenuPanelClass =
-    'absolute right-0 top-full z-[100] mt-1 min-w-[min(100vw-1rem,220px)] max-w-[min(100vw-1rem,280px)] rounded-xl border border-border bg-popover py-1 text-popover-foreground shadow-xl sm:min-w-[220px] sm:max-w-none'
+    'chronell-acrylic-popover absolute right-0 top-full z-[100] mt-1 min-w-[min(100vw-1rem,220px)] max-w-[min(100vw-1rem,280px)] py-1 text-popover-foreground sm:min-w-[220px] sm:max-w-none'
 
   return (
     <header
       className={cn(
-        'calendar-shell-column-header calendar-shell-header-responsive relative z-50 min-h-0 flex-1 bg-card px-2 py-1 sm:px-3 sm:py-1.5 lg:px-4 lg:py-1.5'
+        'calendar-shell-column-header calendar-shell-header-responsive relative z-50 min-h-0 w-full flex-1 px-2 py-1 sm:px-3 sm:py-1.5 lg:px-4 lg:py-1.5'
       )}
     >
       <div className="calendar-shell-header-area-side flex items-center">
@@ -319,7 +319,7 @@ export function CalendarShellHeader(props: CalendarShellHeaderProps): JSX.Elemen
                 {daysSubOpen && (
                   <div
                     className={cn(
-                      'absolute top-0 z-[110] min-w-[140px] rounded-xl border border-border bg-popover py-1 text-popover-foreground shadow-xl',
+                      'chronell-acrylic-popover absolute top-0 z-[110] min-w-[140px] py-1 text-popover-foreground',
                       'right-full -translate-x-1 max-md:left-0 max-md:right-auto max-md:mt-1 max-md:max-h-[min(50vh,280px)] max-md:translate-x-0 max-md:overflow-y-auto',
                       'md:right-full md:translate-x-1'
                     )}
@@ -359,7 +359,7 @@ export function CalendarShellHeader(props: CalendarShellHeaderProps): JSX.Elemen
                 {settingsSubOpen && (
                   <div
                     className={cn(
-                      'absolute top-0 z-[110] flex max-h-[min(72vh,520px)] w-[min(92vw,320px)] flex-col rounded-xl border border-border bg-popover px-3 py-2 text-[12px] leading-snug text-muted-foreground shadow-xl',
+                      'chronell-acrylic-popover absolute top-0 z-[110] flex max-h-[min(72vh,520px)] w-[min(92vw,320px)] flex-col px-3 py-2 text-[12px] leading-snug text-muted-foreground',
                       'right-full -translate-x-1 max-md:left-0 max-md:right-auto max-md:mt-1 max-md:translate-x-0',
                       'md:right-full md:translate-x-1'
                     )}

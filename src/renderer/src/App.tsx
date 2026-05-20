@@ -249,7 +249,7 @@ export function App(): JSX.Element {
       <Suspense fallback={<TopbarFallback />}>
         <Topbar onOpenAccountDialog={(): void => openAccountSettings('general')} />
       </Suspense>
-      <div className="flex min-h-0 flex-1 flex-col">
+      <div className="chronell-module-shell flex min-h-0 flex-1 flex-col">
         <Suspense fallback={<AppShellFallback />}>
           {mode === 'home' && <HomeDashboard />}
           {mode === 'calendar' && <CalendarShell />}

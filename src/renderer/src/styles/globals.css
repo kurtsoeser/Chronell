@@ -1,42 +1,21 @@
+@import './chronell-tokens.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /**
- * Zentrales Erscheinungsbild (Design-Tokens):
- * - Semantische Farben: weiter unten in `:root` / `.dark` (Shadcn-HSL-Tripel).
- * - Interaktion & Chrome: `theme.ts` setzt Akzent (--primary, --ring, …).
- * - Glass / Oberflaechen: `--glass-*` und Utility-Klassen `.glass-*` unten —
- *   hier koennen Blur, Transparenz und Schatten global angepasst werden.
+ * App-spezifische Tokens (Shadcn-Kompatibilitaet, Status, Compose).
+ * Fluent/Chronell-Basis: chronell-tokens.css
  */
 
 @layer base {
   :root {
-    /* Light-Palette: warmes, leicht kuehles Off-White wie BOXMAIL / Front /
-       Email-App-Kit. Cards reines Weiss, damit sie aus dem Hintergrund
-       heraustreten. */
-    --background: 220 20% 98%;
-    --foreground: 224 25% 14%;
-    --card: 0 0% 100%;
-    --card-foreground: 224 25% 14%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 224 25% 14%;
     --primary: 217 91% 60%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 220 16% 94%;
-    --secondary-foreground: 224 20% 18%;
-    --muted: 220 16% 94%;
-    --muted-foreground: 220 10% 46%;
-    --accent: 220 16% 94%;
-    --accent-foreground: 224 20% 18%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --border: 220 14% 88%;
-    --input: 220 14% 88%;
     --ring: 217 91% 60%;
-    --sidebar: 220 22% 96%;
-    --sidebar-foreground: 224 25% 14%;
-    --radius: 0.625rem;
 
     /* Status-Akzente. Werden vom Tailwind-Plugin als Utility-Klassen
        (bg-status-unread, text-status-todo, ...) exposed. */
@@ -51,10 +30,11 @@
     --glass-saturation: 1.35;
     --glass-surface: 0 0% 100% / 0.78;
     --glass-surface-muted: 220 20% 98% / 0.65;
-    --glass-border: 0 0% 100% / 0.55;
-    --glass-highlight: 0 0% 100% / 0.35;
+    --glass-border: 220 27% 92% / 0.85;
+    --glass-highlight: 0 0% 100% / 0.4;
     --glass-shadow: 0 8px 32px hsl(224 25% 14% / 0.08);
     --glass-shadow-sm: 0 2px 12px hsl(224 25% 14% / 0.06);
+    --dashboard-tile-shadow: 0 8px 28px hsl(224 25% 14% / 0.1);
 
     /* Start-Dashboard: staerkeres Frosting, darunter app-chrome sichtbar */
     --dashboard-glass-blur: 28px;
@@ -70,33 +50,11 @@
   }
 
   .dark {
-    /* Neutralisiertes Dark-Theme: niedrige Saturation und Hue 220 statt
-       240, dadurch wirkt es eher "Graphite" als "Indigo-Blue". Die
-       Akzentfarbe (--primary) wird zusaetzlich vom Theme-Store ueber
-       inline styles auf documentElement gesetzt und kann so frei
-       konfiguriert werden. */
-    --background: 220 6% 8%;
-    --foreground: 220 8% 95%;
-    --card: 220 5% 11%;
-    --card-foreground: 220 8% 95%;
-    --popover: 220 6% 12%;
-    --popover-foreground: 220 8% 95%;
     --primary: 217 91% 60%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 220 5% 16%;
-    --secondary-foreground: 220 8% 95%;
-    --muted: 220 4% 16%;
-    --muted-foreground: 220 6% 65%;
-    --accent: 220 4% 16%;
-    --accent-foreground: 220 8% 95%;
     --destructive: 0 62.8% 50%;
     --destructive-foreground: 0 0% 98%;
-    --border: 220 4% 18%;
-    --input: 220 4% 18%;
     --ring: 217 91% 60%;
-    --sidebar: 220 6% 10%;
-    --sidebar-foreground: 220 8% 92%;
-    --radius: 0.625rem;
 
     --status-unread: 217 91% 65%;
     --status-todo: 25 95% 60%;
@@ -104,12 +62,13 @@
     --status-flagged: 45 93% 58%;
     --status-done: 142 65% 55%;
 
-    --glass-surface: 220 8% 14% / 0.72;
-    --glass-surface-muted: 220 6% 10% / 0.55;
-    --glass-border: 220 12% 96% / 0.12;
-    --glass-highlight: 220 15% 100% / 0.08;
-    --glass-shadow: 0 12px 40px hsl(0 0% 0% / 0.42);
-    --glass-shadow-sm: 0 4px 20px hsl(0 0% 0% / 0.28);
+    --glass-surface: 262 8% 14% / 0.72;
+    --glass-surface-muted: 262 7% 12% / 0.58;
+    --glass-border: 0 0% 100% / 0.08;
+    --glass-highlight: 0 0% 100% / 0.1;
+    --glass-shadow: 0 12px 40px hsl(0 0% 0% / 0.38);
+    --glass-shadow-sm: 0 4px 18px hsl(0 0% 0% / 0.28);
+    --dashboard-tile-shadow: 0 12px 36px hsl(0 0% 0% / 0.42), inset 0 1px 0 hsl(0 0% 100% / 0.06);
 
     --dashboard-glass-tint: 220 10% 10% / 0.4;
 
@@ -119,30 +78,29 @@
     --compose-surface-border: 0 0% 15%;
   }
 
-  .dark.palette-midnight {
-    --background: 230 25% 5%;
-    --card: 230 22% 8%;
-    --sidebar: 230 24% 6%;
-    --border: 230 15% 14%;
-    --glass-surface: 230 22% 10% / 0.78;
-    --glass-border: 230 30% 96% / 0.1;
+  /** Mica-Verlauf pro Dunkel-Variante (Flaechenfarben kommen aus theme.ts) */
+  .dark.palette-midnight .app-chrome-root,
+  .dark.palette-midnight .chronell-mica-shell {
+    background-image:
+      radial-gradient(circle at 18% 0%, rgba(59, 130, 246, 0.14), transparent 34%),
+      radial-gradient(circle at 88% 12%, rgba(37, 99, 235, 0.1), transparent 38%),
+      linear-gradient(180deg, #020617 0%, hsl(var(--background)) 100%);
   }
 
-  .dark.palette-nord {
-    --background: 220 16% 12%;
-    --card: 220 14% 16%;
-    --sidebar: 220 16% 10%;
-    --border: 220 12% 22%;
-    --muted: 220 12% 18%;
-    --glass-surface: 220 14% 16% / 0.75;
+  .dark.palette-nord .app-chrome-root,
+  .dark.palette-nord .chronell-mica-shell {
+    background-image:
+      radial-gradient(circle at 16% 8%, rgba(136, 192, 208, 0.12), transparent 40%),
+      radial-gradient(circle at 84% 18%, rgba(129, 161, 193, 0.1), transparent 36%),
+      linear-gradient(180deg, #3b4252 0%, hsl(var(--background)) 100%);
   }
 
-  .dark.palette-graphite {
-    --background: 0 0% 9%;
-    --card: 0 0% 12%;
-    --sidebar: 0 0% 8%;
-    --border: 0 0% 18%;
-    --glass-surface: 0 0% 14% / 0.78;
+  .dark.palette-graphite .app-chrome-root,
+  .dark.palette-graphite .chronell-mica-shell {
+    background-image:
+      radial-gradient(circle at 20% 0%, rgba(255, 255, 255, 0.04), transparent 32%),
+      radial-gradient(circle at 82% 10%, rgba(255, 255, 255, 0.03), transparent 34%),
+      linear-gradient(180deg, #0a0a0a 0%, hsl(var(--background)) 100%);
   }
 }
 
@@ -200,53 +158,7 @@
 }
 
 @layer utilities {
-  /** App-Hintergrund: dezente Farbverlaeufe, damit Glass-Panels etwas Tiefe zeigen. */
-  .app-chrome-root {
-    background-color: hsl(var(--background));
-    background-image:
-      radial-gradient(1000px 520px at 12% -8%, hsl(var(--primary) / 0.09), transparent 58%),
-      radial-gradient(800px 420px at 92% 0%, hsl(var(--primary) / 0.06), transparent 52%),
-      linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--muted) / 0.35) 100%);
-  }
-
-  .dark .app-chrome-root {
-    background-image:
-      radial-gradient(900px 480px at 10% -6%, hsl(var(--primary) / 0.14), transparent 55%),
-      radial-gradient(700px 380px at 94% 2%, hsl(var(--primary) / 0.08), transparent 48%),
-      linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--muted) / 0.4) 100%);
-  }
-
-  .glass-panel {
-    background: hsl(var(--glass-surface));
-    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
-    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
-    border: 1px solid hsl(var(--glass-border));
-    box-shadow: var(--glass-shadow-sm);
-    transition:
-      background-color 0.2s ease,
-      box-shadow 0.25s ease,
-      border-color 0.2s ease;
-  }
-
-  .glass-panel-elevated {
-    background: hsl(var(--glass-surface));
-    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
-    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
-    border: 1px solid hsl(var(--glass-border));
-    box-shadow: var(--glass-shadow);
-    transition:
-      background-color 0.2s ease,
-      box-shadow 0.25s ease,
-      border-color 0.2s ease;
-  }
-
-  /**
-   * Erste Modul-Navigations-Spalte (Mail-Ordner, Kalender, Kontakte, Aufgaben, Notizen).
-   * Einheitlich `bg-sidebar` — Mini-Monat nutzt `bg-card` in MiniMonthGrid.
-   */
-  .module-nav-column {
-    @apply flex h-full min-h-0 shrink-0 flex-col border-r border-border bg-sidebar text-sidebar-foreground;
-  }
+  /** Erste Modul-Nav — Layout in chronell-tokens.css (transparent auf Mica). */
 
   /** Linke Spalte: nur rechte Kante, kein „Rahmen“ rundherum. */
   .glass-sidebar {
@@ -255,67 +167,73 @@
     backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
     border: none;
     border-right: 1px solid hsl(var(--glass-border));
-    box-shadow: var(--glass-shadow-sm);
+    box-shadow: none;
     transition:
       background-color 0.2s ease,
-      box-shadow 0.25s ease,
       border-color 0.2s ease;
   }
 
-  /** Volle Flaeche mit Frosting, ohne eigenen Rahmen (Spalten-Trenner bleiben am Layout-Wrapper). */
-  .glass-fill {
-    background: hsl(var(--glass-surface));
-    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
-    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
-    transition: background-color 0.2s ease;
-  }
-
-  /**
-   * Start-Dashboard: Vollflaechige, mitscrollende Glass-Schicht hinter Kacheln.
-   * Farbverlaeufe liegen auf der Schicht; darunter bleicht app-chrome durch.
-   */
   .dashboard-glass-canvas {
     position: absolute;
     inset: 0;
     z-index: 0;
     pointer-events: none;
-    background-color: hsl(var(--dashboard-glass-tint));
-    background-image:
-      radial-gradient(720px 440px at 14% 22%, hsl(var(--primary) / 0.26), transparent 62%),
-      radial-gradient(640px 400px at 92% 14%, hsl(var(--primary) / 0.18), transparent 56%),
-      radial-gradient(560px 360px at 52% 86%, hsl(var(--primary) / 0.12), transparent 58%);
-    -webkit-backdrop-filter: blur(var(--dashboard-glass-blur)) saturate(1.52);
-    backdrop-filter: blur(var(--dashboard-glass-blur)) saturate(1.52);
   }
 
-  .dark .dashboard-glass-canvas {
-    background-image:
-      radial-gradient(700px 420px at 12% 24%, hsl(var(--primary) / 0.32), transparent 60%),
-      radial-gradient(620px 380px at 90% 16%, hsl(var(--primary) / 0.22), transparent 54%),
-      radial-gradient(540px 340px at 50% 88%, hsl(var(--primary) / 0.16), transparent 56%);
+  /** 4-Level Layer-Utilities (L0–L3) */
+  .layer-0 {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
+  .layer-1 {
+    background-color: hsl(var(--sidebar));
+    color: hsl(var(--sidebar-foreground));
+    border-color: hsl(var(--border));
+  }
+  .layer-2 {
+    background-color: hsl(var(--card));
+    color: hsl(var(--card-foreground));
+    border: 1px solid hsl(var(--border));
+  }
+  .layer-3 {
+    background-color: hsl(var(--muted));
+    color: hsl(var(--foreground));
+    border: 1px solid hsl(var(--border));
   }
 
-  @media (prefers-reduced-transparency: reduce) {
-    .dashboard-glass-canvas {
-      -webkit-backdrop-filter: none;
-      backdrop-filter: none;
-      background-color: hsl(var(--background));
-      background-image: none;
-    }
+  /** Smart Accent: Gradient nur fuer Fokus / Selection — nicht fuer Buttons */
+  .accent-gradient-focus {
+    background-image: linear-gradient(
+      135deg,
+      hsl(var(--primary) / 0.22) 0%,
+      hsl(262 55% 58% / 0.12) 55%,
+      transparent 100%
+    );
   }
 
-  .glass-topbar {
-    background: hsl(var(--glass-surface-muted));
-    -webkit-backdrop-filter: blur(calc(var(--glass-blur) + 4px)) saturate(var(--glass-saturation));
-    backdrop-filter: blur(calc(var(--glass-blur) + 4px)) saturate(var(--glass-saturation));
-    border-bottom: 1px solid hsl(var(--glass-border));
-    box-shadow: 0 1px 0 hsl(var(--glass-highlight)), var(--glass-shadow-sm);
-    transition:
-      background-color 0.2s ease,
-      box-shadow 0.25s ease;
+  .text-foreground-secondary {
+    color: hsl(var(--foreground-secondary));
+  }
+  .text-foreground-muted {
+    color: hsl(var(--foreground-muted));
+  }
+
+  /** Listen: Hover/Active = L3 ohne Shadow */
+  .list-row-interactive {
+    transition: background-color var(--motion-duration-fast) ease;
+  }
+  .list-row-interactive:hover {
+    background-color: hsl(var(--muted) / 0.65);
+  }
+  .list-row-interactive[data-active='true'],
+  .list-row-interactive[aria-selected='true'] {
+    background-color: hsl(var(--muted));
+    border-color: hsl(var(--border));
   }
 
   .glass-input {
+    border-radius: var(--radius-sm);
+    border: 1px solid hsl(var(--border) / 0.35);
     background: hsl(var(--glass-surface-muted));
     -webkit-backdrop-filter: blur(12px) saturate(1.2);
     backdrop-filter: blur(12px) saturate(1.2);
@@ -323,6 +241,30 @@
       border-color 0.2s ease,
       box-shadow 0.2s ease,
       background-color 0.2s ease;
+  }
+
+  .dark .glass-input {
+    border-color: hsl(0 0% 100% / 0.08);
+  }
+
+  .glass-input:focus,
+  .glass-input:focus-visible {
+    border-color: hsl(var(--primary) / 0.55);
+    background: hsl(var(--accent) / 0.75);
+    box-shadow:
+      0 0 0 1px hsl(var(--primary) / 0.18),
+      0 0 0 3px hsl(var(--ring) / 0.28);
+    outline: none;
+  }
+
+  .dark .glass-input:focus,
+  .dark .glass-input:focus-visible {
+    border-color: hsl(var(--primary) / 0.6);
+    background: hsl(var(--muted));
+    box-shadow:
+      0 0 0 1px hsl(var(--primary) / 0.32),
+      0 0 0 4px hsl(var(--ring) / 0.24),
+      inset 0 1px 0 hsl(0 0% 100% / 0.07);
   }
 
   @keyframes glass-pop-in {
@@ -504,7 +446,8 @@
   }
 
   .mail-reading-shadow-host[data-mail-viewer-theme='dark'] {
-    background-color: #2a2a2a;
+    background: color-mix(in srgb, var(--chronell-bg-card-solid) 96%, transparent);
+    --chronell-mail-module-surface: color-mix(in srgb, var(--chronell-bg-card-solid) 96%, transparent);
     color-scheme: light;
   }
 }

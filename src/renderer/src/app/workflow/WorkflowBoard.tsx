@@ -659,7 +659,7 @@ export function WorkflowBoard(): JSX.Element {
         <VerticalSplitter onDrag={onDragPreview} ariaLabel={t('workflow.previewSplitterAria')} />
         <div
           style={{ width: previewWidth }}
-          className="flex h-full min-h-0 shrink-0 flex-col border-l border-border bg-card"
+          className="chronell-surface-flat flex h-full min-h-0 shrink-0 flex-col border-l border-border"
         >
           <ReadingPane />
         </div>

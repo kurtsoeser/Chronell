@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { cn } from '@/lib/utils'
 
 const PERSIST_DEBOUNCE_MS = 200
 
@@ -7,6 +8,8 @@ interface UseResizableWidthOptions {
   defaultWidth: number
   minWidth: number
   maxWidth: number
+  /** Einmalige Migration: erster gültiger Wert wird unter storageKey gespeichert. */
+  legacyStorageKeys?: readonly string[]
 }
 
 interface UseResizableHeightOptions {
@@ -20,14 +23,25 @@ function readStoredDimension(
   storageKey: string,
   defaultValue: number,
   min: number,
-  max: number
+  max: number,
+  legacyStorageKeys?: readonly string[]
 ): number {
+  const clamp = (n: number): number => Math.min(max, Math.max(min, n))
   try {
     const stored = window.localStorage.getItem(storageKey)
     if (stored) {
       const parsed = Number(stored)
-      if (Number.isFinite(parsed) && parsed >= min && parsed <= max) {
-        return parsed
+      if (Number.isFinite(parsed)) return clamp(parsed)
+    }
+    if (legacyStorageKeys?.length) {
+      for (const legacyKey of legacyStorageKeys) {
+        const legacy = window.localStorage.getItem(legacyKey)
+        if (!legacy) continue
+        const parsed = Number(legacy)
+        if (!Number.isFinite(parsed)) continue
+        const value = clamp(parsed)
+        window.localStorage.setItem(storageKey, String(value))
+        return value
       }
     }
   } catch {
@@ -40,15 +54,17 @@ function usePersistedDimension({
   storageKey,
   defaultValue,
   min,
-  max
+  max,
+  legacyStorageKeys
 }: {
   storageKey: string
   defaultValue: number
   min: number
   max: number
+  legacyStorageKeys?: readonly string[]
 }): [number, (next: number | ((prev: number) => number)) => void] {
   const [value, setValue] = useState<number>(() =>
-    readStoredDimension(storageKey, defaultValue, min, max)
+    readStoredDimension(storageKey, defaultValue, min, max, legacyStorageKeys)
   )
 
   const valueRef = useRef(value)
@@ -118,13 +134,15 @@ export function useResizableWidth({
   storageKey,
   defaultWidth,
   minWidth,
-  maxWidth
+  maxWidth,
+  legacyStorageKeys
 }: UseResizableWidthOptions): [number, (next: number | ((prev: number) => number)) => void] {
   return usePersistedDimension({
     storageKey,
     defaultValue: defaultWidth,
     min: minWidth,
-    max: maxWidth
+    max: maxWidth,
+    legacyStorageKeys
   })
 }
 
@@ -145,6 +163,11 @@ export function useResizableHeight({
 interface SplitterProps {
   onDrag: (deltaX: number) => void
   ariaLabel?: string
+  /**
+   * Keine sichtbare Linie (Nav → Inhalts-Pane). Nur Hover/Drag-Hinweis.
+   * Fluent/OneNote: abgerundete Pane ohne Trennstrich zur Sidebar.
+   */
+  variant?: 'default' | 'moduleNav'
 }
 
 function clearSplitterDragChrome(): void {
@@ -152,7 +175,7 @@ function clearSplitterDragChrome(): void {
   document.body.style.removeProperty('user-select')
 }
 
-export function VerticalSplitter({ onDrag, ariaLabel }: SplitterProps): JSX.Element {
+export function VerticalSplitter({ onDrag, ariaLabel, variant = 'default' }: SplitterProps): JSX.Element {
   const [dragging, setDragging] = useState(false)
   const lastXRef = useRef<number | null>(null)
   const captureTargetRef = useRef<HTMLElement | null>(null)
@@ -263,10 +286,13 @@ export function VerticalSplitter({ onDrag, ariaLabel }: SplitterProps): JSX.Elem
       onLostPointerCapture={(e): void => {
         finishDrag(e)
       }}
-      className={
-        'group relative flex w-px shrink-0 cursor-col-resize justify-center bg-border transition-colors hover:bg-primary/50 ' +
-        (dragging ? 'bg-primary/70 touch-none' : '')
-      }
+      className={cn(
+        'group relative flex w-px shrink-0 cursor-col-resize justify-center transition-colors',
+        variant === 'moduleNav'
+          ? 'bg-transparent hover:bg-primary/35'
+          : 'bg-border hover:bg-primary/50',
+        dragging && (variant === 'moduleNav' ? 'bg-primary/45 touch-none' : 'bg-primary/70 touch-none')
+      )}
     >
       {/* breitere Hit-Area fuer angenehmes Dragging */}
       <div className="absolute inset-y-0 -left-1 -right-1" />

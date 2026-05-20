@@ -32,7 +32,7 @@ export function CalendarEventSearchDialog({
       }}
     >
       <div
-        className="flex w-full max-w-md flex-col gap-2 rounded-xl border border-border bg-popover p-4 shadow-xl"
+        className="chronell-dialog-panel flex w-full max-w-md flex-col gap-2 p-4"
         onMouseDown={(e): void => e.stopPropagation()}
       >
         <div className="flex items-center gap-2">

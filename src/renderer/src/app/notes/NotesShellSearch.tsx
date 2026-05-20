@@ -211,7 +211,7 @@ export function NotesShellSearch({
             <div
               id={listboxId}
               role="listbox"
-              className="overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-xl"
+              className="chronell-acrylic-popover overflow-hidden text-popover-foreground"
               style={panelStyle}
             >
           <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-1.5 text-[10px] text-muted-foreground">

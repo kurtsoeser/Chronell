@@ -204,7 +204,7 @@ export function NotesLinkedPreviewPane({
             onDrag={onDockWidthDrag}
           />
           <aside
-            className="flex min-h-0 shrink-0 flex-col border-l border-border bg-card"
+            className="chronell-surface-flat flex min-h-0 shrink-0 flex-col border-l border-border"
             style={{ width: dockWidthPx }}
           >
             {chrome}

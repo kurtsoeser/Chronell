@@ -44,7 +44,11 @@ export default {
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',
         background: 'hsl(var(--background))',
-        foreground: 'hsl(var(--foreground))',
+        foreground: {
+          DEFAULT: 'hsl(var(--foreground))',
+          secondary: 'hsl(var(--foreground-secondary))',
+          muted: 'hsl(var(--foreground-muted))'
+        },
         primary: {
           DEFAULT: 'hsl(var(--primary))',
           foreground: 'hsl(var(--primary-foreground))'
@@ -86,9 +90,14 @@ export default {
         }
       },
       borderRadius: {
-        lg: 'var(--radius)',
-        md: 'calc(var(--radius) - 2px)',
-        sm: 'calc(var(--radius) - 4px)'
+        DEFAULT: 'var(--radius-sm)',
+        xs: 'var(--radius-xs)',
+        sm: 'var(--radius-sm)',
+        md: 'var(--radius-md)',
+        lg: 'var(--radius-lg)',
+        xl: 'var(--radius-xl)',
+        '2xl': 'var(--radius-panel)',
+        panel: 'var(--radius-panel)'
       },
       keyframes: {
         'pulse-soft': {
@@ -112,14 +121,13 @@ export default {
         'toast-check-pop': 'toast-check-pop 250ms ease-out both'
       },
       fontFamily: {
-        sans: [
-          'Inter',
-          '-apple-system',
-          'BlinkMacSystemFont',
-          'Segoe UI',
-          'Roboto',
-          'sans-serif'
-        ]
+        sans: ['var(--chronell-font-family)']
+      },
+      transitionTimingFunction: {
+        chronell: 'var(--motion-ease)'
+      },
+      transitionDuration: {
+        chronell: 'var(--motion-normal)'
       }
     }
   },

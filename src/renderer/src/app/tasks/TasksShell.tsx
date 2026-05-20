@@ -21,6 +21,8 @@ import { buildAccountColorAndNewContextItems } from '@/lib/account-sidebar-conte
 import { cn } from '@/lib/utils'
 import { useExitingIds } from '@/lib/use-exiting-ids'
 import { useResizableWidth, VerticalSplitter } from '@/components/ResizableSplitter'
+import { modulePaneStackClass, moduleShellClass } from '@/components/module-shell-layout'
+import { useModuleNavColumnWidth } from '@/lib/module-nav-column-width'
 import {
   moduleColumnHeaderDockBarRowClass,
   moduleColumnHeaderIconGlyphClass,
@@ -119,12 +121,7 @@ export function TasksShell(): JSX.Element {
   )
   const { isExiting, markExiting } = useExitingIds<string>()
 
-  const [sidebarWidth, setSidebarWidth] = useResizableWidth({
-    storageKey: 'mailclient.tasksSidebarWidth',
-    defaultWidth: 256,
-    minWidth: 200,
-    maxWidth: 420
-  })
+  const [sidebarWidth, setSidebarWidth] = useModuleNavColumnWidth()
   const [listColumnWidth, setListColumnWidth] = useResizableWidth({
     storageKey: 'mailclient.tasksListColumnWidth',
     defaultWidth: 420,
@@ -934,7 +931,7 @@ export function TasksShell(): JSX.Element {
   const detailFloatOpen = detailOpen && detailPlacement === 'float'
 
   return (
-    <section className="flex min-h-0 flex-1 overflow-hidden bg-background">
+    <section className={moduleShellClass}>
       <div style={{ width: sidebarWidth }} className="h-full shrink-0">
         <TasksShellSidebar
           taskAccounts={taskAccounts}
@@ -956,9 +953,13 @@ export function TasksShell(): JSX.Element {
           onMiniMonthSelectRange={applyTasksMiniCalendarDayRange}
         />
       </div>
-      <VerticalSplitter onDrag={onDragSidebar} ariaLabel={t('tasks.shell.splitterSidebar')} />
+      <VerticalSplitter
+        variant="moduleNav"
+        onDrag={onDragSidebar}
+        ariaLabel={t('common.moduleNavSplitter')}
+      />
 
-      <main className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <main className={cn(modulePaneStackClass, 'flex-col')}>
         <header className={cn(moduleColumnHeaderShellBarClass, 'justify-start gap-3 border-b border-border')}>
           <span className="shrink-0 font-semibold text-foreground">{t('tasks.shell.title')}</span>
           {headerTitle ? (
@@ -1011,7 +1012,7 @@ export function TasksShell(): JSX.Element {
                     role="menu"
                     aria-label={t('tasks.shell.bulkDeleteFlaggedMenuAria')}
                     className={cn(
-                      'overflow-y-auto rounded-lg border border-border bg-popover py-1 shadow-xl',
+                      'overflow-y-auto chronell-acrylic-popover py-1',
                       'text-popover-foreground'
                     )}
                     style={bulkFlaggedPanelStyle}
@@ -1205,7 +1206,7 @@ export function TasksShell(): JSX.Element {
             >
               <div
                 style={{ width: detailColumnWidth }}
-                className="flex h-full min-h-0 shrink-0 flex-col overflow-hidden border-r border-border bg-card"
+                className="flex h-full min-h-0 shrink-0 flex-col overflow-hidden border-r border-border"
               >
                 <TasksDetailDockHeader
                   onUndock={(): void => {
@@ -1219,7 +1220,7 @@ export function TasksShell(): JSX.Element {
             </CalendarDockPanelSlide>
           ) : null}
           {!isKanbanView ? (
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col border-l border-border bg-card">
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col border-l border-border">
               {!selection ? (
                 <p className="p-4 text-xs text-muted-foreground">{t('tasks.shell.selectList')}</p>
               ) : (

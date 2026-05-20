@@ -42,7 +42,7 @@ export function ModalRoot({
     <ModalPresenceContext.Provider value={{ exiting }}>
       <div
         className={cn(
-          'fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm',
+          'chronell-smoke fixed inset-0 flex items-center justify-center',
           centerClassName,
           !reducedMotion && (exiting ? motionOverlayOut : motionOverlayIn),
           overlayClassName

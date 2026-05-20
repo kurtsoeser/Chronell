@@ -33,14 +33,17 @@ import {
 } from '@/app/bookings/bookings-shell-storage'
 import { CalendarPreviewPaneToolbarButton } from '@/app/calendar/CalendarPosteingangToolbar'
 import { VerticalSplitter, useResizableWidth } from '@/components/ResizableSplitter'
+import { useModuleNavColumnWidth } from '@/lib/module-nav-column-width'
 import {
   ModuleColumnHeaderIconButton,
-  moduleColumnHeaderActionsClass,
-  moduleColumnHeaderIconGlyphClass,
-  moduleColumnHeaderShellBarClass,
-  moduleColumnHeaderTitleClass
+  moduleColumnHeaderIconGlyphClass
 } from '@/components/ModuleColumnHeader'
-import { moduleNavColumnClass, moduleNavColumnScrollClass } from '@/components/module-shell-layout'
+import {
+  moduleNavColumnClass,
+  moduleNavColumnScrollClass,
+  modulePaneStackClass,
+  moduleShellClass
+} from '@/components/module-shell-layout'
 import { useAccountsStore } from '@/stores/accounts'
 import { useLocaleStore } from '@/stores/locale'
 import { openExternalUrl } from '@/lib/open-external'
@@ -50,7 +53,6 @@ import {
   readBookingsAppointmentDays
 } from '@/lib/bookings-settings-prefs'
 
-const BOOKINGS_NAV_WIDTH_KEY = 'mailclient.bookingsShell.navWidth'
 const BOOKINGS_SHELL_CALENDAR_HEIGHT_PX = 800
 const OUTLOOK_BOOKINGS_URL = 'https://outlook.office.com/bookings/calendar'
 
@@ -93,12 +95,7 @@ export function BookingsShell(): JSX.Element {
     readBookingsPreviewPlacement()
   )
 
-  const [navWidth, setNavWidth] = useResizableWidth({
-    storageKey: BOOKINGS_NAV_WIDTH_KEY,
-    defaultWidth: 220,
-    minWidth: 160,
-    maxWidth: 360
-  })
+  const [navWidth, setNavWidth] = useModuleNavColumnWidth()
 
   const [previewWidth, setPreviewWidth] = useResizableWidth({
     storageKey: 'mailclient.bookingsShell.previewWidth',
@@ -323,47 +320,18 @@ export function BookingsShell(): JSX.Element {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <div className={moduleColumnHeaderShellBarClass}>
-        <h1 className={moduleColumnHeaderTitleClass}>
-          <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-          {t('bookings.shellTitle')}
-        </h1>
-        <div className={moduleColumnHeaderActionsClass}>
-          <CalendarPreviewPaneToolbarButton
-            open={previewOpen}
-            onOpenChange={handlePreviewOpenChange}
-          />
-          <ModuleColumnHeaderIconButton
-            title={t('bookings.refresh')}
-            aria-label={t('bookings.refresh')}
-            onClick={refreshAll}
-            disabled={loadingBusinesses || loadingDetail}
-          >
-            {loadingBusinesses || loadingDetail ? (
-              <Loader2 className={cn(moduleColumnHeaderIconGlyphClass, 'animate-spin')} />
-            ) : (
-              <RefreshCw className={moduleColumnHeaderIconGlyphClass} />
-            )}
-          </ModuleColumnHeaderIconButton>
-        </div>
-      </div>
-
-      <p className="shrink-0 border-b border-border px-4 py-2 text-xs leading-relaxed text-muted-foreground">
-        {t('bookings.shellIntro')}
-      </p>
-
       {error ? (
         <p className="shrink-0 border-b border-destructive/30 bg-destructive/10 px-4 py-2 text-xs text-destructive">
           {error}
         </p>
       ) : null}
 
-      <div className="flex min-h-0 flex-1 overflow-hidden">
+      <div className={moduleShellClass}>
         <aside
           className={moduleNavColumnClass}
           style={{ width: navWidth, flexShrink: 0 }}
         >
-          <div className="border-b border-border px-2 py-2">
+          <div className="border-b border-border px-2 pb-2 pt-0">
             <label className="mb-1 block text-[10px] font-medium text-muted-foreground">
               {t('bookings.accountLabel')}
             </label>
@@ -378,6 +346,24 @@ export function BookingsShell(): JSX.Element {
                 </option>
               ))}
             </select>
+          </div>
+          <div className="flex items-center justify-end gap-1 border-b border-border px-2 py-1">
+            <CalendarPreviewPaneToolbarButton
+              open={previewOpen}
+              onOpenChange={handlePreviewOpenChange}
+            />
+            <ModuleColumnHeaderIconButton
+              title={t('bookings.refresh')}
+              aria-label={t('bookings.refresh')}
+              onClick={refreshAll}
+              disabled={loadingBusinesses || loadingDetail}
+            >
+              {loadingBusinesses || loadingDetail ? (
+                <Loader2 className={cn(moduleColumnHeaderIconGlyphClass, 'animate-spin')} />
+              ) : (
+                <RefreshCw className={moduleColumnHeaderIconGlyphClass} />
+              )}
+            </ModuleColumnHeaderIconButton>
           </div>
           <div className={moduleNavColumnScrollClass}>
             <p className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -414,12 +400,13 @@ export function BookingsShell(): JSX.Element {
         </aside>
 
         <VerticalSplitter
-          ariaLabel={t('bookings.splitterNavAria')}
+          variant="moduleNav"
+          ariaLabel={t('common.moduleNavSplitter')}
           onDrag={(delta): void => setNavWidth((w) => w + delta)}
         />
 
-        <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
-          <main className="min-w-0 flex-1 overflow-y-auto p-4">
+        <div className={cn(modulePaneStackClass, 'flex-col')}>
+          <main className="min-h-0 min-w-0 flex-1 overflow-y-auto p-4">
           {!selectedBusiness ? (
             <p className="text-sm text-muted-foreground">{t('bookings.selectBusiness')}</p>
           ) : (

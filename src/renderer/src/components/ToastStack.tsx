@@ -104,7 +104,7 @@ export function ToastStack(): JSX.Element {
             dismissing={dismissingIds.has(t.id)}
             onExitComplete={onExitComplete}
             className={cn(
-              'pointer-events-auto flex items-start gap-2 rounded-lg border bg-popover px-3 py-2.5 text-xs shadow-lg backdrop-blur transition-transform duration-200',
+              'chronell-acrylic-popover pointer-events-auto flex items-start gap-2 px-3 py-2.5 text-xs transition-transform duration-200',
               t.variant === 'success' && 'border-emerald-500/30',
               t.variant === 'error' && 'border-destructive/40',
               t.variant === 'info' && 'border-border'

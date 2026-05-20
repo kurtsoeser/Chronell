@@ -12,8 +12,7 @@ export type ModuleNavMiniMonthProps = MiniMonthGridProps & {
 }
 
 /**
- * Mini-Monat in Modul-Nav-Spalten (Kalender, Aufgaben, Notizen): einheitliche Ränder,
- * Position unter der Kopfzeile und gleiche Karte (`MiniMonthGrid`).
+ * Mini-Monat in Modul-Nav-Spalten (Kalender, Aufgaben, Notizen): einheitliche Ränder.
  */
 export function ModuleNavMiniMonth({
   className,

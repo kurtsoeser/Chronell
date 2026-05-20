@@ -435,7 +435,7 @@ export function CalendarCreateQuickPopover({
       aria-modal="false"
       aria-label={t('calendar.quickCreate.title')}
       style={style}
-      className="overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl"
+      className="chronell-acrylic-popover overflow-hidden text-popover-foreground"
       onMouseDown={(e): void => e.stopPropagation()}
       onClick={(e): void => e.stopPropagation()}
     >

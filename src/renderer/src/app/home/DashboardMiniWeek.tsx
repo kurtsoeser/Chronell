@@ -32,7 +32,7 @@ export function DashboardMiniWeek(props: {
       <div className="mb-1 flex items-center justify-between gap-1">
         <button
           type="button"
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border/60 bg-muted/30 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-sm border border-white/10 bg-white/[0.05] text-muted-foreground transition-colors hover:bg-white/[0.1] hover:text-foreground"
           aria-label={t('dashboard.miniWeekPrevWeek')}
           title={t('dashboard.miniWeekPrevWeek')}
           onClick={(): void => {
@@ -46,7 +46,7 @@ export function DashboardMiniWeek(props: {
         </div>
         <button
           type="button"
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border/60 bg-muted/30 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-sm border border-white/10 bg-white/[0.05] text-muted-foreground transition-colors hover:bg-white/[0.1] hover:text-foreground"
           aria-label={t('dashboard.miniWeekNextWeek')}
           title={t('dashboard.miniWeekNextWeek')}
           onClick={(): void => {
@@ -93,10 +93,10 @@ export function DashboardMiniWeek(props: {
                     : undefined
                 }
                 className={cn(
-                  'flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-md border px-0.5 py-1 text-center transition-colors',
+                  'flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-sm border px-0.5 py-1 text-center transition-colors',
                   isToday
                     ? 'border-primary bg-primary/10 text-foreground hover:bg-primary/15'
-                    : 'border-border/60 bg-muted/25 text-foreground hover:bg-muted/40'
+                    : 'border-white/10 bg-white/[0.04] text-foreground hover:bg-white/[0.08]'
                 )}
               >
                 {inner}
@@ -107,10 +107,10 @@ export function DashboardMiniWeek(props: {
             <div
               key={key}
               className={cn(
-                'flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-md border px-0.5 py-1 text-center',
+                'flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-sm border px-0.5 py-1 text-center',
                 isToday
                   ? 'border-primary bg-primary/10 text-foreground'
-                  : 'border-border/60 bg-muted/25 text-muted-foreground'
+                  : 'border-white/10 bg-white/[0.04] text-muted-foreground'
               )}
             >
               {inner}

@@ -327,7 +327,7 @@ export function CalendarEventIconPicker({
                 ref={popoverRef}
                 role="dialog"
                 aria-label={t('calendar.eventIcon.pickerTitle')}
-                className="overflow-hidden rounded-lg border border-border bg-popover p-2 shadow-xl"
+                className="chronell-acrylic-popover overflow-hidden p-2"
                 style={compactPopoverStyle}
               >
                 {pickerPanel}
