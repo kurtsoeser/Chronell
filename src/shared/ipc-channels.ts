@@ -303,7 +303,8 @@ export const IPC = {
     verifyOtp: 'profile-sync:verify-otp',
     signOut: 'profile-sync:sign-out',
     signInMicrosoft365: 'profile-sync:sign-in-microsoft365',
-    syncNow: 'profile-sync:sync-now'
+    syncNow: 'profile-sync:sync-now',
+    cacheUiPrefs: 'profile-sync:cache-ui-prefs'
   },
   localData: {
     scanUsage: 'local-data:scan-usage',

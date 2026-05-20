@@ -19,8 +19,14 @@ import {
 } from './supabase-session'
 import { applyProfileSyncPayload, buildProfileSyncPayload } from './profile-sync-payload'
 import { loginProfileSyncWithMicrosoft365 } from './profile-sync-azure-auth'
+import {
+  pullNoteAttachmentsFromCloud,
+  pushLocalNoteAttachmentsToCloud
+} from './profile-sync-attachments'
+import { broadcastProfileSyncStatus } from '../ipc/ipc-broadcasts'
 
 let lastSyncError: string | null = null
+let syncInProgress = false
 
 async function ensureProfileDeviceId(): Promise<string> {
   const config = await loadConfig()
@@ -29,6 +35,15 @@ async function ensureProfileDeviceId(): Promise<string> {
   const id = randomUUID()
   await updateConfig({ profileDeviceId: id })
   return id
+}
+
+function computeConflictRemoteNewer(
+  remoteMs: number,
+  localPulledAt: number,
+  localPushedAt: number
+): boolean {
+  if (!Number.isFinite(remoteMs) || remoteMs <= 0) return false
+  return remoteMs > localPulledAt && remoteMs > localPushedAt
 }
 
 export async function getProfileSyncStatus(): Promise<ProfileSyncStatus> {
@@ -63,6 +78,14 @@ export async function getProfileSyncStatus(): Promise<ProfileSyncStatus> {
     }
   }
 
+  const remoteMs = remoteUpdatedAt ? Date.parse(remoteUpdatedAt) : 0
+  const localPulledAt = config.profileCloudLastPulledAt
+    ? Date.parse(config.profileCloudLastPulledAt)
+    : 0
+  const localPushedAt = config.profileCloudLastPushedAt
+    ? Date.parse(config.profileCloudLastPushedAt)
+    : 0
+
   return {
     configured: isSupabaseConfigured(),
     dataMode: config.profileDataMode ?? 'local',
@@ -72,13 +95,23 @@ export async function getProfileSyncStatus(): Promise<ProfileSyncStatus> {
     lastPulledAt: config.profileCloudLastPulledAt ?? null,
     lastPushedAt: config.profileCloudLastPushedAt ?? null,
     remoteUpdatedAt,
-    lastError: lastSyncError
+    lastError: lastSyncError,
+    syncing: syncInProgress,
+    conflictRemoteNewer: computeConflictRemoteNewer(remoteMs, localPulledAt, localPushedAt),
+    autoSyncActive: config.profileDataMode === 'cloud' && stored != null
   }
 }
 
 export async function setProfileDataMode(mode: ProfileDataMode): Promise<ProfileSyncStatus> {
   await updateConfig({ profileDataMode: mode })
   lastSyncError = null
+  if (mode === 'cloud') {
+    const { startProfileSyncRunner } = await import('./profile-sync-runner')
+    startProfileSyncRunner()
+  } else {
+    const { stopProfileSyncRunner } = await import('./profile-sync-runner')
+    stopProfileSyncRunner()
+  }
   return getProfileSyncStatus()
 }
 
@@ -104,8 +137,11 @@ export async function sendProfileSyncOtp(email: string): Promise<void> {
 export async function signInProfileSyncWithMicrosoft365(): Promise<ProfileSyncStatus> {
   const session = await loginProfileSyncWithMicrosoft365()
   await writeStoredSession(session)
-  await updateConfig({ profileDataMode: 'cloud' })
+  await updateConfig({ profileDataMode: 'cloud', profileCloudLocalDirtyAt: new Date().toISOString() })
   lastSyncError = null
+  const { startProfileSyncRunner } = await import('./profile-sync-runner')
+  startProfileSyncRunner()
+  void runProfileSyncInternal({ localStorage: {}, source: 'auto' })
   return getProfileSyncStatus()
 }
 
@@ -128,8 +164,10 @@ export async function verifyProfileSyncOtp(email: string, token: string): Promis
     throw new Error(error?.message ?? 'Anmeldung fehlgeschlagen.')
   }
   await writeStoredSession(data.session)
-  await updateConfig({ profileDataMode: 'cloud' })
+  await updateConfig({ profileDataMode: 'cloud', profileCloudLocalDirtyAt: new Date().toISOString() })
   lastSyncError = null
+  const { startProfileSyncRunner } = await import('./profile-sync-runner')
+  startProfileSyncRunner()
   return getProfileSyncStatus()
 }
 
@@ -139,8 +177,10 @@ export async function signOutProfileSync(): Promise<ProfileSyncStatus> {
     await client.auth.signOut()
   }
   await clearStoredSession()
-  await updateConfig({ profileDataMode: 'local' })
+  await updateConfig({ profileDataMode: 'local', profileCloudLocalDirtyAt: null })
   lastSyncError = null
+  const { stopProfileSyncRunner } = await import('./profile-sync-runner')
+  stopProfileSyncRunner()
   return getProfileSyncStatus()
 }
 
@@ -161,9 +201,18 @@ function parseRemotePayload(raw: unknown): SettingsBackupPayload | null {
   return p
 }
 
-export async function runProfileSyncNow(
+export interface RunProfileSyncOptions {
   localStorage: Record<string, string>
+  source: 'manual' | 'auto'
+}
+
+export async function runProfileSyncInternal(
+  options: RunProfileSyncOptions
 ): Promise<ProfileSyncRunResult> {
+  if (syncInProgress) {
+    return { ok: false, error: 'Sync läuft bereits.' }
+  }
+
   const config = await loadConfig()
   if (config.profileDataMode !== 'cloud') {
     return { ok: false, error: 'Cloud-Sync ist deaktiviert (Modus: nur lokal).' }
@@ -179,11 +228,16 @@ export async function runProfileSyncNow(
     return { ok: false, error: 'Keine gültige Supabase-Sitzung.' }
   }
 
+  syncInProgress = true
+  void broadcastProfileSyncStatus()
+
   const deviceId = await ensureProfileDeviceId()
   let pulled = false
   let pushed = false
   let remoteUpdatedAt: string | null = null
   let pulledLocalStorage: Record<string, string> | undefined
+  let attachmentsUploaded = 0
+  let attachmentsDownloaded = 0
 
   try {
     const { data: remoteRow, error: fetchErr } = await client
@@ -205,6 +259,10 @@ export async function runProfileSyncNow(
     const localPulledAt = config.profileCloudLastPulledAt
       ? Date.parse(config.profileCloudLastPulledAt)
       : 0
+    const localPushedAt = config.profileCloudLastPushedAt
+      ? Date.parse(config.profileCloudLastPushedAt)
+      : 0
+    const conflictRemoteNewer = computeConflictRemoteNewer(remoteMs, localPulledAt, localPushedAt)
 
     const shouldPull =
       row?.payload != null && Number.isFinite(remoteMs) && remoteMs > localPulledAt
@@ -215,27 +273,47 @@ export async function runProfileSyncNow(
         await applyProfileSyncPayload(remotePayload)
         pulled = true
         pulledLocalStorage = remotePayload.localStorage
-        await updateConfig({ profileCloudLastPulledAt: new Date().toISOString() })
+        attachmentsDownloaded = await pullNoteAttachmentsFromCloud(client, stored.user.id)
+        await updateConfig({
+          profileCloudLastPulledAt: new Date().toISOString(),
+          profileCloudLocalDirtyAt: null
+        })
       }
     }
 
-    const localPayload = await buildProfileSyncPayload(localStorage)
-    const upsertBody: SnapshotRow = {
-      user_id: stored.user.id,
-      device_id: deviceId,
-      payload: localPayload,
-      payload_version: SETTINGS_BACKUP_FORMAT_VERSION,
-      updated_at: new Date().toISOString()
+    const configAfterPull = await loadConfig()
+    const localDirty = Boolean(configAfterPull.profileCloudLocalDirtyAt?.trim())
+    const localPayload = await buildProfileSyncPayload(options.localStorage)
+    const localExportMs = Date.parse(localPayload.exportedAt)
+
+    const shouldPush =
+      localDirty ||
+      !row ||
+      !Number.isFinite(remoteMs) ||
+      (Number.isFinite(localExportMs) && localExportMs >= remoteMs - 2000)
+
+    if (shouldPush) {
+      attachmentsUploaded = await pushLocalNoteAttachmentsToCloud(client, stored.user.id)
+      const upsertBody: SnapshotRow = {
+        user_id: stored.user.id,
+        device_id: deviceId,
+        payload: localPayload,
+        payload_version: SETTINGS_BACKUP_FORMAT_VERSION,
+        updated_at: new Date().toISOString()
+      }
+      const { error: upsertErr } = await client.from('chronell_profile_snapshots').upsert(upsertBody, {
+        onConflict: 'user_id'
+      })
+      if (upsertErr) {
+        throw new Error(upsertErr.message)
+      }
+      pushed = true
+      remoteUpdatedAt = upsertBody.updated_at
+      await updateConfig({
+        profileCloudLastPushedAt: new Date().toISOString(),
+        profileCloudLocalDirtyAt: null
+      })
     }
-    const { error: upsertErr } = await client.from('chronell_profile_snapshots').upsert(upsertBody, {
-      onConflict: 'user_id'
-    })
-    if (upsertErr) {
-      throw new Error(upsertErr.message)
-    }
-    pushed = true
-    remoteUpdatedAt = upsertBody.updated_at
-    await updateConfig({ profileCloudLastPushedAt: new Date().toISOString() })
 
     lastSyncError = null
     return {
@@ -243,13 +321,25 @@ export async function runProfileSyncNow(
       pulled,
       pushed,
       remoteUpdatedAt,
+      conflictRemoteNewer,
+      attachmentsUploaded,
+      attachmentsDownloaded,
       ...(pulledLocalStorage ? { localStorage: pulledLocalStorage } : {})
     }
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e)
     lastSyncError = message
     return { ok: false, error: message }
+  } finally {
+    syncInProgress = false
+    void broadcastProfileSyncStatus()
   }
+}
+
+export async function runProfileSyncNow(
+  localStorage: Record<string, string>
+): Promise<ProfileSyncRunResult> {
+  return runProfileSyncInternal({ localStorage, source: 'manual' })
 }
 
 export function defaultProfileDeviceLabel(): string {

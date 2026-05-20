@@ -154,6 +154,10 @@ export interface AppConfig {
   profileCloudLastPulledAt?: string | null
   /** ISO-Zeitstempel des letzten erfolgreichen Pushs in die Cloud. */
   profileCloudLastPushedAt?: string | null
+  /** Gesetzt bei lokalen Profil-Änderungen; steuert Auto-Push. */
+  profileCloudLocalDirtyAt?: string | null
+  /** Hintergrund-Poll-Intervall in Sekunden (60–600), Standard 90. */
+  profileSyncPollIntervalSeconds?: number
 }
 
 export type ProfileDataMode = 'local' | 'cloud'
@@ -173,6 +177,11 @@ export interface ProfileSyncStatus {
   lastPushedAt: string | null
   remoteUpdatedAt: string | null
   lastError: string | null
+  /** Läuft gerade ein Sync (manuell oder automatisch). */
+  syncing: boolean
+  /** Cloud-Snapshot ist neuer als letzter Pull — anderes Gerät hat kürzlich geschrieben. */
+  conflictRemoteNewer: boolean
+  autoSyncActive: boolean
 }
 
 export type ProfileSyncRunResult =
@@ -181,6 +190,9 @@ export type ProfileSyncRunResult =
       pulled: boolean
       pushed: boolean
       remoteUpdatedAt: string | null
+      conflictRemoteNewer: boolean
+      attachmentsUploaded: number
+      attachmentsDownloaded: number
       /** Nach Pull: localStorage-Einträge für den Renderer. */
       localStorage?: Record<string, string>
     }

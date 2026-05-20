@@ -1279,5 +1279,15 @@ export const MIGRATIONS: Migration[] = [
       CREATE INDEX IF NOT EXISTS idx_entity_embeddings_indexed
         ON entity_embeddings(indexed_at DESC);
     `
+  },
+  {
+    version: 42,
+    description: 'Notiz-Anhaenge: Supabase-Storage-Pfad',
+    sql: `
+      ALTER TABLE user_note_attachments ADD COLUMN storage_path TEXT NULL;
+      CREATE INDEX IF NOT EXISTS idx_user_note_attachments_storage
+        ON user_note_attachments(storage_path)
+        WHERE storage_path IS NOT NULL;
+    `
   }
 ]

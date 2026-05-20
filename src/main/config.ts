@@ -33,7 +33,9 @@ const PERSISTED_CONFIG_KEYS: (keyof AppConfig)[] = [
   'profileDataMode',
   'profileDeviceId',
   'profileCloudLastPulledAt',
-  'profileCloudLastPushedAt'
+  'profileCloudLastPushedAt',
+  'profileCloudLocalDirtyAt',
+  'profileSyncPollIntervalSeconds'
 ]
 
 export const DEFAULT_APP_CONFIG: AppConfig = {
@@ -55,7 +57,9 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
   profileDataMode: 'local',
   profileDeviceId: null,
   profileCloudLastPulledAt: null,
-  profileCloudLastPushedAt: null
+  profileCloudLastPushedAt: null,
+  profileCloudLocalDirtyAt: null,
+  profileSyncPollIntervalSeconds: 90
 }
 
 let remoteOAuthCache: PublisherRemoteOAuthPayload | null | undefined = undefined

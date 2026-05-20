@@ -95,6 +95,10 @@ export function broadcastNotesChanged(payload: {
   for (const win of BrowserWindow.getAllWindows()) {
     win.webContents.send('notes:changed', payload)
   }
+  void import('../sync-profile/profile-sync-scheduler').then((m) => {
+    void m.markProfileDataDirty()
+    m.scheduleProfileSyncDebounced()
+  })
 }
 
 /** Ungerichtete entity_links geaendert — alle ConnectionsPanel-Instanzen neu laden. */
@@ -102,6 +106,10 @@ export function broadcastEntityLinksChanged(): void {
   for (const win of BrowserWindow.getAllWindows()) {
     win.webContents.send('entity-links:changed', {})
   }
+  void import('../sync-profile/profile-sync-scheduler').then((m) => {
+    void m.markProfileDataDirty()
+    m.scheduleProfileSyncDebounced()
+  })
 }
 
 export function broadcastEntityLinkAiScanProgress(
@@ -115,6 +123,22 @@ export function broadcastEntityLinkAiScanProgress(
 export function broadcastEntityEmbeddingProgress(progress: EntityEmbeddingProgress | null): void {
   for (const win of BrowserWindow.getAllWindows()) {
     win.webContents.send('entity-embeddings:index-progress', progress)
+  }
+}
+
+export function broadcastProfileSyncStatus(): void {
+  void import('../sync-profile/profile-sync-service').then((m) =>
+    m.getProfileSyncStatus().then((status) => {
+      for (const win of BrowserWindow.getAllWindows()) {
+        win.webContents.send('profile-sync:status', status)
+      }
+    })
+  )
+}
+
+export function broadcastProfileSyncApplied(localStorage: Record<string, string>): void {
+  for (const win of BrowserWindow.getAllWindows()) {
+    win.webContents.send('profile-sync:applied', { localStorage })
   }
 }
 

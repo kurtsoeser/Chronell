@@ -154,6 +154,7 @@ export async function startProfileSyncOAuthLoopback(): Promise<ProfileSyncLoopba
           return
         }
 
+        if (!parsed.ok) return
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
         res.end(renderClosingPage('Anmeldung erfolgreich. Du kannst dieses Fenster schließen.'))
         finishOk(parsed.callback)

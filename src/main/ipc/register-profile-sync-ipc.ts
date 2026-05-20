@@ -9,6 +9,7 @@ import {
   signOutProfileSync,
   verifyProfileSyncOtp
 } from '../sync-profile/profile-sync-service'
+import { setCachedProfileUiPrefs } from '../sync-profile/profile-sync-ui-prefs-cache'
 
 export function registerProfileSyncIpc(): void {
   ipcMain.removeHandler(IPC.profileSync.getStatus)
@@ -18,6 +19,7 @@ export function registerProfileSyncIpc(): void {
   ipcMain.removeHandler(IPC.profileSync.signOut)
   ipcMain.removeHandler(IPC.profileSync.signInMicrosoft365)
   ipcMain.removeHandler(IPC.profileSync.syncNow)
+  ipcMain.removeHandler(IPC.profileSync.cacheUiPrefs)
 
   ipcMain.handle(IPC.profileSync.getStatus, async (): Promise<ProfileSyncStatus> => {
     return getProfileSyncStatus()
@@ -72,6 +74,20 @@ export function registerProfileSyncIpc(): void {
         if (typeof v === 'string') flat[k] = v
       }
       return runProfileSyncNow(flat)
+    }
+  )
+
+  ipcMain.handle(
+    IPC.profileSync.cacheUiPrefs,
+    async (_event, localStorage: unknown): Promise<void> => {
+      if (!localStorage || typeof localStorage !== 'object' || Array.isArray(localStorage)) {
+        return
+      }
+      const flat: Record<string, string> = {}
+      for (const [k, v] of Object.entries(localStorage as Record<string, unknown>)) {
+        if (typeof v === 'string') flat[k] = v
+      }
+      setCachedProfileUiPrefs(flat)
     }
   )
 }

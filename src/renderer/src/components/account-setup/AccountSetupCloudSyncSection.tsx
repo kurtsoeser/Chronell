@@ -6,10 +6,11 @@ import {
   replaceLocalStorageFromBackup,
   snapshotLocalStorage
 } from '@/lib/local-storage-snapshot'
+import { formatProfileSyncTimestamp } from '@/lib/format-profile-sync-timestamp'
 import type { ProfileDataMode, ProfileSyncRunResult, ProfileSyncStatus } from '@shared/types'
 
 export function AccountSetupCloudSyncSection(): JSX.Element {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [status, setStatus] = useState<ProfileSyncStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
@@ -34,6 +35,10 @@ export function AccountSetupCloudSyncSection(): JSX.Element {
 
   useEffect(() => {
     void refresh()
+    const offStatus = window.mailClient.events.onProfileSyncStatus((s) => {
+      setStatus(s)
+    })
+    return offStatus
   }, [refresh])
 
   async function handleSetMode(mode: ProfileDataMode): Promise<void> {
@@ -118,6 +123,12 @@ export function AccountSetupCloudSyncSection(): JSX.Element {
     const parts: string[] = []
     if (r.pulled) parts.push(t('settings.cloudSync.resultPulled'))
     if (r.pushed) parts.push(t('settings.cloudSync.resultPushed'))
+    if (r.attachmentsUploaded > 0) {
+      parts.push(t('settings.cloudSync.resultAttachmentsUp', { count: r.attachmentsUploaded }))
+    }
+    if (r.attachmentsDownloaded > 0) {
+      parts.push(t('settings.cloudSync.resultAttachmentsDown', { count: r.attachmentsDownloaded }))
+    }
     if (parts.length === 0) parts.push(t('settings.cloudSync.resultNoChanges'))
     return parts.join(' · ')
   }
@@ -173,6 +184,19 @@ export function AccountSetupCloudSyncSection(): JSX.Element {
         </p>
       ) : status ? (
         <div className="space-y-3">
+          {status.conflictRemoteNewer ? (
+            <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-2 text-[11px] text-amber-100">
+              {t('settings.cloudSync.conflictHint')}
+            </p>
+          ) : null}
+          {status.syncing ? (
+            <p className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              {t('settings.cloudSync.syncing')}
+            </p>
+          ) : status.autoSyncActive ? (
+            <p className="text-[10px] text-muted-foreground">{t('settings.cloudSync.autoSyncOn')}</p>
+          ) : null}
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
@@ -311,13 +335,25 @@ export function AccountSetupCloudSyncSection(): JSX.Element {
           {status.lastPushedAt || status.lastPulledAt || status.remoteUpdatedAt ? (
             <ul className="space-y-0.5 text-[10px] text-muted-foreground">
               {status.lastPulledAt ? (
-                <li>{t('settings.cloudSync.lastPull', { at: status.lastPulledAt })}</li>
+                <li>
+                  {t('settings.cloudSync.lastPull', {
+                    at: formatProfileSyncTimestamp(status.lastPulledAt, i18n.language)
+                  })}
+                </li>
               ) : null}
               {status.lastPushedAt ? (
-                <li>{t('settings.cloudSync.lastPush', { at: status.lastPushedAt })}</li>
+                <li>
+                  {t('settings.cloudSync.lastPush', {
+                    at: formatProfileSyncTimestamp(status.lastPushedAt, i18n.language)
+                  })}
+                </li>
               ) : null}
               {status.remoteUpdatedAt ? (
-                <li>{t('settings.cloudSync.remoteAt', { at: status.remoteUpdatedAt })}</li>
+                <li>
+                  {t('settings.cloudSync.remoteAt', {
+                    at: formatProfileSyncTimestamp(status.remoteUpdatedAt, i18n.language)
+                  })}
+                </li>
               ) : null}
             </ul>
           ) : null}

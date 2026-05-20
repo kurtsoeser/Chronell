@@ -1221,7 +1221,12 @@
       "reloadHint": "The app will reload.",
       "lastPull": "Last pull: {{at}}",
       "lastPush": "Last push: {{at}}",
-      "remoteAt": "Cloud snapshot: {{at}}"
+      "remoteAt": "Cloud snapshot: {{at}}",
+      "conflictHint": "The cloud has newer data from another device. Use “Sync now” to download it (local changes since your last upload may be overwritten).",
+      "syncing": "Syncing…",
+      "autoSyncOn": "Automatic sync is on (about every 90 seconds and after note/link changes).",
+      "resultAttachmentsUp": "{{count}} attachment(s) uploaded",
+      "resultAttachmentsDown": "{{count}} attachment(s) downloaded"
     },
     "backupHeading": "Back up settings",
     "backupAiConnectionsNote": "AI connections settings and dismissed suggestions are included in the backup; Gemini/OpenAI API keys are not — they are stored separately in the secure store.",

@@ -57,3 +57,11 @@ Ein JSON-Snapshot pro Nutzer (`chronell_profile_snapshots`), gleicher Inhalt wie
 ## App
 
 Einstellungen → Allgemein → **Cloud-Sync**
+
+## Phase 2 (Komfort)
+
+- **Auto-Sync:** Beim App-Start (nach ~8 s), alle **90 s** im Hintergrund, **5 s** nach Änderungen an Notizen oder Verbindungen.
+- **UI-Prefs:** Renderer meldet `localStorage` alle 30 s an den Main-Prozess.
+- **Konflikt-Hinweis:** Wenn die Cloud neuer ist als letzter Pull/Upload auf diesem Gerät.
+- **Notiz-Anhänge:** Bucket `chronell-note-attachments` (Migration `20260520120000_chronell_note_attachments_storage.sql`).
+- Push nur bei lokalen Änderungen (`profileCloudLocalDirtyAt`), nicht bei jedem Poll.

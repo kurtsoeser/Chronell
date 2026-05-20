@@ -352,7 +352,9 @@ const api = {
     syncNow: (
       localStorage: Record<string, string>
     ): Promise<import('@shared/types').ProfileSyncRunResult> =>
-      ipcRenderer.invoke(IPC.profileSync.syncNow, localStorage)
+      ipcRenderer.invoke(IPC.profileSync.syncNow, localStorage),
+    cacheUiPrefs: (localStorage: Record<string, string>): Promise<void> =>
+      ipcRenderer.invoke(IPC.profileSync.cacheUiPrefs, localStorage)
   },
   localData: {
     scanUsage: (): Promise<LocalDataUsageReport> =>
@@ -1155,6 +1157,28 @@ const api = {
       ipcRenderer.on('mail-reading-popout:closed', listener)
       return (): void => {
         ipcRenderer.off('mail-reading-popout:closed', listener)
+      }
+    },
+    onProfileSyncStatus: (
+      handler: (status: import('@shared/types').ProfileSyncStatus) => void
+    ): (() => void) => {
+      const listener = (_e: IpcRendererEvent, status: import('@shared/types').ProfileSyncStatus): void =>
+        handler(status)
+      ipcRenderer.on('profile-sync:status', listener)
+      return (): void => {
+        ipcRenderer.off('profile-sync:status', listener)
+      }
+    },
+    onProfileSyncApplied: (
+      handler: (payload: { localStorage: Record<string, string> }) => void
+    ): (() => void) => {
+      const listener = (
+        _e: IpcRendererEvent,
+        payload: { localStorage: Record<string, string> }
+      ): void => handler(payload)
+      ipcRenderer.on('profile-sync:applied', listener)
+      return (): void => {
+        ipcRenderer.off('profile-sync:applied', listener)
       }
     }
   },

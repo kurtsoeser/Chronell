@@ -1,5 +1,5 @@
 /** Semantic version — keep in sync with `package.json` `version`. */
-export const APP_VERSION = '0.9.15' as const
+export const APP_VERSION = '0.9.16' as const
 
 /** ISO date (YYYY-MM-DD) of the current release milestone. */
 export const APP_RELEASE_DATE_ISO = '2026-05-20' as const

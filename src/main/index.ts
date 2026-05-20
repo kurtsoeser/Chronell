@@ -192,6 +192,16 @@ app.whenReady().then(async () => {
   startMailPolling()
   startCalendarSync()
 
+  const cfg = await loadConfig()
+  if (cfg.profileDataMode === 'cloud') {
+    const { readStoredSession } = await import('./sync-profile/supabase-session')
+    const session = await readStoredSession()
+    if (session) {
+      const { startProfileSyncRunner } = await import('./sync-profile/profile-sync-runner')
+      startProfileSyncRunner()
+    }
+  }
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createMainWindow()
@@ -205,12 +215,14 @@ app.on('before-quit', () => {
   stopMailPolling()
   stopCalendarSync()
   stopConnectivityMonitoring()
+  void import('./sync-profile/profile-sync-runner').then((m) => m.stopProfileSyncRunner())
 })
 
 app.on('window-all-closed', () => {
   stopMailPolling()
   stopCalendarSync()
   stopConnectivityMonitoring()
+  void import('./sync-profile/profile-sync-runner').then((m) => m.stopProfileSyncRunner())
   closeDb()
   if (process.platform !== 'darwin') {
     app.quit()

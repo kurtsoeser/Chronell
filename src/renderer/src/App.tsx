@@ -17,6 +17,7 @@ import {
   resolveVisibleAppShellMode
 } from '@/app/layout/topbar-module-prefs'
 import { subscribeConnectivityFromMain } from './stores/connectivity'
+import { ProfileSyncBridge } from './components/ProfileSyncBridge'
 import { useSnoozeUiStore } from './stores/snooze-ui'
 import { useCreateCloudTaskUiStore } from './stores/create-cloud-task-ui'
 import { useNotionDestinationPickerStore } from './stores/notion-destination-picker'
@@ -244,6 +245,7 @@ export function App(): JSX.Element {
 
   return (
     <div className="app-chrome-root flex h-full min-h-0 flex-col text-foreground">
+      <ProfileSyncBridge />
       <Suspense fallback={<TopbarFallback />}>
         <Topbar onOpenAccountDialog={(): void => openAccountSettings('general')} />
       </Suspense>
