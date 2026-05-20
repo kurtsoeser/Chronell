@@ -61,6 +61,11 @@ const SettingsMailListHoverActionsSection = lazy(() =>
 const AccountSetupNotesPanel = lazy(
   () => import('@/components/account-setup/AccountSetupNotesPanel')
 )
+const SettingsAiConnectionsSection = lazy(() =>
+  import('@/components/account-setup/SettingsAiConnectionsSection').then((m) => ({
+    default: m.SettingsAiConnectionsSection
+  }))
+)
 import { accountColorToCssBackground } from '@/lib/avatar-color'
 import {
   DASHBOARD_GRID_STEP_DEFAULT_PX,
@@ -69,6 +74,23 @@ import {
   readDashboardAlignStepPx,
   writeDashboardAlignStepPx
 } from '@/app/home/dashboard-layout'
+import { SettingsScaleControl } from '@/components/account-setup/SettingsScaleControl'
+import {
+  UI_SCALE_MAX,
+  UI_SCALE_MIN,
+  UI_SCALE_PRESETS,
+  UI_SCALE_STEP,
+  uiScalePercent,
+  useUiScaleStore
+} from '@/stores/ui-scale'
+import {
+  MAIL_PREVIEW_SCALE_MAX,
+  MAIL_PREVIEW_SCALE_MIN,
+  MAIL_PREVIEW_SCALE_PRESETS,
+  MAIL_PREVIEW_SCALE_STEP,
+  mailPreviewScalePercent,
+  useMailPreviewScaleStore
+} from '@/stores/mail-preview-scale'
 import type {
   ConnectedAccount,
   MailMasterCategory,
@@ -265,6 +287,12 @@ export function AccountSetupDialog({
   const { t } = useTranslation()
   const setAppMode = useAppModeStore((s) => s.setMode)
   const locale = useLocaleStore((s) => s.locale)
+  const uiScale = useUiScaleStore((s) => s.scale)
+  const setUiScale = useUiScaleStore((s) => s.setScale)
+  const resetUiScale = useUiScaleStore((s) => s.resetScale)
+  const mailPreviewScale = useMailPreviewScaleStore((s) => s.scale)
+  const setMailPreviewScale = useMailPreviewScaleStore((s) => s.setScale)
+  const resetMailPreviewScale = useMailPreviewScaleStore((s) => s.resetScale)
   const setLocale = useLocaleStore((s) => s.setLocale)
 
   const settingsTabOptions = useMemo(
@@ -449,11 +477,13 @@ export function AccountSetupDialog({
       case 'general':
         return [
           { id: 'language', label: t('settings.languageSection') },
+          { id: 'appearance', label: t('settings.appearanceHeading') },
           { id: 'modules', label: t('settings.modulesHeading') },
           { id: 'dashboard', label: t('settings.dashboardGridHeading') },
           { id: 'weather', label: t('settings.weatherHeading') },
           { id: 'oauth', label: t('settings.oauthSummary') },
           { id: 'notion', label: t('settings.notionHeading') },
+          { id: 'aiConnections', label: t('settings.aiConnections.nav') },
           { id: 'backup', label: t('settings.backupHeading') }
         ]
       case 'accounts':
@@ -1343,6 +1373,28 @@ export function AccountSetupDialog({
               </section>
               )}
 
+              {subNavId.general === 'appearance' && (
+              <section className="space-y-2 rounded-md border border-border/60 bg-muted/20 p-3">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  {t('settings.appearanceHeading')}
+                </h3>
+                <p className="text-xs leading-relaxed text-muted-foreground">{t('settings.uiScaleHint')}</p>
+                <SettingsScaleControl
+                  id="mailclient-ui-scale"
+                  label={t('settings.uiScaleLabel')}
+                  value={uiScale}
+                  min={UI_SCALE_MIN}
+                  max={UI_SCALE_MAX}
+                  step={UI_SCALE_STEP}
+                  presets={UI_SCALE_PRESETS}
+                  formatPercent={uiScalePercent}
+                  onChange={setUiScale}
+                  onReset={resetUiScale}
+                  resetLabel={t('settings.scaleReset')}
+                />
+              </section>
+              )}
+
               {subNavId.general === 'modules' && (
                 <Suspense fallback={<AccountSetupPanelFallback />}>
                   <SettingsTopbarModulesSection />
@@ -1562,12 +1614,21 @@ export function AccountSetupDialog({
                 </Suspense>
               )}
 
+              {subNavId.general === 'aiConnections' && (
+                <Suspense fallback={<AccountSetupPanelFallback />}>
+                  <SettingsAiConnectionsSection />
+                </Suspense>
+              )}
+
               {subNavId.general === 'backup' && (
               <section className="space-y-2 border-t border-border pt-4">
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   {t('settings.backupHeading')}
                 </h3>
                 <p className="text-xs leading-relaxed text-muted-foreground">{t('settings.backupIntro')}</p>
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  {t('settings.backupAiConnectionsNote')}
+                </p>
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
@@ -1892,6 +1953,27 @@ export function AccountSetupDialog({
                   <ImageIcon className="h-3.5 w-3.5" />
                   {t('settings.mailDisplayHeading')}
                 </h3>
+                <div className="space-y-2 rounded-md border border-border bg-muted/20 p-3">
+                  <p className="text-xs leading-relaxed text-muted-foreground">
+                    {t('settings.mailPreviewScaleHint')}
+                  </p>
+                  <SettingsScaleControl
+                    id="mailclient-mail-preview-scale"
+                    label={t('settings.mailPreviewScaleLabel')}
+                    value={mailPreviewScale}
+                    min={MAIL_PREVIEW_SCALE_MIN}
+                    max={MAIL_PREVIEW_SCALE_MAX}
+                    step={MAIL_PREVIEW_SCALE_STEP}
+                    presets={MAIL_PREVIEW_SCALE_PRESETS}
+                    formatPercent={mailPreviewScalePercent}
+                    onChange={setMailPreviewScale}
+                    onReset={resetMailPreviewScale}
+                    resetLabel={t('settings.scaleReset')}
+                  />
+                  <p className="text-[10px] leading-relaxed text-muted-foreground">
+                    {t('settings.mailPreviewZoomShortcuts')}
+                  </p>
+                </div>
                 <label className="flex cursor-pointer items-start gap-3 rounded-md border border-border bg-background/40 p-3">
                   <input
                     type="checkbox"

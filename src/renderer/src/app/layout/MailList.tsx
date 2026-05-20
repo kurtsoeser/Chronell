@@ -11,7 +11,7 @@ import { showAppConfirm } from '@/stores/app-dialog'
 import { useAccountsStore } from '@/stores/accounts'
 import { useComposeStore } from '@/stores/compose'
 import { useSnoozeUiStore } from '@/stores/snooze-ui'
-import { useMailReadingPopoutStore } from '@/stores/mail-reading-popout'
+import { openMailReadingPopout } from '@/lib/open-mail-reading-popout'
 import { isMailClientRuntimeComplete } from '@/lib/mail-client-runtime'
 import {
   getVisibleMailListHoverActions,
@@ -233,8 +233,6 @@ export function MailList(): JSX.Element {
   const openReply = useComposeStore((s) => s.openReply)
   const openForward = useComposeStore((s) => s.openForward)
   const openSnoozePicker = useSnoozeUiStore((s) => s.open)
-  const openReadingPopout = useMailReadingPopoutStore((s) => s.openForMessage)
-
   const [quickSteps, setQuickSteps] = useState<MailQuickStep[]>([])
   const hoverPrefs = useMailListHoverActionPrefs(quickSteps)
   const visibleHoverActions = useMemo(
@@ -382,8 +380,7 @@ export function MailList(): JSX.Element {
     },
     onPopout: (e, m): void => {
       e.stopPropagation()
-      void useMailStore.getState().selectMessageWithThreadPreview(m.id)
-      openReadingPopout(m.id, { osWindow: e.shiftKey })
+      openMailReadingPopout(m.id, { osWindow: e.shiftKey })
     },
     onForward: (e, m): void => {
       e.stopPropagation()
@@ -810,6 +807,9 @@ export function MailList(): JSX.Element {
                     onSelectMessage={(id): void => {
                       void selectMessage(id)
                     }}
+                    onOpenPopout={(id, e): void => {
+                      openMailReadingPopout(id, { osWindow: e.shiftKey })
+                    }}
                     onContextMail={openMailContext}
                     rowActions={rowActions}
                     visibleHoverActions={visibleHoverActions}
@@ -832,6 +832,9 @@ export function MailList(): JSX.Element {
                     selected={row.message.id === selectedMessageId}
                     onSelectMessage={(id): void => {
                       void selectMessage(id)
+                    }}
+                    onOpenPopout={(id, e): void => {
+                      openMailReadingPopout(id, { osWindow: e.shiftKey })
                     }}
                     onContextMail={openMailContext}
                     rowActions={rowActions}
@@ -911,6 +914,7 @@ const ThreadHeadRow = memo(function ThreadHeadRow({
   headSelected,
   onToggleExpand,
   onSelectMessage,
+  onOpenPopout,
   onContextMail,
   rowActions,
   visibleHoverActions,
@@ -932,6 +936,7 @@ const ThreadHeadRow = memo(function ThreadHeadRow({
   headSelected: boolean
   onToggleExpand: () => void
   onSelectMessage: (id: number) => void
+  onOpenPopout: (id: number, e: React.MouseEvent) => void
   onContextMail: (e: React.MouseEvent, msg: MailListItem, opts?: MailListContextOpts) => void
   rowActions: MailRowHandlers
   visibleHoverActions: MailListHoverActionId[]
@@ -1076,6 +1081,10 @@ const ThreadHeadRow = memo(function ThreadHeadRow({
         <button
           type="button"
           onClick={handleHeaderClick}
+          onDoubleClick={(e): void => {
+            e.stopPropagation()
+            onOpenPopout(latest.id, e)
+          }}
           className="grid min-w-0 flex-1 items-center gap-x-1 py-1.5 text-left"
           style={{ gridTemplateColumns: tableGridTemplate }}
         >
@@ -1092,6 +1101,10 @@ const ThreadHeadRow = memo(function ThreadHeadRow({
       <button
         type="button"
         onClick={handleHeaderClick}
+        onDoubleClick={(e): void => {
+          e.stopPropagation()
+          onOpenPopout(latest.id, e)
+        }}
         className={cn(
           'flex min-w-0 flex-1 text-left',
           outlookExpandHeader ? 'flex-row items-center gap-2 py-0.5' : 'flex-col gap-0.5'
@@ -1237,6 +1250,7 @@ const ThreadSubRow = memo(function ThreadSubRow({
   showInboxAccountStripe,
   selected,
   onSelectMessage,
+  onOpenPopout,
   onContextMail,
   rowActions,
   visibleHoverActions,
@@ -1253,6 +1267,7 @@ const ThreadSubRow = memo(function ThreadSubRow({
   showInboxAccountStripe: boolean
   selected: boolean
   onSelectMessage: (id: number) => void
+  onOpenPopout: (id: number, e: React.MouseEvent) => void
   onContextMail: (e: React.MouseEvent, msg: MailListItem, opts?: MailListContextOpts) => void
   rowActions: MailRowHandlers
   visibleHoverActions: MailListHoverActionId[]
@@ -1323,6 +1338,10 @@ const ThreadSubRow = memo(function ThreadSubRow({
       <button
         type="button"
         onClick={(): void => onSelectMessage(message.id)}
+        onDoubleClick={(e): void => {
+          e.stopPropagation()
+          onOpenPopout(message.id, e)
+        }}
         onContextMenu={(e): void => onContextMail(e, message)}
         className={cn(
           tableMode

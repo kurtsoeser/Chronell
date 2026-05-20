@@ -507,13 +507,19 @@ export function buildMailContextItems(
 
             id: 'create-cloud-task',
 
-            label: tr ? tr('mail.createCloudTask.menu') : 'Als Cloud-Aufgabe anlegen',
+            label: tr
+              ? msg.todoId
+                ? tr('mail.promoteCloudTask.menu')
+                : tr('mail.createCloudTask.menu')
+              : 'Als Cloud-Aufgabe anlegen',
 
             icon: ListTodo,
 
             onSelect: (): void => {
 
-              useCreateCloudTaskUiStore.getState().open(msg)
+              useCreateCloudTaskUiStore
+                .getState()
+                .open(msg, msg.todoId ?? undefined)
 
             }
 

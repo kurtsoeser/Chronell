@@ -1,4 +1,9 @@
 import { getDb } from './index'
+import {
+  deleteAllEntityLinksForRef,
+  mailEntityRef,
+  purgeOrphanedEntityLinks
+} from './entity-links-repo'
 import type { MailFull, MailListItem } from '@shared/types'
 import { rowToListItem, rowToFull, type MessageRow } from './messages-repo-core'
 import { LIST_COLUMNS, normalizeMessagesFtsMatchQuery } from './messages-repo-list'
@@ -24,7 +29,9 @@ export function setMessageHasAttachmentsLocal(id: number, value: boolean): void 
 }
 
 export function deleteMessageLocal(id: number): void {
+  deleteAllEntityLinksForRef(mailEntityRef(id))
   const db = getDb()
+  db.prepare('DELETE FROM todos WHERE message_id = ?').run(id)
   db.prepare('DELETE FROM messages WHERE id = ?').run(id)
 }
 
@@ -42,12 +49,14 @@ export function deleteMessagesByAccountRemoteIds(accountId: string, remoteIds: s
       ...slice
     )
   }
+  purgeOrphanedEntityLinks()
 }
 
 /** Entfernt alle lokalen Mails eines Ordners (z. B. nach Papierkorb-leeren auf dem Server). */
 export function deleteAllMessagesInFolderLocal(folderId: number): number {
   const db = getDb()
   const r = db.prepare('DELETE FROM messages WHERE folder_id = ?').run(folderId)
+  purgeOrphanedEntityLinks()
   return Number(r.changes ?? 0)
 }
 

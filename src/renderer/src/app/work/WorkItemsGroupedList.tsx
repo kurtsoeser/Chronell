@@ -21,6 +21,7 @@ import {
 import { workItemsToViews } from '@/app/work-items/work-item-mapper'
 import { GROUPED_LIST_VIRTUALIZE_THRESHOLD } from '@/lib/grouped-list-virtuoso'
 import { dueDateInputValue } from '@/app/work-items/work-item-datetime'
+import { openMailReadingPopout } from '@/lib/open-mail-reading-popout'
 
 function dueDateLabel(dueIso: string | null): string {
   return dueIso ? dueDateInputValue(dueIso) : ''
@@ -141,7 +142,14 @@ export function WorkItemsGroupedList({
             <button
               type="button"
               onClick={(): void => onItemClick(item)}
-              onDoubleClick={(): void => onSelect(item)}
+              onDoubleClick={(e): void => {
+                if (!isMail) {
+                  onSelect(item)
+                  return
+                }
+                e.stopPropagation()
+                openMailReadingPopout(item.messageId, { osWindow: e.shiftKey })
+              }}
               className={cn(
                 'min-w-0 flex-1 py-2 pl-1 pr-1 text-left text-xs',
                 active ? 'font-semibold text-foreground' : 'text-foreground/90',
@@ -258,7 +266,14 @@ export function WorkItemsGroupedList({
                         <button
                           type="button"
                           onClick={(): void => onItemClick(item)}
-                          onDoubleClick={(): void => onSelect(item)}
+                          onDoubleClick={(e): void => {
+                if (!isMail) {
+                  onSelect(item)
+                  return
+                }
+                e.stopPropagation()
+                openMailReadingPopout(item.messageId, { osWindow: e.shiftKey })
+              }}
                           className={cn(
                             'min-w-0 flex-1 py-2 pl-1 pr-1 text-left text-xs',
                             active ? 'font-semibold text-foreground' : 'text-foreground/90',

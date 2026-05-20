@@ -2,7 +2,10 @@ import type { CalendarApi } from '@fullcalendar/core'
 import type { WorkItemPlannedSchedule } from '@shared/work-item'
 import { cloudTaskStableKey } from '@shared/work-item-keys'
 import {
+  CLOUD_TASK_SPAN_KIND_DUE,
+  CLOUD_TASK_SPAN_KIND_PLANNED,
   cloudTaskEventId,
+  cloudTasksToFullCalendarEvents,
   cloudTaskVisualSpan,
   dueIsoFromCloudTaskScheduleStart,
   type CloudTaskPersistTarget
@@ -51,7 +54,8 @@ export function syncFullCalendarCloudTaskEventFromLayer(
   api: CalendarApi | null | undefined,
   task: TaskItemWithContext,
   planned: WorkItemPlannedSchedule | undefined,
-  fcTimeZone: string
+  fcTimeZone: string,
+  accountColorById: Record<string, string> = {}
 ): void {
   if (!api) return
   const taskKey = cloudTaskStableKey(task.accountId, task.listId, task.id)
@@ -65,9 +69,20 @@ export function syncFullCalendarCloudTaskEventFromLayer(
 
   removeCloudTaskCalendarEventsByTaskKey(api, taskKey, eventId)
 
-  const existing = api.getEventById(eventId)
-  if (!existing) return
+  const spanKind = span.allDay ? CLOUD_TASK_SPAN_KIND_DUE : CLOUD_TASK_SPAN_KIND_PLANNED
+  let existing = api.getEventById(eventId)
+  if (!existing) {
+    const plannedMap = new Map<string, WorkItemPlannedSchedule>()
+    if (planned) plannedMap.set(taskKey, planned)
+    const input = cloudTasksToFullCalendarEvents([task], accountColorById, plannedMap)[0]
+    if (input) {
+      api.addEvent({ ...input, id: eventId })
+    }
+    return
+  }
 
   existing.setAllDay(span.allDay)
   existing.setDates(span.fcStart, span.fcEnd, { allDay: span.allDay })
+  existing.setExtendedProp('cloudTask', task)
+  existing.setExtendedProp('cloudTaskSpanKind', spanKind)
 }

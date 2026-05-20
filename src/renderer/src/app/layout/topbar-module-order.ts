@@ -10,6 +10,7 @@ export const DEFAULT_TOPBAR_MODULE_ORDER: AppShellMode[] = [
   'work',
   'people',
   'notes',
+  'connections',
   'chat'
 ]
 

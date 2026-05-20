@@ -7,6 +7,14 @@ import type {
 } from '@shared/note-entity-links'
 import type { SettingsBackupEntityLinkSnapshot } from '@shared/types'
 import { noteEntityLinkTargetsEqual } from '@shared/note-entity-links'
+import {
+  addEntityLink,
+  deleteAllEntityLinksForRef,
+  listEntityLinksForAnchor,
+  noteEntityRef,
+  removeEntityLinkIfMatches,
+  resolveEntityRefTitleSubtitle
+} from './entity-links-repo'
 
 interface EntityLinkRow {
   id: number
@@ -163,33 +171,16 @@ function mapIncomingNoteRow(row: EntityLinkRow): NoteEntityLinkedItem {
 
 export function listNoteLinksBundle(fromNoteId: number): NoteLinksBundle {
   assertPositiveId(fromNoteId, 'Notiz-ID')
-  const db = getDb()
-  const outgoingRows = db
-    .prepare(
-      `SELECT id, from_note_id, target_kind, to_note_id, mail_message_id,
-              calendar_account_id, calendar_graph_event_id,
-              task_account_id, task_list_id, task_id, people_contact_id, created_at
-       FROM user_note_entity_links
-       WHERE from_note_id = ?
-       ORDER BY created_at ASC, id ASC`
-    )
-    .all(fromNoteId) as EntityLinkRow[]
-
-  const incomingRows = db
-    .prepare(
-      `SELECT id, from_note_id, target_kind, to_note_id, mail_message_id,
-              calendar_account_id, calendar_graph_event_id,
-              task_account_id, task_list_id, task_id, people_contact_id, created_at
-       FROM user_note_entity_links
-       WHERE target_kind = 'note' AND to_note_id = ?
-       ORDER BY created_at ASC, id ASC`
-    )
-    .all(fromNoteId) as EntityLinkRow[]
-
-  return {
-    outgoing: outgoingRows.map(mapRow),
-    incoming: incomingRows.map(mapIncomingNoteRow)
-  }
+  const anchor = noteEntityRef(fromNoteId)
+  const links = listEntityLinksForAnchor(anchor)
+  const outgoing: NoteEntityLinkedItem[] = links.map((item) => ({
+    linkId: item.linkId,
+    target: item.peer,
+    title: item.title,
+    subtitle: item.subtitle,
+    createdAt: item.createdAt
+  }))
+  return { outgoing, incoming: [] }
 }
 
 function assertTargetExists(target: NoteEntityLinkTarget): void {
@@ -250,89 +241,22 @@ export function addNoteEntityLink(fromNoteId: number, target: NoteEntityLinkTarg
   if (target.kind === 'note' && target.noteId === fromNoteId) {
     throw new Error('Eine Notiz kann nicht mit sich selbst verknuepft werden.')
   }
-  assertTargetExists(target)
-
-  const existing = listNoteLinksBundle(fromNoteId).outgoing
-  if (existing.some((item) => noteEntityLinkTargetsEqual(item.target, target))) {
-    const match = existing.find((item) => noteEntityLinkTargetsEqual(item.target, target))
-    return match?.linkId ?? 0
-  }
-
-  const db = getDb()
-  let result: { lastInsertRowid: number | bigint }
-  switch (target.kind) {
-    case 'note':
-      result = db
-        .prepare(
-          `INSERT INTO user_note_entity_links
-           (from_note_id, target_kind, to_note_id, created_at)
-           VALUES (?, 'note', ?, datetime('now'))`
-        )
-        .run(fromNoteId, target.noteId)
-      break
-    case 'mail':
-      result = db
-        .prepare(
-          `INSERT INTO user_note_entity_links
-           (from_note_id, target_kind, mail_message_id, created_at)
-           VALUES (?, 'mail', ?, datetime('now'))`
-        )
-        .run(fromNoteId, target.messageId)
-      break
-    case 'calendar_event':
-      result = db
-        .prepare(
-          `INSERT INTO user_note_entity_links
-           (from_note_id, target_kind, calendar_account_id, calendar_graph_event_id, created_at)
-           VALUES (?, 'calendar_event', ?, ?, datetime('now'))`
-        )
-        .run(fromNoteId, target.accountId.trim(), target.graphEventId.trim())
-      break
-    case 'cloud_task':
-      result = db
-        .prepare(
-          `INSERT INTO user_note_entity_links
-           (from_note_id, target_kind, task_account_id, task_list_id, task_id, created_at)
-           VALUES (?, 'cloud_task', ?, ?, ?, datetime('now'))`
-        )
-        .run(fromNoteId, target.accountId.trim(), target.listId.trim(), target.taskId.trim())
-      break
-    case 'people_contact':
-      result = db
-        .prepare(
-          `INSERT INTO user_note_entity_links
-           (from_note_id, target_kind, people_contact_id, created_at)
-           VALUES (?, 'people_contact', ?, datetime('now'))`
-        )
-        .run(fromNoteId, target.contactId)
-      break
-    default:
-      throw new Error('Unbekannter Verknuepfungstyp.')
-  }
-  return Number(result.lastInsertRowid)
+  return addEntityLink(noteEntityRef(fromNoteId), target, 'related')
 }
 
 export function removeNoteEntityLink(linkId: number, fromNoteId: number): void {
   assertPositiveId(linkId, 'Verknuepfungs-ID')
   assertPositiveId(fromNoteId, 'Notiz-ID')
-  getDb()
-    .prepare('DELETE FROM user_note_entity_links WHERE id = ? AND from_note_id = ?')
-    .run(linkId, fromNoteId)
+  removeEntityLinkIfMatches(linkId, noteEntityRef(fromNoteId))
 }
 
 export function removeNoteEntityLinkIncoming(linkId: number, toNoteId: number): void {
-  assertPositiveId(linkId, 'Verknuepfungs-ID')
-  assertPositiveId(toNoteId, 'Notiz-ID')
-  getDb()
-    .prepare(
-      `DELETE FROM user_note_entity_links
-       WHERE id = ? AND target_kind = 'note' AND to_note_id = ?`
-    )
-    .run(linkId, toNoteId)
+  removeNoteEntityLink(linkId, toNoteId)
 }
 
 export function deleteAllEntityLinksForNote(noteId: number): void {
   assertPositiveId(noteId, 'Notiz-ID')
+  deleteAllEntityLinksForRef(noteEntityRef(noteId))
   const db = getDb()
   db.prepare('DELETE FROM user_note_entity_links WHERE from_note_id = ?').run(noteId)
   db.prepare(
@@ -344,59 +268,110 @@ export function deleteAllEntityLinksForNote(noteId: number): void {
   )
 }
 
+function entityLinkRowToBackupSnapshot(
+  row: {
+    a_kind: string
+    a_note_id: number | null
+    b_kind: string
+    b_note_id: number | null
+    a_mail_message_id: number | null
+    b_mail_message_id: number | null
+    a_calendar_account_id: string | null
+    a_calendar_graph_event_id: string | null
+    b_calendar_account_id: string | null
+    b_calendar_graph_event_id: string | null
+    a_task_account_id: string | null
+    a_task_list_id: string | null
+    a_task_id: string | null
+    b_task_account_id: string | null
+    b_task_list_id: string | null
+    b_task_id: string | null
+    a_people_contact_id: number | null
+    b_people_contact_id: number | null
+    created_at: string
+  },
+  idToIndex: Map<number, number>
+): SettingsBackupEntityLinkSnapshot | null {
+  let fromNoteId: number | null = null
+  let peerKind: string | null = null
+  let peerFields: Partial<SettingsBackupEntityLinkSnapshot> = {}
+
+  if (row.a_kind === 'note' && row.a_note_id) {
+    fromNoteId = row.a_note_id
+    peerKind = row.b_kind
+    if (row.b_kind === 'note' && row.b_note_id) peerFields = { toNoteIndex: idToIndex.get(row.b_note_id) }
+    else if (row.b_kind === 'mail' && row.b_mail_message_id)
+      peerFields = { mailMessageId: row.b_mail_message_id }
+    else if (row.b_kind === 'calendar_event' && row.b_calendar_account_id && row.b_calendar_graph_event_id)
+      peerFields = {
+        calendarAccountId: row.b_calendar_account_id,
+        calendarGraphEventId: row.b_calendar_graph_event_id
+      }
+    else if (row.b_kind === 'cloud_task' && row.b_task_account_id && row.b_task_list_id && row.b_task_id)
+      peerFields = {
+        taskAccountId: row.b_task_account_id,
+        taskListId: row.b_task_list_id,
+        taskId: row.b_task_id
+      }
+    else if (row.b_kind === 'people_contact' && row.b_people_contact_id)
+      peerFields = { peopleContactId: row.b_people_contact_id }
+  } else if (row.b_kind === 'note' && row.b_note_id) {
+    fromNoteId = row.b_note_id
+    peerKind = row.a_kind
+    if (row.a_kind === 'note' && row.a_note_id) peerFields = { toNoteIndex: idToIndex.get(row.a_note_id) }
+    else if (row.a_kind === 'mail' && row.a_mail_message_id)
+      peerFields = { mailMessageId: row.a_mail_message_id }
+    else if (row.a_kind === 'calendar_event' && row.a_calendar_account_id && row.a_calendar_graph_event_id)
+      peerFields = {
+        calendarAccountId: row.a_calendar_account_id,
+        calendarGraphEventId: row.a_calendar_graph_event_id
+      }
+    else if (row.a_kind === 'cloud_task' && row.a_task_account_id && row.a_task_list_id && row.a_task_id)
+      peerFields = {
+        taskAccountId: row.a_task_account_id,
+        taskListId: row.a_task_list_id,
+        taskId: row.a_task_id
+      }
+    else if (row.a_kind === 'people_contact' && row.a_people_contact_id)
+      peerFields = { peopleContactId: row.a_people_contact_id }
+  }
+
+  if (fromNoteId == null || !peerKind) return null
+  const fromNoteIndex = idToIndex.get(fromNoteId)
+  if (fromNoteIndex === undefined) return null
+  if (peerKind === 'note' && peerFields.toNoteIndex === undefined) return null
+
+  return {
+    fromNoteIndex,
+    targetKind: peerKind as SettingsBackupEntityLinkSnapshot['targetKind'],
+    createdAt: row.created_at,
+    ...peerFields
+  }
+}
+
 export function listEntityLinksForSettingsBackup(
   noteIdsInOrder: number[]
 ): SettingsBackupEntityLinkSnapshot[] {
   const idToIndex = new Map(noteIdsInOrder.map((id, index) => [id, index]))
   const rows = getDb()
     .prepare(
-      `SELECT from_note_id, target_kind, to_note_id, mail_message_id,
-              calendar_account_id, calendar_graph_event_id,
-              task_account_id, task_list_id, task_id, people_contact_id, created_at
-       FROM user_note_entity_links ORDER BY id`
+      `SELECT a_kind, a_note_id, b_kind, b_note_id,
+              a_mail_message_id, b_mail_message_id,
+              a_calendar_account_id, a_calendar_graph_event_id,
+              b_calendar_account_id, b_calendar_graph_event_id,
+              a_task_account_id, a_task_list_id, a_task_id,
+              b_task_account_id, b_task_list_id, b_task_id,
+              a_people_contact_id, b_people_contact_id, created_at
+       FROM entity_links
+       WHERE a_kind = 'note' OR b_kind = 'note'
+       ORDER BY id`
     )
-    .all() as EntityLinkRow[]
+    .all() as Array<Parameters<typeof entityLinkRowToBackupSnapshot>[0]>
 
   const out: SettingsBackupEntityLinkSnapshot[] = []
   for (const row of rows) {
-    const fromNoteIndex = idToIndex.get(row.from_note_id)
-    if (fromNoteIndex === undefined) continue
-    const base = { fromNoteIndex, createdAt: row.created_at, targetKind: row.target_kind }
-    switch (row.target_kind) {
-      case 'note': {
-        const toNoteIndex = idToIndex.get(row.to_note_id!)
-        if (toNoteIndex === undefined) continue
-        out.push({ ...base, toNoteIndex })
-        break
-      }
-      case 'mail':
-        if (row.mail_message_id == null) continue
-        out.push({ ...base, mailMessageId: row.mail_message_id })
-        break
-      case 'calendar_event':
-        if (!row.calendar_account_id || !row.calendar_graph_event_id) continue
-        out.push({
-          ...base,
-          calendarAccountId: row.calendar_account_id,
-          calendarGraphEventId: row.calendar_graph_event_id
-        })
-        break
-      case 'cloud_task':
-        if (!row.task_account_id || !row.task_list_id || !row.task_id) continue
-        out.push({
-          ...base,
-          taskAccountId: row.task_account_id,
-          taskListId: row.task_list_id,
-          taskId: row.task_id
-        })
-        break
-      case 'people_contact':
-        if (row.people_contact_id == null) continue
-        out.push({ ...base, peopleContactId: row.people_contact_id })
-        break
-      default:
-        break
-    }
+    const snap = entityLinkRowToBackupSnapshot(row, idToIndex)
+    if (snap) out.push(snap)
   }
   return out
 }
@@ -407,6 +382,7 @@ export function replaceAllEntityLinksFromBackup(
 ): void {
   const db = getDb()
   const tx = db.transaction(() => {
+    db.prepare(`DELETE FROM entity_links WHERE a_kind = 'note' OR b_kind = 'note'`).run()
     db.prepare('DELETE FROM user_note_entity_links').run()
     db.prepare('DELETE FROM user_note_links').run()
     for (const link of links) {
@@ -510,13 +486,14 @@ export function listAllNoteLinksForBackup(): Array<{
 }> {
   const rows = getDb()
     .prepare(
-      `SELECT from_note_id, to_note_id, created_at FROM user_note_entity_links
-       WHERE target_kind = 'note' ORDER BY id`
+      `SELECT a_note_id, b_note_id, created_at FROM entity_links
+       WHERE a_kind = 'note' AND b_kind = 'note'
+       ORDER BY id`
     )
-    .all() as Array<{ from_note_id: number; to_note_id: number; created_at: string }>
+    .all() as Array<{ a_note_id: number; b_note_id: number; created_at: string }>
   return rows.map((r) => ({
-    fromNoteId: r.from_note_id,
-    toNoteId: r.to_note_id,
+    fromNoteId: r.a_note_id,
+    toNoteId: r.b_note_id,
     createdAt: r.created_at
   }))
 }
@@ -558,26 +535,25 @@ export interface PeopleContactLinkedNoteRow {
 
 export function listNotesLinkedToPeopleContact(contactId: number): PeopleContactLinkedNoteRow[] {
   assertPositiveId(contactId, 'Kontakt-ID')
-  const rows = getDb()
-    .prepare(
-      `SELECT n.id AS note_id, l.id AS link_id, n.title, n.body, n.updated_at
-       FROM user_note_entity_links l
-       JOIN user_notes n ON n.id = l.from_note_id
-       WHERE l.target_kind = 'people_contact' AND l.people_contact_id = ?
-       ORDER BY n.updated_at DESC, n.id DESC`
-    )
-    .all(contactId) as Array<{
-    note_id: number
-    link_id: number
-    title: string | null
-    body: string
-    updated_at: string
-  }>
-  return rows.map((r) => ({
-    noteId: r.note_id,
-    linkId: r.link_id,
-    title: r.title,
-    body: r.body,
-    updatedAt: r.updated_at
-  }))
+  const contactRef: NoteEntityLinkTarget = { kind: 'people_contact', contactId }
+  const links = listEntityLinksForAnchor(contactRef)
+  const db = getDb()
+  return links
+    .filter((item) => item.peer.kind === 'note')
+    .map((item) => {
+      if (item.peer.kind !== 'note') throw new Error('unexpected')
+      const n = db
+        .prepare('SELECT title, body, updated_at FROM user_notes WHERE id = ?')
+        .get(item.peer.noteId) as
+        | { title: string | null; body: string; updated_at: string }
+        | undefined
+      return {
+        noteId: item.peer.noteId,
+        linkId: item.linkId,
+        title: n?.title ?? null,
+        body: n?.body ?? '',
+        updatedAt: n?.updated_at ?? item.createdAt
+      }
+    })
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || b.noteId - a.noteId)
 }

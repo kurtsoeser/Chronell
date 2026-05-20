@@ -17,6 +17,8 @@ function pickDefaultListId(rows: TaskListRow[]): string | null {
 interface Props {
   open: boolean
   message: MailListItem | null
+  /** Wenn gesetzt: Mail-ToDo wird ueberfuehrt und Verknuepfungen umgehaengt. */
+  promoteTodoId?: number | null
   onClose: () => void
   onCreated: () => void
 }
@@ -24,6 +26,7 @@ interface Props {
 export function CreateCloudTaskFromMailDialog({
   open,
   message,
+  promoteTodoId = null,
   onClose,
   onCreated
 }: Props): JSX.Element | null {
@@ -106,14 +109,24 @@ export function CreateCloudTaskFromMailDialog({
     setError(null)
     try {
       const dueIso = dueIsoFromClientInput(due.trim() || null)
-      await window.mailClient.tasks.createMailCloudTaskFromMessage({
-        messageId: message.id,
+      const payload = {
         accountId,
         listId,
         title: title.trim(),
         notes: notes.trim() || null,
         dueIso
-      })
+      }
+      if (promoteTodoId != null && promoteTodoId > 0) {
+        await window.mailClient.tasks.promoteMailTodoToCloudTask({
+          todoId: promoteTodoId,
+          ...payload
+        })
+      } else {
+        await window.mailClient.tasks.createMailCloudTaskFromMessage({
+          messageId: message.id,
+          ...payload
+        })
+      }
       onCreated()
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -130,7 +143,11 @@ export function CreateCloudTaskFromMailDialog({
     <ModalRoot open={open} zIndex={100} centerClassName="items-center justify-center" onBackdropClick={onClose}>
       <ModalPanel className="w-[480px] max-w-[92vw] rounded-xl border border-border bg-card text-foreground shadow-2xl">
         <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
-          <h2 className="text-sm font-semibold">{t('mail.createCloudTask.title')}</h2>
+          <h2 className="text-sm font-semibold">
+            {promoteTodoId != null
+              ? t('mail.promoteCloudTask.title')
+              : t('mail.createCloudTask.title')}
+          </h2>
           <button
             type="button"
             onClick={onClose}
@@ -239,7 +256,9 @@ export function CreateCloudTaskFromMailDialog({
             )}
           >
             {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-            {t('mail.createCloudTask.submit')}
+            {promoteTodoId != null
+              ? t('mail.promoteCloudTask.submit')
+              : t('mail.createCloudTask.submit')}
           </button>
         </div>
       </ModalPanel>

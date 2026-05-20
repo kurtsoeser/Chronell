@@ -14,6 +14,7 @@ import {
   type GanttPlacedBar
 } from '@/app/calendar/calendar-gantt-layout'
 import { formatGanttBarTooltip } from '@/app/calendar/gantt-bar-tooltip'
+import { openMailReadingPopout } from '@/lib/open-mail-reading-popout'
 import { GanttBarHoverTooltip } from '@/components/GanttBarHoverTooltip'
 
 function accountFillHex(account?: ConnectedAccount): string | null {
@@ -159,6 +160,11 @@ export function CalendarGanttBar({
       onClick={(e): void => {
         e.stopPropagation()
         onSelect()
+      }}
+      onDoubleClick={(e): void => {
+        if (item.kind !== 'mail_todo') return
+        e.stopPropagation()
+        openMailReadingPopout(item.messageId, { osWindow: e.shiftKey })
       }}
       onPointerDown={(e): void => {
         hideTip()

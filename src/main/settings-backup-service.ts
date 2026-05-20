@@ -5,6 +5,7 @@ import type {
   SettingsBackupCalendarColorOverrideSnapshot,
   SettingsBackupDatabaseExtras,
   SettingsBackupEntityLinkSnapshot,
+  SettingsBackupFullEntityLinkSnapshot,
   SettingsBackupNoteSectionSnapshot,
   SettingsBackupNotionDestinationsSnapshot,
   SettingsBackupPayload,
@@ -58,6 +59,10 @@ import {
   replaceAllNoteSectionsFromBackup
 } from './db/note-sections-repo'
 import {
+  listFullEntityLinksForSettingsBackup,
+  replaceAllFullEntityLinksFromBackup
+} from './db/entity-links-backup-repo'
+import {
   listEntityLinksForSettingsBackup,
   listUserNoteLinksForSettingsBackup,
   replaceAllEntityLinksFromBackup,
@@ -67,6 +72,11 @@ import {
   applyCalendarColorOverridesFromBackup,
   listCalendarColorOverridesForSettingsBackup
 } from './db/calendar-folders-repo'
+import { exportAiConnectionsSettingsForBackup, importAiConnectionsSettingsFromBackup } from './ai/ai-settings-store'
+import {
+  listDismissedPairsForBackup,
+  replaceDismissedPairsFromBackup
+} from './ai/entity-link-ai-dismissed'
 import {
   listUserNoteIdsInBackupOrder,
   listUserNotesForSettingsBackup,
@@ -333,6 +343,58 @@ function parseEntityLinksBackup(raw: unknown[]): SettingsBackupEntityLinkSnapsho
   return out
 }
 
+function parseFullEntityLinksBackup(raw: unknown[]): SettingsBackupFullEntityLinkSnapshot[] {
+  const kinds = new Set([
+    'note',
+    'mail',
+    'mail_todo',
+    'calendar_event',
+    'cloud_task',
+    'people_contact'
+  ])
+  const out: SettingsBackupFullEntityLinkSnapshot[] = []
+  for (const l of raw) {
+    if (!isRecord(l)) continue
+    if (typeof l.refAKey !== 'string' || typeof l.refBKey !== 'string') continue
+    if (typeof l.aKind !== 'string' || typeof l.bKind !== 'string') continue
+    if (!kinds.has(l.aKind) || !kinds.has(l.bKind)) continue
+    if (typeof l.createdAt !== 'string') continue
+    out.push({
+      refAKey: l.refAKey,
+      refBKey: l.refBKey,
+      aKind: l.aKind,
+      bKind: l.bKind,
+      createdAt: l.createdAt,
+      aNoteId: typeof l.aNoteId === 'number' ? Math.floor(l.aNoteId) : null,
+      aMailMessageId: typeof l.aMailMessageId === 'number' ? Math.floor(l.aMailMessageId) : null,
+      aMailTodoId: typeof l.aMailTodoId === 'number' ? Math.floor(l.aMailTodoId) : null,
+      aCalendarAccountId:
+        typeof l.aCalendarAccountId === 'string' ? l.aCalendarAccountId : null,
+      aCalendarGraphEventId:
+        typeof l.aCalendarGraphEventId === 'string' ? l.aCalendarGraphEventId : null,
+      aTaskAccountId: typeof l.aTaskAccountId === 'string' ? l.aTaskAccountId : null,
+      aTaskListId: typeof l.aTaskListId === 'string' ? l.aTaskListId : null,
+      aTaskId: typeof l.aTaskId === 'string' ? l.aTaskId : null,
+      aPeopleContactId:
+        typeof l.aPeopleContactId === 'number' ? Math.floor(l.aPeopleContactId) : null,
+      bNoteId: typeof l.bNoteId === 'number' ? Math.floor(l.bNoteId) : null,
+      bMailMessageId: typeof l.bMailMessageId === 'number' ? Math.floor(l.bMailMessageId) : null,
+      bMailTodoId: typeof l.bMailTodoId === 'number' ? Math.floor(l.bMailTodoId) : null,
+      bCalendarAccountId:
+        typeof l.bCalendarAccountId === 'string' ? l.bCalendarAccountId : null,
+      bCalendarGraphEventId:
+        typeof l.bCalendarGraphEventId === 'string' ? l.bCalendarGraphEventId : null,
+      bTaskAccountId: typeof l.bTaskAccountId === 'string' ? l.bTaskAccountId : null,
+      bTaskListId: typeof l.bTaskListId === 'string' ? l.bTaskListId : null,
+      bTaskId: typeof l.bTaskId === 'string' ? l.bTaskId : null,
+      bPeopleContactId:
+        typeof l.bPeopleContactId === 'number' ? Math.floor(l.bPeopleContactId) : null,
+      linkKind: typeof l.linkKind === 'string' ? l.linkKind : null
+    })
+  }
+  return out
+}
+
 function parseAccountPreferencesBackup(raw: unknown[]): SettingsBackupAccountPreferenceSnapshot[] {
   const out: SettingsBackupAccountPreferenceSnapshot[] = []
   for (const row of raw) {
@@ -592,6 +654,7 @@ export function collectDatabaseExtrasForBackup(): SettingsBackupDatabaseExtras {
   const noteSections = listNoteSectionsForSettingsBackup()
   const userNoteLinks = listUserNoteLinksForSettingsBackup(noteIdsInOrder)
   const entityLinks = listEntityLinksForSettingsBackup(noteIdsInOrder)
+  const fullEntityLinks = listFullEntityLinksForSettingsBackup()
   const calendarColorOverrides = listCalendarColorOverridesForSettingsBackup()
   return {
     mailRules: rules,
@@ -611,6 +674,7 @@ export function collectDatabaseExtrasForBackup(): SettingsBackupDatabaseExtras {
     noteSections,
     userNoteLinks,
     entityLinks,
+    fullEntityLinks,
     calendarColorOverrides
   }
 }
@@ -618,10 +682,16 @@ export function collectDatabaseExtrasForBackup(): SettingsBackupDatabaseExtras {
 export async function collectSecureExtrasForBackup(): Promise<SettingsBackupSecureExtras> {
   const accounts = await listAccounts()
   const notion = await readNotionDestinations()
+  const aiSettings = await exportAiConnectionsSettingsForBackup()
+  const dismissedPairs = await listDismissedPairsForBackup()
   return {
     accountPreferences: accountPreferencesForBackup(accounts),
     accountOrder: accounts.map((a) => a.id),
-    notionDestinations: notionDestinationsToBackup(notion)
+    notionDestinations: notionDestinationsToBackup(notion),
+    aiConnections: {
+      settings: aiSettings,
+      dismissedPairs: dismissedPairs.length > 0 ? dismissedPairs : undefined
+    }
   }
 }
 
@@ -767,6 +837,9 @@ export function parseSettingsBackupJson(raw: string): SettingsBackupPayload {
     if ('entityLinks' in de && Array.isArray(de.entityLinks)) {
       databaseExtras.entityLinks = parseEntityLinksBackup(de.entityLinks)
     }
+    if ('fullEntityLinks' in de && Array.isArray(de.fullEntityLinks)) {
+      databaseExtras.fullEntityLinks = parseFullEntityLinksBackup(de.fullEntityLinks)
+    }
     if ('calendarColorOverrides' in de && Array.isArray(de.calendarColorOverrides)) {
       databaseExtras.calendarColorOverrides = de.calendarColorOverrides
         .filter((row): row is SettingsBackupCalendarColorOverrideSnapshot => {
@@ -802,6 +875,40 @@ export function parseSettingsBackupJson(raw: string): SettingsBackupPayload {
       const notion = parseNotionDestinationsBackup(se.notionDestinations)
       if (notion) secureExtras.notionDestinations = notion
     }
+    if (se.aiConnections != null && isRecord(se.aiConnections)) {
+      const ac = se.aiConnections
+      if (isRecord(ac.settings)) {
+        const s = ac.settings
+        secureExtras.aiConnections = {
+          settings: {
+            enabled: s.enabled === true,
+            provider: s.provider === 'openai' ? 'openai' : 'gemini',
+            model: typeof s.model === 'string' ? s.model : null,
+            consentGiven: s.consentGiven === true,
+            includeSnippet: s.includeSnippet === true,
+            snippetConsentGiven: s.snippetConsentGiven === true,
+            scanLookbackDays:
+              typeof s.scanLookbackDays === 'number' ? s.scanLookbackDays : 90,
+            scanMaxAnchors: typeof s.scanMaxAnchors === 'number' ? s.scanMaxAnchors : 50,
+            minConfidence:
+              typeof s.minConfidence === 'number'
+                ? Math.min(Math.max(s.minConfidence, 0.5), 0.95)
+                : 0.65,
+            compareProviders: s.compareProviders === true
+          }
+        }
+        const dp = ac.dismissedPairs
+        if (Array.isArray(dp)) {
+          secureExtras.aiConnections.dismissedPairs = dp.filter(
+            (p): p is { anchorKey: string; peerKey: string; dismissedAt: string } =>
+              isRecord(p) &&
+              typeof p.anchorKey === 'string' &&
+              typeof p.peerKey === 'string' &&
+              typeof p.dismissedAt === 'string'
+          )
+        }
+      }
+    }
   }
 
   return {
@@ -832,6 +939,12 @@ export async function applySettingsBackupPayload(backup: SettingsBackupPayload):
     if (se.notionDestinations != null) {
       await writeNotionDestinations(notionDestinationsFromBackup(se.notionDestinations))
     }
+    if (se.aiConnections?.settings) {
+      await importAiConnectionsSettingsFromBackup(se.aiConnections.settings)
+    }
+    if (se.aiConnections?.dismissedPairs) {
+      await replaceDismissedPairsFromBackup(se.aiConnections.dismissedPairs)
+    }
   }
 
   if (backup.databaseExtras) {
@@ -857,16 +970,21 @@ export async function applySettingsBackupPayload(backup: SettingsBackupPayload):
     if (de.calendarColorOverrides != null) {
       applyCalendarColorOverridesFromBackup(de.calendarColorOverrides)
     }
+    if (de.fullEntityLinks != null && de.fullEntityLinks.length > 0) {
+      replaceAllFullEntityLinksFromBackup(de.fullEntityLinks)
+    }
     if (de.userNotes != null) {
       const sectionIds =
         de.noteSections != null ? replaceAllNoteSectionsFromBackup(de.noteSections) : []
       const noteIds = replaceAllUserNotesFromBackup(de.userNotes, sectionIds)
-      if (de.entityLinks != null && de.entityLinks.length > 0) {
-        replaceAllEntityLinksFromBackup(de.entityLinks, noteIds)
-      } else if (de.userNoteLinks != null && de.userNoteLinks.length > 0) {
-        replaceAllNoteLinksFromBackup(de.userNoteLinks, noteIds)
-      } else {
-        restoreUserNoteLinksFromSnapshots(de.userNotes, noteIds)
+      if (de.fullEntityLinks == null || de.fullEntityLinks.length === 0) {
+        if (de.entityLinks != null && de.entityLinks.length > 0) {
+          replaceAllEntityLinksFromBackup(de.entityLinks, noteIds)
+        } else if (de.userNoteLinks != null && de.userNoteLinks.length > 0) {
+          replaceAllNoteLinksFromBackup(de.userNoteLinks, noteIds)
+        } else {
+          restoreUserNoteLinksFromSnapshots(de.userNotes, noteIds)
+        }
       }
     } else if (de.noteSections != null) {
       replaceAllNoteSectionsFromBackup(de.noteSections)

@@ -9,6 +9,7 @@ import { MailReadingPopoutShell } from './app/layout/MailReadingPopoutShell'
 import { isMailReadingPopoutWindow } from './app/layout/mail-reading-popout-route'
 import './styles/globals.css'
 import './stores/theme'
+import './stores/ui-scale'
 
 function resolveRootShell(): typeof App {
   if (isMailReadingPopoutWindow()) return MailReadingPopoutShell

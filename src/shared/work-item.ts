@@ -20,6 +20,8 @@ export interface WorkItemPlannedSchedule {
 export type MailTodoWorkItem = {
   kind: 'mail_todo'
   stableKey: string
+  /** Lokale `todos.id`, falls bekannt (z. B. aus ToDo-Listen). */
+  todoId: number | null
   messageId: number
   accountId: string
   title: string

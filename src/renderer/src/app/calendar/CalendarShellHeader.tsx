@@ -1,4 +1,4 @@
-import type { RefObject } from 'react'
+import { useMemo, type RefObject } from 'react'
 import { format, getWeek } from 'date-fns'
 import { de as deFns, enUS as enFns } from 'date-fns/locale'
 import { useTranslation } from 'react-i18next'
@@ -29,8 +29,11 @@ import {
 
 export interface CalendarSidebarHiddenRestoreEntry {
   key: string
+  accountId: string
   accountLabel: string
   calendarName: string
+  /** Kalenderliste noch nicht geladen — Anzeige mit Platzhalter. */
+  namePending?: boolean
 }
 
 export interface CalendarShellHeaderProps {
@@ -96,6 +99,32 @@ export function CalendarShellHeader(props: CalendarShellHeaderProps): JSX.Elemen
     onNewEventClick,
     newEventDisabled
   } = props
+
+  const collatorLocale = i18n.language.startsWith('de') ? 'de' : 'en'
+  const sidebarHiddenRestoreGroups = useMemo(() => {
+    const entries = calendarSidebarHiddenRestoreEntries ?? []
+    if (entries.length === 0) return []
+    const byAccount = new Map<
+      string,
+      { accountLabel: string; items: CalendarSidebarHiddenRestoreEntry[] }
+    >()
+    for (const e of entries) {
+      const existing = byAccount.get(e.accountId)
+      if (existing) {
+        existing.items.push(e)
+      } else {
+        byAccount.set(e.accountId, { accountLabel: e.accountLabel, items: [e] })
+      }
+    }
+    return [...byAccount.values()]
+      .map((g) => ({
+        ...g,
+        items: [...g.items].sort((a, b) =>
+          a.calendarName.localeCompare(b.calendarName, collatorLocale)
+        )
+      }))
+      .sort((a, b) => a.accountLabel.localeCompare(b.accountLabel, collatorLocale))
+  }, [calendarSidebarHiddenRestoreEntries, collatorLocale])
 
   const weekAnchor =
     visibleStart instanceof Date && !Number.isNaN(visibleStart.getTime())
@@ -368,43 +397,56 @@ export function CalendarShellHeader(props: CalendarShellHeaderProps): JSX.Elemen
                         </p>
                       </div>
                     ) : null}
-                    {calendarSidebarHiddenRestoreEntries != null &&
-                    calendarSidebarHiddenRestoreEntries.length > 0 ? (
+                    {sidebarHiddenRestoreGroups.length > 0 ? (
                       <>
                         <div className="my-2 h-px shrink-0 bg-border" />
                         <p className="mb-1.5 shrink-0 text-[11px] font-semibold text-foreground">
                           {t('calendar.header.sidebarHiddenSectionTitle')}
                         </p>
-                        <ul className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain pr-0.5">
-                          {calendarSidebarHiddenRestoreEntries.map((e) => (
-                            <li
-                              key={e.key}
-                              className="flex items-start gap-1.5 rounded-md border border-border/60 bg-muted/25 px-2 py-1.5"
-                            >
-                              <div className="min-w-0 flex-1">
-                                <p
-                                  className="truncate text-[11px] font-medium text-foreground"
-                                  title={e.calendarName}
-                                >
-                                  {e.calendarName}
-                                </p>
-                                <p
-                                  className="truncate text-[10px] text-muted-foreground"
-                                  title={e.accountLabel}
-                                >
-                                  {e.accountLabel}
-                                </p>
-                              </div>
-                              <button
-                                type="button"
-                                className="shrink-0 rounded-md bg-primary/90 px-2 py-1 text-[10px] font-medium text-primary-foreground hover:bg-primary"
-                                onClick={(ev): void => {
-                                  ev.stopPropagation()
-                                  onRestoreCalendarToSidebar?.(e.key)
-                                }}
+                        <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-0.5">
+                          {sidebarHiddenRestoreGroups.map((group) => (
+                            <li key={group.items[0]?.accountId ?? group.accountLabel}>
+                              <p
+                                className="truncate px-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
+                                title={group.accountLabel}
                               >
-                                {t('calendar.header.sidebarHiddenRestore')}
-                              </button>
+                                {group.accountLabel}
+                              </p>
+                              <ul className="mt-1 space-y-1">
+                                {group.items.map((e) => {
+                                  const label = e.namePending
+                                    ? t('calendar.header.sidebarHiddenCalendarLoading')
+                                    : e.calendarName
+                                  return (
+                                    <li
+                                      key={e.key}
+                                      className="flex items-start gap-1.5 rounded-md border border-border/60 bg-muted/25 px-2 py-1.5"
+                                    >
+                                      <p
+                                        className={cn(
+                                          'min-w-0 flex-1 truncate text-[11px] font-medium',
+                                          e.namePending
+                                            ? 'text-muted-foreground italic'
+                                            : 'text-foreground'
+                                        )}
+                                        title={label}
+                                      >
+                                        {label}
+                                      </p>
+                                      <button
+                                        type="button"
+                                        className="shrink-0 rounded-md bg-primary/90 px-2 py-1 text-[10px] font-medium text-primary-foreground hover:bg-primary"
+                                        onClick={(ev): void => {
+                                          ev.stopPropagation()
+                                          onRestoreCalendarToSidebar?.(e.key)
+                                        }}
+                                      >
+                                        {t('calendar.header.sidebarHiddenRestore')}
+                                      </button>
+                                    </li>
+                                  )
+                                })}
+                              </ul>
                             </li>
                           ))}
                         </ul>

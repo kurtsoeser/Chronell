@@ -90,6 +90,10 @@ const PeopleShell = lazy(async () => {
   const m = await import('./app/people/PeopleShell')
   return { default: m.PeopleShell }
 })
+const ConnectionsShell = lazy(async () => {
+  const m = await import('./app/connections/ConnectionsShell')
+  return { default: m.ConnectionsShell }
+})
 const BookingsShell = lazy(async () => {
   const m = await import('./app/bookings/BookingsShell')
   return { default: m.BookingsShell }
@@ -252,6 +256,7 @@ export function App(): JSX.Element {
           {mode === 'work' && <WorkShell />}
           {mode === 'people' && <PeopleShell />}
           {mode === 'notes' && <NotesShell />}
+          {mode === 'connections' && <ConnectionsShell />}
           {mode === 'chat' && (
             <ChatShell onOpenAccountDialog={(): void => openAccountSettings('general')} />
           )}

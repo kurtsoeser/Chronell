@@ -3,6 +3,8 @@ import Database, { type Database as DbType } from 'better-sqlite3'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { MIGRATIONS } from './schema'
+import { migrateLegacyLinksToEntityLinks } from './entity-links-migrate'
+import { purgeOrphanedEntityLinks } from './entity-links-repo'
 
 let dbInstance: DbType | null = null
 
@@ -21,6 +23,8 @@ export function getDb(): DbType {
 
   runMigrations(db)
   dbInstance = db
+  migrateLegacyLinksToEntityLinks(db)
+  purgeOrphanedEntityLinks()
   return db
 }
 

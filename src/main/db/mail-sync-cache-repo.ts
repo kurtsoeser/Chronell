@@ -1,4 +1,5 @@
 import { getDb } from './index'
+import { purgeOrphanedEntityLinks } from './entity-links-repo'
 
 /**
  * Entfernt alle lokal synchronisierten Mail-Daten eines Kontos: Nachrichten
@@ -23,4 +24,5 @@ export function clearLocalMailSyncDataForAccount(accountId: string): void {
     db.prepare('DELETE FROM folders WHERE account_id = ?').run(accountId)
   })
   tx()
+  purgeOrphanedEntityLinks()
 }

@@ -58,6 +58,33 @@ export const IPC = {
     getAlwaysOnTop: 'mail-reading-popout:get-always-on-top',
     setAlwaysOnTop: 'mail-reading-popout:set-always-on-top'
   },
+  entityLinks: {
+    list: 'entity-links:list',
+    add: 'entity-links:add',
+    remove: 'entity-links:remove',
+    searchTargets: 'entity-links:search-targets',
+    getMailTodoMessageId: 'entity-links:get-mail-todo-message-id',
+    listGraph: 'entity-links:list-graph',
+    listNeighborhood: 'entity-links:list-neighborhood',
+    findPath: 'entity-links:find-path',
+    suggest: 'entity-links:suggest',
+    suggestAi: 'entity-links:suggest-ai',
+    startAiScan: 'entity-links:start-ai-scan',
+    cancelAiScan: 'entity-links:cancel-ai-scan',
+    getAiScanStatus: 'entity-links:get-ai-scan-status',
+    acceptAiScanItems: 'entity-links:accept-ai-scan-items',
+    dismissAiScanItems: 'entity-links:dismiss-ai-scan-items',
+    dismissAiSuggestion: 'entity-links:dismiss-ai-suggestion',
+    getGraphDensityStats: 'entity-links:get-graph-density-stats',
+    estimateAiScanCost: 'entity-links:estimate-ai-scan-cost',
+    listPalette: 'entity-links:list-palette'
+  },
+  aiConnections: {
+    getSettings: 'ai-connections:get-settings',
+    setSettings: 'ai-connections:set-settings',
+    setApiKey: 'ai-connections:set-api-key',
+    clearApiKey: 'ai-connections:clear-api-key'
+  },
   notes: {
     getMail: 'notes:get-mail',
     upsertMail: 'notes:upsert-mail',
@@ -212,7 +239,8 @@ export const IPC = {
     setPlannedSchedule: 'tasks:set-planned-schedule',
     clearPlannedSchedule: 'tasks:clear-planned-schedule',
     listMailCloudTaskLinks: 'tasks:list-mail-cloud-task-links',
-    createMailCloudTaskFromMessage: 'tasks:create-mail-cloud-task-from-message'
+    createMailCloudTaskFromMessage: 'tasks:create-mail-cloud-task-from-message',
+    promoteMailTodoToCloudTask: 'tasks:promote-mail-todo-to-cloud-task'
   },
   bookings: {
     listBusinesses: 'bookings:list-businesses',

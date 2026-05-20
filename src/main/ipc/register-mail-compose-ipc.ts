@@ -4,6 +4,7 @@ import {
   type ComposeSendInput,
   type ComposeSaveDraftInput,
   type ComposeSaveDraftResult,
+  type ComposeSendResult,
   type ComposeRecipientSuggestion,
   type ComposeListDriveExplorerInput,
   type ComposeDriveExplorerEntry,
@@ -40,6 +41,7 @@ import { findFolderByWellKnown } from '../db/folders-repo'
 import { runFolderSync } from '../sync-runner'
 import { disposeComposeDraft } from '../compose-draft-dispose'
 import {
+  findRecentSentMessageId,
   listRecentParticipantEmailsForCompose,
   searchMessageParticipantEmails
 } from '../db/messages-repo'
@@ -48,7 +50,7 @@ import { parseDriveExplorerScope, parseDriveExplorerNavCrumbs, parseDriveExplore
 export function registerMailComposeIpc(): void {
   ipcMain.handle(
     IPC.compose.send,
-    async (_event, input: ComposeSendInput): Promise<void> => {
+    async (_event, input: ComposeSendInput): Promise<ComposeSendResult> => {
       if (!input.accountId) throw new Error('Kein Konto ausgewaehlt.')
       if (input.to.length === 0) throw new Error('Mindestens ein Empfaenger erforderlich.')
       const accounts = await listAccounts()
@@ -69,7 +71,7 @@ export function registerMailComposeIpc(): void {
           }
           const { scheduledSendAt: _drop, ...queued } = input
           insertScheduledCompose(queued, new Date(when).toISOString())
-          return
+          return { messageId: null }
         }
       }
 
@@ -133,12 +135,18 @@ export function registerMailComposeIpc(): void {
         }
       }
 
-      // Gesendete Mails landen jetzt in "Gesendete Elemente" -> Sync triggern,
-      // damit sie in der Outbox-/Gesendet-Liste auftauchen.
+      // Gesendete Mails landen in «Gesendet» — Sync abwarten, damit die Canvas-Platzierung die ID findet.
       const sentFolder = findFolderByWellKnown(input.accountId, 'sentitems')
+      let messageId: number | null = null
       if (sentFolder) {
-        void runFolderSync(sentFolder.id).catch(() => undefined)
+        try {
+          await runFolderSync(sentFolder.id)
+        } catch {
+          /* Sync-Fehler: Platzierung versucht trotzdem Fallback */
+        }
+        messageId = findRecentSentMessageId(input.accountId, input.subject)
       }
+      return { messageId }
     }
   )
 

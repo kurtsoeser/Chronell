@@ -283,7 +283,7 @@ export function ReadingPaneCompose({
           </button>
           {showQuoted && (
             <div
-              className="prose-sm mt-2 max-h-[140px] overflow-y-auto rounded border border-border/40 bg-background p-2 text-[11px] leading-relaxed text-muted-foreground [&_a]:text-primary"
+              className="prose-sm mt-2 max-h-[280px] overflow-y-auto rounded border border-border/40 bg-background p-2 text-[11px] leading-relaxed text-muted-foreground [&_a]:text-primary"
               dangerouslySetInnerHTML={{ __html: draft.quotedHtml }}
             />
           )}

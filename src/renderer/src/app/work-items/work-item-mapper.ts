@@ -43,6 +43,7 @@ export function mailListItemToWorkItem(mail: MailListItem): MailTodoWorkItem {
   return {
     kind: 'mail_todo',
     stableKey: mailTodoStableKey(mail.id),
+    todoId: mail.todoId ?? null,
     messageId: mail.id,
     accountId: mail.accountId,
     title: mailTodoTitle(mail),

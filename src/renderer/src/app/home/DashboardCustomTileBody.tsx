@@ -8,6 +8,7 @@ import type { ConnectedAccount, MailListItem } from '@shared/types'
 import { cn } from '@/lib/utils'
 import { resolvedAccountColorCss } from '@/lib/avatar-color'
 import { useMailStore } from '@/stores/mail'
+import { openMailReadingPopout } from '@/lib/open-mail-reading-popout'
 
 import type { DashboardCustomTileStored } from '@/app/home/dashboard-custom-tiles'
 
@@ -98,6 +99,11 @@ export function DashboardCustomTileBody(props: {
             onClick={(): void => {
               void openMessageInFolder(m.id)
             }}
+            onDoubleClick={(e): void => {
+              e.preventDefault()
+              e.stopPropagation()
+              openMailReadingPopout(m.id, { osWindow: e.shiftKey })
+            }}
             className="rounded-md border border-border/60 bg-muted/20 px-2 py-2 text-left text-xs hover:bg-secondary/50"
           >
             <div className="font-medium text-foreground">{m.subject || t('common.noSubject')}</div>
@@ -136,6 +142,11 @@ export function DashboardCustomTileBody(props: {
                     type="button"
                     onClick={(): void => {
                       void openMessageInFolder(m.id)
+                    }}
+                    onDoubleClick={(e): void => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      openMailReadingPopout(m.id, { osWindow: e.shiftKey })
                     }}
                     className={cn(
                       'flex w-full items-start gap-2 px-3 py-2 text-left text-xs transition-colors',

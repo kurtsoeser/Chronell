@@ -41,6 +41,7 @@ import { bgToRingClass, resolvedAccountColorCss } from '@/lib/avatar-color'
 import { peopleListPrimaryLabel } from '@/app/people/people-display-label'
 import { parsePhonesJson } from '@/app/people/people-contact-json'
 import { ObjectNoteEditor } from '@/components/ObjectNoteEditor'
+import { ConnectionsPanel } from '@/components/connections/ConnectionsPanel'
 
 export type PeopleContactDetailPanelHandle = {
   /** Speichert offene Bearbeitung am aktuellen Kontakt. `false` bei Fehler — Wechsel dann abbrechen. */
@@ -101,7 +102,11 @@ interface PeopleContactDetailPanelProps {
 
 export const PeopleContactDetailPanel = forwardRef<PeopleContactDetailPanelHandle, PeopleContactDetailPanelProps>(
   function PeopleContactDetailPanel({ selected, account, photoUrl, listSortBy, onUpdated, onDeleted }, ref): JSX.Element {
-  const { t } = useTranslation()
+    const connectionsAnchor = useMemo(
+      () => ({ kind: 'people_contact' as const, contactId: selected.id }),
+      [selected.id]
+    )
+    const { t } = useTranslation()
   const openNewTo = useComposeStore((s) => s.openNewTo)
 
   const [editing, setEditing] = useState(false)
@@ -600,8 +605,16 @@ export const PeopleContactDetailPanel = forwardRef<PeopleContactDetailPanelHandl
                 </div>
               ) : null}
             </div>
+
           </>
         )}
+
+        <ConnectionsPanel
+          anchor={connectionsAnchor}
+          contentPaddingClass="px-0"
+          sectionCollapsedDefault={false}
+          className="mt-4"
+        />
       </div>
     </div>
   )

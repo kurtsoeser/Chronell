@@ -1,7 +1,12 @@
 /** @vitest-environment jsdom */
 
 import { describe, expect, it } from 'vitest'
-import { replaceInlineCidImages, sanitizeMailHtml, buildMailShadowRootInnerHtml } from './sanitize'
+import {
+  replaceInlineCidImages,
+  sanitizeMailHtml,
+  buildMailShadowRootInnerHtml,
+  stripUnresolvedCidUrls
+} from './sanitize'
 
 describe('replaceInlineCidImages', () => {
   it('ersetzt cid-src mit Data-URI', () => {
@@ -14,6 +19,15 @@ describe('replaceInlineCidImages', () => {
   it('laesst unbekannte cid unveraendert', () => {
     const html = '<img src="cid:unknown">'
     expect(replaceInlineCidImages(html, {})).toBe(html)
+  })
+})
+
+describe('stripUnresolvedCidUrls', () => {
+  it('ersetzt verbleibende cid-src durch Platzhalter-Data-URI', () => {
+    const html = '<img src="cid:image001.png@01DCDE2B.C3223070">'
+    const out = stripUnresolvedCidUrls(html)
+    expect(out).not.toMatch(/cid:/i)
+    expect(out).toContain('data:image/gif;base64,')
   })
 })
 
@@ -68,5 +82,10 @@ describe('buildMailShadowRootInnerHtml', () => {
     const inner = buildMailShadowRootInnerHtml('<p>x</p>', 'light')
     expect(inner).toContain('mail-html-root--light')
     expect(inner).not.toContain('filter: invert(1)')
+  })
+
+  it('setzt Skalierungs-Variable im Shadow-Root', () => {
+    const inner = buildMailShadowRootInnerHtml('<p>x</p>', 'light', 1.25)
+    expect(inner).toContain('--mail-preview-scale: 1.25')
   })
 })

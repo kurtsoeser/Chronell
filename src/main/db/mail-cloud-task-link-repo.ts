@@ -1,4 +1,5 @@
 import { getDb } from './index'
+import { addEntityLink, cloudTaskEntityRef, mailEntityRef } from './entity-links-repo'
 
 export interface MailCloudTaskLinkRow {
   messageId: number
@@ -70,6 +71,15 @@ export function insertMailCloudTaskLink(row: Omit<MailCloudTaskLinkRow, 'created
     list_id: row.listId.trim(),
     task_id: row.taskId.trim()
   })
+  try {
+    addEntityLink(
+      mailEntityRef(row.messageId),
+      cloudTaskEntityRef(row.accountId, row.listId, row.taskId),
+      'derived_from'
+    )
+  } catch {
+    /* Mail/Task evtl. noch nicht im Cache */
+  }
 }
 
 export function deleteMailCloudTaskLinksForTask(

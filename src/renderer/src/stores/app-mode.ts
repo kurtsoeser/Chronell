@@ -9,6 +9,7 @@ export type AppShellMode =
   | 'work'
   | 'people'
   | 'notes'
+  | 'connections'
   | 'chat'
 
 const STORAGE_KEY = 'mailclient.appShellMode'
@@ -65,6 +66,7 @@ function readStored(): AppShellMode {
       v === 'work' ||
       v === 'people' ||
       v === 'notes' ||
+      v === 'connections' ||
       v === 'chat'
     )
       return v

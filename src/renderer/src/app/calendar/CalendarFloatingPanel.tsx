@@ -114,6 +114,13 @@ export function CalendarFloatingPanel(props: CalendarFloatingPanelProps): JSX.El
     }
   }, [open])
 
+  useEffect(() => {
+    return (): void => {
+      setPortalMounted(false)
+      setSlideEntered(false)
+    }
+  }, [])
+
   useLayoutEffect(() => {
     if (typeof document === 'undefined') return
     if (!open) {

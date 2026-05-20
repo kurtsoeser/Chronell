@@ -12,6 +12,7 @@ import {
   type WorkListArrangeContext
 } from '@/app/work-items/work-item-list-arrange'
 import { workItemsToViews } from '@/app/work-items/work-item-mapper'
+import { openMailReadingPopout } from '@/lib/open-mail-reading-popout'
 import { toggleWorkItemCompleted } from '@/app/work-items/work-item-actions'
 import { dueDateInputValue } from '@/app/work-items/work-item-datetime'
 
@@ -162,6 +163,12 @@ export function DashboardWorkAllTile({
                   <button
                     type="button"
                     onClick={(): void => onOpenItem(item)}
+                    onDoubleClick={(e): void => {
+                      if (!isMail) return
+                      e.preventDefault()
+                      e.stopPropagation()
+                      openMailReadingPopout(item.messageId, { osWindow: e.shiftKey })
+                    }}
                     className="min-w-0 flex-1 py-2 pl-2 text-left text-xs hover:bg-secondary/50"
                   >
                     <span className="line-clamp-2 font-medium text-foreground">{view.title}</span>

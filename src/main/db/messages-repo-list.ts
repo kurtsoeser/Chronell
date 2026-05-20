@@ -1,5 +1,6 @@
 import { getDb } from './index'
 import type { MailListItem, MetaFolderCriteria, MetaFolderExceptionClause } from '@shared/types'
+import { findFolderByWellKnown } from './folders-repo'
 import { rowToListItem, type MessageRow } from './messages-repo-core'
 export const LIST_COLUMNS = `
   id, account_id, folder_id, thread_id, remote_id, remote_thread_id,
@@ -238,6 +239,43 @@ export function listMessagesByFolder(folderId: number, limit = 100): MailListIte
     .prepare<[number, number], InboxOpenTodoJoinRow>(`${SELECT_LIST_WITH_OPEN_TODO} ${sqlBody} LIMIT ?`)
     .all(folderId, limit)
   return rows.map(mapOpenTodoJoinRow)
+}
+
+/** Zuletzt gesendete Mail im Gesendet-Ordner (nach Compose-Versand + Sync). */
+export function findRecentSentMessageId(
+  accountId: string,
+  subject: string,
+  maxAgeMs = 180_000
+): number | null {
+  const sentFolder = findFolderByWellKnown(accountId, 'sentitems')
+  if (!sentFolder) return null
+
+  const normalizedSubject = subject.trim() || '(Kein Betreff)'
+  const sinceIso = new Date(Date.now() - maxAgeMs).toISOString()
+  const db = getDb()
+
+  const exact = db
+    .prepare(
+      `SELECT id FROM messages
+       WHERE account_id = ? AND folder_id = ?
+         AND lower(trim(coalesce(subject, ''))) = lower(?)
+         AND coalesce(sent_at, received_at) >= ?
+       ORDER BY id DESC
+       LIMIT 1`
+    )
+    .get(accountId, sentFolder.id, normalizedSubject, sinceIso) as { id: number } | undefined
+  if (exact) return exact.id
+
+  const fallback = db
+    .prepare(
+      `SELECT id FROM messages
+       WHERE account_id = ? AND folder_id = ?
+         AND coalesce(sent_at, received_at) >= ?
+       ORDER BY id DESC
+       LIMIT 1`
+    )
+    .get(accountId, sentFolder.id, sinceIso) as { id: number } | undefined
+  return fallback?.id ?? null
 }
 
 export function listMessagesByAccount(accountId: string, limit = 100): MailListItem[] {

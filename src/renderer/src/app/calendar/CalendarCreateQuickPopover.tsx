@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { addDays, addMinutes, format, parseISO, startOfDay } from 'date-fns'
 import { useTranslation } from 'react-i18next'
+import type { ChronellEntityRef } from '@shared/entity-ref'
 import { Calendar as CalendarIcon, CheckSquare, FileText, Loader2, X } from 'lucide-react'
 import type { CalendarGraphCalendarRow, ConnectedAccount, TaskListRow } from '@shared/types'
 import { dueIsoFromClientInput } from '@shared/calendar-datetime'
@@ -65,6 +66,8 @@ export interface CalendarCreateQuickPopoverProps {
   loadListsForAccount: (accountId: string) => Promise<TaskListRow[]>
   onClose: () => void
   onSaved: () => void
+  /** Nach erfolgreichem Anlegen (z. B. Verbindungen-Canvas). */
+  onEntityCreated?: (payload: { ref: ChronellEntityRef; title: string }) => void
   onOpenDetails: (draft: CalendarCreateQuickDraft) => void
   /** Hält den Kalender-Platzhalter mit der gewählten Zeit synchron. */
   onRangeChange?: (range: CalendarCreateRange) => void
@@ -79,6 +82,7 @@ export function CalendarCreateQuickPopover({
   loadListsForAccount,
   onClose,
   onSaved,
+  onEntityCreated,
   onOpenDetails,
   onRangeChange
 }: CalendarCreateQuickPopoverProps): JSX.Element {
@@ -360,6 +364,15 @@ export function CalendarCreateQuickPopover({
           )
         }
         persistTasksCalendarCreateAccountId(draft.accountId)
+        onEntityCreated?.({
+          ref: {
+            kind: 'cloud_task',
+            accountId: draft.accountId,
+            listId: draft.taskListId,
+            taskId: row.id
+          },
+          title: draft.subject
+        })
       } else {
         let startIso: string
         let endIso: string
@@ -370,7 +383,7 @@ export function CalendarCreateQuickPopover({
           startIso = draft.range.start.toISOString()
           endIso = draft.range.end.toISOString()
         }
-        await window.mailClient.calendar.createEvent({
+        const created = await window.mailClient.calendar.createEvent({
           accountId: draft.accountId,
           graphCalendarId: draft.graphCalendarId.trim() || null,
           subject: draft.subject,
@@ -381,6 +394,13 @@ export function CalendarCreateQuickPopover({
           bodyHtml: null,
           categories: []
         })
+        const graphEventId = created.id?.trim()
+        if (graphEventId) {
+          onEntityCreated?.({
+            ref: { kind: 'calendar_event', accountId: draft.accountId, graphEventId },
+            title: draft.subject
+          })
+        }
       }
       onSaved()
       onClose()

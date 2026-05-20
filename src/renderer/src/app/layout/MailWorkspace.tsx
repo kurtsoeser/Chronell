@@ -113,8 +113,8 @@ export function MailWorkspace(props: { onOpenAccountDialog: () => void }): JSX.E
   const openReadingPopout = useMailReadingPopoutStore((s) => s.openFromCurrentSelection)
 
   const requestReadingUndock = useCallback((): void => {
-    setReadingPlacement('float')
-  }, [setReadingPlacement])
+    setReadingPlacement(readingPlacement === 'float' ? 'dock' : 'float')
+  }, [readingPlacement, setReadingPlacement])
 
   const requestReadingGlobalPopout = useCallback(
     (opts?: { osWindow?: boolean }): void => {
@@ -140,7 +140,8 @@ export function MailWorkspace(props: { onOpenAccountDialog: () => void }): JSX.E
         {dockedReading ? (
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
             <ReadingPane
-              onRequestUndock={requestReadingUndock}
+              previewDetached={false}
+              onTogglePreviewDetach={requestReadingUndock}
               onRequestGlobalPopout={requestReadingGlobalPopout}
             />
           </div>
@@ -174,7 +175,11 @@ export function MailWorkspace(props: { onOpenAccountDialog: () => void }): JSX.E
             setReadingPlacement('dock')
           }}
         >
-          <ReadingPane onRequestGlobalPopout={requestReadingGlobalPopout} />
+          <ReadingPane
+            previewDetached
+            hidePreviewDetachToggle
+            onRequestGlobalPopout={requestReadingGlobalPopout}
+          />
         </CalendarFloatingPanel>
       ) : null}
 

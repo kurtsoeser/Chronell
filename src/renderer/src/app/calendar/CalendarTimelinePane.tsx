@@ -326,7 +326,11 @@ export function CalendarTimelinePane({
   )
 
   useEffect(() => {
-    if (reloadRef) reloadRef.current = (): void => void reload()
+    if (reloadRef) {
+      reloadRef.current = (): void => {
+        void reload({ force: true, silent: true })
+      }
+    }
     return (): void => {
       if (reloadRef) reloadRef.current = null
     }

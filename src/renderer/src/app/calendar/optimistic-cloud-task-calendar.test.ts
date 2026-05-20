@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 import { removeCloudTaskCalendarEventsByTaskKey } from '@/app/calendar/calendar-fc-event-source'
-import { applyOptimisticCloudTaskPersistToLayer } from '@/app/calendar/optimistic-cloud-task-calendar'
+import {
+  applyOptimisticCloudTaskPersistToLayer,
+  syncFullCalendarCloudTaskEventFromLayer
+} from '@/app/calendar/optimistic-cloud-task-calendar'
 import { cloudTaskStableKey } from '@shared/work-item-keys'
 import type { TaskItemWithContext } from '@/app/tasks/tasks-types'
 
@@ -35,6 +38,30 @@ describe('applyOptimisticCloudTaskPersistToLayer', () => {
     )
     expect(result.plannedByKey.get(key)?.plannedStartIso).toBe('2026-05-21T13:15:00.000Z')
     expect(result.items[0]?.dueIso).toContain('2026-05-21')
+  })
+})
+
+describe('syncFullCalendarCloudTaskEventFromLayer', () => {
+  it('legt Termin neu an wenn nach Dedupe keine kanonische ID existiert', () => {
+    const addEvent = vi.fn()
+    const api = {
+      getEventById: () => null,
+      getEvents: () => [],
+      addEvent
+    }
+    const task = sampleTask()
+    syncFullCalendarCloudTaskEventFromLayer(
+      api as never,
+      task,
+      {
+        plannedStartIso: '2026-05-21T09:00:00.000Z',
+        plannedEndIso: '2026-05-21T09:30:00.000Z'
+      },
+      'UTC',
+      { 'acc-1': '#6366f1' }
+    )
+    expect(addEvent).toHaveBeenCalledOnce()
+    expect(addEvent.mock.calls[0]?.[0]?.id).toContain('cloud-task:')
   })
 })
 

@@ -23,6 +23,7 @@ import {
   Inbox,
   ListChecks,
   ListTodo,
+  Link2,
   MessageCircle,
   StickyNote,
   Users
@@ -54,6 +55,7 @@ const MODULE_DEFS: Array<{
   { id: 'work', labelKey: 'topbar.modeWork', icon: ListChecks },
   { id: 'people', labelKey: 'topbar.modePeople', icon: Users },
   { id: 'notes', labelKey: 'topbar.modeNotes', icon: StickyNote },
+  { id: 'connections', labelKey: 'topbar.modeConnections', icon: Link2 },
   { id: 'chat', labelKey: 'topbar.modeChat', icon: MessageCircle }
 ]
 

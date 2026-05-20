@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { graphCalendarColorToDisplayHex, resolveCalendarDisplayHex } from './graph-calendar-colors'
+import {
+  calendarMenuPresetDisplayHex,
+  calendarMenuPresetOutlookSyncColor,
+  findExtendedPresetByHex,
+  graphCalendarColorToDisplayHex,
+  isCalendarColorMenuPreset,
+  resolveCalendarDisplayHex,
+  resolveCalendarMenuPresetId
+} from './graph-calendar-colors'
 
 describe('resolveCalendarDisplayHex', () => {
   it('prefers local override over provider hex', () => {
@@ -17,5 +25,23 @@ describe('resolveCalendarDisplayHex', () => {
     expect(resolveCalendarDisplayHex({ hexColor: null, color: 'lightPink' })).toBe(
       graphCalendarColorToDisplayHex(null, 'lightPink')
     )
+  })
+})
+
+describe('calendar extended colors', () => {
+  it('kennt erweiterte Presets im Menue', () => {
+    expect(isCalendarColorMenuPreset('extIndigo')).toBe(true)
+    expect(calendarMenuPresetDisplayHex('extIndigo')).toBe('#5C6BC0')
+    expect(calendarMenuPresetOutlookSyncColor('extIndigo')).toBe('lightBlue')
+  })
+
+  it('loest Override auf erweitertes Preset auf', () => {
+    expect(findExtendedPresetByHex('#8E24AA')).toBe('extPurple')
+    expect(
+      resolveCalendarMenuPresetId({
+        color: 'lightBlue',
+        displayColorOverrideHex: '#8E24AA'
+      })
+    ).toBe('extPurple')
   })
 })

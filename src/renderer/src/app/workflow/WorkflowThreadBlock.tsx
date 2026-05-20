@@ -3,6 +3,7 @@ import type { ConnectedAccount, MailListItem } from '@shared/types'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { MIME_THREAD_IDS } from '@/lib/workflow-dnd'
+import { openMailReadingPopout } from '@/lib/open-mail-reading-popout'
 import { AccountColorStripe } from '@/components/AccountColorStripe'
 import type { ThreadGroup } from '@/lib/thread-group'
 
@@ -60,6 +61,10 @@ export function WorkflowThreadBlock({
         onClick={(e): void => {
           e.stopPropagation()
           onSelectMessage(latest.id)
+        }}
+        onDoubleClick={(e): void => {
+          e.stopPropagation()
+          openMailReadingPopout(latest.id, { osWindow: e.shiftKey })
         }}
         onKeyDown={(e): void => {
           if (e.key === 'Enter' || e.key === ' ') {
@@ -169,6 +174,10 @@ export function WorkflowSubMessageRow({
       onClick={(e): void => {
         e.stopPropagation()
         onSelect()
+      }}
+      onDoubleClick={(e): void => {
+        e.stopPropagation()
+        openMailReadingPopout(message.id, { osWindow: e.shiftKey })
       }}
       onKeyDown={(e): void => {
         if (e.key === 'Enter' || e.key === ' ') {

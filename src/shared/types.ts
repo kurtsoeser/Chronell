@@ -265,6 +265,34 @@ export interface SettingsBackupUserNoteLinkSnapshot {
   createdAt: string
 }
 
+/** Vollstaendiger Export/Import aller Zeilen aus entity_links. */
+export interface SettingsBackupFullEntityLinkSnapshot {
+  refAKey: string
+  refBKey: string
+  aKind: string
+  aNoteId?: number | null
+  aMailMessageId?: number | null
+  aMailTodoId?: number | null
+  aCalendarAccountId?: string | null
+  aCalendarGraphEventId?: string | null
+  aTaskAccountId?: string | null
+  aTaskListId?: string | null
+  aTaskId?: string | null
+  aPeopleContactId?: number | null
+  bKind: string
+  bNoteId?: number | null
+  bMailMessageId?: number | null
+  bMailTodoId?: number | null
+  bCalendarAccountId?: string | null
+  bCalendarGraphEventId?: string | null
+  bTaskAccountId?: string | null
+  bTaskListId?: string | null
+  bTaskId?: string | null
+  bPeopleContactId?: number | null
+  linkKind?: string | null
+  createdAt: string
+}
+
 /** Verknuepfung einer Notiz mit Mail, Kalender, Aufgabe oder anderer Notiz. */
 export interface SettingsBackupEntityLinkSnapshot {
   fromNoteIndex: number
@@ -367,6 +395,8 @@ export interface SettingsBackupDatabaseExtras {
   userNoteLinks?: SettingsBackupUserNoteLinkSnapshot[]
   /** Ab v2: alle Notiz-Verknuepfungen (Mail/Kalender/Aufgabe/Notiz). */
   entityLinks?: SettingsBackupEntityLinkSnapshot[]
+  /** Ab v2: vollstaendiges Verknuepfungsnetz (entity_links). */
+  fullEntityLinks?: SettingsBackupFullEntityLinkSnapshot[]
   /** Ab v2: benutzerdefinierte Kalenderfarben. */
   calendarColorOverrides?: SettingsBackupCalendarColorOverrideSnapshot[]
 }
@@ -375,10 +405,24 @@ export interface SettingsBackupDatabaseExtras {
  * Secure-Store und kontobezogene Praeferenzen (ohne OAuth-Token).
  * Ab Format v2; fehlt in v1-Exporten.
  */
+export interface SettingsBackupAiConnectionsDismissedPair {
+  anchorKey: string
+  peerKey: string
+  dismissedAt: string
+}
+
+export interface SettingsBackupAiConnectionsExtras {
+  settings: import('@shared/ai-connections').AiConnectionsSettingsBackupSnapshot
+  dismissedPairs?: SettingsBackupAiConnectionsDismissedPair[]
+  /** Hinweis: API-Schlüssel liegen im Secure Store und sind nicht in dieser Datei. */
+}
+
 export interface SettingsBackupSecureExtras {
   accountPreferences?: SettingsBackupAccountPreferenceSnapshot[]
   accountOrder?: string[]
   notionDestinations?: SettingsBackupNotionDestinationsSnapshot
+  /** Ab Format v2: KI-Verbindungen (ohne API-Keys). */
+  aiConnections?: SettingsBackupAiConnectionsExtras
 }
 
 /**
@@ -836,6 +880,15 @@ export interface MailCloudTaskLinkDto {
 
 export interface TasksCreateMailCloudTaskFromMessageInput {
   messageId: number
+  accountId: string
+  listId: string
+  title: string
+  notes?: string | null
+  dueIso?: string | null
+}
+
+export interface TasksPromoteMailTodoToCloudTaskInput {
+  todoId: number
   accountId: string
   listId: string
   title: string
@@ -1727,6 +1780,12 @@ export interface ComposeSendInput {
   remoteDraftId?: string | null
   /** Lokale Mail-ID des Entwurfs in der DB (Ordner Entwuerfe). */
   linkedMessageId?: number | null
+}
+
+/** Ergebnis nach sofortigem Versand (nicht bei geplantem Versand). */
+export interface ComposeSendResult {
+  /** Lokale Nachrichten-ID in «Gesendet», falls nach Sync auffindbar. */
+  messageId: number | null
 }
 
 /** Server-Entwurf speichern (Ordner «Entwürfe» / Gmail-Drafts). */

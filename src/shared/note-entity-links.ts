@@ -1,19 +1,18 @@
-export const NOTE_ENTITY_LINK_TARGET_KINDS = [
-  'note',
-  'mail',
-  'calendar_event',
-  'cloud_task',
-  'people_contact'
-] as const
+import {
+  ENTITY_REF_KINDS,
+  type ChronellEntityRef,
+  type EntityRefKind,
+  entityRefKey,
+  entityRefsEqual,
+  isEntityRefKind
+} from './entity-ref'
 
-export type NoteEntityLinkTargetKind = (typeof NOTE_ENTITY_LINK_TARGET_KINDS)[number]
+/** @deprecated Alias – gleiche Typen wie {@link ChronellEntityRef}. */
+export const NOTE_ENTITY_LINK_TARGET_KINDS = ENTITY_REF_KINDS
 
-export type NoteEntityLinkTarget =
-  | { kind: 'note'; noteId: number }
-  | { kind: 'mail'; messageId: number }
-  | { kind: 'calendar_event'; accountId: string; graphEventId: string }
-  | { kind: 'cloud_task'; accountId: string; listId: string; taskId: string }
-  | { kind: 'people_contact'; contactId: number }
+export type NoteEntityLinkTargetKind = EntityRefKind
+
+export type NoteEntityLinkTarget = ChronellEntityRef
 
 export interface NoteEntityLinkedItem {
   linkId: number
@@ -35,26 +34,9 @@ export interface NoteLinkTargetCandidate {
 }
 
 export function isNoteEntityLinkTargetKind(value: string): value is NoteEntityLinkTargetKind {
-  return (NOTE_ENTITY_LINK_TARGET_KINDS as readonly string[]).includes(value)
+  return isEntityRefKind(value)
 }
 
-export function noteEntityLinkTargetKey(target: NoteEntityLinkTarget): string {
-  switch (target.kind) {
-    case 'note':
-      return `note:${target.noteId}`
-    case 'mail':
-      return `mail:${target.messageId}`
-    case 'calendar_event':
-      return `calendar:${target.accountId}:${target.graphEventId}`
-    case 'cloud_task':
-      return `task:${target.accountId}:${target.listId}:${target.taskId}`
-    case 'people_contact':
-      return `contact:${target.contactId}`
-    default:
-      return 'unknown'
-  }
-}
+export const noteEntityLinkTargetKey = entityRefKey
 
-export function noteEntityLinkTargetsEqual(a: NoteEntityLinkTarget, b: NoteEntityLinkTarget): boolean {
-  return noteEntityLinkTargetKey(a) === noteEntityLinkTargetKey(b)
-}
+export const noteEntityLinkTargetsEqual = entityRefsEqual

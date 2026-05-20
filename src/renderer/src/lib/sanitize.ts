@@ -121,6 +121,32 @@ export function replaceInlineCidImages(
   return out
 }
 
+/** Transparentes 1×1-GIF – verhindert Browser-Ladefehler für unaufgelöste cid:-Referenzen. */
+const CID_PLACEHOLDER_DATA_URI =
+  'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+
+/**
+ * Ersetzt verbleibende `cid:`-URLs (kein Treffer in der Inline-Map, Race vor dem Nachladen)
+ * durch ein transparentes Platzhalterbild, damit der Browser kein `cid:`-Schema anfragt.
+ */
+export function stripUnresolvedCidUrls(html: string): string {
+  if (!html || !/cid:/i.test(html)) return html
+
+  let out = html.replace(
+    /\b(src|originalsrc|data-cid-src|xsrc)\s*=\s*(["'])cid:[^"']+\2/gi,
+    (_full, attr: string, quote: string) => `${attr}=${quote}${CID_PLACEHOLDER_DATA_URI}${quote}`
+  )
+
+  out = out.replace(
+    /\b(src|originalsrc|data-cid-src|xsrc)\s*=\s*cid:[^\s>]+/gi,
+    (_full, attr: string) => `${attr}="${CID_PLACEHOLDER_DATA_URI}"`
+  )
+
+  out = out.replace(/url\s*\(\s*["']?cid:[^)"']+["']?\s*\)/gi, `url(${CID_PLACEHOLDER_DATA_URI})`)
+
+  return out
+}
+
 /**
  * Sanitisiert HTML-Mail-Inhalt fuer die sichere Anzeige im srcdoc-Iframe (CSP ohne JS).
  * Externe Bilder werden standardmaessig blockiert (Privacy: kein Tracker-Pixel-Load).
@@ -170,12 +196,29 @@ export function buildIframeSrcDoc(html: string, theme: MailViewerTheme = 'light'
  * Markup fuer Shadow-Root der Mail-Leseansicht (kein iframe): gleiche Styles wie im srcdoc,
  * aber `html, body` -> `:host`, damit Klicks zuverlässig im Electron-Hauptdokument landen.
  */
-export function buildMailShadowRootInnerHtml(html: string, theme: MailViewerTheme): string {
+function mailPreviewScaleHostStyle(scale: number): string {
+  const clamped = Math.min(2, Math.max(0.75, scale))
+  return `<style>:host { --mail-preview-scale: ${clamped}; }</style>`
+}
+
+function applyMailPreviewScaleToCss(css: string): string {
+  return css
+    .replace(/\b14px\b/g, 'calc(14px * var(--mail-preview-scale, 1))')
+    .replace(/\b12px\b/g, 'calc(12px * var(--mail-preview-scale, 1))')
+    .replace(/\b18px\b/g, 'calc(18px * var(--mail-preview-scale, 1))')
+}
+
+export function buildMailShadowRootInnerHtml(
+  html: string,
+  theme: MailViewerTheme,
+  scale = 1
+): string {
   const adapt = (css: string): string => css.replace(':root', ':host').replace(/html,\s*body/g, ':host')
+  const scaleHost = mailPreviewScaleHostStyle(scale)
   if (theme === 'dark') {
-    return `${mailReadingShadowDarkThemeCss}<div class="mail-html-root">${html}</div>`
+    return `${scaleHost}${applyMailPreviewScaleToCss(mailReadingShadowDarkThemeCss)}<div class="mail-html-root">${html}</div>`
   }
-  return `${adapt(lightThemeCss)}<div class="mail-html-root mail-html-root--light">${html}</div>`
+  return `${scaleHost}${applyMailPreviewScaleToCss(adapt(lightThemeCss))}<div class="mail-html-root mail-html-root--light">${html}</div>`
 }
 
 const lightThemeCss = `

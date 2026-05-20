@@ -13,6 +13,9 @@ import {
   MailOpen,
   Sun,
   Moon,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
   Paperclip,
   Download,
   FileText,
@@ -21,15 +24,17 @@ import {
   FileArchive,
   Loader2,
   Tag,
+  ListTodo,
   CheckSquare,
   Unlink,
   SquareArrowOutUpRight,
-  PictureInPicture2
+  PanelRightClose
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useShallow } from 'zustand/react/shallow'
 import { useMailStore } from '@/stores/mail'
+import { openMailReadingPopout } from '@/lib/open-mail-reading-popout'
 import { formatBytes } from '@/lib/format-bytes'
 import { useAccountsStore } from '@/stores/accounts'
 import { threadGroupingKey } from '@/lib/thread-group'
@@ -37,12 +42,18 @@ import { dedupeMailListThreadMessagesById } from '@/lib/mail-list-ui'
 import { runMailQuickStep } from '@/lib/run-mail-quickstep'
 import { useComposeStore } from '@/stores/compose'
 import { useThemeStore } from '@/stores/theme'
+import {
+  mailPreviewScalePercent,
+  useMailPreviewScaleStore
+} from '@/stores/mail-preview-scale'
+import { useMailPreviewZoom } from '@/hooks/use-mail-preview-zoom'
 import { useSnoozeUiStore } from '@/stores/snooze-ui'
 import { useUndoStore } from '@/stores/undo'
 import { showAppAlert } from '@/stores/app-dialog'
 import {
   buildMailShadowRootInnerHtml,
   replaceInlineCidImages,
+  stripUnresolvedCidUrls,
   sanitizeMailHtml,
   type MailViewerTheme
 } from '@/lib/sanitize'
@@ -53,10 +64,13 @@ import { ContentCrossfade } from '@/components/motion/ContentCrossfade'
 import { LoadingIndicator } from '@/components/motion/LoadingIndicator'
 import { Avatar } from '@/components/Avatar'
 import { profilePhotoSrcForEmail } from '@/lib/contact-avatar'
-import { InlineReplyBar } from '@/components/InlineReplyBar'
 import { ReadingPaneCompose } from '@/components/ReadingPaneCompose'
 import { MailCategoriesPopover } from '@/components/MailCategoriesPopover'
 import { ObjectNoteEditor } from '@/components/ObjectNoteEditor'
+import { ConnectionsPanel } from '@/components/connections/ConnectionsPanel'
+import { LocalConnectionsGraph } from '@/components/connections/LocalConnectionsGraph'
+import { useCreateCloudTaskUiStore } from '@/stores/create-cloud-task-ui'
+import { accountSupportsCloudTasks } from '@/lib/cloud-task-accounts'
 import type { AttachmentMeta, MailFull, ConnectedAccount, MailQuickStep } from '@shared/types'
 import { outlookCategoryDotClass } from '@/lib/outlook-category-colors'
 import type { IsolatedMailView } from '@/app/layout/use-isolated-mail-view'
@@ -85,21 +99,30 @@ export type ReadingPaneProps = {
   emptySelectionBody?: string
   /** Ohne Mail-Auswahl keine Mail-Toolbar (z. B. Kalender-Vorschau). */
   hideChromeWhenEmpty?: boolean
-  /** Mail-Arbeitsbereich: Vorschau als schwebendes Fenster loesen. */
-  onRequestUndock?: () => void
-  /** Vorschau als Pop-up (bleibt beim Modulwechsel sichtbar). */
+  /** Mail-Arbeitsbereich: Vorschau ist als schwebendes Panel ausgeklappt. */
+  previewDetached?: boolean
+  /** Vorschau abdocken / wieder andocken (ersetzt getrennte Pop-up- und Abdock-Buttons). */
+  onTogglePreviewDetach?: () => void
+  /** Umschalt+Klick auf Abdock-Toggle: Lesefenster-Pop-up (modulübergreifend). */
   onRequestGlobalPopout?: (opts?: { osWindow?: boolean }) => void
+  /** Abdock-Toggle ausblenden (z. B. schwebendes Panel hat eigene Titelleiste). */
+  hidePreviewDetachToggle?: boolean
   /** Eigenes Fenster / globales Pop-up: feste Nachricht inkl. Konversation. */
   isolatedView?: IsolatedMailView
+  /** Verbindungen-Modul: kein zweites Verbindungen-Panel im Lesefenster. */
+  hideEntityConnections?: boolean
 }
 
 export function ReadingPane({
   emptySelectionTitle,
   emptySelectionBody,
   hideChromeWhenEmpty = false,
-  onRequestUndock,
+  previewDetached = false,
+  onTogglePreviewDetach,
   onRequestGlobalPopout,
-  isolatedView
+  hidePreviewDetachToggle = false,
+  isolatedView,
+  hideEntityConnections = false
 }: ReadingPaneProps = {}): JSX.Element {
   const { t, i18n } = useTranslation()
   const storeMail = useMailStore(
@@ -261,32 +284,56 @@ export function ReadingPane({
     const k = threadGroupingKey(selectedMessage, true)
     const row = threadMessages[k]
     if (!row || row.length <= 1) return null
+    const locale = i18n.language.startsWith('de') ? 'de-DE' : 'en-GB'
     return (
-      <div className="shrink-0 border-b border-border bg-muted/35 px-3 py-2">
-        <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+      <div className="shrink-0 border-b border-border bg-muted/35 px-4 py-3">
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
           {t('mail.readingPane.conversationCount', { count: row.length })}
         </p>
-        <div className="flex max-h-28 flex-col gap-1 overflow-y-auto pr-0.5">
-          {row.map((m) => (
-            <button
-              key={m.id}
-              type="button"
-              title={m.subject ?? undefined}
-              onClick={(): void => void selectMessage(m.id)}
-              className={cn(
-                'w-full truncate rounded-md border px-2 py-1.5 text-left text-[11px] transition-colors',
-                m.id === selectedMessageId
-                  ? 'border-primary bg-primary/10 font-medium text-foreground'
-                  : 'border-transparent bg-background/60 text-muted-foreground hover:border-border hover:text-foreground'
-              )}
-            >
-              {m.subject?.trim() ? m.subject.trim() : t('common.noSubject')}
-            </button>
-          ))}
+        <div className="flex max-h-[min(40vh,17.5rem)] flex-col gap-1.5 overflow-y-auto pr-1">
+          {row.map((m) => {
+            const subject = m.subject?.trim() || t('common.noSubject')
+            const from = m.fromName?.trim() || m.fromAddr?.trim() || t('common.unknown')
+            const sent = m.receivedAt || m.sentAt
+            const dateLabel = sent
+              ? new Date(sent).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' })
+              : ''
+            return (
+              <button
+                key={m.id}
+                type="button"
+                title={dateLabel ? `${from} — ${subject} — ${dateLabel}` : `${from} — ${subject}`}
+                onClick={(): void => void selectMessage(m.id)}
+                onDoubleClick={(e): void => {
+                  e.stopPropagation()
+                  openMailReadingPopout(m.id, { osWindow: e.shiftKey })
+                }}
+                className={cn(
+                  'flex w-full min-h-[2.75rem] flex-col gap-0.5 rounded-md border px-3 py-2 text-left transition-colors',
+                  m.id === selectedMessageId
+                    ? 'border-primary bg-primary/10 text-foreground'
+                    : 'border-border/50 bg-background/70 text-foreground hover:border-border hover:bg-background'
+                )}
+              >
+                <span
+                  className={cn(
+                    'line-clamp-2 text-xs leading-snug',
+                    m.id === selectedMessageId ? 'font-semibold' : 'font-medium'
+                  )}
+                >
+                  {subject}
+                </span>
+                <span className="truncate text-[10px] leading-tight text-muted-foreground">
+                  {from}
+                  {dateLabel ? ` · ${dateLabel}` : ''}
+                </span>
+              </button>
+            )
+          })}
         </div>
       </div>
     )
-  }, [selectedMessage, selectedMessageId, threadMessages, selectMessage, t])
+  }, [selectedMessage, selectedMessageId, threadMessages, selectMessage, t, i18n.language])
 
   const appTheme = useThemeStore((s) => s.effective)
 
@@ -497,6 +544,7 @@ export function ReadingPane({
           label={viewerTheme === 'light' ? t('mail.readingPane.viewerLight') : t('mail.readingPane.viewerDark')}
           onClick={toggleViewerTheme}
         />
+        <MailPreviewZoomToolbar />
 
         <label className="sr-only" htmlFor="readingpane-quickstep">
           {t('mail.readingPane.quickStepSr')}
@@ -534,28 +582,6 @@ export function ReadingPane({
             </option>
           ))}
         </select>
-
-        {onRequestGlobalPopout ? (
-          <button
-            type="button"
-            title={t('mail.readingPane.popoutTitle')}
-            onClick={(e): void => onRequestGlobalPopout({ osWindow: e.shiftKey })}
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-secondary hover:text-foreground"
-          >
-            <PictureInPicture2 className="h-3.5 w-3.5" />
-          </button>
-        ) : null}
-
-        {onRequestUndock ? (
-          <button
-            type="button"
-            title={t('mail.readingPane.undockPreviewTitle')}
-            onClick={onRequestUndock}
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-secondary hover:text-foreground"
-          >
-            <SquareArrowOutUpRight className="h-3.5 w-3.5" />
-          </button>
-        ) : null}
 
         {selectedMessage && (
           <div className="flex flex-wrap items-center gap-2 text-[11px]">
@@ -640,6 +666,34 @@ export function ReadingPane({
             ))}
           </div>
         ))}
+
+        {!hidePreviewDetachToggle && onTogglePreviewDetach ? (
+          <button
+            type="button"
+            className="ml-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-secondary hover:text-foreground"
+            title={
+              previewDetached
+                ? t('mail.readingPane.previewDockBackTitle')
+                : onRequestGlobalPopout
+                  ? t('mail.readingPane.previewPopOutTitle')
+                  : t('mail.readingPane.previewPopOutTitleShort')
+            }
+            aria-pressed={previewDetached}
+            onClick={(e): void => {
+              if (e.shiftKey && onRequestGlobalPopout) {
+                onRequestGlobalPopout({ osWindow: true })
+                return
+              }
+              onTogglePreviewDetach()
+            }}
+          >
+            {previewDetached ? (
+              <PanelRightClose className="h-3.5 w-3.5" aria-hidden />
+            ) : (
+              <SquareArrowOutUpRight className="h-3.5 w-3.5" aria-hidden />
+            )}
+          </button>
+        ) : null}
       </div>
       )}
 
@@ -675,13 +729,49 @@ export function ReadingPane({
             senderProfilePhoto={senderProfilePhoto}
             viewerTheme={viewerTheme}
             autoLoadImages={autoLoadImages}
+            hideEntityConnections={hideEntityConnections}
             onToggleFlag={(): void => void runAction('flag')}
             onReply={(): void => openReply('reply', selectedMessage)}
+            onReplyAll={(): void => openReply('replyAll', selectedMessage)}
             onForward={(): void => openForward(selectedMessage)}
           />
         </ContentCrossfade>
       )}
     </section>
+  )
+}
+
+function MailPreviewZoomToolbar(): JSX.Element {
+  const { t } = useTranslation()
+  const scale = useMailPreviewScaleStore((s) => s.scale)
+  const stepScale = useMailPreviewScaleStore((s) => s.stepScale)
+  const resetScale = useMailPreviewScaleStore((s) => s.resetScale)
+  const pct = mailPreviewScalePercent(scale)
+
+  return (
+    <>
+      <IconButton
+        icon={ZoomOut}
+        label={t('mail.readingPane.zoomOut')}
+        onClick={(): void => stepScale(-0.1)}
+      />
+      <span
+        className="min-w-[2.75rem] shrink-0 text-center text-[10px] tabular-nums text-muted-foreground"
+        title={t('mail.readingPane.zoomHint')}
+      >
+        {pct}%
+      </span>
+      <IconButton
+        icon={ZoomIn}
+        label={t('mail.readingPane.zoomIn')}
+        onClick={(): void => stepScale(0.1)}
+      />
+      <IconButton
+        icon={RotateCcw}
+        label={t('mail.readingPane.zoomReset')}
+        onClick={(): void => resetScale()}
+      />
+    </>
   )
 }
 
@@ -691,8 +781,10 @@ function MailReader({
   senderProfilePhoto,
   viewerTheme,
   autoLoadImages,
+  hideEntityConnections = false,
   onToggleFlag,
   onReply,
+  onReplyAll,
   onForward
 }: {
   message: MailFull
@@ -700,8 +792,10 @@ function MailReader({
   senderProfilePhoto?: string
   viewerTheme: MailViewerTheme
   autoLoadImages: boolean
+  hideEntityConnections?: boolean
   onToggleFlag: () => void
   onReply: () => void
+  onReplyAll: () => void
   onForward: () => void
 }): JSX.Element {
   const { t, i18n } = useTranslation()
@@ -710,6 +804,8 @@ function MailReader({
   const [attachments, setAttachments] = useState<AttachmentMeta[]>([])
   const [attachmentsLoading, setAttachmentsLoading] = useState(false)
   const shadowHostRef = useRef<HTMLDivElement>(null)
+  const previewScale = useMailPreviewScaleStore((s) => s.scale)
+  useMailPreviewZoom(shadowHostRef, { attachKey: message.id })
   const [categoryOpen, setCategoryOpen] = useState(false)
   const [categoryAnchor, setCategoryAnchor] = useState({ x: 0, y: 0 })
 
@@ -790,23 +886,24 @@ function MailReader({
   const safeHtml = useMemo(() => {
     if (message.bodyHtml) {
       const withInline = replaceInlineCidImages(message.bodyHtml, inlineImages)
-      return sanitizeMailHtml(withInline, { loadImages })
+      return sanitizeMailHtml(stripUnresolvedCidUrls(withInline), { loadImages })
     }
     if (message.bodyText) {
       const escaped = escapeHtml(message.bodyText).replace(/\n/g, '<br>')
       // Dunkel: invert()-Filter im Shadow-Root — dunkle Vorschlagsfarbe wird hell dargestellt.
       const color = viewerTheme === 'light' ? '#1f1f23' : '#1a1a1a'
-      return `<pre style="white-space:pre-wrap;font-family:inherit;font-size:14px;color:${color};">${escaped}</pre>`
+      const fontPx = Math.round(14 * previewScale)
+      return `<pre style="white-space:pre-wrap;font-family:inherit;font-size:${fontPx}px;color:${color};">${escaped}</pre>`
     }
     const muted = viewerTheme === 'light' ? '#6b6b73' : '#5c5c5c'
     return `<p style="color:${muted};font-style:italic;">${t('mail.readingPane.noContent')}</p>`
-  }, [message.bodyHtml, message.bodyText, loadImages, viewerTheme, inlineImages, t])
+  }, [message.bodyHtml, message.bodyText, loadImages, viewerTheme, inlineImages, previewScale, t])
 
   const shadowInnerHtml = useMemo(
-    () => buildMailShadowRootInnerHtml(safeHtml, viewerTheme),
-    [safeHtml, viewerTheme]
+    () => buildMailShadowRootInnerHtml(safeHtml, viewerTheme, previewScale),
+    [safeHtml, viewerTheme, previewScale]
   )
-  useSanitizedHtmlShadowRoot(shadowHostRef, shadowInnerHtml, 'mail', viewerTheme)
+  useSanitizedHtmlShadowRoot(shadowHostRef, shadowInnerHtml, 'mail', viewerTheme, previewScale)
 
   useEffect(() => {
     setLoadImages(autoLoadImages)
@@ -845,6 +942,36 @@ function MailReader({
             )}
           </div>
           <div className="flex shrink-0 items-start gap-1">
+            <div
+              className="mr-1 flex items-center gap-0.5 border-r border-border/60 pr-2"
+              role="group"
+              aria-label={t('mail.readingPane.replyActionsAria')}
+            >
+              <IconButton
+                icon={Reply}
+                label={t('mail.readingPane.reply')}
+                shortcut="R"
+                onClick={onReply}
+                iconClassName="text-violet-500"
+                hoverClassName="hover:bg-violet-500/15 hover:text-violet-400"
+              />
+              <IconButton
+                icon={ReplyAll}
+                label={t('mail.readingPane.replyAll')}
+                shortcut="Shift+R"
+                onClick={onReplyAll}
+                iconClassName="text-violet-500"
+                hoverClassName="hover:bg-violet-500/15 hover:text-violet-400"
+              />
+              <IconButton
+                icon={Forward}
+                label={t('mail.readingPane.forward')}
+                shortcut="L"
+                onClick={onForward}
+                iconClassName="text-sky-500"
+                hoverClassName="hover:bg-sky-500/15 hover:text-sky-400"
+              />
+            </div>
             <ObjectNoteEditor
               target={{
                 kind: 'mail',
@@ -852,6 +979,21 @@ function MailReader({
                 title: message.subject || t('common.noSubject')
               }}
             />
+            {message.openTodoId != null && account && accountSupportsCloudTasks(account) ? (
+              <button
+                type="button"
+                onClick={(): void => {
+                  useCreateCloudTaskUiStore
+                    .getState()
+                    .open(message, message.openTodoId ?? undefined)
+                }}
+                className="inline-flex h-6 shrink-0 items-center gap-1 rounded-md border border-border px-2 text-[10px] font-medium text-foreground transition-colors hover:bg-secondary/70"
+                title={t('mail.promoteCloudTask.buttonTitle')}
+              >
+                <ListTodo className="h-3 w-3 text-emerald-500" />
+                {t('mail.promoteCloudTask.button')}
+              </button>
+            ) : null}
             <button
               type="button"
               disabled={!account}
@@ -972,8 +1114,10 @@ function MailReader({
 
       <div
         ref={shadowHostRef}
-        className="mail-reading-shadow-host flex min-h-0 min-w-0 flex-1 flex-col overflow-auto"
+        className="mail-reading-shadow-host flex min-h-0 min-w-0 flex-1 flex-col overflow-auto touch-pan-y"
+        style={{ zoom: previewScale }}
         data-mail-viewer-theme={viewerTheme}
+        data-mail-preview-scale={String(previewScale)}
         role="document"
         aria-label={t('mail.readingPane.contentIframeTitle')}
       />
@@ -990,7 +1134,34 @@ function MailReader({
         className="shrink-0 border-t border-border bg-secondary/5 px-6 py-2"
       />
 
-      <InlineReplyBar onReply={onReply} onForward={onForward} onAttach={onReply} />
+      {!hideEntityConnections ? (
+        message.openTodoId != null ? (
+          <>
+            <LocalConnectionsGraph
+              anchor={{ kind: 'mail_todo', todoId: message.openTodoId }}
+              className="shrink-0 bg-secondary/5"
+            />
+            <ConnectionsPanel
+              anchor={{ kind: 'mail_todo', todoId: message.openTodoId }}
+              sectionCollapsedDefault
+              className="shrink-0 bg-secondary/5"
+            />
+          </>
+        ) : (
+          <>
+            <LocalConnectionsGraph
+              anchor={{ kind: 'mail', messageId: message.id }}
+              className="shrink-0 bg-secondary/5"
+            />
+            <ConnectionsPanel
+              anchor={{ kind: 'mail', messageId: message.id }}
+              sectionCollapsedDefault
+              className="shrink-0 bg-secondary/5"
+            />
+          </>
+        )
+      ) : null}
+
     </div>
   )
 }
@@ -1114,7 +1285,9 @@ function IconButton({
   onClick,
   disabled,
   destructive,
-  highlight
+  highlight,
+  iconClassName,
+  hoverClassName
 }: {
   icon: React.ComponentType<{ className?: string }>
   label: string
@@ -1123,6 +1296,8 @@ function IconButton({
   disabled?: boolean
   destructive?: boolean
   highlight?: boolean
+  iconClassName?: string
+  hoverClassName?: string
 }): JSX.Element {
   return (
     <button
@@ -1130,19 +1305,22 @@ function IconButton({
       disabled={disabled}
       onClick={onClick}
       title={shortcut ? `${label} (${shortcut})` : label}
+      aria-label={label}
       className={cn(
         'flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition-colors',
         disabled
           ? 'cursor-not-allowed text-muted-foreground/40'
           : destructive
             ? 'text-muted-foreground hover:bg-destructive/20 hover:text-destructive'
-            : 'text-muted-foreground hover:bg-secondary hover:text-foreground',
+            : hoverClassName ?? 'hover:bg-secondary hover:text-foreground',
+        !disabled && !destructive && !hoverClassName && 'text-muted-foreground',
         highlight && 'text-status-flagged'
       )}
     >
       <Icon
         className={cn(
           'h-4 w-4',
+          !disabled && iconClassName,
           highlight && 'fill-status-flagged text-status-flagged'
         )}
       />

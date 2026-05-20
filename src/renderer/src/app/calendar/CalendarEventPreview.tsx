@@ -20,6 +20,7 @@ import { fullCalendarEventToPatchSchedule } from '@/app/calendar/calendar-shell-
 import { openExternalUrl } from '@/lib/open-external'
 import { cn } from '@/lib/utils'
 import { ObjectNoteEditor, ObjectNotePreview } from '@/components/ObjectNoteEditor'
+import { ConnectionsPanel } from '@/components/connections/ConnectionsPanel'
 import { CalendarEventDescriptionPreview } from '@/app/calendar/CalendarEventDescriptionPreview'
 import { CalendarEventIconPicker } from '@/components/CalendarEventIconPicker'
 import { calendarEventIconIsExplicit, resolveCalendarEventIcon } from '@/lib/calendar-event-icons'
@@ -823,6 +824,19 @@ export function CalendarEventPreview(props: {
             target={noteTarget}
             previewHeight={220}
             className="border-t border-border/60 border-b-0 bg-transparent px-0 pt-4"
+          />
+        ) : null}
+
+        {ev.graphEventId?.trim() ? (
+          <ConnectionsPanel
+            anchor={{
+              kind: 'calendar_event',
+              accountId: ev.accountId,
+              graphEventId: ev.graphEventId
+            }}
+            contentPaddingClass="px-0"
+            sectionCollapsedDefault
+            className="mt-3 border-t border-border/60"
           />
         ) : null}
       </div>

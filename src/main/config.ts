@@ -219,5 +219,9 @@ export async function updateConfig(patch: Partial<AppConfig>): Promise<AppConfig
   if ('mailPollIntervalSeconds' in patch) {
     restartMailPollingInterval()
   }
+  if ('calendarTimeZone' in patch) {
+    const { invalidateCalendarDisplayTimeZoneCache } = await import('./calendar-display-config')
+    invalidateCalendarDisplayTimeZoneCache()
+  }
   return resolveAppConfigAsync(mergedPersist)
 }

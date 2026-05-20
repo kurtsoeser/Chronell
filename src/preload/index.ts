@@ -15,6 +15,7 @@ import {
   type SnoozedMessageItem,
   type SyncStatus,
   type ComposeSendInput,
+  type ComposeSendResult,
   type ComposeSaveDraftInput,
   type ComposeSaveDraftResult,
   type UndoableActionSummary,
@@ -66,6 +67,7 @@ import {
   type TaskPlannedScheduleDto,
   type TasksUpdateTaskInput,
   type TasksCreateMailCloudTaskFromMessageInput,
+  type TasksPromoteMailTodoToCloudTaskInput,
   type MailCloudTaskLinkDto,
   type WorkflowBoard,
   type WorkflowColumn,
@@ -157,6 +159,29 @@ import {
   type NotionSearchPageHit,
   type NotionSavedDestination
 } from '@shared/types'
+import type { ChronellEntityRef } from '@shared/entity-ref'
+import type {
+  EntityGraphSnapshot,
+  EntityLinkAddInput,
+  EntityLinkAiScanInput,
+  EntityLinkAiScanStatus,
+  EntityLinkAiSuggestInput,
+  EntityLinkPathInput,
+  EntityLinkPathResult,
+  EntityLinkRemoveInput,
+  EntityLinkSearchTargetsInput,
+  EntityLinkSuggestion,
+  EntityLinkTargetCandidate,
+  EntityLinksListResult,
+  EntityNeighborhoodInput,
+  EntityPaletteListInput
+} from '@shared/entity-links'
+import type {
+  AiConnectionsProvider,
+  AiConnectionsSetApiKeyInput,
+  AiConnectionsSetSettingsInput,
+  AiConnectionsSettings
+} from '@shared/ai-connections'
 import type {
   MailRuleDefinition,
   MailRuleTrigger,
@@ -370,6 +395,62 @@ const api = {
       ipcRenderer.invoke(IPC.mailReadingPopout.getAlwaysOnTop, ref),
     setAlwaysOnTop: (ref: MailReadingPopoutRef & { alwaysOnTop: boolean }): Promise<void> =>
       ipcRenderer.invoke(IPC.mailReadingPopout.setAlwaysOnTop, ref)
+  },
+  entityLinks: {
+    list: (anchor: ChronellEntityRef): Promise<EntityLinksListResult> =>
+      ipcRenderer.invoke(IPC.entityLinks.list, anchor),
+    add: (input: EntityLinkAddInput): Promise<void> =>
+      ipcRenderer.invoke(IPC.entityLinks.add, input),
+    remove: (input: EntityLinkRemoveInput): Promise<void> =>
+      ipcRenderer.invoke(IPC.entityLinks.remove, input),
+    searchTargets: (input: EntityLinkSearchTargetsInput): Promise<EntityLinkTargetCandidate[]> =>
+      ipcRenderer.invoke(IPC.entityLinks.searchTargets, input),
+    getMailTodoMessageId: (todoId: number): Promise<number | null> =>
+      ipcRenderer.invoke(IPC.entityLinks.getMailTodoMessageId, todoId),
+    listGraph: (): Promise<EntityGraphSnapshot> =>
+      ipcRenderer.invoke(IPC.entityLinks.listGraph),
+    listNeighborhood: (input: EntityNeighborhoodInput): Promise<EntityGraphSnapshot> =>
+      ipcRenderer.invoke(IPC.entityLinks.listNeighborhood, input),
+    findPath: (input: EntityLinkPathInput): Promise<EntityLinkPathResult | null> =>
+      ipcRenderer.invoke(IPC.entityLinks.findPath, input),
+    suggest: (anchor: ChronellEntityRef): Promise<EntityLinkSuggestion[]> =>
+      ipcRenderer.invoke(IPC.entityLinks.suggest, anchor),
+    suggestAi: (
+      input: EntityLinkAiSuggestInput
+    ): Promise<import('@shared/entity-links').EntityLinkAiSuggestResult> =>
+      ipcRenderer.invoke(IPC.entityLinks.suggestAi, input),
+    getGraphDensityStats: (
+      lookbackDays: number
+    ): Promise<import('@shared/entity-links').EntityLinkGraphDensityStats> =>
+      ipcRenderer.invoke(IPC.entityLinks.getGraphDensityStats, lookbackDays),
+    estimateAiScanCost: (
+      input?: EntityLinkAiScanInput
+    ): Promise<import('@shared/entity-links').EntityLinkAiScanCostEstimate> =>
+      ipcRenderer.invoke(IPC.entityLinks.estimateAiScanCost, input ?? {}),
+    startAiScan: (input?: EntityLinkAiScanInput): Promise<EntityLinkAiScanStatus> =>
+      ipcRenderer.invoke(IPC.entityLinks.startAiScan, input ?? {}),
+    cancelAiScan: (): Promise<EntityLinkAiScanStatus> =>
+      ipcRenderer.invoke(IPC.entityLinks.cancelAiScan),
+    getAiScanStatus: (): Promise<EntityLinkAiScanStatus> =>
+      ipcRenderer.invoke(IPC.entityLinks.getAiScanStatus),
+    acceptAiScanItems: (itemIds: string[]): Promise<number> =>
+      ipcRenderer.invoke(IPC.entityLinks.acceptAiScanItems, itemIds),
+    dismissAiScanItems: (itemIds: string[]): Promise<number> =>
+      ipcRenderer.invoke(IPC.entityLinks.dismissAiScanItems, itemIds),
+    dismissAiSuggestion: (input: import('@shared/entity-links').EntityLinkAiDismissInput): Promise<void> =>
+      ipcRenderer.invoke(IPC.entityLinks.dismissAiSuggestion, input),
+    listPalette: (input: EntityPaletteListInput): Promise<EntityLinkTargetCandidate[]> =>
+      ipcRenderer.invoke(IPC.entityLinks.listPalette, input)
+  },
+  aiConnections: {
+    getSettings: (): Promise<AiConnectionsSettings> =>
+      ipcRenderer.invoke(IPC.aiConnections.getSettings),
+    setSettings: (input: AiConnectionsSetSettingsInput): Promise<AiConnectionsSettings> =>
+      ipcRenderer.invoke(IPC.aiConnections.setSettings, input),
+    setApiKey: (input: AiConnectionsSetApiKeyInput): Promise<AiConnectionsSettings> =>
+      ipcRenderer.invoke(IPC.aiConnections.setApiKey, input),
+    clearApiKey: (provider: AiConnectionsProvider): Promise<AiConnectionsSettings> =>
+      ipcRenderer.invoke(IPC.aiConnections.clearApiKey, provider)
   },
   notes: {
     getMail: (messageId: number): Promise<UserNote | null> =>
@@ -640,7 +721,7 @@ const api = {
       ipcRenderer.invoke(IPC.folder.toggleFavorite, { folderId, value })
   },
   compose: {
-    send: (input: ComposeSendInput): Promise<void> =>
+    send: (input: ComposeSendInput): Promise<ComposeSendResult> =>
       ipcRenderer.invoke(IPC.compose.send, input),
     saveDraft: (input: ComposeSaveDraftInput): Promise<ComposeSaveDraftResult> =>
       ipcRenderer.invoke(IPC.compose.saveDraft, input),
@@ -749,7 +830,10 @@ const api = {
       ipcRenderer.invoke(IPC.tasks.listMailCloudTaskLinks),
     createMailCloudTaskFromMessage: (
       input: TasksCreateMailCloudTaskFromMessageInput
-    ): Promise<TaskItemRow> => ipcRenderer.invoke(IPC.tasks.createMailCloudTaskFromMessage, input)
+    ): Promise<TaskItemRow> => ipcRenderer.invoke(IPC.tasks.createMailCloudTaskFromMessage, input),
+    promoteMailTodoToCloudTask: (
+      input: TasksPromoteMailTodoToCloudTaskInput
+    ): Promise<TaskItemRow> => ipcRenderer.invoke(IPC.tasks.promoteMailTodoToCloudTask, input)
   },
   bookings: {
     listBusinesses: (input: BookingsListBusinessesInput): Promise<BookingsBusinessRow[]> =>
@@ -913,6 +997,23 @@ const api = {
       ipcRenderer.on('notes:changed', listener)
       return (): void => {
         ipcRenderer.off('notes:changed', listener)
+      }
+    },
+    onEntityLinksChanged: (handler: () => void): (() => void) => {
+      const listener = (): void => handler()
+      ipcRenderer.on('entity-links:changed', listener)
+      return (): void => {
+        ipcRenderer.off('entity-links:changed', listener)
+      }
+    },
+    onEntityLinkAiScanProgress: (
+      handler: (status: EntityLinkAiScanStatus) => void
+    ): (() => void) => {
+      const listener = (_e: IpcRendererEvent, status: EntityLinkAiScanStatus): void =>
+        handler(status)
+      ipcRenderer.on('entity-links:ai-scan-progress', listener)
+      return (): void => {
+        ipcRenderer.off('entity-links:ai-scan-progress', listener)
       }
     },
     onTeamsChatPopoutClosed: (handler: (payload: TeamsChatPopoutRef) => void): (() => void) => {

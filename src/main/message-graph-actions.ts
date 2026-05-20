@@ -29,6 +29,7 @@ import {
   gmailEmptyTrash,
   gmailMoveMessageForFolderMove
 } from './google/gmail-actions'
+import { isMicrosoftAuthUnavailable } from './auth/auth-errors'
 import { isGraphItemNotFound } from './graph/graph-request-errors'
 import { runFolderSync } from './sync-runner'
 import { listAccounts } from './accounts'
@@ -95,6 +96,25 @@ export async function applySetReadForMessage(
         payload: {
           previousIsRead: msg.isRead,
           label: isRead ? 'Als gelesen (nur lokal, Server 404)' : 'Als ungelesen (nur lokal, Server 404)'
+        }
+      })
+      return
+    }
+    if (isMicrosoftAuthUnavailable(e)) {
+      console.warn(
+        `[message-graph-actions] setRead: Microsoft-Token fehlt für Konto ${msg.accountId} — Lesestatus nur lokal (${isRead ? 'gelesen' : 'ungelesen'}).`
+      )
+      recordAction({
+        messageId,
+        accountId: msg.accountId,
+        actionType: 'set-read',
+        source,
+        ruleId: opts?.ruleId,
+        payload: {
+          previousIsRead: msg.isRead,
+          label: isRead
+            ? 'Als gelesen (nur lokal, Anmeldung erforderlich)'
+            : 'Als ungelesen (nur lokal, Anmeldung erforderlich)'
         }
       })
       return

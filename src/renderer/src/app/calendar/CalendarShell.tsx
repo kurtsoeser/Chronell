@@ -38,6 +38,7 @@ import { useTranslation } from 'react-i18next'
 import { useAccountsStore } from '@/stores/accounts'
 import { useCalendarPendingFocusStore } from '@/stores/calendar-pending-focus'
 import { useMailStore } from '@/stores/mail'
+import { openMailReadingPopout } from '@/lib/open-mail-reading-popout'
 import { useComposeStore } from '@/stores/compose'
 import { useSnoozeUiStore } from '@/stores/snooze-ui'
 import { CalendarEventSearchDialog } from '@/app/calendar/CalendarEventSearchDialog'
@@ -51,10 +52,11 @@ import type {
   UserNoteListItem
 } from '@shared/types'
 import {
-  graphCalendarColorToDisplayHex,
+  CALENDAR_COLOR_MENU_PRESET_IDS,
+  CALENDAR_EXTENDED_COLOR_PRESET_IDS,
+  calendarMenuPresetDisplayHex,
   resolveCalendarDisplayHex,
-  GRAPH_CALENDAR_COLOR_PRESET_IDS,
-  type GraphCalendarColorPresetId
+  resolveCalendarMenuPresetId
 } from '@shared/graph-calendar-colors'
 import {
   CALENDAR_KIND_MAIL_TODO,
@@ -167,6 +169,7 @@ import { useCalendarMailExternalDrop } from '@/lib/use-calendar-mail-external-dr
 import { useCalendarCloudTaskExternalDrop } from '@/lib/use-calendar-cloud-task-external-drop'
 import type { CloudTaskDragPayload } from '@/app/tasks/tasks-cloud-task-dnd'
 import { buildCalendarIncludeCalendars } from '@/lib/build-calendar-include-calendars'
+import { M365_GROUP_CALENDAR_ID_PREFIX } from '@shared/microsoft-m365-group-calendar'
 import {
   CALENDAR_VISIBILITY_CHANGED_EVENT,
   calendarVisibilityKey,
@@ -643,6 +646,64 @@ export function CalendarShell(): JSX.Element {
       if (isAccountSidebarOpen(a.id)) void ensureCalendarsForAccount(a.id)
     }
   }, [calendarLinkedAccounts, accountSidebarOpen, ensureCalendarsForAccount, isAccountSidebarOpen])
+
+  /** Namen fuer «Aus der Seitenleiste entfernt» in den Ansichtseinstellungen (inkl. Gruppenkalender). */
+  useEffect(() => {
+    if (sidebarHiddenCalendarKeys.size === 0) return
+    const accountIds = new Set<string>()
+    const m365GroupAccountIds = new Set<string>()
+    for (const key of sidebarHiddenCalendarKeys) {
+      const parsed = parseCalendarVisibilityKey(key)
+      if (!parsed) continue
+      accountIds.add(parsed.accountId)
+      if (parsed.graphCalendarId.startsWith(M365_GROUP_CALENDAR_ID_PREFIX)) {
+        const acc = calendarLinkedAccounts.find((a) => a.id === parsed.accountId)
+        if (acc?.provider === 'microsoft') m365GroupAccountIds.add(parsed.accountId)
+      }
+    }
+    let cancelled = false
+    for (const accountId of accountIds) {
+      void reloadCalendarsForAccount(accountId)
+    }
+    for (const accountId of m365GroupAccountIds) {
+      void (async (): Promise<void> => {
+        const groupRows: CalendarGraphCalendarRow[] = []
+        let offset = 0
+        const limit = 50
+        try {
+          for (;;) {
+            if (cancelled) return
+            const page = await window.mailClient.calendar.listMicrosoft365GroupCalendars({
+              accountId,
+              offset,
+              limit
+            })
+            groupRows.push(...page.calendars)
+            if (!page.hasMore) break
+            offset = page.offset + page.limit
+          }
+          if (cancelled) return
+          setCalendarsByAccount((prev) => {
+            const personal = (prev[accountId] ?? []).filter((c) => c.calendarKind !== 'm365Group')
+            const seen = new Set(personal.map((c) => c.id))
+            const merged = [...personal]
+            for (const c of groupRows) {
+              if (!seen.has(c.id)) {
+                seen.add(c.id)
+                merged.push(c)
+              }
+            }
+            return { ...prev, [accountId]: merged }
+          })
+        } catch (e) {
+          console.warn('[CalendarShell] Gruppenkalender fuer Wiederherstellung:', accountId, e)
+        }
+      })()
+    }
+    return (): void => {
+      cancelled = true
+    }
+  }, [sidebarHiddenCalendarKeys, calendarLinkedAccounts, reloadCalendarsForAccount])
 
   useEffect(() => {
     if (calendarLinkedAccounts.length === 0) return
@@ -1745,55 +1806,55 @@ export function CalendarShell(): JSX.Element {
         }
       ]
       const canEditRemote = cal.canEdit !== false && cal.calendarKind !== 'm365Group'
-      const curPreset: GraphCalendarColorPresetId | null = (() => {
-        const overrideHex = resolveCalendarDisplayHex(cal)
-        if (overrideHex && cal.displayColorOverrideHex) {
-          const match = GRAPH_CALENDAR_COLOR_PRESET_IDS.find(
-            (id) => id !== 'auto' && graphCalendarColorToDisplayHex(null, id) === overrideHex
-          )
-          if (match) return match
-        }
-        const raw = (cal.color ?? 'auto').trim().toLowerCase()
-        if (!raw || raw === 'auto') return cal.displayColorOverrideHex ? null : 'auto'
-        const found = GRAPH_CALENDAR_COLOR_PRESET_IDS.find((id) => id.toLowerCase() === raw)
-        return found ?? null
-      })()
+      const curPreset = resolveCalendarMenuPresetId(cal)
       const hexFallback = '#94a3b8'
+      const colorSubmenu = CALENDAR_COLOR_MENU_PRESET_IDS.flatMap((presetId) => {
+        const items: Array<{
+          id: string
+          label: string
+          separator?: boolean
+          swatchAuto?: boolean
+          swatchHex?: string
+          selected?: boolean
+          onSelect?: () => void
+        }> = []
+        if (presetId === CALENDAR_EXTENDED_COLOR_PRESET_IDS[0]) {
+          items.push({ id: 'cal-col-sep-ext', label: '', separator: true })
+        }
+        const solidHex =
+          presetId === 'auto' ? undefined : (calendarMenuPresetDisplayHex(presetId) ?? hexFallback)
+        items.push({
+          id: `cal-col-${presetId}`,
+          label: t(`calendar.graphColor.${presetId}` as 'calendar.graphColor.auto'),
+          swatchAuto: presetId === 'auto',
+          swatchHex: presetId === 'auto' ? undefined : solidHex,
+          selected: curPreset !== null && presetId === curPreset,
+          onSelect: (): void => {
+            void (async (): Promise<void> => {
+              try {
+                setError(null)
+                await window.mailClient.calendar.patchCalendarColor({
+                  accountId,
+                  graphCalendarId: cal.id,
+                  color: presetId
+                })
+                await reloadCalendarsForAccount(accountId, { forceRefresh: canEditRemote })
+                void reloadVisibleRange()
+              } catch (err) {
+                setError(err instanceof Error ? err.message : String(err))
+              }
+            })()
+          }
+        })
+        return items
+      })
       return [
         {
           id: 'cal-color-submenu',
           label: canEditRemote
             ? t('calendar.shell.colorMicrosoftLabel')
             : t('calendar.shell.colorLocalLabel'),
-          submenu: [...GRAPH_CALENDAR_COLOR_PRESET_IDS].map((presetId) => {
-            const solidHex =
-              presetId === 'auto'
-                ? undefined
-                : (graphCalendarColorToDisplayHex(null, presetId) ?? hexFallback)
-            return {
-              id: `cal-col-${presetId}`,
-              label: t(`calendar.graphColor.${presetId}` as 'calendar.graphColor.auto'),
-              swatchAuto: presetId === 'auto',
-              swatchHex: presetId === 'auto' ? undefined : solidHex,
-              selected: curPreset !== null && presetId === curPreset,
-              onSelect: (): void => {
-                void (async (): Promise<void> => {
-                  try {
-                    setError(null)
-                    await window.mailClient.calendar.patchCalendarColor({
-                      accountId,
-                      graphCalendarId: cal.id,
-                      color: presetId
-                    })
-                    await reloadCalendarsForAccount(accountId, { forceRefresh: canEditRemote })
-                    void reloadVisibleRange()
-                  } catch (err) {
-                    setError(err instanceof Error ? err.message : String(err))
-                  }
-                })()
-              }
-            }
-          })
+          submenu: colorSubmenu
         },
         ...tail
       ]
@@ -1843,6 +1904,7 @@ export function CalendarShell(): JSX.Element {
               (row) => cloudTaskStableKey(row.accountId, row.listId, row.id) === taskKey
             ) ?? task
           const optimisticPlanned = optimistic.plannedByKey.get(taskKey)
+          const canonicalEventId = cloudTaskEventId(taskKey)
 
           flushSync(() => {
             commitCloudTaskLayer(optimistic.items, optimistic.plannedByKey, start, end, {
@@ -1854,36 +1916,46 @@ export function CalendarShell(): JSX.Element {
             api,
             optimisticTask,
             optimisticPlanned,
-            fcTimeZone
+            fcTimeZone,
+            accountColorById
           )
-          if (taskKey) {
-            scheduleRemoveCloudTaskCalendarEventsByTaskKey(
-              api,
-              taskKey,
-              cloudTaskEventId(taskKey)
-            )
-          }
+          scheduleRemoveCloudTaskCalendarEventsByTaskKey(api, taskKey, canonicalEventId)
 
           const items = await loadUnifiedCloudTasks(taskAccounts, { cacheOnly: true })
-          const planned = await loadPlannedScheduleMapForTasks(items)
-          commitCloudTaskLayer(items, planned, start, end, { force: true })
-          if (taskKey) {
-            scheduleRemoveCloudTaskCalendarEventsByTaskKey(
-              calendarRef.current?.getApi(),
-              taskKey,
-              cloudTaskEventId(taskKey)
+          const plannedFromStore = await loadPlannedScheduleMapForTasks(items)
+          const mergedPlanned = new Map(plannedFromStore)
+          if (optimisticPlanned) mergedPlanned.set(taskKey, optimisticPlanned)
+          const mergedItems = items.map((row) => {
+            const rowKey = cloudTaskStableKey(row.accountId, row.listId, row.id)
+            return rowKey === taskKey ? optimisticTask : row
+          })
+          if (
+            !mergedItems.some(
+              (row) => cloudTaskStableKey(row.accountId, row.listId, row.id) === taskKey
             )
+          ) {
+            mergedItems.push(optimisticTask)
           }
-          if (taskKey) {
-            const updated = cloudTaskByKeyRef.current.get(taskKey)
-            if (updated) {
-              setPreviewCloudTaskPlannedFromTimeline(null)
-              setPreviewCloudTask(updated)
-            }
-          }
+          commitCloudTaskLayer(mergedItems, mergedPlanned, start, end, { force: true })
+
+          const apiAfter = calendarRef.current?.getApi()
+          syncFullCalendarCloudTaskEventFromLayer(
+            apiAfter,
+            optimisticTask,
+            optimisticPlanned,
+            fcTimeZone,
+            accountColorById
+          )
+          scheduleRemoveCloudTaskCalendarEventsByTaskKey(apiAfter, taskKey, canonicalEventId)
+
+          setPreviewCloudTaskPlannedFromTimeline(optimisticPlanned ?? null)
+          setPreviewCloudTask(optimisticTask)
+          timelineReloadRef.current?.()
         } catch (e) {
           setError(e instanceof Error ? e.message : String(e))
           info.revert()
+        } finally {
+          cloudTaskPersistInFlightRef.current = Math.max(0, cloudTaskPersistInFlightRef.current - 1)
         }
         return
       }
@@ -2106,8 +2178,20 @@ export function CalendarShell(): JSX.Element {
       const rows = calendarsByAccount[parsed.accountId]
       const cal = rows?.find((c) => c.id === parsed.graphCalendarId)
       const accountLabel = acc?.displayName?.trim() || acc?.email || parsed.accountId
-      const calendarName = cal?.name?.trim() || parsed.graphCalendarId
-      out.push({ key, accountLabel, calendarName })
+      const nameFromRow = cal?.name?.trim()
+      const namePending =
+        !nameFromRow &&
+        (rows === undefined ||
+          (parsed.graphCalendarId.startsWith(M365_GROUP_CALENDAR_ID_PREFIX) &&
+            !rows.some((c) => c.id === parsed.graphCalendarId)))
+      const calendarName = nameFromRow || (namePending ? '' : parsed.graphCalendarId)
+      out.push({
+        key,
+        accountId: parsed.accountId,
+        accountLabel,
+        calendarName,
+        namePending: namePending || undefined
+      })
     }
     out.sort((a, b) => {
       const cmp = a.accountLabel.localeCompare(b.accountLabel, calendarCollatorLocale)
@@ -3032,8 +3116,18 @@ export function CalendarShell(): JSX.Element {
                         })()
                       }
                       info.el.addEventListener('contextmenu', onMailCtx)
-                      const mailEl = info.el as HTMLElement & { _calCtxMenu?: (ev: MouseEvent) => void }
+                      const mailEl = info.el as HTMLElement & {
+                        _calCtxMenu?: (ev: MouseEvent) => void
+                        _calMailDblclick?: (ev: MouseEvent) => void
+                      }
                       mailEl._calCtxMenu = onMailCtx
+                      const onMailDblclick = (e: MouseEvent): void => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        openMailReadingPopout(m.id, { osWindow: e.shiftKey })
+                      }
+                      mailEl._calMailDblclick = onMailDblclick
+                      info.el.addEventListener('dblclick', onMailDblclick)
                     }
                     return
                   }
@@ -3260,10 +3354,17 @@ export function CalendarShell(): JSX.Element {
                         : ''
                     if (key) cloudTaskElByKeyRef.current.delete(key)
                   }
-                  const el = info.el as HTMLElement & { _calCtxMenu?: (ev: MouseEvent) => void }
+                  const el = info.el as HTMLElement & {
+                    _calCtxMenu?: (ev: MouseEvent) => void
+                    _calMailDblclick?: (ev: MouseEvent) => void
+                  }
                   if (el._calCtxMenu) {
                     info.el.removeEventListener('contextmenu', el._calCtxMenu)
                     delete el._calCtxMenu
+                  }
+                  if (el._calMailDblclick) {
+                    info.el.removeEventListener('dblclick', el._calMailDblclick)
+                    delete el._calMailDblclick
                   }
                 }}
                 datesSet={(arg): void => {

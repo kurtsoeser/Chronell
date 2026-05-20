@@ -96,6 +96,21 @@ export function broadcastNotesChanged(payload: {
   }
 }
 
+/** Ungerichtete entity_links geaendert — alle ConnectionsPanel-Instanzen neu laden. */
+export function broadcastEntityLinksChanged(): void {
+  for (const win of BrowserWindow.getAllWindows()) {
+    win.webContents.send('entity-links:changed', {})
+  }
+}
+
+export function broadcastEntityLinkAiScanProgress(
+  status: import('@shared/entity-links').EntityLinkAiScanStatus
+): void {
+  for (const win of BrowserWindow.getAllWindows()) {
+    win.webContents.send('entity-links:ai-scan-progress', status)
+  }
+}
+
 export function broadcastTeamsChatPopoutClosed(payload: {
   accountId: string
   chatId: string

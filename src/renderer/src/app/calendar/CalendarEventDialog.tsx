@@ -26,6 +26,7 @@ import {
   Video,
   X
 } from 'lucide-react'
+import type { ChronellEntityRef } from '@shared/entity-ref'
 import type {
   CalendarEventView,
   CalendarGraphCalendarRow,
@@ -61,6 +62,7 @@ import { useAccountsStore } from '@/stores/accounts'
 import { outlookCategoryDotClass } from '@/lib/outlook-category-colors'
 import { resolvedAccountColorCss } from '@/lib/avatar-color'
 import { ObjectNoteEditor } from '@/components/ObjectNoteEditor'
+import { ConnectionsPanel } from '@/components/connections/ConnectionsPanel'
 import { TipTapBody } from '@/components/TipTapBody'
 import { sanitizeComposeHtmlFragment } from '@/lib/sanitize-compose-html'
 import { CalendarEventDescriptionPreview } from '@/app/calendar/CalendarEventDescriptionPreview'
@@ -245,6 +247,8 @@ export interface CalendarEventDialogProps {
   taskAccounts?: ConnectedAccount[]
   loadListsForAccount?: (accountId: string) => Promise<TaskListRow[]>
   onTaskCreated?: () => void
+  /** Nach erfolgreichem Anlegen (Termin oder Aufgabe im Dialog). */
+  onEntityCreated?: (payload: { ref: ChronellEntityRef; title: string }) => void
   onClose: () => void
   onSaved: () => void
 }
@@ -297,6 +301,7 @@ export function CalendarEventDialog({
   taskAccounts = [],
   loadListsForAccount,
   onTaskCreated,
+  onEntityCreated,
   onClose,
   onSaved
 }: CalendarEventDialogProps): JSX.Element | null {
@@ -975,6 +980,10 @@ export function CalendarEventDialog({
           )
         }
         persistTasksCalendarCreateAccountId(taskAccountId)
+        onEntityCreated?.({
+          ref: { kind: 'cloud_task', accountId: taskAccountId, listId: taskListId, taskId: row.id },
+          title: subject.trim()
+        })
         onTaskCreated?.()
         onSaved()
         onClose()
@@ -1100,6 +1109,13 @@ export function CalendarEventDialog({
             accountId,
             graphEventId: created.id.trim(),
             iconId: eventIconId
+          })
+        }
+        const graphEventId = created.id?.trim()
+        if (graphEventId) {
+          onEntityCreated?.({
+            ref: { kind: 'calendar_event', accountId, graphEventId },
+            title: subject.trim() || t('calendar.eventDialog.untitled')
           })
         }
       } else {
@@ -1895,6 +1911,16 @@ export function CalendarEventDialog({
                     eventTitleSnapshot: subject.trim() || initialEvent.title,
                     eventStartIsoSnapshot: initialEvent.startIso
                   }}
+                />
+                <ConnectionsPanel
+                  anchor={{
+                    kind: 'calendar_event',
+                    accountId: initialEvent.accountId,
+                    graphEventId: initialEvent.graphEventId
+                  }}
+                  contentPaddingClass="px-0"
+                  sectionCollapsedDefault
+                  className="mt-2 border-t border-border/60"
                 />
               </div>
             ) : null}

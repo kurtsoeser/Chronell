@@ -1,4 +1,5 @@
 import { getDb } from './index'
+import { deleteAllEntityLinksForRef, mailTodoEntityRef } from './entity-links-repo'
 import type { MailListItem, TodoDueKindList, TodoOpenCounts } from '@shared/types'
 import { rowToListItem } from './messages-repo'
 import { computeTodoDisplayBounds, type TodoDisplayBounds } from '../todo-due-buckets'
@@ -276,6 +277,7 @@ export function reopenTodo(
 }
 
 export function deleteTodoById(todoId: number): void {
+  deleteAllEntityLinksForRef(mailTodoEntityRef(todoId))
   const db = getDb()
   db.prepare('DELETE FROM todos WHERE id = ?').run(todoId)
 }
@@ -283,6 +285,12 @@ export function deleteTodoById(todoId: number): void {
 /** Entfernt alle Mail-ToDos zu einer Nachricht (offen und erledigt). Gibt die Anzahl geloeschter Zeilen zurueck. */
 export function deleteTodosByMessageId(messageId: number): number {
   const db = getDb()
+  const ids = db
+    .prepare('SELECT id FROM todos WHERE message_id = ?')
+    .all(messageId) as Array<{ id: number }>
+  for (const row of ids) {
+    deleteAllEntityLinksForRef(mailTodoEntityRef(row.id))
+  }
   const r = db.prepare('DELETE FROM todos WHERE message_id = ?').run(messageId)
   return r.changes
 }

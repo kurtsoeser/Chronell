@@ -3,23 +3,33 @@ import type { MailListItem } from '@shared/types'
 
 interface CreateCloudTaskUiState {
   pendingMessage: MailListItem | null
+  /** Mail-ToDo → Cloud-Aufgabe inkl. Verknuepfungs-Umhaengen */
+  promoteTodoId: number | null
   /** Wird nach erfolgreicher Erstellung erhöht (z. B. Master-Liste). */
   createdSignal: number
-  open: (message: MailListItem) => void
+  open: (message: MailListItem, promoteTodoId?: number | null) => void
   close: () => void
   notifyCreated: () => void
 }
 
 export const useCreateCloudTaskUiStore = create<CreateCloudTaskUiState>((set) => ({
   pendingMessage: null,
+  promoteTodoId: null,
   createdSignal: 0,
-  open(message): void {
-    set({ pendingMessage: message })
+  open(message, promoteTodoId = null): void {
+    set({
+      pendingMessage: message,
+      promoteTodoId: promoteTodoId ?? null
+    })
   },
   close(): void {
-    set({ pendingMessage: null })
+    set({ pendingMessage: null, promoteTodoId: null })
   },
   notifyCreated(): void {
-    set((s) => ({ createdSignal: s.createdSignal + 1, pendingMessage: null }))
+    set((s) => ({
+      createdSignal: s.createdSignal + 1,
+      pendingMessage: null,
+      promoteTodoId: null
+    }))
   }
 }))

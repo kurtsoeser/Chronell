@@ -7,6 +7,7 @@ import { Loader2, SquareArrowOutUpRight } from 'lucide-react'
 import type { MailListItem } from '@shared/types'
 import { cn } from '@/lib/utils'
 import { useMailStore } from '@/stores/mail'
+import { openMailReadingPopout } from '@/lib/open-mail-reading-popout'
 import { useAccountsStore } from '@/stores/accounts'
 import { useAppModeStore } from '@/stores/app-mode'
 import { useCalendarPendingFocusStore } from '@/stores/calendar-pending-focus'
@@ -293,6 +294,12 @@ export function InboxCalendarSidebar({
                       }
                       useCalendarPendingFocusStore.getState().queueFocusEvent(row.ev)
                       setAppMode('calendar')
+                    }}
+                    onDoubleClick={(e): void => {
+                      if (row.kind !== 'mail') return
+                      e.preventDefault()
+                      e.stopPropagation()
+                      openMailReadingPopout(row.message.id, { osWindow: e.shiftKey })
                     }}
                   >
                     <span className="w-9 shrink-0 pt-0.5 text-[10px] tabular-nums text-muted-foreground">

@@ -56,6 +56,7 @@ import { accountSupportsCloudTasks } from '@/lib/cloud-task-accounts'
 import { useAccountsStore } from '@/stores/accounts'
 import { useInboxCalendarAgendaCacheStore } from '@/stores/inbox-calendar-agenda-cache'
 import { useMailStore, mailListUsesCrossAccountThreadScope } from '@/stores/mail'
+import { openMailReadingPopout } from '@/lib/open-mail-reading-popout'
 import {
   buildMailboxFlagExcludedFolderIds,
   threadMatchesMailboxFlaggedFilter
@@ -177,6 +178,11 @@ function DashboardTodoMessageList(props: {
                   <button
                     type="button"
                     onClick={(): void => void openFromDashboard(m.id)}
+                    onDoubleClick={(e): void => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      openMailReadingPopout(m.id, { osWindow: e.shiftKey })
+                    }}
                     onContextMenu={(e): void => onContextMail(e, m)}
                     className={cn(
                       'group relative flex w-full items-start gap-2 px-3 py-2 text-left text-xs transition-colors',
@@ -1103,6 +1109,11 @@ export function HomeDashboard(): JSX.Element {
                             <button
                               type="button"
                               onClick={(): void => void openThreadMessageCb(latest)}
+                              onDoubleClick={(e): void => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                openMailReadingPopout(latest.id, { osWindow: e.shiftKey })
+                              }}
                               onContextMenu={(e): void => {
                                 void openDashboardMailContext(e, latest, threadContextOpts)
                               }}
@@ -1190,6 +1201,11 @@ export function HomeDashboard(): JSX.Element {
                         <button
                           type="button"
                           onClick={(): void => void openFromDashboard(m.id)}
+                          onDoubleClick={(e): void => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            openMailReadingPopout(m.id, { osWindow: e.shiftKey })
+                          }}
                           className={cn(
                             'group relative flex w-full items-start gap-2 px-3 py-2 text-left text-xs transition-colors',
                             'hover:bg-secondary/50'
@@ -1266,6 +1282,11 @@ export function HomeDashboard(): JSX.Element {
                         <button
                           type="button"
                           onClick={(): void => void openFromDashboard(m.id)}
+                          onDoubleClick={(e): void => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            openMailReadingPopout(m.id, { osWindow: e.shiftKey })
+                          }}
                           className={cn(
                             'group relative flex w-full items-start gap-2 px-3 py-2 text-left text-xs transition-colors',
                             'hover:bg-secondary/50'
@@ -1370,6 +1391,11 @@ export function HomeDashboard(): JSX.Element {
                       <button
                         type="button"
                         onClick={(): void => void openFromDashboard(hit.id)}
+                        onDoubleClick={(e): void => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          openMailReadingPopout(hit.id, { osWindow: e.shiftKey })
+                        }}
                         className="flex w-full flex-col items-start gap-0.5 px-2 py-1.5 text-left text-[11px] transition-colors hover:bg-secondary/50"
                       >
                         <span className="truncate font-medium text-foreground">
@@ -1571,6 +1597,11 @@ export function HomeDashboard(): JSX.Element {
                             <button
                               type="button"
                               onClick={(): void => void openThreadMessageCb(latest)}
+                              onDoubleClick={(e): void => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                openMailReadingPopout(latest.id, { osWindow: e.shiftKey })
+                              }}
                               className={cn(
                                 'group relative flex w-full items-start gap-2 px-3 py-2 text-left text-xs transition-colors',
                                 'hover:bg-secondary/50'

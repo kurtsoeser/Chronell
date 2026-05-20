@@ -19,7 +19,8 @@ export function useSanitizedHtmlShadowRoot(
   hostRef: RefObject<HTMLElement | null>,
   shadowInnerHtml: string,
   logPrefix: 'mail' | 'calendar' | 'task',
-  viewerTheme?: MailViewerTheme
+  viewerTheme?: MailViewerTheme,
+  previewScale?: number
 ): void {
   useLayoutEffect(() => {
     const host = hostRef.current
@@ -29,6 +30,12 @@ export function useSanitizedHtmlShadowRoot(
       host.dataset.mailViewerTheme = viewerTheme
     } else {
       delete host.dataset.mailViewerTheme
+    }
+
+    if (previewScale != null && Number.isFinite(previewScale)) {
+      host.dataset.mailPreviewScale = String(previewScale)
+    } else {
+      delete host.dataset.mailPreviewScale
     }
 
     let shadow = host.shadowRoot
@@ -90,5 +97,5 @@ export function useSanitizedHtmlShadowRoot(
       host.removeEventListener('auxclick', openFromEvent, false)
       host.removeEventListener('keydown', keyOpen, false)
     }
-  }, [hostRef, shadowInnerHtml, logPrefix, viewerTheme])
+  }, [hostRef, shadowInnerHtml, logPrefix, viewerTheme, previewScale])
 }

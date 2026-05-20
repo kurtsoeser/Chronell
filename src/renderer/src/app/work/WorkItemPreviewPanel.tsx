@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { ConnectedAccount } from '@shared/types'
 import type { WorkItem } from '@shared/work-item'
+import { ConnectionsPanel } from '@/components/connections/ConnectionsPanel'
 import { ReadingPane } from '@/app/layout/ReadingPane'
 import { CalendarEventPreview } from '@/app/calendar/CalendarEventPreview'
 import { TodoDueBucketBadge } from '@/components/TodoDueBucketBadge'
@@ -79,6 +80,13 @@ export function WorkItemPreviewPanel({
             >
               {t('work.shell.openInMail')}
             </button>
+          ) : null}
+          {item.todoId != null ? (
+            <ConnectionsPanel
+              anchor={{ kind: 'mail_todo', todoId: item.todoId }}
+              contentPaddingClass="px-0"
+              sectionCollapsedDefault
+            />
           ) : null}
         </div>
         <div className="min-h-0 flex-1">

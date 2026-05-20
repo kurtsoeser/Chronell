@@ -408,6 +408,7 @@ export function Topbar({ onOpenAccountDialog }: Props): JSX.Element {
         { id: 'work' as const, label: t('topbar.modeWork'), icon: ListChecks },
         { id: 'people' as const, label: t('topbar.modePeople'), icon: Users },
         { id: 'notes' as const, label: t('topbar.modeNotes'), icon: StickyNote },
+        { id: 'connections' as const, label: t('topbar.modeConnections'), icon: Link2 },
         { id: 'chat' as const, label: t('topbar.modeChat'), icon: MessageCircle }
       ] satisfies Array<{
         id: AppShellMode

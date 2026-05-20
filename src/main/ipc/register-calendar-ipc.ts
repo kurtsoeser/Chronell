@@ -54,7 +54,12 @@ import {
   listStandardCalendarFoldersFromCache,
   setCalendarFolderDisplayColorOverride
 } from '../db/calendar-folders-repo'
-import { graphCalendarColorToDisplayHex } from '@shared/graph-calendar-colors'
+import {
+  calendarMenuPresetDisplayHex,
+  calendarMenuPresetOutlookSyncColor,
+  isCalendarColorMenuPreset,
+  isCalendarExtendedColorPreset
+} from '@shared/graph-calendar-colors'
 
 export function registerCalendarIpc(): void {
   ipcMain.removeHandler(IPC.calendar.listEvents)
@@ -109,21 +114,41 @@ export function registerCalendarIpc(): void {
         cached?.canEdit !== false &&
         cached?.calendarKind !== 'm365Group'
 
+      if (!isCalendarColorMenuPreset(colorPreset)) {
+        throw new Error('Ungueltige Kalenderfarbe.')
+      }
+
+      const displayHex = calendarMenuPresetDisplayHex(colorPreset)
+      const outlookSync = calendarMenuPresetOutlookSyncColor(colorPreset)
+
       if (!canPatchRemote) {
-        const hex =
-          colorPreset === 'auto' ? null : graphCalendarColorToDisplayHex(null, colorPreset)
-        if (colorPreset !== 'auto' && !hex) {
+        if (colorPreset !== 'auto' && !displayHex) {
           throw new Error('Ungueltige Kalenderfarbe.')
         }
-        setCalendarFolderDisplayColorOverride(accountId, graphCalendarId, hex)
+        setCalendarFolderDisplayColorOverride(accountId, graphCalendarId, displayHex)
         return
       }
 
       assertAppOnline()
+      if (!outlookSync) {
+        throw new Error('Ungueltige Kalenderfarbe.')
+      }
+
+      if (isCalendarExtendedColorPreset(colorPreset)) {
+        setCalendarFolderDisplayColorOverride(accountId, graphCalendarId, displayHex)
+        await patchMicrosoftCalendarColor({
+          accountId,
+          graphCalendarId,
+          color: outlookSync
+        })
+        return
+      }
+
+      setCalendarFolderDisplayColorOverride(accountId, graphCalendarId, null)
       await patchMicrosoftCalendarColor({
         accountId,
         graphCalendarId,
-        color: colorPreset
+        color: outlookSync
       })
     }
   )

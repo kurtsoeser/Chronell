@@ -96,7 +96,16 @@ export function Avatar({
     let cancelled = false
     void (async (): Promise<void> => {
       const url = await gravatarUrlForEmail(addr, GRAVATAR_PIXELS[size])
-      if (!cancelled && url) setGravatarUrl(url)
+      if (!url || cancelled) return
+      await new Promise<void>((resolve) => {
+        const probe = new Image()
+        probe.onload = (): void => {
+          if (!cancelled) setGravatarUrl(url)
+          resolve()
+        }
+        probe.onerror = (): void => resolve()
+        probe.src = url
+      })
     })()
     return (): void => {
       cancelled = true

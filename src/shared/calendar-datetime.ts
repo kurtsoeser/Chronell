@@ -74,6 +74,57 @@ export function calendarZonedPartsFromDateOnly(dateOnly: string, timeZone: strin
   }
 }
 
+function formatZonedDateParts(
+  p: ReturnType<typeof formatPartsInZone>,
+  localeCode: 'de' | 'en',
+  withTime: boolean
+): string {
+  const year = p.dateOnly.slice(0, 4)
+  if (localeCode === 'de') {
+    const datePart = `${pad2(p.day)}.${pad2(p.month)}.${year}`
+    if (!withTime) return datePart
+    return `${datePart} ${pad2(p.hour)}:${pad2(p.minute)}`
+  }
+  const datePart = `${pad2(p.month)}/${pad2(p.day)}/${year}`
+  if (!withTime) return datePart
+  return `${datePart} ${pad2(p.hour)}:${pad2(p.minute)}`
+}
+
+/**
+ * Kurzlabel fuer Termine (Graph, Paletten):
+ * DE: `TT.MM.JJJJ HH:MM` (24h), Ganztag ohne Uhrzeit.
+ */
+export function formatCalendarEventWhenLabel(
+  startIso: string,
+  timeZone: string,
+  localeCode: 'de' | 'en',
+  isAllDay = false
+): string | null {
+  const d = new Date(startIso.trim())
+  if (Number.isNaN(d.getTime())) return null
+  const p = formatPartsInZone(d, timeZone)
+  return formatZonedDateParts(p, localeCode, !isAllDay)
+}
+
+/** Fälligkeit fuer Aufgaben/ToDos (Graph, Paletten) — gleiches Datumsformat wie Termine. */
+export function formatDueIsoWhenLabel(
+  dueIso: string,
+  timeZone: string,
+  localeCode: 'de' | 'en'
+): string | null {
+  const s = dueIso.trim()
+  if (!s) return null
+  const dateOnly =
+    /^\d{4}-\d{2}-\d{2}$/.test(s) || /^\d{4}-\d{2}-\d{2}T12:00:00(?:\.\d{3})?Z?$/i.test(s)
+  if (dateOnly) {
+    const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(s) ? `${s}T12:00:00Z` : s)
+    if (Number.isNaN(d.getTime())) return null
+    const p = formatPartsInZone(d, timeZone)
+    return formatZonedDateParts(p, localeCode, false)
+  }
+  return formatCalendarEventWhenLabel(s, timeZone, localeCode, false)
+}
+
 /** UTC-ISO → lokales `yyyy-MM-ddTHH:mm:ss` in IANA-Zone (Graph/Google-Schreiben). */
 export function formatUtcIsoAsLocalDateTime(utcIso: string, timeZone: string): string | null {
   const d = new Date(utcIso)

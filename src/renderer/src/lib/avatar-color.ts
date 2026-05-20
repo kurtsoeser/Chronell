@@ -174,3 +174,25 @@ export function accountColorToCssBackground(input: string | null | undefined): s
 export function resolvedAccountColorCss(input: string | null | undefined): string {
   return accountColorToCssBackground(input) ?? '#64748b'
 }
+
+/** Kontenfarbe als `rgba(...)` (z. B. Insel-Hintergrund im Verbindungs-Graph). */
+export function accountColorToRgba(
+  input: string | null | undefined,
+  alpha: number
+): string | null {
+  const hex = accountColorToCssBackground(input)
+  if (!hex?.startsWith('#')) return null
+  let h = hex.slice(1)
+  if (h.length === 3) {
+    h = h
+      .split('')
+      .map((c) => c + c)
+      .join('')
+  }
+  if (h.length < 6) return null
+  const r = Number.parseInt(h.slice(0, 2), 16)
+  const g = Number.parseInt(h.slice(2, 4), 16)
+  const b = Number.parseInt(h.slice(4, 6), 16)
+  if ([r, g, b].some((n) => Number.isNaN(n))) return null
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}

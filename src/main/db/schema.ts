@@ -1063,5 +1063,185 @@ export const MIGRATIONS: Migration[] = [
         ON user_note_entity_links(people_contact_id)
         WHERE target_kind = 'people_contact';
     `
+  },
+  {
+    version: 38,
+    description: 'Universelles Verknuepfungsnetz: entity_links (ungerichtet)',
+    sql: `
+      CREATE TABLE IF NOT EXISTS entity_links (
+        id                          INTEGER PRIMARY KEY AUTOINCREMENT,
+        ref_a_key                   TEXT NOT NULL,
+        ref_b_key                   TEXT NOT NULL,
+        a_kind                      TEXT NOT NULL,
+        a_note_id                   INTEGER NULL REFERENCES user_notes(id) ON DELETE CASCADE,
+        a_mail_message_id           INTEGER NULL,
+        a_calendar_account_id       TEXT NULL,
+        a_calendar_graph_event_id   TEXT NULL,
+        a_task_account_id           TEXT NULL,
+        a_task_list_id              TEXT NULL,
+        a_task_id                   TEXT NULL,
+        a_people_contact_id         INTEGER NULL REFERENCES people_contacts(id) ON DELETE CASCADE,
+        b_kind                      TEXT NOT NULL,
+        b_note_id                   INTEGER NULL REFERENCES user_notes(id) ON DELETE CASCADE,
+        b_mail_message_id           INTEGER NULL,
+        b_calendar_account_id       TEXT NULL,
+        b_calendar_graph_event_id   TEXT NULL,
+        b_task_account_id           TEXT NULL,
+        b_task_list_id              TEXT NULL,
+        b_task_id                   TEXT NULL,
+        b_people_contact_id         INTEGER NULL REFERENCES people_contacts(id) ON DELETE CASCADE,
+        link_kind                   TEXT NULL DEFAULT 'related',
+        created_at                  TEXT NOT NULL DEFAULT (datetime('now')),
+        CHECK (ref_a_key < ref_b_key),
+        CHECK (
+          (a_kind = 'note' AND a_note_id IS NOT NULL
+            AND a_mail_message_id IS NULL AND a_calendar_account_id IS NULL
+            AND a_calendar_graph_event_id IS NULL AND a_task_account_id IS NULL
+            AND a_task_list_id IS NULL AND a_task_id IS NULL AND a_people_contact_id IS NULL)
+          OR (a_kind = 'mail' AND a_mail_message_id IS NOT NULL
+            AND a_note_id IS NULL AND a_calendar_account_id IS NULL
+            AND a_calendar_graph_event_id IS NULL AND a_task_account_id IS NULL
+            AND a_task_list_id IS NULL AND a_task_id IS NULL AND a_people_contact_id IS NULL)
+          OR (a_kind = 'calendar_event'
+            AND a_calendar_account_id IS NOT NULL AND a_calendar_graph_event_id IS NOT NULL
+            AND a_note_id IS NULL AND a_mail_message_id IS NULL
+            AND a_task_account_id IS NULL AND a_task_list_id IS NULL AND a_task_id IS NULL
+            AND a_people_contact_id IS NULL)
+          OR (a_kind = 'cloud_task'
+            AND a_task_account_id IS NOT NULL AND a_task_list_id IS NOT NULL AND a_task_id IS NOT NULL
+            AND a_note_id IS NULL AND a_mail_message_id IS NULL AND a_calendar_account_id IS NULL
+            AND a_calendar_graph_event_id IS NULL AND a_people_contact_id IS NULL)
+          OR (a_kind = 'people_contact' AND a_people_contact_id IS NOT NULL
+            AND a_note_id IS NULL AND a_mail_message_id IS NULL AND a_calendar_account_id IS NULL
+            AND a_calendar_graph_event_id IS NULL AND a_task_account_id IS NULL
+            AND a_task_list_id IS NULL AND a_task_id IS NULL)
+        ),
+        CHECK (
+          (b_kind = 'note' AND b_note_id IS NOT NULL
+            AND b_mail_message_id IS NULL AND b_calendar_account_id IS NULL
+            AND b_calendar_graph_event_id IS NULL AND b_task_account_id IS NULL
+            AND b_task_list_id IS NULL AND b_task_id IS NULL AND b_people_contact_id IS NULL)
+          OR (b_kind = 'mail' AND b_mail_message_id IS NOT NULL
+            AND b_note_id IS NULL AND b_calendar_account_id IS NULL
+            AND b_calendar_graph_event_id IS NULL AND b_task_account_id IS NULL
+            AND b_task_list_id IS NULL AND b_task_id IS NULL AND b_people_contact_id IS NULL)
+          OR (b_kind = 'calendar_event'
+            AND b_calendar_account_id IS NOT NULL AND b_calendar_graph_event_id IS NOT NULL
+            AND b_note_id IS NULL AND b_mail_message_id IS NULL
+            AND b_task_account_id IS NULL AND b_task_list_id IS NULL AND b_task_id IS NULL
+            AND b_people_contact_id IS NULL)
+          OR (b_kind = 'cloud_task'
+            AND b_task_account_id IS NOT NULL AND b_task_list_id IS NOT NULL AND b_task_id IS NOT NULL
+            AND b_note_id IS NULL AND b_mail_message_id IS NULL AND b_calendar_account_id IS NULL
+            AND b_calendar_graph_event_id IS NULL AND b_people_contact_id IS NULL)
+          OR (b_kind = 'people_contact' AND b_people_contact_id IS NOT NULL
+            AND b_note_id IS NULL AND b_mail_message_id IS NULL AND b_calendar_account_id IS NULL
+            AND b_calendar_graph_event_id IS NULL AND b_task_account_id IS NULL
+            AND b_task_list_id IS NULL AND b_task_id IS NULL)
+        )
+      );
+
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_unq_entity_links_pair
+        ON entity_links(ref_a_key, ref_b_key);
+
+      CREATE INDEX IF NOT EXISTS idx_entity_links_ref_a
+        ON entity_links(ref_a_key);
+      CREATE INDEX IF NOT EXISTS idx_entity_links_ref_b
+        ON entity_links(ref_b_key);
+
+      CREATE INDEX IF NOT EXISTS idx_entity_links_a_mail
+        ON entity_links(a_mail_message_id) WHERE a_kind = 'mail';
+      CREATE INDEX IF NOT EXISTS idx_entity_links_b_mail
+        ON entity_links(b_mail_message_id) WHERE b_kind = 'mail';
+      CREATE INDEX IF NOT EXISTS idx_entity_links_a_note
+        ON entity_links(a_note_id) WHERE a_kind = 'note';
+      CREATE INDEX IF NOT EXISTS idx_entity_links_b_note
+        ON entity_links(b_note_id) WHERE b_kind = 'note';
+      CREATE INDEX IF NOT EXISTS idx_entity_links_a_contact
+        ON entity_links(a_people_contact_id) WHERE a_kind = 'people_contact';
+      CREATE INDEX IF NOT EXISTS idx_entity_links_b_contact
+        ON entity_links(b_people_contact_id) WHERE b_kind = 'people_contact';
+    `
+  },
+  {
+    version: 39,
+    description: 'entity_links: Mail-ToDo als Verknuepfungsobjekt',
+    sql: `
+      CREATE TABLE entity_links_new (
+        id                          INTEGER PRIMARY KEY AUTOINCREMENT,
+        ref_a_key                   TEXT NOT NULL,
+        ref_b_key                   TEXT NOT NULL,
+        a_kind                      TEXT NOT NULL,
+        a_note_id                   INTEGER NULL REFERENCES user_notes(id) ON DELETE CASCADE,
+        a_mail_message_id           INTEGER NULL,
+        a_mail_todo_id              INTEGER NULL REFERENCES todos(id) ON DELETE CASCADE,
+        a_calendar_account_id       TEXT NULL,
+        a_calendar_graph_event_id   TEXT NULL,
+        a_task_account_id           TEXT NULL,
+        a_task_list_id              TEXT NULL,
+        a_task_id                   TEXT NULL,
+        a_people_contact_id         INTEGER NULL REFERENCES people_contacts(id) ON DELETE CASCADE,
+        b_kind                      TEXT NOT NULL,
+        b_note_id                   INTEGER NULL REFERENCES user_notes(id) ON DELETE CASCADE,
+        b_mail_message_id           INTEGER NULL,
+        b_mail_todo_id              INTEGER NULL REFERENCES todos(id) ON DELETE CASCADE,
+        b_calendar_account_id       TEXT NULL,
+        b_calendar_graph_event_id   TEXT NULL,
+        b_task_account_id           TEXT NULL,
+        b_task_list_id              TEXT NULL,
+        b_task_id                   TEXT NULL,
+        b_people_contact_id         INTEGER NULL REFERENCES people_contacts(id) ON DELETE CASCADE,
+        link_kind                   TEXT NULL DEFAULT 'related',
+        created_at                  TEXT NOT NULL DEFAULT (datetime('now')),
+        CHECK (ref_a_key < ref_b_key),
+        CHECK (a_kind IN ('note','mail','mail_todo','calendar_event','cloud_task','people_contact')),
+        CHECK (b_kind IN ('note','mail','mail_todo','calendar_event','cloud_task','people_contact'))
+      );
+
+      INSERT INTO entity_links_new (
+        id, ref_a_key, ref_b_key,
+        a_kind, a_note_id, a_mail_message_id, a_mail_todo_id,
+        a_calendar_account_id, a_calendar_graph_event_id,
+        a_task_account_id, a_task_list_id, a_task_id, a_people_contact_id,
+        b_kind, b_note_id, b_mail_message_id, b_mail_todo_id,
+        b_calendar_account_id, b_calendar_graph_event_id,
+        b_task_account_id, b_task_list_id, b_task_id, b_people_contact_id,
+        link_kind, created_at
+      )
+      SELECT
+        id, ref_a_key, ref_b_key,
+        a_kind, a_note_id, a_mail_message_id, NULL,
+        a_calendar_account_id, a_calendar_graph_event_id,
+        a_task_account_id, a_task_list_id, a_task_id, a_people_contact_id,
+        b_kind, b_note_id, b_mail_message_id, NULL,
+        b_calendar_account_id, b_calendar_graph_event_id,
+        b_task_account_id, b_task_list_id, b_task_id, b_people_contact_id,
+        link_kind, created_at
+      FROM entity_links;
+
+      DROP TABLE entity_links;
+      ALTER TABLE entity_links_new RENAME TO entity_links;
+
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_unq_entity_links_pair
+        ON entity_links(ref_a_key, ref_b_key);
+      CREATE INDEX IF NOT EXISTS idx_entity_links_ref_a ON entity_links(ref_a_key);
+      CREATE INDEX IF NOT EXISTS idx_entity_links_ref_b ON entity_links(ref_b_key);
+      CREATE INDEX IF NOT EXISTS idx_entity_links_a_mail
+        ON entity_links(a_mail_message_id) WHERE a_kind = 'mail';
+      CREATE INDEX IF NOT EXISTS idx_entity_links_b_mail
+        ON entity_links(b_mail_message_id) WHERE b_kind = 'mail';
+      CREATE INDEX IF NOT EXISTS idx_entity_links_a_mail_todo
+        ON entity_links(a_mail_todo_id) WHERE a_kind = 'mail_todo';
+      CREATE INDEX IF NOT EXISTS idx_entity_links_b_mail_todo
+        ON entity_links(b_mail_todo_id) WHERE b_kind = 'mail_todo';
+      CREATE INDEX IF NOT EXISTS idx_entity_links_a_note
+        ON entity_links(a_note_id) WHERE a_kind = 'note';
+      CREATE INDEX IF NOT EXISTS idx_entity_links_b_note
+        ON entity_links(b_note_id) WHERE b_kind = 'note';
+      CREATE INDEX IF NOT EXISTS idx_entity_links_a_contact
+        ON entity_links(a_people_contact_id) WHERE a_kind = 'people_contact';
+      CREATE INDEX IF NOT EXISTS idx_entity_links_b_contact
+        ON entity_links(b_people_contact_id) WHERE b_kind = 'people_contact';
+    `
   }
 ]

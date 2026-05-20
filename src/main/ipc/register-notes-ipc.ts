@@ -74,7 +74,7 @@ import {
   upsertMailNote,
   upsertPrimaryNoteForPeopleContact
 } from '../db/user-notes-repo'
-import { broadcastNotesChanged } from './ipc-broadcasts'
+import { broadcastEntityLinksChanged, broadcastNotesChanged } from './ipc-broadcasts'
 
 export function registerNotesIpc(): void {
   ipcMain.handle(IPC.notes.getMail, (_event, messageId: number): UserNote | null =>
@@ -230,6 +230,7 @@ export function registerNotesIpc(): void {
     }
     addNoteEntityLink(fromNoteId, target)
     broadcastNotesChanged({ noteId: fromNoteId })
+    broadcastEntityLinksChanged()
   })
 
   ipcMain.handle(IPC.notes.linksRemove, (_event, input: UserNoteLinkRemoveInput): void => {
@@ -242,6 +243,7 @@ export function registerNotesIpc(): void {
       removeNoteEntityLink(linkId, fromNoteId)
     }
     broadcastNotesChanged({ noteId: fromNoteId })
+    broadcastEntityLinksChanged()
   })
 
   ipcMain.handle(

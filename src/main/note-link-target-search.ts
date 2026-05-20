@@ -39,6 +39,38 @@ export function searchNoteLinkTargets(
     })
   }
 
+  if (out.length < limit) {
+    const todoLimit = limit - out.length
+    const openTodos = db
+      .prepare(
+        `SELECT t.id, m.subject, m.from_name, m.from_addr, t.due_at
+         FROM todos t
+         JOIN messages m ON m.id = t.message_id
+         WHERE t.status = 'open'
+         ${q ? `AND (LOWER(COALESCE(m.subject,'')) LIKE ? OR LOWER(COALESCE(m.from_name,'')) LIKE ? OR LOWER(COALESCE(m.from_addr,'')) LIKE ?)` : ''}
+         ORDER BY t.due_at IS NULL, t.due_at ASC, t.id DESC
+         LIMIT ?`
+      )
+      .all(
+        ...(q
+          ? [`%${q}%`, `%${q}%`, `%${q}%`, todoLimit]
+          : [todoLimit])
+      ) as Array<{
+      id: number
+      subject: string | null
+      from_name: string | null
+      from_addr: string | null
+      due_at: string | null
+    }>
+    for (const t of openTodos) {
+      out.push({
+        target: { kind: 'mail_todo', todoId: t.id },
+        title: t.subject?.trim() || '(Kein Betreff)',
+        subtitle: t.from_name?.trim() || t.from_addr?.trim() || t.due_at?.slice(0, 10) || null
+      })
+    }
+  }
+
   if (q && out.length < limit) {
     const mailLimit = limit - out.length
     const mails = db

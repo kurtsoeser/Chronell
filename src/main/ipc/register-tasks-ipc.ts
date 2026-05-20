@@ -20,14 +20,17 @@ import {
   type TasksSetPlannedScheduleInput,
   type TasksUpdateTaskInput,
   type TasksCreateMailCloudTaskFromMessageInput,
+  type TasksPromoteMailTodoToCloudTaskInput,
   type MailCloudTaskLinkDto,
   type TaskItemRow,
   type TaskListRow,
   type TaskPlannedScheduleDto
 } from '@shared/types'
+import { broadcastEntityLinksChanged } from './ipc-broadcasts'
 import {
   createMailCloudTaskFromMessage,
-  listMailCloudTaskLinkDtos
+  listMailCloudTaskLinkDtos,
+  promoteMailTodoToCloudTask
 } from '../mail-cloud-task-link-service'
 import {
   clearTaskPlannedSchedule,
@@ -261,6 +264,28 @@ export function registerTasksIpc(): void {
         dueIso: input?.dueIso ?? null
       })
       afterTaskCreated(accountId, task)
+      broadcastEntityLinksChanged()
+      return task
+    }
+  )
+
+  ipcMain.removeHandler(IPC.tasks.promoteMailTodoToCloudTask)
+  ipcMain.handle(
+    IPC.tasks.promoteMailTodoToCloudTask,
+    async (_event, input: TasksPromoteMailTodoToCloudTaskInput): Promise<TaskItemRow> => {
+      const todoId = typeof input?.todoId === 'number' ? input.todoId : 0
+      if (!todoId) throw new Error('ToDo-ID fehlt.')
+      const accountId = requireAccountId(input?.accountId)
+      const task = await promoteMailTodoToCloudTask({
+        todoId,
+        accountId,
+        listId: requireListId(input?.listId),
+        title: typeof input?.title === 'string' ? input.title : '',
+        notes: input?.notes ?? null,
+        dueIso: input?.dueIso ?? null
+      })
+      afterTaskCreated(accountId, task)
+      broadcastEntityLinksChanged()
       return task
     }
   )

@@ -1,5 +1,6 @@
 import type { TFunction } from 'i18next'
 import { Calendar, CheckSquare, ExternalLink, ListTodo, Mail, Trash2 } from 'lucide-react'
+import { useCreateCloudTaskUiStore } from '@/stores/create-cloud-task-ui'
 import { openExternalUrl } from '@/lib/open-external'
 import type { WorkItem } from '@shared/work-item'
 import type { ContextMenuItem } from '@/components/ContextMenu'
@@ -78,6 +79,22 @@ export async function buildWorkItemContextMenuItems(
       allowsCloudTaskCreate: h.canCreateCloudTask?.(item.mail.accountId) ?? false,
       t: h.t
     })
+    const promoteCloud =
+      (h.canCreateCloudTask?.(item.mail.accountId) ?? false) && item.todoId != null
+        ? [
+            {
+              id: 'work-promote-cloud',
+              label: h.t('mail.promoteCloudTask.menu'),
+              icon: ListTodo,
+              onSelect: (): void => {
+                useCreateCloudTaskUiStore
+                  .getState()
+                  .open(item.mail, item.todoId ?? undefined)
+              }
+            },
+            { id: 'work-sep-promote', label: '', separator: true as const }
+          ]
+        : []
     return [
       ...common,
       { id: 'work-sep-mail-1', label: '', separator: true },
@@ -87,6 +104,7 @@ export async function buildWorkItemContextMenuItems(
         icon: Mail,
         onSelect: (): void => h.onOpenInMail(item)
       },
+      ...promoteCloud,
       { id: 'work-sep-mail-2', label: '', separator: true },
       ...mailItems
     ]

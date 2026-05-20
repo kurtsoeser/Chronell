@@ -11,6 +11,7 @@ import {
   dueDateInputValue,
   isoToDatetimeLocalValue
 } from '@/app/work-items/work-item-datetime'
+import { ConnectionsPanel } from '@/components/connections/ConnectionsPanel'
 
 export interface CloudTaskSaveDraft {
   title: string
@@ -149,6 +150,18 @@ export function CloudTaskWorkItemDetail({
           className="h-full min-h-[120px] w-full resize-y rounded-md border border-border bg-background px-2 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary"
         />
       </div>
+
+      <ConnectionsPanel
+        anchor={{
+          kind: 'cloud_task',
+          accountId: item.accountId,
+          listId: item.listId,
+          taskId: item.taskId
+        }}
+        contentPaddingClass="px-0"
+        sectionCollapsedDefault
+      />
+
       <div className="flex flex-wrap gap-2">
         <button
           type="button"

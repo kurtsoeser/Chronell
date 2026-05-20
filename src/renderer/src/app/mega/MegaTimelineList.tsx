@@ -14,6 +14,7 @@ import { workItemSourceLabel } from '@/app/work-items/work-item-mapper'
 import type { MegaDayGroup } from '@/app/mega/mega-timeline-arrange'
 import { megaItemTimeLabel } from '@/app/mega/mega-timeline-label'
 import type { TaskListArrangeBy } from '@/app/tasks/task-list-arrange'
+import { openMailReadingPopout } from '@/lib/open-mail-reading-popout'
 
 function kindIconComponent(item: WorkItem): LucideIcon {
   if (item.kind === 'mail_todo') return Mail
@@ -160,6 +161,12 @@ export function MegaTimelineList({
                     onClick={(): void => {
                       onSelect(item)
                       onItemClick(item)
+                    }}
+                    onDoubleClick={(e): void => {
+                      if (item.kind !== 'mail_todo') return
+                      e.preventDefault()
+                      e.stopPropagation()
+                      openMailReadingPopout(item.messageId, { osWindow: e.shiftKey })
                     }}
                     onContextMenu={
                       onContextMenu

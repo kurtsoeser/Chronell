@@ -1,6 +1,5 @@
 import { useEditor, EditorContent, type Editor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
-import Underline from '@tiptap/extension-underline'
 import Placeholder from '@tiptap/extension-placeholder'
 import Image from '@tiptap/extension-image'
 import TextAlign from '@tiptap/extension-text-align'
@@ -149,7 +148,6 @@ export function TipTapBody({
       FontSize.configure({ types: ['textStyle'] }),
       Color,
       Highlight.configure({ multicolor: true }),
-      Underline,
       MailTable.configure({ resizable: false, renderWrapper: false }),
       TableRow,
       MailTableHeader,

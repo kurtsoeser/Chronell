@@ -15,6 +15,7 @@ import {
 } from '@/lib/compose-helpers'
 import { sanitizeComposeHtmlFragment } from '@/lib/sanitize-compose-html'
 import { initialSignatureForAccount } from '@/lib/signature-templates'
+import type { ConnectionsCanvasCreateAnchor } from '@/app/connections/connections-canvas-create'
 import { useAccountsStore } from '@/stores/accounts'
 import { useMailStore } from '@/stores/mail'
 
@@ -91,6 +92,8 @@ export interface ComposeDraft {
   embedInReadingPane?: boolean
   /** Lokale Mail-ID bei Bearbeitung eines Server-Entwurfs. */
   linkedMessageId?: number | null
+  /** Nach Versand: Objekt am Verbindungen-Canvas an dieser Stelle platzieren. */
+  connectionsCanvasAnchor?: ConnectionsCanvasCreateAnchor
   /**
    * Nach erfolgreichem Speichern in «Entwürfe» am Server (Graph: Message-Id,
    * Gmail: Draft-Ressourcen-ID). Bei Konto-Wechsel im Composer zuruecksetzen.
@@ -103,6 +106,11 @@ interface ComposeState {
   activeId: string | null
 
   openNew: (accountId: string) => void
+  /** Schwebendes Composer-Fenster (z. B. Verbindungen-Canvas). */
+  openFloatingNew: (
+    accountId: string,
+    options?: { connectionsCanvasAnchor?: ConnectionsCanvasCreateAnchor }
+  ) => string
   /** Neuer Entwurf mit vorausgefuelltem An-Feld (E-Mail-Adresse). */
   openNewTo: (accountId: string, to: string) => void
   /** Server-Entwurf in der Vorschau-Spalte bearbeiten. */
@@ -125,6 +133,21 @@ interface ComposeState {
 
 function newId(): string {
   return `cmp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+}
+
+export type ConnectionsCanvasMailPlacedPayload = {
+  messageId: number
+  anchor: ConnectionsCanvasCreateAnchor
+  title: string
+}
+
+let connectionsCanvasMailPlacedHandler: ((payload: ConnectionsCanvasMailPlacedPayload) => void) | null =
+  null
+
+export function setConnectionsCanvasMailPlacedHandler(
+  handler: ((payload: ConnectionsCanvasMailPlacedPayload) => void) | null
+): void {
+  connectionsCanvasMailPlacedHandler = handler
 }
 
 function defaultComposeFields(accountId: string): Pick<
@@ -272,6 +295,33 @@ export const useComposeStore = create<ComposeState>((set, get) => ({
   openNew(accountId: string): void {
     openReadingPaneDraft(get, set, { accountId })
     useMailStore.getState().clearSelectedMessage()
+  },
+
+  openFloatingNew(
+    accountId: string,
+    options?: { connectionsCanvasAnchor?: ConnectionsCanvasCreateAnchor }
+  ): string {
+    const draft: ComposeDraft = {
+      id: newId(),
+      accountId,
+      mode: 'new',
+      to: '',
+      cc: '',
+      bcc: '',
+      showCcBcc: false,
+      subject: '',
+      prependRichHtml: '',
+      prependPlain: '',
+      quotedHtml: '',
+      attachments: [],
+      expectReply: false,
+      expectReplyDays: 7,
+      linkedMessageId: null,
+      connectionsCanvasAnchor: options?.connectionsCanvasAnchor,
+      ...defaultComposeFields(accountId)
+    }
+    set((s) => ({ drafts: [...s.drafts, draft], activeId: draft.id }))
+    return draft.id
   },
 
   openNewTo(accountId: string, to: string): void {
@@ -490,7 +540,7 @@ export const useComposeStore = create<ComposeState>((set, get) => ({
     get().update(id, { busy: true, error: null })
 
     try {
-      await window.mailClient.compose.send({
+      const sendResult = await window.mailClient.compose.send({
         accountId: draft.accountId,
         subject: draft.subject || '(Kein Betreff)',
         bodyHtml,
@@ -516,6 +566,15 @@ export const useComposeStore = create<ComposeState>((set, get) => ({
         isReadReceiptRequested: draft.isReadReceiptRequested,
         scheduledSendAt: scheduledSendAt ?? undefined
       })
+
+      const canvasAnchor = draft.connectionsCanvasAnchor
+      if (canvasAnchor && sendResult.messageId != null) {
+        connectionsCanvasMailPlacedHandler?.({
+          messageId: sendResult.messageId,
+          anchor: canvasAnchor,
+          title: draft.subject.trim() || '(Kein Betreff)'
+        })
+      }
 
       get().close(id)
     } catch (e) {

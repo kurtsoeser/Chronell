@@ -14,7 +14,9 @@ import {
   m365GroupCalendarRef,
   parseM365GroupIdFromCalendarRef
 } from '@shared/microsoft-m365-group-calendar'
+import { mapWithConcurrency } from '../map-with-concurrency'
 import { createGraphClient } from './client'
+import { withGraphThrottleRetry } from './graph-api-throttle-retry'
 import { loadConfig } from '../config'
 import { graphWindowsZoneToIana, ianaToWindowsTimeZone } from '@shared/microsoft-timezones'
 import { graphCalendarColorToDisplayHex, isGraphCalendarColorPreset } from '@shared/graph-calendar-colors'
@@ -289,6 +291,8 @@ interface GraphDirectoryCollection {
 }
 
 const MAX_M365_GROUP_CALENDARS_LIST = 280
+/** Graph MailboxConcurrency — konservativ 2 parallele Gruppenkalender-Metadaten-Abrufe. */
+const M365_GROUP_CALENDAR_FETCH_CONCURRENCY = 2
 
 /** Kurzzeit-Cache: `transitiveMemberOf` bei jeder Seite neu zu holen waere langsam. */
 const m365UnifiedGroupListCache = new Map<string, { at: number; groups: GraphDirectoryObject[] }>()
@@ -353,43 +357,35 @@ async function fetchM365GroupCalendarRowsForSlice(
 ): Promise<CalendarGraphCalendarRow[]> {
   if (slice.length === 0) return []
   const client = await getClientFor(accountId)
-  const chunk = 8
-  const rows: CalendarGraphCalendarRow[] = []
-  for (let i = 0; i < slice.length; i += chunk) {
-    const partSlice = slice.slice(i, i + chunk)
-    const part = await Promise.all(
-      partSlice.map(async (g) => {
-        const gid = g.id as string
-        try {
-          const cal = (await client
-            .api(`/groups/${encodeURIComponent(gid)}/calendar`)
-            .select('id,name,color,hexColor')
-            .get()) as {
-            id?: string
-            name?: string | null
-            color?: string | null
-            hexColor?: string | null
-          }
-          const name = displayNameForM365GroupCalendar(g.displayName, cal.name)
-          return {
-            id: m365GroupCalendarRef(gid),
-            name,
-            isDefaultCalendar: false,
-            canEdit: true,
-            color: cal.color ?? undefined,
-            hexColor: cal.hexColor ?? undefined,
-            calendarKind: 'm365Group' as const
-          } satisfies CalendarGraphCalendarRow
-        } catch {
-          return null
-        }
-      })
-    )
-    for (const r of part) {
-      if (r) rows.push(r)
+  const part = await mapWithConcurrency(slice, M365_GROUP_CALENDAR_FETCH_CONCURRENCY, async (g) => {
+    const gid = g.id as string
+    try {
+      const cal = (await withGraphThrottleRetry(`group calendar meta ${gid}`, () =>
+        client
+          .api(`/groups/${encodeURIComponent(gid)}/calendar`)
+          .select('id,name,color,hexColor')
+          .get()
+      )) as {
+        id?: string
+        name?: string | null
+        color?: string | null
+        hexColor?: string | null
+      }
+      const name = displayNameForM365GroupCalendar(g.displayName, cal.name)
+      return {
+        id: m365GroupCalendarRef(gid),
+        name,
+        isDefaultCalendar: false,
+        canEdit: true,
+        color: cal.color ?? undefined,
+        hexColor: cal.hexColor ?? undefined,
+        calendarKind: 'm365Group' as const
+      } satisfies CalendarGraphCalendarRow
+    } catch {
+      return null
     }
-  }
-  return rows
+  })
+  return part.filter((r): r is CalendarGraphCalendarRow => r != null)
 }
 
 /**

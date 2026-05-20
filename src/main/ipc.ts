@@ -6,6 +6,8 @@ import { registerConfigIpc } from './ipc/register-config-ipc'
 import { registerGraphIpc } from './ipc/register-graph-ipc'
 import { registerMailIpc } from './ipc/register-mail-ipc'
 import { registerNotesIpc } from './ipc/register-notes-ipc'
+import { registerEntityLinksIpc } from './ipc/register-entity-links-ipc'
+import { registerAiConnectionsIpc } from './ipc/register-ai-connections-ipc'
 import { registerWorkflowVipRulesIpc } from './ipc/register-workflow-vip-rules-ipc'
 import { registerSettingsBackupIpc } from './ipc/register-settings-backup-ipc'
 import { registerLocalDataIpc } from './ipc/register-local-data-ipc'
@@ -28,6 +30,8 @@ export function registerIpcHandlers(): void {
   registerGraphIpc()
   registerMailIpc()
   registerNotesIpc()
+  registerEntityLinksIpc()
+  registerAiConnectionsIpc()
   registerWorkflowVipRulesIpc()
   registerSettingsBackupIpc()
   registerLocalDataIpc()

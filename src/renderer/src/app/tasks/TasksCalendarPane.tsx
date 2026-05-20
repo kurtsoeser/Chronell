@@ -262,7 +262,13 @@ export function TasksCalendarPane({
           applyRangeFilter(optimistic.items, optimistic.plannedByKey, start, end)
         })
 
-        syncFullCalendarCloudTaskEventFromLayer(api, optimisticTask, optimisticPlanned, timeZone)
+        syncFullCalendarCloudTaskEventFromLayer(
+          api,
+          optimisticTask,
+          optimisticPlanned,
+          timeZone,
+          accountColorById
+        )
         scheduleRemoveCloudTaskCalendarEventsByTaskKey(
           api,
           taskKey,
@@ -271,9 +277,29 @@ export function TasksCalendarPane({
 
         const items = await reloadAll()
         const { start, end } = lastRangeRef.current
-        const planned = await loadPlannedScheduleMapForTasks(items)
-        setPlannedByKey(planned)
-        applyRangeFilter(items, planned, start, end)
+        const plannedFromStore = await loadPlannedScheduleMapForTasks(items)
+        const mergedPlanned = new Map(plannedFromStore)
+        if (optimisticPlanned) mergedPlanned.set(taskKey, optimisticPlanned)
+        const mergedItems = items.map((row) => {
+          const rowKey = cloudTaskStableKey(row.accountId, row.listId, row.id)
+          return rowKey === taskKey ? optimisticTask : row
+        })
+        if (
+          !mergedItems.some(
+            (row) => cloudTaskStableKey(row.accountId, row.listId, row.id) === taskKey
+          )
+        ) {
+          mergedItems.push(optimisticTask)
+        }
+        setPlannedByKey(mergedPlanned)
+        applyRangeFilter(mergedItems, mergedPlanned, start, end)
+        syncFullCalendarCloudTaskEventFromLayer(
+          calendarRef.current?.getApi(),
+          optimisticTask,
+          optimisticPlanned,
+          timeZone,
+          accountColorById
+        )
         scheduleRemoveCloudTaskCalendarEventsByTaskKey(
           calendarRef.current?.getApi(),
           taskKey,

@@ -1,4 +1,6 @@
 import { listAccounts } from './accounts'
+import { withGraphThrottleRetry } from './graph/graph-api-throttle-retry'
+import { mapWithConcurrency } from './map-with-concurrency'
 import {
   graphListCalendarView,
   graphListCalendarViewInCalendar,
@@ -57,6 +59,8 @@ export interface ListMergedCalendarEventsOptions {
 }
 
 const DEFAULT_CALENDAR_LOAD_AHEAD_DAYS = 365
+/** Graph MailboxConcurrency: max. ~4 gleichzeitige Anfragen pro Postfach — konservativ 2. */
+const MICROSOFT_CALENDAR_VIEW_CONCURRENCY = 2
 
 /** Ende des fuer ein Konto angefragten Zeitraums (Ansicht vs. Vorausschau ab heute). */
 function effectiveFetchEndForAccount(acc: ConnectedAccount, viewEnd: Date): Date {
@@ -75,15 +79,19 @@ async function fetchMicrosoftCalendarViews(
   end: Date
 ): Promise<GraphCalendarEventRow[]> {
   if (calendarIds.length === 0) return []
-  const batches = await Promise.all(
-    calendarIds.map(async (calId) => {
+  const batches = await mapWithConcurrency(
+    calendarIds,
+    MICROSOFT_CALENDAR_VIEW_CONCURRENCY,
+    async (calId) => {
       try {
-        return await graphListCalendarViewInCalendar(acc.id, calId, start, end)
+        return await withGraphThrottleRetry(`calendarView ${acc.id}/${calId}`, () =>
+          graphListCalendarViewInCalendar(acc.id, calId, start, end)
+        )
       } catch (e) {
         console.warn('[calendar-service] Kalender konnte nicht geladen werden:', acc.id, calId, e)
         return [] as GraphCalendarEventRow[]
       }
-    })
+    }
   )
   const seenIds = new Set<string>()
   const rows: GraphCalendarEventRow[] = []
