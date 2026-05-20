@@ -191,10 +191,20 @@ import type {
 } from '@shared/mail-rules'
 
 const MAIL_CHANGED_RENDERER_DEBOUNCE_MS = 200
+const CALENDAR_CHANGED_RENDERER_DEBOUNCE_MS = 350
+const TASKS_CHANGED_RENDERER_DEBOUNCE_MS = 350
 
 const mailChangedHandlers = new Set<(payload: MailChangedPayload) => void>()
+const calendarChangedHandlers = new Set<(payload: { accountId: string }) => void>()
+const tasksChangedHandlers = new Set<(payload: { accountId: string }) => void>()
+
 const pendingMailChangedByAccount = new Map<string, MailChangedPayload>()
+const pendingCalendarChangedAccounts = new Set<string>()
+const pendingTasksChangedAccounts = new Set<string>()
+
 let mailChangedRendererFlushTimer: ReturnType<typeof setTimeout> | null = null
+let calendarChangedRendererFlushTimer: ReturnType<typeof setTimeout> | null = null
+let tasksChangedRendererFlushTimer: ReturnType<typeof setTimeout> | null = null
 
 function flushMailChangedToHandlers(): void {
   mailChangedRendererFlushTimer = null
@@ -214,6 +224,44 @@ function scheduleMailChangedRendererFlush(): void {
   )
 }
 
+function flushCalendarChangedToHandlers(): void {
+  calendarChangedRendererFlushTimer = null
+  if (pendingCalendarChangedAccounts.size === 0) return
+  const accountIds = [...pendingCalendarChangedAccounts]
+  pendingCalendarChangedAccounts.clear()
+  for (const accountId of accountIds) {
+    const payload = { accountId }
+    for (const handler of calendarChangedHandlers) handler(payload)
+  }
+}
+
+function scheduleCalendarChangedRendererFlush(): void {
+  if (calendarChangedRendererFlushTimer != null) return
+  calendarChangedRendererFlushTimer = setTimeout(
+    flushCalendarChangedToHandlers,
+    CALENDAR_CHANGED_RENDERER_DEBOUNCE_MS
+  )
+}
+
+function flushTasksChangedToHandlers(): void {
+  tasksChangedRendererFlushTimer = null
+  if (pendingTasksChangedAccounts.size === 0) return
+  const accountIds = [...pendingTasksChangedAccounts]
+  pendingTasksChangedAccounts.clear()
+  for (const accountId of accountIds) {
+    const payload = { accountId }
+    for (const handler of tasksChangedHandlers) handler(payload)
+  }
+}
+
+function scheduleTasksChangedRendererFlush(): void {
+  if (tasksChangedRendererFlushTimer != null) return
+  tasksChangedRendererFlushTimer = setTimeout(
+    flushTasksChangedToHandlers,
+    TASKS_CHANGED_RENDERER_DEBOUNCE_MS
+  )
+}
+
 ipcRenderer.on('mail:changed', (_e: IpcRendererEvent, payload: MailChangedPayload) => {
   const prev = pendingMailChangedByAccount.get(payload.accountId)
   pendingMailChangedByAccount.set(
@@ -226,6 +274,18 @@ ipcRenderer.on('mail:changed', (_e: IpcRendererEvent, payload: MailChangedPayloa
       : payload
   )
   scheduleMailChangedRendererFlush()
+})
+
+ipcRenderer.on('calendar:changed', (_e: IpcRendererEvent, payload: { accountId: string }) => {
+  if (!payload?.accountId) return
+  pendingCalendarChangedAccounts.add(payload.accountId)
+  scheduleCalendarChangedRendererFlush()
+})
+
+ipcRenderer.on('tasks:changed', (_e: IpcRendererEvent, payload: { accountId: string }) => {
+  if (!payload?.accountId) return
+  pendingTasksChangedAccounts.add(payload.accountId)
+  scheduleTasksChangedRendererFlush()
 })
 
 const api = {
@@ -427,6 +487,31 @@ const api = {
       input?: EntityLinkAiScanInput
     ): Promise<import('@shared/entity-links').EntityLinkAiScanCostEstimate> =>
       ipcRenderer.invoke(IPC.entityLinks.estimateAiScanCost, input ?? {}),
+    previewAiPayload: (
+      input: import('@shared/entity-link-ai-payload').EntityLinkAiPayloadPreviewInput
+    ): Promise<import('@shared/entity-link-ai-payload').EntityLinkAiPayloadPreview | null> =>
+      ipcRenderer.invoke(IPC.entityLinks.previewAiPayload, input),
+    getHeuristicSuggestionCounts: (
+      anchors: ChronellEntityRef[]
+    ): Promise<import('@shared/entity-link-ai-payload').EntityLinkSuggestionCountEntry[]> =>
+      ipcRenderer.invoke(IPC.entityLinks.getHeuristicSuggestionCounts, anchors),
+    listAiAudit: (
+      limit?: number
+    ): Promise<
+      Array<{
+        id: number
+        kind: string
+        anchorKey: string | null
+        provider: string | null
+        charEstimate: number
+        includeExcerpt: boolean
+        createdAt: string
+      }>
+    > => ipcRenderer.invoke(IPC.entityLinks.listAiAudit, limit ?? 15),
+    evaluateLinkQuality: (
+      input: import('@shared/entity-links').EntityLinkEvaluateQualityInput
+    ): Promise<import('@shared/entity-links').EntityLinkEvaluateQualityResult> =>
+      ipcRenderer.invoke(IPC.entityLinks.evaluateLinkQuality, input),
     startAiScan: (input?: EntityLinkAiScanInput): Promise<EntityLinkAiScanStatus> =>
       ipcRenderer.invoke(IPC.entityLinks.startAiScan, input ?? {}),
     cancelAiScan: (): Promise<EntityLinkAiScanStatus> =>
@@ -450,7 +535,21 @@ const api = {
     setApiKey: (input: AiConnectionsSetApiKeyInput): Promise<AiConnectionsSettings> =>
       ipcRenderer.invoke(IPC.aiConnections.setApiKey, input),
     clearApiKey: (provider: AiConnectionsProvider): Promise<AiConnectionsSettings> =>
-      ipcRenderer.invoke(IPC.aiConnections.clearApiKey, provider)
+      ipcRenderer.invoke(IPC.aiConnections.clearApiKey, provider),
+    listOllamaModels: (baseUrl?: string): Promise<import('@shared/ai-connections').OllamaModelEntry[]> =>
+      ipcRenderer.invoke(IPC.aiConnections.listOllamaModels, baseUrl),
+    testOllamaConnection: (
+      input?: import('@shared/ai-connections').OllamaConnectionTestInput
+    ): Promise<import('@shared/ai-connections').OllamaConnectionTestResult> =>
+      ipcRenderer.invoke(IPC.aiConnections.testOllamaConnection, input),
+    getEmbeddingIndexStatus: (): Promise<import('@shared/entity-embeddings').EntityEmbeddingIndexStatus> =>
+      ipcRenderer.invoke(IPC.aiConnections.getEmbeddingIndexStatus),
+    rebuildEmbeddingIndex: (
+      input?: import('@shared/entity-embeddings').EntityEmbeddingRebuildInput
+    ): Promise<{ indexed: number; skipped: number; failed: number }> =>
+      ipcRenderer.invoke(IPC.aiConnections.rebuildEmbeddingIndex, input),
+    cancelEmbeddingRebuild: (): Promise<void> =>
+      ipcRenderer.invoke(IPC.aiConnections.cancelEmbeddingRebuild)
   },
   notes: {
     getMail: (messageId: number): Promise<UserNote | null> =>
@@ -955,11 +1054,9 @@ const api = {
       }
     },
     onCalendarChanged: (handler: (payload: { accountId: string }) => void): (() => void) => {
-      const listener = (_e: IpcRendererEvent, payload: { accountId: string }): void =>
-        handler(payload)
-      ipcRenderer.on('calendar:changed', listener)
+      calendarChangedHandlers.add(handler)
       return (): void => {
-        ipcRenderer.off('calendar:changed', listener)
+        calendarChangedHandlers.delete(handler)
       }
     },
     onCalendarSyncStatus: (handler: (status: SyncStatus) => void): (() => void) => {
@@ -970,11 +1067,9 @@ const api = {
       }
     },
     onTasksChanged: (handler: (payload: { accountId: string }) => void): (() => void) => {
-      const listener = (_e: IpcRendererEvent, payload: { accountId: string }): void =>
-        handler(payload)
-      ipcRenderer.on('tasks:changed', listener)
+      tasksChangedHandlers.add(handler)
       return (): void => {
-        ipcRenderer.off('tasks:changed', listener)
+        tasksChangedHandlers.delete(handler)
       }
     },
     onNotesChanged: (
@@ -1014,6 +1109,18 @@ const api = {
       ipcRenderer.on('entity-links:ai-scan-progress', listener)
       return (): void => {
         ipcRenderer.off('entity-links:ai-scan-progress', listener)
+      }
+    },
+    onEntityEmbeddingProgress: (
+      handler: (progress: import('@shared/entity-embeddings').EntityEmbeddingProgress | null) => void
+    ): (() => void) => {
+      const listener = (
+        _e: IpcRendererEvent,
+        progress: import('@shared/entity-embeddings').EntityEmbeddingProgress | null
+      ): void => handler(progress)
+      ipcRenderer.on('entity-embeddings:index-progress', listener)
+      return (): void => {
+        ipcRenderer.off('entity-embeddings:index-progress', listener)
       }
     },
     onTeamsChatPopoutClosed: (handler: (payload: TeamsChatPopoutRef) => void): (() => void) => {

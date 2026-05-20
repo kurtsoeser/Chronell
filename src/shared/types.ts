@@ -732,6 +732,8 @@ export interface CalendarPatchScheduleInput {
   startIso: string
   endIso: string
   isAllDay: boolean
+  /** Google: `sendUpdates=all`; Microsoft sendet bei Besprechungen automatisch. */
+  notifyAttendees?: boolean
 }
 
 /** Nur Kalenderfarbe (Outlook-Preset) — `PATCH /me/calendars/{id}`. */

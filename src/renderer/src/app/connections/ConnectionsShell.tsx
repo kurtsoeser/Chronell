@@ -3,6 +3,8 @@ import { Loader2, RefreshCw, Route, Save, Search, Sparkles, X } from 'lucide-rea
 import { useTranslation } from 'react-i18next'
 import type { ChronellEntityRef } from '@shared/entity-ref'
 import { entityRefKey } from '@shared/entity-ref'
+import type { EntityLinkSuggestionCountEntry } from '@shared/entity-link-ai-payload'
+import type { EntityLinkQuality } from '@shared/entity-links'
 import type {
   EntityGraphNode,
   EntityGraphSnapshot,
@@ -33,6 +35,7 @@ import {
   type ConnectionsPreviewPlacement
 } from '@/app/connections/connections-preview-storage'
 import { ConnectionsAiScanPanel } from '@/app/connections/ConnectionsAiScanPanel'
+import { ConnectionsEmbeddingIndexBar } from '@/app/connections/ConnectionsEmbeddingIndexBar'
 import { ConnectionsGraphControls } from '@/components/connections/ConnectionsGraphControls'
 import { ConnectionsObjectPalette } from '@/components/connections/ConnectionsObjectPalette'
 import {
@@ -45,7 +48,9 @@ import { cn } from '@/lib/utils'
 import {
   fetchEntityLinkGraphDensityStats,
   fetchEntityLinkPath,
+  fetchEntityLinkQuality,
   fetchEntityLinksGraph,
+  fetchEntityLinkSuggestionCounts,
   subscribeEntityLinksChanged
 } from '@/lib/entity-links-client'
 import { openEntityRef } from '@/lib/entity-link-nav'
@@ -84,6 +89,9 @@ export function ConnectionsShell(): JSX.Element {
   const setHighlightRef = useConnectionsGraphFocusStore((s) => s.setHighlightRef)
   const setEmphasisKeys = useConnectionsGraphFocusStore((s) => s.setEmphasisKeys)
   const requestFitToKeys = useConnectionsGraphFocusStore((s) => s.requestFitToKeys)
+  const pendingScanAnchors = useConnectionsGraphFocusStore((s) => s.pendingScanAnchors)
+  const pendingAutoStartScan = useConnectionsGraphFocusStore((s) => s.pendingAutoStartScan)
+  const clearPendingAiScan = useConnectionsGraphFocusStore((s) => s.clearPendingAiScan)
 
   const [graph, setGraph] = useState<EntityGraphSnapshot | null>(null)
   const [loading, setLoading] = useState(true)
@@ -197,6 +205,13 @@ export function ConnectionsShell(): JSX.Element {
   )
   const [scanProfile, setScanProfile] = useState<EntityLinkAiScanProfile | null>(null)
   const [density, setDensity] = useState<EntityLinkGraphDensityStats | null>(null)
+  const [showLinkQualityOnGraph, setShowLinkQualityOnGraph] = useState(false)
+  const [linkQualityByLinkId, setLinkQualityByLinkId] = useState<
+    Map<number, EntityLinkQuality>
+  >(() => new Map())
+  const [suggestionHints, setSuggestionHints] = useState<
+    ReadonlyMap<string, EntityLinkSuggestionCountEntry>
+  >(() => new Map())
 
   const [paletteWidth, setPaletteWidth] = useResizableWidth({
     storageKey: 'mailclient.connections.paletteWidth',
@@ -327,10 +342,52 @@ export function ConnectionsShell(): JSX.Element {
     if (!graph) return
     void window.mailClient.aiConnections
       .getSettings()
-      .then((s) => fetchEntityLinkGraphDensityStats(s.scanLookbackDays))
+      .then((s) => {
+        setShowLinkQualityOnGraph(
+          s.showLinkQualityOnGraph && s.enabled && s.hasActiveApiKey
+        )
+        return fetchEntityLinkGraphDensityStats(s.scanLookbackDays)
+      })
       .then(setDensity)
-      .catch(() => setDensity(null))
+      .catch(() => {
+        setDensity(null)
+        setShowLinkQualityOnGraph(false)
+      })
   }, [graph])
+
+  const reloadSuggestionHints = useCallback((): void => {
+    if (!graph?.nodes.length) {
+      setSuggestionHints(new Map())
+      return
+    }
+    const refs = graph.nodes
+      .filter((n) => n.kind === 'mail' || n.kind === 'mail_todo')
+      .map((n) => n.ref)
+    if (refs.length === 0) {
+      setSuggestionHints(new Map())
+      return
+    }
+    void fetchEntityLinkSuggestionCounts(refs)
+      .then((entries) => {
+        const m = new Map<string, EntityLinkSuggestionCountEntry>()
+        for (const e of entries) {
+          if (e.count > 0) m.set(e.anchorKey, e)
+        }
+        setSuggestionHints(m)
+      })
+      .catch(() => setSuggestionHints(new Map()))
+  }, [graph])
+
+  useEffect(() => {
+    reloadSuggestionHints()
+  }, [reloadSuggestionHints])
+
+  useEffect(() => {
+    if (!graph) return
+    return subscribeEntityLinksChanged(() => {
+      reloadSuggestionHints()
+    })
+  }, [graph, reloadSuggestionHints])
 
   const openScan = useCallback(
     (opts?: { anchors?: EntityLinkAiScanAnchor[]; profile?: EntityLinkAiScanProfile | null }): void => {
@@ -342,6 +399,13 @@ export function ConnectionsShell(): JSX.Element {
     },
     []
   )
+
+  useEffect(() => {
+    if (!pendingScanAnchors?.length) return
+    setMultiSelectedKeys(new Set(pendingScanAnchors.map((a) => entityRefKey(a.ref))))
+    openScan({ anchors: pendingScanAnchors })
+    clearPendingAiScan()
+  }, [pendingScanAnchors, clearPendingAiScan, openScan])
 
   const handleScanIsland = useCallback(
     (clusterKey: string): void => {
@@ -387,6 +451,40 @@ export function ConnectionsShell(): JSX.Element {
   }, [graph])
 
   const selectedKey = selected ? entityRefKey(selected.ref) : null
+
+  const loadGraphLinkQuality = useCallback(async (): Promise<void> => {
+    if (!selected || !showLinkQualityOnGraph) {
+      setLinkQualityByLinkId(new Map())
+      return
+    }
+    try {
+      const result = await fetchEntityLinkQuality({ anchor: selected.ref })
+      const map = new Map<number, EntityLinkQuality>()
+      for (const row of result.assessments) {
+        map.set(row.linkId, row.quality)
+      }
+      setLinkQualityByLinkId(map)
+    } catch {
+      setLinkQualityByLinkId(new Map())
+    }
+  }, [selected, showLinkQualityOnGraph])
+
+  useEffect(() => {
+    void loadGraphLinkQuality()
+  }, [loadGraphLinkQuality])
+
+  useEffect(() => {
+    if (!showLinkQualityOnGraph) return
+    const onRefresh = (): void => {
+      void loadGraphLinkQuality()
+    }
+    window.addEventListener('entity-link-quality:updated', onRefresh)
+    const unsub = subscribeEntityLinksChanged(onRefresh)
+    return (): void => {
+      window.removeEventListener('entity-link-quality:updated', onRefresh)
+      unsub()
+    }
+  }, [showLinkQualityOnGraph, loadGraphLinkQuality])
 
   const stagedNodes = useMemo((): EntityGraphNode[] => {
     return staged.map((s) => ({
@@ -733,6 +831,7 @@ export function ConnectionsShell(): JSX.Element {
                       })
                     : t('connections.shell.subtitle')}
         </p>
+        <ConnectionsEmbeddingIndexBar />
       </header>
 
       <div className="flex min-h-0 flex-1">
@@ -790,6 +889,10 @@ export function ConnectionsShell(): JSX.Element {
               onToggleMultiSelect={handleToggleMultiSelect}
               onMarqueeComplete={handleMarqueeComplete}
               onScanIsland={handleScanIsland}
+              suggestionHints={suggestionHints}
+              linkQualityByLinkId={
+                showLinkQualityOnGraph ? linkQualityByLinkId : undefined
+              }
               onSelectNode={(node): void => {
                 if (pathPickEnd && node) {
                   void runPathTo(node)
@@ -816,6 +919,7 @@ export function ConnectionsShell(): JSX.Element {
             open={scanPanelOpen}
             scanAnchors={scanAnchorsForPanel}
             scanProfile={scanProfile}
+            autoStartScan={pendingAutoStartScan}
             onClose={(): void => {
               setScanPanelOpen(false)
               setScanProfile(null)

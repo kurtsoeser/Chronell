@@ -1,6 +1,6 @@
 import { de, enUS } from 'date-fns/locale'
 import type { TFunction } from 'i18next'
-import { ExternalLink, ListTodo } from 'lucide-react'
+import { ExternalLink, ListTodo, Sparkles } from 'lucide-react'
 import type { ChronellEntityRef } from '@shared/entity-ref'
 import type { EntityGraphNode } from '@shared/entity-links'
 import type {
@@ -42,6 +42,7 @@ import {
   formatPeopleContactClipboardText
 } from '@/lib/people-contact-context-menu'
 import { buildNotesPageContextMenuItems } from '@/lib/notes-page-context-menu'
+import { openGraphNodeAiSuggestLinks } from '@/lib/open-connections-graph'
 import { useCreateCloudTaskUiStore } from '@/stores/create-cloud-task-ui'
 import { showAppAlert, showAppConfirm } from '@/stores/app-dialog'
 
@@ -77,6 +78,22 @@ function openModuleItem(h: GraphNodeContextHandlers, ref: ChronellEntityRef): Co
       void h.openInModule(ref)
     }
   }
+}
+
+function aiSuggestLinksItem(h: GraphNodeContextHandlers, node: EntityGraphNode): ContextMenuItem {
+  return {
+    id: 'graph-ai-suggest-links',
+    label: h.t('connections.graph.context.aiSuggestLinks'),
+    icon: Sparkles,
+    onSelect: (): void => {
+      openGraphNodeAiSuggestLinks(node.ref, node.title)
+    }
+  }
+}
+
+/** Mail-Kontextmenü enthält einen ähnlichen Eintrag – im Graph nur einmal anzeigen. */
+function stripDuplicateAiMenuItems(items: ContextMenuItem[]): ContextMenuItem[] {
+  return items.filter((item) => item.id !== 'ai-connections')
 }
 
 async function loadCalendarEvent(ref: Extract<ChronellEntityRef, { kind: 'calendar_event' }>): Promise<CalendarEventView | null> {
@@ -314,7 +331,7 @@ export async function buildGraphNodeContextMenuItems(
   h: GraphNodeContextHandlers
 ): Promise<ContextMenuItem[]> {
   const ref = node.ref
-  const head = [openModuleItem(h, ref)]
+  const head = [openModuleItem(h, ref), aiSuggestLinksItem(h, node)]
 
   try {
     switch (ref.kind) {
@@ -331,7 +348,7 @@ export async function buildGraphNodeContextMenuItems(
             }
           ]
         }
-        const specific = await buildMailMenuItems(full, anchor, h)
+        const specific = stripDuplicateAiMenuItems(await buildMailMenuItems(full, anchor, h))
         return [...head, { id: 'graph-sep', label: '', separator: true }, ...specific]
       }
       case 'mail_todo': {

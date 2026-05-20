@@ -24,6 +24,26 @@ Dieses Dokument beschreibt größere und strategische Erweiterungen der KI-gest�
 
 **Lücke Snippet Phase 3:** Consent in Einstellungen vorhanden, aber keine granulare Vorschau pro Aufruf, kein Unterschied Vorschauzeile vs. Body in der UI.
 
+### R4 Umsetzungsstand (Mai 2026)
+
+| Paket | Status |
+|-------|--------|
+| 1.1 Payload-Preview-API | Erledigt (`entity-link-ai-payload-preview.ts`, IPC `previewAiPayload`) |
+| 1.2 Quellen-Matrix / Vorschauzeile vs. Body | Erledigt (`resolveMailTextExcerpt`, Quellen-Labels in UI) |
+| 1.3 `snippetMode` off/on/ask | Erledigt (`ai-connections.ts`, Einstellungen) |
+| 1.4 Scan-Dialog Vorschau | Erledigt (`ConnectionsAiScanPanel`, `AiSnippetConsentDialog`) |
+| 1.5 Einzelvorschlag Modal + Session | Erledigt (`ConnectionsPanel`, `ai-snippet-session.ts`) |
+| 1.6 Audit-Log | Offen |
+| 2 Proaktive Hinweise Phase A | Erledigt (heuristisch, Graph-Badge, Cache) |
+| 2b Proaktive Hinweise Phase B | Erledigt (Scan-Cache + Panel-KI, Mail-Liste-Badge, Quelle im Tooltip) |
+| 1.6 Audit-Log | Erledigt (`entity_link_ai_audit`, Einstellungen-Übersicht) |
+| 5 Workflow-Integration | Kern erledigt (`WorkflowBoard` in `WorkShell` Ansicht „Workflow“, Threads via `WorkflowThreadBlock`, Mail-Kontext „Verbindungen mit KI prüfen“) |
+| R5 Domänen-Prompts | Erledigt (Built-in + Einstellungen, Scan + Panel) |
+| R5 Link-Qualität | Erledigt (IPC, Panel, Graph-Kanten mit Einstellungs-Toggle) |
+| Graph-KI Auto-Scan | Erledigt (Kontextmenü startet Scan nach Panel-Öffnen) |
+| 7 Ollama (MVP) | Erledigt (Provider `ollama`, `/api/chat` + `/api/tags`, Modellauswahl in Einstellungen) |
+| 8 Embeddings | Erledigt (SQLite `entity_embeddings`, Ollama `/api/embed`, Hybrid-Retrieval, Hintergrund nach Sync, Einstellungen) |
+
 ---
 
 ## Roadmap-Übersicht
@@ -169,6 +189,8 @@ Phase A: ~3 Tage; A+B: ~1–2 Wochen.
 
 ## 3. Verbindungs-Qualität (bestehende Links)
 
+**Umsetzungsstand (R5):** IPC `evaluateLinkQuality`, Session-Cache, Panel + Graph-Kanten (`showLinkQualityOnGraph` in Einstellungen), Audit `evaluate_quality`.
+
 ### Ziel
 
 KI bewertet **bestehende** Kanten: z. B. `strong` | `moderate` | `weak` | `questionable` + `reasonText` – keine Auto-Löschung.
@@ -191,6 +213,8 @@ KI bewertet **bestehende** Kanten: z. B. `strong` | `moderate` | `weak` | `quest
 ---
 
 ## 4. Domänen-Prompts (Scan-Modi)
+
+**Umsetzungsstand (R5):** `entity-link-ai-prompts.ts`, Built-in `general` / `workshop_honorar` / `travel`, benutzerdefinierte Profile in Einstellungen, Retrieval-Boost per Stichwörtern, Domänen-Dropdown im Scan-Panel und Vorschlags-Panel.
 
 ### Ziel
 
@@ -228,6 +252,8 @@ type AiLinkDomainProfile = {
 ---
 
 ## 5. Workflow-Integration
+
+**Stand:** Modul **Alle Arbeit** → Ansicht **Workflow** rendert `WorkflowBoard` (Kanban-Spalten + `WorkflowThreadBlock` + `ReadingPane`). Persistenz: `mailclient.work.contentViewMode.v1` = `workflow`.
 
 ### Ziel
 
@@ -279,6 +305,8 @@ Bei Merge: alle `entity_links` und Referenzen auf surviving `contactId` migriere
 
 ## 7. Lokales Modell (Ollama)
 
+**Stand (MVP):** Einstellungen → KI-Verbindungen → **Ollama (lokal)**; Basis-URL; Modellliste `/api/tags`; **Verbindung testen** (Server + optional Modell-JSON-Ping); Vorschläge/Qualität via `/api/chat`. **Kompakt-Prompts** automatisch für kleine Ollama-Modelle (≤12B, z. B. `llama3.2`, `qwen2.5:7b`). Offen: Offline-Fallback, expliziter Kompakt-Schalter.
+
 ### Ziel
 
 Strenge Datenschutz-Anforderungen ohne Cloud.
@@ -315,6 +343,8 @@ Provider-Abstraktion (2.1) **vor** Embeddings sinnvoll; unabhängig von Snippet-
 ---
 
 ## 8. Embeddings (langfristig)
+
+**Stand (Mai 2026):** Kapitel 8 umgesetzt — `entity_embeddings` (Migration v41), `entity-embedding-text.ts`, `ollama-embeddings.ts` (`/api/embed`), `entity-embeddings-index.ts` (Rebuild + Delta-Queue nach Mail-Sync), `entity-embeddings-search.ts` (Hybrid + Kosinus), `entity-link-embedding-suggest.ts` (schnelle Vorschläge `embedding_semantic`), LLM-Kandidaten max. 15 bei aktivem Index. Einstellungen: Vektorindex, Modell, Hybrid/Auto/Fast, „Index neu aufbauen“.
 
 ### Ziel
 

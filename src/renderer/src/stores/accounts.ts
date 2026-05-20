@@ -3,6 +3,38 @@ import { isMailClientRuntimeComplete, warnMailClientMissingOnce } from '@/lib/ma
 import type { AppConfig, AppConfigWeatherLocation, ConnectedAccount, PatchAccountInput } from '@shared/types'
 import { safeSetCalendarTimeZone, safeSetGoogleClientId, safeSetWeatherLocation } from '@/lib/config-invoke'
 
+/** Entfernt den Konten-Änderungs-Listener (auch nach Vite-HMR, siehe window-Hook unten). */
+let disposeAccountsChanged: (() => void) | undefined
+
+type AccountsChangedWindow = Window & {
+  __chronellDisposeAccountsChanged?: () => void
+}
+
+function attachAccountsChangedListener(
+  applyAccounts: (next: ConnectedAccount[], urls: Record<string, string>) => void
+): void {
+  disposeAccountsChanged?.()
+  const w = window as AccountsChangedWindow
+  w.__chronellDisposeAccountsChanged?.()
+  w.__chronellDisposeAccountsChanged = undefined
+
+  const onChanged = window.mailClient.events?.onAccountsChanged
+  if (typeof onChanged !== 'function') return
+
+  disposeAccountsChanged = onChanged((next) => {
+    void (async (): Promise<void> => {
+      let urls: Record<string, string> = {}
+      try {
+        urls = await loadProfilePhotoDataUrls(next)
+      } catch (e) {
+        console.warn('[accounts] Profilfotos konnten nicht geladen werden:', e)
+      }
+      applyAccounts(next, urls)
+    })()
+  })
+  w.__chronellDisposeAccountsChanged = disposeAccountsChanged
+}
+
 async function loadProfilePhotoDataUrls(accounts: ConnectedAccount[]): Promise<Record<string, string>> {
   const withPhoto = accounts.filter((a) => a.profilePhotoFile)
   const pairs = await Promise.all(
@@ -82,11 +114,8 @@ export const useAccountsStore = create<AccountsState>((set, get) => ({
       }
       set({ accounts, config, profilePhotoDataUrls, loading: false })
 
-      window.mailClient.events?.onAccountsChanged((next) => {
-        void (async (): Promise<void> => {
-          const urls = await loadProfilePhotoDataUrls(next)
-          set({ accounts: next, profilePhotoDataUrls: urls })
-        })()
+      attachAccountsChangedListener((next, urls) => {
+        set({ accounts: next, profilePhotoDataUrls: urls })
       })
     } catch (e) {
       set({ loading: false, error: e instanceof Error ? e.message : String(e) })

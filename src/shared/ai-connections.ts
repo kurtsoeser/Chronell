@@ -1,16 +1,44 @@
-export type AiConnectionsProvider = 'gemini' | 'openai'
+import type { AiLinkCustomDomainProfile } from './ai-link-domain'
+
+export type AiConnectionsProvider = 'gemini' | 'openai' | 'ollama'
+
+export interface OllamaModelEntry {
+  name: string
+  sizeBytes: number | null
+}
+
+export interface OllamaConnectionTestInput {
+  baseUrl?: string
+  model?: string | null
+}
+
+export interface OllamaConnectionTestResult {
+  ok: boolean
+  message: string
+  modelCount: number
+  serverVersion?: string
+  modelResponded?: boolean
+  latencyMs?: number
+}
+
+/** Steuert, wann Textauszüge an die Cloud gehen. */
+export type AiSnippetMode = 'off' | 'on' | 'ask'
 
 export interface AiConnectionsSettings {
   enabled: boolean
   /** Bevorzugter Anbieter für KI-Vorschläge und Graph-Scan. */
   provider: AiConnectionsProvider
   model: string | null
+  /** Basis-URL für Ollama (z. B. http://127.0.0.1:11434). */
+  ollamaBaseUrl: string
   hasGeminiApiKey: boolean
   hasOpenAiApiKey: boolean
-  /** API-Schlüssel für den gewählten `provider` vorhanden. */
+  /** API-Schlüssel bzw. Ollama-Modell für den gewählten `provider` bereit. */
   hasActiveApiKey: boolean
   consentGiven: boolean
-  /** Snippet/Body-Auszug (~500 Zeichen) mitsenden – erfordert `snippetConsentGiven`. */
+  /** Snippet/Body-Auszug (~500 Zeichen) – Modus `on` oder pro Aufruf bei `ask`. */
+  snippetMode: AiSnippetMode
+  /** Legacy-Spiegel: true nur bei `snippetMode === 'on'`. */
   includeSnippet: boolean
   snippetConsentGiven: boolean
   /** Standard für Vollgraph-Scan (ohne Auswahl). */
@@ -18,19 +46,41 @@ export interface AiConnectionsSettings {
   scanMaxAnchors: number
   minConfidence: number
   compareProviders: boolean
+  customDomainProfiles: AiLinkCustomDomainProfile[]
+  /** Bestehende Kanten im Graph nach KI-Qualität einfärben (wenn Bewertung vorliegt). */
+  showLinkQualityOnGraph: boolean
+  /** Lokaler Vektorindex (Ollama-Embeddings). */
+  embeddingsEnabled: boolean
+  embeddingModel: string
+  /** Heuristik + Vektorsuche in entity-link-ai-retrieval. */
+  embeddingHybridRetrieval: boolean
+  /** Nach Mail-Sync / Notiz-Änderung im Hintergrund einbetten. */
+  embeddingAutoIndex: boolean
+  /** Vorschläge aus Vektorähnlichkeit ohne LLM (schnell). */
+  embeddingFastSuggestions: boolean
 }
 
 export interface AiConnectionsSetSettingsInput {
   enabled?: boolean
   provider?: AiConnectionsProvider
   model?: string | null
+  ollamaBaseUrl?: string
   consentGiven?: boolean
+  snippetMode?: AiSnippetMode
+  /** Legacy: true → snippetMode `on`. */
   includeSnippet?: boolean
   snippetConsentGiven?: boolean
   scanLookbackDays?: number
   scanMaxAnchors?: number
   minConfidence?: number
   compareProviders?: boolean
+  customDomainProfiles?: AiLinkCustomDomainProfile[]
+  showLinkQualityOnGraph?: boolean
+  embeddingsEnabled?: boolean
+  embeddingModel?: string
+  embeddingHybridRetrieval?: boolean
+  embeddingAutoIndex?: boolean
+  embeddingFastSuggestions?: boolean
 }
 
 /** Einstellungen ohne API-Keys (Sicherungsdatei). */
@@ -38,13 +88,26 @@ export interface AiConnectionsSettingsBackupSnapshot {
   enabled: boolean
   provider: AiConnectionsProvider
   model: string | null
+  ollamaBaseUrl: string
   consentGiven: boolean
+  snippetMode: AiSnippetMode
   includeSnippet: boolean
   snippetConsentGiven: boolean
   scanLookbackDays: number
   scanMaxAnchors: number
   minConfidence: number
   compareProviders: boolean
+  customDomainProfiles: AiLinkCustomDomainProfile[]
+  showLinkQualityOnGraph: boolean
+  embeddingsEnabled: boolean
+  embeddingModel: string
+  embeddingHybridRetrieval: boolean
+  embeddingAutoIndex: boolean
+  embeddingFastSuggestions: boolean
+}
+
+export function isEmbeddingPipelineActive(settings: AiConnectionsSettings): boolean {
+  return settings.embeddingsEnabled && Boolean(settings.ollamaBaseUrl?.trim())
 }
 
 export interface AiConnectionsSetApiKeyInput {
@@ -53,6 +116,9 @@ export interface AiConnectionsSetApiKeyInput {
 }
 
 export function aiConnectionsHasActiveApiKey(settings: AiConnectionsSettings): boolean {
+  if (settings.provider === 'ollama') {
+    return Boolean(settings.model?.trim())
+  }
   return settings.provider === 'openai' ? settings.hasOpenAiApiKey : settings.hasGeminiApiKey
 }
 

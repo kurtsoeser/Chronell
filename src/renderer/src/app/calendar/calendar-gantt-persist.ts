@@ -3,6 +3,12 @@ import type { WorkItem } from '@shared/work-item'
 import { applyCloudTaskPersistTarget } from '@/app/calendar/apply-cloud-task-persist'
 import type { GanttBarInterval } from '@/app/calendar/calendar-gantt-layout'
 import { fullCalendarEventToPatchSchedule } from '@/app/calendar/calendar-shell-view-helpers'
+import {
+  CalendarScheduleChangeDiscardedError,
+  patchScheduleInputWithMeetingNotify,
+  resolveMeetingScheduleChange
+} from '@/app/calendar/calendar-meeting-schedule-change'
+import type { TFunction } from 'i18next'
 
 export interface GanttPersistDeps {
   fcTimeZone: string
@@ -13,6 +19,7 @@ export interface GanttPersistDeps {
     opts?: { skipSelectedRefresh?: boolean }
   ) => Promise<void>
   patchEventSchedule: typeof window.mailClient.calendar.patchEventSchedule
+  t: TFunction
 }
 
 function intervalToSchedule(interval: GanttBarInterval): {
@@ -80,12 +87,21 @@ export async function persistWorkItemGanttSchedule(
   if (!patch) {
     throw new Error('calendar.errors.scheduleParseFailed')
   }
-  await deps.patchEventSchedule({
-    accountId: ev.accountId,
-    graphEventId: ev.graphEventId,
-    graphCalendarId: ev.graphCalendarId ?? null,
-    startIso: patch.startIso,
-    endIso: patch.endIso,
-    isAllDay: patch.isAllDay
-  })
+  const scheduleResolution = await resolveMeetingScheduleChange(ev, deps.t)
+  if (scheduleResolution.action === 'discard') {
+    throw new CalendarScheduleChangeDiscardedError()
+  }
+  await deps.patchEventSchedule(
+    patchScheduleInputWithMeetingNotify(
+      {
+        accountId: ev.accountId,
+        graphEventId: ev.graphEventId,
+        graphCalendarId: ev.graphCalendarId ?? null,
+        startIso: patch.startIso,
+        endIso: patch.endIso,
+        isAllDay: patch.isAllDay
+      },
+      scheduleResolution.notifyAttendees
+    )
+  )
 }

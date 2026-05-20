@@ -1243,5 +1243,41 @@ export const MIGRATIONS: Migration[] = [
       CREATE INDEX IF NOT EXISTS idx_entity_links_b_contact
         ON entity_links(b_people_contact_id) WHERE b_kind = 'people_contact';
     `
+  },
+  {
+    version: 40,
+    description: 'KI-Verbindungen Audit-Log (Metadaten, ohne Inhalt)',
+    sql: `
+      CREATE TABLE IF NOT EXISTS entity_link_ai_audit (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        kind            TEXT NOT NULL,
+        anchor_key      TEXT,
+        provider        TEXT,
+        char_estimate   INTEGER NOT NULL DEFAULT 0,
+        include_excerpt INTEGER NOT NULL DEFAULT 0,
+        created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      CREATE INDEX IF NOT EXISTS idx_entity_link_ai_audit_created
+        ON entity_link_ai_audit(created_at DESC);
+    `
+  },
+  {
+    version: 41,
+    description: 'KI-Verbindungen: lokaler Embedding-Index (Vektorsuche)',
+    sql: `
+      CREATE TABLE IF NOT EXISTS entity_embeddings (
+        ref_key           TEXT PRIMARY KEY NOT NULL,
+        kind              TEXT NOT NULL,
+        text_hash         TEXT NOT NULL,
+        dimensions        INTEGER NOT NULL,
+        embedding         BLOB NOT NULL,
+        source_updated_at TEXT,
+        indexed_at        TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      CREATE INDEX IF NOT EXISTS idx_entity_embeddings_kind
+        ON entity_embeddings(kind);
+      CREATE INDEX IF NOT EXISTS idx_entity_embeddings_indexed
+        ON entity_embeddings(indexed_at DESC);
+    `
   }
 ]

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } fr
 import { Link2, Loader2, Maximize2, Minus, Plus, RotateCcw } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { ChronellEntityRef } from '@shared/entity-ref'
+import type { EntityLinkSuggestionCountEntry } from '@shared/entity-link-ai-payload'
 import type { EntityGraphClusterMode, EntityGraphEdge, EntityGraphNode } from '@shared/entity-links'
 import { formatCalendarEventWhenLabel, formatDueIsoWhenLabel } from '@shared/calendar-datetime'
 import {
@@ -12,7 +13,9 @@ import { accountColorToRgba } from '@/lib/avatar-color'
 import { cn } from '@/lib/utils'
 import { entityRefKindIcon } from '@/lib/entity-ref-ui'
 import { useAccountsStore } from '@/stores/accounts'
+import { graphEdgeQualityStroke } from '@/app/connections/graph-link-quality-colors'
 import { useConnectionsGraphFocusStore } from '@/stores/connections-graph-focus'
+import type { EntityLinkQuality } from '@shared/entity-links'
 import type { ConnectionsGraphViewSettings } from '@/app/connections/connections-graph-view-settings'
 import { clusterLabelForKey } from '@/app/connections/connections-graph-labels'
 import { applyConnectionsGraphFilters } from '@/app/connections/connections-graph-filters'
@@ -132,7 +135,9 @@ export function ConnectionsGraph({
   multiSelectedKeys,
   onToggleMultiSelect,
   onMarqueeComplete,
-  onScanIsland
+  onScanIsland,
+  suggestionHints,
+  linkQualityByLinkId
 }: {
   nodes: EntityGraphNode[]
   edges: EntityGraphEdge[]
@@ -179,6 +184,8 @@ export function ConnectionsGraph({
   onToggleMultiSelect?: (key: string) => void
   onMarqueeComplete?: (nodeKeys: string[]) => void
   onScanIsland?: (clusterKey: string) => void
+  suggestionHints?: ReadonlyMap<string, EntityLinkSuggestionCountEntry>
+  linkQualityByLinkId?: ReadonlyMap<number, EntityLinkQuality>
 }): JSX.Element {
   const { t } = useTranslation()
   const accounts = useAccountsStore((s) => s.accounts)
@@ -718,6 +725,10 @@ export function ConnectionsGraph({
             const onPath = edgeOnPath(e.linkId, pathHighlight)
             const active = pathHighlight ? onPath : edgeActiveForFocus(e, focus, hoverKey)
             const derived = e.linkKind === 'derived_from'
+            const qualityStroke = graphEdgeQualityStroke(linkQualityByLinkId?.get(e.linkId))
+            const stroke =
+              qualityStroke ??
+              (active ? 'hsl(var(--primary))' : 'currentColor')
             return (
               <line
                 key={e.linkId}
@@ -725,8 +736,10 @@ export function ConnectionsGraph({
                 y1={y1}
                 x2={x2}
                 y2={y2}
-                stroke={active ? 'hsl(var(--primary))' : 'currentColor'}
-                className={active ? undefined : 'text-border'}
+                stroke={stroke}
+                className={
+                  qualityStroke ? undefined : active ? undefined : 'text-border'
+                }
                 strokeWidth={
                   (pathHighlight && onPath ? 3 : active ? 2.5 : 1) * edgeScale
                 }
@@ -894,6 +907,37 @@ export function ConnectionsGraph({
                   strokeDasharray={isStaged ? '6 4' : undefined}
                 />
                 <circle cx={x + 10} cy={y + 14} r={3} fill={dot} />
+                {(() => {
+                  const hint = suggestionHints?.get(n.key)
+                  if (!hint || hint.count <= 0) return null
+                  const label = hint.count > 9 ? '9+' : String(hint.count)
+                  const titleKey =
+                    hint.source === 'ai_scan'
+                      ? 'connections.hints.badgeAiScan'
+                      : hint.source === 'ai_panel'
+                        ? 'connections.hints.badgeAiPanel'
+                        : 'connections.graph.suggestionBadge'
+                  return (
+                    <g className="pointer-events-none">
+                      <circle
+                        cx={x + n.w - 6}
+                        cy={y + 6}
+                        r={8}
+                        className="fill-primary stroke-card"
+                        strokeWidth={1}
+                      />
+                      <text
+                        x={x + n.w - 6}
+                        y={y + 9}
+                        textAnchor="middle"
+                        className="fill-primary-foreground text-[8px] font-semibold"
+                      >
+                        {label}
+                      </text>
+                      <title>{t(titleKey, { count: hint.count })}</title>
+                    </g>
+                  )
+                })()}
                 <foreignObject
                   x={x + 18}
                   y={y + 6}
@@ -1065,6 +1109,8 @@ export function ConnectionsGraphWithFilter(props: {
   onToggleMultiSelect?: (key: string) => void
   onMarqueeComplete?: (nodeKeys: string[]) => void
   onScanIsland?: (clusterKey: string) => void
+  suggestionHints?: ReadonlyMap<string, EntityLinkSuggestionCountEntry>
+  linkQualityByLinkId?: ReadonlyMap<number, EntityLinkQuality>
 }): JSX.Element {
   const { timeZone, localeCode } = useCalendarSubtitleLocale()
   const filtered = useMemo(() => {
@@ -1133,6 +1179,8 @@ export function ConnectionsGraphWithFilter(props: {
       onToggleMultiSelect={props.onToggleMultiSelect}
       onMarqueeComplete={props.onMarqueeComplete}
       onScanIsland={props.onScanIsland}
+      suggestionHints={props.suggestionHints}
+      linkQualityByLinkId={props.linkQualityByLinkId}
     />
   )
 }

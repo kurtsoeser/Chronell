@@ -32,9 +32,11 @@ import {
   Tag,
   StickyNote,
   SquareArrowOutUpRight,
-  ListTodo
+  ListTodo,
+  Sparkles
 
 } from 'lucide-react'
+import { openConnectionsGraphWithAiScan } from '@/lib/open-connections-graph'
 
 import type { TFunction } from 'i18next'
 import { useCreateCloudTaskUiStore } from '@/stores/create-cloud-task-ui'
@@ -588,6 +590,14 @@ export function buildMailContextItems(
           }
         ]
       : []),
+    {
+      id: 'ai-connections',
+      label: tr ? tr('mail.contextMenu.aiConnections') : 'Verbindungen mit KI prüfen',
+      icon: Sparkles,
+      onSelect: (): void => {
+        openConnectionsGraphWithAiScan(listed.length > 0 ? listed : [msg], { maxMessages: 10 })
+      }
+    },
     ...(h.sendToNotion || h.sendToNotionAsNewPage
       ? [
           ...(h.sendToNotion

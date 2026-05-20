@@ -1,7 +1,12 @@
 import { listAccounts } from './accounts'
 import { patchCachedCalendarEventIcon, patchCachedCalendarEventSchedule } from './calendar-cache-service'
+import { registerSchedulePatchGuard } from './calendar-schedule-patch-guard'
 import { getDb } from './db/index'
-import { deleteCalendarEvent, upsertCalendarEvents } from './db/calendar-events-repo'
+import {
+  deleteCalendarEvent,
+  getCalendarEventByGraphEventId,
+  upsertCalendarEvents
+} from './db/calendar-events-repo'
 import {
   deleteCalendarEventDetails,
   upsertCalendarEventDetails
@@ -108,11 +113,26 @@ export async function afterCalendarEventUpdated(
 }
 
 export function afterCalendarEventSchedulePatched(input: CalendarPatchScheduleInput): void {
-  patchCachedCalendarEventSchedule(input.accountId, input.graphEventId, {
+  const graphEventId = input.graphEventId.trim()
+  const changes = patchCachedCalendarEventSchedule(input.accountId, graphEventId, {
     startIso: input.startIso,
     endIso: input.endIso,
     isAllDay: input.isAllDay
   })
+  if (changes === 0) {
+    const existing = getCalendarEventByGraphEventId(input.accountId, graphEventId)
+    if (existing) {
+      upsertCalendarEvents([
+        {
+          ...existing,
+          startIso: input.startIso,
+          endIso: input.endIso,
+          isAllDay: input.isAllDay
+        }
+      ])
+    }
+  }
+  registerSchedulePatchGuard(input)
   broadcastCalendarChanged(input.accountId)
 }
 

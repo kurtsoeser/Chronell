@@ -63,6 +63,9 @@ import { MailListViewMenu } from '@/components/MailListViewMenu'
 import { moduleColumnHeaderMailListRowClass } from '@/components/ModuleColumnHeader'
 import { TodoDueBucketBadge } from '@/components/TodoDueBucketBadge'
 import { parseOpenTodoDueKind } from '@/lib/todo-due-bucket'
+import type { ChronellEntityRef } from '@shared/entity-ref'
+import { entityRefKey } from '@shared/entity-ref'
+import type { EntityLinkSuggestionCountEntry } from '@shared/entity-link-ai-payload'
 import type {
   ConnectedAccount,
   MailFolder,
@@ -70,6 +73,9 @@ import type {
   MailQuickStep,
   TodoDueKindList
 } from '@shared/types'
+import { EntityLinkSuggestionBadge } from '@/components/connections/EntityLinkSuggestionBadge'
+import { useEntityLinkSuggestionCounts } from '@/hooks/use-entity-link-suggestion-counts'
+import { fetchAiConnectionsSettings } from '@/lib/entity-links-client'
 import i18n from '@/i18n'
 import {
   Paperclip,
@@ -193,6 +199,27 @@ export function MailList(): JSX.Element {
       selectedMetaFolderId: s.selectedMetaFolderId
     }))
   )
+  const [aiHintsEnabled, setAiHintsEnabled] = useState(false)
+  useEffect(() => {
+    void fetchAiConnectionsSettings()
+      .then((s) => setAiHintsEnabled(s.enabled && s.hasActiveApiKey))
+      .catch(() => setAiHintsEnabled(false))
+  }, [])
+
+  const mailAnchors = useMemo((): ChronellEntityRef[] => {
+    const seen = new Set<number>()
+    const out: ChronellEntityRef[] = []
+    for (const m of messages) {
+      if (seen.has(m.id)) continue
+      seen.add(m.id)
+      out.push({ kind: 'mail', messageId: m.id })
+      if (out.length >= 150) break
+    }
+    return out
+  }, [messages])
+
+  const suggestionHints = useEntityLinkSuggestionCounts(mailAnchors, aiHintsEnabled)
+
   const threadMessages = useMailStore(useShallow((s) => s.threadMessages))
   const {
     selectMessage,
@@ -518,6 +545,14 @@ export function MailList(): JSX.Element {
                   : folder.name
                 : t('mail.list.noSelection')
 
+  const unifiedInboxUnread = useMemo(() => {
+    if (listKind !== 'unified_inbox') return 0
+    return Object.values(foldersByAccount)
+      .flat()
+      .filter((f) => f.wellKnown === 'inbox')
+      .reduce((sum, f) => sum + (f.unreadCount ?? 0), 0)
+  }, [listKind, foldersByAccount])
+
   const { threads, messagesByThread } = useMemo(
     () =>
       indexMessagesByThread(messages, threadMessages, mailListUsesCrossAccountThreadScope(listKind)),
@@ -646,6 +681,11 @@ export function MailList(): JSX.Element {
             />
           ) : null}
           <span className="shrink-0 font-semibold text-foreground">{folderTitle}</span>
+          {listKind === 'unified_inbox' && unifiedInboxUnread > 0 && (
+            <span className="shrink-0 rounded-full bg-primary/15 px-1.5 text-[10px] font-semibold tabular-nums text-primary">
+              {unifiedInboxUnread > 999 ? '999+' : unifiedInboxUnread}
+            </span>
+          )}
           {sync && sync.state.startsWith('syncing') && (
             <Loader2 className="h-3 w-3 shrink-0 animate-spin text-muted-foreground" />
           )}
@@ -814,6 +854,9 @@ export function MailList(): JSX.Element {
                     rowActions={rowActions}
                     visibleHoverActions={visibleHoverActions}
                     quickSteps={quickSteps}
+                    suggestionHint={suggestionHints.get(
+                      entityRefKey({ kind: 'mail', messageId: t.latestMessage.id })
+                    )}
                     isRowExiting={row.threadMessages.some((m) => isExiting(m.id))}
                     tableMode={tableMode}
                     tableColumns={tableColumns}
@@ -923,7 +966,8 @@ const ThreadHeadRow = memo(function ThreadHeadRow({
   tableMode = false,
   tableColumns = [],
   tableGridTemplate = '',
-  showPreviewInSubject = true
+  showPreviewInSubject = true,
+  suggestionHint
 }: {
   thread: ThreadGroup
   threadMessages: MailListItem[]
@@ -946,6 +990,7 @@ const ThreadHeadRow = memo(function ThreadHeadRow({
   tableColumns?: MailListTableColumnId[]
   tableGridTemplate?: string
   showPreviewInSubject?: boolean
+  suggestionHint?: EntityLinkSuggestionCountEntry
 }): JSX.Element {
   const { t } = useTranslation()
   const displayMessages = useMemo((): MailListItem[] => {
@@ -1126,6 +1171,12 @@ const ThreadHeadRow = memo(function ThreadHeadRow({
             >
               {root.subject || t('common.noSubject')}
             </span>
+            {suggestionHint ? (
+              <EntityLinkSuggestionBadge
+                count={suggestionHint.count}
+                source={suggestionHint.source}
+              />
+            ) : null}
             {hasMultiple && (
               <span
                 className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-muted px-1.5 py-px text-[10px] font-medium text-muted-foreground"
@@ -1207,13 +1258,21 @@ const ThreadHeadRow = memo(function ThreadHeadRow({
                 </span>
               )}
             </div>
-            <div
-              className={cn(
-                'truncate text-xs',
-                isUnread ? 'font-semibold text-foreground' : 'text-foreground/85'
-              )}
-            >
-              {root.subject || t('common.noSubject')}
+            <div className="flex items-center gap-1.5">
+              <span
+                className={cn(
+                  'min-w-0 flex-1 truncate text-xs',
+                  isUnread ? 'font-semibold text-foreground' : 'text-foreground/85'
+                )}
+              >
+                {root.subject || t('common.noSubject')}
+              </span>
+              {suggestionHint ? (
+                <EntityLinkSuggestionBadge
+                  count={suggestionHint.count}
+                  source={suggestionHint.source}
+                />
+              ) : null}
             </div>
             <MailCategoryBadges categories={latest.categories} />
             {latest.snippet && (

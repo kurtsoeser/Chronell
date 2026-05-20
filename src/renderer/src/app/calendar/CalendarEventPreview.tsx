@@ -17,10 +17,13 @@ import {
 } from 'lucide-react'
 import type { CalendarEventView } from '@shared/types'
 import { fullCalendarEventToPatchSchedule } from '@/app/calendar/calendar-shell-view-helpers'
+import {
+  patchScheduleInputWithMeetingNotify,
+  resolveMeetingScheduleChange
+} from '@/app/calendar/calendar-meeting-schedule-change'
 import { openExternalUrl } from '@/lib/open-external'
 import { cn } from '@/lib/utils'
-import { ObjectNoteEditor, ObjectNotePreview } from '@/components/ObjectNoteEditor'
-import { ConnectionsPanel } from '@/components/connections/ConnectionsPanel'
+import { EntityContextBlock } from '@/components/connections/EntityContextBlock'
 import { CalendarEventDescriptionPreview } from '@/app/calendar/CalendarEventDescriptionPreview'
 import { CalendarEventIconPicker } from '@/components/CalendarEventIconPicker'
 import { calendarEventIconIsExplicit, resolveCalendarEventIcon } from '@/lib/calendar-event-icons'
@@ -372,14 +375,24 @@ export function CalendarEventPreview(props: {
     setInlineSaving(true)
     setInlineError(null)
     try {
-      await window.mailClient.calendar.patchEventSchedule({
-        accountId: ev.accountId,
-        graphEventId,
-        graphCalendarId: ev.graphCalendarId ?? null,
-        startIso: sched.startIso,
-        endIso: sched.endIso,
-        isAllDay: sched.isAllDay
-      })
+      const scheduleResolution = await resolveMeetingScheduleChange(ev, t)
+      if (scheduleResolution.action === 'discard') {
+        cancelInlineEdit()
+        return
+      }
+      await window.mailClient.calendar.patchEventSchedule(
+        patchScheduleInputWithMeetingNotify(
+          {
+            accountId: ev.accountId,
+            graphEventId,
+            graphCalendarId: ev.graphCalendarId ?? null,
+            startIso: sched.startIso,
+            endIso: sched.endIso,
+            isAllDay: sched.isAllDay
+          },
+          scheduleResolution.notifyAttendees
+        )
+      )
       applyLocalEventPatch({
         startIso: sched.startIso,
         endIso: sched.endIso,
@@ -666,7 +679,6 @@ export function CalendarEventPreview(props: {
             ) : null}
           </div>
           <div className="flex shrink-0 items-start gap-1">
-            {noteTarget ? <ObjectNoteEditor target={noteTarget} layout="toggle" /> : null}
             <button
               type="button"
               disabled={!canEdit}
@@ -819,21 +831,14 @@ export function CalendarEventPreview(props: {
           </div>
         ) : null}
 
-        {noteTarget ? (
-          <ObjectNotePreview
-            target={noteTarget}
-            previewHeight={220}
-            className="border-t border-border/60 border-b-0 bg-transparent px-0 pt-4"
-          />
-        ) : null}
-
         {ev.graphEventId?.trim() ? (
-          <ConnectionsPanel
+          <EntityContextBlock
             anchor={{
               kind: 'calendar_event',
               accountId: ev.accountId,
               graphEventId: ev.graphEventId
             }}
+            noteTarget={noteTarget}
             contentPaddingClass="px-0"
             sectionCollapsedDefault
             className="mt-3 border-t border-border/60"

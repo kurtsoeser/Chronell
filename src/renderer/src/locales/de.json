@@ -213,6 +213,23 @@
       }
     }
   },
+  "context": {
+    "title": "Kontext",
+    "openGraph": "Im Graphen zeigen",
+    "summary": {
+      "links": "{{count}} Verbindungen",
+      "neighbors": "{{count}} im Umfeld",
+      "suggestions": "{{count}} Vorschläge"
+    },
+    "tabs": {
+      "links": "Verbindungen",
+      "suggestions": "Vorschläge",
+      "quality": "Qualität"
+    },
+    "graph": {
+      "empty": "Noch kein Umfeld – Verbindung hinzufügen oder KI-Vorschläge laden."
+    }
+  },
   "connections": {
     "title": "Verbindungen",
     "titleOne": "Verbindung",
@@ -248,7 +265,9 @@
       "splitterPalette": "Objekt-Palette verbreitern",
       "densityScan": "{{percent}} % Mails ohne Verbindung",
       "densityScanTitle": "Graph-Scan für wenig verknüpfte Mails starten",
-      "densityHint": "{{percent}} % der Mails im Zeitraum sind unverbunden ({{count}}) – KI-Scan empfohlen"
+      "densityHint": "{{percent}} % der Mails im Zeitraum sind unverbunden ({{count}}) – KI-Scan empfohlen",
+      "embeddingIndexRebuild": "Vektorindex wird neu aufgebaut … {{done}} / {{total}}",
+      "embeddingIndexAuto": "Vektorindex aktualisiert Objekte … {{done}} / {{total}}"
     },
     "graph": {
       "empty": "Keine Verbindungen vorhanden",
@@ -282,6 +301,7 @@
       "islandRelayoutInner": "Objekte anordnen",
       "islandRelayoutInnerTitle": "Objekte in dieser Insel neu anordnen",
       "islandScanAi": "Diese Insel mit KI scannen",
+      "suggestionBadge": "{{count}} heuristische Vorschläge",
       "clusterTimeUnknown": "Ohne Datum",
       "clusterTimeMonth": "{{month}}.{{year}}",
       "clusterTimeWeek": "KW {{week}}/{{year}}",
@@ -306,6 +326,7 @@
       "hintPath": "Hervorgehobener Pfad zwischen den gewählten Objekten",
       "context": {
         "openInModule": "Im Modul öffnen",
+        "aiSuggestLinks": "KI-Vorschläge verbinden",
         "notFound": "Objekt nicht gefunden",
         "mailNotFound": "Zugehörige E-Mail nicht gefunden",
         "eventNotFound": "Termin nicht gefunden",
@@ -347,6 +368,11 @@
       "clusterSpacingValue": "{{value}} (0 = eng, 2 = weit)",
       "resetGroups": "Alle Arten einblenden"
     },
+    "hints": {
+      "badgeHeuristic": "{{count}} Verbindungsvorschläge (heuristisch)",
+      "badgeAiScan": "{{count}} KI-Vorschläge aus letztem Scan",
+      "badgeAiPanel": "{{count}} KI-Vorschläge (zuletzt geladen)"
+    },
     "localGraph": {
       "title": "Umfeld (lokaler Graph)",
       "hint": "Direkte Verbindungen dieser E-Mail · Klick öffnet den Gesamtgraphen",
@@ -364,7 +390,43 @@
       "reason": {
         "sender_email": "Absender",
         "subject_calendar": "Betreff → Termin",
-        "ai_semantic": "KI"
+        "ai_semantic": "KI",
+        "embedding_semantic": "Vektor (lokal)"
+      }
+    },
+    "domain": {
+      "label": "Domäne",
+      "general": "Allgemein",
+      "workshopHonorar": "Workshop / Honorar",
+      "travel": "Reise"
+    },
+    "quality": {
+      "title": "Qualität bestehender Verbindungen",
+      "check": "Mit KI prüfen",
+      "error": "Qualitätsprüfung fehlgeschlagen.",
+      "filterWeak": "Nur wackelige anzeigen",
+      "noneWeak": "Keine wackeligen Verbindungen in der Filteransicht.",
+      "strong": "Stark",
+      "moderate": "Mittel",
+      "weak": "Schwach",
+      "questionable": "Fraglich"
+    },
+    "aiPayload": {
+      "consentTitle": "Daten für diesen KI-Aufruf",
+      "consentHint": "Chronell sendet Metadaten an die Cloud-KI. Optional können Sie einen gekürzten Textauszug (max. 500 Zeichen) mitsenden – kein Volltext, keine Anhänge.",
+      "confirmMetadataOnly": "Nur Metadaten",
+      "confirmWithExcerpt": "Mit Textauszug",
+      "skipAskSession": "Für diese Sitzung nicht mehr fragen",
+      "noExcerpt": "Für dieses Objekt ist kein Textauszug verfügbar.",
+      "excerptChars": "Auszug: {{count}} Zeichen",
+      "totalEstimate": "Geschätzt ca. {{count}} Zeichen gesamt",
+      "neverSent": "Niemals gesendet: Mail-Volltext, Anhänge, OAuth-Token.",
+      "excerptSource": {
+        "mail_preview": "Quelle: Mail-Vorschauzeile",
+        "mail_body": "Quelle: gekürzter Mail-Text",
+        "note": "Quelle: Notiz-Inhalt",
+        "event": "Quelle: Termin-Beschreibung",
+        "none": ""
       }
     },
     "scan": {
@@ -573,7 +635,8 @@
       "item_one": "Eintrag",
       "item_other": "Einträge",
       "viewList": "Liste",
-      "viewKanban": "Kanban"
+      "viewKanban": "Kanban",
+      "viewWorkflow": "Workflow"
     },
     "listArrange": {
       "noDue": "Ohne Fälligkeit",
@@ -1045,14 +1108,42 @@
     "aiConnections": {
       "nav": "KI-Verbindungen",
       "heading": "KI-Verbindungen",
-      "hint": "Semantische Verknüpfungsvorschläge per Cloud-KI. Es werden nur Metadaten gesendet – kein Mail-Volltext, keine Anhänge. Beide API-Schlüssel können dauerhaft hinterlegt werden; die bevorzugte KI steuert Vorschläge und Graph-Scan.",
+      "hint": "Semantische Verknüpfungsvorschläge per KI. Cloud-Anbieter (Gemini/OpenAI) oder lokal über Ollama. Es werden nur Metadaten gesendet – kein Mail-Volltext, keine Anhänge (Auszug optional).",
       "enable": "KI-Verbindungen aktivieren",
       "provider": "Bevorzugte KI",
       "providerHint": "Für Vorschläge und Graph-Scan wird nur dieser Anbieter verwendet.",
       "activeKeyMissing": "Für die gewählte KI ist noch kein API-Schlüssel hinterlegt.",
+      "ollamaModelMissing": "Bitte ein Ollama-Modell wählen oder eingeben (z. B. nemotron3:33b).",
       "model": "Modell (optional)",
       "modelPlaceholderGemini": "z. B. gemini-2.5-flash",
       "modelPlaceholderOpenAi": "z. B. gpt-4o-mini",
+      "modelPlaceholderOllama": "z. B. nemotron3:33b oder llama3.2",
+      "ollamaBaseUrl": "Ollama-Adresse",
+      "ollamaBaseUrlHint": "Standard: http://127.0.0.1:11434 — Ollama muss laufen (`ollama serve`).",
+      "ollamaRefreshModels": "Installierte Modelle laden",
+      "ollamaModelsLoading": "Lade Modelle …",
+      "ollamaModelsEmpty": "Keine Modelle gefunden. Zuerst z. B. `ollama pull nemotron3:33b`.",
+      "ollamaModelsError": "Ollama nicht erreichbar.",
+      "ollamaModelSelect": "Lokales Modell",
+      "ollamaModelManual": "Oder Modellname manuell",
+      "ollamaLocalHint": "Daten bleiben auf Ihrem Rechner (kein Cloud-API-Schlüssel). Große Modelle können langsam sein.",
+      "ollamaTestConnection": "Verbindung testen",
+      "ollamaTesting": "Teste …",
+      "ollamaTestFail": "Verbindungstest fehlgeschlagen.",
+      "ollamaCompactPrompts": "Kleines Modell erkannt: Chronell nutzt kürzere Prompts und weniger Kandidaten (bessere JSON-Treffer).",
+      "embeddingsHeading": "Vektorindex (Hintergrund)",
+      "embeddingsHint": "Baut lokale Embeddings über Ollama (z. B. nomic-embed-text). Vorschläge werden schneller; die KI wird nur noch für Top-Kandidaten genutzt.",
+      "embeddingsEnable": "Vektorindex aktivieren",
+      "embeddingModel": "Embedding-Modell",
+      "embeddingModelHint": "Z. B. nomic-embed-text — `ollama pull nomic-embed-text`",
+      "embeddingHybrid": "Hybrid-Suche (Heuristik + Vektoren)",
+      "embeddingAutoIndex": "Automatisch nach Mail-Sync einbetten",
+      "embeddingFast": "Schnelle Vorschläge aus Vektoren (ohne LLM)",
+      "embeddingStatus": "{{indexed}} indexiert, ca. {{pending}} ausstehend",
+      "embeddingRebuild": "Index neu aufbauen",
+      "embeddingRebuildBusy": "Index wird aufgebaut … {{done}} / {{total}}",
+      "embeddingRebuildCancel": "Abbrechen",
+      "embeddingRebuildDone": "Index aktualisiert: {{indexed}} neu, {{skipped}} unverändert.",
       "geminiKey": "Google Gemini API-Schlüssel",
       "openAiKey": "OpenAI API-Schlüssel",
       "apiKeyPlaceholder": "API-Schlüssel einfügen",
@@ -1065,18 +1156,42 @@
       "saveError": "Einstellungen konnten nicht gespeichert werden.",
       "loadError": "Einstellungen konnten nicht geladen werden.",
       "includeSnippet": "Gekürzten Textauszug mitsenden (max. 500 Zeichen)",
+      "snippetMode": "Textauszug an Cloud-KI",
+      "snippetModeHint": "„Immer fragen“ zeigt vor jedem KI-Aufruf eine Vorschau. „Immer“ sendet den Auszug ohne Rückfrage (nach Einwilligung).",
+      "snippetMode_off": "Nie – nur Metadaten",
+      "snippetMode_on": "Immer (nach Einwilligung)",
+      "snippetMode_ask": "Vor jedem Aufruf fragen",
+      "auditTitle": "Letzte KI-Aufrufe (ohne Inhalt)",
+      "auditExcerpt": "mit Auszug",
+      "auditKind": {
+        "suggest": "Vorschlag",
+        "scan_start": "Graph-Scan",
+        "scan_item": "Scan-Eintrag",
+        "evaluate_quality": "Qualitätsprüfung"
+      },
       "snippetConsentTitle": "Textauszug an die KI senden",
       "snippetConsentBody": "Zusätzlich zu Metadaten kann Chronell einen gekürzten Auszug senden (Mail-Snippet/Vorschau, Notiz- oder Termin-Text, max. 500 Zeichen). Das erhöht Token-Verbrauch und Datenschutz-Risiko.\n\nSie können dies jederzeit wieder deaktivieren.",
       "snippetConsentConfirm": "Auszug erlauben",
       "scanLookbackDays": "Graph-Scan: Tage zurück",
       "scanMaxAnchors": "Graph-Scan: max. Anker",
+      "domainProfilesTitle": "Eigene Domänen-Prompts",
+      "domainProfilesHint": "Stichwörter für Retrieval und KI-Fokus (Scan und Vorschläge). Kommagetrennt.",
+      "domainProfileLabel": "Name",
+      "domainProfileKeywords": "Stichwörter (z. B. Projekt Alpha, Angebot)",
+      "domainProfileAdd": "Domäne hinzufügen",
+      "domainProfileRemove": "Entfernen",
+      "domainProfileNew": "Neue Domäne",
       "minConfidence": "Mindest-Konfidenz: {{percent}} %",
       "minConfidenceHint": "KI-Vorschläge unter diesem Wert werden ausgeblendet (Panel und Scan).",
       "compareProviders": "Gemini und OpenAI vergleichen (nur Übereinstimmungen)",
       "compareProvidersHint": "Beide Anbieter werden parallel abgefragt; nur Vorschläge, die beide liefern, werden angezeigt (✓✓). Verdoppelt API-Aufrufe.",
+      "showLinkQualityOnGraph": "Verbindungsqualität im Graph einfärben",
+      "showLinkQualityOnGraphHint": "Nach „Mit KI prüfen“ im Verbindungs-Panel: grün = stark, orange = schwach, rot = fraglich (gewählter Knoten als Anker).",
       "backupNote": "In der Einstellungs-Sicherung werden KI-Optionen und verworfene Vorschläge mitgesichert. API-Schlüssel bleiben im Secure Store und müssen nach Import ggf. neu eingetragen werden.",
       "consentTitle": "Cloud-KI für Verbindungen",
       "consentBody": "Chronell sendet nur Betreffzeilen, Namen, Datumsangaben und Kurzinfos an den gewählten KI-Anbieter – niemals den vollständigen Mail- oder Notiztext.\n\nVorschläge werden nicht automatisch gespeichert; Sie bestätigen jede Verbindung einzeln.",
+      "consentTitleOllama": "Lokale KI (Ollama) für Verbindungen",
+      "consentBodyOllama": "Chronell sendet Metadaten (und optional einen gekürzten Textauszug) an Ollama auf Ihrem Rechner – nicht an eine Cloud.\n\nVorschläge werden nicht automatisch gespeichert; Sie bestätigen jede Verbindung einzeln.",
       "consentConfirm": "Verstanden und aktivieren"
     },
     "backupHeading": "Einstellungen sichern",
@@ -1350,7 +1465,8 @@
     },
     "contextMenu": {
       "removeTodoOnly": "To-Do-Eintrag entfernen (Mail bleibt)",
-      "removeTodoOnlyBulk": "To-Do-Einträge entfernen ({{count}})"
+      "removeTodoOnlyBulk": "To-Do-Einträge entfernen ({{count}})",
+      "aiConnections": "Verbindungen mit KI prüfen"
     },
     "move": {
       "menu": "Verschieben",
@@ -2095,6 +2211,7 @@
       "missingGraphCalendarId": "Kalender-ID für diesen Termin fehlt.",
       "calendarReadOnlyEdit": "Dieser Kalender erlaubt keine Bearbeitung.",
       "scheduleParseFailed": "Zeitraum konnte nicht ermittelt werden.",
+      "schedulePersistInFlight": "Der Termin wird noch gespeichert — bitte kurz warten und erneut verschieben.",
       "connectMicrosoftFirst": "Bitte zuerst ein Microsoft-Konto verbinden.",
       "clipboardUnsupported": "Kopieren in die Zwischenablage wird hier nicht unterstützt.",
       "clipboardWriteFailed": "Zwischenablage: Kopieren nicht möglich."
@@ -2103,6 +2220,12 @@
       "deleteEventBody": "Diesen Termin wirklich löschen?",
       "deleteEventTitle": "Termin löschen",
       "deleteEventConfirm": "Löschen"
+    },
+    "scheduleChangeDialog": {
+      "title": "Ereigniszeit wurde geändert",
+      "body": "Diese Besprechung hat Teilnehmer. Soll die neue Zeit gespeichert und eine Aktualisierung an alle Teilnehmer gesendet werden?",
+      "saveAndNotify": "Speichern & senden",
+      "discard": "Verwerfen"
     },
     "context": {
       "duplicateSuffix": " (Kopie)",

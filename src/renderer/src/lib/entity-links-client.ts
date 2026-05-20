@@ -8,6 +8,8 @@ import type {
   EntityLinkAiScanStatus,
   EntityLinkAiSuggestInput,
   EntityLinkAiSuggestResult,
+  EntityLinkEvaluateQualityInput,
+  EntityLinkEvaluateQualityResult,
   EntityLinkGraphDensityStats,
   EntityLinkPathInput,
   EntityLinkPathResult,
@@ -17,6 +19,11 @@ import type {
   EntityLinkTargetCandidate
 } from '@shared/entity-links'
 import type { AiConnectionsSettings } from '@shared/ai-connections'
+import type {
+  EntityLinkAiPayloadPreview,
+  EntityLinkAiPayloadPreviewInput,
+  EntityLinkSuggestionCountEntry
+} from '@shared/entity-link-ai-payload'
 
 type EntityLinksEventsApi = {
   onEntityLinksChanged?: (handler: () => void) => () => void
@@ -71,6 +78,15 @@ export async function fetchEntityLinkSuggestions(
   return raw as EntityLinkSuggestion[]
 }
 
+export async function fetchEntityLinkQuality(
+  input: EntityLinkEvaluateQualityInput
+): Promise<EntityLinkEvaluateQualityResult> {
+  const fn = window.mailClient?.entityLinks?.evaluateLinkQuality
+  if (typeof fn === 'function') return fn(input)
+  const raw = await window.mailClient.invoke(IPC.entityLinks.evaluateLinkQuality, input)
+  return raw as EntityLinkEvaluateQualityResult
+}
+
 export async function fetchEntityLinkAiSuggestions(
   input: EntityLinkAiSuggestInput
 ): Promise<EntityLinkAiSuggestResult> {
@@ -96,6 +112,27 @@ export async function estimateEntityLinkAiScanCost(
   const raw = await window.mailClient.invoke(IPC.entityLinks.estimateAiScanCost, input ?? {})
   return raw as EntityLinkAiScanCostEstimate
 }
+
+export async function fetchEntityLinkAiPayloadPreview(
+  input: EntityLinkAiPayloadPreviewInput
+): Promise<EntityLinkAiPayloadPreview | null> {
+  const fn = window.mailClient?.entityLinks?.previewAiPayload
+  if (typeof fn === 'function') return fn(input)
+  const raw = await window.mailClient.invoke(IPC.entityLinks.previewAiPayload, input)
+  return raw as EntityLinkAiPayloadPreview | null
+}
+
+export async function fetchEntityLinkSuggestionCounts(
+  anchors: ChronellEntityRef[]
+): Promise<EntityLinkSuggestionCountEntry[]> {
+  const fn = window.mailClient?.entityLinks?.getHeuristicSuggestionCounts
+  if (typeof fn === 'function') return fn(anchors)
+  const raw = await window.mailClient.invoke(IPC.entityLinks.getHeuristicSuggestionCounts, anchors)
+  return raw as EntityLinkSuggestionCountEntry[]
+}
+
+/** @deprecated Alias */
+export const fetchHeuristicSuggestionCounts = fetchEntityLinkSuggestionCounts
 
 export async function fetchAiConnectionsSettings(): Promise<AiConnectionsSettings> {
   const fn = window.mailClient?.aiConnections?.getSettings

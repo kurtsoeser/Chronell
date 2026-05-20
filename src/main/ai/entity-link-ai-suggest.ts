@@ -11,6 +11,7 @@ import type {
   EntityLinkSuggestion,
   EntityLinkSuggestionChain
 } from '@shared/entity-links'
+import type { EntityLinkAiDomainProfileId } from '@shared/ai-link-domain'
 import type { AiConnectionsProvider } from '@shared/ai-connections'
 import { AiConnectionsError } from '@shared/ai-connections'
 import { entityLinkExists, listEntityLinksForAnchor } from '../db/entity-links-repo'
@@ -33,7 +34,22 @@ import {
   rawChainsToEntityChains,
   rawPairsToEntitySuggestions
 } from './entity-link-ai-validate'
-import { readAiConnectionsApiKey, resolveAiModel } from './ai-settings-store'
+import { getAiConnectionsSettings, resolveAiModel } from './ai-settings-store'
+import { isEmbeddingPipelineActive } from '@shared/ai-connections'
+import { mergeHybridEmbeddingCandidates } from './entity-embeddings-search'
+import { resolveLlmMaxCandidatesWithEmbeddings } from './entity-embeddings-index'
+import { suggestEntityLinksFromEmbeddings } from './entity-link-embedding-suggest'
+import { resolveIncludeExcerpt } from './ai-snippet-policy'
+import {
+  buildSuggestPromptPackage,
+  resolveDomainProfile,
+  slimFieldsForPrompt
+} from './entity-link-ai-prompts'
+import {
+  effectiveMaxCandidatesForTier,
+  resolveAiPromptTier
+} from '@shared/ai-prompt-tier'
+import { setPanelSuggestionCount } from './entity-link-suggestion-counts'
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000
 
@@ -71,45 +87,16 @@ async function writeCache(key: string, suggestions: EntityLinkSuggestion[]): Pro
   await writeFile(cacheFilePath(key), JSON.stringify(payload), 'utf8')
 }
 
-function buildPromptPackage(
-  anchorId: string,
-  anchor: { id: string; kind: string; fields: Record<string, unknown> },
-  candidates: Array<{ candId: string; kind: string; fields: Record<string, unknown> }>,
-  includeTextExcerpt: boolean
-): { systemPrompt: string; userPrompt: string } {
-  const dataPolicy = includeTextExcerpt
-    ? 'Es werden Metadaten plus optional ein gekürzter Textauszug (text_excerpt, max. ~500 Zeichen) gesendet – kein vollständiger Mail- oder Notiztext.'
-    : 'Es werden NUR Metadaten gesendet (Betreff, Namen, Daten, Kurzinfos) – kein Mail-Volltext.'
-  const systemPrompt = `Du bist ein Assistent für Verbindungsvorschläge in einer Produktivitäts-App.
-${dataPolicy}
-Antworte ausschließlich mit gültigem JSON im Format:
-{"suggestions":[{"fromId":"anchor","toId":"cand_1","confidence":0.0,"reason":"ein Satz auf Deutsch"}],"chains":[{"pathIds":["anchor","cand_1","cand_2"],"confidence":0.0,"reason":"ein Satz auf Deutsch"}]}
-Regeln:
-- Verwende nur fromId/toId aus der Kandidatenliste (cand_1, cand_2, …).
-- Mindestens eine Seite jedes Paares muss der Anker (${anchorId}) sein.
-- Erfinde keine IDs. Keine Verbindung ohne klaren semantischen oder zeitlichen Bezug.
-- confidence zwischen 0 und 1. Maximal 8 Vorschläge, maximal 4 Ketten (2–4 Schritte, pathIds in Reihenfolge).`
-
-  const userPrompt = JSON.stringify(
-    {
-      anchorId,
-      anchor,
-      candidates
-    },
-    null,
-    0
-  )
-
-  return { systemPrompt, userPrompt }
-}
-
 async function filterDismissedSuggestions(
   anchor: ChronellEntityRef,
   suggestions: EntityLinkSuggestion[]
 ): Promise<EntityLinkSuggestion[]> {
   const out: EntityLinkSuggestion[] = []
   for (const s of suggestions) {
-    if (s.reason === 'ai_semantic' && (await isEntityLinkAiDismissed(anchor, s.target))) {
+    if (
+      (s.reason === 'ai_semantic' || s.reason === 'embedding_semantic') &&
+      (await isEntityLinkAiDismissed(anchor, s.target))
+    ) {
       continue
     }
     out.push(s)
@@ -128,18 +115,30 @@ async function runAiSuggestForProvider(
   maxCandidates: number,
   provider: AiConnectionsProvider,
   minConfidence: number,
-  useExcerpt: boolean
+  useExcerpt: boolean,
+  domainProfileId?: EntityLinkAiDomainProfileId | null
 ): Promise<EntityLinkAiSuggestResult> {
-  const apiKey = await readAiConnectionsApiKey(provider)
-  if (!apiKey) {
+  const ready = await assertAiConnectionsReady()
+  const settings = ready.settings
+  const model = resolveAiModel({ ...settings, provider })
+  if (provider !== 'ollama' && !ready.apiKey) {
     throw new AiConnectionsError('no_api_key', `Kein API-Schlüssel für ${provider}.`)
   }
-  const settings = (await assertAiConnectionsReady()).settings
-  const model = resolveAiModel({ ...settings, provider })
+  const domain = resolveDomainProfile(domainProfileId, settings.customDomainProfiles)
+  const tier = resolveAiPromptTier(provider, model)
+  const retrievalCap = effectiveMaxCandidatesForTier(tier, maxCandidates)
 
-  const retrieval = retrieveAiLinkCandidates(anchor, maxCandidates)
+  let retrieval = retrieveAiLinkCandidates(anchor, retrievalCap, {
+    subjectKeywords: domain.subjectKeywords,
+    kindBoost: domain.kindBoost
+  })
   if (!retrieval || retrieval.candidates.length === 0) {
     return { suggestions: [], chains: [] }
+  }
+
+  const aiSettings = await getAiConnectionsSettings()
+  if (isEmbeddingPipelineActive(aiSettings)) {
+    retrieval = await mergeHybridEmbeddingCandidates(anchor, retrieval, retrievalCap)
   }
 
   const candidateById = buildCandidateIdMap(retrieval.candidates)
@@ -149,10 +148,14 @@ async function runAiSuggestForProvider(
     : retrieval.anchor
   const promptCandidates = retrieval.candidates.map((c) => {
     const snap = useExcerpt ? enrichSnapshotWithTextExcerpt(c.ref, c.snapshot) : c.snapshot
+    const fields =
+      tier === 'compact'
+        ? slimFieldsForPrompt(snap.fields, useExcerpt)
+        : snap.fields
     return {
       candId: c.candId,
       kind: snap.kind,
-      fields: snap.fields
+      fields
     }
   })
 
@@ -170,16 +173,23 @@ async function runAiSuggestForProvider(
     ...candidateById
   ])
 
-  const { systemPrompt, userPrompt } = buildPromptPackage(
+  const anchorFields =
+    tier === 'compact'
+      ? slimFieldsForPrompt(anchorSnap.fields, useExcerpt)
+      : anchorSnap.fields
+  const { systemPrompt, userPrompt } = buildSuggestPromptPackage(
     anchorCandId,
-    { id: anchorCandId, kind: anchorSnap.kind, fields: anchorSnap.fields },
+    { id: anchorCandId, kind: anchorSnap.kind, fields: anchorFields },
     promptCandidates,
-    useExcerpt
+    useExcerpt,
+    domain,
+    tier
   )
 
   const rawJson = await completeJson(provider, {
-    apiKey,
+    apiKey: ready.apiKey,
     model,
+    ollamaBaseUrl: ready.ollamaBaseUrl,
     systemPrompt: `${systemPrompt}\nDer Anker hat die feste ID "anchor". Kandidaten nutzen cand_* IDs.`,
     userPrompt
   })
@@ -208,18 +218,24 @@ async function runAiSuggestForProvider(
 
 export async function runAiSuggestForAnchor(
   anchor: ChronellEntityRef,
-  maxCandidates: number
+  maxCandidates: number,
+  callIncludeExcerpt?: boolean,
+  domainProfileId?: EntityLinkAiDomainProfileId | null
 ): Promise<EntityLinkAiSuggestResult> {
   const { settings } = await assertAiConnectionsReady()
-  const useExcerpt = settings.includeSnippet && settings.snippetConsentGiven
+  const useExcerpt = resolveIncludeExcerpt(settings, callIncludeExcerpt)
   const minConf = settings.minConfidence
+  const domainId = domainProfileId ?? 'general'
 
-  const retrieval = retrieveAiLinkCandidates(anchor, maxCandidates)
+  const retrieval = retrieveAiLinkCandidates(anchor, maxCandidates, {
+    subjectKeywords: resolveDomainProfile(domainId, settings.customDomainProfiles).subjectKeywords,
+    kindBoost: resolveDomainProfile(domainId, settings.customDomainProfiles).kindBoost
+  })
   if (!retrieval || retrieval.candidates.length === 0) {
     return { suggestions: [], chains: [] }
   }
 
-  const cacheKey = `${retrievalCacheKey(anchor, retrieval.candidates, resolveAiModel(settings), settings.provider)}|excerpt:${useExcerpt ? '1' : '0'}|min:${minConf}|cmp:${settings.compareProviders ? '1' : '0'}`
+  const cacheKey = `${retrievalCacheKey(anchor, retrieval.candidates, resolveAiModel(settings), settings.provider)}|excerpt:${useExcerpt ? '1' : '0'}|min:${minConf}|cmp:${settings.compareProviders ? '1' : '0'}|domain:${domainId}`
   const path = cacheFilePath(cacheKey)
   if (existsSync(path)) {
     try {
@@ -238,8 +254,8 @@ export async function runAiSuggestForAnchor(
 
   if (settings.compareProviders) {
     const [gemini, openai] = await Promise.all([
-      runAiSuggestForProvider(anchor, maxCandidates, 'gemini', minConf, useExcerpt),
-      runAiSuggestForProvider(anchor, maxCandidates, 'openai', minConf, useExcerpt)
+      runAiSuggestForProvider(anchor, maxCandidates, 'gemini', minConf, useExcerpt, domainId),
+      runAiSuggestForProvider(anchor, maxCandidates, 'openai', minConf, useExcerpt, domainId)
     ])
     const result = {
       suggestions: intersectAiSuggestions(gemini.suggestions, openai.suggestions),
@@ -258,7 +274,8 @@ export async function runAiSuggestForAnchor(
     maxCandidates,
     settings.provider,
     minConf,
-    useExcerpt
+    useExcerpt,
+    domainId
   )
   await writeFile(
     path,
@@ -272,17 +289,46 @@ export async function suggestEntityLinksAi(
   input: EntityLinkAiSuggestInput
 ): Promise<EntityLinkAiSuggestResult> {
   const anchor = input.anchor
-  const maxCandidates =
+  const settings = await getAiConnectionsSettings()
+  const baseMax =
     typeof input.maxCandidates === 'number'
       ? Math.min(Math.max(input.maxCandidates, 10), 50)
       : 40
+  const maxCandidates = resolveLlmMaxCandidatesWithEmbeddings(
+    baseMax,
+    isEmbeddingPipelineActive(settings)
+  )
 
   const heuristic = suggestEntityLinks(anchor)
+  const embeddingSuggestions = await suggestEntityLinksFromEmbeddings(
+    anchor,
+    settings.minConfidence
+  )
+
+  if (!settings.enabled) {
+    return {
+      suggestions: mergeEntityLinkSuggestions(heuristic, embeddingSuggestions),
+      chains: []
+    }
+  }
 
   try {
-    const ai = await runAiSuggestForAnchor(anchor, maxCandidates)
+    const ai = await runAiSuggestForAnchor(
+      anchor,
+      maxCandidates,
+      input.includeExcerpt,
+      input.domainProfileId
+    )
+    const merged = mergeEntityLinkSuggestions(
+      mergeEntityLinkSuggestions(heuristic, embeddingSuggestions),
+      ai.suggestions
+    )
+    const aiOnly = merged.filter((s) => s.reason === 'ai_semantic').length
+    if (aiOnly > 0) {
+      await setPanelSuggestionCount(anchor, aiOnly + ai.chains.length)
+    }
     return {
-      suggestions: mergeEntityLinkSuggestions(heuristic, ai.suggestions),
+      suggestions: merged,
       chains: ai.chains
     }
   } catch (err) {
@@ -299,6 +345,8 @@ export async function suggestEntityLinksAiOnly(
 ): Promise<EntityLinkAiSuggestResult> {
   return runAiSuggestForAnchor(
     input.anchor,
-    typeof input.maxCandidates === 'number' ? input.maxCandidates : 40
+    typeof input.maxCandidates === 'number' ? input.maxCandidates : 40,
+    input.includeExcerpt,
+    input.domainProfileId
   )
 }

@@ -5,29 +5,36 @@ import { useConnectivityStore } from '@/stores/connectivity'
 
 interface CalendarSyncStore {
   syncByAccount: Record<string, SyncStatus>
-  initialized: boolean
   initialize: () => void
   triggerSync: (accountId: string) => Promise<void>
 }
 
 let unsubscribers: Array<() => void> = []
 
-export const useCalendarSyncStore = create<CalendarSyncStore>((set, get) => ({
+type CalendarSyncWindow = Window & {
+  __chronellDisposeCalendarSyncStatus?: () => void
+}
+
+export const useCalendarSyncStore = create<CalendarSyncStore>((set) => ({
   syncByAccount: {},
-  initialized: false,
 
   initialize(): void {
-    if (get().initialized) return
-    if (!window.mailClient?.events?.onCalendarSyncStatus) return
-    set({ initialized: true })
+    for (const u of unsubscribers) u()
+    unsubscribers = []
 
-    unsubscribers.push(
-      window.mailClient.events.onCalendarSyncStatus((status) => {
-        set((s) => ({
-          syncByAccount: { ...s.syncByAccount, [status.accountId]: status }
-        }))
-      })
-    )
+    const w = window as CalendarSyncWindow
+    w.__chronellDisposeCalendarSyncStatus?.()
+    w.__chronellDisposeCalendarSyncStatus = undefined
+
+    if (!window.mailClient?.events?.onCalendarSyncStatus) return
+
+    const dispose = window.mailClient.events.onCalendarSyncStatus((status) => {
+      set((s) => ({
+        syncByAccount: { ...s.syncByAccount, [status.accountId]: status }
+      }))
+    })
+    unsubscribers.push(dispose)
+    w.__chronellDisposeCalendarSyncStatus = dispose
 
     void window.mailClient.calendar.getAccountSyncStates().then((rows) => {
       set((s) => {
@@ -69,4 +76,7 @@ export const useCalendarSyncStore = create<CalendarSyncStore>((set, get) => ({
 export function disposeCalendarSyncStore(): void {
   for (const off of unsubscribers) off()
   unsubscribers = []
+  const w = window as CalendarSyncWindow
+  w.__chronellDisposeCalendarSyncStatus?.()
+  w.__chronellDisposeCalendarSyncStatus = undefined
 }

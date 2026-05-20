@@ -13,21 +13,39 @@ import {
 } from './db/calendar-folders-repo'
 import { listMicrosoft365GroupCalendars, listMicrosoftCalendars } from './calendar-service'
 import { isAppOnline } from './network-status'
+import { runGraphMailboxRequest } from './graph/graph-account-request'
 
 export const CALENDAR_FOLDERS_CACHE_STALE_MS = 120_000
 
 const M365_GROUP_PAGE_SIZE = 10
 
+const inflightStandardFolders = new Map<string, Promise<CalendarGraphCalendarRow[]>>()
+const inflightM365GroupFolders = new Map<string, Promise<void>>()
+
 async function fetchStandardFoldersFromCloud(accountId: string): Promise<CalendarGraphCalendarRow[]> {
   const accounts = await listAccounts()
   const acc = accounts.find((a) => a.id === accountId)
   if (!acc) return []
-  const rows = await listMicrosoftCalendars(accountId, { forceRefresh: true })
+  const rows = await runGraphMailboxRequest(accountId, 'listCalendars', () =>
+    listMicrosoftCalendars(accountId, { forceRefresh: true })
+  )
   replaceStandardCalendarFolders(accountId, rows)
   return rows
 }
 
-async function syncM365GroupFoldersForAccount(accountId: string): Promise<void> {
+async function fetchStandardFoldersFromCloudDeduped(
+  accountId: string
+): Promise<CalendarGraphCalendarRow[]> {
+  const existing = inflightStandardFolders.get(accountId)
+  if (existing) return existing
+  const run = fetchStandardFoldersFromCloud(accountId).finally(() => {
+    if (inflightStandardFolders.get(accountId) === run) inflightStandardFolders.delete(accountId)
+  })
+  inflightStandardFolders.set(accountId, run)
+  return run
+}
+
+async function syncM365GroupFoldersForAccountInner(accountId: string): Promise<void> {
   const merged: CalendarGraphCalendarRow[] = []
   let offset = 0
   let totalGroups = 0
@@ -46,13 +64,26 @@ async function syncM365GroupFoldersForAccount(accountId: string): Promise<void> 
   touchCalendarFoldersSyncState(accountId, totalGroups)
 }
 
+async function syncM365GroupFoldersForAccount(accountId: string): Promise<void> {
+  const existing = inflightM365GroupFolders.get(accountId)
+  if (existing) {
+    await existing
+    return
+  }
+  const run = syncM365GroupFoldersForAccountInner(accountId).finally(() => {
+    if (inflightM365GroupFolders.get(accountId) === run) inflightM365GroupFolders.delete(accountId)
+  })
+  inflightM365GroupFolders.set(accountId, run)
+  await run
+}
+
 export async function syncCalendarFoldersForAccount(accountId: string): Promise<void> {
   if (!isAppOnline()) return
   const accounts = await listAccounts()
   const acc = accounts.find((a) => a.id === accountId)
   if (!acc || (acc.provider !== 'microsoft' && acc.provider !== 'google')) return
 
-  await fetchStandardFoldersFromCloud(accountId)
+  await fetchStandardFoldersFromCloudDeduped(accountId)
   if (acc.provider === 'microsoft') {
     await syncM365GroupFoldersForAccount(accountId)
   } else {
@@ -85,7 +116,7 @@ export async function listCalendarsCached(
   }
 
   if (!force && cached.length > 0 && !fresh && isAppOnline()) {
-    void fetchStandardFoldersFromCloud(accountId).catch((e) =>
+    void fetchStandardFoldersFromCloudDeduped(accountId).catch((e) =>
       console.warn('[calendar-folders-cache] Hintergrund-Refresh:', accountId, e)
     )
     return cached
@@ -95,7 +126,7 @@ export async function listCalendarsCached(
     return cached
   }
 
-  return fetchStandardFoldersFromCloud(accountId)
+  return fetchStandardFoldersFromCloudDeduped(accountId)
 }
 
 export async function listM365GroupCalendarsCached(

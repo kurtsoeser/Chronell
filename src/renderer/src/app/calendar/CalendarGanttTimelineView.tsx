@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils'
 import { useAccountsStore } from '@/stores/accounts'
 import { loadMegaWorkItems } from '@/app/work-items/load-mega-work-items'
 import { applyCalendarCompletionState } from '@/app/calendar/calendar-event-completion'
+import { CalendarScheduleChangeDiscardedError } from '@/app/calendar/calendar-meeting-schedule-change'
 import { megaFetchRangeWithBuffer } from '@/app/work-items/load-master-work-items-for-range'
 import {
   buildMegaTimelineCacheKey,
@@ -236,6 +237,9 @@ export function CalendarGanttTimelineView({
       const force = opts?.force === true
       const silent = opts?.silent === true
       const { fetchStart, fetchEnd } = megaFetchRangeWithBuffer(rangeStart, rangeEnd)
+      if (force) {
+        useMegaTimelineCacheStore.getState().clear()
+      }
       const cacheKey = buildMegaTimelineCacheKey(
         taskAccounts,
         fetchStart,
@@ -388,8 +392,13 @@ export function CalendarGanttTimelineView({
             }
           })
         )
-        void loadItems()
+        useMegaTimelineCacheStore.getState().clear()
+        void loadItems({ force: true, silent: true })
       } catch (e) {
+        if (e instanceof CalendarScheduleChangeDiscardedError) {
+          void loadItems({ force: true, silent: true })
+          return
+        }
         setError(e instanceof Error ? e.message : String(e))
       }
     },

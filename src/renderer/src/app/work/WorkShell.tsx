@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Columns3, List, Loader2, RefreshCw } from 'lucide-react'
+import { Columns3, LayoutGrid, List, Loader2, RefreshCw } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { WorkItem } from '@shared/work-item'
 import { cloudTaskStableKey } from '@shared/work-item-keys'
@@ -24,6 +24,7 @@ import {
   type WorkContentViewMode
 } from '@/app/work/work-view-mode-storage'
 import { WorkItemPreviewPanel } from '@/app/work/WorkItemPreviewPanel'
+import { WorkflowBoard } from '@/app/workflow/WorkflowBoard'
 import type {
   CloudTaskDisplayPatch,
   CloudTaskSaveDraft
@@ -93,6 +94,7 @@ export function WorkShell(): JSX.Element {
   )
   const filterCounts = useMemo(() => workListFilterCounts(views), [views])
   const isKanbanView = contentViewMode === 'kanban'
+  const isWorkflowView = contentViewMode === 'workflow'
 
   const workArrangeCtx = useMemo(
     () => ({
@@ -400,7 +402,24 @@ export function WorkShell(): JSX.Element {
               <Columns3 className="h-3 w-3" />
               {t('work.shell.viewKanban')}
             </button>
+            <button
+              type="button"
+              onClick={(): void => {
+                persistWorkContentViewMode('workflow')
+                setContentViewMode('workflow')
+              }}
+              className={cn(
+                'inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-medium',
+                contentViewMode === 'workflow'
+                  ? 'bg-secondary text-foreground'
+                  : 'text-muted-foreground hover:bg-secondary/50'
+              )}
+            >
+              <LayoutGrid className="h-3 w-3" />
+              {t('work.shell.viewWorkflow')}
+            </button>
           </div>
+          {!isWorkflowView ? (
           <div className="min-w-0 flex-1">
             <TasksListViewMenu
               arrange={listViewPrefs.arrange}
@@ -414,12 +433,24 @@ export function WorkShell(): JSX.Element {
               disabled={loading}
             />
           </div>
+          ) : (
+            <p className="min-w-0 flex-1 truncate text-[10px] text-muted-foreground">
+              {t('workflow.introHint')}
+            </p>
+          )}
+          {!isWorkflowView ? (
           <div className="ml-auto shrink-0 text-[10px] text-muted-foreground">
             {visibleCount}{' '}
             {visibleCount === 1 ? t('work.shell.item_one') : t('work.shell.item_other')}
           </div>
+          ) : null}
         </div>
 
+        {isWorkflowView ? (
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <WorkflowBoard />
+          </div>
+        ) : (
         <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
           <div className="flex min-h-0 min-w-0 flex-1 flex-col border-b border-border lg:border-b-0 lg:border-r">
             <div
@@ -480,6 +511,7 @@ export function WorkShell(): JSX.Element {
             />
           </div>
         </div>
+        )}
       </main>
 
       {contextMenu ? (

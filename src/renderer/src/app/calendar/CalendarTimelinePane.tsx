@@ -220,6 +220,9 @@ export function CalendarTimelinePane({
       const force = opts?.force === true
       const start = loadedStartRef.current
       const end = loadedEndRef.current
+      if (force) {
+        useMegaTimelineCacheStore.getState().clear()
+      }
       const cacheKey = buildMegaTimelineCacheKey(
         taskAccounts,
         start,
@@ -383,6 +386,7 @@ export function CalendarTimelinePane({
     const scheduleSilentReload = (): void => {
       if (debounceTimer) clearTimeout(debounceTimer)
       debounceTimer = setTimeout(() => {
+        useMegaTimelineCacheStore.getState().clear()
         void reload({ silent: true, force: true })
       }, 280)
     }

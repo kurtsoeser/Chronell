@@ -1,11 +1,13 @@
-export type WorkContentViewMode = 'list' | 'kanban'
+export type WorkContentViewMode = 'list' | 'kanban' | 'workflow'
 
 const KEY = 'mailclient.work.contentViewMode.v1'
 
 export function readWorkContentViewMode(): WorkContentViewMode {
   try {
     const raw = window.localStorage.getItem(KEY)
-    return raw === 'kanban' ? 'kanban' : 'list'
+    if (raw === 'kanban') return 'kanban'
+    if (raw === 'workflow') return 'workflow'
+    return 'list'
   } catch {
     return 'list'
   }

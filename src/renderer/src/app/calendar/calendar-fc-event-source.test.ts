@@ -3,12 +3,56 @@ import { CALENDAR_KIND_MAIL_TODO } from '@/app/calendar/mail-todo-calendar'
 import {
   removeCloudTaskCalendarEventsByTaskKey,
   removeDuplicateFullCalendarEventsById,
+  removeGraphCalendarEventsByGraphEventId,
   removeMailTodoCalendarEventsByMessageId,
   scheduleRemoveDuplicateFullCalendarEventsById
 } from '@/app/calendar/calendar-fc-event-source'
 
+describe('removeGraphCalendarEventsByGraphEventId', () => {
+  it('entfernt alle Graph-Termin-Duplikate ausser keepEventId', () => {
+    const stale = {
+      id: 'acc:ev1',
+      allDay: false,
+      start: new Date('2026-05-19T06:30:00.000Z'),
+      extendedProps: {
+        calendarEvent: { accountId: 'acc', graphEventId: 'ev1', startIso: '2026-05-19T06:30:00.000Z' }
+      },
+      remove: vi.fn()
+    }
+    const moved = {
+      id: 'acc:ev1',
+      allDay: false,
+      start: new Date('2026-05-20T06:30:00.000Z'),
+      extendedProps: {
+        calendarEvent: { accountId: 'acc', graphEventId: 'ev1', startIso: '2026-05-20T06:30:00.000Z' }
+      },
+      remove: vi.fn()
+    }
+    const other = {
+      id: 'acc:ev2',
+      allDay: false,
+      start: new Date('2026-05-20T07:00:00.000Z'),
+      extendedProps: {
+        calendarEvent: { accountId: 'acc', graphEventId: 'ev2', startIso: '2026-05-20T07:00:00.000Z' }
+      },
+      remove: vi.fn()
+    }
+    const api = { getEvents: () => [stale, moved, other] }
+    removeGraphCalendarEventsByGraphEventId(
+      api as never,
+      'acc',
+      'ev1',
+      'acc:ev1',
+      '2026-05-20T06:30:00.000Z'
+    )
+    expect(stale.remove).toHaveBeenCalledOnce()
+    expect(moved.remove).not.toHaveBeenCalled()
+    expect(other.remove).not.toHaveBeenCalled()
+  })
+})
+
 describe('removeDuplicateFullCalendarEventsById', () => {
-  it('entfernt Duplikate mit gleicher id, behält das erste', () => {
+  it('entfernt Duplikate mit gleicher id, behält die zuletzt hinzugefügte', () => {
     const first = { id: 'ev-1', allDay: false, remove: vi.fn() }
     const second = { id: 'ev-1', allDay: false, remove: vi.fn() }
     const third = { id: 'ev-2', allDay: false, remove: vi.fn() }
@@ -16,8 +60,8 @@ describe('removeDuplicateFullCalendarEventsById', () => {
       getEvents: () => [first, second, third]
     }
     removeDuplicateFullCalendarEventsById(api as never, ['ev-1', 'ev-2'])
-    expect(first.remove).not.toHaveBeenCalled()
-    expect(second.remove).toHaveBeenCalledOnce()
+    expect(first.remove).toHaveBeenCalledOnce()
+    expect(second.remove).not.toHaveBeenCalled()
     expect(third.remove).not.toHaveBeenCalled()
   })
 
@@ -28,6 +72,15 @@ describe('removeDuplicateFullCalendarEventsById', () => {
     removeDuplicateFullCalendarEventsById(api as never, ['mail-todo:1'])
     expect(allDay.remove).toHaveBeenCalledOnce()
     expect(timed.remove).not.toHaveBeenCalled()
+  })
+
+  it('bevorzugt die zuletzt hinzugefügte zeitgebundene Instanz bei gleicher id', () => {
+    const stale = { id: 'ev-1', allDay: false, start: new Date('2026-05-20T11:00:00.000Z'), remove: vi.fn() }
+    const moved = { id: 'ev-1', allDay: false, start: new Date('2026-05-20T12:00:00.000Z'), remove: vi.fn() }
+    const api = { getEvents: () => [stale, moved] }
+    removeDuplicateFullCalendarEventsById(api as never, ['ev-1'])
+    expect(stale.remove).toHaveBeenCalledOnce()
+    expect(moved.remove).not.toHaveBeenCalled()
   })
 })
 

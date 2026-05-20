@@ -1,5 +1,5 @@
 import { listAccounts } from './accounts'
-import { withGraphThrottleRetry } from './graph/graph-api-throttle-retry'
+import { runGraphMailboxRequest } from './graph/graph-account-request'
 import { mapWithConcurrency } from './map-with-concurrency'
 import {
   graphListCalendarView,
@@ -84,7 +84,7 @@ async function fetchMicrosoftCalendarViews(
     MICROSOFT_CALENDAR_VIEW_CONCURRENCY,
     async (calId) => {
       try {
-        return await withGraphThrottleRetry(`calendarView ${acc.id}/${calId}`, () =>
+        return await runGraphMailboxRequest(acc.id, `calendarView ${calId}`, () =>
           graphListCalendarViewInCalendar(acc.id, calId, start, end)
         )
       } catch (e) {
@@ -443,7 +443,8 @@ export async function patchCalendarEventScheduleForAccount(input: CalendarPatchS
     await googlePatchEventTimes(input.accountId, calId, input.graphEventId, {
       startIso: input.startIso,
       endIso: input.endIso,
-      isAllDay: input.isAllDay
+      isAllDay: input.isAllDay,
+      notifyAttendees: input.notifyAttendees
     })
     return
   }

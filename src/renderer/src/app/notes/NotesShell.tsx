@@ -35,11 +35,10 @@ import type {
 import type { MiniMonthSelectedRange } from '@/app/calendar/MiniMonthGrid'
 import { ModuleNavMiniMonth } from '@/components/ModuleNavMiniMonth'
 import { moduleNavColumnClass } from '@/components/module-shell-layout'
-import { NotesLinkedPreviewPane } from '@/app/notes/NotesLinkedPreviewPane'
 import { NotesCalendarPane } from '@/app/notes/NotesCalendarPane'
 import { NotesCalendarToolbar } from '@/app/notes/NotesCalendarToolbar'
 import { readNotesCalendarFcView } from '@/app/notes/notes-calendar-view-storage'
-import { NotesLinkedObjectsPanel } from '@/app/notes/NotesLinkedObjectsPanel'
+import { EntityContextBlock } from '@/components/connections/EntityContextBlock'
 import { NotesAttachmentsPanel } from '@/app/notes/NotesAttachmentsPanel'
 import { NotesPagesPane } from '@/app/notes/NotesPagesPane'
 import {
@@ -52,15 +51,6 @@ import { NotesSidebarList } from '@/app/notes/NotesSidebarList'
 import { NotesShellSearch } from '@/app/notes/NotesShellSearch'
 import { NotesShellViewToggle, type NotesShellView } from '@/app/notes/NotesShellViewToggle'
 import { formatNoteDate, noteKindLabel, noteTitle } from '@/app/notes/notes-display-helpers'
-import { buildNotesPreviewLinkEntries, linkedItemToPreviewEntry } from '@/app/notes/notes-link-preview-items'
-import {
-  persistNotesLinkedPreviewOpen,
-  persistNotesLinkedPreviewPlacement,
-  readNotesLinkedPreviewOpen,
-  readNotesLinkedPreviewPlacement,
-  type NotesLinkedPreviewPlacement
-} from '@/app/notes/notes-shell-storage'
-import type { NoteLinksBundle, NoteEntityLinkedItem } from '@shared/note-entity-links'
 import { NoteDisplayIcon } from '@/components/NoteDisplayIcon'
 import { CalendarEventIconPicker } from '@/components/CalendarEventIconPicker'
 import { IconColorPickerFooter } from '@/components/IconColorPickerFooter'
@@ -106,8 +96,6 @@ const ALL_KINDS: UserNoteKind[] = ['mail', 'calendar', 'standalone']
 
 const NOTES_NAV_WIDTH_KEY = 'mailclient.notesShell.navWidth'
 const NOTES_DETAIL_WIDTH_KEY = 'mailclient.notesShell.detailWidth'
-const NOTES_PREVIEW_WIDTH_KEY = 'mailclient.notesShell.previewWidth'
-
 type ScheduleDraft = {
   scheduledStartIso: string | null
   scheduledEndIso: string | null
@@ -233,19 +221,6 @@ export function NotesShell(): JSX.Element {
     minWidth: 220,
     maxWidth: 480
   })
-  const [previewColumnWidth, setPreviewColumnWidth] = useResizableWidth({
-    storageKey: NOTES_PREVIEW_WIDTH_KEY,
-    defaultWidth: 480,
-    minWidth: 280,
-    maxWidth: 900
-  })
-  const [linksBundle, setLinksBundle] = useState<NoteLinksBundle>({ outgoing: [], incoming: [] })
-  const [linkedPreviewOpen, setLinkedPreviewOpen] = useState(readNotesLinkedPreviewOpen)
-  const [linkedPreviewPlacement, setLinkedPreviewPlacement] = useState<NotesLinkedPreviewPlacement>(
-    readNotesLinkedPreviewPlacement
-  )
-  const [selectedPreviewKey, setSelectedPreviewKey] = useState<string | null>(null)
-
   const loadSections = useCallback(async (): Promise<void> => {
     try {
       setSections(await window.mailClient.notes.sections.list())
@@ -352,69 +327,6 @@ export function NotesShell(): JSX.Element {
       }
     }
   }, [listMode, navSelection, sections, accounts, notes])
-
-  const previewLinkEntries = useMemo(() => {
-    if (!editing) return []
-    return buildNotesPreviewLinkEntries(editing, linksBundle, t)
-  }, [editing, linksBundle, t])
-
-  const hasPreviewableLinks = previewLinkEntries.length > 0
-
-  useEffect(() => {
-    if (!editing) {
-      setLinksBundle({ outgoing: [], incoming: [] })
-      setSelectedPreviewKey(null)
-      return
-    }
-    void window.mailClient.notes.links
-      .list(editing.id)
-      .then((bundle) => {
-        setLinksBundle(bundle)
-        const entries = buildNotesPreviewLinkEntries(editing, bundle, t)
-        setSelectedPreviewKey((prev) => {
-          if (prev && entries.some((e) => e.key === prev)) return prev
-          return entries[0]?.key ?? null
-        })
-        if (entries.length > 0) {
-          setLinkedPreviewOpen((open) => open || readNotesLinkedPreviewOpen())
-        }
-      })
-      .catch(() => {
-        setLinksBundle({ outgoing: [], incoming: [] })
-      })
-  }, [editing?.id, t])
-
-  const handleSelectLinkForPreview = useCallback(
-    (item: NoteEntityLinkedItem, direction: 'outgoing' | 'incoming'): void => {
-      const entry = linkedItemToPreviewEntry(item, direction, t)
-      setSelectedPreviewKey(entry.key)
-      setLinkedPreviewOpen(true)
-      persistNotesLinkedPreviewOpen(true)
-    },
-    [t]
-  )
-
-  const handleToggleLinkedPreview = useCallback((): void => {
-    setLinkedPreviewOpen((open) => {
-      const next = !open
-      persistNotesLinkedPreviewOpen(next)
-      return next
-    })
-  }, [])
-
-  const handleCloseLinkedPreview = useCallback((): void => {
-    setLinkedPreviewOpen(false)
-    persistNotesLinkedPreviewOpen(false)
-  }, [])
-
-  const handleLinkedPreviewPlacement = useCallback((placement: NotesLinkedPreviewPlacement): void => {
-    setLinkedPreviewPlacement(placement)
-    persistNotesLinkedPreviewPlacement(placement)
-  }, [])
-
-  const handlePreviewDockWidthDrag = useCallback((delta: number): void => {
-    setPreviewColumnWidth((w) => w - delta)
-  }, [setPreviewColumnWidth])
 
   const applyNotePatch = useCallback((note: UserNote | UserNoteListItem): void => {
     setEditing((prev) => (prev?.id === note.id ? { ...prev, ...note } : prev))
@@ -990,16 +902,6 @@ export function NotesShell(): JSX.Element {
                     onChange={(value): void => setScheduleDraft(value)}
                   />
 
-                  <NotesLinkedObjectsPanel
-                    noteId={editing.id}
-                    onOpenNote={(id): void => void openNoteById(id)}
-                    selectedPreviewKey={selectedPreviewKey}
-                    onSelectForPreview={handleSelectLinkForPreview}
-                    onLinksLoaded={setLinksBundle}
-                    previewOpen={linkedPreviewOpen}
-                    onTogglePreview={handleToggleLinkedPreview}
-                  />
-
                   <NotesAttachmentsPanel noteId={editing.id} />
 
                   <MarkdownNoteEditor
@@ -1011,6 +913,14 @@ export function NotesShell(): JSX.Element {
                   />
 
                   <div className="-mt-1 text-xs text-muted-foreground">{t('notes.editor.markdownHint')}</div>
+
+                  <EntityContextBlock
+                    anchor={{ kind: 'note', noteId: editing.id }}
+                    showObjectNote={false}
+                    contentPaddingClass="px-0"
+                    sectionCollapsedDefault
+                    className="border-t border-border/60"
+                  />
 
                   <footer className="flex justify-between gap-3 pb-2">
                     <button
@@ -1037,21 +947,6 @@ export function NotesShell(): JSX.Element {
                   </footer>
                 </div>
 
-                {editing && linkedPreviewOpen && hasPreviewableLinks ? (
-                  <NotesLinkedPreviewPane
-                    open
-                    placement={linkedPreviewPlacement}
-                    onPlacementChange={handleLinkedPreviewPlacement}
-                    onClose={handleCloseLinkedPreview}
-                    entries={previewLinkEntries}
-                    selectedKey={selectedPreviewKey}
-                    onSelectKey={setSelectedPreviewKey}
-                    editing={editing}
-                    accounts={accounts}
-                    dockWidthPx={previewColumnWidth}
-                    onDockWidthDrag={handlePreviewDockWidthDrag}
-                  />
-                ) : null}
               </ContentCrossfade>
             )}
       </main>

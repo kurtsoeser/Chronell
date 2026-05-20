@@ -43,6 +43,11 @@ import { useComposeStore } from '@/stores/compose'
 import { useSnoozeUiStore } from '@/stores/snooze-ui'
 import { CalendarEventSearchDialog } from '@/app/calendar/CalendarEventSearchDialog'
 import { showAppConfirm } from '@/stores/app-dialog'
+import {
+  CalendarScheduleChangeDiscardedError,
+  patchScheduleInputWithMeetingNotify,
+  resolveMeetingScheduleChange
+} from '@/app/calendar/calendar-meeting-schedule-change'
 import type {
   CalendarEventView,
   CalendarGraphCalendarRow,
@@ -85,6 +90,11 @@ import {
   applyOptimisticMailTodoScheduleToItems,
   syncFullCalendarMailTodoEventFromLayer
 } from '@/app/calendar/optimistic-mail-todo-calendar'
+import {
+  deduplicateCalendarEventsByGraphEventId,
+  purgeDuplicateGraphCalendarEventsOnApi
+} from '@/app/calendar/calendar-graph-events'
+import { clearMegaTimelineCache } from '@/app/work-items/apply-calendar-event-schedule-to-work-items'
 import { applyCloudTaskPersistTarget } from '@/app/calendar/apply-cloud-task-persist'
 import {
   applyOptimisticCloudTaskPersistToLayer,
@@ -302,6 +312,8 @@ export function CalendarShell(): JSX.Element {
   })
 
   const [events, setEvents] = useState<CalendarEventView[]>([])
+  /** Erzwingt Neuaufbau der Graph-FC-Quelle nach Verschieben (verhindert FC-Geister-Events). */
+  const [graphCalendarSourceRev, setGraphCalendarSourceRev] = useState(0)
   const eventsRef = useRef<CalendarEventView[]>([])
   eventsRef.current = events
   const [loading, setLoading] = useState(false)
@@ -416,6 +428,9 @@ export function CalendarShell(): JSX.Element {
   const lastCloudFilterRangeKeyRef = useRef('')
   const cloudTaskElByKeyRef = useRef(new Map<string, HTMLElement>())
   const cloudTaskPersistInFlightRef = useRef(0)
+  const graphCalendarPersistInFlightRef = useRef(0)
+  const graphCalendarReconcilingRef = useRef(false)
+  const skipCalendarReloadUntilRef = useRef(0)
 
   /** Ausgeblendete Kalender (Key `accountId|graphCalendarId`); leer = alle sichtbar. */
   const [hiddenCalendarKeys, setHiddenCalendarKeys] = useState<Set<string>>(
@@ -1414,7 +1429,7 @@ export function CalendarShell(): JSX.Element {
           includeCalendars,
           forceRefresh: opts?.forceRefresh === true
         })
-        setEvents(list)
+        setEvents(deduplicateCalendarEventsByGraphEventId(list))
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e))
         if (!silent) setEvents([])
@@ -2061,48 +2076,117 @@ export function CalendarShell(): JSX.Element {
         setError(t('calendar.errors.scheduleParseFailed'))
         return
       }
-      try {
-        await window.mailClient.calendar.patchEventSchedule({
-          accountId: calEv.accountId,
-          graphEventId: calEv.graphEventId,
-          graphCalendarId: calEv.graphCalendarId ?? null,
-          startIso: sched.startIso,
-          endIso: sched.endIso,
-          isAllDay: sched.isAllDay
-        })
-        setError(null)
-        const updatedCalEv: CalendarEventView = {
-          ...calEv,
-          startIso: sched.startIso,
-          endIso: sched.endIso,
-          isAllDay: sched.isAllDay
-        }
-        info.event.setExtendedProp('calendarEvent', updatedCalEv)
-        flushSync(() => {
-          setEvents((prev) =>
-            prev.map((ev) =>
-              ev.accountId === calEv.accountId && ev.graphEventId === calEv.graphEventId
-                ? updatedCalEv
-                : ev
+      if (graphCalendarPersistInFlightRef.current > 0) {
+        info.revert()
+        setError(t('calendar.errors.schedulePersistInFlight'))
+        return
+      }
+      const updatedCalEv: CalendarEventView = {
+        ...calEv,
+        startIso: sched.startIso,
+        endIso: sched.endIso,
+        isAllDay: sched.isAllDay
+      }
+
+      const applyOptimisticGraphSchedule = (): void => {
+        graphCalendarReconcilingRef.current = true
+        try {
+          flushSync(() => {
+            setEvents((prev) =>
+              deduplicateCalendarEventsByGraphEventId(
+                prev.map((ev) =>
+                  ev.accountId === calEv.accountId && ev.graphEventId === calEv.graphEventId
+                    ? updatedCalEv
+                    : ev
+                )
+              )
             )
+            setPreviewCalendarEvent((prev) =>
+              prev &&
+              prev.accountId === calEv.accountId &&
+              prev.graphEventId === calEv.graphEventId
+                ? updatedCalEv
+                : prev
+            )
+            setGraphCalendarSourceRev((rev) => rev + 1)
+          })
+          purgeDuplicateGraphCalendarEventsOnApi(calendarRef.current?.getApi())
+        } finally {
+          queueMicrotask(() => {
+            graphCalendarReconcilingRef.current = false
+          })
+        }
+      }
+
+      const rollbackOptimisticGraphSchedule = (): void => {
+        graphCalendarReconcilingRef.current = true
+        try {
+          flushSync(() => {
+            setEvents((prev) =>
+              deduplicateCalendarEventsByGraphEventId(
+                prev.map((ev) =>
+                  ev.accountId === calEv.accountId && ev.graphEventId === calEv.graphEventId
+                    ? calEv
+                    : ev
+                )
+              )
+            )
+            setPreviewCalendarEvent((prev) =>
+              prev &&
+              prev.accountId === calEv.accountId &&
+              prev.graphEventId === calEv.graphEventId
+                ? calEv
+                : prev
+            )
+            setGraphCalendarSourceRev((rev) => rev + 1)
+          })
+          purgeDuplicateGraphCalendarEventsOnApi(calendarRef.current?.getApi())
+        } finally {
+          queueMicrotask(() => {
+            graphCalendarReconcilingRef.current = false
+          })
+        }
+      }
+
+      graphCalendarPersistInFlightRef.current += 1
+      skipCalendarReloadUntilRef.current = Date.now() + 5000
+      try {
+        applyOptimisticGraphSchedule()
+
+        const scheduleResolution = await resolveMeetingScheduleChange(calEv, t)
+        if (scheduleResolution.action === 'discard') {
+          rollbackOptimisticGraphSchedule()
+          return
+        }
+
+        await window.mailClient.calendar.patchEventSchedule(
+          patchScheduleInputWithMeetingNotify(
+            {
+              accountId: calEv.accountId,
+              graphEventId: calEv.graphEventId,
+              graphCalendarId: calEv.graphCalendarId ?? null,
+              startIso: sched.startIso,
+              endIso: sched.endIso,
+              isAllDay: sched.isAllDay
+            },
+            scheduleResolution.notifyAttendees
           )
-          setPreviewCalendarEvent((prev) =>
-            prev &&
-            prev.accountId === calEv.accountId &&
-            prev.graphEventId === calEv.graphEventId
-              ? updatedCalEv
-              : prev
-          )
-        })
-        scheduleRemoveDuplicateFullCalendarEventsById(calendarRef.current?.getApi(), [calEv.id])
-        reloadCalendarEventsOnly({ silent: true })
+        )
+        setError(null)
+        clearMegaTimelineCache()
+        purgeDuplicateGraphCalendarEventsOnApi(calendarRef.current?.getApi())
+        timelineReloadRef.current?.()
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e))
-        info.revert()
+        rollbackOptimisticGraphSchedule()
+      } finally {
+        graphCalendarPersistInFlightRef.current = Math.max(
+          0,
+          graphCalendarPersistInFlightRef.current - 1
+        )
       }
     },
     [
-      reloadCalendarEventsOnly,
       fcTimeZone,
       accountColorById,
       setTodoScheduleForMessage,
@@ -2331,7 +2415,9 @@ export function CalendarShell(): JSX.Element {
 
   const fcEventSources = useMemo((): EventSourceInput[] => {
     const skipHeavyLayers = shouldSkipHeavyCalendarLayersForMultiMonth(activeViewId)
-    const sources: EventSourceInput[] = [{ id: 'graph-calendar', events: graphFcEventsForFc }]
+    const sources: EventSourceInput[] = [
+      { id: `graph-calendar-${graphCalendarSourceRev}`, events: graphFcEventsForFc }
+    ]
     if (mailTodoOverlay && !skipHeavyLayers) {
       sources.push({ id: 'mail-todo', events: mailTodoFcEventsDisplayed })
     }
@@ -2350,6 +2436,7 @@ export function CalendarShell(): JSX.Element {
     return sources
   }, [
     graphFcEventsForFc,
+    graphCalendarSourceRev,
     mailTodoFcEventsDisplayed,
     cloudTaskFcEventsDisplayed,
     userNoteFcEventsDisplayed,
@@ -2401,6 +2488,8 @@ export function CalendarShell(): JSX.Element {
 
   useEffect(() => {
     const off = window.mailClient.events.onCalendarChanged(() => {
+      if (graphCalendarPersistInFlightRef.current > 0) return
+      if (Date.now() < skipCalendarReloadUntilRef.current) return
       reloadCalendarEventsOnly({ silent: true })
     })
     return off
@@ -2514,12 +2603,17 @@ export function CalendarShell(): JSX.Element {
         await persistWorkItemGanttSchedule(item, interval, {
           fcTimeZone,
           setTodoScheduleForMessage,
-          patchEventSchedule: window.mailClient.calendar.patchEventSchedule
+          patchEventSchedule: window.mailClient.calendar.patchEventSchedule,
+          t
         })
         setError(null)
         timelineReloadRef.current?.()
+        clearMegaTimelineCache()
         reloadVisibleRange({ silent: true })
       } catch (e) {
+        if (e instanceof CalendarScheduleChangeDiscardedError) {
+          throw e
+        }
         const raw = e instanceof Error ? e.message : String(e)
         setError(raw.startsWith('calendar.') ? t(raw) : raw)
         throw e
@@ -3037,6 +3131,10 @@ export function CalendarShell(): JSX.Element {
                 }}
                 dayMaxEvents
                 eventSources={fcEventSources}
+                eventsSet={(): void => {
+                  if (graphCalendarReconcilingRef.current) return
+                  purgeDuplicateGraphCalendarEventsOnApi(calendarRef.current?.getApi())
+                }}
                 eventContent={calendarFcEventContentRender}
                 eventDidMount={(info): void => {
                   if (

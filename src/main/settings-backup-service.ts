@@ -879,13 +879,23 @@ export function parseSettingsBackupJson(raw: string): SettingsBackupPayload {
       const ac = se.aiConnections
       if (isRecord(ac.settings)) {
         const s = ac.settings
+        const snippetMode =
+          s.snippetMode === 'on' || s.snippetMode === 'ask' || s.snippetMode === 'off'
+            ? s.snippetMode
+            : s.includeSnippet === true
+              ? 'on'
+              : 'off'
         secureExtras.aiConnections = {
           settings: {
             enabled: s.enabled === true,
-            provider: s.provider === 'openai' ? 'openai' : 'gemini',
+            provider:
+              s.provider === 'openai' ? 'openai' : s.provider === 'ollama' ? 'ollama' : 'gemini',
             model: typeof s.model === 'string' ? s.model : null,
+            ollamaBaseUrl:
+              typeof s.ollamaBaseUrl === 'string' ? s.ollamaBaseUrl : 'http://127.0.0.1:11434',
             consentGiven: s.consentGiven === true,
-            includeSnippet: s.includeSnippet === true,
+            snippetMode,
+            includeSnippet: snippetMode === 'on',
             snippetConsentGiven: s.snippetConsentGiven === true,
             scanLookbackDays:
               typeof s.scanLookbackDays === 'number' ? s.scanLookbackDays : 90,
@@ -894,7 +904,19 @@ export function parseSettingsBackupJson(raw: string): SettingsBackupPayload {
               typeof s.minConfidence === 'number'
                 ? Math.min(Math.max(s.minConfidence, 0.5), 0.95)
                 : 0.65,
-            compareProviders: s.compareProviders === true
+            compareProviders: s.compareProviders === true,
+            customDomainProfiles: Array.isArray(s.customDomainProfiles)
+              ? (s.customDomainProfiles as import('@shared/ai-link-domain').AiLinkCustomDomainProfile[])
+              : [],
+            showLinkQualityOnGraph: s.showLinkQualityOnGraph === true,
+            embeddingsEnabled: s.embeddingsEnabled !== false,
+            embeddingModel:
+              typeof s.embeddingModel === 'string' && s.embeddingModel.trim()
+                ? s.embeddingModel.trim()
+                : 'nomic-embed-text',
+            embeddingHybridRetrieval: s.embeddingHybridRetrieval !== false,
+            embeddingAutoIndex: s.embeddingAutoIndex !== false,
+            embeddingFastSuggestions: s.embeddingFastSuggestions !== false
           }
         }
         const dp = ac.dismissedPairs

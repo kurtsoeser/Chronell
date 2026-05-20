@@ -59,3 +59,27 @@ export function canonicalEntityRefPair(
 export function isSelfEntityLink(a: ChronellEntityRef, b: ChronellEntityRef): boolean {
   return entityRefsEqual(a, b)
 }
+
+/** Parst `entityRefKey`-Format zurück in eine Referenz (für Embedding-Index). */
+export function parseEntityRefKey(key: string): ChronellEntityRef | null {
+  const mail = /^mail:(\d+)$/.exec(key)
+  if (mail) return { kind: 'mail', messageId: Number(mail[1]) }
+  const todo = /^mail-todo:(\d+)$/.exec(key)
+  if (todo) return { kind: 'mail_todo', todoId: Number(todo[1]) }
+  const note = /^note:(\d+)$/.exec(key)
+  if (note) return { kind: 'note', noteId: Number(note[1]) }
+  const contact = /^contact:(\d+)$/.exec(key)
+  if (contact) return { kind: 'people_contact', contactId: Number(contact[1]) }
+  const cal = /^calendar:([^:]+):(.+)$/.exec(key)
+  if (cal) return { kind: 'calendar_event', accountId: cal[1]!, graphEventId: cal[2]! }
+  const task = /^task:([^:]+):([^:]+):(.+)$/.exec(key)
+  if (task) {
+    return {
+      kind: 'cloud_task',
+      accountId: task[1]!,
+      listId: task[2]!,
+      taskId: task[3]!
+    }
+  }
+  return null
+}

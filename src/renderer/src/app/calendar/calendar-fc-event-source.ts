@@ -1,6 +1,46 @@
 import type { CalendarApi } from '@fullcalendar/core'
-import type { MailListItem } from '@shared/types'
+import type { CalendarEventView, MailListItem } from '@shared/types'
 import { CALENDAR_KIND_MAIL_TODO } from '@/app/calendar/mail-todo-calendar'
+
+function eventMatchesGraphCalendarEvent(
+  event: { id: string; extendedProps: Record<string, unknown> },
+  accountId: string,
+  graphEventId: string
+): boolean {
+  const cal = event.extendedProps?.calendarEvent as CalendarEventView | undefined
+  if (cal?.accountId === accountId && cal.graphEventId?.trim() === graphEventId) return true
+  return event.id === `${accountId}:${graphEventId}`
+}
+
+function eventStartIso(event: { start: Date | null; allDay: boolean }): string | null {
+  const start = event.start
+  if (!start) return null
+  if (event.allDay) {
+    const y = start.getFullYear()
+    const m = String(start.getMonth() + 1).padStart(2, '0')
+    const d = String(start.getDate()).padStart(2, '0')
+    return `${y}-${m}-${d}`
+  }
+  return start.toISOString()
+}
+
+function pickGraphCalendarEventToKeep(
+  matches: Array<{ id: string; allDay: boolean; start: Date | null }>,
+  keepEventId?: string,
+  expectedStartIso?: string
+): (typeof matches)[number] | undefined {
+  if (keepEventId) {
+    const withId = matches.filter((e) => e.id === keepEventId)
+    if (expectedStartIso) {
+      const atNewTime = withId.find((e) => eventStartIso(e) === expectedStartIso)
+      if (atNewTime) return atNewTime
+    }
+    const timed = withId.filter((e) => !e.allDay)
+    return timed[timed.length - 1] ?? withId[withId.length - 1]
+  }
+  const timed = matches.filter((e) => !e.allDay)
+  return timed[timed.length - 1] ?? matches[matches.length - 1]
+}
 
 function eventMatchesTaskKey(
   event: { id: string; extendedProps: Record<string, unknown> },
@@ -18,6 +58,30 @@ function eventMatchesMailTodoMessage(
   return msg?.id === messageId
 }
 
+/**
+ * Entfernt alle Kalender-Einträge eines Graph-Termins (Drag-Kopie + veraltete Quelle).
+ * `keepEventId` bleibt als einziges Event erhalten, bevorzugt mit `expectedStartIso`.
+ */
+export function removeGraphCalendarEventsByGraphEventId(
+  api: CalendarApi,
+  accountId: string,
+  graphEventId: string,
+  keepEventId?: string,
+  expectedStartIso?: string
+): void {
+  const gid = graphEventId.trim()
+  if (!gid) return
+  const matches = api.getEvents().filter((e) => eventMatchesGraphCalendarEvent(e, accountId, gid))
+  if (matches.length === 0) return
+
+  const keep = pickGraphCalendarEventToKeep(matches, keepEventId, expectedStartIso)
+  if (!keep) return
+
+  for (const ev of matches) {
+    if (ev !== keep) ev.remove()
+  }
+}
+
 /** Entfernt FullCalendar-Duplikate nach Drag/Resize (gleiche öffentliche Event-ID). */
 export function removeDuplicateFullCalendarEventsById(
   api: CalendarApi,
@@ -27,7 +91,8 @@ export function removeDuplicateFullCalendarEventsById(
     if (!id) continue
     const matches = api.getEvents().filter((e) => e.id === id)
     if (matches.length <= 1) continue
-    const keep = matches.find((e) => !e.allDay) ?? matches[0]
+    const timed = matches.filter((e) => !e.allDay)
+    const keep = timed[timed.length - 1] ?? matches[matches.length - 1]
     for (const ev of matches) {
       if (ev !== keep) ev.remove()
     }
@@ -92,6 +157,27 @@ export function scheduleRemoveDuplicateFullCalendarEventsById(
 ): void {
   if (!api || eventIds.length === 0) return
   const run = (): void => removeDuplicateFullCalendarEventsById(api, eventIds)
+  requestAnimationFrame(() => {
+    requestAnimationFrame(run)
+  })
+}
+
+export function scheduleRemoveGraphCalendarEventsByGraphEventId(
+  api: CalendarApi | null | undefined,
+  accountId: string,
+  graphEventId: string,
+  keepEventId?: string,
+  expectedStartIso?: string
+): void {
+  if (!api || !graphEventId.trim()) return
+  const run = (): void =>
+    removeGraphCalendarEventsByGraphEventId(
+      api,
+      accountId,
+      graphEventId,
+      keepEventId,
+      expectedStartIso
+    )
   requestAnimationFrame(() => {
     requestAnimationFrame(run)
   })

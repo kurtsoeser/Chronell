@@ -52,6 +52,7 @@ export function SortableSidebarNavButton({
   iconClass,
   label,
   count,
+  emphasizeCount,
   disabled,
   onClick,
   onContextMenu,
@@ -64,6 +65,8 @@ export function SortableSidebarNavButton({
   iconClass?: string
   label: string
   count?: number
+  /** Label hervorheben, wenn `count` > 0 (wie Posteingang-Ordner). */
+  emphasizeCount?: boolean
   disabled?: boolean
   onClick?: () => void
   onContextMenu?: (e: React.MouseEvent) => void
@@ -80,6 +83,8 @@ export function SortableSidebarNavButton({
     ...(isDragging ? { position: 'relative', zIndex: 2, opacity: 0.92 } : {})
   }
   const isInactive = disabled === true || !onClick
+  const hasCount = count !== undefined && count > 0
+  const showCountEmphasis = emphasizeCount === true && hasCount && !isSelected
   return (
     <li ref={setNodeRef} style={style} className="list-none">
       <button
@@ -102,11 +107,18 @@ export function SortableSidebarNavButton({
           isSelected && 'bg-secondary/80 text-foreground'
         )}
       >
-        <Icon className={cn('h-3.5 w-3.5 shrink-0', iconClass)} />
-        <span className="flex-1 truncate text-left">{label}</span>
-        {count !== undefined && count > 0 && (
-          <span className="rounded-full bg-muted px-1.5 text-[10px] tabular-nums text-muted-foreground">
-            {count}
+        <Icon className={cn('h-3.5 w-3.5 shrink-0', iconClass, showCountEmphasis && 'text-primary')} />
+        <span
+          className={cn(
+            'flex-1 truncate text-left',
+            showCountEmphasis && 'font-semibold text-foreground'
+          )}
+        >
+          {label}
+        </span>
+        {hasCount && (
+          <span className="shrink-0 rounded-full bg-primary/15 px-1.5 text-[10px] font-semibold tabular-nums text-primary">
+            {count! > 999 ? '999+' : count}
           </span>
         )}
       </button>

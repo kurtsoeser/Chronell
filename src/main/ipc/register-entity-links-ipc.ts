@@ -8,6 +8,8 @@ import type {
   EntityLinkAiScanStatus,
   EntityLinkAiSuggestInput,
   EntityLinkAiSuggestResult,
+  EntityLinkEvaluateQualityInput,
+  EntityLinkEvaluateQualityResult,
   EntityLinkGraphDensityStats,
   EntityLinkPathInput,
   EntityLinkPathResult,
@@ -33,6 +35,7 @@ import {
   removeEntityLinkIfMatches
 } from '../db/entity-links-repo'
 import { suggestEntityLinks } from '../entity-link-suggestions'
+import { evaluateEntityLinkQuality } from '../ai/entity-link-ai-quality'
 import { suggestEntityLinksAi } from '../ai/entity-link-ai-suggest'
 import {
   acceptEntityLinkAiScanItems,
@@ -49,6 +52,14 @@ import {
 } from '../ai/entity-link-ai-stats'
 import { resolveScanAnchors } from '../ai/entity-link-ai-scan'
 import { getAiConnectionsSettings } from '../ai/ai-settings-store'
+import { buildEntityLinkAiPayloadPreview } from '../ai/entity-link-ai-payload-preview'
+import {
+  getEntityLinkSuggestionCounts,
+  invalidateSuggestionCountCaches
+} from '../ai/entity-link-suggestion-counts'
+import { appendEntityLinkAiAudit, listEntityLinkAiAuditRecent } from '../db/entity-link-ai-audit-repo'
+import type { EntityLinkAiPayloadPreviewInput } from '@shared/entity-link-ai-payload'
+import type { EntityLinkSuggestionCountEntry } from '@shared/entity-link-ai-payload'
 import { searchEntityPalette } from '../entity-palette-search'
 import { isEntityRefKind, type EntityRefKind } from '@shared/entity-ref'
 import { searchNoteLinkTargets } from '../note-link-target-search'
@@ -115,7 +126,8 @@ export function registerEntityLinksIpc(): void {
     if (!a || !b) throw new Error('Verknuepfung ungueltig.')
     addEntityLink(a, b, input?.linkKind ?? 'related')
     broadcastForRefs(a, b)
-    broadcastEntityLinksChanged()
+      broadcastEntityLinksChanged()
+      void invalidateSuggestionCountCaches()
   })
 
   ipcMain.handle(IPC.entityLinks.remove, (_event, input: EntityLinkRemoveInput): void => {
@@ -126,7 +138,8 @@ export function registerEntityLinksIpc(): void {
       removeEntityLinkIfMatches(linkId, anchor)
       broadcastForRefs(anchor)
     }
-    broadcastEntityLinksChanged()
+      broadcastEntityLinksChanged()
+      void invalidateSuggestionCountCaches()
   })
 
   ipcMain.handle(
@@ -187,7 +200,61 @@ export function registerEntityLinksIpc(): void {
         raw && typeof raw === 'object' && 'maxCandidates' in raw
           ? (raw as EntityLinkAiSuggestInput).maxCandidates
           : undefined
-      return suggestEntityLinksAi({ anchor, maxCandidates })
+      const includeExcerpt =
+        raw && typeof raw === 'object' && 'includeExcerpt' in raw
+          ? (raw as EntityLinkAiSuggestInput).includeExcerpt
+          : undefined
+      const result = await suggestEntityLinksAi({ anchor, maxCandidates, includeExcerpt })
+      void appendEntityLinkAiAudit({
+        kind: 'suggest',
+        anchorKey: entityRefKey(anchor),
+        provider: (await getAiConnectionsSettings()).provider,
+        charEstimate: 0,
+        includeExcerpt: includeExcerpt === true
+      })
+      return result
+    }
+  )
+
+  ipcMain.handle(
+    IPC.entityLinks.previewAiPayload,
+    (_event, input: unknown) => {
+      const raw = input as EntityLinkAiPayloadPreviewInput | null
+      const anchor = parseEntityRef(raw?.anchor)
+      if (!anchor) return null
+      return buildEntityLinkAiPayloadPreview({
+        anchor,
+        includeExcerpt: raw?.includeExcerpt === true
+      })
+    }
+  )
+
+  ipcMain.handle(IPC.entityLinks.listAiAudit, (_event, limit: unknown) => {
+    const n = typeof limit === 'number' ? Math.min(Math.max(limit, 1), 50) : 15
+    return listEntityLinkAiAuditRecent(n)
+  })
+
+  ipcMain.handle(
+    IPC.entityLinks.evaluateLinkQuality,
+    async (_event, input: unknown): Promise<EntityLinkEvaluateQualityResult> => {
+      const raw = input as EntityLinkEvaluateQualityInput | null
+      const anchor = parseEntityRef(raw?.anchor)
+      if (!anchor) return { assessments: [] }
+      return evaluateEntityLinkQuality({
+        anchor,
+        includeExcerpt: raw?.includeExcerpt === true
+      })
+    }
+  )
+
+  ipcMain.handle(
+    IPC.entityLinks.getHeuristicSuggestionCounts,
+    async (_event, anchors: unknown): Promise<EntityLinkSuggestionCountEntry[]> => {
+      if (!Array.isArray(anchors)) return []
+      const parsed = anchors
+        .map((a) => parseEntityRef(a))
+        .filter((a): a is ChronellEntityRef => a != null)
+      return getEntityLinkSuggestionCounts(parsed)
     }
   )
 

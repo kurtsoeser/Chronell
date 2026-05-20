@@ -22,6 +22,8 @@ import { broadcastEntityLinkAiScanProgress } from '../ipc/ipc-broadcasts'
 import { assertAiConnectionsReady } from './ai-settings-store'
 import { dismissEntityLinkAiSuggestion, isEntityLinkAiDismissed } from './entity-link-ai-dismissed'
 import { runAiSuggestForAnchor } from './entity-link-ai-suggest'
+import { appendEntityLinkAiAudit } from '../db/entity-link-ai-audit-repo'
+import { invalidateHeuristicSuggestionCountCache } from './entity-link-suggestion-counts'
 
 const SCAN_PAUSE_MS = 350
 const DEFAULT_MAX_ANCHORS = 50
@@ -34,6 +36,8 @@ interface ScanAnchorRow {
 
 let scanRunning = false
 let scanCancelRequested = false
+let scanIncludeExcerpt: boolean | undefined
+let scanDomainProfileId: string | null = null
 let scanStatus: EntityLinkAiScanStatus = emptyScanStatus()
 
 function emptyScanStatus(): EntityLinkAiScanStatus {
@@ -260,7 +264,12 @@ async function runScanLoop(anchors: ScanAnchorRow[]): Promise<void> {
     if (scanCancelRequested) break
     const anchor = anchors[i]!
     try {
-      const result = await runAiSuggestForAnchor(anchor.ref, 40)
+      const result = await runAiSuggestForAnchor(
+        anchor.ref,
+        40,
+        scanIncludeExcerpt,
+        scanDomainProfileId ?? 'general'
+      )
       await appendSuggestions(anchor, result.suggestions, seenPairs, seenItemIds)
       await appendChains(anchor, result.chains, seenItemIds)
     } catch (err) {
@@ -304,6 +313,16 @@ export async function startEntityLinkAiScan(
       : settings.scanLookbackDays
 
   const anchors = resolveScanAnchors(input, settings)
+  scanIncludeExcerpt = input.includeExcerpt
+  scanDomainProfileId = input.domainProfileId?.trim() || 'general'
+
+  void appendEntityLinkAiAudit({
+    kind: 'scan_start',
+    anchorKey: null,
+    provider: settings.provider,
+    charEstimate: anchors.length * 800,
+    includeExcerpt: Boolean(input.includeExcerpt)
+  })
 
   scanRunning = true
   scanCancelRequested = false
@@ -333,6 +352,7 @@ export async function startEntityLinkAiScan(
       if (scanStatus.items.length > 0) {
         await persistScanResults(scanStatus.items)
       }
+      await invalidateHeuristicSuggestionCountCache()
     }
   })()
 

@@ -364,7 +364,7 @@ export async function googlePatchEventTimes(
   accountId: string,
   calendarId: string,
   eventId: string,
-  input: { startIso: string; endIso: string; isAllDay: boolean }
+  input: { startIso: string; endIso: string; isAllDay: boolean; notifyAttendees?: boolean }
 ): Promise<void> {
   const { calendar } = await getGoogleApis(accountId)
   const config = await loadConfig()
@@ -380,6 +380,7 @@ export async function googlePatchEventTimes(
   await calendar.events.patch({
     calendarId,
     eventId,
+    sendUpdates: input.notifyAttendees === true ? 'all' : undefined,
     requestBody: body
   })
 }

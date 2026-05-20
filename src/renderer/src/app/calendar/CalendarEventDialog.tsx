@@ -61,8 +61,7 @@ import { openExternalUrl } from '@/lib/open-external'
 import { useAccountsStore } from '@/stores/accounts'
 import { outlookCategoryDotClass } from '@/lib/outlook-category-colors'
 import { resolvedAccountColorCss } from '@/lib/avatar-color'
-import { ObjectNoteEditor } from '@/components/ObjectNoteEditor'
-import { ConnectionsPanel } from '@/components/connections/ConnectionsPanel'
+import { EntityContextBlock } from '@/components/connections/EntityContextBlock'
 import { TipTapBody } from '@/components/TipTapBody'
 import { sanitizeComposeHtmlFragment } from '@/lib/sanitize-compose-html'
 import { CalendarEventDescriptionPreview } from '@/app/calendar/CalendarEventDescriptionPreview'
@@ -1896,33 +1895,26 @@ export function CalendarEventDialog({
             ) : null}
 
             {mode === 'edit' && initialEvent?.graphEventId ? (
-              <div className="border-b border-border py-3">
-                <ObjectNoteEditor
-                  variant="section"
-                  layout="toggle"
-                  sectionCollapsedDefault
-                  target={{
-                    kind: 'calendar',
-                    accountId: initialEvent.accountId,
-                    calendarSource: initialEvent.source,
-                    calendarRemoteId: initialEvent.graphCalendarId?.trim() || 'default',
-                    eventRemoteId: initialEvent.graphEventId,
-                    title: subject.trim() || initialEvent.title,
-                    eventTitleSnapshot: subject.trim() || initialEvent.title,
-                    eventStartIsoSnapshot: initialEvent.startIso
-                  }}
-                />
-                <ConnectionsPanel
-                  anchor={{
-                    kind: 'calendar_event',
-                    accountId: initialEvent.accountId,
-                    graphEventId: initialEvent.graphEventId
-                  }}
-                  contentPaddingClass="px-0"
-                  sectionCollapsedDefault
-                  className="mt-2 border-t border-border/60"
-                />
-              </div>
+              <EntityContextBlock
+                anchor={{
+                  kind: 'calendar_event',
+                  accountId: initialEvent.accountId,
+                  graphEventId: initialEvent.graphEventId
+                }}
+                noteTarget={{
+                  kind: 'calendar',
+                  accountId: initialEvent.accountId,
+                  calendarSource: initialEvent.source,
+                  calendarRemoteId: initialEvent.graphCalendarId?.trim() || 'default',
+                  eventRemoteId: initialEvent.graphEventId,
+                  title: subject.trim() || initialEvent.title,
+                  eventTitleSnapshot: subject.trim() || initialEvent.title,
+                  eventStartIsoSnapshot: initialEvent.startIso
+                }}
+                contentPaddingClass="px-4"
+                sectionCollapsedDefault
+                className="border-b border-border"
+              />
             ) : null}
 
             {mode === 'edit' && initialEvent && (initialEvent.webLink || initialEvent.joinUrl) && (

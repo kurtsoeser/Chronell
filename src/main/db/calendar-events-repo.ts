@@ -160,6 +160,24 @@ export function deleteCalendarEvent(accountId: string, graphEventId: string): vo
   ).run(accountId, graphEventId.trim())
 }
 
+export function getCalendarEventByGraphEventId(
+  accountId: string,
+  graphEventId: string
+): CalendarEventView | null {
+  const row = getDb()
+    .prepare(
+      `SELECT id, account_id, source, graph_event_id, graph_calendar_id,
+              account_email, account_color_class, title, start_iso, end_iso, is_all_day,
+              location, web_link, join_url, organizer, categories_json, display_color_hex,
+              calendar_can_edit, icon_id
+       FROM calendar_events
+       WHERE account_id = ? AND graph_event_id = ?
+       LIMIT 1`
+    )
+    .get(accountId, graphEventId.trim()) as CalendarEventDbRow | undefined
+  return row ? rowToView(row) : null
+}
+
 export function listCalendarEventsInRange(
   startIso: string,
   endIso: string,

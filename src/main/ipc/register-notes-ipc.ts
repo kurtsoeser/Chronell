@@ -74,6 +74,10 @@ import {
   upsertMailNote,
   upsertPrimaryNoteForPeopleContact
 } from '../db/user-notes-repo'
+import {
+  queueEntityEmbeddingForNote,
+  removeEntityEmbeddingsForNote
+} from '../ai/entity-embeddings-queue'
 import { broadcastEntityLinksChanged, broadcastNotesChanged } from './ipc-broadcasts'
 
 export function registerNotesIpc(): void {
@@ -83,6 +87,7 @@ export function registerNotesIpc(): void {
 
   ipcMain.handle(IPC.notes.upsertMail, (_event, input: UserNoteMailUpsertInput): UserNote => {
     const note = upsertMailNote(input)
+    queueEntityEmbeddingForNote(note)
     broadcastNotesChanged({ kind: 'mail', noteId: note.id, messageId: note.messageId })
     return note
   })
@@ -100,6 +105,7 @@ export function registerNotesIpc(): void {
     IPC.notes.upsertPeopleContact,
     (_event, input: UserNotePeopleContactUpsertInput): UserNote => {
       const note = upsertPrimaryNoteForPeopleContact(input)
+      queueEntityEmbeddingForNote(note)
       broadcastNotesChanged({ kind: 'standalone', noteId: note.id })
       return note
     }
@@ -113,6 +119,7 @@ export function registerNotesIpc(): void {
     IPC.notes.upsertCalendar,
     (_event, input: UserNoteCalendarUpsertInput): UserNote => {
       const note = upsertCalendarNote(input)
+      queueEntityEmbeddingForNote(note)
       broadcastNotesChanged({ kind: 'calendar', noteId: note.id, accountId: note.accountId })
       return note
     }
@@ -122,6 +129,7 @@ export function registerNotesIpc(): void {
     IPC.notes.createStandalone,
     (_event, input: UserNoteStandaloneCreateInput): UserNote => {
       const note = createStandaloneNote(input)
+      queueEntityEmbeddingForNote(note)
       broadcastNotesChanged({ kind: 'standalone', noteId: note.id })
       return note
     }
@@ -131,12 +139,14 @@ export function registerNotesIpc(): void {
     IPC.notes.updateStandalone,
     (_event, input: UserNoteStandaloneUpdateInput): UserNote => {
       const note = updateStandaloneNote(input)
+      queueEntityEmbeddingForNote(note)
       broadcastNotesChanged({ kind: 'standalone', noteId: note.id })
       return note
     }
   )
 
   ipcMain.handle(IPC.notes.delete, (_event, id: number): void => {
+    removeEntityEmbeddingsForNote(id)
     deleteNote(id)
     broadcastNotesChanged({ noteId: id })
   })
@@ -162,6 +172,7 @@ export function registerNotesIpc(): void {
       iconId: input.iconId,
       iconColor: input.iconColor
     })
+    queueEntityEmbeddingForNote(note)
     broadcastNotesChanged({ noteId: note.id })
     return note
   })
@@ -173,18 +184,21 @@ export function registerNotesIpc(): void {
 
   ipcMain.handle(IPC.notes.setSchedule, (_event, input: UserNoteScheduleInput): UserNote => {
     const note = setNoteSchedule(input)
+    queueEntityEmbeddingForNote(note)
     broadcastNotesChanged({ noteId: note.id, kind: note.kind })
     return note
   })
 
   ipcMain.handle(IPC.notes.clearSchedule, (_event, id: number): UserNote => {
     const note = clearNoteSchedule(id)
+    queueEntityEmbeddingForNote(note)
     broadcastNotesChanged({ noteId: note.id, kind: note.kind })
     return note
   })
 
   ipcMain.handle(IPC.notes.moveToSection, (_event, input: UserNoteMoveToSectionInput): UserNote => {
     const note = moveNoteToSection(input)
+    queueEntityEmbeddingForNote(note)
     broadcastNotesChanged({ noteId: note.id, kind: note.kind })
     return note
   })

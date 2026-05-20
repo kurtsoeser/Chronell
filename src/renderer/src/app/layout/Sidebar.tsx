@@ -546,7 +546,8 @@ export function Sidebar({ onOpenAccountDialog }: Props): JSX.Element {
                         icon={Layers}
                         iconClass="text-primary"
                         label={t('sidebar.allInboxes')}
-                        count={totalUnread > 0 ? totalUnread : undefined}
+                        count={totalUnread}
+                        emphasizeCount
                         isSelected={listKind === 'unified_inbox'}
                         onClick={(): void => {
                           void selectUnifiedInbox()

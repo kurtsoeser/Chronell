@@ -66,9 +66,7 @@ import { Avatar } from '@/components/Avatar'
 import { profilePhotoSrcForEmail } from '@/lib/contact-avatar'
 import { ReadingPaneCompose } from '@/components/ReadingPaneCompose'
 import { MailCategoriesPopover } from '@/components/MailCategoriesPopover'
-import { ObjectNoteEditor } from '@/components/ObjectNoteEditor'
-import { ConnectionsPanel } from '@/components/connections/ConnectionsPanel'
-import { LocalConnectionsGraph } from '@/components/connections/LocalConnectionsGraph'
+import { EntityContextBlock } from '@/components/connections/EntityContextBlock'
 import { useCreateCloudTaskUiStore } from '@/stores/create-cloud-task-ui'
 import { accountSupportsCloudTasks } from '@/lib/cloud-task-accounts'
 import type { AttachmentMeta, MailFull, ConnectedAccount, MailQuickStep } from '@shared/types'
@@ -972,13 +970,6 @@ function MailReader({
                 hoverClassName="hover:bg-sky-500/15 hover:text-sky-400"
               />
             </div>
-            <ObjectNoteEditor
-              target={{
-                kind: 'mail',
-                messageId: message.id,
-                title: message.subject || t('common.noSubject')
-              }}
-            />
             {message.openTodoId != null && account && accountSupportsCloudTasks(account) ? (
               <button
                 type="button"
@@ -1122,44 +1113,22 @@ function MailReader({
         aria-label={t('mail.readingPane.contentIframeTitle')}
       />
 
-      <ObjectNoteEditor
-        target={{
-          kind: 'mail',
-          messageId: message.id,
-          title: message.subject || t('common.noSubject')
-        }}
-        variant="section"
-        sectionCollapsedDefault
-        layout="toggle"
-        className="shrink-0 border-t border-border bg-secondary/5 px-6 py-2"
-      />
-
       {!hideEntityConnections ? (
-        message.openTodoId != null ? (
-          <>
-            <LocalConnectionsGraph
-              anchor={{ kind: 'mail_todo', todoId: message.openTodoId }}
-              className="shrink-0 bg-secondary/5"
-            />
-            <ConnectionsPanel
-              anchor={{ kind: 'mail_todo', todoId: message.openTodoId }}
-              sectionCollapsedDefault
-              className="shrink-0 bg-secondary/5"
-            />
-          </>
-        ) : (
-          <>
-            <LocalConnectionsGraph
-              anchor={{ kind: 'mail', messageId: message.id }}
-              className="shrink-0 bg-secondary/5"
-            />
-            <ConnectionsPanel
-              anchor={{ kind: 'mail', messageId: message.id }}
-              sectionCollapsedDefault
-              className="shrink-0 bg-secondary/5"
-            />
-          </>
-        )
+        <EntityContextBlock
+          anchor={
+            message.openTodoId != null
+              ? { kind: 'mail_todo', todoId: message.openTodoId }
+              : { kind: 'mail', messageId: message.id }
+          }
+          noteTarget={{
+            kind: 'mail',
+            messageId: message.id,
+            title: message.subject || t('common.noSubject')
+          }}
+          sectionCollapsedDefault
+          className="shrink-0 bg-secondary/5"
+          contentPaddingClass="px-6"
+        />
       ) : null}
 
     </div>

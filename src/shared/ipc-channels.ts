@@ -77,13 +77,22 @@ export const IPC = {
     dismissAiSuggestion: 'entity-links:dismiss-ai-suggestion',
     getGraphDensityStats: 'entity-links:get-graph-density-stats',
     estimateAiScanCost: 'entity-links:estimate-ai-scan-cost',
+    previewAiPayload: 'entity-links:preview-ai-payload',
+    getHeuristicSuggestionCounts: 'entity-links:get-heuristic-suggestion-counts',
+    listAiAudit: 'entity-links:list-ai-audit',
+    evaluateLinkQuality: 'entity-links:evaluate-link-quality',
     listPalette: 'entity-links:list-palette'
   },
   aiConnections: {
     getSettings: 'ai-connections:get-settings',
     setSettings: 'ai-connections:set-settings',
     setApiKey: 'ai-connections:set-api-key',
-    clearApiKey: 'ai-connections:clear-api-key'
+    clearApiKey: 'ai-connections:clear-api-key',
+    listOllamaModels: 'ai-connections:list-ollama-models',
+    testOllamaConnection: 'ai-connections:test-ollama-connection',
+    getEmbeddingIndexStatus: 'ai-connections:get-embedding-index-status',
+    rebuildEmbeddingIndex: 'ai-connections:rebuild-embedding-index',
+    cancelEmbeddingRebuild: 'ai-connections:cancel-embedding-rebuild'
   },
   notes: {
     getMail: 'notes:get-mail',

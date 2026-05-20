@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Loader2, Sparkles, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type {
@@ -8,7 +8,16 @@ import type {
   EntityLinkAiScanProfile,
   EntityLinkAiScanStatus
 } from '@shared/entity-links'
+import { AiSnippetConsentDialog } from '@/components/connections/AiSnippetConsentDialog'
 import { ConnectionChainTimeline } from '@/components/connections/ConnectionChainTimeline'
+import type { EntityLinkAiPayloadPreview } from '@shared/entity-link-ai-payload'
+import type { EntityLinkAiDomainProfileId } from '@shared/ai-link-domain'
+import type { AiLinkCustomDomainProfile } from '@shared/ai-link-domain'
+import type { AiSnippetMode } from '@shared/ai-connections'
+import {
+  isAiSnippetAskSkippedForSession,
+  setAiSnippetAskSkippedForSession
+} from '@/lib/ai-snippet-session'
 import { entityRefKindIcon } from '@/lib/entity-ref-ui'
 import {
   acceptEntityLinkAiScanItems,
@@ -16,6 +25,7 @@ import {
   dismissEntityLinkAiScanItems,
   estimateEntityLinkAiScanCost,
   fetchAiConnectionsSettings,
+  fetchEntityLinkAiPayloadPreview,
   fetchEntityLinkAiScanStatus,
   startEntityLinkAiScan,
   subscribeEntityLinkAiScanProgress
@@ -26,6 +36,7 @@ export function ConnectionsAiScanPanel({
   open,
   scanAnchors = null,
   scanProfile = null,
+  autoStartScan = false,
   onClose,
   onAccepted,
   onFocusItem
@@ -34,6 +45,8 @@ export function ConnectionsAiScanPanel({
   /** Nur diese Objekte scannen; null = automatische Mail-Anker (90 Tage). */
   scanAnchors?: EntityLinkAiScanAnchor[] | null
   scanProfile?: EntityLinkAiScanProfile | null
+  /** Scan direkt nach Öffnen starten (z. B. Graph-Kontextmenü). */
+  autoStartScan?: boolean
   onClose: () => void
   onAccepted?: () => void
   onFocusItem?: (item: EntityLinkAiScanItem) => void
@@ -46,6 +59,13 @@ export function ConnectionsAiScanPanel({
   const [lookbackDays, setLookbackDays] = useState(90)
   const [maxAnchors, setMaxAnchors] = useState(50)
   const [profile, setProfile] = useState<EntityLinkAiScanProfile>('sparse_mails')
+  const [domainId, setDomainId] = useState<EntityLinkAiDomainProfileId>('general')
+  const [customDomains, setCustomDomains] = useState<AiLinkCustomDomainProfile[]>([])
+  const [snippetMode, setSnippetMode] = useState<AiSnippetMode>('off')
+  const [snippetAsk, setSnippetAsk] = useState<{
+    preview: EntityLinkAiPayloadPreview | null
+    skipSession: boolean
+  } | null>(null)
   const [costEstimate, setCostEstimate] = useState<EntityLinkAiScanCostEstimate | null>(null)
 
   const selectionMode = Boolean(scanAnchors && scanAnchors.length > 0)
@@ -56,8 +76,10 @@ export function ConnectionsAiScanPanel({
       .then((s) => {
         setAiReady(s.enabled && s.hasActiveApiKey)
         setCompareProviders(s.compareProviders)
+        setSnippetMode(s.snippetMode)
         setLookbackDays(s.scanLookbackDays)
         setMaxAnchors(s.scanMaxAnchors)
+        setCustomDomains(s.customDomainProfiles ?? [])
       })
       .catch(() => setAiReady(false))
     void fetchEntityLinkAiScanStatus().then(setStatus)
@@ -69,14 +91,16 @@ export function ConnectionsAiScanPanel({
       setCostEstimate(null)
       return
     }
+    const domainOpt =
+      domainId !== 'general' ? { domainProfileId: domainId as EntityLinkAiDomainProfileId } : {}
     const input =
       profile === 'recent_30'
-        ? { scanProfile: profile, maxAnchors, lookbackDays: 30 }
+        ? { scanProfile: profile, maxAnchors, lookbackDays: 30, ...domainOpt }
         : profile === 'contacts_calendar'
-          ? { scanProfile: profile, maxAnchors }
-          : { scanProfile: profile, maxAnchors, lookbackDays }
+          ? { scanProfile: profile, maxAnchors, ...domainOpt }
+          : { scanProfile: profile, maxAnchors, lookbackDays, ...domainOpt }
     void estimateEntityLinkAiScanCost(input).then(setCostEstimate).catch(() => setCostEstimate(null))
-  }, [open, selectionMode, profile, maxAnchors, lookbackDays])
+  }, [open, selectionMode, profile, maxAnchors, lookbackDays, domainId])
 
   useEffect(() => {
     if (!open || !selectionMode || !scanAnchors) {
@@ -90,34 +114,68 @@ export function ConnectionsAiScanPanel({
     return subscribeEntityLinkAiScanProgress(setStatus)
   }, [open])
 
-  const startScan = useCallback(async (): Promise<void> => {
-    setBusy(true)
-    try {
-      if (!selectionMode) {
-        await window.mailClient.aiConnections.setSettings({
-          scanLookbackDays: lookbackDays,
-          scanMaxAnchors: maxAnchors
+  const runScan = useCallback(
+    async (includeExcerpt?: boolean): Promise<void> => {
+      setBusy(true)
+      try {
+        if (!selectionMode) {
+          await window.mailClient.aiConnections.setSettings({
+            scanLookbackDays: lookbackDays,
+            scanMaxAnchors: maxAnchors
+          })
+        }
+        const excerptOpt = includeExcerpt === true ? { includeExcerpt: true as const } : {}
+        const domainOpt =
+          domainId !== 'general'
+            ? { domainProfileId: domainId as EntityLinkAiDomainProfileId }
+            : {}
+        const next = await startEntityLinkAiScan(
+          selectionMode && scanAnchors
+            ? { anchors: scanAnchors, ...excerptOpt, ...domainOpt }
+            : profile === 'recent_30'
+              ? { scanProfile: profile, maxAnchors, lookbackDays: 30, ...excerptOpt, ...domainOpt }
+              : { scanProfile: profile, maxAnchors, lookbackDays, ...excerptOpt, ...domainOpt }
+        )
+        setStatus(next)
+      } catch (err) {
+        setStatus({
+          running: false,
+          progress: { done: 0, total: 0, suggestionsFound: 0 },
+          items: [],
+          error: err instanceof Error ? err.message : t('connections.scan.error')
         })
+      } finally {
+        setBusy(false)
       }
-      const next = await startEntityLinkAiScan(
-        selectionMode && scanAnchors
-          ? { anchors: scanAnchors }
-          : profile === 'recent_30'
-            ? { scanProfile: profile, maxAnchors, lookbackDays: 30 }
-            : { scanProfile: profile, maxAnchors, lookbackDays }
-      )
-      setStatus(next)
-    } catch (err) {
-      setStatus({
-        running: false,
-        progress: { done: 0, total: 0, suggestionsFound: 0 },
-        items: [],
-        error: err instanceof Error ? err.message : t('connections.scan.error')
-      })
-    } finally {
-      setBusy(false)
+    },
+    [t, selectionMode, scanAnchors, maxAnchors, lookbackDays, profile, domainId]
+  )
+
+  const beginStartScan = useCallback(async (): Promise<void> => {
+    if (snippetMode === 'ask' && !isAiSnippetAskSkippedForSession()) {
+      const previewAnchor = scanAnchors?.[0]?.ref
+      const preview = previewAnchor
+        ? await fetchEntityLinkAiPayloadPreview({ anchor: previewAnchor, includeExcerpt: true })
+        : null
+      setSnippetAsk({ preview, skipSession: false })
+      return
     }
-  }, [t, selectionMode, scanAnchors, maxAnchors, lookbackDays, profile])
+    void runScan(snippetMode === 'on')
+  }, [snippetMode, scanAnchors, runScan])
+
+  const autoStartHandledRef = useRef(false)
+
+  useEffect(() => {
+    if (!open) {
+      autoStartHandledRef.current = false
+      return
+    }
+    if (!autoStartScan || autoStartHandledRef.current || !aiReady) return
+    const running = status?.running ?? false
+    if (running || busy) return
+    autoStartHandledRef.current = true
+    void beginStartScan()
+  }, [open, autoStartScan, aiReady, status?.running, busy, beginStartScan])
 
   const cancelScan = useCallback(async (): Promise<void> => {
     const next = await cancelEntityLinkAiScan()
@@ -214,7 +272,7 @@ export function ConnectionsAiScanPanel({
             <button
               type="button"
               disabled={!aiReady || busy}
-              onClick={(): void => void startScan()}
+              onClick={(): void => void beginStartScan()}
               className="rounded-md border border-border px-2 py-1 text-[10px] hover:bg-secondary disabled:opacity-50"
             >
               {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : t('connections.scan.start')}
@@ -254,6 +312,30 @@ export function ConnectionsAiScanPanel({
 
       {status?.error ? (
         <p className="shrink-0 px-3 py-2 text-[10px] text-destructive">{status.error}</p>
+      ) : null}
+
+      {snippetAsk && !running ? (
+        <div className="shrink-0 px-3 py-2">
+          <AiSnippetConsentDialog
+            preview={snippetAsk.preview}
+            busy={busy}
+            skipSession={snippetAsk.skipSession}
+            onSkipSessionChange={(v): void =>
+              setSnippetAsk((s) => (s ? { ...s, skipSession: v } : s))
+            }
+            onConfirmMetadataOnly={(): void => {
+              if (snippetAsk.skipSession) setAiSnippetAskSkippedForSession(true)
+              setSnippetAsk(null)
+              void runScan(false)
+            }}
+            onConfirmWithExcerpt={(): void => {
+              if (snippetAsk.skipSession) setAiSnippetAskSkippedForSession(true)
+              setSnippetAsk(null)
+              void runScan(true)
+            }}
+            onCancel={(): void => setSnippetAsk(null)}
+          />
+        </div>
       ) : null}
 
       {!aiReady && !running ? (
@@ -297,6 +379,28 @@ export function ConnectionsAiScanPanel({
               <option value="contacts_calendar">
                 {t('connections.scan.profileContactsCalendar')}
               </option>
+            </select>
+          </label>
+          <label className="flex flex-col gap-0.5">
+            <span className="text-[9px] text-muted-foreground">
+              {t('connections.domain.label')}
+            </span>
+            <select
+              className="rounded border border-border bg-background px-1.5 py-0.5 text-[10px]"
+              value={domainId}
+              disabled={busy}
+              onChange={(e): void =>
+                setDomainId(e.target.value as EntityLinkAiDomainProfileId)
+              }
+            >
+              <option value="general">{t('connections.domain.general')}</option>
+              <option value="workshop_honorar">{t('connections.domain.workshopHonorar')}</option>
+              <option value="travel">{t('connections.domain.travel')}</option>
+              {customDomains.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label}
+                </option>
+              ))}
             </select>
           </label>
           {profile === 'sparse_mails' ? (

@@ -28,7 +28,13 @@ export function isGraphThrottleError(err: unknown): boolean {
   const e = err as GraphErrLike
   if (e.statusCode !== 429) return false
   const code = typeof e.code === 'string' ? e.code : ''
-  if (code === 'ApplicationThrottled' || code === 'TooManyRequests') return true
+  if (
+    code === 'ApplicationThrottled' ||
+    code === 'TooManyRequests' ||
+    code === 'activityLimitReached'
+  ) {
+    return true
+  }
   const msg = typeof e.message === 'string' ? e.message : ''
   return /throttl|concurrency|too many requests/i.test(msg)
 }

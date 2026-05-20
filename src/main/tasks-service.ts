@@ -19,6 +19,7 @@ import {
 import { cloudTaskStableKey } from '@shared/work-item-keys'
 import { clearMailCloudTaskLinksForDeletedTask } from './mail-cloud-task-link-service'
 import { clearTaskPlannedSchedule } from './task-planned-schedule-service'
+import { runGraphMailboxRequest } from './graph/graph-account-request'
 
 async function resolveConnectedAccount(accountId: string): Promise<ConnectedAccount> {
   const accounts = await listAccounts()
@@ -37,7 +38,7 @@ export async function listTaskListsForAccount(accountId: string): Promise<TaskLi
   if (acc.provider === 'google') {
     return googleListTaskLists(accountId)
   }
-  return graphListTodoLists(accountId)
+  return runGraphMailboxRequest(accountId, 'listTodoLists', () => graphListTodoLists(accountId))
 }
 
 export async function listTasksForAccount(
@@ -49,7 +50,9 @@ export async function listTasksForAccount(
   if (acc.provider === 'google') {
     return googleListTasksInList(accountId, listId, opts)
   }
-  return graphListTodoTasks(accountId, listId, opts)
+  return runGraphMailboxRequest(accountId, `listTodoTasks ${listId}`, () =>
+    graphListTodoTasks(accountId, listId, opts)
+  )
 }
 
 export async function createTaskForAccount(

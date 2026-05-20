@@ -23,6 +23,7 @@ import {
   upsertCalendarEvents
 } from './db/calendar-events-repo'
 import { broadcastCalendarChanged, broadcastCalendarSyncStatus } from './ipc/ipc-broadcasts'
+import { getActiveSchedulePatchGuard } from './calendar-schedule-patch-guard'
 import { isAppOnline } from './network-status'
 import { googleListCalendars } from './google/calendar-google'
 
@@ -106,6 +107,21 @@ async function resolveIncludeCalendars(
   return refs
 }
 
+function applySchedulePatchGuards(events: CalendarEventView[]): CalendarEventView[] {
+  return events.map((ev) => {
+    const graphEventId = ev.graphEventId?.trim()
+    if (!graphEventId) return ev
+    const guard = getActiveSchedulePatchGuard(ev.accountId, graphEventId)
+    if (!guard) return ev
+    return {
+      ...ev,
+      startIso: guard.startIso,
+      endIso: guard.endIso,
+      isAllDay: guard.isAllDay
+    }
+  })
+}
+
 async function fetchFromCloudAndPersist(
   startIso: string,
   endIso: string,
@@ -113,11 +129,13 @@ async function fetchFromCloudAndPersist(
   googleIncremental: boolean
 ): Promise<CalendarEventView[]> {
   const include = await resolveIncludeCalendars(options)
-  const events = await listMergedCalendarEvents(startIso, endIso, {
-    ...options,
-    includeCalendars: include ?? undefined,
-    googleIncremental
-  })
+  const events = applySchedulePatchGuards(
+    await listMergedCalendarEvents(startIso, endIso, {
+      ...options,
+      includeCalendars: include ?? undefined,
+      googleIncremental
+    })
+  )
 
   upsertCalendarEvents(events)
 
@@ -298,14 +316,15 @@ export function patchCachedCalendarEventSchedule(
   accountId: string,
   graphEventId: string,
   patch: { startIso: string; endIso: string; isAllDay: boolean }
-): void {
-  getDb()
+): number {
+  const result = getDb()
     .prepare(
       `UPDATE calendar_events
        SET start_iso = ?, end_iso = ?, is_all_day = ?, synced_at = datetime('now')
        WHERE account_id = ? AND graph_event_id = ?`
     )
     .run(patch.startIso, patch.endIso, patch.isAllDay ? 1 : 0, accountId, graphEventId.trim())
+  return result.changes
 }
 
 export function patchCachedCalendarEventIcon(

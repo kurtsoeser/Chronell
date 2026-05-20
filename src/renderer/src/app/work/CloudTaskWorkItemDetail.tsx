@@ -11,7 +11,7 @@ import {
   dueDateInputValue,
   isoToDatetimeLocalValue
 } from '@/app/work-items/work-item-datetime'
-import { ConnectionsPanel } from '@/components/connections/ConnectionsPanel'
+import { EntityContextBlock } from '@/components/connections/EntityContextBlock'
 
 export interface CloudTaskSaveDraft {
   title: string
@@ -151,13 +151,14 @@ export function CloudTaskWorkItemDetail({
         />
       </div>
 
-      <ConnectionsPanel
+      <EntityContextBlock
         anchor={{
           kind: 'cloud_task',
           accountId: item.accountId,
           listId: item.listId,
           taskId: item.taskId
         }}
+        showObjectNote={false}
         contentPaddingClass="px-0"
         sectionCollapsedDefault
       />

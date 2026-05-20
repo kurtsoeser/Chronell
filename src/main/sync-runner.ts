@@ -15,6 +15,7 @@ import { listMessageIdsByRemoteIds } from './db/messages-repo'
 import { listAccounts } from './accounts'
 import { runInboxRulesForNewMessages } from './rule-runner'
 import { broadcastMailChanged } from './ipc/ipc-broadcasts'
+import { queueEntityEmbeddingsAfterMailSync } from './ai/entity-embeddings-queue'
 
 export type SyncState = 'idle' | 'syncing-folders' | 'syncing-messages' | 'error'
 
@@ -46,6 +47,7 @@ export async function runInitialSync(
     }
     broadcast({ accountId, state: 'idle' })
     broadcastMailChanged(accountId)
+    queueEntityEmbeddingsAfterMailSync(accountId)
     return { folders: result.folders, inboxMessages: result.inboxMessages }
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e)
@@ -70,6 +72,7 @@ export async function runFolderSync(folderId: number, limit = 50): Promise<numbe
         : await syncMessagesInFolder(folder.accountId, folder.remoteId, limit)
     broadcast({ accountId: folder.accountId, state: 'idle' })
     broadcastMailChanged(folder.accountId)
+    queueEntityEmbeddingsAfterMailSync(folder.accountId)
     return count
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e)
@@ -98,6 +101,7 @@ export async function runFolderPoll(folderId: number): Promise<number> {
     const remoteIds = typeof result === 'number' ? [] : result.remoteIds
     if (added > 0) {
       broadcastMailChanged(folder.accountId, { kind: 'poll', folderIds: [folder.id] })
+      queueEntityEmbeddingsAfterMailSync(folder.accountId)
       if (folder.wellKnown === 'inbox' && remoteIds.length > 0) {
         const idMap = listMessageIdsByRemoteIds(folder.accountId, remoteIds)
         const ids = [...idMap.values()]

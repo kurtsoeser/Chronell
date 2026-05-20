@@ -1,4 +1,4 @@
-import type { ChronellEntityRef } from '@shared/entity-ref'
+import type { ChronellEntityRef, EntityRefKind } from '@shared/entity-ref'
 import { entityRefKey, entityRefsEqual } from '@shared/entity-ref'
 import type { EntityLinkTargetCandidate } from '@shared/entity-links'
 import { getDb } from '../db/index'
@@ -22,6 +22,11 @@ export interface AiLinkCandidateEntry {
 export interface AiLinkRetrievalResult {
   anchor: EntityLinkAiSnapshot
   candidates: AiLinkCandidateEntry[]
+}
+
+export interface AiLinkRetrievalOptions {
+  subjectKeywords?: string[]
+  kindBoost?: EntityRefKind[]
 }
 
 function dateWindow(centerIso: string): { start: string; end: string } {
@@ -68,9 +73,74 @@ function reindexCandidates(map: Map<string, AiLinkCandidateEntry>): AiLinkCandid
   return list.map((c, i) => ({ ...c, candId: `cand_${i + 1}` }))
 }
 
+function sortCandidatesByKindBoost(
+  list: AiLinkCandidateEntry[],
+  kindBoost?: EntityRefKind[]
+): AiLinkCandidateEntry[] {
+  if (!kindBoost?.length) return list
+  const order = new Map(kindBoost.map((k, i) => [k, i]))
+  return [...list].sort((a, b) => {
+    const ia = order.get(a.ref.kind) ?? 99
+    const ib = order.get(b.ref.kind) ?? 99
+    return ia - ib
+  })
+}
+
+function boostCandidatesByKeywords(
+  map: Map<string, AiLinkCandidateEntry>,
+  cap: number,
+  exclude: Set<string>,
+  keywords: string[],
+  centerIso: string
+): void {
+  if (keywords.length === 0 || map.size >= cap) return
+  const db = getDb()
+  const { start, end } = dateWindow(centerIso)
+  const patterns = keywords.slice(0, 8).map((k) => `%${k.toLowerCase()}%`)
+  const whereKw = patterns.map(() => 'LOWER(COALESCE(subject,"")) LIKE ?').join(' OR ')
+  const limit = Math.min(cap - map.size, 15)
+  const mails = db
+    .prepare(
+      `SELECT id, subject, from_addr, from_name, received_at
+       FROM messages
+       WHERE received_at >= ? AND received_at <= ? AND (${whereKw})
+       ORDER BY received_at DESC
+       LIMIT ?`
+    )
+    .all(start, end, ...patterns, limit) as Array<{
+    id: number
+    subject: string | null
+    from_addr: string | null
+    from_name: string | null
+    received_at: string | null
+  }>
+  for (const m of mails) {
+    const ref: ChronellEntityRef = { kind: 'mail', messageId: m.id }
+    const key = entityRefKey(ref)
+    if (exclude.has(key)) continue
+    pushCandidate(map, cap, {
+      ref,
+      snapshot: {
+        id: key,
+        kind: 'mail',
+        fields: {
+          subject: m.subject,
+          from_addr: m.from_addr,
+          from_name: m.from_name,
+          received_at: m.received_at
+        }
+      },
+      title: m.subject?.trim() || '(Kein Betreff)',
+      subtitle: m.from_name?.trim() || m.from_addr?.trim() || null
+    })
+    exclude.add(key)
+  }
+}
+
 export function retrieveAiLinkCandidates(
   anchor: ChronellEntityRef,
-  maxCandidates = 40
+  maxCandidates = 40,
+  options?: AiLinkRetrievalOptions
 ): AiLinkRetrievalResult | null {
   const anchorSnap = buildAnchorSnapshot(anchor)
   if (!anchorSnap) return null
@@ -95,6 +165,8 @@ export function retrieveAiLinkCandidates(
         ? normalizeEmail(String(anchorSnap.fields.primary_email ?? ''))
         : ''
   const anchorDomain = extractEmailDomain(anchorEmail)
+  const domainKeywords = options?.subjectKeywords ?? []
+  const relaxDomain = domainKeywords.length > 0
   const tokens =
     anchorSnap.kind === 'mail' || anchorSnap.kind === 'mail_todo'
       ? subjectTokens(String(anchorSnap.fields.subject ?? ''))
@@ -141,7 +213,7 @@ export function retrieveAiLinkCandidates(
     const ref: ChronellEntityRef = { kind: 'mail', messageId: m.id }
     const key = entityRefKey(ref)
     if (exclude.has(key)) continue
-    if (anchorDomain) {
+    if (!relaxDomain && anchorDomain) {
       const domain = extractEmailDomain(m.from_addr)
       if (domain && domain !== anchorDomain) continue
     }
@@ -337,9 +409,14 @@ export function retrieveAiLinkCandidates(
     exclude.add(key)
   }
 
+  if (domainKeywords.length > 0) {
+    boostCandidatesByKeywords(map, cap, exclude, domainKeywords, centerIso)
+  }
+
+  const sorted = sortCandidatesByKindBoost(reindexCandidates(map), options?.kindBoost)
   return {
     anchor: anchorSnap,
-    candidates: reindexCandidates(map)
+    candidates: sorted.map((c, i) => ({ ...c, candId: `cand_${i + 1}` }))
   }
 }
 

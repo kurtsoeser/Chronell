@@ -213,6 +213,23 @@
       }
     }
   },
+  "context": {
+    "title": "Context",
+    "openGraph": "Show in graph",
+    "summary": {
+      "links": "{{count}} connections",
+      "neighbors": "{{count}} in neighborhood",
+      "suggestions": "{{count}} suggestions"
+    },
+    "tabs": {
+      "links": "Connections",
+      "suggestions": "Suggestions",
+      "quality": "Quality"
+    },
+    "graph": {
+      "empty": "No neighborhood yet — add a connection or load AI suggestions."
+    }
+  },
   "connections": {
     "title": "Connections",
     "titleOne": "Connection",
@@ -248,7 +265,9 @@
       "splitterPalette": "Resize object palette",
       "densityScan": "{{percent}}% mail without links",
       "densityScanTitle": "Start graph scan for sparsely linked mail",
-      "densityHint": "{{percent}}% of mail in range is unlinked ({{count}}) — AI scan recommended"
+      "densityHint": "{{percent}}% of mail in range is unlinked ({{count}}) — AI scan recommended",
+      "embeddingIndexRebuild": "Rebuilding vector index… {{done}} / {{total}}",
+      "embeddingIndexAuto": "Updating vector index… {{done}} / {{total}}"
     },
     "graph": {
       "empty": "No connections yet",
@@ -282,6 +301,7 @@
       "islandRelayoutInner": "Arrange objects",
       "islandRelayoutInnerTitle": "Re-arrange objects in this island",
       "islandScanAi": "Scan this island with AI",
+      "suggestionBadge": "{{count}} heuristic suggestions",
       "clusterTimeUnknown": "No date",
       "clusterTimeMonth": "{{month}}/{{year}}",
       "clusterTimeWeek": "Week {{week}}, {{year}}",
@@ -306,6 +326,7 @@
       "hintPath": "Highlighted path between the selected objects",
       "context": {
         "openInModule": "Open in module",
+        "aiSuggestLinks": "Connect AI suggestions",
         "notFound": "Object not found",
         "mailNotFound": "Related email not found",
         "eventNotFound": "Event not found",
@@ -347,6 +368,11 @@
       "clusterSpacingValue": "{{value}} (0 = tight, 2 = wide)",
       "resetGroups": "Show all types"
     },
+    "hints": {
+      "badgeHeuristic": "{{count}} link suggestions (heuristic)",
+      "badgeAiScan": "{{count}} AI suggestions from last scan",
+      "badgeAiPanel": "{{count}} AI suggestions (last loaded)"
+    },
     "localGraph": {
       "title": "Neighborhood (local graph)",
       "hint": "Direct connections of this mail · Click opens full graph",
@@ -364,7 +390,43 @@
       "reason": {
         "sender_email": "Sender",
         "subject_calendar": "Subject → event",
-        "ai_semantic": "AI"
+        "ai_semantic": "AI",
+        "embedding_semantic": "Vector (local)"
+      }
+    },
+    "domain": {
+      "label": "Domain",
+      "general": "General",
+      "workshopHonorar": "Workshop / honorarium",
+      "travel": "Travel"
+    },
+    "quality": {
+      "title": "Quality of existing links",
+      "check": "Check with AI",
+      "error": "Quality check failed.",
+      "filterWeak": "Show weak links only",
+      "noneWeak": "No weak links match the filter.",
+      "strong": "Strong",
+      "moderate": "Moderate",
+      "weak": "Weak",
+      "questionable": "Questionable"
+    },
+    "aiPayload": {
+      "consentTitle": "Data for this AI request",
+      "consentHint": "Chronell sends metadata to the cloud AI. Optionally you can include a shortened excerpt (max. 500 characters) — never full body text or attachments.",
+      "confirmMetadataOnly": "Metadata only",
+      "confirmWithExcerpt": "Include excerpt",
+      "skipAskSession": "Don't ask again this session",
+      "noExcerpt": "No text excerpt available for this object.",
+      "excerptChars": "Excerpt: {{count}} characters",
+      "totalEstimate": "Estimated ~{{count}} characters total",
+      "neverSent": "Never sent: full mail body, attachments, OAuth tokens.",
+      "excerptSource": {
+        "mail_preview": "Source: mail preview line",
+        "mail_body": "Source: shortened mail body",
+        "note": "Source: note content",
+        "event": "Source: event description",
+        "none": ""
       }
     },
     "scan": {
@@ -573,7 +635,8 @@
       "item_one": "item",
       "item_other": "items",
       "viewList": "List",
-      "viewKanban": "Kanban"
+      "viewKanban": "Kanban",
+      "viewWorkflow": "Workflow"
     },
     "listArrange": {
       "noDue": "No due date",
@@ -1045,14 +1108,42 @@
     "aiConnections": {
       "nav": "AI connections",
       "heading": "AI connections",
-      "hint": "Semantic link suggestions via cloud AI. Only metadata is sent — no full mail body or attachments. You can store both API keys; the preferred provider is used for suggestions and graph scan.",
+      "hint": "Semantic link suggestions via cloud AI (Gemini/OpenAI) or locally via Ollama. Only metadata is sent — no full mail body or attachments (excerpt optional).",
       "enable": "Enable AI connections",
       "provider": "Preferred AI",
       "providerHint": "Suggestions and graph scan use this provider only.",
       "activeKeyMissing": "No API key stored for the selected provider yet.",
+      "ollamaModelMissing": "Select or enter an Ollama model (e.g. nemotron3:33b).",
       "model": "Model (optional)",
       "modelPlaceholderGemini": "e.g. gemini-2.5-flash",
       "modelPlaceholderOpenAi": "e.g. gpt-4o-mini",
+      "modelPlaceholderOllama": "e.g. nemotron3:33b or llama3.2",
+      "ollamaBaseUrl": "Ollama URL",
+      "ollamaBaseUrlHint": "Default: http://127.0.0.1:11434 — Ollama must be running (`ollama serve`).",
+      "ollamaRefreshModels": "Load installed models",
+      "ollamaModelsLoading": "Loading models…",
+      "ollamaModelsEmpty": "No models found. Run e.g. `ollama pull nemotron3:33b` first.",
+      "ollamaModelsError": "Cannot reach Ollama.",
+      "ollamaModelSelect": "Local model",
+      "ollamaModelManual": "Or enter model name manually",
+      "ollamaLocalHint": "Data stays on your machine (no cloud API key). Large models can be slow.",
+      "ollamaTestConnection": "Test connection",
+      "ollamaTesting": "Testing…",
+      "ollamaTestFail": "Connection test failed.",
+      "ollamaCompactPrompts": "Small model detected: Chronell uses shorter prompts and fewer candidates (better JSON reliability).",
+      "embeddingsHeading": "Vector index (background)",
+      "embeddingsHint": "Builds local embeddings via Ollama (e.g. nomic-embed-text). Suggestions are faster; the LLM is only used for top candidates.",
+      "embeddingsEnable": "Enable vector index",
+      "embeddingModel": "Embedding model",
+      "embeddingModelHint": "e.g. nomic-embed-text — run `ollama pull nomic-embed-text`",
+      "embeddingHybrid": "Hybrid search (heuristics + vectors)",
+      "embeddingAutoIndex": "Auto-embed after mail sync",
+      "embeddingFast": "Fast vector suggestions (no LLM)",
+      "embeddingStatus": "{{indexed}} indexed, ~{{pending}} pending",
+      "embeddingRebuild": "Rebuild index",
+      "embeddingRebuildBusy": "Building index… {{done}} / {{total}}",
+      "embeddingRebuildCancel": "Cancel",
+      "embeddingRebuildDone": "Index updated: {{indexed}} new, {{skipped}} unchanged.",
       "geminiKey": "Google Gemini API key",
       "openAiKey": "OpenAI API key",
       "apiKeyPlaceholder": "Paste API key",
@@ -1065,18 +1156,42 @@
       "saveError": "Could not save settings.",
       "loadError": "Could not load settings.",
       "includeSnippet": "Send shortened text excerpt (max. 500 characters)",
+      "snippetMode": "Text excerpt to cloud AI",
+      "snippetModeHint": "“Ask every time” shows a preview before each AI call. “Always” sends the excerpt without asking (after consent).",
+      "snippetMode_off": "Never — metadata only",
+      "snippetMode_on": "Always (after consent)",
+      "snippetMode_ask": "Ask before each request",
+      "auditTitle": "Recent AI calls (no content stored)",
+      "auditExcerpt": "with excerpt",
+      "auditKind": {
+        "suggest": "Suggestion",
+        "scan_start": "Graph scan",
+        "scan_item": "Scan item",
+        "evaluate_quality": "Quality check"
+      },
       "snippetConsentTitle": "Send text excerpt to AI",
       "snippetConsentBody": "In addition to metadata, Chronell may send a shortened excerpt (mail snippet/preview, note or event text, max. 500 characters). This increases token usage and privacy exposure.\n\nYou can turn this off anytime.",
       "snippetConsentConfirm": "Allow excerpt",
       "scanLookbackDays": "Graph scan: lookback days",
       "scanMaxAnchors": "Graph scan: max anchors",
+      "domainProfilesTitle": "Custom domain prompts",
+      "domainProfilesHint": "Keywords for retrieval and AI focus (scan and suggestions). Comma-separated.",
+      "domainProfileLabel": "Name",
+      "domainProfileKeywords": "Keywords (e.g. Project Alpha, quote)",
+      "domainProfileAdd": "Add domain",
+      "domainProfileRemove": "Remove",
+      "domainProfileNew": "New domain",
       "minConfidence": "Minimum confidence: {{percent}}%",
       "minConfidenceHint": "AI suggestions below this threshold are hidden (panel and scan).",
       "compareProviders": "Compare Gemini and OpenAI (consensus only)",
       "compareProvidersHint": "Both providers are queried in parallel; only suggestions both return are shown (✓✓). Doubles API calls.",
+      "showLinkQualityOnGraph": "Color link quality in graph",
+      "showLinkQualityOnGraphHint": "After “Check with AI” in the connections panel: green = strong, amber = weak, red = questionable (selected node as anchor).",
       "backupNote": "Settings backup includes AI options and dismissed suggestions. API keys stay in the secure store and may need to be re-entered after import.",
       "consentTitle": "Cloud AI for connections",
       "consentBody": "Chronell sends only subjects, names, dates, and short fields to the selected AI provider — never full mail or note bodies.\n\nSuggestions are not saved automatically; you confirm each link yourself.",
+      "consentTitleOllama": "Local AI (Ollama) for connections",
+      "consentBodyOllama": "Chronell sends metadata (and optionally a short excerpt) to Ollama on your machine — not to a cloud service.\n\nSuggestions are not saved automatically; you confirm each link yourself.",
       "consentConfirm": "Understood — enable"
     },
     "backupHeading": "Back up settings",
@@ -1350,7 +1465,8 @@
     },
     "contextMenu": {
       "removeTodoOnly": "Remove to-do entry (keep message)",
-      "removeTodoOnlyBulk": "Remove to-do entries ({{count}})"
+      "removeTodoOnlyBulk": "Remove to-do entries ({{count}})",
+      "aiConnections": "Check connections with AI"
     },
     "move": {
       "menu": "Move",
@@ -2122,6 +2238,7 @@
       "missingGraphCalendarId": "Calendar ID is missing for this event.",
       "calendarReadOnlyEdit": "This calendar does not allow editing.",
       "scheduleParseFailed": "Could not determine the time range.",
+      "schedulePersistInFlight": "This event is still being saved — please wait a moment and try again.",
       "connectMicrosoftFirst": "Connect a Microsoft account first.",
       "clipboardUnsupported": "Copying to the clipboard is not supported here.",
       "clipboardWriteFailed": "Clipboard: copy failed."
@@ -2130,6 +2247,12 @@
       "deleteEventBody": "Delete this event?",
       "deleteEventTitle": "Delete event",
       "deleteEventConfirm": "Delete"
+    },
+    "scheduleChangeDialog": {
+      "title": "Event time was changed",
+      "body": "This meeting has attendees. Save the new time and send an update to all attendees?",
+      "saveAndNotify": "Save & send",
+      "discard": "Discard"
     },
     "context": {
       "duplicateSuffix": " (copy)",

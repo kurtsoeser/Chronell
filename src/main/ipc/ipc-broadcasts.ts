@@ -1,4 +1,5 @@
 import { BrowserWindow } from 'electron'
+import type { EntityEmbeddingProgress } from '@shared/entity-embeddings'
 import type { ConnectedAccount, MailChangedPayload, UserNoteKind } from '@shared/types'
 import { mergeMailChangedPayload } from '@shared/mail-changed-merge'
 
@@ -108,6 +109,12 @@ export function broadcastEntityLinkAiScanProgress(
 ): void {
   for (const win of BrowserWindow.getAllWindows()) {
     win.webContents.send('entity-links:ai-scan-progress', status)
+  }
+}
+
+export function broadcastEntityEmbeddingProgress(progress: EntityEmbeddingProgress | null): void {
+  for (const win of BrowserWindow.getAllWindows()) {
+    win.webContents.send('entity-embeddings:index-progress', progress)
   }
 }
 

@@ -214,13 +214,27 @@ export function anchorReferenceIso(anchor: ChronellEntityRef): string {
   }
 }
 
-function mailExcerptFields(messageId: number): Record<string, string | null> | null {
+export type MailExcerptSource = 'none' | 'mail_preview' | 'mail_body'
+
+export function resolveMailTextExcerpt(messageId: number): {
+  excerpt: string | null
+  source: MailExcerptSource
+} {
   const db = getDb()
   const row = db
     .prepare(`SELECT snippet, body_text FROM messages WHERE id = ?`)
     .get(messageId) as { snippet: string | null; body_text: string | null } | undefined
-  if (!row) return null
-  const excerpt = excerptPlainText(row.snippet?.trim() ? row.snippet : row.body_text)
+  if (!row) return { excerpt: null, source: 'none' }
+  if (row.snippet?.trim()) {
+    const excerpt = excerptPlainText(row.snippet)
+    return excerpt ? { excerpt, source: 'mail_preview' } : { excerpt: null, source: 'none' }
+  }
+  const excerpt = excerptPlainText(row.body_text)
+  return excerpt ? { excerpt, source: 'mail_body' } : { excerpt: null, source: 'none' }
+}
+
+function mailExcerptFields(messageId: number): Record<string, string | null> | null {
+  const { excerpt } = resolveMailTextExcerpt(messageId)
   return excerpt ? { text_excerpt: excerpt } : null
 }
 

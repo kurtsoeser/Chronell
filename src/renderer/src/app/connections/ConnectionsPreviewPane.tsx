@@ -9,7 +9,7 @@ import {
   type ConnectionsPreviewPlacement,
   persistConnectionsPreviewPlacement
 } from '@/app/connections/connections-preview-storage'
-import { ConnectionsPanel } from '@/components/connections/ConnectionsPanel'
+import { EntityContextBlock } from '@/components/connections/EntityContextBlock'
 import {
   ModuleColumnHeaderIconButton,
   moduleColumnHeaderDockBarRowClass,
@@ -106,8 +106,9 @@ function ConnectionsPreviewChrome({
           />
         </div>
         <div className="max-h-[38%] shrink-0 overflow-y-auto border-t border-border bg-secondary/5">
-          <ConnectionsPanel
+          <EntityContextBlock
             anchor={node.ref}
+            showObjectNote={false}
             sectionCollapsedDefault={false}
             contentPaddingClass="px-3"
           />

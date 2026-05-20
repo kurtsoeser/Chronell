@@ -1,4 +1,19 @@
 import type { ChronellEntityRef, EntityRefKind } from './entity-ref'
+import type {
+  EntityLinkAiDomainProfileId,
+  EntityLinkEvaluateQualityInput,
+  EntityLinkEvaluateQualityResult,
+  EntityLinkQualityAssessment
+} from './ai-link-domain'
+
+export type {
+  EntityLinkAiBuiltinDomainId,
+  EntityLinkAiDomainProfileId,
+  EntityLinkQuality,
+  EntityLinkQualityAssessment,
+  EntityLinkEvaluateQualityInput,
+  EntityLinkEvaluateQualityResult
+} from './ai-link-domain'
 
 export interface EntityLinkedItem {
   linkId: number
@@ -20,7 +35,11 @@ export interface EntityLinkTargetCandidate {
   subtitle: string | null
 }
 
-export type EntityLinkSuggestionReason = 'sender_email' | 'subject_calendar' | 'ai_semantic'
+export type EntityLinkSuggestionReason =
+  | 'sender_email'
+  | 'subject_calendar'
+  | 'ai_semantic'
+  | 'embedding_semantic'
 
 export interface EntityLinkSuggestion extends EntityLinkTargetCandidate {
   reason: EntityLinkSuggestionReason
@@ -53,6 +72,10 @@ export interface EntityLinkAiSuggestResult {
 export interface EntityLinkAiSuggestInput {
   anchor: ChronellEntityRef
   maxCandidates?: number
+  /** Bei snippetMode `ask`: true = Auszug mitsenden. */
+  includeExcerpt?: boolean
+  /** Domänen-Prompt (general, workshop_honorar, travel oder benutzerdefinierte ID). */
+  domainProfileId?: EntityLinkAiDomainProfileId
 }
 
 export type EntityLinkAiScanProfile = 'sparse_mails' | 'recent_30' | 'contacts_calendar'
@@ -83,6 +106,9 @@ export interface EntityLinkAiScanInput {
   scanProfile?: EntityLinkAiScanProfile
   /** Nur diese Anker scannen (z. B. Canvas-Auswahl / Insel); max. 50. */
   anchors?: EntityLinkAiScanAnchor[]
+  /** Bei snippetMode `ask`: true = Auszug pro Anker mitsenden. */
+  includeExcerpt?: boolean
+  domainProfileId?: EntityLinkAiDomainProfileId
 }
 
 export interface EntityLinkAiScanProgress {

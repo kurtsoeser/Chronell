@@ -16,7 +16,8 @@ import {
 } from '@shared/microsoft-m365-group-calendar'
 import { mapWithConcurrency } from '../map-with-concurrency'
 import { createGraphClient } from './client'
-import { withGraphThrottleRetry } from './graph-api-throttle-retry'
+import { mapWithConcurrency } from '../map-with-concurrency'
+import { runGraphMailboxRequest } from './graph-account-request'
 import { loadConfig } from '../config'
 import { graphWindowsZoneToIana, ianaToWindowsTimeZone } from '@shared/microsoft-timezones'
 import { graphCalendarColorToDisplayHex, isGraphCalendarColorPreset } from '@shared/graph-calendar-colors'
@@ -360,7 +361,7 @@ async function fetchM365GroupCalendarRowsForSlice(
   const part = await mapWithConcurrency(slice, M365_GROUP_CALENDAR_FETCH_CONCURRENCY, async (g) => {
     const gid = g.id as string
     try {
-      const cal = (await withGraphThrottleRetry(`group calendar meta ${gid}`, () =>
+      const cal = (await runGraphMailboxRequest(accountId, `group calendar meta ${gid}`, () =>
         client
           .api(`/groups/${encodeURIComponent(gid)}/calendar`)
           .select('id,name,color,hexColor')

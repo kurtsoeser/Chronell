@@ -69,8 +69,8 @@ export function SidebarNavItem({
         <Icon className={cn('h-3.5 w-3.5 shrink-0', iconClass)} />
         <span className="flex-1 truncate text-left">{label}</span>
         {count !== undefined && count > 0 && (
-          <span className="rounded-full bg-muted px-1.5 text-[10px] tabular-nums text-muted-foreground">
-            {count}
+          <span className="shrink-0 rounded-full bg-primary/15 px-1.5 text-[10px] font-semibold tabular-nums text-primary">
+            {count > 999 ? '999+' : count}
           </span>
         )}
       </button>

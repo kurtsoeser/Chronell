@@ -1,4 +1,5 @@
 import { createGraphClient } from './client'
+import { runGraphMailboxRequest } from './graph-account-request'
 import { loadConfig } from '../config'
 import type { AttachmentMeta } from '@shared/types'
 
@@ -36,9 +37,9 @@ export async function listAttachmentsMeta(
   // HTTP 400 "Could not find a property named 'contentId'". Wir nehmen daher
   // alle Felder. `contentBytes` kommt nicht in der Liste mit, das laden wir
   // nur on demand pro Anhang.
-  const res = (await client
-    .api(`/me/messages/${remoteMessageId}/attachments`)
-    .get()) as { value: GraphAttachment[] }
+  const res = (await runGraphMailboxRequest(accountId, 'listAttachments', () =>
+    client.api(`/me/messages/${remoteMessageId}/attachments`).get()
+  )) as { value: GraphAttachment[] }
 
   return res.value.map((a) => ({
     id: a.id,
@@ -59,9 +60,9 @@ export async function downloadAttachmentBytes(
   attachmentId: string
 ): Promise<{ name: string; contentType: string | null; bytes: Buffer }> {
   const client = await getClientFor(accountId)
-  const full = (await client
-    .api(`/me/messages/${remoteMessageId}/attachments/${attachmentId}`)
-    .get()) as GraphAttachment
+  const full = (await runGraphMailboxRequest(accountId, 'downloadAttachment', () =>
+    client.api(`/me/messages/${remoteMessageId}/attachments/${attachmentId}`).get()
+  )) as GraphAttachment
 
   if (!full.contentBytes) {
     throw new Error('Anhang enthaelt keine Daten (vermutlich kein FileAttachment).')
@@ -85,9 +86,9 @@ export async function fetchInlineImages(
   const client = await getClientFor(accountId)
 
   // Siehe Hinweis in listAttachmentsMeta: kein $select wegen contentId.
-  const res = (await client
-    .api(`/me/messages/${remoteMessageId}/attachments`)
-    .get()) as { value: GraphAttachment[] }
+  const res = (await runGraphMailboxRequest(accountId, 'listInlineAttachments', () =>
+    client.api(`/me/messages/${remoteMessageId}/attachments`).get()
+  )) as { value: GraphAttachment[] }
 
   const inlineCandidates = res.value.filter(
     (a) => a.isInline && a.contentId && (a.contentType?.startsWith('image/') ?? true)
@@ -97,9 +98,9 @@ export async function fetchInlineImages(
   const out: Record<string, string> = {}
   for (const candidate of inlineCandidates) {
     try {
-      const full = (await client
-        .api(`/me/messages/${remoteMessageId}/attachments/${candidate.id}`)
-        .get()) as GraphAttachment
+      const full = (await runGraphMailboxRequest(accountId, 'downloadInlineAttachment', () =>
+        client.api(`/me/messages/${remoteMessageId}/attachments/${candidate.id}`).get()
+      )) as GraphAttachment
       if (!full.contentBytes) continue
       const mime = full.contentType ?? 'image/png'
       const dataUri = `data:${mime};base64,${full.contentBytes}`
