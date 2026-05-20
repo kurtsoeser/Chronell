@@ -10,6 +10,7 @@ import { registerEntityLinksIpc } from './ipc/register-entity-links-ipc'
 import { registerAiConnectionsIpc } from './ipc/register-ai-connections-ipc'
 import { registerWorkflowVipRulesIpc } from './ipc/register-workflow-vip-rules-ipc'
 import { registerSettingsBackupIpc } from './ipc/register-settings-backup-ipc'
+import { registerProfileSyncIpc } from './ipc/register-profile-sync-ipc'
 import { registerLocalDataIpc } from './ipc/register-local-data-ipc'
 import { registerWeatherIpc } from './ipc/register-weather-ipc'
 import { registerLocationIpc } from './ipc/register-location-ipc'
@@ -34,6 +35,7 @@ export function registerIpcHandlers(): void {
   registerAiConnectionsIpc()
   registerWorkflowVipRulesIpc()
   registerSettingsBackupIpc()
+  registerProfileSyncIpc()
   registerLocalDataIpc()
   registerWeatherIpc()
   registerLocationIpc()

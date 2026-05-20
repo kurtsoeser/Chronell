@@ -1,4 +1,5 @@
 import { app } from 'electron'
+import { randomUUID } from 'node:crypto'
 import { readFile, writeFile, mkdir } from 'node:fs/promises'
 import { existsSync, readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
@@ -28,7 +29,11 @@ const PERSISTED_CONFIG_KEYS: (keyof AppConfig)[] = [
   'weatherLocationName',
   'workflowMailFoldersIntroDismissed',
   'firstRunSetupCompleted',
-  'configSchemaVersion'
+  'configSchemaVersion',
+  'profileDataMode',
+  'profileDeviceId',
+  'profileCloudLastPulledAt',
+  'profileCloudLastPushedAt'
 ]
 
 export const DEFAULT_APP_CONFIG: AppConfig = {
@@ -46,7 +51,11 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
   weatherLongitude: null,
   weatherLocationName: null,
   firstRunSetupCompleted: false,
-  configSchemaVersion: 2
+  configSchemaVersion: 2,
+  profileDataMode: 'local',
+  profileDeviceId: null,
+  profileCloudLastPulledAt: null,
+  profileCloudLastPushedAt: null
 }
 
 let remoteOAuthCache: PublisherRemoteOAuthPayload | null | undefined = undefined

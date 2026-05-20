@@ -1,26 +1,41 @@
-import { useEffect, useMemo, useState } from 'react'
-import { ExternalLink, PanelRightClose, SquareArrowOutUpRight } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  AppWindow,
+  ArrowRightToLine,
+  PanelRightClose,
+  PictureInPicture2
+} from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { EntityGraphNode } from '@shared/entity-links'
 import { CalendarFloatingPanel } from '@/app/calendar/CalendarFloatingPanel'
 import { ConnectionsObjectPreview } from '@/app/connections/ConnectionsObjectPreview'
 import {
   CONNECTIONS_FLOAT_PREVIEW_SIZE_KEY,
+  CONNECTIONS_PREVIEW_CONTEXT_HEIGHT_DEFAULT,
+  CONNECTIONS_PREVIEW_CONTEXT_HEIGHT_KEY,
+  CONNECTIONS_PREVIEW_CONTEXT_HEIGHT_MAX,
+  CONNECTIONS_PREVIEW_CONTEXT_HEIGHT_MIN,
   type ConnectionsPreviewPlacement,
   persistConnectionsPreviewPlacement
 } from '@/app/connections/connections-preview-storage'
 import { EntityContextBlock } from '@/components/connections/EntityContextBlock'
+import type { ObjectNoteTarget } from '@/components/ObjectNoteEditor'
 import {
   ModuleColumnHeaderIconButton,
   moduleColumnHeaderDockBarRowClass,
   moduleColumnHeaderIconGlyphClass,
   moduleColumnHeaderUppercaseLabelClass
 } from '@/components/ModuleColumnHeader'
-import { VerticalSplitter } from '@/components/ResizableSplitter'
+import {
+  HorizontalSplitter,
+  useResizableHeight,
+  VerticalSplitter
+} from '@/components/ResizableSplitter'
 import { openMailReadingPopout } from '@/lib/open-mail-reading-popout'
 import { entityRefKindIcon } from '@/lib/entity-ref-ui'
 import { cn } from '@/lib/utils'
 import { useAccountsStore } from '@/stores/accounts'
+import { useMailStore } from '@/stores/mail'
 
 function ConnectionsPreviewChrome({
   node,
@@ -41,6 +56,41 @@ function ConnectionsPreviewChrome({
   const accounts = useAccountsStore((s) => s.accounts)
   const KindIcon = entityRefKindIcon(node.kind)
   const isMailLike = node.ref.kind === 'mail' || node.ref.kind === 'mail_todo'
+  const selectedMessage = useMailStore((s) => s.selectedMessage)
+  const [previewNoteTarget, setPreviewNoteTarget] = useState<ObjectNoteTarget | null>(null)
+  const onContextNoteTarget = useCallback((target: ObjectNoteTarget | null): void => {
+    setPreviewNoteTarget(target)
+  }, [])
+
+  useEffect(() => {
+    setPreviewNoteTarget(null)
+  }, [node.ref])
+  const contextNoteTarget = useMemo((): ObjectNoteTarget | null => {
+    if (node.ref.kind === 'mail') {
+      return {
+        kind: 'mail',
+        messageId: node.ref.messageId,
+        title:
+          selectedMessage?.subject?.trim() || node.title.trim() || t('common.noSubject')
+      }
+    }
+    if (node.ref.kind === 'mail_todo' && selectedMessage) {
+      return {
+        kind: 'mail',
+        messageId: selectedMessage.id,
+        title:
+          selectedMessage.subject?.trim() || node.title.trim() || t('common.noSubject')
+      }
+    }
+    if (node.ref.kind === 'calendar_event') return previewNoteTarget
+    return null
+  }, [node.ref, node.title, selectedMessage, previewNoteTarget, t])
+  const [contextHeight, setContextHeight] = useResizableHeight({
+    storageKey: CONNECTIONS_PREVIEW_CONTEXT_HEIGHT_KEY,
+    defaultHeight: CONNECTIONS_PREVIEW_CONTEXT_HEIGHT_DEFAULT,
+    minHeight: CONNECTIONS_PREVIEW_CONTEXT_HEIGHT_MIN,
+    maxHeight: CONNECTIONS_PREVIEW_CONTEXT_HEIGHT_MAX
+  })
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
@@ -62,7 +112,7 @@ function ConnectionsPreviewChrome({
                   onMailPopout({ osWindow: e.shiftKey })
                 }}
               >
-                <SquareArrowOutUpRight className={moduleColumnHeaderIconGlyphClass} />
+                <PictureInPicture2 className={moduleColumnHeaderIconGlyphClass} />
               </ModuleColumnHeaderIconButton>
             ) : null}
             {placement === 'dock' ? (
@@ -70,14 +120,14 @@ function ConnectionsPreviewChrome({
                 title={t('connections.preview.undockTitle')}
                 onClick={onUndock}
               >
-                <SquareArrowOutUpRight className={moduleColumnHeaderIconGlyphClass} />
+                <AppWindow className={moduleColumnHeaderIconGlyphClass} />
               </ModuleColumnHeaderIconButton>
             ) : null}
             <ModuleColumnHeaderIconButton
               title={t('connections.shell.openObject')}
               onClick={onOpenInModule}
             >
-              <ExternalLink className={moduleColumnHeaderIconGlyphClass} />
+              <ArrowRightToLine className={moduleColumnHeaderIconGlyphClass} />
             </ModuleColumnHeaderIconButton>
             <ModuleColumnHeaderIconButton
               title={t('connections.preview.hideTitle')}
@@ -103,15 +153,28 @@ function ConnectionsPreviewChrome({
             entityRef={node.ref}
             accounts={accounts}
             onRequestMailPopout={isMailLike ? onMailPopout : undefined}
+            onContextNoteTarget={onContextNoteTarget}
           />
         </div>
-        <div className="max-h-[38%] shrink-0 overflow-y-auto border-t border-border bg-secondary/5">
-          <EntityContextBlock
-            anchor={node.ref}
-            showObjectNote={false}
-            sectionCollapsedDefault={false}
-            contentPaddingClass="px-3"
-          />
+        <HorizontalSplitter
+          ariaLabel={t('connections.preview.contextSplitterAria')}
+          onDrag={(deltaY): void => {
+            setContextHeight((h) => h - deltaY)
+          }}
+        />
+        <div
+          className="flex min-h-0 shrink-0 flex-col overflow-hidden bg-secondary/5"
+          style={{ height: contextHeight }}
+        >
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <EntityContextBlock
+              anchor={node.ref}
+              noteTarget={contextNoteTarget}
+              showObjectNote={contextNoteTarget != null}
+              sectionCollapsedDefault={false}
+              contentPaddingClass="px-3"
+            />
+          </div>
         </div>
       </div>
     </div>

@@ -1,5 +1,5 @@
 import { app, safeStorage } from 'electron'
-import { readFile, writeFile, mkdir } from 'node:fs/promises'
+import { readFile, writeFile, mkdir, unlink } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 
@@ -71,4 +71,16 @@ export async function readJsonSecure<T>(name: string, fallback: T): Promise<T> {
 
 export async function writeJsonSecure<T>(name: string, value: T): Promise<void> {
   await writeSecure(name, JSON.stringify(value))
+}
+
+export async function deleteSecure(name: string): Promise<void> {
+  for (const path of [storePath(name), plainPath(name)]) {
+    if (existsSync(path)) {
+      try {
+        await unlink(path)
+      } catch {
+        /* ignore */
+      }
+    }
+  }
 }

@@ -100,6 +100,11 @@ import type {
 } from '@shared/types'
 import { formatBytes } from '@/lib/format-bytes'
 import { AccountSetupLocalDataSection } from '@/components/AccountSetupLocalDataSection'
+import { AccountSetupCloudSyncSection } from '@/components/account-setup/AccountSetupCloudSyncSection'
+import {
+  replaceLocalStorageFromBackup,
+  snapshotLocalStorage
+} from '@/lib/local-storage-snapshot'
 import { APP_BRANDING } from '@shared/app-branding'
 import {
   APP_ID,
@@ -205,22 +210,6 @@ function renderCalendarSidebarCheckboxRow(
       <span className="min-w-0 flex-1 text-[11px] leading-snug text-foreground">{cal.name}</span>
     </label>
   )
-}
-
-function snapshotLocalStorage(): Record<string, string> {
-  const out: Record<string, string> = {}
-  for (let i = 0; i < window.localStorage.length; i++) {
-    const k = window.localStorage.key(i)
-    if (k != null) out[k] = window.localStorage.getItem(k) ?? ''
-  }
-  return out
-}
-
-function replaceLocalStorageFromBackup(entries: Record<string, string>): void {
-  window.localStorage.clear()
-  for (const [k, v] of Object.entries(entries)) {
-    window.localStorage.setItem(k, v)
-  }
 }
 
 function flattenFolderNodesDepthFirst(nodes: FolderNode[]): FolderNode[] {
@@ -484,6 +473,7 @@ export function AccountSetupDialog({
           { id: 'oauth', label: t('settings.oauthSummary') },
           { id: 'notion', label: t('settings.notionHeading') },
           { id: 'aiConnections', label: t('settings.aiConnections.nav') },
+          { id: 'cloudSync', label: t('settings.cloudSync.heading') },
           { id: 'backup', label: t('settings.backupHeading') }
         ]
       case 'accounts':
@@ -1619,6 +1609,8 @@ export function AccountSetupDialog({
                   <SettingsAiConnectionsSection />
                 </Suspense>
               )}
+
+              {subNavId.general === 'cloudSync' && <AccountSetupCloudSyncSection />}
 
               {subNavId.general === 'backup' && (
               <section className="space-y-2 border-t border-border pt-4">

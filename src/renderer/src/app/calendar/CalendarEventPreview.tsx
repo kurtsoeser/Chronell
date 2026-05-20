@@ -112,12 +112,22 @@ export function CalendarEventPreview(props: {
   event: CalendarEventView
   /** Anzeigename des Kalenderordners (Sidebar), falls bekannt. */
   calendarName?: string | null
+  /** Verbindungen-Vorschau: Kontext lebt im separaten Panel darunter. */
+  hideEntityContext?: boolean
   onEdit: () => void
   onSaved?: () => void
   onEventChange?: (event: CalendarEventView) => void
   className?: string
 }): JSX.Element {
-  const { event: ev, calendarName, onEdit, onSaved, onEventChange, className } = props
+  const {
+    event: ev,
+    calendarName,
+    hideEntityContext = false,
+    onEdit,
+    onSaved,
+    onEventChange,
+    className
+  } = props
   const { t, i18n } = useTranslation()
   const viewerTheme = useThemeStore((s) => s.effective)
   const [err, setErr] = useState<string | null>(null)
@@ -831,7 +841,7 @@ export function CalendarEventPreview(props: {
           </div>
         ) : null}
 
-        {ev.graphEventId?.trim() ? (
+        {ev.graphEventId?.trim() && !hideEntityContext ? (
           <EntityContextBlock
             anchor={{
               kind: 'calendar_event',

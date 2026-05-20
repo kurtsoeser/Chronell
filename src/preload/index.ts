@@ -334,6 +334,26 @@ const api = {
     applyFull: (backup: SettingsBackupPayload): Promise<void> =>
       ipcRenderer.invoke(IPC.settingsBackup.applyFull, backup)
   },
+  profileSync: {
+    getStatus: (): Promise<import('@shared/types').ProfileSyncStatus> =>
+      ipcRenderer.invoke(IPC.profileSync.getStatus),
+    setDataMode: (mode: import('@shared/types').ProfileDataMode): Promise<import('@shared/types').ProfileSyncStatus> =>
+      ipcRenderer.invoke(IPC.profileSync.setDataMode, mode),
+    sendOtp: (email: string): Promise<void> => ipcRenderer.invoke(IPC.profileSync.sendOtp, email),
+    verifyOtp: (
+      email: string,
+      token: string
+    ): Promise<import('@shared/types').ProfileSyncStatus> =>
+      ipcRenderer.invoke(IPC.profileSync.verifyOtp, email, token),
+    signOut: (): Promise<import('@shared/types').ProfileSyncStatus> =>
+      ipcRenderer.invoke(IPC.profileSync.signOut),
+    signInMicrosoft365: (): Promise<import('@shared/types').ProfileSyncStatus> =>
+      ipcRenderer.invoke(IPC.profileSync.signInMicrosoft365),
+    syncNow: (
+      localStorage: Record<string, string>
+    ): Promise<import('@shared/types').ProfileSyncRunResult> =>
+      ipcRenderer.invoke(IPC.profileSync.syncNow, localStorage)
+  },
   localData: {
     scanUsage: (): Promise<LocalDataUsageReport> =>
       ipcRenderer.invoke(IPC.localData.scanUsage),

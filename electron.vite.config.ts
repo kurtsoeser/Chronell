@@ -35,7 +35,7 @@ function touchMainEntryAfterPreloadRebuildPlugin(): Plugin {
 }
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, __configDir, 'MAILCLIENT_')
+  const env = loadEnv(mode, __configDir, ['MAILCLIENT_', 'CHRONELL_'])
   const publisherDefine: Record<string, string> = {
     'process.env.MAILCLIENT_MICROSOFT_CLIENT_ID': JSON.stringify(env.MAILCLIENT_MICROSOFT_CLIENT_ID ?? ''),
     'process.env.MAILCLIENT_GOOGLE_CLIENT_ID': JSON.stringify(env.MAILCLIENT_GOOGLE_CLIENT_ID ?? ''),
@@ -48,7 +48,11 @@ export default defineConfig(({ mode }) => {
       env.MAILCLIENT_REMOTE_OAUTH_CONFIG_URL ?? ''
     ),
     'process.env.MAILCLIENT_PRIVACY_URL': JSON.stringify(env.MAILCLIENT_PRIVACY_URL ?? ''),
-    'process.env.MAILCLIENT_HELP_URL': JSON.stringify(env.MAILCLIENT_HELP_URL ?? '')
+    'process.env.MAILCLIENT_HELP_URL': JSON.stringify(env.MAILCLIENT_HELP_URL ?? ''),
+    'process.env.CHRONELL_SUPABASE_URL': JSON.stringify(env.CHRONELL_SUPABASE_URL ?? ''),
+    'process.env.CHRONELL_SUPABASE_PUBLISHABLE_KEY': JSON.stringify(
+      env.CHRONELL_SUPABASE_PUBLISHABLE_KEY ?? ''
+    )
   }
 
   return {

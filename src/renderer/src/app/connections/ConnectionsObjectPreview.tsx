@@ -10,6 +10,7 @@ import { ReadingPane } from '@/app/layout/ReadingPane'
 import { formatNoteDate, noteTitle } from '@/app/notes/notes-display-helpers'
 import { NoteDisplayIcon } from '@/components/NoteDisplayIcon'
 import { RichTextNotesPreview } from '@/components/RichTextNotesPreview'
+import type { ObjectNoteTarget } from '@/components/ObjectNoteEditor'
 import { openMailReadingPopout } from '@/lib/open-mail-reading-popout'
 import { useThemeStore } from '@/stores/theme'
 import { useMailStore } from '@/stores/mail'
@@ -17,11 +18,13 @@ import { useMailStore } from '@/stores/mail'
 export function ConnectionsObjectPreview({
   entityRef,
   accounts,
-  onRequestMailPopout
+  onRequestMailPopout,
+  onContextNoteTarget
 }: {
   entityRef: ChronellEntityRef
   accounts: readonly ConnectedAccount[]
   onRequestMailPopout?: (opts?: { osWindow?: boolean }) => void
+  onContextNoteTarget?: (target: ObjectNoteTarget | null) => void
 }): JSX.Element {
   const { t, i18n } = useTranslation()
   const viewerTheme = useThemeStore((s) => s.effective)
@@ -153,6 +156,24 @@ export function ConnectionsObjectPreview({
     }
   }, [entityRef])
 
+  useEffect(() => {
+    if (!onContextNoteTarget) return
+    if (entityRef.kind === 'calendar_event' && calendarEvent?.graphEventId?.trim()) {
+      onContextNoteTarget({
+        kind: 'calendar',
+        accountId: calendarEvent.accountId,
+        calendarSource: calendarEvent.source,
+        calendarRemoteId: calendarEvent.graphCalendarId?.trim() || 'default',
+        eventRemoteId: calendarEvent.graphEventId,
+        title: calendarEvent.title,
+        eventTitleSnapshot: calendarEvent.title,
+        eventStartIsoSnapshot: calendarEvent.startIso
+      })
+      return
+    }
+    onContextNoteTarget(null)
+  }, [entityRef.kind, calendarEvent, onContextNoteTarget])
+
   const accountLabel = useMemo((): string | null => {
     if (entityRef.kind !== 'calendar_event' && entityRef.kind !== 'cloud_task') return null
     return accounts.find((a) => a.id === entityRef.accountId)?.displayName ?? entityRef.accountId
@@ -172,7 +193,7 @@ export function ConnectionsObjectPreview({
     }
     return (
       <ReadingPane
-        hideEntityConnections
+        hideEntityConnections={true}
         hideChromeWhenEmpty
         emptySelectionTitle={t('connections.preview.loadingMail')}
         onRequestGlobalPopout={mailTargetId != null ? requestPopout : undefined}
@@ -241,6 +262,7 @@ export function ConnectionsObjectPreview({
         <CalendarEventPreview
           event={calendarEvent}
           calendarName={accountLabel}
+          hideEntityContext
           onEdit={(): void => undefined}
         />
       </div>

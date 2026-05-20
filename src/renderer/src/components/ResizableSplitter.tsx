@@ -2,36 +2,57 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 const PERSIST_DEBOUNCE_MS = 200
 
-interface UseResizableOptions {
+interface UseResizableWidthOptions {
   storageKey: string
   defaultWidth: number
   minWidth: number
   maxWidth: number
 }
 
-export function useResizableWidth({
-  storageKey,
-  defaultWidth,
-  minWidth,
-  maxWidth
-}: UseResizableOptions): [number, (next: number | ((prev: number) => number)) => void] {
-  const [width, setWidth] = useState<number>(() => {
-    try {
-      const stored = window.localStorage.getItem(storageKey)
-      if (stored) {
-        const parsed = Number(stored)
-        if (Number.isFinite(parsed) && parsed >= minWidth && parsed <= maxWidth) {
-          return parsed
-        }
-      }
-    } catch {
-      // ignore
-    }
-    return defaultWidth
-  })
+interface UseResizableHeightOptions {
+  storageKey: string
+  defaultHeight: number
+  minHeight: number
+  maxHeight: number
+}
 
-  const widthRef = useRef(width)
-  widthRef.current = width
+function readStoredDimension(
+  storageKey: string,
+  defaultValue: number,
+  min: number,
+  max: number
+): number {
+  try {
+    const stored = window.localStorage.getItem(storageKey)
+    if (stored) {
+      const parsed = Number(stored)
+      if (Number.isFinite(parsed) && parsed >= min && parsed <= max) {
+        return parsed
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return defaultValue
+}
+
+function usePersistedDimension({
+  storageKey,
+  defaultValue,
+  min,
+  max
+}: {
+  storageKey: string
+  defaultValue: number
+  min: number
+  max: number
+}): [number, (next: number | ((prev: number) => number)) => void] {
+  const [value, setValue] = useState<number>(() =>
+    readStoredDimension(storageKey, defaultValue, min, max)
+  )
+
+  const valueRef = useRef(value)
+  valueRef.current = value
 
   const persistTimerRef = useRef<number | null>(null)
 
@@ -41,7 +62,7 @@ export function useResizableWidth({
       persistTimerRef.current = null
     }
     try {
-      window.localStorage.setItem(storageKey, String(widthRef.current))
+      window.localStorage.setItem(storageKey, String(valueRef.current))
     } catch {
       // ignore
     }
@@ -54,7 +75,7 @@ export function useResizableWidth({
     persistTimerRef.current = window.setTimeout(() => {
       persistTimerRef.current = null
       try {
-        window.localStorage.setItem(storageKey, String(widthRef.current))
+        window.localStorage.setItem(storageKey, String(valueRef.current))
       } catch {
         // ignore
       }
@@ -65,7 +86,7 @@ export function useResizableWidth({
         persistTimerRef.current = null
       }
     }
-  }, [width, storageKey])
+  }, [value, storageKey])
 
   useEffect(() => {
     const onPageHide = (): void => {
@@ -78,19 +99,47 @@ export function useResizableWidth({
     }
   }, [flushPersist])
 
-  const setWidthClamped = useCallback(
+  const setValueClamped = useCallback(
     (next: number | ((prev: number) => number)) => {
-      setWidth((prev) => {
-        const base = Number.isFinite(prev) ? prev : defaultWidth
+      setValue((prev) => {
+        const base = Number.isFinite(prev) ? prev : defaultValue
         const raw = typeof next === 'function' ? (next as (p: number) => number)(base) : next
         const n = Number.isFinite(raw) ? raw : base
-        return Math.min(maxWidth, Math.max(minWidth, n))
+        return Math.min(max, Math.max(min, n))
       })
     },
-    [defaultWidth, minWidth, maxWidth]
+    [defaultValue, min, max]
   )
 
-  return [width, setWidthClamped]
+  return [value, setValueClamped]
+}
+
+export function useResizableWidth({
+  storageKey,
+  defaultWidth,
+  minWidth,
+  maxWidth
+}: UseResizableWidthOptions): [number, (next: number | ((prev: number) => number)) => void] {
+  return usePersistedDimension({
+    storageKey,
+    defaultValue: defaultWidth,
+    min: minWidth,
+    max: maxWidth
+  })
+}
+
+export function useResizableHeight({
+  storageKey,
+  defaultHeight,
+  minHeight,
+  maxHeight
+}: UseResizableHeightOptions): [number, (next: number | ((prev: number) => number)) => void] {
+  return usePersistedDimension({
+    storageKey,
+    defaultValue: defaultHeight,
+    min: minHeight,
+    max: maxHeight
+  })
 }
 
 interface SplitterProps {
@@ -221,6 +270,132 @@ export function VerticalSplitter({ onDrag, ariaLabel }: SplitterProps): JSX.Elem
     >
       {/* breitere Hit-Area fuer angenehmes Dragging */}
       <div className="absolute inset-y-0 -left-1 -right-1" />
+    </div>
+  )
+}
+
+interface HorizontalSplitterProps {
+  onDrag: (deltaY: number) => void
+  ariaLabel?: string
+}
+
+export function HorizontalSplitter({ onDrag, ariaLabel }: HorizontalSplitterProps): JSX.Element {
+  const [dragging, setDragging] = useState(false)
+  const lastYRef = useRef<number | null>(null)
+  const captureTargetRef = useRef<HTMLElement | null>(null)
+  const activePointerIdRef = useRef<number | null>(null)
+  const draggingRef = useRef(false)
+  const onDragRef = useRef(onDrag)
+  onDragRef.current = onDrag
+
+  const finishDrag = useCallback((e?: PointerEvent): void => {
+    if (!draggingRef.current) return
+    if (
+      e != null &&
+      activePointerIdRef.current != null &&
+      e.pointerId !== activePointerIdRef.current
+    ) {
+      return
+    }
+
+    const target = captureTargetRef.current
+    const pointerId = e?.pointerId ?? activePointerIdRef.current
+
+    if (target != null && pointerId != null) {
+      try {
+        if (target.hasPointerCapture(pointerId)) {
+          target.releasePointerCapture(pointerId)
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    draggingRef.current = false
+    captureTargetRef.current = null
+    activePointerIdRef.current = null
+    lastYRef.current = null
+    clearSplitterDragChrome()
+    setDragging(false)
+  }, [])
+
+  useEffect(() => {
+    if (!dragging) return
+
+    function onMove(e: PointerEvent): void {
+      if (activePointerIdRef.current != null && e.pointerId !== activePointerIdRef.current) return
+      if (lastYRef.current === null) {
+        lastYRef.current = e.clientY
+        return
+      }
+      const delta = e.clientY - lastYRef.current
+      lastYRef.current = e.clientY
+      if (delta !== 0) onDragRef.current(delta)
+    }
+
+    function onEnd(e: PointerEvent): void {
+      finishDrag(e)
+    }
+
+    function onWindowBlur(): void {
+      finishDrag()
+    }
+
+    function onLostCapture(e: PointerEvent): void {
+      finishDrag(e)
+    }
+
+    const captureEl = captureTargetRef.current
+    captureEl?.addEventListener('lostpointercapture', onLostCapture)
+
+    document.body.style.cursor = 'row-resize'
+    document.body.style.userSelect = 'none'
+
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onEnd)
+    window.addEventListener('pointercancel', onEnd)
+    window.addEventListener('blur', onWindowBlur)
+
+    return (): void => {
+      captureEl?.removeEventListener('lostpointercapture', onLostCapture)
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onEnd)
+      window.removeEventListener('pointercancel', onEnd)
+      window.removeEventListener('blur', onWindowBlur)
+      clearSplitterDragChrome()
+      draggingRef.current = false
+    }
+  }, [dragging, finishDrag])
+
+  return (
+    <div
+      role="separator"
+      aria-orientation="horizontal"
+      aria-label={ariaLabel}
+      onPointerDown={(e): void => {
+        if (e.button !== 0) return
+        e.preventDefault()
+        const el = e.currentTarget
+        lastYRef.current = e.clientY
+        activePointerIdRef.current = e.pointerId
+        captureTargetRef.current = el
+        draggingRef.current = true
+        try {
+          el.setPointerCapture(e.pointerId)
+        } catch {
+          // ignore
+        }
+        setDragging(true)
+      }}
+      onLostPointerCapture={(e): void => {
+        finishDrag(e)
+      }}
+      className={
+        'group relative flex h-px shrink-0 cursor-row-resize items-center bg-border transition-colors hover:bg-primary/50 ' +
+        (dragging ? 'bg-primary/70 touch-none' : '')
+      }
+    >
+      <div className="absolute inset-x-0 -top-1 -bottom-1" />
     </div>
   )
 }

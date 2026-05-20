@@ -296,6 +296,15 @@ export const IPC = {
     pickAndRead: 'settings-backup:pick-and-read',
     applyFull: 'settings-backup:apply-full'
   },
+  profileSync: {
+    getStatus: 'profile-sync:get-status',
+    setDataMode: 'profile-sync:set-data-mode',
+    sendOtp: 'profile-sync:send-otp',
+    verifyOtp: 'profile-sync:verify-otp',
+    signOut: 'profile-sync:sign-out',
+    signInMicrosoft365: 'profile-sync:sign-in-microsoft365',
+    syncNow: 'profile-sync:sync-now'
+  },
   localData: {
     scanUsage: 'local-data:scan-usage',
     optimize: 'local-data:optimize',

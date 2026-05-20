@@ -28,7 +28,9 @@ import {
   CheckSquare,
   Unlink,
   SquareArrowOutUpRight,
-  PanelRightClose
+  PanelRightClose,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -181,6 +183,7 @@ export function ReadingPane({
 
   const [quickSteps, setQuickSteps] = useState<MailQuickStep[]>([])
   const [quickStepSelectKey, setQuickStepSelectKey] = useState(0)
+  const [conversationExpanded, setConversationExpanded] = useState(false)
   const [todoScheduleStart, setTodoScheduleStart] = useState('')
   const [todoScheduleEnd, setTodoScheduleEnd] = useState('')
   const autoReadAttemptedIds = useRef<Set<number>>(new Set())
@@ -277,18 +280,49 @@ export function ReadingPane({
       ? profilePhotoSrcForEmail(accounts, profilePhotoDataUrls, selectedMessage.fromAddr)
       : undefined
 
+  const conversationThreadKey = useMemo(
+    () => (selectedMessage ? threadGroupingKey(selectedMessage, true) : null),
+    [selectedMessage]
+  )
+
+  useEffect(() => {
+    setConversationExpanded(false)
+  }, [conversationThreadKey, selectedMessageId])
+
   const conversationThreadStrip = useMemo(() => {
-    if (!selectedMessage) return null
-    const k = threadGroupingKey(selectedMessage, true)
-    const row = threadMessages[k]
+    if (!selectedMessage || conversationThreadKey == null) return null
+    const row = threadMessages[conversationThreadKey]
     if (!row || row.length <= 1) return null
     const locale = i18n.language.startsWith('de') ? 'de-DE' : 'en-GB'
     return (
-      <div className="shrink-0 border-b border-border bg-muted/35 px-4 py-3">
-        <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-          {t('mail.readingPane.conversationCount', { count: row.length })}
-        </p>
-        <div className="flex max-h-[min(40vh,17.5rem)] flex-col gap-1.5 overflow-y-auto pr-1">
+      <div
+        className={cn(
+          'shrink-0 border-b border-border bg-muted/35 px-4',
+          conversationExpanded ? 'py-3' : 'py-2'
+        )}
+      >
+        <button
+          type="button"
+          className="flex w-full min-w-0 items-center gap-1 text-left"
+          aria-expanded={conversationExpanded}
+          title={
+            conversationExpanded
+              ? t('mail.list.expandThreadCollapse')
+              : t('mail.list.expandThreadExpand')
+          }
+          onClick={(): void => setConversationExpanded((v) => !v)}
+        >
+          {conversationExpanded ? (
+            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+          ) : (
+            <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+          )}
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            {t('mail.readingPane.conversationCount', { count: row.length })}
+          </span>
+        </button>
+        {conversationExpanded ? (
+        <div className="mt-2 flex max-h-[min(40vh,17.5rem)] flex-col gap-1.5 overflow-y-auto pr-1">
           {row.map((m) => {
             const subject = m.subject?.trim() || t('common.noSubject')
             const from = m.fromName?.trim() || m.fromAddr?.trim() || t('common.unknown')
@@ -329,9 +363,19 @@ export function ReadingPane({
             )
           })}
         </div>
+        ) : null}
       </div>
     )
-  }, [selectedMessage, selectedMessageId, threadMessages, selectMessage, t, i18n.language])
+  }, [
+    selectedMessage,
+    selectedMessageId,
+    conversationThreadKey,
+    threadMessages,
+    selectMessage,
+    conversationExpanded,
+    t,
+    i18n.language
+  ])
 
   const appTheme = useThemeStore((s) => s.effective)
 

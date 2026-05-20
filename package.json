@@ -44,6 +44,7 @@
     "@fullcalendar/react": "^6.1.20",
     "@fullcalendar/timegrid": "^6.1.20",
     "@microsoft/microsoft-graph-client": "^3.0.7",
+    "@supabase/supabase-js": "^2.106.1",
     "@tiptap/extension-color": "^3.23.2",
     "@tiptap/extension-highlight": "^3.23.2",
     "@tiptap/extension-image": "^3.23.2",
@@ -76,6 +77,7 @@
     "react-virtuoso": "^4.18.7",
     "tailwind-merge": "^2.5.4",
     "tailwindcss-animate": "^1.0.7",
+    "ws": "^8.20.1",
     "zustand": "^5.0.1"
   },
   "devDependencies": {
@@ -87,6 +89,7 @@
     "@types/node": "^22.10.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
+    "@types/ws": "^8.18.1",
     "@typescript-eslint/eslint-plugin": "^8.15.0",
     "@typescript-eslint/parser": "^8.15.0",
     "@vitejs/plugin-react": "^4.3.4",

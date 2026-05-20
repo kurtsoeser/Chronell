@@ -143,7 +143,48 @@ export interface AppConfig {
   publisherPrivacyUrl?: string | null
   /** Aus MAILCLIENT_HELP_URL (Build); nicht in config.json. */
   publisherHelpUrl?: string | null
+  /**
+   * Chronell-Profil-Sync: `local` = nur dieses Gerät; `cloud` = Notizen/Einstellungen über Supabase.
+   * Mail/Kalender kommen weiterhin über Microsoft/Google auf jedem Gerät.
+   */
+  profileDataMode?: ProfileDataMode
+  /** Stabile Geräte-ID für Cloud-Sync (UUID). */
+  profileDeviceId?: string | null
+  /** ISO-Zeitstempel des letzten erfolgreichen Pulls aus der Cloud. */
+  profileCloudLastPulledAt?: string | null
+  /** ISO-Zeitstempel des letzten erfolgreichen Pushs in die Cloud. */
+  profileCloudLastPushedAt?: string | null
 }
+
+export type ProfileDataMode = 'local' | 'cloud'
+
+export interface ProfileSyncSessionInfo {
+  userId: string
+  email: string | null
+}
+
+export interface ProfileSyncStatus {
+  configured: boolean
+  dataMode: ProfileDataMode
+  deviceId: string | null
+  signedIn: boolean
+  session: ProfileSyncSessionInfo | null
+  lastPulledAt: string | null
+  lastPushedAt: string | null
+  remoteUpdatedAt: string | null
+  lastError: string | null
+}
+
+export type ProfileSyncRunResult =
+  | {
+      ok: true
+      pulled: boolean
+      pushed: boolean
+      remoteUpdatedAt: string | null
+      /** Nach Pull: localStorage-Einträge für den Renderer. */
+      localStorage?: Record<string, string>
+    }
+  | { ok: false; error: string }
 
 /** Payload fuer `config:set-weather-location` (Speichern oder `null` = loeschen). */
 export interface AppConfigWeatherLocation {
