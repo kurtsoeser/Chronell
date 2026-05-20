@@ -202,7 +202,14 @@ export function CalendarGanttBar({
         strokeWidth={2}
         aria-hidden
       />
-      <span className="min-w-0 flex-1 truncate">{item.title}</span>
+      <span
+        className={cn(
+          'min-w-0 flex-1 truncate',
+          item.completed && 'text-muted-foreground line-through'
+        )}
+      >
+        {item.title}
+      </span>
       {!editable ? (
         <span className="sr-only">{t('calendar.gantt.readOnlyBar')}</span>
       ) : null}

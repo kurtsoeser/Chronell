@@ -14,7 +14,8 @@ describe('calendarFcEventContent', () => {
           }
         },
         timeText: '09 Uhr',
-        isMirror: false
+        isMirror: false,
+        view: { type: 'dayGridMonth' }
       } as never,
       { appointment: 'Termin', mail: 'Mail', task: 'Aufgabe', note: 'Notiz' }
     )
@@ -26,6 +27,29 @@ describe('calendarFcEventContent', () => {
     expect(root.querySelector('.fc-cal-event-custom-body .fc-cal-event-kind-icon')).toBeNull()
   })
 
+  it('streicht erledigte Cloud-Aufgaben im Titel durch', () => {
+    const { domNodes } = calendarFcEventContent(
+      {
+        event: {
+          id: 'task-1',
+          title: 'Workshop vorbereiten',
+          extendedProps: {
+            calendarKind: 'cloudTask',
+            cloudTask: { completed: true, iconId: null, iconColor: null }
+          }
+        },
+        timeText: '',
+        isMirror: false,
+        view: { type: 'dayGridMonth' }
+      } as never,
+      { appointment: 'Termin', mail: 'Mail', task: 'Aufgabe', note: 'Notiz' }
+    )
+    const root = domNodes[0] as HTMLElement
+    expect(root.classList.contains('fc-cal-event-custom--completed')).toBe(true)
+    const title = root.querySelector('.fc-cal-event-custom-title')
+    expect(title?.classList.contains('fc-cal-event-custom-title--completed')).toBe(true)
+  })
+
   it('zeigt Standard-Kalender-Icon ohne explizites Termin-Icon', () => {
     const { domNodes } = calendarFcEventContent(
       {
@@ -35,7 +59,8 @@ describe('calendarFcEventContent', () => {
           extendedProps: {}
         },
         timeText: '10:00',
-        isMirror: false
+        isMirror: false,
+        view: { type: 'dayGridMonth' }
       } as never,
       { appointment: 'Termin', mail: 'Mail', task: 'Aufgabe', note: 'Notiz' }
     )

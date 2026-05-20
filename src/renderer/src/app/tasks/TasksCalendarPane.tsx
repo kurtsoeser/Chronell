@@ -56,6 +56,9 @@ import type { CalendarCreateRange } from '@/app/tasks/tasks-calendar-create-rang
 import type { TaskItemWithContext, TasksViewSelection } from '@/app/tasks/tasks-types'
 import { cloudTaskStableKey } from '@shared/work-item-keys'
 import { useCalendarFcEventContent } from '@/app/calendar/use-calendar-fc-event-content'
+import { TASKS_CALENDAR_VIEW_ZOOM_LADDER } from '@/app/calendar/calendar-view-zoom-ladder'
+import { useCalendarViewZoom } from '@/hooks/use-calendar-view-zoom'
+import { persistTasksCalendarFcView } from '@/app/tasks/tasks-calendar-view-storage'
 import '@/app/calendar/notion-calendar.css'
 
 const DEFAULT_APPOINTMENT_MINUTES = 30
@@ -88,6 +91,7 @@ export interface TasksCalendarPaneProps {
   onSelectTask: (task: TaskItemWithContext) => void
   onTasksMutated: () => void
   fcView: string
+  onFcViewChange?: (viewId: string) => void
   fullCalendarRef?: Ref<FullCalendar | null>
   onViewMeta?: (meta: { title: string; viewType: string; currentStart: Date }) => void
   listFilter?: TaskListFilter
@@ -105,6 +109,7 @@ export function TasksCalendarPane({
   onSelectTask,
   onTasksMutated,
   fcView,
+  onFcViewChange,
   fullCalendarRef,
   onViewMeta,
   listFilter = 'all',
@@ -119,6 +124,21 @@ export function TasksCalendarPane({
 
   const calendarRef = useRef<FullCalendar | null>(null)
   const shellRef = useRef<HTMLDivElement>(null)
+
+  const handleViewZoomChange = useCallback(
+    (viewId: string): void => {
+      persistTasksCalendarFcView(viewId)
+      onFcViewChange?.(viewId)
+      calendarRef.current?.getApi()?.changeView(viewId)
+    },
+    [onFcViewChange]
+  )
+
+  useCalendarViewZoom(shellRef, {
+    activeViewId: fcView,
+    onViewChange: handleViewZoomChange,
+    ladder: TASKS_CALENDAR_VIEW_ZOOM_LADDER
+  })
   const lastRangeRef = useRef<{ start: Date; end: Date }>({ start: new Date(), end: new Date() })
   const taskByKeyRef = useRef<Map<string, TaskItemWithContext>>(new Map())
 
@@ -477,6 +497,8 @@ export function TasksCalendarPane({
         eventContent={calendarFcEventContentRender}
         eventDidMount={(info): void => {
           if (info.event.extendedProps.calendarKind !== CALENDAR_KIND_CLOUD_TASK) return
+          const task = info.event.extendedProps.cloudTask as TaskItemWithContext | undefined
+          info.el.classList.toggle('fc-cal-event--completed', task?.completed === true)
           const raw = info.event.extendedProps.accountColor as string | undefined
           const bg = accountColorToCssBackground(raw)
           const key = typeof info.event.extendedProps.taskKey === 'string' ? info.event.extendedProps.taskKey : ''

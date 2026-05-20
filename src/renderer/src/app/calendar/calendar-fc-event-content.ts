@@ -67,28 +67,36 @@ export function calendarFcEventContent(
     return multiMonthFcEventContent(arg)
   }
   const entryKind = resolveCalendarFcEntryKind(arg)
+  const cloudTask = arg.event.extendedProps.cloudTask as TaskItemRow | undefined
+  const taskCompleted = entryKind === 'task' && cloudTask?.completed === true
+
   const root = document.createElement('div')
-  root.className = 'fc-cal-event-custom'
+  root.className = taskCompleted
+    ? 'fc-cal-event-custom fc-cal-event-custom--completed'
+    : 'fc-cal-event-custom'
 
   const body = document.createElement('div')
   body.className = 'fc-cal-event-custom-body'
 
   if (arg.timeText) {
     const timeEl = document.createElement('div')
-    timeEl.className = 'fc-cal-event-custom-time'
+    timeEl.className = taskCompleted
+      ? 'fc-cal-event-custom-time fc-cal-event-custom-time--completed'
+      : 'fc-cal-event-custom-time'
     timeEl.textContent = arg.timeText
     body.appendChild(timeEl)
   }
 
   const titleEl = document.createElement('div')
-  titleEl.className = 'fc-cal-event-custom-title'
+  titleEl.className = taskCompleted
+    ? 'fc-cal-event-custom-title fc-cal-event-custom-title--completed'
+    : 'fc-cal-event-custom-title'
   titleEl.textContent = arg.event.title ?? ''
   body.appendChild(titleEl)
 
   root.appendChild(body)
 
   const calEv = arg.event.extendedProps.calendarEvent as CalendarEventView | undefined
-  const cloudTask = arg.event.extendedProps.cloudTask as TaskItemRow | undefined
   const userNote = arg.event.extendedProps.userNote as UserNoteListItem | undefined
   const eventIconId = calEv?.icon
   const taskIconId = cloudTask?.iconId

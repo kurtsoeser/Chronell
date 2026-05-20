@@ -52,6 +52,7 @@ CHRONELL_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 Ein JSON-Snapshot pro Nutzer (`chronell_profile_snapshots`), gleicher Inhalt wie „Einstellungen sichern“:
 
 - Notizen, Entity-Links, Regeln, QuickSteps, Workflow, UI-localStorage, …
+- **Konten-Präferenzen** (Secure Store): Farbe, **Signaturvorlagen inkl. HTML**, Standard-Signatur, Kalender-Vorausschau, Book-with-me-URL, Konten-Reihenfolge
 - **Nicht**: OAuth-Tokens, Mail-Inhalte, `mail.db`-Cache
 
 ## App
@@ -60,7 +61,7 @@ Einstellungen → Allgemein → **Cloud-Sync**
 
 ## Phase 2 (Komfort)
 
-- **Auto-Sync:** Beim App-Start (nach ~8 s), im Hintergrund im eingestellten Intervall (**2–30 Min**, Standard 5; Einstellungen → Cloud-Sync), nur leichter Cloud-Zeitstempel-Check, voller Abruf nur bei Änderungen; **5 s** nach Änderungen an Notizen oder Verbindungen.
+- **Auto-Sync:** Beim App-Start (nach ~8 s), im Hintergrund im eingestellten Intervall (**2–30 Min**, Standard 5; Einstellungen → Cloud-Sync), nur leichter Cloud-Zeitstempel-Check, voller Abruf nur bei Änderungen; **5 s** nach Änderungen an Notizen, Verbindungen oder Konten-Präferenzen (z. B. Signaturen).
 - **UI-Prefs:** Renderer meldet `localStorage` alle 30 s an den Main-Prozess.
 - **Konflikt-Auswahl:** Wenn die Cloud neuer ist als der letzte Abruf auf diesem Gerät (oder lokale Änderungen + anderer Cloud-Stand), pausiert Auto-Sync. In den Einstellungen: **Cloud-Stand übernehmen** oder **Lokalen Stand hochladen**.
 - **Notiz-Anhänge:** Bucket `chronell-note-attachments` (Migration `20260520120000_chronell_note_attachments_storage.sql`).

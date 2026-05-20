@@ -79,7 +79,12 @@ export function CloudTaskItemPreview(props: {
               }
             />
           ) : null}
-          <h2 className="min-w-0 flex-1 text-[17px] font-semibold leading-snug text-foreground">
+          <h2
+            className={cn(
+              'min-w-0 flex-1 text-[17px] font-semibold leading-snug text-foreground',
+              task.completed && 'text-muted-foreground line-through'
+            )}
+          >
             {title}
           </h2>
         </div>

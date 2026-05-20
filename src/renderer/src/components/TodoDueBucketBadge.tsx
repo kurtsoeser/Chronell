@@ -13,17 +13,22 @@ interface Props {
 /**
  * ToDo-Faelligkeit wie Schnellzugriff (Icon + Kurzlabel), Tooltip mit vollem Titel.
  */
+function badgeToneClass(kind: TodoDueKindList): string {
+  if (kind === 'overdue') return 'bg-destructive/15 text-destructive'
+  if (kind === 'done') return 'bg-status-done/15 text-status-done'
+  return 'bg-status-todo/15 text-status-todo'
+}
+
 export function TodoDueBucketBadge({ kind, compact = false, className }: Props): JSX.Element {
   const { t } = useTranslation()
   const Icon = TODO_DUE_BUCKET_ICONS[kind]
-  const overdue = kind === 'overdue'
   const title = t(`mail.todoBucket.${kind}`)
   const shortLabel = t(`mail.todoNav.${kind}`)
   return (
     <span
       className={cn(
         'inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium',
-        overdue ? 'bg-destructive/15 text-destructive' : 'bg-status-todo/15 text-status-todo',
+        badgeToneClass(kind),
         className
       )}
       title={title}

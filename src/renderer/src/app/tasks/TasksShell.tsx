@@ -1241,6 +1241,7 @@ export function TasksShell(): JSX.Element {
                     onSelectTask={setSelected}
                     onTasksMutated={handleTasksMutated}
                     fcView={calendarFcView}
+                    onFcViewChange={setCalendarFcView}
                     fullCalendarRef={tasksCalendarRef}
                     listFilter={listViewPrefs.filter}
                     dateMode={calendarDateMode}

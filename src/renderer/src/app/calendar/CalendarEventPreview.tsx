@@ -755,7 +755,7 @@ export function CalendarEventPreview(props: {
               </PreviewDetailRow>
             ) : null}
             {locationLabel ? (
-              <PreviewDetailRow icon={MapPin} label={t('calendar.eventDialog.location')}>
+              <PreviewDetailRow icon={MapPin} label={t('calendar.eventDialog.locationRowLabel')}>
                 <span className="block min-w-0">{locationLabel}</span>
                 <button
                   type="button"

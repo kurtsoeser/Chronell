@@ -31,6 +31,10 @@ import {
   readAccountProfilePhotoDataUrl
 } from '../account-photo'
 import { broadcastAccountsChanged } from './ipc-broadcasts'
+import {
+  markProfileDataDirty,
+  scheduleProfileSyncDebounced
+} from '../sync-profile/profile-sync-scheduler'
 import { parseGoogleIdToken, tryAttachGoogleProfilePhoto } from './ipc-helpers'
 import { deleteCalendarDataForAccount } from '../db/calendar-events-repo'
 import { deleteCalendarFoldersDataForAccount } from '../db/calendar-folders-repo'
@@ -405,6 +409,8 @@ export function registerAuthIpc(): void {
     }
     const next = await reorderAccounts(accountIds)
     broadcastAccountsChanged(next)
+    void markProfileDataDirty()
+    scheduleProfileSyncDebounced()
     return next
   })
 
@@ -502,6 +508,8 @@ export function registerAuthIpc(): void {
       await upsertAccount(account)
       const next = await listAccounts()
       broadcastAccountsChanged(next)
+      void markProfileDataDirty()
+      scheduleProfileSyncDebounced()
       return account
     }
   )

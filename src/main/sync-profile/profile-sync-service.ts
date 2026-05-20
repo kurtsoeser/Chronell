@@ -466,6 +466,8 @@ export async function runProfileSyncInternal(
 export async function runProfileSyncNow(
   localStorage: Record<string, string>
 ): Promise<ProfileSyncRunResult> {
+  const { markProfileDataDirty } = await import('./profile-sync-scheduler')
+  await markProfileDataDirty()
   return runProfileSyncInternal({ localStorage, source: 'manual', resolution: 'auto' })
 }
 

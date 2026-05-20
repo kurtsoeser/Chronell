@@ -1197,7 +1197,7 @@
     },
     "cloudSync": {
       "heading": "Cloud-Sync",
-      "intro": "Synchronisiert Notizen, Verbindungen, Regeln, Workflow und Oberflächen-Einstellungen über Supabase — nicht deine E-Mails (die kommen weiterhin über Microsoft/Google auf jedem Gerät). Wähle „Nur lokal“ oder melde dich für Cloud-Sync an.",
+      "intro": "Synchronisiert Notizen, Verbindungen, Regeln, Workflow, Oberflächen-Einstellungen und Konten-Präferenzen (u. a. Signaturvorlagen pro Mail-Konto) über Supabase — nicht deine E-Mails (die kommen weiterhin über Microsoft/Google auf jedem Gerät). Wähle „Nur lokal“ oder melde dich für Cloud-Sync an.",
       "notConfigured": "Supabase ist in der Build-Umgebung nicht gesetzt. Lege CHRONELL_SUPABASE_URL und CHRONELL_SUPABASE_PUBLISHABLE_KEY in .env an und starte die App neu.",
       "modeLocal": "Nur lokal",
       "modeCloud": "Cloud-Sync",
@@ -1228,7 +1228,7 @@
       "useLocal": "Lokalen Stand hochladen",
       "resultSkippedConflict": "Konflikt — bitte oben Cloud oder lokal wählen",
       "syncing": "Synchronisiere…",
-      "autoSyncOn": "Automatischer Sync aktiv (ca. alle {{minutes}} Minuten und nach Änderungen an Notizen/Verbindungen).",
+      "autoSyncOn": "Automatischer Sync aktiv (ca. alle {{minutes}} Minuten und nach Änderungen an Notizen, Verbindungen oder Signaturen).",
       "pollIntervalLabel": "Hintergrund-Prüfung der Cloud",
       "pollIntervalHint": "Zwischen 2 und 30 Minuten. Nach lokalen Änderungen synchronisiert Chronell weiterhin nach ca. 5 Sekunden.",
       "pollIntervalMinutes": "{{count}} Minuten",

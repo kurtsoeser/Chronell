@@ -101,6 +101,8 @@ import {
   syncFullCalendarCloudTaskEventFromLayer
 } from '@/app/calendar/optimistic-cloud-task-calendar'
 import { useCalendarFcEventContent } from '@/app/calendar/use-calendar-fc-event-content'
+import { MAIN_CALENDAR_VIEW_ZOOM_LADDER } from '@/app/calendar/calendar-view-zoom-ladder'
+import { useCalendarViewZoom } from '@/hooks/use-calendar-view-zoom'
 import {
   applyMultiMonthEventDotMount,
   capEventInputsForMultiMonthView,
@@ -951,6 +953,7 @@ export function CalendarShell(): JSX.Element {
   )
 
   const calendarDropRootRef = useRef<HTMLDivElement>(null)
+  const calendarViewZoomHostRef = useRef<HTMLDivElement>(null)
   const [rightInboxOpen, setRightInboxOpen] = useState(readRightInboxOpenFromStorage)
   const [rightPreviewOpen, setRightPreviewOpen] = useState(readRightPreviewOpenFromStorage)
   const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useState(
@@ -2592,6 +2595,12 @@ export function CalendarShell(): JSX.Element {
     [visibleStart]
   )
 
+  useCalendarViewZoom(calendarViewZoomHostRef, {
+    activeViewId,
+    onViewChange: changeView,
+    ladder: MAIN_CALENDAR_VIEW_ZOOM_LADDER
+  })
+
   const handleGanttScaleChange = useCallback((scale: GanttTimelineScale): void => {
     setGanttScale(scale)
     persistGanttTimelineScale(scale)
@@ -3016,7 +3025,7 @@ export function CalendarShell(): JSX.Element {
                 </aside>
           ) : null}
 
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <div ref={calendarViewZoomHostRef} className="flex min-h-0 min-w-0 flex-1 flex-col">
             <CalendarShellAlerts error={error} />
 
             <div
@@ -3154,6 +3163,10 @@ export function CalendarShell(): JSX.Element {
                       _cloudTaskBaseStyled?: boolean
                       _cloudTaskPreviewKey?: string | null
                     }
+                    const cloudTask = info.event.extendedProps.cloudTask as
+                      | TaskItemWithContext
+                      | undefined
+                    el.classList.toggle('fc-cal-event--completed', cloudTask?.completed === true)
                     const raw = info.event.extendedProps.accountColor as string | undefined
                     const bg = accountColorToCssBackground(raw)
                     const key =

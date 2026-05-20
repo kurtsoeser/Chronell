@@ -294,6 +294,18 @@
   flex: 1;
 }
 
+.calendar-notion-shell .fc-cal-event-custom-title--completed,
+.calendar-notion-shell .fc-cal-event-custom--completed .fc-cal-event-custom-title {
+  text-decoration: line-through;
+  opacity: 0.82;
+}
+
+.calendar-notion-shell .fc-cal-event-custom-time--completed,
+.calendar-notion-shell .fc-cal-event-custom--completed .fc-cal-event-custom-time {
+  text-decoration: line-through;
+  opacity: 0.75;
+}
+
 .calendar-notion-shell .fc-cal-event-kind-icon {
   position: absolute;
   top: 3px;
