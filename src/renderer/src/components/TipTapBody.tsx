@@ -192,7 +192,9 @@ export function TipTapBody({
           '[&_h2]:text-xl  [&_h2]:font-bold [&_h2]:mt-3 [&_h2]:mb-2',
           '[&_h3]:text-base [&_h3]:font-semibold [&_h3]:mt-2 [&_h3]:mb-1',
           '[&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground',
-          '[&_a]:text-primary [&_a]:underline [&_img]:rounded [&_img]:my-2 [&_hr]:my-3 [&_hr]:border-border',
+          '[&_a]:underline',
+          !inEditorSurface && '[&_a]:text-primary',
+          '[&_img]:rounded [&_img]:my-2 [&_hr]:my-3 [&_hr]:border-border',
           '[&_table_td>p]:mb-0 [&_table_td>p]:mt-0 [&_table_th>p]:mb-0 [&_table_th>p]:mt-0'
         )
       },

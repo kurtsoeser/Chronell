@@ -1380,10 +1380,8 @@ const ThreadSubRow = memo(function ThreadSubRow({
         e.dataTransfer.effectAllowed = 'move'
       }}
       className={cn(
-        'group/subrow relative cursor-grab border-b border-dotted border-border/55 bg-background/25 pb-0.5 pl-3 ml-7 active:cursor-grabbing',
-        stripeAccount ? '' : 'border-l border-border/50',
+        'group/subrow relative ml-7 cursor-grab active:cursor-grabbing',
         message.isVipSender && 'ring-1 ring-amber-500/25 ring-inset',
-        selected && 'bg-secondary/35',
         isRowExiting && motionListItemExit
       )}
       title={
@@ -1408,11 +1406,11 @@ const ThreadSubRow = memo(function ThreadSubRow({
         onContextMenu={(e): void => onContextMail(e, message)}
         className={cn(
           tableMode
-            ? 'grid w-full items-center gap-x-1 rounded py-1 pl-2 pr-2 text-left transition-colors'
-            : 'flex w-full flex-col gap-0.5 rounded py-1.5 pl-2 pr-2 text-left transition-colors',
+            ? 'grid w-full items-center gap-x-1 py-1 pl-2 pr-2 text-left transition-colors'
+            : 'flex w-full flex-col gap-0.5 py-1.5 pl-2 pr-2 text-left transition-colors',
           selected
-            ? 'chronell-list-row--selected border-l-2 border-primary'
-            : 'chronell-list-row border-l-2 border-transparent'
+            ? 'chronell-list-row chronell-list-row--selected'
+            : 'chronell-list-row'
         )}
         style={tableMode ? { gridTemplateColumns: tableGridTemplate } : undefined}
       >

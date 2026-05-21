@@ -427,6 +427,13 @@
   .compose-editor-canvas[data-compose-theme='dark'] {
     background-color: hsl(0 0% 9%);
     color: hsl(0 0% 100%);
+    --compose-link: 206 56% 68%;
+    --compose-link-hover: 206 58% 76%;
+  }
+
+  .compose-editor-canvas[data-compose-theme='light'] {
+    --compose-link: 217 65% 42%;
+    --compose-link-hover: 217 70% 36%;
   }
 
   .compose-editor-canvas .ProseMirror {
@@ -434,6 +441,27 @@
     padding: 0.75rem 1rem 1rem;
     outline: none;
     color: inherit;
+  }
+
+  /** Links im Editor: dezentes Blau (Dark), nicht knalliges Primary-Gelb durch Invert/Fallback. */
+  .compose-editor-canvas .ProseMirror a {
+    color: hsl(var(--compose-link));
+    text-decoration-color: hsl(var(--compose-link) / 0.45);
+  }
+
+  .compose-editor-canvas[data-compose-theme='dark'] .ProseMirror a[href] {
+    color: hsl(var(--compose-link)) !important;
+    text-decoration-color: hsl(var(--compose-link) / 0.45) !important;
+  }
+
+  .compose-editor-canvas .ProseMirror a:hover {
+    color: hsl(var(--compose-link-hover));
+    text-decoration-color: hsl(var(--compose-link-hover) / 0.55);
+  }
+
+  .compose-editor-canvas[data-compose-theme='dark'] .ProseMirror a[href]:hover {
+    color: hsl(var(--compose-link-hover)) !important;
+    text-decoration-color: hsl(var(--compose-link-hover) / 0.55) !important;
   }
 
   .compose-mail-body-tile .compose-mail-editor-section .border-b {

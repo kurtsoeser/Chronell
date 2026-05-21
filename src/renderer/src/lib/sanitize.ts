@@ -349,6 +349,13 @@ function buildMailDarkHtmlShellCss(
       filter: invert(1);
       forced-color-adjust: none;
     }
+    /* Vor Invert: Brauntoene → nach Invert dezentes Blau statt Gelb (#0b66c2 invertiert). */
+    .mail-html-invert-layer a,
+    .mail-html-invert-layer a:link,
+    .mail-html-invert-layer a:visited {
+      color: #915700 !important;
+      text-decoration-color: #915700 !important;
+    }
     img { max-width: 100%; height: auto; }
     table { max-width: 100%; }
   </style>

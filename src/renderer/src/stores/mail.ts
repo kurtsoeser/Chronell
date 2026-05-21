@@ -348,7 +348,8 @@ export const useMailStore = create<MailState>((set, get) => ({
                   dueKind: state.todoDueKind
                 })
               : await loadAllOpenTodoMessages()
-            set({ messages, threadMessages: {} })
+            set({ messages })
+            void loadCrossFolderThreadsForTodoList(messages, set)
             if (state.selectedMessageId) {
               const fresh = await window.mailClient.mail.getMessage(state.selectedMessageId)
               if (fresh) set({ selectedMessage: fresh })
@@ -645,6 +646,7 @@ export const useMailStore = create<MailState>((set, get) => ({
         ? await loadAllOpenTodoMessages()
         : await window.mailClient.mail.listTodoMessages({ accountId: null, dueKind })
       set({ messages, loading: false })
+      void loadCrossFolderThreadsForTodoList(messages, set)
 
       const pick = pickInitialMessageId(messages, opts?.preferredMessageId ?? null)
       if (pick != null) {
@@ -1611,6 +1613,71 @@ async function loadCrossFolderThreads(
     set({ threadMessages: grouped })
   } catch (e) {
     console.warn('[mail-store] loadCrossFolderThreads failed:', e)
+  }
+}
+
+/**
+ * Konversations-Cache fuer ToDo-Listen (alle Konten, Thread-Keys ohne Account-Prefix —
+ * entspricht `mailListUsesCrossAccountThreadScope('todo')`).
+ */
+async function loadCrossFolderThreadsForTodoList(
+  messages: MailListItem[],
+  set: SetFn
+): Promise<void> {
+  const byAccount = new Map<string, Set<string>>()
+  for (const m of messages) {
+    const tk = m.remoteThreadId
+    if (!tk) continue
+    let s = byAccount.get(m.accountId)
+    if (!s) {
+      s = new Set()
+      byAccount.set(m.accountId, s)
+    }
+    s.add(tk)
+  }
+  if (byAccount.size === 0) {
+    set({ threadMessages: {} })
+    return
+  }
+
+  try {
+    const grouped: Record<string, MailListItem[]> = {}
+    const entries = [...byAccount.entries()]
+    await Promise.all(
+      entries.map(async ([accountId, keys]) => {
+        const threadKeys = [...keys]
+        if (threadKeys.length === 0) return
+        const all = await window.mailClient.mail.listMessagesByThreads({
+          accountId,
+          threadKeys
+        })
+        for (const m of all) {
+          const key = m.remoteThreadId
+          if (!key) continue
+          ;(grouped[key] ??= []).push(m)
+        }
+      })
+    )
+    for (const k of Object.keys(grouped)) {
+      const arr = grouped[k]!
+      const seen = new Set<number>()
+      const deduped = arr.filter((m) => {
+        if (seen.has(m.id)) return false
+        seen.add(m.id)
+        return true
+      })
+      deduped.sort((a, b) => {
+        const ad = a.receivedAt ?? a.sentAt ?? ''
+        const bd = b.receivedAt ?? b.sentAt ?? ''
+        if (ad === bd) return 0
+        return ad < bd ? 1 : -1
+      })
+      grouped[k] = deduped
+    }
+    set({ threadMessages: grouped })
+  } catch (e) {
+    console.warn('[mail-store] loadCrossFolderThreadsForTodoList failed:', e)
+    set({ threadMessages: {} })
   }
 }
 
