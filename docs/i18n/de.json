@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Chronell — Manage deine Zeit, nicht deine Inbox",
-    "description": "Chronell 0.9.17: Fluent-Design-Update, ausgebaute Verbindungen, KI-Vorschläge und Cloud-Sync — Desktop-Arbeitszentrale für Windows 11 mit Microsoft 365 und Google."
+    "description": "Chronell 0.9.19: Verfeinerte Verbindungen und Kalender-Vorschau, stabilerer Graph — schlanker Installer, Desktop-Arbeitszentrale für Windows 11 mit Microsoft 365 und Google."
   },
   "nav": {
     "method": "Die Methode",
@@ -158,8 +158,16 @@
     "eyebrow": "Release-Überblick",
     "title": "Was in den letzten Updates passiert ist",
     "lead": "Vom neuen Fluent-Look über den Verbindungs-Graph bis zum Profil-Sync — Chronell wächst schnell, ohne deine Mails in die Cloud zu legen.",
-    "v0917": {
+    "v0919": {
       "badge": "Aktuell",
+      "date": "Mai 2026",
+      "title": "Verbindungen & Kalender poliert",
+      "b1": "Notiz-Vorschau im Verbindungs-Graph, verbesserte Objekt-Vorschau und Kontextmenü am Knoten",
+      "b2": "Kalender: ausgebaute Termin- und Cloud-Task-Vorschau, klarere Zeitliste und Bookings-Anbindung",
+      "b3": "Mail-Lesefenster mit Kontext-Speicher, stabileres Graph-Throttling und feinere Aufgaben-Listen",
+      "b4": "Schlanker Windows-Installer (unter 100 MB) — Download direkt von der Homepage ohne GitHub-Login"
+    },
+    "v0917": {
       "date": "Mai 2026",
       "title": "Massives Design-Update",
       "b1": "Komplettes Fluent-2-Redesign: Mica-Hintergrund, Acrylic für Menüs und Popover, klare Ebenen in allen Modulen",
@@ -192,7 +200,7 @@
   "highlights": {
     "eyebrow": "Neu ausprobieren",
     "title": "Vier Schwerpunkte der aktuellen Beta",
-    "lead": "Version 0.9.17 setzt auf ein edles Fluent-Design, reift Verbindungen weiter aus und baut auf KI sowie Cloud-Sync auf — ohne Tab-Chaos.",
+    "lead": "Version 0.9.19 verfeinert Verbindungen und Kalender-Vorschau, liefert einen schlankeren Installer und baut auf Fluent-Design, KI sowie Cloud-Sync auf — ohne Tab-Chaos.",
     "design": {
       "title": "Fluent Design",
       "desc": "Chronell fühlt sich an wie eine native Windows-11-Produktivitäts-App — ruhig, dunkel, mit subtiler Tiefe statt generischem Web-Look.",
@@ -345,12 +353,12 @@
     "imprint": "Impressum (Platzhalter)"
   },
   "whatsNew": {
-    "label": "Version 0.9.17",
-    "tagline": "Fluent Design · Verbindungen ausgebaut · viele Bugfixes"
+    "label": "Version 0.9.19",
+    "tagline": "Verbindungen & Kalender · schlanker Installer · stabilerer Graph"
   },
   "cta": {
     "title": "Bereit für das neue Chronell?",
-    "body": "Lade Version 0.9.17 für Windows 11 — Fluent-Look, Verbindungs-Graph, KI-Vorschläge und optional Cloud-Sync. Updates ersetzen deine Version ohne Datenverlust.",
+    "body": "Lade Version 0.9.19 für Windows 11 — Verbindungs-Graph mit Notiz-Vorschau, Kalender-Vorschau, KI-Vorschläge und optional Cloud-Sync. Updates ersetzen deine Version ohne Datenverlust.",
     "button": "Jetzt herunterladen"
   }
 }
