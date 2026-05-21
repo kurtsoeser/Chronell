@@ -27,4 +27,5 @@ Write-Host 'Falls EXEs schon ohne LFS committed wurden, vor dem Push:' -Foregrou
 Write-Host '  git rm --cached docs/release/**/*.exe' -ForegroundColor DarkGray
 Write-Host '  git add docs/release .gitattributes' -ForegroundColor DarkGray
 Write-Host ''
-Write-Host 'Hinweis: GitHub Pages liefert LFS-Dateien oft nicht als direkten Download — Installer <100 MB ist besser.' -ForegroundColor Yellow
+Write-Host 'Hinweis: Homepage nutzt GitHub Releases als Download (site.js), nicht GitHub Pages.' -ForegroundColor DarkGray
+Write-Host '  Nach git push: gh release upload fuer oeffentlichen Installer-Download.' -ForegroundColor DarkGray

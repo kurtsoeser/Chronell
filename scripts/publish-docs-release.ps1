@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-  Kopiert den Windows-Installer nach docs/release/ für GitHub Pages-Downloads.
+  Kopiert den Windows-Installer nach docs/release/ (Git LFS) und GitHub Releases (Homepage-Download).
 
 .EXAMPLE
   .\scripts\publish-docs-release.ps1
@@ -85,7 +85,7 @@ function Publish-GitHubReleaseAsset {
   }
 
   Write-Host ''
-  Write-Host 'GitHub Release (optional, zusaetzlich zu GitHub Pages):' -ForegroundColor Cyan
+  Write-Host 'GitHub Release (primaerer Homepage-Download):' -ForegroundColor Cyan
 
   $releaseTitle = "Chronell $Version"
   $releaseNotes = "Windows-11-Beta-Installer fuer Chronell $Version."
@@ -115,9 +115,9 @@ function Publish-GitHubReleaseAsset {
   )
   if ($uploadExit -eq 0) {
     Write-Host "  GitHub Releases: $ghDownloadUrl" -ForegroundColor Green
-    Write-Host '  Hinweis: Homepage-Download nutzt GitHub Pages (oeffentlich), nicht diese URL.' -ForegroundColor DarkGray
+    Write-Host '  Homepage-Download verweist auf diese URL (site.js + latest.json).' -ForegroundColor DarkGray
   } else {
-    Write-Host '  gh release upload fehlgeschlagen - Homepage nutzt docs/release nach git push.' -ForegroundColor Yellow
+    Write-Host '  gh release upload fehlgeschlagen - Homepage-Download funktioniert erst nach erneutem Upload.' -ForegroundColor Yellow
   }
 }
 
@@ -147,8 +147,8 @@ if (-not $IndexOnly) {
   $setupMb = [math]::Round((Get-Item -LiteralPath $setupExe).Length / 1MB, 2)
   if ($setupMb -gt 98) {
     Write-Host ''
-    Write-Host "  WARNUNG: Installer ist ${setupMb} MB - GitHub erlaubt max. 100 MB pro Datei im Repo." -ForegroundColor Yellow
-    Write-Host '  Neu bauen mit aktuellem electron-builder.yml (compression + Locale-Trim), oder Git LFS: scripts/setup-git-lfs.ps1' -ForegroundColor Yellow
+    Write-Host "  Hinweis: Installer ist ${setupMb} MB - wird per Git LFS ins Repo gepusht (max. 100 MB ohne LFS)." -ForegroundColor DarkGray
+    Write-Host '  Homepage-Download: GitHub Releases (scripts/setup-git-lfs.ps1 falls noch nicht aktiv).' -ForegroundColor DarkGray
   }
 } elseif (-not (Test-Path -LiteralPath (Join-Path $latestDir $stableName))) {
   $versionedName = "Chronell-$Version-setup.exe"
@@ -180,7 +180,7 @@ $manifest = [ordered]@{
   releasedAt        = $releasedAt
   beta              = $true
   filename          = $stableName
-  downloadUrl       = $pagesStableUrl
+  downloadUrl       = $ghDownloadUrl
   stableUrl         = $pagesStableUrl
   versionedUrl      = $pagesVersionedUrl
   githubDownloadUrl = $ghDownloadUrl
@@ -194,18 +194,19 @@ foreach ($dir in Get-DocsReleaseVersions) {
   $exeName = "Chronell-$ver-setup.exe"
   $exePath = Join-Path $dir.FullName $exeName
   if (-not (Test-Path -LiteralPath $exePath)) { continue }
+  $ghVerUrl = "https://github.com/kurtsoeser/Chronell/releases/download/v$ver/$exeName"
   $versionRows += [ordered]@{
     version           = $ver
     setupUrl          = "release/$ver/$exeName"
-    downloadUrl       = "release/$ver/$exeName"
-    githubDownloadUrl = "https://github.com/kurtsoeser/Chronell/releases/download/v$ver/$exeName"
+    downloadUrl       = $ghVerUrl
+    githubDownloadUrl = $ghVerUrl
   }
 }
 
 $versionsManifest = [ordered]@{
   latest            = $Version
   beta              = $true
-  downloadUrl       = $pagesStableUrl
+  downloadUrl       = $ghDownloadUrl
   stableUrl         = $pagesStableUrl
   githubDownloadUrl = $ghDownloadUrl
   versions          = @($versionRows)
@@ -221,8 +222,8 @@ Write-Host "  Archiv:   docs/release/$Version/$versionedName"
 Write-Host "  Manifest: docs/release/latest.json"
 Write-Host "  Index:    docs/release/versions.json"
 Write-Host ''
-Write-Host 'Als Naechstes: docs/release committen und pushen (GitHub Pages).' -ForegroundColor DarkGray
-Write-Host '  Oeffentlicher Download: https://kurtsoeser.github.io/Chronell/release/latest/Chronell-setup.exe' -ForegroundColor DarkGray
+Write-Host 'Als Naechstes: docs/release committen und pushen (Git LFS + GitHub Pages).' -ForegroundColor DarkGray
+Write-Host "  Oeffentlicher Download: $ghDownloadUrl" -ForegroundColor DarkGray
 
 if (-not $IndexOnly -and -not $SkipGitHubRelease) {
   $setupForRelease = Join-Path $versionDir $versionedName

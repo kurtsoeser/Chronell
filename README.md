@@ -6,7 +6,7 @@
 |---|---|
 | **Homepage & Download** | [kurtsoeser.github.io/Chronell](https://kurtsoeser.github.io/Chronell/) |
 | **Aktuelle Version** | **0.9.20** (22. Mai 2026) |
-| **Windows-Installer** | [GitHub Release](https://github.com/kurtsoeser/Chronell/releases/latest) oder [direkt von Pages](https://kurtsoeser.github.io/Chronell/release/latest/Chronell-setup.exe) |
+| **Windows-Installer** | [GitHub Release](https://github.com/kurtsoeser/Chronell/releases/latest) (primär; auch Installer >100 MB via Git LFS im Repo) |
 | **Technischer Repo-Name** | MailClient · **App-ID:** `at.kurtsoeser.chronell` |
 | **Ausführliches Protokoll** | [`docs/FUNKTIONSPROTOKOLL.md`](docs/FUNKTIONSPROTOKOLL.md) |
 | **Landing Page (Quellen)** | [`docs/`](docs/) · Deploy: [`docs/DEPLOY.md`](docs/DEPLOY.md) |

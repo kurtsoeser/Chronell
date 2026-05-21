@@ -2,7 +2,7 @@
 export const APP_VERSION = '0.9.20' as const
 
 /** ISO date (YYYY-MM-DD) of the current release milestone. */
-export const APP_RELEASE_DATE_ISO = '2026-05-21' as const
+export const APP_RELEASE_DATE_ISO = '2026-05-22' as const
 
 /** Marketing / UI product name. */
 export const APP_PRODUCT_NAME = 'Chronell' as const

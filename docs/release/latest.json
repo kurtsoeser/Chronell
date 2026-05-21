@@ -1,9 +1,9 @@
 ﻿{
     "version":  "0.9.20",
-    "releasedAt":  "2026-05-21",
+    "releasedAt":  "2026-05-22",
     "beta":  true,
     "filename":  "Chronell-setup.exe",
-    "downloadUrl":  "release/latest/Chronell-setup.exe",
+    "downloadUrl":  "https://github.com/kurtsoeser/Chronell/releases/download/v0.9.20/Chronell-0.9.20-setup.exe",
     "stableUrl":  "release/latest/Chronell-setup.exe",
     "versionedUrl":  "release/0.9.20/Chronell-0.9.20-setup.exe",
     "githubDownloadUrl":  "https://github.com/kurtsoeser/Chronell/releases/download/v0.9.20/Chronell-0.9.20-setup.exe"

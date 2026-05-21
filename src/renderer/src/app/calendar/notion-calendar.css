@@ -51,6 +51,16 @@
   border-bottom: 1px solid hsl(var(--border));
 }
 
+/* Woche/Tag: Scrollbar-Ausgleichsspalte rechts — sonst heller Streifen neben dem letzten Tag */
+.calendar-notion-shell .fc-timegrid .fc-scrollgrid-section-header .fc-scroller,
+.calendar-notion-shell .fc-timegrid .fc-scrollgrid-section-header .fc-scroller-harness,
+.calendar-notion-shell .fc-timegrid .fc-scrollgrid-shrink,
+.calendar-notion-shell .fc-timegrid .fc-scrollgrid-shrink-frame,
+.calendar-notion-shell .fc-timegrid .fc-scrollgrid-shrink-cushion,
+.calendar-notion-shell .fc-timegrid .fc-scrollgrid-sticky-shim {
+  background: hsl(var(--background));
+}
+
 .calendar-notion-shell .fc-col-header-cell-cushion {
   color: inherit;
 }
@@ -427,6 +437,33 @@
 
 .calendar-notion-shell .fc-all-day {
   background: hsl(var(--background));
+}
+
+/* Ganztägig-Zeile in Woche/Tag: kompaktere Event-Balken */
+.calendar-notion-shell .fc-timegrid .fc-daygrid-event {
+  padding: 1px 3px;
+  margin-top: 1px;
+}
+
+.calendar-notion-shell .fc-timegrid .fc-daygrid-event .fc-cal-event-custom {
+  min-height: 1.2rem;
+  padding: 2px 16px 2px 4px;
+}
+
+.calendar-notion-shell .fc-timegrid .fc-daygrid-event .fc-cal-event-custom-title {
+  -webkit-line-clamp: 1;
+  line-height: 1.25;
+}
+
+.calendar-notion-shell .fc-timegrid .fc-daygrid-event .fc-cal-event-kind-icon {
+  top: 2px;
+  right: 2px;
+  width: 12px;
+  height: 12px;
+}
+
+.calendar-notion-shell .fc-timegrid .fc-daygrid-body-natural .fc-daygrid-day-events {
+  margin-bottom: 2px;
 }
 
 .calendar-notion-shell .fc-daygrid-body-natural .fc-daygrid-day-events {

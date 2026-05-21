@@ -2,7 +2,8 @@ const STORAGE_LANG = 'chronell.landing.lang'
 const DEFAULT_LANG = 'de'
 const RELEASE_MANIFEST = 'release/latest.json'
 const RELEASE_VERSIONS = 'release/versions.json'
-const STABLE_DOWNLOAD = 'release/latest/Chronell-setup.exe'
+const GITHUB_RELEASES_PAGE = 'https://github.com/kurtsoeser/Chronell/releases/latest'
+const STABLE_DOWNLOAD = GITHUB_RELEASES_PAGE
 
 let strings = {}
 let currentLang = DEFAULT_LANG
@@ -171,14 +172,37 @@ function collectDownloadCandidates(manifest, versionsIndex) {
     }
   }
 
-  // GitHub Pages zuerst — oeffentlicher Direkt-Download ohne Login
+  // GitHub Releases zuerst — funktioniert auch bei Installer >100 MB (Git LFS im Repo)
+  if (manifest?.githubDownloadUrl) bucket(manifest.githubDownloadUrl)
+  if (versionsIndex?.githubDownloadUrl) bucket(versionsIndex.githubDownloadUrl)
+
+  const entries = versionsIndex?.versions
+  if (Array.isArray(entries)) {
+    for (const entry of entries) {
+      if (entry && typeof entry === 'object' && entry.githubDownloadUrl) {
+        bucket(entry.githubDownloadUrl)
+      }
+    }
+  }
+
+  bucket(GITHUB_RELEASES_PAGE)
+
+  if (manifest?.downloadUrl) bucket(manifest.downloadUrl)
+  if (versionsIndex?.downloadUrl) bucket(versionsIndex.downloadUrl)
+
+  if (Array.isArray(entries)) {
+    for (const entry of entries) {
+      if (entry && typeof entry === 'object' && entry.downloadUrl) bucket(entry.downloadUrl)
+    }
+  }
+
+  // GitHub Pages nur als Fallback (LFS-Pointer, nicht der echte Installer)
   if (manifest?.stableUrl) bucket(manifest.stableUrl)
   if (manifest?.versionedUrl) bucket(manifest.versionedUrl)
   if (manifest?.version) bucket(versionedSetupPath(manifest.version))
   if (versionsIndex?.stableUrl) bucket(versionsIndex.stableUrl)
   if (versionsIndex?.latest) bucket(versionedSetupPath(versionsIndex.latest))
 
-  const entries = versionsIndex?.versions
   if (Array.isArray(entries)) {
     for (const entry of entries) {
       if (typeof entry === 'string') {
@@ -190,33 +214,23 @@ function collectDownloadCandidates(manifest, versionsIndex) {
     }
   }
 
-  bucket(STABLE_DOWNLOAD)
-
-  // Legacy: downloadUrl war oft GitHub Releases — nur als Fallback
-  if (manifest?.downloadUrl) bucket(manifest.downloadUrl)
-  if (manifest?.githubDownloadUrl) bucket(manifest.githubDownloadUrl)
-  if (versionsIndex?.downloadUrl) bucket(versionsIndex.downloadUrl)
-  if (versionsIndex?.githubDownloadUrl) bucket(versionsIndex.githubDownloadUrl)
-
-  if (Array.isArray(entries)) {
-    for (const entry of entries) {
-      if (entry && typeof entry === 'object' && entry.downloadUrl) bucket(entry.downloadUrl)
-    }
-  }
-
-  return [...pages, ...github]
+  return [...github, ...pages]
 }
 
 async function resolveDownloadHref(manifest, versionsIndex) {
   const candidates = collectDownloadCandidates(manifest, versionsIndex)
   for (const url of candidates) {
-    if (isAbsoluteUrl(url)) continue
-    if (await releaseAssetExists(url)) {
+    if (isAbsoluteUrl(url) && isGitHubReleaseUrl(url)) {
       return { href: url, manifest }
     }
   }
   for (const url of candidates) {
     if (isAbsoluteUrl(url)) {
+      return { href: url, manifest }
+    }
+  }
+  for (const url of candidates) {
+    if (await releaseAssetExists(url)) {
       return { href: url, manifest }
     }
   }

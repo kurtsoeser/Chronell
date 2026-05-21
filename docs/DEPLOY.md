@@ -19,13 +19,13 @@ Die Marketing-Website liegt in diesem Ordner (`docs/`) als statische HTML-Seite.
 
 ## Download (CTA)
 
-Alle Download-Buttons verweisen auf die **stabile GitHub-Pages-URL** (öffentlich, ohne Anmeldung):
+Alle Download-Buttons verweisen auf **GitHub Releases** (`githubDownloadUrl` in `release/latest.json`), z. B.:
 
-`https://kurtsoeser.github.io/Chronell/release/latest/Chronell-setup.exe`
+`https://github.com/kurtsoeser/Chronell/releases/download/v0.9.20/Chronell-0.9.20-setup.exe`
 
-(relativ: `release/latest/Chronell-setup.exe`)
+Die Seite lädt `docs/js/site.js`, das `latest.json` auswertet und den Link setzt. GitHub Pages (`release/latest/Chronell-setup.exe`) ist nur Fallback — mit **Git LFS** im Repo liefert Pages keinen echten Installer.
 
-Die angezeigte Versionsnummer kommt aus `release/latest.json`. GitHub Releases (`githubDownloadUrl`) ist nur Zusatz-Spiegel, nicht der primäre Link.
+Die angezeigte Versionsnummer kommt aus `release/latest.json`.
 
 ### Installer veröffentlichen
 
@@ -45,29 +45,14 @@ Ohne interaktive Veröffentlichungsabfrage: `CHRONELL_NO_PUBLISH_PROMPT=1` oder 
 
 Details: [`docs/release/README.md`](release/README.md)
 
-**Hinweis:** GitHub erlaubt maximal **100 MB pro Datei** im Repository (Git Push **und** GitHub Pages). Liegt der Installer darüber, schlägt `git push` mit `GH001` fehl.
+**Hinweis:** Ohne Git LFS erlaubt GitHub maximal **100 MB pro Datei** im Repository (`GH001` beim Push). Ab ~100 MB Installer:
 
-**Zuerst (empfohlen):** Installer verkleinern — `electron-builder.yml` nutzt `compression: maximum`, entfernt ungenutzte Electron-Locales und packt weniger Branding mit. Neu bauen:
+1. **Git LFS:** `.\scripts\setup-git-lfs.ps1` (einmalig)
+2. EXEs neu zum Index hinzufügen: `git rm --cached docs/release/**/*.exe` → `git add docs/release .gitattributes`
+3. **`npm run publish:docs-release`** — lädt den Installer auf **GitHub Releases** hoch (öffentlicher Download)
+4. `git push` — LFS-Objekte werden mit übertragen
 
-```powershell
-npm run build:win
-npm run publish:docs-release
-```
-
-Ziel: Setup **unter ~98 MB**. Das Skript warnt sonst beim Veröffentlichen.
-
-**Falls der Push schon mit großen EXEs fehlgeschlagen ist:**
-
-```powershell
-git rm --cached docs/release/**/*.exe
-# Neu bauen (schlanker Installer), dann:
-npm run publish:docs-release
-git add docs/release .gitattributes
-git commit -m "Installer unter 100 MB"
-git push
-```
-
-**Fallback:** [Git LFS](https://git-lfs.github.com/) — `.\scripts\setup-git-lfs.ps1` (Pages-Download kann dann unzuverlässig sein; Homepage nutzt dann eher GitHub Releases).
+Homepage-Download = **GitHub Releases**, nicht GitHub Pages. Optional kann der Installer weiter verkleinert werden (`electron-builder.yml`: `compression: maximum`, Locale-Trim).
 
 ## Branding aktualisieren
 

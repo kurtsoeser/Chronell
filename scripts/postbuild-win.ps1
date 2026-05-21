@@ -62,7 +62,7 @@ function Read-PublishGitHubChoice([string] $Version) {
   Write-Host '  [N] Nur lokal behalten' -ForegroundColor Yellow
   Write-Host '      Installer liegt unter release/<version>/ (kein Upload)'
   Write-Host ''
-  Write-Host '  Hinweis: docs/release/ danach noch committen und pushen fuer GitHub Pages.' -ForegroundColor DarkGray
+  Write-Host '  Hinweis: docs/release/ danach committen und pushen (Git LFS); Download via GitHub Releases.' -ForegroundColor DarkGray
   Write-Host ''
 
   while ($true) {
@@ -132,4 +132,4 @@ if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) {
 }
 
 Write-Host ''
-Write-Host 'Naechster Schritt: docs/release/ committen und pushen (GitHub Pages).' -ForegroundColor Cyan
+Write-Host 'Naechster Schritt: docs/release/ committen und pushen (Git LFS + GitHub Releases).' -ForegroundColor Cyan

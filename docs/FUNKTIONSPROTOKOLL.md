@@ -430,7 +430,7 @@ Die Root-`README.md` wird mit Meilensteinen nachgezogen. Bei Widersprüchen gilt
 | Regeln | **Einstellungen → Mail → Regeln** (kein eigener Tab) |
 | Entity-Links | Zentral im Modul **Verbindungen** + in Notizen/Mail; Vorschau-Dock und Mini-Graph im Lesefenster |
 | Profil-Sync | **Einstellungen → Allgemein → Cloud-Sync** (optional Supabase) |
-| Homepage-Download | `https://kurtsoeser.github.io/Chronell/release/latest/Chronell-setup.exe` (GitHub Pages) |
+| Homepage-Download | [GitHub Releases](https://github.com/kurtsoeser/Chronell/releases/download/v0.9.20/Chronell-0.9.20-setup.exe) (Installer im Repo per Git LFS) |
 
 Bei Widersprüchen gilt **dieses Funktionsprotokoll**.
 
@@ -446,7 +446,7 @@ npm run build:win
 
 Ergebnis: `release/<version>/Chronell-<version>-setup.exe` (z. B. `release/0.9.19/Chronell-0.9.19-setup.exe`).
 
-Öffentlicher Download nach `npm run publish:docs-release` und Git-Push: **GitHub Pages** unter `docs/release/latest/Chronell-setup.exe` (Ziel: Installer **unter 100 MB**).
+Öffentlicher Download nach `npm run publish:docs-release`: **GitHub Releases** (`githubDownloadUrl` in `latest.json`). Installer liegt zusätzlich unter `docs/release/` (Git LFS, auch >100 MB).
 
 - **NSIS-Installer** deinstalliert bei gleicher `appId` automatisch die **vorherige Programmversion**, bevor die neue installiert wird (`deleteAppDataOnUninstall: false` — **Roaming-Daten bleiben** erhalten).
 - Installationspfad (typisch): `C:\Program Files\Chronell\` (64-Bit; erfordert Admin beim Setup)
@@ -490,7 +490,7 @@ Marker-Datei nach Migration: `%APPDATA%\Chronell\.chronell-migrated-from-mailcli
 - **Kalender:** ausgebaute Termin- und Cloud-Task-Vorschau, Zeitliste und Bookings-Anbindung stabiler
 - **Mail:** Lesefenster mit Kontext-Speicher; Graph-API-Throttling und Retry robuster
 - **Aufgaben:** feinere Listen-Darstellung und Anordnung
-- **Installer:** NSIS-Paket verkleinert (unter 100 MB für GitHub Pages); Homepage-Download `release/latest/Chronell-setup.exe`
+- **Installer:** Git LFS + GitHub Releases als Homepage-Download (auch >100 MB)
 - **Homepage:** Screenshots, Release-Texte und Funktionsprotokoll auf 0.9.19
 
 ### 0.9.17 — 20. Mai 2026

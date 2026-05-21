@@ -1,1 +1,2 @@
-# Installer unter 100 MB direkt im Repo (GitHub Pages). Kein LFS fuer docs/release/*.exe.
+# Installer per Git LFS (>100 MB moeglich). Homepage-Download ueber GitHub Releases.
+docs/release/**/*.exe filter=lfs diff=lfs merge=lfs -text
