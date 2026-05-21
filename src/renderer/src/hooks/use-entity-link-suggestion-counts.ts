@@ -4,21 +4,9 @@ import { entityRefKey } from '@shared/entity-ref'
 import type { EntityLinkSuggestionCountEntry } from '@shared/entity-link-ai-payload'
 import {
   fetchEntityLinkSuggestionCounts,
+  subscribeEntityLinkAiScanProgress,
   subscribeEntityLinksChanged
 } from '@/lib/entity-links-client'
-
-type EntityLinksEventsApi = {
-  onEntityLinkAiScanProgress?: (handler: () => void) => () => void
-}
-
-function subscribeAiScanDone(onChange: () => void): () => void {
-  const fn = (window.mailClient?.events as EntityLinksEventsApi | undefined)
-    ?.onEntityLinkAiScanProgress
-  if (typeof fn !== 'function') return () => {}
-  return fn((status) => {
-    if (!status.running) onChange()
-  })
-}
 
 /** Zähler für Mail-Anker (heuristik + Scan-Cache + Panel-KI). */
 export function useEntityLinkSuggestionCounts(
@@ -56,8 +44,8 @@ export function useEntityLinkSuggestionCounts(
     const unsubLinks = subscribeEntityLinksChanged(() => {
       void reload()
     })
-    const unsubScan = subscribeAiScanDone(() => {
-      void reload()
+    const unsubScan = subscribeEntityLinkAiScanProgress((status) => {
+      if (!status.running) void reload()
     })
     return (): void => {
       unsubLinks()

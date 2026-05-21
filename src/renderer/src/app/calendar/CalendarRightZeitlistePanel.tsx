@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { Loader2, PanelRightClose, RefreshCw, SquareArrowOutUpRight } from 'lucide-react'
 import type { WorkItem } from '@shared/work-item'
+import { listSubtleBorderClass } from '@/lib/chronell-ui-classes'
 import { cn } from '@/lib/utils'
 import {
   ModuleColumnHeaderIconButton,
@@ -47,12 +48,18 @@ export function CalendarRightZeitlistePanel({
   return (
     <div
       className={cn(
-        'flex h-full min-h-0 w-full shrink-0 flex-col overflow-hidden border-l border-border',
+        'flex h-full min-h-0 w-full shrink-0 flex-col overflow-hidden border-l',
+        listSubtleBorderClass,
         className
       )}
     >
       {!hideChrome ? (
-        <div className="calendar-shell-column-header flex shrink-0 flex-col border-b border-border px-2 py-1">
+        <div
+          className={cn(
+            'calendar-shell-column-header flex shrink-0 flex-col border-b px-2 py-1',
+            listSubtleBorderClass
+          )}
+        >
           <div className={moduleColumnHeaderDockBarRowClass}>
             <div className={moduleColumnHeaderLabelWithIconClass}>
               <span className="truncate font-medium">{t('mega.shell.title')}</span>

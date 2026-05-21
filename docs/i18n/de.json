@@ -1,11 +1,12 @@
 {
   "meta": {
     "title": "Chronell — Manage deine Zeit, nicht deine Inbox",
-    "description": "Chronell verbindet Mail, Aufgaben und Notizen — mit Verbindungs-Graph, KI-Vorschlägen und optionalem Cloud-Sync. Desktop-Arbeitszentrale für Windows 11 mit Microsoft 365 und Google."
+    "description": "Chronell 0.9.17: Fluent-Design-Update, ausgebaute Verbindungen, KI-Vorschläge und Cloud-Sync — Desktop-Arbeitszentrale für Windows 11 mit Microsoft 365 und Google."
   },
   "nav": {
     "method": "Die Methode",
     "compare": "vs Outlook",
+    "updates": "Updates",
     "highlights": "Neuigkeiten",
     "features": "Features",
     "modules": "Module",
@@ -25,7 +26,7 @@
     "taglineLine2Accent": "Inbox",
     "taglineLine2Suffix": "",
     "positioning": "Chronell ist kein E-Mail-Client. Es ist ein System für deine Zeit.",
-    "subline": "Microsoft 365 und Google in einer Desktop-Arbeitszentrale — Mail-Triage, Verbindungs-Graph mit KI, Cloud-Sync für Notizen & Regeln, Bookings. Für Windows 11.",
+    "subline": "Microsoft 365 und Google in einer Desktop-Arbeitszentrale — neu im Fluent-2-Look, mit Verbindungs-Graph, KI-Vorschlägen, Cloud-Sync und Bookings. Für Windows 11.",
     "ctaDownload": "Für Windows herunterladen",
     "ctaMethod": "Methode entdecken",
     "mockup": {
@@ -125,7 +126,7 @@
       "cloudSyncC": "Optional: Notizen, Verbindungen, Regeln — E-Mails bleiben bei M365/Google",
       "cloudSyncT": "Oft alles oder nichts; selten nur Arbeitsprofil"
     },
-    "disclaimer": "Chronell ersetzt nicht jedes Enterprise-Outlook- oder Exchange-Admin-Szenario. Stärken: Workflow, lokale Daten, Verbindungen mit KI, Multi-Provider, moderne UI für Power-User.",
+    "disclaimer": "Chronell ersetzt nicht jedes Enterprise-Outlook- oder Exchange-Admin-Szenario. Stärken: Workflow, lokale Daten, Verbindungen mit KI, Multi-Provider, Fluent-UI für Power-User.",
     "detailed": {
       "feature": "Funktion",
       "typicalHeader": "Outlook / typisch",
@@ -141,7 +142,7 @@
       "r3chronell": "SQLite + FTS5, offline, in Millisekunden",
       "r4label": "Modernes UI",
       "r4typical": "Klassisch, Ribbon",
-      "r4chronell": "Windows-11-nativ, dunkel, modern",
+      "r4chronell": "Fluent 2 / Windows 11: Mica, Acrylic, Design-Presets (Midnight, Nord, …)",
       "r5label": "Apple Mail / iCloud",
       "r5typical": "Eigene Apple-Ökosystem-Apps",
       "r5chronell": "Bewusst nicht — Fokus auf M365 und Google",
@@ -153,16 +154,58 @@
       "r7chronell": "Cloud-Sync für Profil (Regeln, Notizen, Verbindungen) — Mail separat"
     }
   },
+  "updates": {
+    "eyebrow": "Release-Überblick",
+    "title": "Was in den letzten Updates passiert ist",
+    "lead": "Vom neuen Fluent-Look über den Verbindungs-Graph bis zum Profil-Sync — Chronell wächst schnell, ohne deine Mails in die Cloud zu legen.",
+    "v0917": {
+      "badge": "Aktuell",
+      "date": "Mai 2026",
+      "title": "Massives Design-Update",
+      "b1": "Komplettes Fluent-2-Redesign: Mica-Hintergrund, Acrylic für Menüs und Popover, klare Ebenen in allen Modulen",
+      "b2": "Oberflächenfarben & Presets: Fluent, Midnight, Nord, Warm Paper — Hell/Dunkel und L0–L3 fein einstellbar",
+      "b3": "Verbindungen ausgebaut: Vorschau-Dock, Mini-Graph im Kontext, Pfad-Hervorhebung, Kontextmenü am Knoten",
+      "b4": "Viele Bugfixes: Mail, Kalender, Aufgaben, Notizen, Graph-Throttling und stabilere Vorschau-Panels"
+    },
+    "v0916": {
+      "date": "Mai 2026",
+      "title": "Cloud-Sync",
+      "b1": "Optionales Profil-Sync über Supabase — Notizen, Verbindungen, Regeln, QuickSteps, Workflow",
+      "b2": "Auto-Sync im Hintergrund, Konflikt: Cloud oder lokal wählen",
+      "b3": "Keine Mail-Inhalte und keine OAuth-Tokens in der Cloud"
+    },
+    "v0915": {
+      "date": "Mai 2026",
+      "title": "KI-Meilenstein",
+      "b1": "KI-Verbindungen mit Gemini, OpenAI oder Ollama lokal — du bestätigst jede Verknüpfung",
+      "b2": "Insel-Scan, Embeddings, Qualitätsprüfung, heuristische Badges in Mail und „Alle Arbeit“",
+      "b3": "Snippet-Opt-in, Audit-Log und Domänen-Prompts in den Einstellungen"
+    },
+    "v0914": {
+      "date": "Mai 2026",
+      "title": "Verbindungen",
+      "b1": "Neues Modul mit interaktivem Graph über Mail, Notizen, Tasks, Termine und Kontakte",
+      "b2": "Palette, Gruppierung nach Insel/Konto/Art, Layout speichern, Dichte-Scan",
+      "b3": "Verknüpfungen aus dem Lesefenster und aus Notizen heraus"
+    }
+  },
   "highlights": {
     "eyebrow": "Neu ausprobieren",
-    "title": "Drei Features, die dein System verbinden",
-    "lead": "Vom Posteingang bis zum zweiten PC — ohne Tab-Chaos und ohne dass KI heimlich speichert.",
+    "title": "Vier Schwerpunkte der aktuellen Beta",
+    "lead": "Version 0.9.17 setzt auf ein edles Fluent-Design, reift Verbindungen weiter aus und baut auf KI sowie Cloud-Sync auf — ohne Tab-Chaos.",
+    "design": {
+      "title": "Fluent Design",
+      "desc": "Chronell fühlt sich an wie eine native Windows-11-Produktivitäts-App — ruhig, dunkel, mit subtiler Tiefe statt generischem Web-Look.",
+      "b1": "Mica-Shell, Acrylic-Popover und Smoke-Overlays für Modale",
+      "b2": "Einheitliche Module: Mail, Kalender, Aufgaben, Notizen, Verbindungen, Dashboard",
+      "b3": "Presets & eigene Oberflächenfarben — einmal einstellen, überall konsistent"
+    },
     "connections": {
       "title": "Verbindungen",
-      "desc": "Sieh dein Arbeitsnetz: Mails, Notizen, Termine, Aufgaben und Kontakte als Graph — nicht als verstreute Tabs.",
-      "b1": "Objekte per Drag & Drop verknüpfen, Inseln gruppieren, Layout speichern",
-      "b2": "Direkt aus Mail, Notizen oder „Alle Arbeit“ ins Modul springen",
-      "b3": "Dichte-Anzeige: wo noch Verbindungen fehlen"
+      "desc": "Dein Arbeitsnetz als Graph — mit Vorschau, Kontext und weniger Reibung beim Verknüpfen.",
+      "b1": "Vorschau-Dock und Mini-Graph direkt bei Mail, Terminen und Notizen",
+      "b2": "Pfad zwischen Objekten, Kontextmenü, Insel-Scan und Dichte-Anzeige",
+      "b3": "Drag & Drop, Gruppierung, gespeichertes Layout — spring von überall ins Modul"
     },
     "ai": {
       "title": "KI-Vorschläge",
@@ -190,9 +233,13 @@
     "eyebrow": "Für Deinen Workflow gebaut",
     "title": "Was Chronell liefert",
     "grid": {
+      "design": {
+        "title": "Fluent Design",
+        "desc": "Fluent-2-Tokens in der ganzen App: Mica, Shell-Bars, Acrylic-Overlays, Dashboard-Panels und wählbare Dark/Light-Presets."
+      },
       "connections": {
         "title": "Verbindungen",
-        "desc": "Interaktiver Graph aller Verknüpfungen — von Mail über Notiz bis Kontakt, mit Filter, Zoom und gespeichertem Layout."
+        "desc": "Interaktiver Graph mit Vorschau-Dock, Mini-Graph im Kontext, Pfad-Hervorhebung — von Mail über Notiz bis Kontakt."
       },
       "ai": {
         "title": "KI-Verbindungen",
@@ -262,6 +309,7 @@
     "placeholder": "Screenshot folgt",
     "triage": "Mail-Triage",
     "calendar": "Einheitlicher Kalender",
+    "design": "Fluent Design & Themes",
     "connections": "Verbindungen & Graph",
     "bookings": "Microsoft Bookings",
     "work": "Alle Arbeit",
@@ -297,12 +345,12 @@
     "imprint": "Impressum (Platzhalter)"
   },
   "whatsNew": {
-    "label": "Neu in der Beta",
-    "tagline": "Verbindungen · KI-Vorschläge · Cloud-Sync — dein Arbeitsprofil überall"
+    "label": "Version 0.9.17",
+    "tagline": "Fluent Design · Verbindungen ausgebaut · viele Bugfixes"
   },
   "cta": {
-    "title": "Bereit, Zusammenhänge zu sehen?",
-    "body": "Lade die aktuelle Beta für Windows 11 — Verbindungs-Graph, KI-Vorschläge und optional Cloud-Sync in wenigen Minuten. Updates ersetzen deine Version ohne Datenverlust.",
+    "title": "Bereit für das neue Chronell?",
+    "body": "Lade Version 0.9.17 für Windows 11 — Fluent-Look, Verbindungs-Graph, KI-Vorschläge und optional Cloud-Sync. Updates ersetzen deine Version ohne Datenverlust.",
     "button": "Jetzt herunterladen"
   }
 }

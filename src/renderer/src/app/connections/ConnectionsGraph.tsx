@@ -497,6 +497,10 @@ export function ConnectionsGraph({
 
   const didInitialFitRef = useRef(false)
   useEffect(() => {
+    if (compact) didInitialFitRef.current = false
+  }, [compact, nodes, edges, size.w, size.h])
+
+  useEffect(() => {
     if (!bounds) return
     if (!didInitialFitRef.current) {
       didInitialFitRef.current = true
@@ -576,7 +580,7 @@ export function ConnectionsGraph({
       ref={containerRef}
       className={cn(
         'relative min-h-0 overflow-hidden bg-background',
-        compact ? 'h-[200px] flex-none' : 'flex-1',
+        compact ? 'h-full min-h-0 flex-1' : 'flex-1',
         paletteDragOver && enablePaletteDrop && 'ring-2 ring-inset ring-primary/30'
       )}
       onContextMenu={!compact ? onMarqueeContextMenu : undefined}

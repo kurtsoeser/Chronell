@@ -37,7 +37,7 @@ export function useGraphViewport(
   const fitToBounds = useCallback(
     (bounds: GraphContentBounds): void => {
       if (viewSize.w < 1 || viewSize.h < 1) return
-      const pad = 56
+      const pad = viewSize.w < 400 || viewSize.h < 320 ? 28 : 56
       const cw = bounds.maxX - bounds.minX + pad * 2
       const ch = bounds.maxY - bounds.minY + pad * 2
       if (cw < 1 || ch < 1) return

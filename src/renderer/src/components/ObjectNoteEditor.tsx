@@ -9,7 +9,7 @@ import {
   type PointerEvent as ReactPointerEvent
 } from 'react'
 import { createPortal } from 'react-dom'
-import { ChevronDown, ChevronRight, GripHorizontal, Loader2, Save, StickyNote, X } from 'lucide-react'
+import { GripHorizontal, Loader2, Save, StickyNote, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import {
   IPC,
@@ -17,6 +17,7 @@ import {
   type UserNoteCalendarSource,
   type UserNotePeopleContactUpsertInput
 } from '@shared/types'
+import { PreviewFoldSection } from '@/components/PreviewFoldSection'
 import { cn } from '@/lib/utils'
 import { useUndoStore } from '@/stores/undo'
 import { MarkdownNoteEditorLazy } from './MarkdownNoteEditorLazy'
@@ -97,6 +98,8 @@ interface Props {
   sectionCollapsedDefault?: boolean
   layout?: MarkdownNoteEditorLayout
   className?: string
+  /** Horizontales Padding des Inhalts bei `variant="section"` (Standard: px-6). */
+  contentPaddingClass?: string
   /** Ausrichtung des Pop-ups relativ zum Button (nur `variant="button"`). */
   anchorAlign?: 'left' | 'right'
 }
@@ -211,6 +214,7 @@ export function ObjectNoteEditor({
   sectionCollapsedDefault = false,
   layout = 'live',
   className,
+  contentPaddingClass = 'px-6',
   anchorAlign = 'left'
 }: Props): JSX.Element {
   const { t, i18n } = useTranslation()
@@ -498,14 +502,18 @@ export function ObjectNoteEditor({
       className={cn(
         'rounded-lg border border-border bg-card shadow-lg',
         isPopupVariant && 'relative flex flex-col overflow-hidden',
-        variant === 'panel' || variant === 'section' ? 'shadow-none' : 'p-3',
+        variant === 'section'
+          ? 'rounded-none border-0 bg-transparent shadow-none'
+          : variant === 'panel'
+            ? 'shadow-none'
+            : 'p-3',
         className
       )}
     >
       {!hideSectionStickyTitle && variant !== 'panel' ? (
         <div
           className={cn(
-            'flex shrink-0 items-center justify-between gap-2 border-b border-border/60 px-3 py-2',
+            'flex shrink-0 items-center justify-between gap-2 border-b border-border/20 px-3 py-2',
             usePopupPortal && 'cursor-grab touch-none active:cursor-grabbing'
           )}
           onPointerDown={onHeaderPointerDown}
@@ -537,11 +545,7 @@ export function ObjectNoteEditor({
           isPopupVariant ? 'px-3 pb-3 pt-2' : ''
         )}
       >
-      {note?.id ? (
-        <NotesAttachmentsPanel noteId={note.id} className="mb-2 shrink-0" />
-      ) : !loading ? (
-        <p className="mb-2 shrink-0 text-[11px] text-muted-foreground">{t('notes.attachments.requiresSavedNote')}</p>
-      ) : null}
+      {note?.id ? <NotesAttachmentsPanel noteId={note.id} className="mb-2 shrink-0" /> : null}
       <div className="min-h-0 flex-1 overflow-hidden">
       <MarkdownNoteEditorLazy
         value={body}
@@ -601,23 +605,17 @@ export function ObjectNoteEditor({
   if (variant === 'section') {
     if (!sectionCollapsedDefault) return editor
     return (
-      <div className={cn('space-y-2', className)}>
-        <button
-          type="button"
-          onClick={(): void => setSectionExpanded((v) => !v)}
-          aria-expanded={sectionExpanded}
-          className="flex w-full items-center gap-2 rounded-md border border-border/60 bg-secondary/20 px-2.5 py-2 text-left text-[13px] font-medium text-foreground transition-colors hover:bg-secondary/40"
-        >
-          {sectionExpanded ? (
-            <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-          ) : (
-            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-          )}
-          <StickyNote className={cn('h-4 w-4 shrink-0', hasContent && 'fill-amber-300 text-amber-500')} aria-hidden />
-          <span className="min-w-0 flex-1">{t('notes.editor.title')}</span>
-        </button>
-        {sectionExpanded ? editor : null}
-      </div>
+      <PreviewFoldSection
+        icon={StickyNote}
+        title={t('notes.editor.title')}
+        expanded={sectionExpanded}
+        onToggle={(): void => setSectionExpanded((v) => !v)}
+        iconClassName={hasContent ? 'fill-amber-300 text-amber-500' : undefined}
+        className={cn('border-t-0', className)}
+        contentClassName="!px-0"
+      >
+        <div className={contentPaddingClass}>{editor}</div>
+      </PreviewFoldSection>
     )
   }
 

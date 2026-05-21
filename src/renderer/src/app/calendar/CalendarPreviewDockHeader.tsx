@@ -25,7 +25,7 @@ export function CalendarPreviewDockHeader({
   return (
     <div
       className={cn(
-        'calendar-shell-column-header flex shrink-0 flex-col justify-center border-b border-border px-2 py-1',
+        'calendar-shell-column-header flex shrink-0 flex-col justify-center border-b border-border/30 px-2 py-1',
         className
       )}
     >

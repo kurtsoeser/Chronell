@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import type { ChronellEntityRef } from '@shared/entity-ref'
 import { entityRefKey } from '@shared/entity-ref'
 import type { EntityGraphSnapshot } from '@shared/entity-links'
+import { entityContextSectionBgClass } from '@/lib/chronell-ui-classes'
 import { cn } from '@/lib/utils'
 import { ConnectionsGraph } from '@/app/connections/ConnectionsGraph'
 import {
@@ -12,9 +13,8 @@ import {
 } from '@/lib/entity-links-client'
 import { openConnectionsGraphForRef } from '@/lib/open-connections-graph'
 
-/** Hoehe der Graphen-Vorschau im aufgeklappten Kontext-Bereich (Mail, Kalender, Kontakte, …). */
-const MINI_GRAPH_HEIGHT_PX = 280
-const MINI_GRAPH_MIN_HEIGHT_PX = 240
+/** Mindesthoehe der Graphen-Vorschau im Kontext-Bereich (fuellt sonst den verfuegbaren Platz). */
+const MINI_GRAPH_MIN_HEIGHT_PX = 200
 
 export function EntityContextMiniGraph({
   anchor,
@@ -75,7 +75,7 @@ export function EntityContextMiniGraph({
           'flex items-center justify-center gap-2 text-xs text-muted-foreground',
           className
         )}
-        style={{ height: MINI_GRAPH_HEIGHT_PX }}
+        style={{ minHeight: MINI_GRAPH_MIN_HEIGHT_PX }}
       >
         <Loader2 className="h-3 w-3 animate-spin" />
         {t('common.loading')}
@@ -93,10 +93,15 @@ export function EntityContextMiniGraph({
 
   return (
     <div
-      className={cn('overflow-hidden rounded-md border border-border/60', className)}
-      style={{ height: MINI_GRAPH_HEIGHT_PX, minHeight: MINI_GRAPH_MIN_HEIGHT_PX }}
+      className={cn(
+        'flex min-h-[160px] flex-col overflow-hidden rounded-md',
+        entityContextSectionBgClass,
+        className
+      )}
+      style={{ minHeight: MINI_GRAPH_MIN_HEIGHT_PX }}
     >
       <ConnectionsGraph
+        className="h-full min-h-0 flex-1"
         nodes={snap.nodes}
         edges={snap.edges}
         allEdges={snap.edges}

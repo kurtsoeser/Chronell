@@ -1,8 +1,9 @@
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { SPLITTER_HIT_THICKNESS_PX } from '@/components/ResizableSplitter'
 import { cn } from '@/lib/utils'
 
-/** Vertikaler Splitter in `ResizableSplitter` ist `w-px` (1px). */
-export const CALENDAR_DOCK_SPLITTER_W = 1
+/** Layout-Breite des vertikalen Splitters neben der Dock-Spalte. */
+export const CALENDAR_DOCK_SPLITTER_W = SPLITTER_HIT_THICKNESS_PX
 
 export interface CalendarDockStripFrameProps {
   visible: boolean

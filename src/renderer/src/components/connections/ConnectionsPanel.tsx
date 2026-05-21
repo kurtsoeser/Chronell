@@ -29,6 +29,7 @@ import {
   isAiSnippetAskSkippedForSession,
   setAiSnippetAskSkippedForSession
 } from '@/lib/ai-snippet-session'
+import { entityContextDividerClass } from '@/lib/chronell-ui-classes'
 import { cn } from '@/lib/utils'
 import { entityRefKindIcon } from '@/lib/entity-ref-ui'
 import {
@@ -384,7 +385,7 @@ export function EntityContextRelations({
 
   return (
     <div className={cn('space-y-2 pb-3', contentPaddingClass)}>
-      <div className="flex flex-wrap gap-1 border-b border-border/60 pb-2">
+      <div className={cn('flex flex-wrap gap-1 border-b pb-2', entityContextDividerClass)}>
         {tabBtn('links', t('context.tabs.links'))}
         {tabBtn('suggestions', t('context.tabs.suggestions'), suggestions.length + chains.length)}
         {links.length > 0 && aiReady
@@ -490,29 +491,32 @@ export function EntityContextRelations({
                       key={`${entityRefKey(s.target)}:${s.reason}`}
                       className="flex w-full items-start gap-1 rounded-md px-1 py-1 hover:bg-secondary/50"
                     >
+                      <SIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                      <div className="min-w-0 flex-1 text-xs">
+                        <span className="block truncate font-medium">{s.title}</span>
+                        {s.reasonText ? (
+                          <span className="block truncate text-[9px] text-muted-foreground">
+                            {s.reasonText}
+                          </span>
+                        ) : null}
+                      </div>
+                      <span className="shrink-0 pt-0.5 text-[9px] text-muted-foreground">
+                        {isAi && s.providerConsensus
+                          ? `${t('connections.suggestions.consensus')} · `
+                          : ''}
+                        {isAi && s.confidence != null
+                          ? `${t(`connections.suggestions.reason.${s.reason}`)} · ${Math.round(s.confidence * 100)}%`
+                          : t(`connections.suggestions.reason.${s.reason}`)}
+                      </span>
                       <button
                         type="button"
                         disabled={busy}
+                        title={t('connections.suggestions.accept')}
                         onClick={(): void => void addLink(s.target, true)}
-                        className="flex min-w-0 flex-1 items-start gap-2 text-left text-xs"
+                        className="inline-flex shrink-0 items-center gap-0.5 rounded border border-border px-1.5 py-0.5 text-[9px] font-medium hover:bg-secondary disabled:opacity-50"
                       >
-                        <SIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate font-medium">{s.title}</span>
-                          {s.reasonText ? (
-                            <span className="block truncate text-[9px] text-muted-foreground">
-                              {s.reasonText}
-                            </span>
-                          ) : null}
-                        </span>
-                        <span className="shrink-0 text-[9px] text-muted-foreground">
-                          {isAi && s.providerConsensus
-                            ? `${t('connections.suggestions.consensus')} · `
-                            : ''}
-                          {isAi && s.confidence != null
-                            ? `${t(`connections.suggestions.reason.${s.reason}`)} · ${Math.round(s.confidence * 100)}%`
-                            : t(`connections.suggestions.reason.${s.reason}`)}
-                        </span>
+                        <Link2 className="h-3 w-3" />
+                        {t('connections.suggestions.accept')}
                       </button>
                       {isAi ? (
                         <button
@@ -520,7 +524,7 @@ export function EntityContextRelations({
                           disabled={busy}
                           title={t('connections.suggestions.dismiss')}
                           onClick={(): void => void dismissSuggestion(s.target)}
-                          className="shrink-0 rounded p-1 text-muted-foreground hover:bg-secondary"
+                          className="shrink-0 rounded p-1 text-muted-foreground hover:bg-secondary disabled:opacity-50"
                         >
                           <X className="h-3 w-3" />
                         </button>

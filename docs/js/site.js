@@ -106,11 +106,17 @@ function formatVersionLabel(manifest) {
 }
 
 function applyDownloadMeta(manifest, href) {
+  const useSameTab = !isAbsoluteUrl(href)
   document.querySelectorAll('[data-download]').forEach((el) => {
     el.setAttribute('href', href)
-    el.removeAttribute('download')
-    el.setAttribute('target', '_blank')
-    el.setAttribute('rel', 'noopener noreferrer')
+    if (useSameTab) {
+      el.removeAttribute('target')
+      el.removeAttribute('rel')
+    } else {
+      el.removeAttribute('download')
+      el.setAttribute('target', '_blank')
+      el.setAttribute('rel', 'noopener noreferrer')
+    }
   })
 
   const versionEl = document.querySelector('[data-download-version]')
@@ -146,53 +152,75 @@ async function releaseAssetExists(url) {
   }
 }
 
+function isGitHubReleaseUrl(url) {
+  return /github\.com\/[^/]+\/[^/]+\/releases\/download\//i.test(url)
+}
+
 function collectDownloadCandidates(manifest, versionsIndex) {
   const seen = new Set()
-  const list = []
+  const pages = []
+  const github = []
 
-  function add(url) {
+  function bucket(url) {
     if (!url || seen.has(url)) return
     seen.add(url)
-    list.push(url)
+    if (isAbsoluteUrl(url) && isGitHubReleaseUrl(url)) {
+      github.push(url)
+    } else {
+      pages.push(url)
+    }
   }
 
-  if (manifest?.downloadUrl) add(manifest.downloadUrl)
-  if (manifest?.stableUrl) add(manifest.stableUrl)
-  if (manifest?.versionedUrl) add(manifest.versionedUrl)
-  if (manifest?.version) add(versionedSetupPath(manifest.version))
-
-  if (versionsIndex?.downloadUrl) add(versionsIndex.downloadUrl)
-  if (versionsIndex?.latest) add(versionedSetupPath(versionsIndex.latest))
-  if (versionsIndex?.stableUrl) add(versionsIndex.stableUrl)
+  // GitHub Pages zuerst — oeffentlicher Direkt-Download ohne Login
+  if (manifest?.stableUrl) bucket(manifest.stableUrl)
+  if (manifest?.versionedUrl) bucket(manifest.versionedUrl)
+  if (manifest?.version) bucket(versionedSetupPath(manifest.version))
+  if (versionsIndex?.stableUrl) bucket(versionsIndex.stableUrl)
+  if (versionsIndex?.latest) bucket(versionedSetupPath(versionsIndex.latest))
 
   const entries = versionsIndex?.versions
   if (Array.isArray(entries)) {
     for (const entry of entries) {
       if (typeof entry === 'string') {
-        add(versionedSetupPath(entry))
+        bucket(versionedSetupPath(entry))
         continue
       }
-      if (entry?.downloadUrl) add(entry.downloadUrl)
-      if (entry?.setupUrl) add(entry.setupUrl)
-      if (entry?.version) add(versionedSetupPath(entry.version))
+      if (entry?.setupUrl) bucket(entry.setupUrl)
+      if (entry?.version) bucket(versionedSetupPath(entry.version))
     }
   }
 
-  add(STABLE_DOWNLOAD)
-  return list
+  bucket(STABLE_DOWNLOAD)
+
+  // Legacy: downloadUrl war oft GitHub Releases — nur als Fallback
+  if (manifest?.downloadUrl) bucket(manifest.downloadUrl)
+  if (manifest?.githubDownloadUrl) bucket(manifest.githubDownloadUrl)
+  if (versionsIndex?.downloadUrl) bucket(versionsIndex.downloadUrl)
+  if (versionsIndex?.githubDownloadUrl) bucket(versionsIndex.githubDownloadUrl)
+
+  if (Array.isArray(entries)) {
+    for (const entry of entries) {
+      if (entry && typeof entry === 'object' && entry.downloadUrl) bucket(entry.downloadUrl)
+    }
+  }
+
+  return [...pages, ...github]
 }
 
 async function resolveDownloadHref(manifest, versionsIndex) {
   const candidates = collectDownloadCandidates(manifest, versionsIndex)
   for (const url of candidates) {
-    if (isAbsoluteUrl(url)) {
-      return { href: url, manifest }
-    }
+    if (isAbsoluteUrl(url)) continue
     if (await releaseAssetExists(url)) {
       return { href: url, manifest }
     }
   }
-  return { href: candidates[0] || STABLE_DOWNLOAD, manifest }
+  for (const url of candidates) {
+    if (isAbsoluteUrl(url)) {
+      return { href: url, manifest }
+    }
+  }
+  return { href: STABLE_DOWNLOAD, manifest }
 }
 
 async function loadVersionsIndex() {

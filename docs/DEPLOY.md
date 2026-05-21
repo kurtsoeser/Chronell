@@ -19,11 +19,13 @@ Die Marketing-Website liegt in diesem Ordner (`docs/`) als statische HTML-Seite.
 
 ## Download (CTA)
 
-Alle Download-Buttons verweisen auf die **stabile URL**:
+Alle Download-Buttons verweisen auf die **stabile GitHub-Pages-URL** (öffentlich, ohne Anmeldung):
 
-`release/latest/Chronell-setup.exe`
+`https://kurtsoeser.github.io/Chronell/release/latest/Chronell-setup.exe`
 
-Die angezeigte Versionsnummer kommt aus `release/latest.json`.
+(relativ: `release/latest/Chronell-setup.exe`)
+
+Die angezeigte Versionsnummer kommt aus `release/latest.json`. GitHub Releases (`githubDownloadUrl`) ist nur Zusatz-Spiegel, nicht der primäre Link.
 
 ### Installer veröffentlichen
 
@@ -43,10 +45,29 @@ Ohne interaktive Veröffentlichungsabfrage: `CHRONELL_NO_PUBLISH_PROMPT=1` oder 
 
 Details: [`docs/release/README.md`](release/README.md)
 
-**Hinweis:** Installer sind oft >100 MB. GitHub erlaubt maximal **100 MB pro Datei** im Repository. Bei größeren Builds:
+**Hinweis:** GitHub erlaubt maximal **100 MB pro Datei** im Repository (Git Push **und** GitHub Pages). Liegt der Installer darüber, schlägt `git push` mit `GH001` fehl.
 
-- [Git LFS](https://git-lfs.github.com/) für `docs/release/**/*.exe`, oder
-- [GitHub Releases](https://docs.github.com/en/repositories/releasing-projects-on-github) und in `latest.json` die Asset-URL eintragen
+**Zuerst (empfohlen):** Installer verkleinern — `electron-builder.yml` nutzt `compression: maximum`, entfernt ungenutzte Electron-Locales und packt weniger Branding mit. Neu bauen:
+
+```powershell
+npm run build:win
+npm run publish:docs-release
+```
+
+Ziel: Setup **unter ~98 MB**. Das Skript warnt sonst beim Veröffentlichen.
+
+**Falls der Push schon mit großen EXEs fehlgeschlagen ist:**
+
+```powershell
+git rm --cached docs/release/**/*.exe
+# Neu bauen (schlanker Installer), dann:
+npm run publish:docs-release
+git add docs/release .gitattributes
+git commit -m "Installer unter 100 MB"
+git push
+```
+
+**Fallback:** [Git LFS](https://git-lfs.github.com/) — `.\scripts\setup-git-lfs.ps1` (Pages-Download kann dann unzuverlässig sein; Homepage nutzt dann eher GitHub Releases).
 
 ## Branding aktualisieren
 

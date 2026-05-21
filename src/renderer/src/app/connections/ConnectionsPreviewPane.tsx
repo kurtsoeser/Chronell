@@ -1,10 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import {
-  AppWindow,
-  ArrowRightToLine,
-  PanelRightClose,
-  PictureInPicture2
-} from 'lucide-react'
+import { AppWindow, ExternalLink, PanelRightClose } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { EntityGraphNode } from '@shared/entity-links'
 import { CalendarFloatingPanel } from '@/app/calendar/CalendarFloatingPanel'
@@ -13,7 +8,7 @@ import {
   CONNECTIONS_FLOAT_PREVIEW_SIZE_KEY,
   CONNECTIONS_PREVIEW_CONTEXT_HEIGHT_DEFAULT,
   CONNECTIONS_PREVIEW_CONTEXT_HEIGHT_KEY,
-  CONNECTIONS_PREVIEW_CONTEXT_HEIGHT_MAX,
+  connectionsPreviewContextHeightMax,
   CONNECTIONS_PREVIEW_CONTEXT_HEIGHT_MIN,
   type ConnectionsPreviewPlacement,
   persistConnectionsPreviewPlacement
@@ -50,7 +45,8 @@ function ConnectionsPreviewChrome({
   onUndock: () => void
   onClose: () => void
   onOpenInModule: () => void
-  onMailPopout: (opts?: { osWindow?: boolean }) => void
+  /** Optional: Shift+Klick auf „Schwebend“ öffnet die Mail in einem eigenen Fenster. */
+  onMailPopout?: (opts?: { osWindow?: boolean }) => void
 }): JSX.Element {
   const { t } = useTranslation()
   const accounts = useAccountsStore((s) => s.accounts)
@@ -85,56 +81,65 @@ function ConnectionsPreviewChrome({
     if (node.ref.kind === 'calendar_event') return previewNoteTarget
     return null
   }, [node.ref, node.title, selectedMessage, previewNoteTarget, t])
+  const contextHeightMax = connectionsPreviewContextHeightMax()
   const [contextHeight, setContextHeight] = useResizableHeight({
     storageKey: CONNECTIONS_PREVIEW_CONTEXT_HEIGHT_KEY,
     defaultHeight: CONNECTIONS_PREVIEW_CONTEXT_HEIGHT_DEFAULT,
     minHeight: CONNECTIONS_PREVIEW_CONTEXT_HEIGHT_MIN,
-    maxHeight: CONNECTIONS_PREVIEW_CONTEXT_HEIGHT_MAX
+    maxHeight: contextHeightMax
   })
+
+  const isFloating = placement === 'float'
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
-      <div className="shrink-0 border-b border-border px-2 py-2">
+      <div className="shrink-0 border-b border-border/30 px-2 py-2">
         <div className={moduleColumnHeaderDockBarRowClass}>
-          <span
-            className={cn(
-              moduleColumnHeaderUppercaseLabelClass,
-              'min-w-0 shrink-0 text-left'
-            )}
-          >
-            {t('connections.preview.title')}
-          </span>
+          {!isFloating ? (
+            <span
+              className={cn(
+                moduleColumnHeaderUppercaseLabelClass,
+                'min-w-0 shrink-0 text-left'
+              )}
+            >
+              {t('connections.preview.title')}
+            </span>
+          ) : (
+            <span className="min-w-0 flex-1" aria-hidden />
+          )}
           <div className="flex shrink-0 items-center gap-0.5">
-            {isMailLike ? (
+            {!isFloating ? (
               <ModuleColumnHeaderIconButton
-                title={t('mail.readingPane.previewPopOutTitle')}
+                title={
+                  isMailLike && onMailPopout
+                    ? t('connections.preview.floatTitleMailShift')
+                    : t('connections.preview.floatTitle')
+                }
                 onClick={(e): void => {
-                  onMailPopout({ osWindow: e.shiftKey })
+                  if (e.shiftKey && isMailLike && onMailPopout) {
+                    onMailPopout({ osWindow: true })
+                    return
+                  }
+                  onUndock()
                 }}
-              >
-                <PictureInPicture2 className={moduleColumnHeaderIconGlyphClass} />
-              </ModuleColumnHeaderIconButton>
-            ) : null}
-            {placement === 'dock' ? (
-              <ModuleColumnHeaderIconButton
-                title={t('connections.preview.undockTitle')}
-                onClick={onUndock}
               >
                 <AppWindow className={moduleColumnHeaderIconGlyphClass} />
               </ModuleColumnHeaderIconButton>
             ) : null}
             <ModuleColumnHeaderIconButton
-              title={t('connections.shell.openObject')}
+              title={t('connections.preview.openInModuleTitle')}
               onClick={onOpenInModule}
             >
-              <ArrowRightToLine className={moduleColumnHeaderIconGlyphClass} />
+              <ExternalLink className={moduleColumnHeaderIconGlyphClass} />
             </ModuleColumnHeaderIconButton>
-            <ModuleColumnHeaderIconButton
-              title={t('connections.preview.hideTitle')}
-              onClick={onClose}
-            >
-              <PanelRightClose className={moduleColumnHeaderIconGlyphClass} />
-            </ModuleColumnHeaderIconButton>
+            {!isFloating ? (
+              <ModuleColumnHeaderIconButton
+                title={t('connections.preview.hideTitle')}
+                onClick={onClose}
+              >
+                <PanelRightClose className={moduleColumnHeaderIconGlyphClass} />
+              </ModuleColumnHeaderIconButton>
+            ) : null}
           </div>
         </div>
         <div className="mt-1.5 flex min-w-0 items-start gap-1.5 px-0.5">
@@ -157,14 +162,15 @@ function ConnectionsPreviewChrome({
           />
         </div>
         <HorizontalSplitter
+          variant="subtle"
           ariaLabel={t('connections.preview.contextSplitterAria')}
           onDrag={(deltaY): void => {
             setContextHeight((h) => h - deltaY)
           }}
         />
         <div
-          className="flex min-h-0 shrink-0 flex-col overflow-hidden bg-secondary/5"
-          style={{ height: contextHeight }}
+          className="flex min-h-0 shrink-0 flex-col overflow-hidden bg-secondary/[0.02]"
+          style={{ height: Math.min(contextHeight, contextHeightMax) }}
         >
           <div className="min-h-0 flex-1 overflow-y-auto">
             <EntityContextBlock
@@ -237,6 +243,8 @@ export function ConnectionsPreviewPane({
     persistConnectionsPreviewPlacement('dock')
   }
 
+  const isMailLike = node.ref.kind === 'mail' || node.ref.kind === 'mail_todo'
+
   const chrome = (
     <ConnectionsPreviewChrome
       node={node}
@@ -244,7 +252,7 @@ export function ConnectionsPreviewPane({
       onUndock={handleUndock}
       onClose={onClose}
       onOpenInModule={onOpenInModule}
-      onMailPopout={handleMailPopout}
+      onMailPopout={isMailLike ? handleMailPopout : undefined}
     />
   )
 

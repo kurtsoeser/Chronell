@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { addDays, format, parseISO } from 'date-fns'
 import { de as deFns, enUS as enUSFns } from 'date-fns/locale'
 import {
@@ -178,6 +178,7 @@ export function BookingsShell(): JSX.Element {
   }, [selectedAccount])
 
   const [appointmentDays, setAppointmentDays] = useState(() => readBookingsAppointmentDays())
+  const detailLoadGenerationRef = useRef(0)
 
   useEffect(() => {
     const sync = (): void => setAppointmentDays(readBookingsAppointmentDays())
@@ -192,8 +193,12 @@ export function BookingsShell(): JSX.Element {
       setAppointments([])
       setBusinessDetail(null)
       setDetailWarning(null)
+      setLoadingDetail(false)
       return
     }
+    const generation = ++detailLoadGenerationRef.current
+    const isStale = (): boolean => generation !== detailLoadGenerationRef.current
+
     setLoadingDetail(true)
     setDetailWarning(null)
     setBusinessDetail(null)
@@ -207,6 +212,8 @@ export function BookingsShell(): JSX.Element {
       window.mailClient.bookings.listStaffMembers(input),
       window.mailClient.bookings.listAppointments({ ...input, ...range })
     ])
+    if (isStale()) return
+
     if (detailResult.status === 'fulfilled') {
       setBusinessDetail(detailResult.value)
     }

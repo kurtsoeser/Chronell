@@ -267,6 +267,28 @@ export function taskListGroupCollapseKey(arrange: TaskListArrangeBy, group: Task
   return `${arrange}:${group.key}`
 }
 
+/** „Erledigt“-Gruppen in der Aufgabenliste standardmäßig eingeklappt. */
+export function isTaskListGroupCollapsedByDefault(
+  arrange: TaskListArrangeBy,
+  group: Pick<TaskListGroup, 'key' | 'todoKind'>
+): boolean {
+  if (arrange === 'none') return false
+  return group.key === 'done' || group.todoKind === 'done'
+}
+
+export function defaultCollapsedTaskListGroupKeys(
+  arrange: TaskListArrangeBy,
+  groups: TaskListGroup[]
+): Set<string> {
+  const keys = new Set<string>()
+  for (const group of groups) {
+    if (isTaskListGroupCollapsedByDefault(arrange, group)) {
+      keys.add(taskListGroupCollapseKey(arrange, group))
+    }
+  }
+  return keys
+}
+
 /** Visible tasks in list order (respects filter, arrange, and sort). */
 export function flattenVisibleTaskItems(
   items: TaskItemWithContext[],

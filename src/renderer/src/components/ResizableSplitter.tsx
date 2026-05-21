@@ -3,6 +3,9 @@ import { cn } from '@/lib/utils'
 
 const PERSIST_DEBOUNCE_MS = 200
 
+/** Layout-Breite/Hoehe des Splitters (Trefferzone); sichtbare Linie bleibt 1px in der Mitte. */
+export const SPLITTER_HIT_THICKNESS_PX = 10
+
 interface UseResizableWidthOptions {
   storageKey: string
   defaultWidth: number
@@ -286,16 +289,22 @@ export function VerticalSplitter({ onDrag, ariaLabel, variant = 'default' }: Spl
       onLostPointerCapture={(e): void => {
         finishDrag(e)
       }}
+      style={{ width: SPLITTER_HIT_THICKNESS_PX }}
       className={cn(
-        'group relative flex w-px shrink-0 cursor-col-resize justify-center transition-colors',
-        variant === 'moduleNav'
-          ? 'bg-transparent hover:bg-primary/35'
-          : 'bg-border hover:bg-primary/50',
-        dragging && (variant === 'moduleNav' ? 'bg-primary/45 touch-none' : 'bg-primary/70 touch-none')
+        'group relative z-10 flex shrink-0 cursor-col-resize items-center justify-center',
+        dragging && 'touch-none'
       )}
     >
-      {/* breitere Hit-Area fuer angenehmes Dragging */}
-      <div className="absolute inset-y-0 -left-1 -right-1" />
+      <div
+        aria-hidden
+        className={cn(
+          'pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 transition-colors',
+          variant === 'moduleNav'
+            ? 'bg-transparent group-hover:bg-primary/35'
+            : 'bg-border group-hover:bg-primary/50',
+          dragging && (variant === 'moduleNav' ? 'bg-primary/45' : 'bg-primary/70')
+        )}
+      />
     </div>
   )
 }
@@ -303,9 +312,15 @@ export function VerticalSplitter({ onDrag, ariaLabel, variant = 'default' }: Spl
 interface HorizontalSplitterProps {
   onDrag: (deltaY: number) => void
   ariaLabel?: string
+  /** Dezente Linie (Notiz/Kontext-Vorschau) statt voller `border`-Farbe. */
+  variant?: 'default' | 'subtle'
 }
 
-export function HorizontalSplitter({ onDrag, ariaLabel }: HorizontalSplitterProps): JSX.Element {
+export function HorizontalSplitter({
+  onDrag,
+  ariaLabel,
+  variant = 'default'
+}: HorizontalSplitterProps): JSX.Element {
   const [dragging, setDragging] = useState(false)
   const lastYRef = useRef<number | null>(null)
   const captureTargetRef = useRef<HTMLElement | null>(null)
@@ -416,12 +431,22 @@ export function HorizontalSplitter({ onDrag, ariaLabel }: HorizontalSplitterProp
       onLostPointerCapture={(e): void => {
         finishDrag(e)
       }}
-      className={
-        'group relative flex h-px shrink-0 cursor-row-resize items-center bg-border transition-colors hover:bg-primary/50 ' +
-        (dragging ? 'bg-primary/70 touch-none' : '')
-      }
+      style={{ height: SPLITTER_HIT_THICKNESS_PX }}
+      className={cn(
+        'group relative z-10 flex shrink-0 cursor-row-resize items-center justify-center',
+        dragging && 'touch-none'
+      )}
     >
-      <div className="absolute inset-x-0 -top-1 -bottom-1" />
+      <div
+        aria-hidden
+        className={cn(
+          'pointer-events-none absolute left-0 right-0 top-1/2 h-px -translate-y-1/2 transition-colors',
+          variant === 'subtle'
+            ? 'bg-white/[0.04] group-hover:bg-primary/20 dark:bg-white/[0.04] dark:group-hover:bg-primary/25'
+            : 'bg-border group-hover:bg-primary/50',
+          dragging && (variant === 'subtle' ? 'bg-primary/35' : 'bg-primary/70')
+        )}
+      />
     </div>
   )
 }

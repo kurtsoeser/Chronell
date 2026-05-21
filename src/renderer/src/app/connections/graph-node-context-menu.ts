@@ -1,6 +1,7 @@
 import { de, enUS } from 'date-fns/locale'
 import type { TFunction } from 'i18next'
-import { ExternalLink, ListTodo, Sparkles } from 'lucide-react'
+import { ExternalLink, Link2, ListTodo, Sparkles } from 'lucide-react'
+import type { EntityLinkedItem } from '@shared/entity-links'
 import type { ChronellEntityRef } from '@shared/entity-ref'
 import type { EntityGraphNode } from '@shared/entity-links'
 import type {
@@ -66,6 +67,7 @@ export interface GraphNodeContextHandlers {
   onMoveNote: (note: UserNoteListItem, sectionId: number | null) => void | Promise<void>
   onCopyNote: (note: UserNoteListItem) => void | Promise<void>
   onOpenNoteLinks: (note: UserNoteListItem) => void
+  onRemoveEntityLink: (linkId: number, anchor: ChronellEntityRef) => void | Promise<void>
   canCreateCloudTask: (accountId: string) => boolean
 }
 
@@ -94,6 +96,47 @@ function aiSuggestLinksItem(h: GraphNodeContextHandlers, node: EntityGraphNode):
 /** Mail-Kontextmenü enthält einen ähnlichen Eintrag – im Graph nur einmal anzeigen. */
 function stripDuplicateAiMenuItems(items: ContextMenuItem[]): ContextMenuItem[] {
   return items.filter((item) => item.id !== 'ai-connections')
+}
+
+function linkRemoveMenuLabel(item: EntityLinkedItem, h: GraphNodeContextHandlers): string {
+  const title = item.title?.trim()
+  if (title) {
+    return h.t('connections.graph.context.removeConnectionTo', { title })
+  }
+  return h.t('connections.graph.context.removeConnectionKind', {
+    kind: h.t(`connections.kind.${item.peer.kind}`)
+  })
+}
+
+async function buildConnectionRemoveMenuItems(
+  anchor: ChronellEntityRef,
+  h: GraphNodeContextHandlers
+): Promise<ContextMenuItem[]> {
+  try {
+    const { links } = await window.mailClient.entityLinks.list(anchor)
+    if (links.length === 0) return []
+
+    const submenu: ContextMenuItem[] = links.map((item) => ({
+      id: `graph-remove-link-${item.linkId}`,
+      label: linkRemoveMenuLabel(item, h),
+      destructive: true,
+      onSelect: (): void => {
+        void h.onRemoveEntityLink(item.linkId, anchor)
+      }
+    }))
+
+    return [
+      { id: 'graph-sep-connections', label: '', separator: true },
+      {
+        id: 'graph-connections-remove',
+        label: h.t('connections.graph.context.removeConnections'),
+        icon: Link2,
+        submenu
+      }
+    ]
+  } catch {
+    return []
+  }
 }
 
 async function loadCalendarEvent(ref: Extract<ChronellEntityRef, { kind: 'calendar_event' }>): Promise<CalendarEventView | null> {
@@ -331,7 +374,8 @@ export async function buildGraphNodeContextMenuItems(
   h: GraphNodeContextHandlers
 ): Promise<ContextMenuItem[]> {
   const ref = node.ref
-  const head = [openModuleItem(h, ref), aiSuggestLinksItem(h, node)]
+  const connectionItems = await buildConnectionRemoveMenuItems(ref, h)
+  const head = [openModuleItem(h, ref), aiSuggestLinksItem(h, node), ...connectionItems]
 
   try {
     switch (ref.kind) {

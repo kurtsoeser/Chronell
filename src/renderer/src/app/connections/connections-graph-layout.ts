@@ -806,8 +806,14 @@ export function applyNodePositions(
         y: Math.max(n.h / 2 + 8, Math.min(height - n.h / 2 - 8, p.y))
       }
     }
-    const angle = (i / Math.max(1, measured.length)) * Math.PI * 2
-    const r = 24 + (i % 5) * 8
+    const count = measured.length
+    const angle = (i / Math.max(1, count)) * Math.PI * 2 - Math.PI / 2
+    const r =
+      count <= 1
+        ? 0
+        : count <= 8
+          ? Math.min(width, height) * 0.34 + (count > 4 ? i * 14 : 0)
+          : 24 + (i % 5) * 8
     return { ...n, x: cx + Math.cos(angle) * r, y: cy + Math.sin(angle) * r }
   })
 }

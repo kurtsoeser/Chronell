@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type MouseEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 
 import { CheckCircle2, ChevronDown, ChevronRight, Circle } from 'lucide-react'
 
@@ -25,6 +25,10 @@ import { TodoDueBucketBadge } from '@/components/TodoDueBucketBadge'
 import {
 
   computeTaskListLayout,
+
+  defaultCollapsedTaskListGroupKeys,
+
+  isTaskListGroupCollapsedByDefault,
 
   taskListGroupCollapseKey,
 
@@ -188,31 +192,34 @@ export function TasksGroupedList({
 
 
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set())
-
-
+  const userToggledCollapseRef = useRef<Set<string>>(new Set())
 
   useEffect(() => {
-
-    setCollapsed(new Set())
-
+    userToggledCollapseRef.current = new Set()
+    setCollapsed(defaultCollapsedTaskListGroupKeys(arrange, groups))
   }, [arrange])
 
-
+  useEffect(() => {
+    setCollapsed((prev) => {
+      const next = new Set(prev)
+      for (const group of groups) {
+        if (!isTaskListGroupCollapsedByDefault(arrange, group)) continue
+        const key = taskListGroupCollapseKey(arrange, group)
+        if (userToggledCollapseRef.current.has(key)) continue
+        next.add(key)
+      }
+      return next
+    })
+  }, [groups, arrange])
 
   function toggleGroup(collapseKey: string): void {
-
+    userToggledCollapseRef.current.add(collapseKey)
     setCollapsed((prev) => {
-
       const next = new Set(prev)
-
       if (next.has(collapseKey)) next.delete(collapseKey)
-
       else next.add(collapseKey)
-
       return next
-
     })
-
   }
 
 

@@ -30,15 +30,54 @@ type EntityLinksEventsApi = {
   onEntityLinkAiScanProgress?: (handler: (status: EntityLinkAiScanStatus) => void) => () => void
 }
 
+const entityLinksChangedSubscribers = new Set<() => void>()
+let entityLinksChangedIpcUnsub: (() => void) | null = null
+
+function notifyEntityLinksChangedSubscribers(): void {
+  for (const fn of entityLinksChangedSubscribers) {
+    fn()
+  }
+}
+
+function ensureEntityLinksChangedIpc(): void {
+  if (entityLinksChangedIpcUnsub != null) return
+  const register = (window.mailClient?.events as EntityLinksEventsApi | undefined)
+    ?.onEntityLinksChanged
+  if (typeof register !== 'function') return
+  entityLinksChangedIpcUnsub = register(notifyEntityLinksChangedSubscribers)
+}
+
+const entityLinkAiScanProgressSubscribers = new Set<(status: EntityLinkAiScanStatus) => void>()
+let entityLinkAiScanProgressIpcUnsub: (() => void) | null = null
+
+function notifyEntityLinkAiScanProgressSubscribers(status: EntityLinkAiScanStatus): void {
+  for (const fn of entityLinkAiScanProgressSubscribers) {
+    fn(status)
+  }
+}
+
+function ensureEntityLinkAiScanProgressIpc(): void {
+  if (entityLinkAiScanProgressIpcUnsub != null) return
+  const register = (window.mailClient?.events as EntityLinksEventsApi | undefined)
+    ?.onEntityLinkAiScanProgress
+  if (typeof register !== 'function') return
+  entityLinkAiScanProgressIpcUnsub = register(notifyEntityLinkAiScanProgressSubscribers)
+}
+
 /**
- * Abo auf entity-links:changed. Nach Preload-Änderungen ist ein Electron-Neustart nötig;
- * bis dahin kein Absturz (no-op).
+ * Abo auf entity-links:changed. Ein IPC-Listener im Preload, viele Renderer-Subscriber
+ * (vermeidet MaxListenersExceededWarning auf ipcRenderer).
  */
 export function subscribeEntityLinksChanged(onChange: () => void): () => void {
-  const fn = (window.mailClient?.events as EntityLinksEventsApi | undefined)
-    ?.onEntityLinksChanged
-  if (typeof fn === 'function') return fn(onChange)
-  return () => {}
+  entityLinksChangedSubscribers.add(onChange)
+  ensureEntityLinksChangedIpc()
+  return (): void => {
+    entityLinksChangedSubscribers.delete(onChange)
+    if (entityLinksChangedSubscribers.size === 0) {
+      entityLinksChangedIpcUnsub?.()
+      entityLinksChangedIpcUnsub = null
+    }
+  }
 }
 
 /** Graph-Snapshot; nutzt invoke-Fallback wenn das Preload noch keine listGraph-Methode hat. */
@@ -189,10 +228,15 @@ export async function dismissEntityLinkAiSuggestion(
 export function subscribeEntityLinkAiScanProgress(
   onProgress: (status: EntityLinkAiScanStatus) => void
 ): () => void {
-  const fn = (window.mailClient?.events as EntityLinksEventsApi | undefined)
-    ?.onEntityLinkAiScanProgress
-  if (typeof fn === 'function') return fn(onProgress)
-  return () => {}
+  entityLinkAiScanProgressSubscribers.add(onProgress)
+  ensureEntityLinkAiScanProgressIpc()
+  return (): void => {
+    entityLinkAiScanProgressSubscribers.delete(onProgress)
+    if (entityLinkAiScanProgressSubscribers.size === 0) {
+      entityLinkAiScanProgressIpcUnsub?.()
+      entityLinkAiScanProgressIpcUnsub = null
+    }
+  }
 }
 
 export async function fetchEntityPaletteList(

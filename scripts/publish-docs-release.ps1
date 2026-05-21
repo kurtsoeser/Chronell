@@ -19,6 +19,13 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+try {
+  [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+  $OutputEncoding = [System.Text.Encoding]::UTF8
+} catch {
+  # ignore on hosts without console
+}
+
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 Set-Location -LiteralPath $repoRoot
 
@@ -72,33 +79,45 @@ function Publish-GitHubReleaseAsset {
   $ghDownloadUrl = "https://github.com/kurtsoeser/Chronell/releases/download/$ghTag/$VersionedAssetName"
 
   if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
-    Write-Host '  gh CLI nicht gefunden — GitHub Release übersprungen.' -ForegroundColor Yellow
+    Write-Host '  gh CLI nicht gefunden - GitHub Release uebersprungen.' -ForegroundColor Yellow
     Write-Host '  Installation: https://cli.github.com/' -ForegroundColor DarkGray
     return
   }
 
   Write-Host ''
-  Write-Host 'GitHub Release:' -ForegroundColor Cyan
+  Write-Host 'GitHub Release (optional, zusaetzlich zu GitHub Pages):' -ForegroundColor Cyan
+
   $releaseTitle = "Chronell $Version"
   $releaseNotes = "Windows-11-Beta-Installer fuer Chronell $Version."
-  $createExit = Invoke-GhCli -GhArgs @(
-    'release', 'create', $ghTag,
-    '--title', $releaseTitle,
-    '--notes', $releaseNotes,
-    '--repo', 'kurtsoeser/Chronell'
-  )
-  if ($createExit -ne 0) {
-    Write-Host '  gh release create übersprungen (Tag existiert evtl. schon).' -ForegroundColor DarkYellow
+
+  $viewExit = Invoke-GhCli -GhArgs @('release', 'view', $ghTag, '--repo', 'kurtsoeser/Chronell')
+  if ($viewExit -ne 0) {
+    Write-Host "  Erstelle Release $ghTag ..." -ForegroundColor DarkGray
+    $createExit = Invoke-GhCli -GhArgs @(
+      'release', 'create', $ghTag,
+      '--title', $releaseTitle,
+      '--notes', $releaseNotes,
+      '--repo', 'kurtsoeser/Chronell'
+    )
+    if ($createExit -ne 0) {
+      Write-Host '  gh release create fehlgeschlagen - pruefe gh auth und Tag.' -ForegroundColor Yellow
+      return
+    }
+    Write-Host '  Release angelegt.' -ForegroundColor Green
+  } else {
+    Write-Host "  Release $ghTag existiert bereits - lade Installer hoch ..." -ForegroundColor DarkGray
   }
+
   $uploadExit = Invoke-GhCli -GhArgs @(
     'release', 'upload', $ghTag, $SetupPath,
     '--clobber',
     '--repo', 'kurtsoeser/Chronell'
   )
   if ($uploadExit -eq 0) {
-    Write-Host "  GitHub: $ghDownloadUrl" -ForegroundColor Green
+    Write-Host "  GitHub Releases: $ghDownloadUrl" -ForegroundColor Green
+    Write-Host '  Hinweis: Homepage-Download nutzt GitHub Pages (oeffentlich), nicht diese URL.' -ForegroundColor DarkGray
   } else {
-    Write-Host '  gh release upload fehlgeschlagen — nur GitHub Pages nutzen.' -ForegroundColor Yellow
+    Write-Host '  gh release upload fehlgeschlagen - Homepage nutzt docs/release nach git push.' -ForegroundColor Yellow
   }
 }
 
@@ -124,6 +143,13 @@ if (-not $IndexOnly) {
 
   Copy-Item -LiteralPath $setupExe -Destination (Join-Path $versionDir $versionedName) -Force
   Copy-Item -LiteralPath $setupExe -Destination (Join-Path $latestDir $stableName) -Force
+
+  $setupMb = [math]::Round((Get-Item -LiteralPath $setupExe).Length / 1MB, 2)
+  if ($setupMb -gt 98) {
+    Write-Host ''
+    Write-Host "  WARNUNG: Installer ist ${setupMb} MB - GitHub erlaubt max. 100 MB pro Datei im Repo." -ForegroundColor Yellow
+    Write-Host '  Neu bauen mit aktuellem electron-builder.yml (compression + Locale-Trim), oder Git LFS: scripts/setup-git-lfs.ps1' -ForegroundColor Yellow
+  }
 } elseif (-not (Test-Path -LiteralPath (Join-Path $latestDir $stableName))) {
   $versionedName = "Chronell-$Version-setup.exe"
   $fromVersioned = Join-Path $docsRelease "$Version\$versionedName"
@@ -137,7 +163,7 @@ $appVersionTs = Join-Path $repoRoot 'src\shared\app-version.ts'
 $releasedAt = (Get-Date -Format 'yyyy-MM-dd')
 if (Test-Path -LiteralPath $appVersionTs) {
   $raw = Get-Content -LiteralPath $appVersionTs -Raw -Encoding UTF8
-  if ($raw -match "APP_RELEASE_DATE_ISO = '([^']+)'") {
+  if ($raw -match 'APP_RELEASE_DATE_ISO = ''(.+)''') {
     $releasedAt = $Matches[1]
   }
 }
@@ -146,14 +172,18 @@ $versionedName = "Chronell-$Version-setup.exe"
 $ghTag = "v$Version"
 $ghDownloadUrl = "https://github.com/kurtsoeser/Chronell/releases/download/$ghTag/$versionedName"
 
+$pagesStableUrl = 'release/latest/Chronell-setup.exe'
+$pagesVersionedUrl = "release/$Version/$versionedName"
+
 $manifest = [ordered]@{
-  version      = $Version
-  releasedAt   = $releasedAt
-  beta         = $true
-  filename     = $stableName
-  downloadUrl  = $ghDownloadUrl
-  stableUrl    = 'release/latest/Chronell-setup.exe'
-  versionedUrl = "release/$Version/$versionedName"
+  version           = $Version
+  releasedAt        = $releasedAt
+  beta              = $true
+  filename          = $stableName
+  downloadUrl       = $pagesStableUrl
+  stableUrl         = $pagesStableUrl
+  versionedUrl      = $pagesVersionedUrl
+  githubDownloadUrl = $ghDownloadUrl
 }
 $manifestPath = Join-Path $docsRelease 'latest.json'
 $manifest | ConvertTo-Json | Set-Content -LiteralPath $manifestPath -Encoding UTF8
@@ -165,31 +195,34 @@ foreach ($dir in Get-DocsReleaseVersions) {
   $exePath = Join-Path $dir.FullName $exeName
   if (-not (Test-Path -LiteralPath $exePath)) { continue }
   $versionRows += [ordered]@{
-    version     = $ver
-    setupUrl    = "release/$ver/$exeName"
-    downloadUrl = "https://github.com/kurtsoeser/Chronell/releases/download/v$ver/$exeName"
+    version           = $ver
+    setupUrl          = "release/$ver/$exeName"
+    downloadUrl       = "release/$ver/$exeName"
+    githubDownloadUrl = "https://github.com/kurtsoeser/Chronell/releases/download/v$ver/$exeName"
   }
 }
 
 $versionsManifest = [ordered]@{
-  latest      = $Version
-  beta        = $true
-  downloadUrl = $ghDownloadUrl
-  stableUrl   = 'release/latest/Chronell-setup.exe'
-  versions    = @($versionRows)
+  latest            = $Version
+  beta              = $true
+  downloadUrl       = $pagesStableUrl
+  stableUrl         = $pagesStableUrl
+  githubDownloadUrl = $ghDownloadUrl
+  versions          = @($versionRows)
 }
 $versionsPath = Join-Path $docsRelease 'versions.json'
 $versionsManifest | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $versionsPath -Encoding UTF8
 
 Write-Host ''
-Write-Host 'Installer für Homepage bereit:' -ForegroundColor Green
+Write-Host 'Installer fuer Homepage bereit:' -ForegroundColor Green
 Write-Host "  Version:  $Version"
 Write-Host "  Stabil:   docs/release/latest/$stableName"
 Write-Host "  Archiv:   docs/release/$Version/$versionedName"
 Write-Host "  Manifest: docs/release/latest.json"
 Write-Host "  Index:    docs/release/versions.json"
 Write-Host ''
-Write-Host 'Als Nächstes: docs/release committen und pushen (GitHub Pages).' -ForegroundColor DarkGray
+Write-Host 'Als Naechstes: docs/release committen und pushen (GitHub Pages).' -ForegroundColor DarkGray
+Write-Host '  Oeffentlicher Download: https://kurtsoeser.github.io/Chronell/release/latest/Chronell-setup.exe' -ForegroundColor DarkGray
 
 if (-not $IndexOnly -and -not $SkipGitHubRelease) {
   $setupForRelease = Join-Path $versionDir $versionedName

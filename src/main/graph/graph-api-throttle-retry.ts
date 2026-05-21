@@ -22,12 +22,29 @@ function headerValue(
   return Array.isArray(raw) ? String(raw[0]) : String(raw)
 }
 
-/** True bei Graph-Drosselung (429), die mit Warten sinnvoll wiederholt werden kann. */
+function throttleMessage(err: unknown): string {
+  if (!err || typeof err !== 'object') return ''
+  const e = err as GraphErrLike
+  if (typeof e.message === 'string' && e.message.trim()) return e.message
+  const body = (e as { body?: string }).body
+  if (typeof body === 'string') {
+    try {
+      const parsed = JSON.parse(body) as { message?: string; error?: { message?: string } }
+      return (parsed.message ?? parsed.error?.message ?? '').trim()
+    } catch {
+      return body.trim()
+    }
+  }
+  return ''
+}
+
+/** True bei Graph-Drosselung, die mit Warten sinnvoll wiederholt werden kann (429 oder 5xx mit Rate-Limit-Hinweis). */
 export function isGraphThrottleError(err: unknown): boolean {
   if (!err || typeof err !== 'object') return false
   const e = err as GraphErrLike
-  if (e.statusCode !== 429) return false
+  const status = e.statusCode
   const code = typeof e.code === 'string' ? e.code : ''
+  const msg = throttleMessage(err)
   if (
     code === 'ApplicationThrottled' ||
     code === 'TooManyRequests' ||
@@ -35,8 +52,11 @@ export function isGraphThrottleError(err: unknown): boolean {
   ) {
     return true
   }
-  const msg = typeof e.message === 'string' ? e.message : ''
-  return /throttl|concurrency|too many requests/i.test(msg)
+  if (/throttl|concurrency|too many requests/i.test(msg)) {
+    return status === 429 || status === 500 || status === 503 || status === 502
+  }
+  if (status === 429) return true
+  return false
 }
 
 function retryAfterMsFromError(err: unknown): number | null {

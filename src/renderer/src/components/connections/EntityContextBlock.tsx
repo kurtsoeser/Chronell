@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ChevronDown, ChevronRight, Layers, Loader2, Plus } from 'lucide-react'
+import { Layers, Loader2, Plus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { ChronellEntityRef } from '@shared/entity-ref'
 import { entityRefKey } from '@shared/entity-ref'
 import { ObjectNoteEditor, type ObjectNoteTarget } from '@/components/ObjectNoteEditor'
+import { PreviewFoldSection } from '@/components/PreviewFoldSection'
 import { EntityContextRelations } from '@/components/connections/ConnectionsPanel'
 import type {
   EntityContextRelationsStats,
@@ -110,82 +111,81 @@ export function EntityContextBlock({
 
   const showNote = showObjectNote && noteTarget != null
 
+  const summaryNode = (
+    <>
+      {summaryParts.length > 0 ? summaryParts.join(' · ') : null}
+      {summaryLoading && !expanded ? (
+        <Loader2 className="ml-1 inline h-3 w-3 animate-spin text-muted-foreground" />
+      ) : null}
+    </>
+  )
+
+  const kontextTrailing = (
+    <>
+      <button
+        type="button"
+        className="shrink-0 text-[10px] font-medium text-primary hover:underline"
+        onClick={(): void => openConnectionsGraphForRef(anchor)}
+      >
+        {t('context.openGraph')}
+      </button>
+      <button
+        type="button"
+        title={t('connections.add')}
+        className="inline-flex shrink-0 items-center gap-0.5 rounded-md bg-secondary/15 px-1.5 py-0.5 text-[10px] font-medium text-foreground hover:bg-secondary/30"
+        onClick={(): void => {
+          persistEntityContextExpanded(anchorKey, true)
+          setExpanded(true)
+          handleTabChange('links')
+          setPickerOpen(true)
+        }}
+      >
+        <Plus className="h-3 w-3" />
+      </button>
+    </>
+  )
+
   return (
-    <div className={cn('shrink-0', className)}>
+    <div className={cn('flex min-h-0 flex-col', className)}>
       {showNote ? (
         <ObjectNoteEditor
           target={noteTarget}
           variant="section"
           sectionCollapsedDefault
           layout="toggle"
-          className={cn('border-t border-border bg-secondary/5 py-2', contentPaddingClass)}
+          contentPaddingClass={contentPaddingClass}
         />
       ) : null}
 
-      <section className={cn('border-t border-border', showNote ? '' : '')}>
-        <div className={cn('flex w-full items-center gap-2 py-2', contentPaddingClass)}>
-          <button
-            type="button"
-            onClick={toggleExpanded}
-            className="flex min-w-0 flex-1 items-center gap-2 text-left hover:bg-secondary/30"
-            aria-expanded={expanded}
-          >
-            {expanded ? (
-              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-            ) : (
-              <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-            )}
-            <Layers className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-            <span className="flex-1 text-xs font-medium text-foreground">{t('context.title')}</span>
-            {!expanded && summaryParts.length > 0 ? (
-              <span className="truncate text-[10px] text-muted-foreground">{summaryParts.join(' · ')}</span>
-            ) : null}
-            {summaryLoading && !expanded ? (
-              <Loader2 className="h-3 w-3 shrink-0 animate-spin text-muted-foreground" />
-            ) : null}
-          </button>
-          <button
-            type="button"
-            className="shrink-0 text-[10px] font-medium text-primary hover:underline"
-            onClick={(): void => openConnectionsGraphForRef(anchor)}
-          >
-            {t('context.openGraph')}
-          </button>
-          <button
-            type="button"
-            title={t('connections.add')}
-            className="inline-flex shrink-0 items-center gap-0.5 rounded-md border border-border px-1.5 py-0.5 text-[10px] font-medium hover:bg-secondary"
-            onClick={(): void => {
-              persistEntityContextExpanded(anchorKey, true)
-              setExpanded(true)
-              handleTabChange('links')
-              setPickerOpen(true)
-            }}
-          >
-            <Plus className="h-3 w-3" />
-          </button>
+      <PreviewFoldSection
+        icon={Layers}
+        title={t('context.title')}
+        expanded={expanded}
+        onToggle={toggleExpanded}
+        summary={summaryNode}
+        trailing={kontextTrailing}
+        className={showNote ? undefined : 'border-t-0'}
+        contentClassName="min-h-0 space-y-3 !px-0"
+      >
+        <div className={contentPaddingClass}>
+          <EntityContextMiniGraph
+            anchor={anchor}
+            active={expanded}
+            className="h-44 max-h-44 shrink-0"
+            onNeighborCountChange={setNeighborCount}
+          />
         </div>
-
-        {expanded ? (
-          <div className={cn('space-y-3', contentPaddingClass)}>
-            <EntityContextMiniGraph
-              anchor={anchor}
-              active={expanded}
-              onNeighborCountChange={setNeighborCount}
-            />
-            <EntityContextRelations
-              anchor={anchor}
-              expanded={expanded}
-              activeTab={activeTab}
-              onActiveTabChange={handleTabChange}
-              pickerOpen={pickerOpen}
-              onPickerOpenChange={setPickerOpen}
-              contentPaddingClass="px-0"
-              onStatsChange={setStats}
-            />
-          </div>
-        ) : null}
-      </section>
+        <EntityContextRelations
+          anchor={anchor}
+          expanded={expanded}
+          activeTab={activeTab}
+          onActiveTabChange={handleTabChange}
+          pickerOpen={pickerOpen}
+          onPickerOpenChange={setPickerOpen}
+          contentPaddingClass={contentPaddingClass}
+          onStatsChange={setStats}
+        />
+      </PreviewFoldSection>
     </div>
   )
 }

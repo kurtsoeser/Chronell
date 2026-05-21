@@ -69,6 +69,17 @@ import { profilePhotoSrcForEmail } from '@/lib/contact-avatar'
 import { ReadingPaneCompose } from '@/components/ReadingPaneCompose'
 import { MailCategoriesPopover } from '@/components/MailCategoriesPopover'
 import { EntityContextBlock } from '@/components/connections/EntityContextBlock'
+import {
+  HorizontalSplitter,
+  useResizableHeight
+} from '@/components/ResizableSplitter'
+import {
+  MAIL_READING_CONTEXT_HEIGHT_DEFAULT,
+  MAIL_READING_CONTEXT_HEIGHT_MIN,
+  mailReadingContextHeightMax,
+  MAIL_READING_CONTEXT_HEIGHT_KEY
+} from '@/app/layout/mail-reading-context-storage'
+import { listSubtleBorderClass, mailPreviewContextPanelClass } from '@/lib/chronell-ui-classes'
 import { useCreateCloudTaskUiStore } from '@/stores/create-cloud-task-ui'
 import { accountSupportsCloudTasks } from '@/lib/cloud-task-accounts'
 import type { AttachmentMeta, MailFull, ConnectedAccount, MailQuickStep } from '@shared/types'
@@ -856,6 +867,24 @@ function MailReader({
   useMailPreviewZoom(shadowHostRef, { attachKey: message.id })
   const [categoryOpen, setCategoryOpen] = useState(false)
   const [categoryAnchor, setCategoryAnchor] = useState({ x: 0, y: 0 })
+  const contextPanelMax = mailReadingContextHeightMax()
+  const [contextPanelHeight, setContextPanelHeight] = useResizableHeight({
+    storageKey: MAIL_READING_CONTEXT_HEIGHT_KEY,
+    defaultHeight: MAIL_READING_CONTEXT_HEIGHT_DEFAULT,
+    minHeight: MAIL_READING_CONTEXT_HEIGHT_MIN,
+    maxHeight: contextPanelMax
+  })
+
+  useEffect(() => {
+    const clamp = (): void => {
+      const max = mailReadingContextHeightMax()
+      setContextPanelHeight((h) =>
+        Math.min(max, Math.max(MAIL_READING_CONTEXT_HEIGHT_MIN, h))
+      )
+    }
+    window.addEventListener('resize', clamp)
+    return (): void => window.removeEventListener('resize', clamp)
+  }, [setContextPanelHeight])
 
   useEffect(() => {
     setCategoryOpen(false)
@@ -1164,21 +1193,41 @@ function MailReader({
       />
 
       {!hideEntityConnections ? (
-        <EntityContextBlock
-          anchor={
-            message.openTodoId != null
-              ? { kind: 'mail_todo', todoId: message.openTodoId }
-              : { kind: 'mail', messageId: message.id }
-          }
-          noteTarget={{
-            kind: 'mail',
-            messageId: message.id,
-            title: message.subject || t('common.noSubject')
-          }}
-          sectionCollapsedDefault
-          className="shrink-0 bg-secondary/5"
-          contentPaddingClass="px-6"
-        />
+        <>
+          <HorizontalSplitter
+            variant="subtle"
+            ariaLabel={t('mail.readingPane.contextSplitterAria')}
+            onDrag={(deltaY): void => {
+              setContextPanelHeight((h) => {
+                const max = mailReadingContextHeightMax()
+                return Math.min(
+                  max,
+                  Math.max(MAIL_READING_CONTEXT_HEIGHT_MIN, h - deltaY)
+                )
+              })
+            }}
+          />
+          <div
+            className={cn(mailPreviewContextPanelClass, listSubtleBorderClass)}
+            style={{ height: contextPanelHeight }}
+          >
+            <EntityContextBlock
+              anchor={
+                message.openTodoId != null
+                  ? { kind: 'mail_todo', todoId: message.openTodoId }
+                  : { kind: 'mail', messageId: message.id }
+              }
+              noteTarget={{
+                kind: 'mail',
+                messageId: message.id,
+                title: message.subject || t('common.noSubject')
+              }}
+              sectionCollapsedDefault
+              className="min-h-0 flex-1 overflow-y-auto"
+              contentPaddingClass="px-6"
+            />
+          </div>
+        </>
       ) : null}
 
     </div>

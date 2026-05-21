@@ -4,6 +4,9 @@ productName: Chronell
 executableName: Chronell
 copyright: Copyright (c) 2026 Kurt Soeser
 
+# Kleinere NSIS-Installer (<100 MB fuer GitHub Pages): LZMA-max + weniger Ballast im Paket
+compression: maximum
+
 # Im gepackten app.asar sonst weiterhin name: mailclient → Windows/Electron zeigt „MailClient“
 extraMetadata:
   name: chronell
@@ -26,9 +29,15 @@ files:
   - '!npm-install.log'
   - '!**/*.pptx'
   - '!**/~$*'
+  # Nur Ausschlüsse (kein positives Pattern!) — sonst packt electron-builder nicht out/** (siehe GH #1741)
+  - '!resources/branding/*.svg'
+  - '!resources/branding/chronell-logo.png'
 
 asarUnpack:
-  - resources/**
+  - '**/*.node'
+  - resources/icon.ico
+  - resources/icon.png
+  - resources/branding/chronell-icon.png
 
 # Icons neben der EXE (für setIcon in Popouts / Laufzeit-Fallback)
 extraResources:

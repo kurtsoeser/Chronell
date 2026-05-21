@@ -1,18 +1,18 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { ChronellEntityRef } from '@shared/entity-ref'
 import type { CalendarEventView, ConnectedAccount, PeopleContactView, UserNote } from '@shared/types'
+import type { WorkItemPlannedSchedule } from '@shared/work-item'
+import { cloudTaskStableKey } from '@shared/work-item-keys'
 import { CalendarEventPreview } from '@/app/calendar/CalendarEventPreview'
 import { CloudTaskItemPreview } from '@/app/calendar/CloudTaskItemPreview'
 import type { TaskItemWithContext } from '@/app/tasks/tasks-types'
+import { ConnectionsNotePreview } from '@/app/connections/ConnectionsNotePreview'
 import { ReadingPane } from '@/app/layout/ReadingPane'
-import { formatNoteDate, noteTitle } from '@/app/notes/notes-display-helpers'
-import { NoteDisplayIcon } from '@/components/NoteDisplayIcon'
-import { RichTextNotesPreview } from '@/components/RichTextNotesPreview'
+import type { CloudTaskDisplayPatch, CloudTaskSaveDraft } from '@/app/work/CloudTaskWorkItemDetail'
 import type { ObjectNoteTarget } from '@/components/ObjectNoteEditor'
 import { openMailReadingPopout } from '@/lib/open-mail-reading-popout'
-import { useThemeStore } from '@/stores/theme'
 import { useMailStore } from '@/stores/mail'
 
 export function ConnectionsObjectPreview({
@@ -26,8 +26,7 @@ export function ConnectionsObjectPreview({
   onRequestMailPopout?: (opts?: { osWindow?: boolean }) => void
   onContextNoteTarget?: (target: ObjectNoteTarget | null) => void
 }): JSX.Element {
-  const { t, i18n } = useTranslation()
-  const viewerTheme = useThemeStore((s) => s.effective)
+  const { t } = useTranslation()
   const selectMessageWithThreadPreview = useMailStore((s) => s.selectMessageWithThreadPreview)
   const clearSelectedMessage = useMailStore((s) => s.clearSelectedMessage)
 
@@ -36,6 +35,8 @@ export function ConnectionsObjectPreview({
   const [linkedNote, setLinkedNote] = useState<UserNote | null>(null)
   const [calendarEvent, setCalendarEvent] = useState<CalendarEventView | null>(null)
   const [cloudTask, setCloudTask] = useState<TaskItemWithContext | null>(null)
+  const [cloudTaskPlanned, setCloudTaskPlanned] = useState<WorkItemPlannedSchedule | null>(null)
+  const [taskSaving, setTaskSaving] = useState(false)
   const [linkedContact, setLinkedContact] = useState<PeopleContactView | null>(null)
   const [mailMessageId, setMailMessageId] = useState<number | null>(null)
 
@@ -83,6 +84,7 @@ export function ConnectionsObjectPreview({
     setLinkedNote(null)
     setCalendarEvent(null)
     setCloudTask(null)
+    setCloudTaskPlanned(null)
     setLinkedContact(null)
 
     void (async (): Promise<void> => {
@@ -134,12 +136,30 @@ export function ConnectionsObjectPreview({
             accountId: entityRef.accountId
           })
           const listName = lists.find((l) => l.id === entityRef.listId)?.name ?? ''
+          const ctx: TaskItemWithContext = {
+            ...row,
+            accountId: entityRef.accountId,
+            listName
+          }
+          const taskKey = cloudTaskStableKey(
+            entityRef.accountId,
+            entityRef.listId,
+            entityRef.taskId
+          )
+          const plannedRows = await window.mailClient.tasks.listPlannedSchedules({
+            taskKeys: [taskKey]
+          })
+          const plannedRow = plannedRows.find((p) => p.taskKey === taskKey)
           if (!cancelled) {
-            setCloudTask({
-              ...row,
-              accountId: entityRef.accountId,
-              listName
-            })
+            setCloudTask(ctx)
+            setCloudTaskPlanned(
+              plannedRow
+                ? {
+                    plannedStartIso: plannedRow.plannedStartIso,
+                    plannedEndIso: plannedRow.plannedEndIso
+                  }
+                : null
+            )
           }
         }
       } catch (e) {
@@ -182,6 +202,69 @@ export function ConnectionsObjectPreview({
   const requestPopout = onRequestMailPopout ?? ((): void => {
     if (mailTargetId != null) openMailReadingPopout(mailTargetId)
   })
+
+  const saveCloudTask = useCallback(
+    async (draft: CloudTaskSaveDraft): Promise<void> => {
+      if (entityRef.kind !== 'cloud_task' || !cloudTask) return
+      setTaskSaving(true)
+      try {
+        const taskKey = cloudTaskStableKey(
+          cloudTask.accountId,
+          cloudTask.listId,
+          cloudTask.id
+        )
+        const next = await window.mailClient.tasks.updateTask({
+          accountId: cloudTask.accountId,
+          listId: cloudTask.listId,
+          taskId: cloudTask.id,
+          title: draft.title,
+          notes: draft.notes || null,
+          dueIso: draft.dueIso,
+          completed: cloudTask.completed
+        })
+        if (draft.plannedStartIso && draft.plannedEndIso) {
+          await window.mailClient.tasks.setPlannedSchedule({
+            taskKey,
+            plannedStartIso: draft.plannedStartIso,
+            plannedEndIso: draft.plannedEndIso
+          })
+          setCloudTaskPlanned({
+            plannedStartIso: draft.plannedStartIso,
+            plannedEndIso: draft.plannedEndIso
+          })
+        } else {
+          await window.mailClient.tasks.clearPlannedSchedule({ taskKey })
+          setCloudTaskPlanned(null)
+        }
+        setCloudTask({
+          ...next,
+          accountId: cloudTask.accountId,
+          listName: cloudTask.listName
+        })
+      } finally {
+        setTaskSaving(false)
+      }
+    },
+    [cloudTask, entityRef.kind]
+  )
+
+  const patchCloudTaskDisplay = useCallback(
+    async (patch: CloudTaskDisplayPatch): Promise<void> => {
+      if (entityRef.kind !== 'cloud_task' || !cloudTask) return
+      const next = await window.mailClient.tasks.patchTaskDisplay({
+        accountId: cloudTask.accountId,
+        listId: cloudTask.listId,
+        taskId: cloudTask.id,
+        ...patch
+      })
+      setCloudTask({
+        ...next,
+        accountId: cloudTask.accountId,
+        listName: cloudTask.listName
+      })
+    },
+    [cloudTask, entityRef.kind]
+  )
 
   if (entityRef.kind === 'mail' || entityRef.kind === 'mail_todo') {
     if (entityRef.kind === 'mail_todo' && mailMessageId == null && !loading) {
@@ -226,26 +309,8 @@ export function ConnectionsObjectPreview({
         </div>
       )
     }
-    const title = noteTitle(linkedNote, t('notes.shell.untitled'))
     return (
-      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
-        <div className="flex items-start gap-2">
-          <NoteDisplayIcon note={linkedNote} className="mt-0.5 h-4 w-4 shrink-0" />
-          <div className="min-w-0 flex-1">
-            <div className="text-sm font-semibold text-foreground">{title}</div>
-            <div className="mt-0.5 text-[11px] text-muted-foreground">
-              {t(`notes.kind.${linkedNote.kind}`)}
-              {' · '}
-              {formatNoteDate(linkedNote.updatedAt, i18n.language)}
-            </div>
-          </div>
-        </div>
-        {linkedNote.body.trim() ? (
-          <RichTextNotesPreview notes={linkedNote.body} viewerTheme={viewerTheme} />
-        ) : (
-          <p className="text-xs text-muted-foreground">{t('notes.shell.emptyBody')}</p>
-        )}
-      </div>
+      <ConnectionsNotePreview note={linkedNote} onNoteChange={setLinkedNote} />
     )
   }
 
@@ -263,7 +328,9 @@ export function ConnectionsObjectPreview({
           event={calendarEvent}
           calendarName={accountLabel}
           hideEntityContext
+          inlineEditActivateOn="doubleClick"
           onEdit={(): void => undefined}
+          onEventChange={setCalendarEvent}
         />
       </div>
     )
@@ -279,7 +346,15 @@ export function ConnectionsObjectPreview({
     }
     return (
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <CloudTaskItemPreview task={cloudTask} accountDisplayName={accountLabel ?? undefined} />
+        <CloudTaskItemPreview
+          task={cloudTask}
+          planned={cloudTaskPlanned}
+          accountDisplayName={accountLabel ?? undefined}
+          editable
+          saving={taskSaving}
+          onSave={saveCloudTask}
+          onDisplayChange={patchCloudTaskDisplay}
+        />
       </div>
     )
   }

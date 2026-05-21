@@ -1,8 +1,8 @@
-import { app, BrowserWindow, session, type WebContents } from 'electron'
+import { app, BrowserWindow, dialog, session, type WebContents } from 'electron'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { registerIpcHandlers } from './ipc'
-import { getDb, closeDb } from './db'
+import { getDb, getDbPath, closeDb } from './db'
 import { listAccounts } from './accounts'
 import { runInitialSync } from './sync-runner'
 import { startCalendarSync, stopCalendarSync } from './calendar-sync-runner'
@@ -154,7 +154,22 @@ app.whenReady().then(async () => {
   await applyPendingChromiumCachePurgeOnStartup().catch((e) =>
     console.warn('[startup] chromium-cache purge:', e)
   )
-  getDb()
+  try {
+    getDb()
+  } catch (e) {
+    const detail = e instanceof Error ? e.message : String(e)
+    const dbPath = getDbPath()
+    console.error('[db] Start fehlgeschlagen:', detail, dbPath)
+    await dialog.showMessageBox({
+      type: 'error',
+      title: `${APP_PRODUCT_NAME} — Datenbank`,
+      message: 'Die lokale Datenbank konnte nicht geöffnet werden.',
+      detail: `${detail}\n\nSpeicherort:\n${dbPath}\n\nHinweise:\n• Alle Chronell-/Electron-Fenster schließen und erneut starten\n• Prüfen, ob ein Virenscanner den Ordner blockiert\n• Bei anhaltendem Fehler: App beenden, Dateien mail.db-wal und mail.db-shm im data-Ordner löschen (falls vorhanden) und neu starten`,
+      buttons: ['Beenden']
+    })
+    app.quit()
+    return
+  }
   void pruneStaleAttachmentCache().catch((e) =>
     console.warn('[startup] attachment-cache prune:', e)
   )

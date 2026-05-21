@@ -1,11 +1,12 @@
 {
   "meta": {
     "title": "Chronell — Manage your time, not your inbox",
-    "description": "Chronell connects mail, tasks, and notes — with a connection graph, AI suggestions, and optional cloud sync. Desktop workspace for Windows 11 with Microsoft 365 and Google."
+    "description": "Chronell 0.9.17: Fluent design refresh, expanded Connections, AI suggestions, and cloud sync — desktop workspace for Windows 11 with Microsoft 365 and Google."
   },
   "nav": {
     "method": "The Method",
     "compare": "vs Outlook",
+    "updates": "Updates",
     "highlights": "What's new",
     "features": "Features",
     "modules": "Modules",
@@ -25,7 +26,7 @@
     "taglineLine2Accent": "inbox",
     "taglineLine2Suffix": ".",
     "positioning": "Chronell is not an email client. It's a system to manage your time.",
-    "subline": "Microsoft 365 and Google in one desktop workspace — mail triage, connection graph with AI, cloud sync for notes & rules, Bookings. Built for Windows 11.",
+    "subline": "Microsoft 365 and Google in one desktop workspace — now in a Fluent 2 look, with connection graph, AI suggestions, cloud sync, and Bookings. Built for Windows 11.",
     "ctaDownload": "Download for Windows",
     "ctaMethod": "Discover the method",
     "mockup": {
@@ -125,7 +126,7 @@
       "cloudSyncC": "Optional: notes, connections, rules — mail stays with M365/Google",
       "cloudSyncT": "Often all-or-nothing; rarely profile-only"
     },
-    "disclaimer": "Chronell is not a replacement for every enterprise Outlook or Exchange admin scenario. Strengths: workflow, local data, AI connections, multi-provider, modern UI for power users.",
+    "disclaimer": "Chronell is not a replacement for every enterprise Outlook or Exchange admin scenario. Strengths: workflow, local data, AI connections, multi-provider, Fluent UI for power users.",
     "detailed": {
       "feature": "Feature",
       "typicalHeader": "Outlook / typical",
@@ -141,7 +142,7 @@
       "r3chronell": "SQLite + FTS5, offline, in milliseconds",
       "r4label": "Modern UI",
       "r4typical": "Classic, Ribbon",
-      "r4chronell": "Windows-11-native, dark, modern",
+      "r4chronell": "Fluent 2 / Windows 11: Mica, acrylic, design presets (Midnight, Nord, …)",
       "r5label": "Apple Mail / iCloud",
       "r5typical": "Apple ecosystem apps",
       "r5chronell": "Intentionally not — focus on M365 and Google",
@@ -153,16 +154,58 @@
       "r7chronell": "Cloud sync for profile (rules, notes, connections) — mail separate"
     }
   },
+  "updates": {
+    "eyebrow": "Release overview",
+    "title": "What shipped in recent updates",
+    "lead": "From the new Fluent look to the connection graph and profile sync — Chronell moves fast without putting your mail in the cloud.",
+    "v0917": {
+      "badge": "Current",
+      "date": "May 2026",
+      "title": "Major design refresh",
+      "b1": "Full Fluent 2 redesign: Mica background, acrylic menus and popovers, clear layers in every module",
+      "b2": "Surface colors & presets: Fluent, Midnight, Nord, Warm Paper — light/dark and L0–L3 tuning",
+      "b3": "Connections expanded: preview dock, context mini-graph, path highlight, node context menu",
+      "b4": "Many bug fixes: mail, calendar, tasks, notes, graph throttling, stabler preview panels"
+    },
+    "v0916": {
+      "date": "May 2026",
+      "title": "Cloud sync",
+      "b1": "Optional profile sync via Supabase — notes, connections, rules, quick steps, workflow",
+      "b2": "Background auto-sync; on conflict choose cloud or local",
+      "b3": "No mail content and no OAuth tokens in the cloud"
+    },
+    "v0915": {
+      "date": "May 2026",
+      "title": "AI milestone",
+      "b1": "AI connections with Gemini, OpenAI, or local Ollama — you confirm every link",
+      "b2": "Island scan, embeddings, quality review, heuristic badges in mail and All Work",
+      "b3": "Snippet opt-in, audit log, and domain prompts in settings"
+    },
+    "v0914": {
+      "date": "May 2026",
+      "title": "Connections",
+      "b1": "New module with interactive graph across mail, notes, tasks, events, and contacts",
+      "b2": "Palette, grouping by island/account/type, save layout, density scan",
+      "b3": "Link from the reading pane and from notes"
+    }
+  },
   "highlights": {
     "eyebrow": "Try it now",
-    "title": "Three features that connect your system",
-    "lead": "From inbox to second PC — no tab chaos, and AI never saves links without you.",
+    "title": "Four focus areas in the current beta",
+    "lead": "Version 0.9.17 leads with Fluent design, matures Connections further, and builds on AI and cloud sync — without tab chaos.",
+    "design": {
+      "title": "Fluent design",
+      "desc": "Chronell feels like a native Windows 11 productivity app — calm, dark, with subtle depth instead of a generic web look.",
+      "b1": "Mica shell, acrylic popovers, and smoke overlays for modals",
+      "b2": "Unified modules: mail, calendar, tasks, notes, connections, dashboard",
+      "b3": "Presets and custom surface colors — set once, consistent everywhere"
+    },
     "connections": {
       "title": "Connections",
-      "desc": "See your work network: mail, notes, events, tasks, and contacts as a graph — not scattered tabs.",
-      "b1": "Link objects with drag & drop, group islands, save layout",
-      "b2": "Jump from mail, notes, or All Work straight into the module",
-      "b3": "Density view: where links are still missing"
+      "desc": "Your work network as a graph — with preview, context, and less friction when linking.",
+      "b1": "Preview dock and mini-graph right from mail, events, and notes",
+      "b2": "Paths between objects, context menu, island scan, and density view",
+      "b3": "Drag & drop, grouping, saved layout — jump into the module from anywhere"
     },
     "ai": {
       "title": "AI suggestions",
@@ -190,9 +233,13 @@
     "eyebrow": "Built for your workflow",
     "title": "What Chronell delivers",
     "grid": {
+      "design": {
+        "title": "Fluent design",
+        "desc": "Fluent 2 tokens app-wide: Mica, shell bars, acrylic overlays, dashboard panels, and selectable dark/light presets."
+      },
       "connections": {
         "title": "Connections",
-        "desc": "Interactive graph of all links — from mail to notes to contacts, with filters, zoom, and saved layout."
+        "desc": "Interactive graph with preview dock, context mini-graph, path highlight — from mail to notes to contacts."
       },
       "ai": {
         "title": "AI connections",
@@ -262,6 +309,7 @@
     "placeholder": "Screenshot coming soon",
     "triage": "Mail triage",
     "calendar": "Unified calendar",
+    "design": "Fluent design & themes",
     "connections": "Connections & graph",
     "bookings": "Microsoft Bookings",
     "work": "All Work",
@@ -297,12 +345,12 @@
     "imprint": "Legal notice (placeholder)"
   },
   "whatsNew": {
-    "label": "New in beta",
-    "tagline": "Connections · AI suggestions · Cloud sync — your work profile everywhere"
+    "label": "Version 0.9.17",
+    "tagline": "Fluent design · Connections expanded · many bug fixes"
   },
   "cta": {
-    "title": "Ready to see how it connects?",
-    "body": "Download the current beta for Windows 11 — connection graph, AI suggestions, and optional cloud sync in minutes. Updates replace your version without losing data.",
+    "title": "Ready for the new Chronell?",
+    "body": "Download version 0.9.17 for Windows 11 — Fluent look, connection graph, AI suggestions, and optional cloud sync. Updates replace your version without losing data.",
     "button": "Download now"
   }
 }

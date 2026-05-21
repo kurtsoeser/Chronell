@@ -9,8 +9,17 @@ export const CONNECTIONS_PREVIEW_CONTEXT_HEIGHT_KEY =
 
 /** Standardhoehe des Kontext-Blocks unter der Objekt-Vorschau (px). */
 export const CONNECTIONS_PREVIEW_CONTEXT_HEIGHT_DEFAULT = 480
-export const CONNECTIONS_PREVIEW_CONTEXT_HEIGHT_MIN = 240
-export const CONNECTIONS_PREVIEW_CONTEXT_HEIGHT_MAX = 640
+export const CONNECTIONS_PREVIEW_CONTEXT_HEIGHT_MIN = 200
+/** Obere Grenze; effektives Maximum skaliert mit Fensterhöhe (siehe `connectionsPreviewContextHeightMax`). */
+export const CONNECTIONS_PREVIEW_CONTEXT_HEIGHT_MAX = 960
+
+export function connectionsPreviewContextHeightMax(): number {
+  if (typeof window === 'undefined') return 720
+  return Math.max(
+    CONNECTIONS_PREVIEW_CONTEXT_HEIGHT_MIN + 80,
+    Math.min(CONNECTIONS_PREVIEW_CONTEXT_HEIGHT_MAX, Math.round(window.innerHeight * 0.78))
+  )
+}
 
 export function readConnectionsPreviewPlacement(): ConnectionsPreviewPlacement {
   try {

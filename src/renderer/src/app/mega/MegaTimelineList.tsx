@@ -5,6 +5,7 @@ import type { ConnectedAccount } from '@shared/types'
 import type { WorkItem } from '@shared/work-item'
 import { MIME_THREAD_IDS } from '@/lib/workflow-dnd'
 import { setCloudTaskDragData } from '@/app/tasks/tasks-cloud-task-dnd'
+import { listDivideClass, listSubtleBorderClass } from '@/lib/chronell-ui-classes'
 import { cn } from '@/lib/utils'
 import { resolvedAccountColorCss } from '@/lib/avatar-color'
 import { AccountColorStripe } from '@/components/AccountColorStripe'
@@ -86,7 +87,7 @@ export function MegaTimelineList({
   }
 
   return (
-    <ul className="divide-y divide-border">
+    <ul className={listDivideClass}>
       {groups.map((group) => {
         const isCollapsed = !flat && collapsed.has(group.groupCollapseKey)
         const showHeader = !flat && group.dayLabel.trim().length > 0
@@ -96,7 +97,10 @@ export function MegaTimelineList({
             <button
               type="button"
               aria-expanded={!isCollapsed}
-              className="sticky top-0 z-[1] flex w-full items-center gap-1.5 border-b border-border bg-card/95 px-3 py-1.5 text-left backdrop-blur-sm hover:bg-muted/20"
+              className={cn(
+                'sticky top-0 z-[1] flex w-full items-center gap-1.5 border-b bg-card/95 px-3 py-1.5 text-left backdrop-blur-sm hover:bg-muted/20',
+                listSubtleBorderClass
+              )}
               onClick={(): void => toggleGroup(group.groupCollapseKey)}
             >
               {isCollapsed ? (
@@ -154,7 +158,8 @@ export function MegaTimelineList({
                     draggable={draggable}
                     onDragStart={onDragStart}
                     className={cn(
-                      'group relative flex w-full cursor-pointer items-start gap-2 border-b border-border/40 px-3 py-2 text-left transition-colors',
+                      'group relative flex w-full cursor-pointer items-start gap-2 border-b px-3 py-2 text-left transition-colors',
+                      listSubtleBorderClass,
                       draggable && 'cursor-grab active:cursor-grabbing',
                       active ? 'bg-primary/10' : 'hover:bg-secondary/40'
                     )}

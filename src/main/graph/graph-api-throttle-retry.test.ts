@@ -11,4 +11,15 @@ describe('isGraphThrottleError', () => {
       })
     ).toBe(true)
   })
+
+  it('erkennt Bookings-Drosselung als HTTP 500 mit Too Many Requests', () => {
+    expect(
+      isGraphThrottleError({
+        statusCode: 500,
+        code: 'InternalServerError',
+        message: 'Too Many Requests',
+        body: '{"code":"InternalServerError","message":"Too Many Requests"}'
+      })
+    ).toBe(true)
+  })
 })

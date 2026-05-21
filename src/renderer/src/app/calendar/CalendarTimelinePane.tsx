@@ -13,6 +13,8 @@ import { useCreateCloudTaskUiStore } from '@/stores/create-cloud-task-ui'
 import { TasksListViewMenu } from '@/components/TasksListViewMenu'
 import { ContextMenu, type ContextMenuItem } from '@/components/ContextMenu'
 import { MegaTimelineList } from '@/app/mega/MegaTimelineList'
+import { listSubtleBorderClass } from '@/lib/chronell-ui-classes'
+import { cn } from '@/lib/utils'
 import { loadMegaWorkItems } from '@/app/work-items/load-mega-work-items'
 import {
   buildMegaTimelineCacheKey,
@@ -546,12 +548,22 @@ export function CalendarTimelinePane({
   return (
     <>
       {variant === 'dock' ? null : (
-        <p className="shrink-0 border-b border-border px-3 py-1.5 text-[10px] text-muted-foreground">
+        <p
+          className={cn(
+            'shrink-0 border-b px-3 py-1.5 text-[10px] text-muted-foreground',
+            listSubtleBorderClass
+          )}
+        >
           {t('mega.shell.subtitle')}
         </p>
       )}
 
-      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-2 py-1.5">
+      <div
+        className={cn(
+          'flex shrink-0 flex-wrap items-center gap-2 border-b px-2 py-1.5',
+          listSubtleBorderClass
+        )}
+      >
         <div className="min-w-0 flex-1">
           <TasksListViewMenu
             arrange={listViewPrefs.arrange}

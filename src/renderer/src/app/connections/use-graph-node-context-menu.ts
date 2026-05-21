@@ -167,6 +167,10 @@ export function useGraphNodeContextMenu(refreshGraph: () => void | Promise<void>
       onOpenNoteLinks: (note): void => {
         void openEntityRef({ kind: 'note', noteId: note.id }, setAppMode)
       },
+      onRemoveEntityLink: async (linkId, anchor): Promise<void> => {
+        await window.mailClient.entityLinks.remove({ linkId, anchor })
+        await refreshGraph()
+      },
       canCreateCloudTask: (accountId): boolean =>
         accountSupportsCloudTasks(accounts.find((a) => a.id === accountId))
     }),

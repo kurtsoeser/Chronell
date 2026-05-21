@@ -31,15 +31,18 @@ export function CalendarPosteingangToolbarButton(props: {
 export function CalendarPreviewPaneToolbarButton(props: {
   open: boolean
   onOpenChange: (next: boolean) => void
+  /** Vollständige i18n-Keys; Standard: Kalender-Vorschau (Mail/Termin). */
+  hideTitleKey?: string
+  showTitleKey?: string
 }): JSX.Element {
-  const { open, onOpenChange } = props
+  const { open, onOpenChange, hideTitleKey, showTitleKey } = props
   const { t } = useTranslation()
+  const hideKey = hideTitleKey ?? 'calendar.posteingangUi.togglePreviewHide'
+  const showKey = showTitleKey ?? 'calendar.posteingangUi.togglePreviewShow'
   return (
     <button
       type="button"
-      title={
-        open ? t('calendar.posteingangUi.togglePreviewHide') : t('calendar.posteingangUi.togglePreviewShow')
-      }
+      title={open ? t(hideKey) : t(showKey)}
       aria-pressed={open}
       onClick={(): void => onOpenChange(!open)}
       className={moduleColumnHeaderToolbarToggleClass(open)}

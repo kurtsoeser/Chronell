@@ -119,6 +119,7 @@ import { useCalendarSyncStore } from '@/stores/calendar-sync'
 import { useAppModeStore } from '@/stores/app-mode'
 import { useNotesPendingFocusStore } from '@/stores/notes-pending-focus'
 import { CloudTaskItemPreview } from '@/app/calendar/CloudTaskItemPreview'
+import type { CloudTaskSaveDraft } from '@/app/work/CloudTaskWorkItemDetail'
 import { loadPlannedScheduleMapForTasks } from '@/app/work-items/load-planned-schedules'
 import {
   cloudTaskCalendarDisplaySignature,
@@ -960,6 +961,7 @@ export function CalendarShell(): JSX.Element {
   )
   const [previewCalendarEvent, setPreviewCalendarEvent] = useState<CalendarEventView | null>(null)
   const [previewCloudTask, setPreviewCloudTask] = useState<TaskItemWithContext | null>(null)
+  const [previewCloudTaskSaving, setPreviewCloudTaskSaving] = useState(false)
   const [previewCloudTaskPlannedFromTimeline, setPreviewCloudTaskPlannedFromTimeline] =
     useState<WorkItemPlannedSchedule | null>(null)
   const [sidePanelMaxWidth, setSidePanelMaxWidth] = useState(() => calendarSidePanelMaxWidthPx())
@@ -1169,77 +1171,6 @@ export function CalendarShell(): JSX.Element {
     [previewCloudTask]
   )
 
-  const calendarPreviewBody = useMemo(
-    () =>
-      schedulingOpen ? (
-        <CalendarSchedulingPanel
-          accounts={accounts}
-          slots={schedulingSlots}
-          onSlotsChange={setSchedulingSlots}
-          accountId={schedulingAccountId}
-          onAccountIdChange={setSchedulingAccountId}
-          durationMinutes={schedulingDurationMin}
-          onDurationMinutesChange={setSchedulingDurationMin}
-          meetingTitle={schedulingMeetingTitle}
-          onMeetingTitleChange={setSchedulingMeetingTitle}
-          timeZone={fcTimeZone}
-          onClose={closeSchedulingPanel}
-          className="min-h-0 flex-1"
-        />
-      ) : (
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        {previewCloudTask ? (
-          <CloudTaskItemPreview
-            task={previewCloudTask}
-            planned={previewCloudTaskPlanned}
-            accountDisplayName={previewCloudTaskAccountName}
-            onDisplayChange={patchPreviewCloudTaskDisplay}
-          />
-        ) : previewCalendarEvent ? (
-          <CalendarEventPreview
-            event={previewCalendarEvent}
-            calendarName={previewCalendarName}
-            onEdit={(): void => setEventDialog({ mode: 'edit', event: previewCalendarEvent })}
-            onEventChange={(updated): void => {
-              setPreviewCalendarEvent(updated)
-              setEvents((prev) =>
-                prev.map((row) =>
-                  row.accountId === updated.accountId && row.graphEventId === updated.graphEventId
-                    ? updated
-                    : row
-                )
-              )
-            }}
-            onSaved={(): void => reloadCalendarEventsOnlyRef.current({ silent: true })}
-          />
-        ) : (
-          <ReadingPane
-            hideChromeWhenEmpty
-            emptySelectionTitle={t('calendar.shell.previewBadgeDefault')}
-            emptySelectionBody={t('calendar.shell.emptyPreviewBody')}
-          />
-        )}
-      </div>
-      ),
-    [
-      schedulingOpen,
-      accounts,
-      schedulingSlots,
-      schedulingAccountId,
-      schedulingDurationMin,
-      schedulingMeetingTitle,
-      fcTimeZone,
-      closeSchedulingPanel,
-      previewCloudTask,
-      previewCloudTaskPlanned,
-      previewCloudTaskAccountName,
-      patchPreviewCloudTaskDisplay,
-      previewCalendarEvent,
-      previewCalendarName,
-      t
-    ]
-  )
-
   const accountColorById = useMemo(
     () => Object.fromEntries(accounts.map((a) => [a.id, a.color])),
     [accounts]
@@ -1339,6 +1270,160 @@ export function CalendarShell(): JSX.Element {
       setCloudTaskRangeItems(filtered)
     },
     [fcTimeZone]
+  )
+
+  const savePreviewCloudTask = useCallback(
+    async (draft: CloudTaskSaveDraft): Promise<void> => {
+      if (!previewCloudTask) return
+      setPreviewCloudTaskSaving(true)
+      try {
+        const taskKey = cloudTaskStableKey(
+          previewCloudTask.accountId,
+          previewCloudTask.listId,
+          previewCloudTask.id
+        )
+        const next = await window.mailClient.tasks.updateTask({
+          accountId: previewCloudTask.accountId,
+          listId: previewCloudTask.listId,
+          taskId: previewCloudTask.id,
+          title: draft.title,
+          notes: draft.notes || null,
+          dueIso: draft.dueIso,
+          completed: previewCloudTask.completed
+        })
+        let planned: WorkItemPlannedSchedule | null = null
+        if (draft.plannedStartIso && draft.plannedEndIso) {
+          await window.mailClient.tasks.setPlannedSchedule({
+            taskKey,
+            plannedStartIso: draft.plannedStartIso,
+            plannedEndIso: draft.plannedEndIso
+          })
+          planned = {
+            plannedStartIso: draft.plannedStartIso,
+            plannedEndIso: draft.plannedEndIso
+          }
+        } else {
+          await window.mailClient.tasks.clearPlannedSchedule({ taskKey })
+        }
+        const merged: TaskItemWithContext = {
+          ...next,
+          accountId: previewCloudTask.accountId,
+          listName: previewCloudTask.listName
+        }
+        const key = cloudTaskStableKey(merged.accountId, merged.listId, merged.id)
+        cloudTaskByKeyRef.current.set(key, merged)
+        const replace = (rows: TaskItemWithContext[]): TaskItemWithContext[] =>
+          rows.map((row) =>
+            cloudTaskStableKey(row.accountId, row.listId, row.id) === key ? merged : row
+          )
+        const nextAll = replace(cloudTaskAllItems)
+        const nextPlanned = new Map(cloudTaskPlannedByKey)
+        if (planned) nextPlanned.set(key, planned)
+        else nextPlanned.delete(key)
+        setPreviewCloudTask(merged)
+        setPreviewCloudTaskPlannedFromTimeline(null)
+        const api = calendarRef.current?.getApi()
+        const { start, end } = api
+          ? { start: api.view.activeStart, end: api.view.activeEnd }
+          : lastRangeRef.current
+        commitCloudTaskLayer(nextAll, nextPlanned, start, end, { force: true })
+        syncFullCalendarCloudTaskEventFromLayer(
+          api,
+          merged,
+          planned,
+          fcTimeZone,
+          accountColorById
+        )
+      } finally {
+        setPreviewCloudTaskSaving(false)
+      }
+    },
+    [
+      previewCloudTask,
+      cloudTaskAllItems,
+      cloudTaskPlannedByKey,
+      commitCloudTaskLayer,
+      fcTimeZone,
+      accountColorById
+    ]
+  )
+
+  const calendarPreviewBody = useMemo(
+    () =>
+      schedulingOpen ? (
+        <CalendarSchedulingPanel
+          accounts={accounts}
+          slots={schedulingSlots}
+          onSlotsChange={setSchedulingSlots}
+          accountId={schedulingAccountId}
+          onAccountIdChange={setSchedulingAccountId}
+          durationMinutes={schedulingDurationMin}
+          onDurationMinutesChange={setSchedulingDurationMin}
+          meetingTitle={schedulingMeetingTitle}
+          onMeetingTitleChange={setSchedulingMeetingTitle}
+          timeZone={fcTimeZone}
+          onClose={closeSchedulingPanel}
+          className="min-h-0 flex-1"
+        />
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          {previewCloudTask ? (
+            <CloudTaskItemPreview
+              task={previewCloudTask}
+              planned={previewCloudTaskPlanned}
+              accountDisplayName={previewCloudTaskAccountName}
+              editable
+              saving={previewCloudTaskSaving}
+              onSave={savePreviewCloudTask}
+              onDisplayChange={patchPreviewCloudTaskDisplay}
+            />
+          ) : previewCalendarEvent ? (
+            <CalendarEventPreview
+              event={previewCalendarEvent}
+              calendarName={previewCalendarName}
+              onEdit={(): void => setEventDialog({ mode: 'edit', event: previewCalendarEvent })}
+              onEventChange={(updated): void => {
+                setPreviewCalendarEvent(updated)
+                setEvents((prev) =>
+                  prev.map((row) =>
+                    row.accountId === updated.accountId && row.graphEventId === updated.graphEventId
+                      ? updated
+                      : row
+                  )
+                )
+              }}
+              onSaved={(): void => reloadCalendarEventsOnlyRef.current({ silent: true })}
+            />
+          ) : (
+            <ReadingPane
+              hideChromeWhenEmpty
+              hidePreviewDetachToggle={previewPlacement === 'float'}
+              emptySelectionTitle={t('calendar.shell.previewBadgeDefault')}
+              emptySelectionBody={t('calendar.shell.emptyPreviewBody')}
+            />
+          )}
+        </div>
+      ),
+    [
+      schedulingOpen,
+      accounts,
+      schedulingSlots,
+      schedulingAccountId,
+      schedulingDurationMin,
+      schedulingMeetingTitle,
+      fcTimeZone,
+      closeSchedulingPanel,
+      previewCloudTask,
+      previewCloudTaskPlanned,
+      previewCloudTaskAccountName,
+      previewCloudTaskSaving,
+      savePreviewCloudTask,
+      patchPreviewCloudTaskDisplay,
+      previewCalendarEvent,
+      previewCalendarName,
+      previewPlacement,
+      t
+    ]
   )
 
   const applyCloudTaskRangeFilter = useCallback(
@@ -2956,7 +3041,7 @@ export function CalendarShell(): JSX.Element {
             <div
               ref={calendarDropRootRef}
               className={cn(
-                'relative z-0 flex min-h-0 flex-1 flex-col px-3 pb-3 pt-2',
+                'relative z-0 flex min-h-0 flex-1 flex-col pl-3 pt-2',
                 isGanttTimelineView && 'hidden'
               )}
             >
@@ -3506,7 +3591,7 @@ export function CalendarShell(): JSX.Element {
                 </>
             </div>
             {isGanttTimelineView ? (
-              <div className="relative z-0 flex min-h-0 flex-1 flex-col px-1 pb-3 pt-1">
+              <div className="relative z-0 flex min-h-0 flex-1 flex-col pl-1 pt-1">
                 <CalendarGanttTimelineView
                   anchor={ganttAnchor}
                   scale={ganttScale}

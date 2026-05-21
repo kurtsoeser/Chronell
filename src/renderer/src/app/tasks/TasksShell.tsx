@@ -1190,37 +1190,8 @@ export function TasksShell(): JSX.Element {
               />
             </>
           )}
-          {detailDockStripInDom && detailPlacement === 'dock' ? (
-            <CalendarDockPanelSlide
-              visible={detailDockShow}
-              panelWidthPx={detailColumnWidth}
-              onExitTransitionComplete={(): void => {
-                if (!detailOpen) setDetailDockStripInDom(false)
-              }}
-              splitter={
-                <VerticalSplitter
-                  onDrag={onDragDetailCol}
-                  ariaLabel={t('people.shell.splitterDetailAria')}
-                />
-              }
-            >
-              <div
-                style={{ width: detailColumnWidth }}
-                className="flex h-full min-h-0 shrink-0 flex-col overflow-hidden border-r border-border"
-              >
-                <TasksDetailDockHeader
-                  onUndock={(): void => {
-                    setDetailPlacement('float')
-                    showDetailPanel()
-                  }}
-                  onHide={hideDetailPanel}
-                />
-                {detailPanelBody}
-              </div>
-            </CalendarDockPanelSlide>
-          ) : null}
           {!isKanbanView ? (
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col border-l border-border">
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
               {!selection ? (
                 <p className="p-4 text-xs text-muted-foreground">{t('tasks.shell.selectList')}</p>
               ) : (
@@ -1253,6 +1224,35 @@ export function TasksShell(): JSX.Element {
                 </>
               )}
             </div>
+          ) : null}
+          {detailDockStripInDom && detailPlacement === 'dock' ? (
+            <CalendarDockPanelSlide
+              visible={detailDockShow}
+              panelWidthPx={detailColumnWidth}
+              onExitTransitionComplete={(): void => {
+                if (!detailOpen) setDetailDockStripInDom(false)
+              }}
+              splitter={
+                <VerticalSplitter
+                  onDrag={onDragDetailCol}
+                  ariaLabel={t('people.shell.splitterDetailAria')}
+                />
+              }
+            >
+              <div
+                style={{ width: detailColumnWidth }}
+                className="flex h-full min-h-0 shrink-0 flex-col overflow-hidden border-l border-border"
+              >
+                <TasksDetailDockHeader
+                  onUndock={(): void => {
+                    setDetailPlacement('float')
+                    showDetailPanel()
+                  }}
+                  onHide={hideDetailPanel}
+                />
+                {detailPanelBody}
+              </div>
+            </CalendarDockPanelSlide>
           ) : null}
         </div>
 

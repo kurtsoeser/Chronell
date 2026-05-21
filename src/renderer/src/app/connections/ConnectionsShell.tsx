@@ -29,6 +29,7 @@ import { useConnectionsCanvasCreate } from '@/app/connections/ConnectionsCanvasC
 import { useGraphNodeContextMenu } from '@/app/connections/use-graph-node-context-menu'
 import { ContextMenu } from '@/components/ContextMenu'
 import type { ConnectionsCanvasCreateAnchor } from '@/app/connections/connections-canvas-create'
+import { CalendarPreviewPaneToolbarButton } from '@/app/calendar/CalendarPosteingangToolbar'
 import { ConnectionsPreviewPane } from '@/app/connections/ConnectionsPreviewPane'
 import {
   readConnectionsPreviewPlacement,
@@ -769,6 +770,14 @@ export function ConnectionsShell(): JSX.Element {
                 ) : null}
               </div>
               <div className={cn(moduleColumnHeaderActionsClass, 'gap-1')}>
+                {selected ? (
+                  <CalendarPreviewPaneToolbarButton
+                    open={previewOpen}
+                    onOpenChange={setPreviewOpen}
+                    hideTitleKey="connections.preview.hideTitle"
+                    showTitleKey="connections.preview.showTitle"
+                  />
+                ) : null}
                 <button
                   type="button"
                   onClick={saveGraphLayout}

@@ -22,6 +22,10 @@ import {
   resolveMeetingScheduleChange
 } from '@/app/calendar/calendar-meeting-schedule-change'
 import { openExternalUrl } from '@/lib/open-external'
+import {
+  previewDetailPanelClass,
+  previewSectionDividerClass
+} from '@/lib/chronell-ui-classes'
 import { cn } from '@/lib/utils'
 import { EntityContextBlock } from '@/components/connections/EntityContextBlock'
 import { CalendarEventDescriptionPreview } from '@/app/calendar/CalendarEventDescriptionPreview'
@@ -114,6 +118,8 @@ export function CalendarEventPreview(props: {
   calendarName?: string | null
   /** Verbindungen-Vorschau: Kontext lebt im separaten Panel darunter. */
   hideEntityContext?: boolean
+  /** Klick (Standard) oder Doppelklick zum Start der Inline-Bearbeitung. */
+  inlineEditActivateOn?: 'click' | 'doubleClick'
   onEdit: () => void
   onSaved?: () => void
   onEventChange?: (event: CalendarEventView) => void
@@ -123,6 +129,7 @@ export function CalendarEventPreview(props: {
     event: ev,
     calendarName,
     hideEntityContext = false,
+    inlineEditActivateOn = 'click',
     onEdit,
     onSaved,
     onEventChange,
@@ -473,9 +480,49 @@ export function CalendarEventPreview(props: {
     ? 'cursor-pointer rounded-sm transition-colors hover:bg-secondary/60 hover:text-foreground'
     : ''
 
+  const beginInlineEdit = useCallback(
+    (field: PreviewEditField): void => {
+      if (!canEdit || inlineSaving) return
+      setEditingField(field)
+    },
+    [canEdit, inlineSaving]
+  )
+
+  const inlineEditHandlers = useCallback(
+    (field: PreviewEditField) => {
+      if (!canEdit) return {}
+      if (inlineEditActivateOn === 'doubleClick') {
+        return {
+          title:
+            field === 'title'
+              ? t('calendar.eventPreview.editTitleDoubleClick')
+              : t('calendar.eventPreview.editScheduleDoubleClick'),
+          onDoubleClick: (e: { preventDefault: () => void; stopPropagation: () => void }): void => {
+            e.preventDefault()
+            e.stopPropagation()
+            beginInlineEdit(field)
+          }
+        }
+      }
+      return {
+        title:
+          field === 'title'
+            ? t('calendar.eventPreview.editTitle')
+            : t('calendar.eventPreview.editScheduleTitle'),
+        onClick: (): void => beginInlineEdit(field)
+      }
+    },
+    [beginInlineEdit, canEdit, inlineEditActivateOn, t]
+  )
+
   return (
     <div className={cn('flex min-h-0 flex-1 flex-col overflow-y-auto bg-background', className)}>
-      <div className="shrink-0 space-y-2 border-b border-border px-4 py-3">
+      <div
+        className={cn(
+          'shrink-0 space-y-2 border-b px-4 py-3',
+          previewSectionDividerClass
+        )}
+      >
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="min-w-0 flex-1 space-y-1">
             <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -521,16 +568,14 @@ export function CalendarEventPreview(props: {
                 <h2
                   role={canEdit ? 'button' : undefined}
                   tabIndex={canEdit ? 0 : undefined}
-                  title={canEdit ? t('calendar.eventPreview.editTitle') : undefined}
-                  onClick={(): void => {
-                    if (!canEdit || inlineSaving) return
-                    setEditingField('title')
-                  }}
+                  title={inlineEditHandlers('title').title}
+                  onClick={inlineEditHandlers('title').onClick}
+                  onDoubleClick={inlineEditHandlers('title').onDoubleClick}
                   onKeyDown={(e): void => {
                     if (!canEdit) return
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault()
-                      setEditingField('title')
+                      beginInlineEdit('title')
                     }
                   }}
                   className={cn(
@@ -659,16 +704,14 @@ export function CalendarEventPreview(props: {
               <p
                 role={canEdit ? 'button' : undefined}
                 tabIndex={canEdit ? 0 : undefined}
-                title={canEdit ? t('calendar.eventPreview.editScheduleTitle') : undefined}
-                onClick={(): void => {
-                  if (!canEdit || inlineSaving) return
-                  setEditingField('schedule')
-                }}
+                title={inlineEditHandlers('schedule').title}
+                onClick={inlineEditHandlers('schedule').onClick}
+                onDoubleClick={inlineEditHandlers('schedule').onDoubleClick}
                 onKeyDown={(e): void => {
                   if (!canEdit) return
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault()
-                    setEditingField('schedule')
+                    beginInlineEdit('schedule')
                   }
                 }}
                 className={cn('text-[12px] text-muted-foreground', clickableClass, canEdit && '-mx-1 px-1')}
@@ -748,7 +791,7 @@ export function CalendarEventPreview(props: {
         attendeeEmails.length > 0 ||
         (ev.categories && ev.categories.length > 0) ||
         teamsMeeting ? (
-          <div className="mb-3 divide-y divide-border/60 rounded-lg border border-border/60 bg-muted/15 px-3">
+          <div className={cn('mb-3 px-3', previewDetailPanelClass)}>
             {calendarLabel ? (
               <PreviewDetailRow icon={CalendarDays} label={t('calendar.eventPreview.calendarLabel')}>
                 {calendarLabel}
@@ -799,7 +842,7 @@ export function CalendarEventPreview(props: {
                   {ev.categories.map((c) => (
                     <span
                       key={c}
-                      className="rounded-md border border-border bg-muted/40 px-2 py-0.5 text-[11px] text-foreground"
+                      className="rounded-md border border-white/[0.06] bg-secondary/[0.06] px-2 py-0.5 text-[11px] text-foreground dark:border-white/[0.06]"
                     >
                       {c}
                     </span>
@@ -816,7 +859,7 @@ export function CalendarEventPreview(props: {
         ) : null}
 
         {ev.graphEventId?.trim() ? (
-          <div className="min-h-0 border-t border-border/60 pt-3">
+          <div className={cn('min-h-0 border-t pt-3', previewSectionDividerClass)}>
             <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
               {t('calendar.eventDialog.description')}
             </p>
@@ -851,7 +894,7 @@ export function CalendarEventPreview(props: {
             noteTarget={noteTarget}
             contentPaddingClass="px-0"
             sectionCollapsedDefault
-            className="mt-3 border-t border-border/60"
+            className={cn('mt-3 border-t', previewSectionDividerClass)}
           />
         ) : null}
       </div>

@@ -19,3 +19,30 @@ export const chronellAcrylicPopoverScrollClass =
 /** Kleine Tooltips / Hover-Karten */
 export const chronellAcrylicTooltipClass =
   'chronell-acrylic-popover rounded-md px-2.5 py-1.5 text-popover-foreground'
+
+/** Notiz/Kontext in Vorschau: nur feine Trennlinien, keine hellen Kästen. */
+export const entityContextDividerClass = 'border-white/[0.04] dark:border-white/[0.04]'
+
+export const entityContextSectionBgClass = 'bg-secondary/[0.03]'
+
+export const entityContextSplitterClass =
+  'bg-white/[0.04] hover:bg-primary/20 dark:bg-white/[0.04] dark:hover:bg-primary/25'
+
+/** Metadaten-Block in Kalender-/Aufgaben-Vorschau (Kalender, Ort, Organisator …). */
+export const previewDetailPanelClass =
+  'divide-y divide-white/[0.04] rounded-lg border border-white/[0.04] bg-secondary/[0.03] dark:divide-white/[0.04] dark:border-white/[0.04]'
+
+/** Horizontale Trenner in Vorschau-Spalten (z. B. vor Beschreibung). */
+export const previewSectionDividerClass =
+  'border-white/[0.04] dark:border-white/[0.04]'
+
+/** Notiz/Kontext unter der Mail-Vorschau (Höhe per Splitter, siehe ReadingPane). */
+export const mailPreviewContextPanelClass =
+  'flex min-h-0 shrink-0 flex-col overflow-hidden border-t bg-secondary/[0.02]'
+
+/** Zeitliste / chronologische Listen: Zeilen- und Gruppentrenner. */
+export const listDivideClass =
+  'divide-y divide-white/[0.04] dark:divide-white/[0.04]'
+
+export const listSubtleBorderClass =
+  'border-white/[0.04] dark:border-white/[0.04]'

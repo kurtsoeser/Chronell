@@ -8,6 +8,7 @@ import {
   type MailViewerTheme
 } from '@/lib/sanitize'
 import { useSanitizedHtmlShadowRoot } from '@/lib/use-sanitized-html-shadow-root'
+import { previewSectionDividerClass } from '@/lib/chronell-ui-classes'
 import { cn } from '@/lib/utils'
 
 const DESCRIPTION_MAX_HEIGHT_PX = Math.min(
@@ -89,7 +90,8 @@ export function CalendarEventDescriptionPreview({
   return (
     <div
       className={cn(
-        'rounded-md border border-border bg-background',
+        'rounded-md border bg-secondary/[0.02]',
+        previewSectionDividerClass,
         capped && 'calendar-description-scroll overflow-y-auto overflow-x-hidden',
         className
       )}

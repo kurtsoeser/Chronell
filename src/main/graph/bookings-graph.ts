@@ -8,6 +8,7 @@ import type {
 import { resolveBookingsPublicUrl } from '@shared/bookings-public-url'
 import { loadConfig } from '../config'
 import { createGraphClient } from './client'
+import { runGraphMailboxRequest } from './graph-account-request'
 import { formatGraphErrorMessage, readGraphStatusCode } from './graph-request-errors'
 
 interface GraphCollection<T> {
@@ -67,6 +68,14 @@ async function getClientFor(accountId: string): Promise<ReturnType<typeof create
   }
   const homeAccountId = accountId.replace(/^ms:/, '')
   return createGraphClient(config.microsoftClientId, homeAccountId)
+}
+
+async function runBookingsGraph<T>(
+  accountId: string,
+  opLabel: string,
+  fn: () => Promise<T>
+): Promise<T> {
+  return runGraphMailboxRequest(accountId, `bookings.${opLabel}`, fn)
 }
 
 function stripGraphHost(nextLink: string): string {
@@ -192,48 +201,46 @@ export async function graphGetBookingBusiness(
   accountId: string,
   businessId: string
 ): Promise<BookingsBusinessDetail> {
-  const client = await getClientFor(accountId)
-  const id = normalizeBookingBusinessId(businessId)
-  const paths = [
-    `/solutions/bookingBusinesses/${id}?$select=id,displayName,email,phone,webSiteUrl,publicUrl,isPublished`,
-    `/solutions/bookingBusinesses/${encodeURIComponent(id)}?$select=id,displayName,email,phone,webSiteUrl,publicUrl,isPublished`
-  ]
-  let raw: GraphBookingBusiness | null = null
-  for (const path of paths) {
-    try {
-      raw = (await client.api(path).get()) as GraphBookingBusiness
-      break
-    } catch (e) {
-      if (readGraphStatusCode(e) !== 404) throw e
+  return runBookingsGraph(accountId, 'getBusiness', async () => {
+    const client = await getClientFor(accountId)
+    const id = normalizeBookingBusinessId(businessId)
+    const paths = [
+      `/solutions/bookingBusinesses/${id}?$select=id,displayName,email,phone,webSiteUrl,publicUrl,isPublished`,
+      `/solutions/bookingBusinesses/${encodeURIComponent(id)}?$select=id,displayName,email,phone,webSiteUrl,publicUrl,isPublished`
+    ]
+    let raw: GraphBookingBusiness | null = null
+    for (const path of paths) {
+      try {
+        raw = (await client.api(path).get()) as GraphBookingBusiness
+        break
+      } catch (e) {
+        if (readGraphStatusCode(e) !== 404) throw e
+      }
     }
-  }
-  if (!raw) {
-    throw new Error('Buchungsseite nicht gefunden.')
-  }
-  const base = mapBusiness(raw)
-  let services: BookingsServiceRow[] = []
-  try {
-    services = await graphListBookingServices(accountId, businessId)
-  } catch {
-    services = []
-  }
-  const resolved = resolveBookingsPublicUrl({
-    publicUrl: base.publicUrl,
-    businessId: base.id,
-    serviceWebUrls: services.map((s) => s.bookingWebUrl)
+    if (!raw) {
+      throw new Error('Buchungsseite nicht gefunden.')
+    }
+    const base = mapBusiness(raw)
+    const resolved = resolveBookingsPublicUrl({
+      publicUrl: base.publicUrl,
+      businessId: base.id,
+      serviceWebUrls: []
+    })
+    return {
+      ...base,
+      resolvedPublicUrl: resolved.url,
+      resolvedPublicUrlSource: resolved.source
+    }
   })
-  return {
-    ...base,
-    resolvedPublicUrl: resolved.url,
-    resolvedPublicUrlSource: resolved.source
-  }
 }
 
 export async function graphListBookingBusinesses(accountId: string): Promise<BookingsBusinessRow[]> {
   try {
-    const client = await getClientFor(accountId)
-    const rows = await listBookingBusinessesFromGraph(client)
-    return rows.map(mapBusiness).sort((a, b) => a.displayName.localeCompare(b.displayName, 'de'))
+    return await runBookingsGraph(accountId, 'listBusinesses', async () => {
+      const client = await getClientFor(accountId)
+      const rows = await listBookingBusinessesFromGraph(client)
+      return rows.map(mapBusiness).sort((a, b) => a.displayName.localeCompare(b.displayName, 'de'))
+    })
   } catch (e) {
     console.error('[bookings-graph] listBookingBusinesses', e)
     throw new Error(
@@ -283,29 +290,31 @@ export async function graphListBookingStaffMembers(
   businessId: string
 ): Promise<BookingsStaffMemberRow[]> {
   try {
-    const client = await getClientFor(accountId)
-    let rows: GraphBookingStaffMember[]
-    try {
-      rows = await paginateBookingBusinessSubresource<GraphBookingStaffMember>(
-        client,
-        businessId,
-        'staffMembers?$select=id,displayName,emailAddress,role&$top=100'
-      )
-    } catch (e) {
-      if (readGraphStatusCode(e) === 404) {
-        return []
-      }
-      if (readGraphStatusCode(e) === 400) {
+    return await runBookingsGraph(accountId, 'listStaffMembers', async () => {
+      const client = await getClientFor(accountId)
+      let rows: GraphBookingStaffMember[]
+      try {
         rows = await paginateBookingBusinessSubresource<GraphBookingStaffMember>(
           client,
           businessId,
-          'staffMembers?$top=100'
+          'staffMembers?$select=id,displayName,emailAddress,role&$top=100'
         )
-      } else {
-        throw e
+      } catch (e) {
+        if (readGraphStatusCode(e) === 404) {
+          return []
+        }
+        if (readGraphStatusCode(e) === 400) {
+          rows = await paginateBookingBusinessSubresource<GraphBookingStaffMember>(
+            client,
+            businessId,
+            'staffMembers?$top=100'
+          )
+        } else {
+          throw e
+        }
       }
-    }
-    return rows.map(mapStaffMember).sort((a, b) => a.displayName.localeCompare(b.displayName, 'de'))
+      return rows.map(mapStaffMember).sort((a, b) => a.displayName.localeCompare(b.displayName, 'de'))
+    })
   } catch (e) {
     console.error('[bookings-graph] listBookingStaffMembers', businessId, e)
     throw new Error(formatGraphErrorMessage(e, 'Bookings-Mitarbeiter konnten nicht geladen werden.'))
@@ -317,29 +326,31 @@ export async function graphListBookingServices(
   businessId: string
 ): Promise<BookingsServiceRow[]> {
   try {
-    const client = await getClientFor(accountId)
-    let rows: GraphBookingService[]
-    try {
-      rows = await paginateBookingBusinessSubresource<GraphBookingService>(
-        client,
-        businessId,
-        'services?$select=id,displayName,defaultDuration,defaultPrice,isHiddenFromCustomers,webUrl&$top=100'
-      )
-    } catch (e) {
-      if (readGraphStatusCode(e) === 404) {
-        return []
-      }
-      if (readGraphStatusCode(e) === 400) {
+    return await runBookingsGraph(accountId, 'listServices', async () => {
+      const client = await getClientFor(accountId)
+      let rows: GraphBookingService[]
+      try {
         rows = await paginateBookingBusinessSubresource<GraphBookingService>(
           client,
           businessId,
-          'services?$top=100'
+          'services?$select=id,displayName,defaultDuration,defaultPrice,isHiddenFromCustomers,webUrl&$top=100'
         )
-      } else {
-        throw e
+      } catch (e) {
+        if (readGraphStatusCode(e) === 404) {
+          return []
+        }
+        if (readGraphStatusCode(e) === 400) {
+          rows = await paginateBookingBusinessSubresource<GraphBookingService>(
+            client,
+            businessId,
+            'services?$top=100'
+          )
+        } else {
+          throw e
+        }
       }
-    }
-    return rows.map(mapService).sort((a, b) => a.displayName.localeCompare(b.displayName, 'de'))
+      return rows.map(mapService).sort((a, b) => a.displayName.localeCompare(b.displayName, 'de'))
+    })
   } catch (e) {
     console.error('[bookings-graph] listBookingServices', businessId, e)
     throw new Error(formatGraphErrorMessage(e, 'Bookings-Leistungen konnten nicht geladen werden.'))
@@ -353,31 +364,33 @@ export async function graphListBookingAppointments(
   endIso: string
 ): Promise<BookingsAppointmentRow[]> {
   try {
-    const client = await getClientFor(accountId)
-    const range = graphCalendarViewRangeParams(startIso, endIso)
-    let rows: GraphBookingAppointment[] = []
-    try {
-      rows = await paginateBookingBusinessSubresource<GraphBookingAppointment>(
-        client,
-        businessId,
-        `calendarView${range}`
+    return await runBookingsGraph(accountId, 'listAppointments', async () => {
+      const client = await getClientFor(accountId)
+      const range = graphCalendarViewRangeParams(startIso, endIso)
+      let rows: GraphBookingAppointment[] = []
+      try {
+        rows = await paginateBookingBusinessSubresource<GraphBookingAppointment>(
+          client,
+          businessId,
+          `calendarView${range}`
+        )
+      } catch (e) {
+        if (readGraphStatusCode(e) !== 404) throw e
+        console.warn('[bookings-graph] calendarView 404, fallback appointments list', businessId)
+        rows = await paginateBookingBusinessSubresource<GraphBookingAppointment>(
+          client,
+          businessId,
+          'appointments?$top=200'
+        )
+      }
+      const mapped = rows
+        .map(mapAppointment)
+        .filter((r): r is BookingsAppointmentRow => r != null)
+        .filter((r) => !r.isCancelled)
+      return filterAppointmentsInRange(mapped, startIso, endIso).sort((a, b) =>
+        a.startIso.localeCompare(b.startIso)
       )
-    } catch (e) {
-      if (readGraphStatusCode(e) !== 404) throw e
-      console.warn('[bookings-graph] calendarView 404, fallback appointments list', businessId)
-      rows = await paginateBookingBusinessSubresource<GraphBookingAppointment>(
-        client,
-        businessId,
-        'appointments?$top=200'
-      )
-    }
-    const mapped = rows
-      .map(mapAppointment)
-      .filter((r): r is BookingsAppointmentRow => r != null)
-      .filter((r) => !r.isCancelled)
-    return filterAppointmentsInRange(mapped, startIso, endIso).sort((a, b) =>
-      a.startIso.localeCompare(b.startIso)
-    )
+    })
   } catch (e) {
     if (readGraphStatusCode(e) === 404) {
       console.warn('[bookings-graph] listBookingAppointments 404', businessId)
