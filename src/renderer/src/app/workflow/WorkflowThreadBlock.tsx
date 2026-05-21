@@ -1,5 +1,6 @@
 import type { MouseEvent } from 'react'
 import type { ConnectedAccount, MailListItem } from '@shared/types'
+import { compareMessageChronoDesc } from '@/lib/thread-display-pick'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { MIME_THREAD_IDS } from '@/lib/workflow-dnd'
@@ -122,14 +123,7 @@ export function WorkflowThreadBlock({
       </div>
       {multi &&
         expanded &&
-        [...threadMessages]
-          .sort((a, b) => {
-            const ad = a.receivedAt ?? a.sentAt ?? ''
-            const bd = b.receivedAt ?? b.sentAt ?? ''
-            if (ad !== bd) return ad < bd ? -1 : 1
-            return a.id - b.id
-          })
-          .map((m) => (
+        [...threadMessages].sort(compareMessageChronoDesc).map((m) => (
             <WorkflowSubMessageRow
               key={m.id}
               message={m}

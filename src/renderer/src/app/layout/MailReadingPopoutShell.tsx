@@ -16,6 +16,7 @@ import {
 import { cn } from '@/lib/utils'
 import { useAccountsStore } from '@/stores/accounts'
 import { useMailStore } from '@/stores/mail'
+import { useZoomShortcuts } from '@/hooks/use-zoom-shortcuts'
 
 export function MailReadingPopoutShell(): JSX.Element {
   const { t } = useTranslation()
@@ -23,6 +24,8 @@ export function MailReadingPopoutShell(): JSX.Element {
   const messageId = route?.messageId ?? null
   const isolatedView = useIsolatedMailView(messageId)
   const [alwaysOnTop, setAlwaysOnTop] = useState(() => loadMailReadingPopoutAlwaysOnTopDefault())
+
+  useZoomShortcuts()
 
   useEffect(() => {
     useMailStore.getState().initialize()
@@ -99,7 +102,11 @@ export function MailReadingPopoutShell(): JSX.Element {
         </ModuleColumnHeaderIconButton>
       </div>
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <ReadingPane isolatedView={isolatedView} />
+        <ReadingPane
+          isolatedView={isolatedView}
+          hidePreviewDetachToggle
+          compactToolbar
+        />
       </div>
     </div>
   )

@@ -2435,11 +2435,13 @@ export function CalendarShell(): JSX.Element {
     const next = cloudTasksToFullCalendarEvents(
       cloudTaskRangeItems,
       accountColorById,
-      cloudTaskPlannedByKey
+      cloudTaskPlannedByKey,
+      undefined,
+      fcTimeZone
     )
     cloudTaskFcEventsRef.current = next
     return next
-  }, [cloudTaskRangeItems, accountColorById, cloudTaskPlannedByKey])
+  }, [cloudTaskRangeItems, accountColorById, cloudTaskPlannedByKey, fcTimeZone])
 
   const filterCalendarSearchEvents = useCallback(
     (evs: EventInput[]): EventInput[] => {

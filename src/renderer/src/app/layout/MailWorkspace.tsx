@@ -135,7 +135,7 @@ export function MailWorkspace(props: { onOpenAccountDialog: () => void }): JSX.E
         ariaLabel={t('common.moduleNavSplitter')}
       />
       <div className={cn(modulePaneStackClass, 'flex-row')}>
-      <div style={{ width: listWidth }} className="h-full shrink-0 border-r border-border">
+      <div style={{ width: listWidth }} className="h-full shrink-0">
         <MailList />
       </div>
       <VerticalSplitter onDrag={onDragList} ariaLabel={t('mail.workspace.splitterList')} />

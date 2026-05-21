@@ -450,4 +450,22 @@
     --chronell-mail-module-surface: color-mix(in srgb, var(--chronell-bg-card-solid) 96%, transparent);
     color-scheme: light;
   }
+
+  /**
+   * Einstellungs-Dialog: Rahmen und Trennlinien dezenter als im Rest der App.
+   * Scoped --border/--input, damit alle border-border-*-Utilities mitziehen.
+   */
+  .account-setup-dialog {
+    --border: 220 18% 86% / 0.38;
+    --input: 220 18% 84% / 0.52;
+  }
+
+  .dark .account-setup-dialog {
+    --border: 0 0% 100% / 0.038;
+    --input: 0 0% 100% / 0.068;
+  }
+
+  .account-setup-dialog .divide-border > :not([hidden]) ~ :not([hidden]) {
+    border-color: hsl(var(--border) / 0.85);
+  }
 }

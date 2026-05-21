@@ -157,8 +157,8 @@ export function TasksCalendarPane({
   )
 
   const fcEvents = useMemo(
-    () => cloudTasksToFullCalendarEvents(rangeItems, accountColorById, plannedByKey, dateMode),
-    [rangeItems, accountColorById, plannedByKey, dateMode]
+    () => cloudTasksToFullCalendarEvents(rangeItems, accountColorById, plannedByKey, dateMode, timeZone),
+    [rangeItems, accountColorById, plannedByKey, dateMode, timeZone]
   )
 
   const multiDayViews = useMemo(() => {

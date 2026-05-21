@@ -313,7 +313,7 @@ interface HorizontalSplitterProps {
   onDrag: (deltaY: number) => void
   ariaLabel?: string
   /** Dezente Linie (Notiz/Kontext-Vorschau) statt voller `border`-Farbe. */
-  variant?: 'default' | 'subtle'
+  variant?: 'default' | 'subtle' | 'flush'
 }
 
 export function HorizontalSplitter({
@@ -431,12 +431,15 @@ export function HorizontalSplitter({
       onLostPointerCapture={(e): void => {
         finishDrag(e)
       }}
-      style={{ height: SPLITTER_HIT_THICKNESS_PX }}
+      style={{
+        height: variant === 'flush' ? 4 : SPLITTER_HIT_THICKNESS_PX
+      }}
       className={cn(
         'group relative z-10 flex shrink-0 cursor-row-resize items-center justify-center',
         dragging && 'touch-none'
       )}
     >
+      {variant !== 'flush' ? (
       <div
         aria-hidden
         className={cn(
@@ -447,6 +450,7 @@ export function HorizontalSplitter({
           dragging && (variant === 'subtle' ? 'bg-primary/35' : 'bg-primary/70')
         )}
       />
+      ) : null}
     </div>
   )
 }

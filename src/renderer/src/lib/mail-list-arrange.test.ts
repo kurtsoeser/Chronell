@@ -9,6 +9,7 @@ import {
   mailListGroupCollapseKey,
   navigableIdsFromFlatRows
 } from './mail-list-arrange'
+import { compareMessageChronoDesc } from './thread-display-pick'
 
 describe('dateBucketFor', () => {
   const prevTz = process.env.TZ
@@ -124,6 +125,57 @@ describe('computeMailListLayout', () => {
     expect(layout.groupLabels.length).toBeGreaterThan(0)
     expect(layout.flatRows.some((r) => r.kind === 'thread-head')).toBe(true)
     expect(navigableIdsFromFlatRows(layout.flatRows)).toContain(5)
+  })
+
+  it('listet aufgeklappte Thread-Mails neueste zuerst (wie Outlook)', () => {
+    const older: MailListItem = {
+      id: 10,
+      accountId: 'acc',
+      folderId: 1,
+      threadId: null,
+      remoteId: 'r1',
+      remoteThreadId: 'th1',
+      subject: 'Alt',
+      fromAddr: 'a@b.c',
+      fromName: 'A',
+      snippet: null,
+      sentAt: null,
+      receivedAt: '2026-02-01T08:00:00.000Z',
+      isRead: true,
+      isFlagged: false,
+      hasAttachments: false,
+      importance: null,
+      snoozedUntil: null
+    }
+    const newer: MailListItem = {
+      ...older,
+      id: 11,
+      remoteId: 'r2',
+      receivedAt: '2026-02-01T14:00:00.000Z'
+    }
+    const thread: ThreadGroup = {
+      threadKey: 'th1',
+      accountId: 'acc',
+      messageCount: 2,
+      unreadCount: 0,
+      hasAttachments: false,
+      isFlagged: false,
+      latestMessage: newer,
+      rootMessage: older,
+      participantNames: ['A']
+    }
+    const map = new Map<string, MailListItem[]>([['th1', [older, newer]]])
+    const layout = computeMailListLayout(
+      [thread],
+      map,
+      new Set(['th1']),
+      'from',
+      'newest_on_top',
+      { accountLabel: () => 'Konto', folderWellKnown: 'inbox' }
+    )
+    const subs = layout.flatRows.filter((r) => r.kind === 'thread-sub').map((r) => r.message.id)
+    expect(subs).toEqual([11, 10])
+    expect([...map.get('th1')!].sort(compareMessageChronoDesc).map((m) => m.id)).toEqual([11, 10])
   })
 })
 

@@ -23,6 +23,7 @@ import {
   migrateLegacyUserDataIfNeeded
 } from './user-data-migration'
 import { APP_ID, APP_PRODUCT_NAME } from '@shared/app-version'
+import { attachChromiumZoomShortcutGuard } from './zoom-shortcut-guard'
 import { resolveAppWindowIcon } from './app-icon'
 
 configureChronellAppPaths()
@@ -128,6 +129,8 @@ function createMainWindow(): void {
       webviewTag: true
     }
   })
+
+  attachChromiumZoomShortcutGuard(mainWindow.webContents)
 
   mainWindow.on('ready-to-show', () => {
     if (mainWindow) applyWindowIcon(mainWindow)

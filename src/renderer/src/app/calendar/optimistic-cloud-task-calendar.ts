@@ -59,7 +59,7 @@ export function syncFullCalendarCloudTaskEventFromLayer(
 ): void {
   if (!api) return
   const taskKey = cloudTaskStableKey(task.accountId, task.listId, task.id)
-  const span = cloudTaskVisualSpan(task, planned)
+  const span = cloudTaskVisualSpan(task, planned, fcTimeZone)
   const eventId = cloudTaskEventId(taskKey)
 
   if (!span) {
@@ -74,7 +74,7 @@ export function syncFullCalendarCloudTaskEventFromLayer(
   if (!existing) {
     const plannedMap = new Map<string, WorkItemPlannedSchedule>()
     if (planned) plannedMap.set(taskKey, planned)
-    const input = cloudTasksToFullCalendarEvents([task], accountColorById, plannedMap)[0]
+    const input = cloudTasksToFullCalendarEvents([task], accountColorById, plannedMap, undefined, fcTimeZone)[0]
     if (input) {
       api.addEvent({ ...input, id: eventId })
     }

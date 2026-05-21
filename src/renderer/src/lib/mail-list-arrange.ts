@@ -1,5 +1,6 @@
 import type { MailListItem, TodoDueKindList } from '@shared/types'
 import type { ThreadGroup } from '@/lib/thread-group'
+import { compareMessageChronoDesc } from '@/lib/thread-display-pick'
 import { groupLabelTodoDueBucketDe, rankOpenTodoBucket } from '@/lib/todo-due-bucket'
 
 /** Wie Outlook: Anordnen nach (Gruppierung der Liste). */
@@ -414,13 +415,7 @@ export function computeMailListLayout(
         threadMessages: tMsgs
       })
       if (t.messageCount > 1 && expandedThreads.has(t.threadKey)) {
-        const subs = [...tMsgs]
-        subs.sort((a, b) => {
-          const ad = a.receivedAt ?? a.sentAt ?? ''
-          const bd = b.receivedAt ?? b.sentAt ?? ''
-          if (ad !== bd) return ad < bd ? -1 : 1
-          return a.id - b.id
-        })
+        const subs = [...tMsgs].sort(compareMessageChronoDesc)
         for (const m of subs) {
           rows.push({
             kind: 'thread-sub',

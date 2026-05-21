@@ -53,7 +53,11 @@ export function MailReadingPopoutHost(): JSX.Element | null {
       onClose={close}
       onDock={handleDock}
     >
-      <ReadingPane isolatedView={isolatedView} />
+      <ReadingPane
+        isolatedView={isolatedView}
+        hidePreviewDetachToggle
+        compactToolbar
+      />
     </CalendarFloatingPanel>
   )
 }

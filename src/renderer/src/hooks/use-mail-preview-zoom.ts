@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useRef, type RefObject } from 'react'
+import { useLayoutEffect, useRef, type RefObject } from 'react'
 import {
   MAIL_PREVIEW_SCALE_MAX,
   MAIL_PREVIEW_SCALE_MIN,
@@ -29,7 +29,7 @@ export interface UseMailPreviewZoomOptions {
   attachKey?: string | number
 }
 
-/** Ctrl+Mausrad, Ctrl+/-/0 und Pinch-to-Zoom für die Mail-Vorschau (Shadow-Host). */
+/** Strg+Mausrad und Pinch-to-Zoom für die Mail-Vorschau (Shadow-Host). Tastatur: useZoomShortcuts. */
 export function useMailPreviewZoom(
   hostRef: RefObject<HTMLElement | null>,
   opts: UseMailPreviewZoomOptions = {}
@@ -37,54 +37,7 @@ export function useMailPreviewZoom(
   const enabled = opts.enabled !== false
   const setScale = useMailPreviewScaleStore((s) => s.setScale)
   const stepScale = useMailPreviewScaleStore((s) => s.stepScale)
-  const resetScale = useMailPreviewScaleStore((s) => s.resetScale)
   const pinchRef = useRef<{ startDistance: number; startScale: number } | null>(null)
-
-  const zoomIn = useCallback((): void => {
-    stepScale(MAIL_PREVIEW_SCALE_STEP)
-  }, [stepScale])
-
-  const zoomOut = useCallback((): void => {
-    stepScale(-MAIL_PREVIEW_SCALE_STEP)
-  }, [stepScale])
-
-  const resetZoom = useCallback((): void => {
-    resetScale()
-  }, [resetScale])
-
-  useLayoutEffect(() => {
-    if (!enabled) return
-
-    const onKeyDown = (e: KeyboardEvent): void => {
-      if (!e.ctrlKey && !e.metaKey) return
-      const target = e.target
-      if (
-        target instanceof HTMLElement &&
-        target.closest('input, textarea, select, [contenteditable="true"]')
-      ) {
-        return
-      }
-      if (e.key === '=' || e.key === '+' || e.key === 'Add') {
-        e.preventDefault()
-        zoomIn()
-        return
-      }
-      if (e.key === '-' || e.key === '_' || e.key === 'Subtract') {
-        e.preventDefault()
-        zoomOut()
-        return
-      }
-      if (e.key === '0' || e.key === 'Digit0') {
-        e.preventDefault()
-        resetZoom()
-      }
-    }
-
-    window.addEventListener('keydown', onKeyDown, { capture: true })
-    return (): void => {
-      window.removeEventListener('keydown', onKeyDown, { capture: true })
-    }
-  }, [enabled, hostRef, zoomIn, zoomOut, resetZoom])
 
   useLayoutEffect(() => {
     if (!enabled) return

@@ -665,7 +665,7 @@ export function SettingsAiConnectionsSection(): JSX.Element {
             {t('settings.aiConnections.domainProfilesHint')}
           </p>
           {(settings.customDomainProfiles ?? []).map((profile, index) => (
-            <div key={profile.id} className="flex flex-col gap-1 rounded border border-border/60 p-2">
+            <div key={profile.id} className="flex flex-col gap-1 rounded border border-border/35 p-2">
               <input
                 type="text"
                 disabled={busy}

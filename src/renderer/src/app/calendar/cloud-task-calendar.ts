@@ -1,10 +1,14 @@
 import type { EventApi, EventInput } from '@fullcalendar/core'
+import { dueCalendarDateFromIso } from '@shared/calendar-datetime'
 import type { WorkItemPlannedSchedule } from '@shared/work-item'
 import type { TaskItemRow } from '@shared/types'
 import {
+  addCalendarDaysIsoDate,
   defaultAppointmentRangeForCalendarDay,
   dueIsoEndOfZonedDayFromScheduleStart,
-  jsDateHasNonMidnightTimeInZone
+  jsDateHasNonMidnightTimeInZone,
+  type AppTimeZone,
+  zonedLocalDateTimeToUtcIso
 } from '@/lib/zoned-iso-date'
 import { cloudTaskStableKey } from '@shared/work-item-keys'
 import type { TaskItemWithContext } from '@/app/tasks/tasks-types'
@@ -28,19 +32,6 @@ function addMinutesIso(iso: string, minutes: number): string {
   if (Number.isNaN(d.getTime())) return iso
   d.setMinutes(d.getMinutes() + minutes)
   return d.toISOString()
-}
-
-function utcDateOnly(iso: string): string {
-  const t = iso.trim()
-  if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t
-  return t.slice(0, 10)
-}
-
-function addOneCalendarDay(dateOnly: string): string {
-  const d = new Date(`${dateOnly}T12:00:00.000Z`)
-  if (Number.isNaN(d.getTime())) return dateOnly
-  d.setUTCDate(d.getUTCDate() + 1)
-  return d.toISOString().slice(0, 10)
 }
 
 export type CloudTaskVisualSpan = {
@@ -77,14 +68,18 @@ function cloudTaskPlannedVisualSpan(
   return null
 }
 
-function cloudTaskDueVisualSpan(task: Pick<TaskItemRow, 'dueIso'>): CloudTaskVisualSpan | null {
+function cloudTaskDueVisualSpan(
+  task: Pick<TaskItemRow, 'dueIso'>,
+  timeZone: AppTimeZone
+): CloudTaskVisualSpan | null {
   const due = task.dueIso?.trim()
   if (!due) return null
 
-  const d0 = utcDateOnly(due)
-  const d1 = addOneCalendarDay(d0)
-  const startMs = new Date(`${d0}T00:00:00.000Z`).getTime()
-  const endMs = new Date(`${d1}T00:00:00.000Z`).getTime()
+  const d0 = dueCalendarDateFromIso(due, timeZone)
+  if (!d0) return null
+  const d1 = addCalendarDaysIsoDate(d0, 1, timeZone)
+  const startMs = new Date(zonedLocalDateTimeToUtcIso(d0, 0, 0, 0, timeZone)).getTime()
+  const endMs = new Date(zonedLocalDateTimeToUtcIso(d1, 0, 0, 0, timeZone)).getTime()
   if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) return null
   return { allDay: true, fcStart: d0, fcEnd: d1, startMs, endMs }
 }
@@ -92,17 +87,21 @@ function cloudTaskDueVisualSpan(task: Pick<TaskItemRow, 'dueIso'>): CloudTaskVis
 export function cloudTaskVisualSpanForMode(
   task: Pick<TaskItemRow, 'dueIso'>,
   planned: WorkItemPlannedSchedule | null | undefined,
-  mode: CloudTaskCalendarDateMode
+  mode: CloudTaskCalendarDateMode,
+  timeZone: AppTimeZone = 'local'
 ): CloudTaskVisualSpan | null {
-  return mode === 'due' ? cloudTaskDueVisualSpan(task) : cloudTaskPlannedVisualSpan(planned)
+  return mode === 'due'
+    ? cloudTaskDueVisualSpan(task, timeZone)
+    : cloudTaskPlannedVisualSpan(planned)
 }
 
 /** Planungszeit hat Vorrang vor Fälligkeit (Hauptkalender / kombinierte Ansicht). */
 export function cloudTaskVisualSpan(
   task: Pick<TaskItemRow, 'dueIso'>,
-  planned?: WorkItemPlannedSchedule | null
+  planned?: WorkItemPlannedSchedule | null,
+  timeZone: AppTimeZone = 'local'
 ): CloudTaskVisualSpan | null {
-  return cloudTaskPlannedVisualSpan(planned) ?? cloudTaskDueVisualSpan(task)
+  return cloudTaskPlannedVisualSpan(planned) ?? cloudTaskDueVisualSpan(task, timeZone)
 }
 
 function endDateFromStart(start: Date, minutes: number): Date {
@@ -139,15 +138,16 @@ export function cloudTasksToFullCalendarEvents(
   items: CloudTaskCalendarContext[],
   accountColorById: Record<string, string>,
   plannedByTaskKey?: ReadonlyMap<string, WorkItemPlannedSchedule>,
-  dateMode?: CloudTaskCalendarDateMode
+  dateMode?: CloudTaskCalendarDateMode,
+  timeZone: AppTimeZone = 'local'
 ): EventInput[] {
   const out: EventInput[] = []
   for (const task of items) {
     const taskKey = cloudTaskStableKey(task.accountId, task.listId, task.id)
     const planned = plannedByTaskKey?.get(taskKey)
     const span = dateMode
-      ? cloudTaskVisualSpanForMode(task, planned, dateMode)
-      : cloudTaskVisualSpan(task, planned)
+      ? cloudTaskVisualSpanForMode(task, planned, dateMode, timeZone)
+      : cloudTaskVisualSpan(task, planned, timeZone)
     if (!span) continue
 
     const title = task.title?.trim() || '(Ohne Titel)'
@@ -328,7 +328,7 @@ export function computePersistIsoRangeForCloudTask(
   const target = computePersistTargetForCloudTask(event, oldEvent, fcTimeZone)
   if (!target) return null
   if (target.kind === 'due') {
-    const d0 = utcDateOnly(target.dueIso)
+    const d0 = dueCalendarDateFromIso(target.dueIso, fcTimeZone) ?? target.dueIso.slice(0, 10)
     return defaultScheduleForCalendarDayFc(d0, fcTimeZone)
   }
   return { startIso: target.plannedStartIso, endIso: target.plannedEndIso }

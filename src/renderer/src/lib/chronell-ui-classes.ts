@@ -38,7 +38,13 @@ export const previewSectionDividerClass =
 
 /** Notiz/Kontext unter der Mail-Vorschau (Höhe per Splitter, siehe ReadingPane). */
 export const mailPreviewContextPanelClass =
-  'flex min-h-0 shrink-0 flex-col overflow-hidden border-t bg-secondary/[0.02]'
+  'flex min-h-0 shrink-0 flex-col overflow-hidden border-t-0 bg-secondary/[0.02]'
+
+/** Einzelne Nachricht in der Konversationsvorschau (Kachel, Abstand statt Trennstrich). */
+export const mailConversationMessageTileClass =
+  'overflow-hidden rounded-xl border border-black/[0.06] bg-card/90 shadow-sm dark:border-white/[0.07] dark:bg-secondary/35'
+
+export const mailConversationStackClass = 'flex flex-col gap-2 p-2'
 
 /** Zeitliste / chronologische Listen: Zeilen- und Gruppentrenner. */
 export const listDivideClass =

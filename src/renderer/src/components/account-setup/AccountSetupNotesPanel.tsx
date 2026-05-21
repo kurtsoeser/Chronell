@@ -69,7 +69,7 @@ export default function AccountSetupNotesPanel({
   return (
     <div role="tabpanel" aria-label={t('settings.notesPanelAria')} className="space-y-5">
       {section === 'workspace' && (
-        <section className="space-y-2 rounded-md border border-border/60 bg-muted/20 p-3">
+        <section className="space-y-2 rounded-md border border-border/35 bg-muted/20 p-3">
           <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             <StickyNote className="h-3.5 w-3.5" aria-hidden />
             {t('settings.notesWorkspaceHeading')}
@@ -93,7 +93,7 @@ export default function AccountSetupNotesPanel({
       )}
 
       {section === 'sidebar' && (
-        <section className="space-y-2 rounded-md border border-border/60 bg-muted/20 p-3">
+        <section className="space-y-2 rounded-md border border-border/35 bg-muted/20 p-3">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             {t('settings.notesSidebarHeading')}
           </h3>
@@ -118,7 +118,7 @@ export default function AccountSetupNotesPanel({
       )}
 
       {section === 'pages' && (
-        <section className="space-y-2 rounded-md border border-border/60 bg-muted/20 p-3">
+        <section className="space-y-2 rounded-md border border-border/35 bg-muted/20 p-3">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             {t('settings.notesPagesHeading')}
           </h3>
@@ -146,7 +146,7 @@ export default function AccountSetupNotesPanel({
       )}
 
       {section === 'calendar' && (
-        <section className="space-y-2 rounded-md border border-border/60 bg-muted/20 p-3">
+        <section className="space-y-2 rounded-md border border-border/35 bg-muted/20 p-3">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             {t('settings.notesCalendarHeading')}
           </h3>
@@ -177,7 +177,7 @@ export default function AccountSetupNotesPanel({
       )}
 
       {section === 'linked' && (
-        <section className="space-y-3 rounded-md border border-border/60 bg-muted/20 p-3">
+        <section className="space-y-3 rounded-md border border-border/35 bg-muted/20 p-3">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             {t('settings.notesLinkedHeading')}
           </h3>

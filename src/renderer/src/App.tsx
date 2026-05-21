@@ -5,6 +5,7 @@ import { useAccountsStore } from './stores/accounts'
 import { useMailStore } from './stores/mail'
 import { useCalendarSyncStore } from './stores/calendar-sync'
 import { useGlobalShortcuts } from './lib/use-global-shortcuts'
+import { useZoomShortcuts } from './hooks/use-zoom-shortcuts'
 import {
   OPEN_ACCOUNT_SETTINGS_EVENT,
   type OpenAccountSettingsTab
@@ -183,6 +184,7 @@ export function App(): JSX.Element {
   }, [])
 
   useGlobalShortcuts()
+  useZoomShortcuts()
 
   useEffect(() => {
     return subscribeConnectivityFromMain()

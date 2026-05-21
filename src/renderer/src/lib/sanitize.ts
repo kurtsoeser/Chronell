@@ -226,29 +226,24 @@ function applyMailPreviewScaleToCss(css: string): string {
     .replace(/\b18px\b/g, 'calc(18px * var(--mail-preview-scale, 1))')
 }
 
-export function buildMailShadowRootInnerHtml(
-  html: string,
-  theme: MailViewerTheme,
-  scale = 1,
-  darkSurfaceHex?: string
-): string {
-  const adapt = (css: string): string => css.replace(':root', ':host').replace(/html,\s*body/g, ':host')
-  const scaleHost = mailPreviewScaleHostStyle(scale)
-  if (theme === 'dark') {
-    const softened = softenLightEmailBackgroundsForDarkViewer(html)
-    return `${scaleHost}${applyMailPreviewScaleToCss(buildMailShadowDarkThemeCss(darkSurfaceHex))}${wrapMailDarkHtmlContent(softened)}`
-  }
-  return `${scaleHost}${applyMailPreviewScaleToCss(adapt(lightThemeCss))}<div class="mail-html-root mail-html-root--light">${html}</div>`
+export type MailShadowRootBuildOptions = {
+  /** Kein unteres Innenpadding — Notiz/Kontext schliesst direkt an den Mail-Body an. */
+  flushContextBelow?: boolean
 }
 
-const lightThemeCss = `
+function mailShadowRootContentPadding(flushContextBelow?: boolean): string {
+  return flushContextBelow ? '14px 18px 0' : '14px 18px'
+}
+
+function buildMailShadowLightThemeCss(contentPadding: string): string {
+  return `
   <style>
     :root { color-scheme: light; }
     html, body { margin: 0; padding: 0; background: #ffffff; color: #1f1f23;
       font: 14px/1.55 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
       word-wrap: break-word; forced-color-adjust: none; }
     .mail-html-root--light {
-      padding: 14px 18px;
+      padding: ${contentPadding};
       min-height: 0;
       background: #ffffff;
       color: #1f1f23;
@@ -265,6 +260,26 @@ const lightThemeCss = `
     hr { border: 0; border-top: 1px solid #e5e5ea; margin: 12px 0; }
   </style>
 `
+}
+
+export function buildMailShadowRootInnerHtml(
+  html: string,
+  theme: MailViewerTheme,
+  scale = 1,
+  darkSurfaceHex?: string,
+  options?: MailShadowRootBuildOptions
+): string {
+  const adapt = (css: string): string => css.replace(':root', ':host').replace(/html,\s*body/g, ':host')
+  const scaleHost = mailPreviewScaleHostStyle(scale)
+  const contentPadding = mailShadowRootContentPadding(options?.flushContextBelow)
+  if (theme === 'dark') {
+    const softened = softenLightEmailBackgroundsForDarkViewer(html)
+    return `${scaleHost}${applyMailPreviewScaleToCss(buildMailShadowDarkThemeCss(darkSurfaceHex, contentPadding))}${wrapMailDarkHtmlContent(softened)}`
+  }
+  return `${scaleHost}${applyMailPreviewScaleToCss(adapt(buildMailShadowLightThemeCss(contentPadding)))}<div class="mail-html-root mail-html-root--light">${html}</div>`
+}
+
+const lightThemeCss = buildMailShadowLightThemeCss('14px 18px')
 
 /**
  * Dunkelmodus: Flaeche = Host-Variable (gleiche computed color wie .chronell-surface-flat).
@@ -279,7 +294,8 @@ function buildMailDarkHtmlShellCss(
   surfaceCss: string,
   hostSelector: ':root' | ':host',
   bodyPadding: string,
-  rootMinHeight: string
+  rootMinHeight: string,
+  rootContentPadding = '14px 18px'
 ): string {
   const hostBlock =
     hostSelector === ':host'
@@ -314,7 +330,7 @@ function buildMailDarkHtmlShellCss(
     .mail-html-root {
       forced-color-adjust: none;
       min-height: ${hostSelector === ':host' ? '0' : 'calc(100vh - 28px)'};
-      padding: ${hostSelector === ':host' ? '14px 18px' : '0'};
+      padding: ${hostSelector === ':host' ? rootContentPadding : '0'};
       margin: 0;
       background: ${surfaceCss};
     }
@@ -362,8 +378,11 @@ function buildMailIframeDarkThemeCss(surfaceHex?: string): string {
 }
 
 /** Shadow-Root Mail-Leseansicht: kein 100vh-Mindestmaß (iframe-Überbleibsel), sonst kein Scroll im Panel. */
-function buildMailShadowDarkThemeCss(surfaceHex?: string): string {
-  return buildMailDarkHtmlShellCss(mailDarkSurfaceCss(surfaceHex), ':host', '0', '0')
+function buildMailShadowDarkThemeCss(
+  surfaceHex?: string,
+  rootContentPadding = '14px 18px'
+): string {
+  return buildMailDarkHtmlShellCss(mailDarkSurfaceCss(surfaceHex), ':host', '0', '0', rootContentPadding)
 }
 
 /** Kalender-Beschreibung: kein Vollbild-Mindestmaß wie bei Mail (vermeidet leere Scrollbars). */

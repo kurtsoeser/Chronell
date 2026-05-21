@@ -526,7 +526,7 @@ export function Sidebar({ onOpenAccountDialog }: Props): JSX.Element {
 
   return (
     <aside className="module-nav-column h-full w-full">
-      <nav className="flex-1 overflow-y-auto px-2 pb-3 pt-0">
+      <nav className="module-nav-column-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2 pb-3 pt-0">
         <SidebarCollapsibleSection title={t('sidebar.quickAccess')}>
           <DndContext
             sensors={accountDragSensors}

@@ -45,6 +45,16 @@ describe('cloudTaskVisualSpan', () => {
     expect(span?.fcStart).toBe('2026-05-20')
   })
 
+  it('nutzt Kalendertag in Zeitzone statt UTC-Slice', () => {
+    const span = cloudTaskVisualSpan(
+      sampleTask({ dueIso: '2026-05-25T22:00:00.000Z' }),
+      null,
+      'Europe/Berlin'
+    )
+    expect(span?.fcStart).toBe('2026-05-26')
+    expect(span?.fcEnd).toBe('2026-05-27')
+  })
+
   it('liefert null ohne due und ohne Planung', () => {
     expect(cloudTaskVisualSpan(sampleTask({ dueIso: null }))).toBeNull()
   })

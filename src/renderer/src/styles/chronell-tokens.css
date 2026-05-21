@@ -295,6 +295,14 @@
     color: hsl(var(--sidebar-foreground));
   }
 
+  /**
+   * Mail-Nav: Inhalt oben bündig; Scrollbar-Track beginnt unter h-10 (Pane-Kopfzeile Spalte 2).
+   * WebKit/Chromium; Firefox zeigt die Scrollbar ggf. weiter oben.
+   */
+  .module-nav-column .module-nav-column-scroll::-webkit-scrollbar-track {
+    margin-top: 2.5rem;
+  }
+
   .chronell-module-pane-stack {
     display: flex;
     min-height: 0;

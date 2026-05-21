@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils'
 /**
  * Zentrales Erscheinungsbild für Spalten- und Modulköpfe.
  *
- * - **Eine Zeile, 40px** (`h-10`): Posteingangs-Liste, Kalender-Dock, Vollpflicht-Module (Kontakte, Regeln, …).
+ * - **Eine Zeile, 40px** (`h-10`): Posteingangs-Liste, Mail-Vorschau-Toolbar, Kalender-Dock, Vollpflicht-Module (Kontakte, Regeln, …).
  * - **Icons**: Lucide meist `moduleColumnHeaderIconGlyphClass` (3.5), Buttons **7×7**.
  * - **Primär/Sekundär-CTA**: `moduleColumnHeaderPrimarySmClass` / `moduleColumnHeaderOutlineSmClass`.
  *
@@ -18,6 +18,10 @@ export const moduleColumnHeaderMailListRowClass =
 /** Kalender-Dock / schmale Modulspalte: gleiche Höhe, Titel links, Aktionen rechts. */
 export const moduleColumnHeaderDockBarRowClass =
   'chronell-column-header chronell-column-header--card flex h-10 w-full min-h-0 shrink-0 items-center justify-between gap-2 px-2 text-xs'
+
+/** Mail-Lesevorschau: Aktionsleiste — fest 40px wie Posteingangs-Liste und Termine. */
+export const moduleColumnHeaderReadingToolbarClass =
+  'chronell-column-header chronell-column-header--card flex h-10 min-h-10 max-h-10 w-full shrink-0 items-center gap-0.5 overflow-hidden px-2 text-xs'
 
 /**
  * Obere Leiste in Vollmodulen (Kontakte, Aufgaben-Hauptbereich, Regeln, Workflow, …).

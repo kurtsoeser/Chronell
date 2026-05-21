@@ -160,8 +160,8 @@ export function filterCloudTasksInCalendarRange(
     const key = cloudTaskStableKey(task.accountId, task.listId, task.id)
     const planned = plannedByTaskKey.get(key)
     const span = dateMode
-      ? cloudTaskVisualSpanForMode(task, planned ?? null, dateMode)
-      : cloudTaskVisualSpan(task, planned ?? null)
+      ? cloudTaskVisualSpanForMode(task, planned ?? null, dateMode, timeZone)
+      : cloudTaskVisualSpan(task, planned ?? null, timeZone)
     if (!span) return false
     return span.endMs > startMs && span.startMs < endMs
   })

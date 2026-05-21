@@ -8,5 +8,6 @@ export {
   jsDateHasNonMidnightTimeInZone,
   normalizeDueAtIso,
   zonedDayBoundsUtcIso,
+  zonedLocalDateTimeToUtcIso,
   zonedLocalTimeToUtcIso
 } from '@shared/zoned-iso-date'

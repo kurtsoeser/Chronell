@@ -192,19 +192,14 @@ export function InboxCalendarSidebar({
     <aside
       className={cn(
         'flex h-full min-h-0 shrink-0 flex-col',
-        hideChrome ? 'border-0' : 'border-l border-border'
+        'border-0'
       )}
       onDragLeave={(e): void => {
         if (e.currentTarget === e.target) stripDragOver()
       }}
     >
       {!hideChrome && onRequestUndock ? (
-        <div
-          className={cn(
-            moduleColumnHeaderDockBarRowClass,
-            'shrink-0 border-b border-border'
-          )}
-        >
+        <div className={moduleColumnHeaderDockBarRowClass}>
           <span className={moduleColumnHeaderUppercaseLabelClass}>
             {t('mail.inboxCal.chromeTitle')}
           </span>

@@ -1,5 +1,6 @@
 import { app, BrowserWindow, screen } from 'electron'
 import { resolveAppWindowIcon } from './app-icon'
+import { attachChromiumZoomShortcutGuard } from './zoom-shortcut-guard'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { MailReadingPopoutKey, MailReadingPopoutOpenInput } from '@shared/types'
@@ -130,6 +131,8 @@ export function openMailReadingPopout(input: MailReadingPopoutOpenInput): void {
   if (alwaysOnTop) {
     win.setAlwaysOnTop(true, 'floating')
   }
+
+  attachChromiumZoomShortcutGuard(win.webContents)
 
   popoutWindows.set(key, win)
   popoutMeta.set(key, { title, alwaysOnTop })
