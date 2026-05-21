@@ -66,13 +66,13 @@ export async function gmailTrashMessage(accountId: string, remoteId: string): Pr
 
 /** Gmail: endgueltig loeschen (nicht nur Papierkorb). */
 export async function gmailDeleteMessageForever(accountId: string, remoteId: string): Promise<void> {
-  const { gmail } = await getGoogleApis(accountId)
+  const { gmail } = await getGoogleApis(accountId, { requireGmailFullScope: true })
   await gmail.users.messages.delete({ userId: 'me', id: remoteId })
 }
 
 /** Gmail: Papierkorb auf dem Server leeren. */
 export async function gmailEmptyTrash(accountId: string): Promise<number> {
-  const { gmail } = await getGoogleApis(accountId)
+  const { gmail } = await getGoogleApis(accountId, { requireGmailFullScope: true })
   let deleted = 0
   let pageToken: string | undefined
   for (let round = 0; round < 200; round++) {

@@ -5,6 +5,7 @@ import { AnimatedToast } from '@/components/motion/AnimatedToast'
 import { MOTION_TOAST_EXIT_MS } from '@/lib/motion'
 import { usePrefersReducedMotion } from '@/lib/use-prefers-reduced-motion'
 import { useUndoStore } from '@/stores/undo'
+import { MailBodyIndexProgressToast } from '@/app/layout/MailBodyIndexProgressToast'
 
 /**
  * Globaler Toast-Stack unten rechts. Wird durch `useUndoStore.pushToast()`
@@ -94,6 +95,7 @@ export function ToastStack(): JSX.Element {
 
   return (
     <div className="pointer-events-none fixed bottom-4 right-4 z-50 flex w-80 flex-col items-stretch gap-2">
+      <MailBodyIndexProgressToast />
       {toasts.map((t) => {
         const Icon =
           t.variant === 'success' ? CheckCircle2 : t.variant === 'error' ? AlertCircle : Info

@@ -31,6 +31,10 @@ import {
 } from './google/gmail-actions'
 import { isMicrosoftAuthUnavailable } from './auth/auth-errors'
 import { isGraphItemNotFound } from './graph/graph-request-errors'
+import {
+  googleGmailFullScopeRequiredMessage,
+  isGoogleInsufficientScopeError
+} from './google/gmail-scope-errors'
 import { runFolderSync } from './sync-runner'
 import { listAccounts } from './accounts'
 import { listTagsForMessage, replaceMessageTags } from './db/message-tags-repo'
@@ -414,6 +418,9 @@ export async function applyPermanentDeleteMessage(messageId: number): Promise<vo
       await graphDeleteMessageRemote(accountId, remoteId)
     }
   } catch (e) {
+    if (acc?.provider === 'google' && isGoogleInsufficientScopeError(e)) {
+      throw new Error(googleGmailFullScopeRequiredMessage())
+    }
     if (isGraphItemNotFound(e)) {
       deleteMessageLocal(messageId)
       if (wasUnread) {
@@ -451,10 +458,17 @@ export async function applyEmptyTrashFolder(folderId: number): Promise<{ deleted
   const accounts = await listAccounts()
   const acc = accounts.find((a) => a.id === accountId)
   let deletedRemote: number
-  if (acc?.provider === 'google') {
-    deletedRemote = await gmailEmptyTrash(accountId)
-  } else {
-    deletedRemote = await deleteAllRemoteMessagesInWellKnownFolder(accountId, 'deleteditems')
+  try {
+    if (acc?.provider === 'google') {
+      deletedRemote = await gmailEmptyTrash(accountId)
+    } else {
+      deletedRemote = await deleteAllRemoteMessagesInWellKnownFolder(accountId, 'deleteditems')
+    }
+  } catch (e) {
+    if (acc?.provider === 'google' && isGoogleInsufficientScopeError(e)) {
+      throw new Error(googleGmailFullScopeRequiredMessage())
+    }
+    throw e
   }
   deleteAllMessagesInFolderLocal(folderId)
   broadcastMailChanged(accountId)

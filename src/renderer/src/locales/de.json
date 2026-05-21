@@ -1625,6 +1625,7 @@
       "emptyTrashDoneMany": "Papierkorb geleert ({{count}} Mails auf dem Server)",
       "emptyTrashButton": "Papierkorb leeren",
       "emptyTrashBusy": "Leeren …",
+      "emptyTrashFailed": "Papierkorb konnte nicht geleert werden.",
       "conversation_one": "Konversation",
       "conversation_other": "Konversationen",
       "loadingMails": "Lade Mails …",

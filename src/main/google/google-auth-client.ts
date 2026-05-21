@@ -2,11 +2,14 @@ import { google } from 'googleapis'
 import { loadConfig } from '../config'
 import { createGoogleOAuth2Client } from '../auth/google'
 import { GOOGLE_CONTACTS_SCOPE_URL, storedGoogleScopeIncludesContacts } from '../auth/google-scopes'
+import { assertStoredGoogleGmailFullScope } from './gmail-scope-errors'
 import { getGoogleCredentials, saveGoogleCredentialsForAccount } from './google-credentials-store'
 
 export type GetGoogleApisOptions = {
   /** People API / Kontakte: prüft gespeicherten Scope (falls vorhanden) vor dem Aufruf. */
   requireContactsScope?: boolean
+  /** Papierkorb leeren / endgueltig loeschen: erfordert https://mail.google.com/ */
+  requireGmailFullScope?: boolean
 }
 
 export async function getGoogleApis(
@@ -37,6 +40,9 @@ export async function getGoogleApis(
       `Google-Kontakte: Die gespeicherte Anmeldung enthält nicht den OAuth-Scope «${GOOGLE_CONTACTS_SCOPE_URL}». ` +
         'Bitte das Google-Konto in den Einstellungen entfernen und erneut verbinden, damit der Zugriff auf Kontakte erteilt wird.'
     )
+  }
+  if (options?.requireGmailFullScope && stored.scope) {
+    assertStoredGoogleGmailFullScope(stored.scope)
   }
 
   const oauth2 = createGoogleOAuth2Client(clientId, clientSecret ?? undefined)

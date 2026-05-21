@@ -724,7 +724,14 @@ export function MailList(): JSX.Element {
                         variant: 'success'
                       })
                     })
-                    .catch(() => undefined)
+                    .catch((err: unknown) => {
+                      const msg =
+                        err instanceof Error ? err.message : String(err)
+                      useUndoStore.getState().pushToast({
+                        label: msg || t('mail.list.emptyTrashFailed'),
+                        variant: 'error'
+                      })
+                    })
                     .finally(() => setEmptyingTrash(false))
                 })()
               }}

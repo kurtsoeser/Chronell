@@ -1625,6 +1625,7 @@
       "emptyTrashDoneMany": "Deleted items emptied ({{count}} messages on the server)",
       "emptyTrashButton": "Empty deleted items",
       "emptyTrashBusy": "Emptying…",
+      "emptyTrashFailed": "Could not empty deleted items.",
       "conversation_one": "conversation",
       "conversation_other": "conversations",
       "loadingMails": "Loading mail…",

@@ -24,20 +24,39 @@ export const GOOGLE_OAUTH_REDIRECT_URI = 'http://127.0.0.1:47836/oauth2callback'
 /** People API (Sync, Anlegen, Bearbeiten). Erfordert Re-Consent, falls Konto ohne diesen Scope verbunden wurde. */
 export const GOOGLE_CONTACTS_SCOPE_URL = 'https://www.googleapis.com/auth/contacts' as const
 
+/**
+ * Gmail Vollzugriff inkl. endgueltigem Loeschen (Papierkorb leeren, Shift+Delete).
+ * `gmail.modify` allein reicht dafuer bei Google nicht (403 insufficient_scope).
+ */
+export const GOOGLE_GMAIL_FULL_SCOPE_URL = 'https://mail.google.com/' as const
+
 export const GOOGLE_OAUTH_SCOPES = [
   'openid',
   'email',
   'profile',
   'https://www.googleapis.com/auth/gmail.modify',
+  GOOGLE_GMAIL_FULL_SCOPE_URL,
   'https://www.googleapis.com/auth/calendar',
   'https://www.googleapis.com/auth/tasks',
   /** Kontakte lesen und bearbeiten (People API). Erfordert Re-Consent nach Scope-Aenderung. */
   GOOGLE_CONTACTS_SCOPE_URL
 ] as const
 
+function parseStoredScopeParts(scope: string | null | undefined): string[] {
+  if (!scope || typeof scope !== 'string') return []
+  return scope.split(/[\s,]+/).map((s) => s.trim()).filter(Boolean)
+}
+
 /** True, wenn die in `scope` gespeicherte OAuth-Antwort den Kontakte-Scope enthält (Leer = unbekannt). */
 export function storedGoogleScopeIncludesContacts(scope: string | null | undefined): boolean {
-  if (!scope || typeof scope !== 'string') return false
-  const parts = scope.split(/[\s,]+/).map((s) => s.trim()).filter(Boolean)
-  return parts.includes(GOOGLE_CONTACTS_SCOPE_URL)
+  return parseStoredScopeParts(scope).includes(GOOGLE_CONTACTS_SCOPE_URL)
+}
+
+/** True, wenn Gmail-Vollzugriff (Papierkorb leeren / endgueltig loeschen) erteilt wurde. */
+export function storedGoogleScopeIncludesGmailFull(scope: string | null | undefined): boolean {
+  const parts = parseStoredScopeParts(scope)
+  return (
+    parts.includes(GOOGLE_GMAIL_FULL_SCOPE_URL) ||
+    parts.includes('https://mail.google.com')
+  )
 }
