@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | **Homepage & Download** | [kurtsoeser.github.io/Chronell](https://kurtsoeser.github.io/Chronell/) |
-| **Aktuelle Version** | **0.9.16** (20. Mai 2026) |
+| **Aktuelle Version** | **0.9.20** (22. Mai 2026) |
 | **Windows-Installer** | [GitHub Release](https://github.com/kurtsoeser/Chronell/releases/latest) oder [direkt von Pages](https://kurtsoeser.github.io/Chronell/release/latest/Chronell-setup.exe) |
 | **Technischer Repo-Name** | MailClient · **App-ID:** `at.kurtsoeser.chronell` |
 | **Ausführliches Protokoll** | [`docs/FUNKTIONSPROTOKOLL.md`](docs/FUNKTIONSPROTOKOLL.md) |
@@ -59,6 +59,8 @@ Typische Zielgruppe: Power-User mit Microsoft 365 und/oder Gmail, mehrere Postf�
 
 | Bereich | Was neu ist |
 |--------|-------------|
+| **Composer (0.9.20)** | Neuer modularer Composer: TipTap-Editor, Absender/Alias/freigegebenes Postfach, Textbausteine, Nachrichtenoptionen, OneDrive-/SharePoint-Anhänge |
+| **Lesevorschau** | Konversations-Vorschau, Zoom (Strg+Mausrad); Oberflächen-Zoom in Einstellungen |
 | **Verbindungen** | Eigenes Modul mit interaktivem Graph: Mail, Notizen, Tasks, Termine, Kontakte verknüpfen; Layout speichern, Inseln, Dichte-Scan |
 | **KI-Verbindungen** | Vorschläge & Scans mit **Gemini**, **OpenAI** oder **Ollama (lokal)**; Snippet-Opt-in, Embeddings, Qualitätsprüfung, Audit-Log |
 | **Cloud-Sync** | Optionales Profil über Supabase: Notizen, Verbindungen, Regeln, Workflow, UI — Auto-Sync, Konfliktlösung; **keine** Mail-Inhalte |
@@ -78,7 +80,7 @@ Die obere Leiste gliedert die App in **zehn Modi** (Reihenfolge anpassbar, einze
 | Modul | Zweck |
 |-------|--------|
 | **Home** | Persönliches Dashboard mit konfigurierbaren Kacheln |
-| **Mail** | Postfächer, Lesepane, Triage, Rich-Text-Compose |
+| **Mail** | Postfächer, Lesepane, Triage, Composer (TipTap, OneDrive-/SharePoint-Anhänge) |
 | **Kalender** | Multi-Kalender (M365 + Google), Zeitliste, Gantt-Zeitstrahl |
 | **Bookings** | **Microsoft Bookings** — Buchungsseiten, Leistungen, Termine (M365) |
 | **Aufgaben** | Microsoft To Do + Google Tasks |
@@ -97,7 +99,7 @@ Die obere Leiste gliedert die App in **zehn Modi** (Reihenfolge anpassbar, einze
 | Bereich | Kurzbeschreibung |
 |--------|-------------------|
 | **Konten** | Mehrere Konten parallel; **Microsoft 365** (Graph) und **Google**; optional eigene OAuth-App |
-| **Mail** | Virtualisierte Listen, FTS5-Suche, TipTap-Compose, Snooze, Waiting for, Mail-ToDos, QuickSteps, Meta-Ordner, Kategorien |
+| **Mail** | Virtualisierte Listen, FTS5-Suche, Composer (TipTap, Cloud-Anhänge, Textbausteine), Snooze, Waiting for, Mail-ToDos, QuickSteps, Meta-Ordner, Kategorien |
 | **Kalender** | Tag/Woche/Monat/Jahr, Zeitliste, Gantt; Termine inkl. Serien; Mail-ToDos & Tasks im Kalender |
 | **Bookings** | Unternehmens-Bookings in der App; Verwaltung/Veröffentlichung weiter in Outlook Web |
 | **Aufgaben** | To Do + Google Tasks, Listen-, Kanban- und Kalenderansicht |
@@ -121,7 +123,7 @@ Die obere Leiste gliedert die App in **zehn Modi** (Reihenfolge anpassbar, einze
 - **QuickSteps** — konfigurierbare Aktionsketten mit Tastenkürzeln
 - **Meta-Ordner** — virtuelle, kontenübergreifende Such-/Filteransichten
 - **Workflow-Ordner** pro Konto (z. B. „In Bearbeitung“ / „Erledigt“) für Triage
-- **Rich-Text-Compose** (TipTap), Anhänge, Entwürfe, Vorlagen, **geplanter Versand**
+- **Composer** (TipTap): Absender/Alias/freigegebenes Postfach, Textbausteine, Nachrichtenoptionen, lokale und **OneDrive-/SharePoint-Anhänge**, Entwürfe, Vorlagen, **geplanter Versand**
 - **Rückgängig** über Nachrichtenaktionen; Verknüpfung Mail ↔ Cloud-Task
 - **Notion:** Mail als Block an Notion-Seite senden
 - Lange Listen: **react-virtuoso** (virtualisiert)

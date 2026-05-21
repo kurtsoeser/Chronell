@@ -6,8 +6,8 @@ Dieses Dokument beschreibt den **aktuellen Funktionsumfang** der Desktop-App. Es
 |------|------|
 | **Produktname (UI)** | Chronell |
 | **Technischer Name / Installer** | MailClient |
-| **Version** | **0.9.19** |
-| **Stand** | **21. Mai 2026** |
+| **Version** | **0.9.20** |
+| **Stand** | **22. Mai 2026** |
 | **App-ID** | `at.kurtsoeser.chronell` |
 | **Zielplattform** | Windows 11 (primär) |
 | **Autor** | Kurt Soeser |
@@ -101,9 +101,14 @@ Die App gliedert sich in **zehn Hauptmodi** (obere Leiste, Reihenfolge anpassbar
 ### Grundfunktionen
 
 - Ordnerbaum pro Konto, Favoriten, **virtualisierte Listen** (react-virtuoso)
-- Thread-/Nachrichtenansicht, **Lesepane** (mit Kontext-Speicher für Verbindungen/Vorschau, 0.9.19), gelesen/ungelesen, markiert
-- **Rich-Text-Compose** (TipTap), Anhänge, Entwürfe, Vorlagen mit Platzhaltern
-- **Geplanter Versand** (Warteschlange im Main-Prozess)
+- Thread-/Nachrichtenansicht, **Lesepane** (Kontext-Speicher für Verbindungen/Vorschau; Konversations-Vorschau, 0.9.20), gelesen/ungelesen, markiert
+- **Lesevorschau-Zoom** (Strg+Mausrad, Strg+Plus/Minus, Pinch; Standard in Einstellungen)
+- **Composer** (0.9.20): modularer Aufbau, Pop-out-Fenster, **TipTap**-Editor mit Hell/Dunkel-Theme
+- **Absender:** Hauptkonto, Alias, freigegebenes Postfach (M365); **Nachrichtenoptionen** (Vertraulichkeit, Lese-/Zustellungsbestätigung, geplanter Versand)
+- **Textbausteine** im Composer; Signaturvorlagen wie zuvor
+- **Anhänge:** lokal + **OneDrive / SharePoint** als Cloud-Link-Anhang oder Freigabe-Link im Text (Explorer, Favoriten, Link-Berechtigungen und Ablauf)
+- Entwürfe, Vorlagen mit Platzhaltern
+- **Geplanter Versand** (Warteschlange im Main-Prozess; im Composer konfigurierbar)
 - Verschieben, Archivieren, Löschen, Kategorien (Outlook-Masterkategorien)
 - **FTS5-Volltextsuche** lokal (Betreff, Body, Metadaten)
 - Bilder optional automatisch laden (Einstellung)
@@ -344,7 +349,7 @@ Einstellungen-Dialog (Zahnrad) mit Reitern:
 | **Kontakte** | Hinweise, Sprung zum Personen-Modul |
 | **KI-Verbindungen** | Provider (Gemini/OpenAI/Ollama), Snippet-Modus, Scan-Profile, Audit-Log, Embeddings |
 | **Oberfläche** | Design-Presets (Fluent, Midnight, Nord, …), L0–L3-Oberflächenfarben, Hell/Dunkel |
-| **Info** | Version **0.9.19**, Stand **21. Mai 2026**, Produktname, App-ID |
+| **Info** | Version **0.9.20**, Stand **22. Mai 2026**, Produktname, App-ID |
 
 ### Fluent-2-Oberfläche (ab 0.9.17)
 
@@ -377,7 +382,8 @@ Weitere Systemfunktionen:
 - **Lokale Daten** — Speicherverbrauch anzeigen, Cache/DB bereinigen
 - **Bulk-Entflaggen** auf dem Server (Dialog)
 - Theming Hell / Dunkel / System, Akzentfarben
-- Globale Tastenkürzel
+- Globale Tastenkürzel; **Übersicht** in Einstellungen → Allgemein (Mail, Zoom, Kalender)
+- **Oberflächen-Zoom** (Strg+Umschalt+Plus/Minus) und **Mail-Vorschau-Zoom** getrennt konfigurierbar
 
 ---
 
@@ -417,7 +423,7 @@ Weitere Systemfunktionen:
 
 Die Root-`README.md` wird mit Meilensteinen nachgezogen. Bei Widersprüchen gilt **dieses Funktionsprotokoll**.
 
-| Thema | Ist-Stand (0.9.19) |
+| Thema | Ist-Stand (0.9.20) |
 |-------|---------------------|
 | Module | **Zehn** Top-Level-Modi inkl. **Verbindungen** und **Bookings** |
 | Oberfläche | **Fluent 2** — Mica-Hintergrund, Acrylic-Popover, Design-Presets (Fluent, Midnight, Nord, …) |
@@ -460,7 +466,7 @@ Marker-Datei nach Migration: `%APPDATA%\Chronell\.chronell-migrated-from-mailcli
 **Empfohlene Schritte:**
 
 1. `npm run dev` beenden (alle Chronell-/Electron-Fenster schließen).
-2. `Chronell-0.9.19-setup.exe` (oder aktuelle Version von der Homepage) ausführen und installieren.
+2. `Chronell-0.9.20-setup.exe` (oder aktuelle Version von der Homepage) ausführen und installieren.
 3. **Chronell** aus dem Startmenü starten — Migration läuft automatisch.
 4. Konten und Einstellungen prüfen; bei Bedarf einmal Sync abwarten.
 5. Optional: alten Ordner `C:\Users\<Du>\AppData\Roaming\mailclient` nach erfolgreicher Prüfung löschen (erst wenn alles passt).
@@ -468,6 +474,15 @@ Marker-Datei nach Migration: `%APPDATA%\Chronell\.chronell-migrated-from-mailcli
 ---
 
 ## 20. Versionshistorie
+
+### 0.9.20 — 22. Mai 2026
+
+- **Composer:** modularer Aufbau, Absender (Alias, freigegebenes Postfach), Nachrichtenoptionen, Textbausteine, Editor Hell/Dunkel
+- **OneDrive / SharePoint:** Cloud-Anhänge und Freigabe-Links im Mail-Text; Explorer mit Favoriten; Link-Einstellungen (Berechtigung, Ablauf)
+- **TipTap-Editor** überarbeitet; **Lesevorschau** mit Zoom und Konversations-Vorschau
+- **Einstellungen:** Tastenkürzel-Übersicht, Oberflächen- und Vorschau-Zoom; Kontakte-Arbeitsbereich
+- **Homepage:** Datenschutz-Seite (`datenschutz.html`); Release-Texte und Download auf 0.9.20
+- Viele Bugfixes (Sync-Status, Graph, Mail-Listen, Google-Scopes)
 
 ### 0.9.19 — 21. Mai 2026
 
@@ -508,4 +523,4 @@ Marker-Datei nach Migration: `%APPDATA%\Chronell\.chronell-migrated-from-mailcli
 
 ---
 
-*Letzte Aktualisierung dieses Dokuments: 21. Mai 2026 · Version 0.9.19*
+*Letzte Aktualisierung dieses Dokuments: 22. Mai 2026 · Version 0.9.20*

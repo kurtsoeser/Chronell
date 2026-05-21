@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Chronell — Manage your time, not your inbox",
-    "description": "Chronell 0.9.19: Refined Connections and calendar preview, stabler graph — lean installer for Windows 11 with Microsoft 365 and Google."
+    "description": "Chronell 0.9.20: New composer, TipTap editor, OneDrive and SharePoint attachments — desktop work hub for Windows 11 with Microsoft 365 and Google."
   },
   "nav": {
     "method": "The Method",
@@ -26,7 +26,7 @@
     "taglineLine2Accent": "inbox",
     "taglineLine2Suffix": ".",
     "positioning": "Chronell is not an email client. It's a system to manage your time.",
-    "subline": "Microsoft 365 and Google in one desktop workspace — now in a Fluent 2 look, with connection graph, AI suggestions, cloud sync, and Bookings. Built for Windows 11.",
+    "subline": "Microsoft 365 and Google in one desktop workspace — new composer with OneDrive attachments, connection graph, AI suggestions, cloud sync, and Bookings. Built for Windows 11.",
     "ctaDownload": "Download for Windows",
     "ctaMethod": "Discover the method",
     "mockup": {
@@ -158,8 +158,16 @@
     "eyebrow": "Release overview",
     "title": "What shipped in recent updates",
     "lead": "From the new Fluent look to the connection graph and profile sync — Chronell moves fast without putting your mail in the cloud.",
-    "v0919": {
+    "v0920": {
       "badge": "Current",
+      "date": "May 2026",
+      "title": "Composer, editor & cloud attachments",
+      "b1": "New composer: send-as with alias and shared mailbox, message options, text snippets, light/dark editor theme",
+      "b2": "OneDrive and SharePoint: files as cloud attachment or sharing link in the message body — explorer with favorites and link settings",
+      "b3": "Refined TipTap editor; reading preview zoom (Ctrl+wheel); shortcut overview and UI zoom in settings",
+      "b4": "Privacy page on the website; many bug fixes in mail, sync, graph, and home compose tile"
+    },
+    "v0919": {
       "date": "May 2026",
       "title": "Connections & calendar polish",
       "b1": "Note preview in the connection graph, improved object preview, and node context menu",
@@ -200,13 +208,13 @@
   "highlights": {
     "eyebrow": "Try it now",
     "title": "Four focus areas in the current beta",
-    "lead": "Version 0.9.19 refines Connections and calendar preview, ships a leaner installer, and builds on Fluent design, AI, and cloud sync — without tab chaos.",
-    "design": {
-      "title": "Fluent design",
-      "desc": "Chronell feels like a native Windows 11 productivity app — calm, dark, with subtle depth instead of a generic web look.",
-      "b1": "Mica shell, acrylic popovers, and smoke overlays for modals",
-      "b2": "Unified modules: mail, calendar, tasks, notes, connections, dashboard",
-      "b3": "Presets and custom surface colors — set once, consistent everywhere"
+    "lead": "Version 0.9.20 ships a new composer with TipTap editor, OneDrive and SharePoint attachments, and finer zoom — building on Fluent design, AI, and cloud sync.",
+    "compose": {
+      "title": "New composer",
+      "desc": "Write mail like in Outlook — but in Chronell: modular composer, rich-text editor, and Microsoft 365 cloud files straight from the attachment menu.",
+      "b1": "Send-as: primary account, alias, shared mailbox; message options and scheduled send",
+      "b2": "OneDrive / SharePoint: cloud-link attachment or sharing link in the body — with permissions and expiration",
+      "b3": "Text snippets, light/dark editor theme, compose tile on the home dashboard"
     },
     "connections": {
       "title": "Connections",
@@ -262,8 +270,8 @@
         "desc": "Booking pages, services, and appointments for your team — in the app, no Outlook web tab."
       },
       "triage": {
-        "title": "Mail triage",
-        "desc": "Turn messages into to-dos with due dates, snooze, waiting-for, and quick steps — your inbox becomes a decision point."
+        "title": "Mail & composer",
+        "desc": "Triage with to-dos, snooze, and quick steps — plus new composer (TipTap), OneDrive/SharePoint attachments, reading preview zoom, and pop-out window."
       },
       "tasks": {
         "title": "Tasks (M365 & Google)",
@@ -354,12 +362,12 @@
     "privacy": "Privacy"
   },
   "whatsNew": {
-    "label": "Version 0.9.19",
-    "tagline": "Connections & calendar · lean installer · stabler graph"
+    "label": "Version 0.9.20",
+    "tagline": "Composer · OneDrive attachments · TipTap editor · zoom"
   },
   "cta": {
     "title": "Ready for the new Chronell?",
-    "body": "Download version 0.9.19 for Windows 11 — connection graph with note preview, calendar preview, AI suggestions, and optional cloud sync. Updates replace your version without losing data.",
+    "body": "Download version 0.9.20 for Windows 11 — new composer with cloud attachments, refined editor, connection graph with AI, and optional cloud sync. Updates replace your version without losing data.",
     "button": "Download now"
   }
 }
