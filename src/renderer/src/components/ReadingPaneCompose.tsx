@@ -1,24 +1,20 @@
 import { useCallback, useRef, useState } from 'react'
-import {
-  AlertCircle,
-  ChevronDown,
-  Loader2,
-  Paperclip,
-  Save,
-  Send,
-  SquareArrowOutUpRight
-} from 'lucide-react'
+import { AlertCircle, ChevronDown, Loader2, Save, Send, SquareArrowOutUpRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { ComposeFromField } from '@/components/ComposeFromField'
 import { ComposeMessageOptionsButton } from '@/components/ComposeMessageOptionsDialog'
 import { ComposeEditorSurface } from '@/components/ComposeEditorSurface'
 import { ComposeEditorThemedPane } from '@/components/ComposeEditorThemedPane'
+import { ComposeMailBodyTile } from '@/components/ComposeMailBodyTile'
+import { composeMailBodyShellClass } from '@/lib/chronell-ui-classes'
 import { ComposeEditorThemeToggle } from '@/components/ComposeEditorThemeToggle'
 import { TipTapBody } from '@/components/TipTapBody'
+import { ComposeAttachmentsStrip } from '@/components/ComposeAttachmentsStrip'
+import { OneDriveExplorerDialog } from '@/components/OneDriveExplorerDialog'
 import { SignatureTemplateControls } from '@/components/SignatureTemplateControls'
 import { RecipientTokenField } from '@/components/RecipientTokenField'
 import { cn } from '@/lib/utils'
-import { formatBytes } from '@/lib/format-bytes'
+import { useComposeCloudDrive } from '@/hooks/useComposeCloudDrive'
 import { useAccountsStore } from '@/stores/accounts'
 import {
   useComposeStore,
@@ -54,14 +50,22 @@ export function ReadingPaneCompose({
   const addAttachments = useComposeStore((s) => s.addAttachments)
   const removeAttachment = useComposeStore((s) => s.removeAttachment)
 
-  const fileInputRef = useRef<HTMLInputElement>(null)
   const [attachmentError, setAttachmentError] = useState<string | null>(null)
   const [showQuoted, setShowQuoted] = useState(false)
 
   useComposeAutoSave(draft.id, true)
 
   const account = accounts.find((a) => a.id === draft.accountId) ?? accounts[0]
+  const isMicrosoft = account?.provider === 'microsoft'
   const attachmentsTotal = draft.attachments.reduce((s, a) => s + a.size, 0)
+  const {
+    driveOpen,
+    setDriveOpen,
+    openDrive,
+    addCloudAttachment,
+    removeCloudAttachment,
+    insertCloudLinkInBody
+  } = useComposeCloudDrive(draft.id)
 
   const addFiles = useCallback(
     async (files: File[]): Promise<void> => {
@@ -120,7 +124,20 @@ export function ReadingPaneCompose({
           )}
           {t('mail.composeTile.send')}
         </button>
-        <div className="flex-1" />
+        <ComposeFromField
+          variant="inline"
+          accountId={draft.accountId}
+          sendFromEmail={draft.sendFromEmail ?? null}
+          onAccountChange={(id): void =>
+            update(draft.id, {
+              accountId: id,
+              sendFromEmail: null,
+              savedRemoteDraftId: undefined
+            })
+          }
+          onSendFromChange={(email): void => update(draft.id, { sendFromEmail: email })}
+        />
+        <div className="min-w-0 flex-1" />
         <button
           type="button"
           disabled={draft.busy}
@@ -167,19 +184,6 @@ export function ReadingPaneCompose({
         </button>
       </div>
 
-      <ComposeFromField
-        accountId={draft.accountId}
-        sendFromEmail={draft.sendFromEmail ?? null}
-        onAccountChange={(id): void =>
-          update(draft.id, {
-            accountId: id,
-            sendFromEmail: null,
-            savedRemoteDraftId: undefined
-          })
-        }
-        onSendFromChange={(email): void => update(draft.id, { sendFromEmail: email })}
-      />
-
       <ComposeEditorSurface
         onDragOver={(e): void => {
           if (!Array.from(e.dataTransfer.types).includes('Files')) return
@@ -191,79 +195,89 @@ export function ReadingPaneCompose({
           void addFiles(Array.from(e.dataTransfer.files))
         }}
       >
-      <RecipientTokenField
-        inEditorSurface
-        label={t('mail.composeTile.to')}
-        accountId={draft.accountId}
-        value={draft.to}
-        onChange={(v): void => update(draft.id, { to: v })}
-        showToggle={!draft.showCcBcc}
-        onToggleCcBcc={(): void => update(draft.id, { showCcBcc: true })}
-      />
-      {draft.showCcBcc && (
-        <>
-          <RecipientTokenField
-            inEditorSurface
-            label={t('mail.composeTile.cc')}
-            accountId={draft.accountId}
-            value={draft.cc}
-            onChange={(v): void => update(draft.id, { cc: v })}
-          />
-          <RecipientTokenField
-            inEditorSurface
-            label={t('mail.composeTile.bcc')}
-            accountId={draft.accountId}
-            value={draft.bcc}
-            onChange={(v): void => update(draft.id, { bcc: v })}
-          />
-        </>
-      )}
-
-      <div className="flex shrink-0 items-center border-b border-[hsl(var(--compose-surface-border)/0.55)] px-3 py-2">
-        <span className="w-14 shrink-0 text-xs text-muted-foreground">{t('mail.composeTile.subject')}</span>
-        <input
-          type="text"
-          value={draft.subject}
-          onChange={(e): void => update(draft.id, { subject: e.target.value })}
-          placeholder={t('mail.composeTile.noSubjectPlaceholder')}
-          className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
-        />
-      </div>
-
-        <ComposeEditorThemedPane className="min-h-0 flex-1">
-          <TipTapBody
-            inEditorSurface
-            className="min-h-0 flex-1 border-t-0"
-            valueHtml={draft.prependRichHtml}
-            onChangeHtml={(v): void => update(draft.id, { prependRichHtml: v })}
-            autoFocus
-            fillHeight
-          />
-        </ComposeEditorThemedPane>
-        <div className="shrink-0 border-t border-[hsl(var(--compose-surface-border)/0.5)] bg-[hsl(var(--compose-surface-muted))]">
-          <div className="flex flex-wrap items-center justify-between gap-1 px-3 py-1">
-            <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-              {t('mail.composeTile.signature', { defaultValue: 'Signatur' })}
-            </span>
-            <SignatureTemplateControls
-              compact
-              accountId={draft.accountId}
-              signatureRichHtml={draft.signatureRichHtml}
-              activeTemplateId={draft.signatureTemplateId ?? null}
-              onSignatureHtmlChange={(html): void => update(draft.id, { signatureRichHtml: html })}
-              onActiveTemplateIdChange={(id): void => update(draft.id, { signatureTemplateId: id })}
-            />
-          </div>
-          <ComposeEditorThemedPane>
-            <TipTapBody
-              inEditorSurface
-              variant="compact"
-              fillHeight={false}
-              className="border-t-0"
-              valueHtml={draft.signatureRichHtml}
-              onChangeHtml={(v): void => update(draft.id, { signatureRichHtml: v })}
-            />
-          </ComposeEditorThemedPane>
+        <div className={composeMailBodyShellClass}>
+          <ComposeMailBodyTile className="min-h-[12rem] flex-1">
+            <div className="compose-mail-chrome shrink-0">
+              <RecipientTokenField
+                inMailTile
+                label={t('mail.composeTile.to')}
+                accountId={draft.accountId}
+                value={draft.to}
+                onChange={(v): void => update(draft.id, { to: v })}
+                showToggle={!draft.showCcBcc}
+                onToggleCcBcc={(): void => update(draft.id, { showCcBcc: true })}
+              />
+              {draft.showCcBcc && (
+                <>
+                  <RecipientTokenField
+                    inMailTile
+                    label={t('mail.composeTile.cc')}
+                    accountId={draft.accountId}
+                    value={draft.cc}
+                    onChange={(v): void => update(draft.id, { cc: v })}
+                  />
+                  <RecipientTokenField
+                    inMailTile
+                    label={t('mail.composeTile.bcc')}
+                    accountId={draft.accountId}
+                    value={draft.bcc}
+                    onChange={(v): void => update(draft.id, { bcc: v })}
+                  />
+                </>
+              )}
+              <div className="flex shrink-0 items-center px-3 py-2">
+                <span className="w-14 shrink-0 text-xs text-muted-foreground">
+                  {t('mail.composeTile.subject')}
+                </span>
+                <input
+                  type="text"
+                  value={draft.subject}
+                  onChange={(e): void => update(draft.id, { subject: e.target.value })}
+                  placeholder={t('mail.composeTile.noSubjectPlaceholder')}
+                  className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+                />
+              </div>
+            </div>
+            <ComposeEditorThemedPane className="compose-mail-editor-section min-h-0 flex-1">
+              <TipTapBody
+                inEditorSurface
+                className="min-h-0 flex-1 border-t-0"
+                valueHtml={draft.prependRichHtml}
+                onChangeHtml={(v): void => update(draft.id, { prependRichHtml: v })}
+                onAttachFiles={(files): void => void addFiles(files)}
+                attachmentCount={draft.attachments.length}
+                onCloudAttach={isMicrosoft ? openDrive : undefined}
+                cloudAttachmentCount={draft.referenceAttachments.length}
+                autoFocus
+                fillHeight
+              />
+            </ComposeEditorThemedPane>
+          </ComposeMailBodyTile>
+          <ComposeMailBodyTile className="shrink-0">
+            <div className="flex flex-wrap items-center justify-between gap-1 border-b border-[hsl(var(--compose-surface-border)/0.45)] px-3 py-1">
+              <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                {t('mail.composeTile.signature', { defaultValue: 'Signatur' })}
+              </span>
+              <SignatureTemplateControls
+                compact
+                accountId={draft.accountId}
+                signatureRichHtml={draft.signatureRichHtml}
+                activeTemplateId={draft.signatureTemplateId ?? null}
+                onSignatureHtmlChange={(html): void => update(draft.id, { signatureRichHtml: html })}
+                onActiveTemplateIdChange={(id): void => update(draft.id, { signatureTemplateId: id })}
+              />
+            </div>
+            <ComposeEditorThemedPane>
+              <TipTapBody
+                inEditorSurface
+                variant="compact"
+                fillHeight={false}
+                className="border-t-0"
+                valueHtml={draft.signatureRichHtml}
+                onChangeHtml={(v): void => update(draft.id, { signatureRichHtml: v })}
+              />
+            </ComposeEditorThemedPane>
+          </ComposeMailBodyTile>
         </div>
       </ComposeEditorSurface>
 
@@ -316,35 +330,22 @@ export function ReadingPaneCompose({
         </div>
       )}
 
-      {(draft.attachments.length > 0 || attachmentError) && (
-        <div className="max-h-24 shrink-0 overflow-y-auto border-t border-border/60 bg-secondary/15 px-3 py-2">
-          {attachmentError && (
-            <div className="mb-1 flex items-start gap-1.5 text-xs text-destructive">
-              <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              <span>{attachmentError}</span>
-            </div>
-          )}
-          <div className="flex flex-wrap gap-2">
-            {draft.attachments.map((a) => (
-              <span
-                key={a.id}
-                className="inline-flex max-w-full items-center gap-1 rounded-md border border-border bg-card px-2 py-1 text-[11px]"
-              >
-                <span className="truncate">{a.name}</span>
-                <span className="text-muted-foreground">({formatBytes(a.size)})</span>
-                <button
-                  type="button"
-                  className="text-muted-foreground hover:text-destructive"
-                  aria-label={t('mail.composeTile.removeAttachmentAria')}
-                  onClick={(): void => removeAttachment(draft.id, a.id)}
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
+      <ComposeAttachmentsStrip
+        attachments={draft.attachments}
+        referenceAttachments={draft.referenceAttachments}
+        attachmentError={attachmentError}
+        onRemoveLocal={(id): void => removeAttachment(draft.id, id)}
+        onRemoveCloud={removeCloudAttachment}
+      />
+      {isMicrosoft ? (
+        <OneDriveExplorerDialog
+          open={driveOpen}
+          accountId={draft.accountId}
+          onClose={(): void => setDriveOpen(false)}
+          onPickFile={addCloudAttachment}
+          onInsertLinkInBody={insertCloudLinkInBody}
+        />
+      ) : null}
 
       {draft.error && (
         <div className="flex shrink-0 items-start gap-2 border-t border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
@@ -354,25 +355,25 @@ export function ReadingPaneCompose({
       )}
 
       <div className="flex shrink-0 items-center gap-2 border-t border-border px-3 py-2">
+        <div className="min-w-0 flex-1" />
         <button
           type="button"
-          onClick={(): void => fileInputRef.current?.click()}
-          className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground"
+          disabled={draft.busy}
+          onClick={(): void => void send(draft.id)}
+          className={cn(
+            'inline-flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold',
+            draft.busy
+              ? 'bg-secondary text-muted-foreground'
+              : 'bg-primary text-primary-foreground hover:bg-primary/90'
+          )}
         >
-          <Paperclip className="h-3.5 w-3.5" />
-          {t('mail.composeTile.attachment')}
+          {draft.busy ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Send className="h-3.5 w-3.5" />
+          )}
+          {t('mail.composeTile.send')}
         </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          className="hidden"
-          onChange={(e): void => {
-            const files = e.target.files
-            if (files && files.length > 0) void addFiles(Array.from(files))
-            e.target.value = ''
-          }}
-        />
       </div>
     </div>
   )

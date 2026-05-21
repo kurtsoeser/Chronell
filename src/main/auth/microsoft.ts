@@ -36,10 +36,10 @@ export const MICROSOFT_SCOPES = [
   'People.Read',
   /** Organisationsverzeichnis: `/users` mit Filter fuer Empfaenger-Autocomplete. */
   'User.ReadBasic.All',
-  /** OneDrive: Dateien als Cloud-Anhang auswaehlen (`/me/drive/...`). */
-  'Files.Read.All',
-  /** SharePoint: verfolgte Sites (`/me/followedSites`) und Site-Bibliotheken. */
-  'Sites.Read.All',
+  /** OneDrive: Dateien lesen, Freigabe-Links (`createLink`) und Cloud-Anhaenge. */
+  'Files.ReadWrite.All',
+  /** SharePoint: Sites/Bibliotheken lesen und Freigabe-Links. */
+  'Sites.ReadWrite.All',
   /** Microsoft Bookings: Unternehmens-Buchungsseiten lesen (`/solutions/bookingBusinesses`). */
   'Bookings.Read.All',
   /** Microsoft Bookings: Termine in Buchungskalendern lesen/schreiben. */

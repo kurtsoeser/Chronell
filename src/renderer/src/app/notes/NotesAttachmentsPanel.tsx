@@ -224,6 +224,7 @@ export function NotesAttachmentsPanel({
         <OneDriveExplorerDialog
           open={driveOpen}
           accountId={microsoftAccount.id}
+          configureSharingLink={false}
           onClose={(): void => setDriveOpen(false)}
           onPickFile={(file): void => void handleCloudPick(file)}
         />

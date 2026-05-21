@@ -218,7 +218,8 @@ export const IPC = {
     removeDriveExplorerFavorite: 'compose:remove-drive-explorer-favorite',
     updateDriveExplorerFavoriteCache: 'compose:update-drive-explorer-favorite-cache',
     renameDriveExplorerFavorite: 'compose:rename-drive-explorer-favorite',
-    reorderDriveExplorerFavorites: 'compose:reorder-drive-explorer-favorites'
+    reorderDriveExplorerFavorites: 'compose:reorder-drive-explorer-favorites',
+    createDriveSharingLink: 'compose:create-drive-sharing-link'
   },
   calendar: {
     listEvents: 'calendar:list-events',

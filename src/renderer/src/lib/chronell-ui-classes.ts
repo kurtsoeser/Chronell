@@ -46,6 +46,13 @@ export const mailConversationMessageTileClass =
 
 export const mailConversationStackClass = 'flex flex-col gap-2 p-2'
 
+/** Scroll-Bereich unter An/Betreff mit Abstand zur Mail-Kachel (wie Konversations-Stack). */
+export const composeMailBodyShellClass =
+  'compose-mail-body-shell flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2'
+
+/** Mail-Text / Signatur im Composer (weiße Kachel, rounded-xl). */
+export const composeMailBodyTileClass = 'compose-mail-body-tile'
+
 /** Zeitliste / chronologische Listen: Zeilen- und Gruppentrenner. */
 export const listDivideClass =
   'divide-y divide-white/[0.04] dark:divide-white/[0.04]'

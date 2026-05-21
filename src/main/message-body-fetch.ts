@@ -9,8 +9,12 @@ import { loadConfig } from './config'
 import { isGraphItemNotFound } from './graph/graph-request-errors'
 import { getGoogleApis } from './google/google-auth-client'
 import { withGraphMailboxSlot } from './graph/graph-mailbox-queue'
+import { withTimeout } from './async-timeout'
 import type { gmail_v1 } from 'googleapis'
 import type { MailFull } from '@shared/types'
+
+/** Hintergrund-Index: kein endloses Warten auf Graph/OAuth (interaktive Anmeldung). */
+const BACKGROUND_BODY_FETCH_TIMEOUT_MS = 90_000
 
 function htmlToPlainText(html: string): string {
   return html
@@ -116,6 +120,16 @@ export interface FetchMessageBodyOptions {
 }
 
 /**
+ * Snippet/Betreff als body_text, damit die Warteschlange nicht endlos haengen bleibt.
+ */
+function skipBackgroundBodyIndex(messageId: number, opts?: FetchMessageBodyOptions): false {
+  if (opts?.background) {
+    markMessageBodyIndexFallbackLocal(messageId)
+  }
+  return false
+}
+
+/**
  * Laedt Mail-Body vom Provider und speichert ihn lokal, wenn noch keiner vorhanden ist.
  * @returns true wenn ein Body neu indexiert wurde
  */
@@ -128,14 +142,25 @@ export async function fetchAndStoreMessageBodyIfMissing(
 
   const accounts = await listAccounts()
   const account = accounts.find((a) => a.id === msg.accountId)
-  if (!account || !msg.remoteId) return false
+  if (!account || !msg.remoteId) {
+    return skipBackgroundBodyIndex(messageId, opts)
+  }
 
   try {
-    const bodies =
+    const fetchBodies =
       account.provider === 'google'
-        ? await fetchGmailMessageBody(account.id, msg.remoteId)
-        : await fetchGraphMessageBody(account.id, msg.remoteId)
-    if (!bodies.bodyHtml && !bodies.bodyText) return false
+        ? () => fetchGmailMessageBody(account.id, msg.remoteId!)
+        : () => fetchGraphMessageBody(account.id, msg.remoteId!)
+    const bodies = opts?.background
+      ? await withTimeout(
+          fetchBodies(),
+          BACKGROUND_BODY_FETCH_TIMEOUT_MS,
+          'Mail-Body laden (Hintergrund)'
+        )
+      : await fetchBodies()
+    if (!bodies.bodyHtml && !bodies.bodyText) {
+      return skipBackgroundBodyIndex(messageId, opts)
+    }
     updateMessageBodiesLocal(messageId, bodies.bodyHtml, bodies.bodyText)
     return true
   } catch (e) {
@@ -150,6 +175,7 @@ export async function fetchAndStoreMessageBodyIfMissing(
       console.warn(
         `[message-body-fetch] Hintergrund-Indexierung uebersprungen (id=${messageId}): ${hint}`
       )
+      markMessageBodyIndexFallbackLocal(messageId)
     }
     return false
   }

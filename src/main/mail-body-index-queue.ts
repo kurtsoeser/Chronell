@@ -10,7 +10,7 @@ import {
 } from './db/messages-repo'
 import { broadcastMailBodyIndexProgress } from './ipc/ipc-broadcasts'
 import { fetchAndStoreMessageBodyIfMissing } from './message-body-fetch'
-import { isAppOnline } from './network-status'
+import { isAppOnline, registerAppConnectivityListener } from './network-status'
 import { yieldToMainThread } from './lib/yield-main-thread'
 import { registerMailBodyIndexRunner } from './mail-body-index-runner-bridge'
 
@@ -128,6 +128,7 @@ function scheduleTick(): void {
 export function startMailBodyIndexRunner(): void {
   if (!isIndexingEnabled()) return
   scheduleTick()
+  void flushMailBodyIndexBatch()
   scheduleFlush()
   const pending = countMessagesNeedingBodyIndex()
   if (pending > 0) {
@@ -159,4 +160,10 @@ registerMailBodyIndexRunner({
   start: startMailBodyIndexRunner,
   stop: stopMailBodyIndexRunner,
   restart: restartMailBodyIndexRunner
+})
+
+registerAppConnectivityListener((online) => {
+  if (online && isIndexingEnabled()) {
+    scheduleFlush()
+  }
 })

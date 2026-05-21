@@ -28,6 +28,8 @@ import {
   type ComposeUpdateDriveExplorerFavoriteCacheInput,
   type ComposeRenameDriveExplorerFavoriteInput,
   type ComposeReorderDriveExplorerFavoritesInput,
+  type ComposeCreateDriveSharingLinkInput,
+  type ComposeCreateDriveSharingLinkResult,
   type UndoResult,
   type RemoveMailTodoRecordsResult,
   type TodoDueKindOpen,
@@ -884,7 +886,11 @@ const api = {
     renameDriveExplorerFavorite: (args: ComposeRenameDriveExplorerFavoriteInput): Promise<void> =>
       ipcRenderer.invoke(IPC.compose.renameDriveExplorerFavorite, args),
     reorderDriveExplorerFavorites: (args: ComposeReorderDriveExplorerFavoritesInput): Promise<void> =>
-      ipcRenderer.invoke(IPC.compose.reorderDriveExplorerFavorites, args)
+      ipcRenderer.invoke(IPC.compose.reorderDriveExplorerFavorites, args),
+    createDriveSharingLink: (
+      args: ComposeCreateDriveSharingLinkInput
+    ): Promise<ComposeCreateDriveSharingLinkResult> =>
+      ipcRenderer.invoke(IPC.compose.createDriveSharingLink, args)
   },
   calendar: {
     listEvents: (args: CalendarListEventsInput): Promise<CalendarEventView[]> =>

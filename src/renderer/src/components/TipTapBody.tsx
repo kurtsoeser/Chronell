@@ -25,6 +25,8 @@ import {
   Heading3,
   Image as ImageIcon,
   Italic,
+  Cloud,
+  Paperclip,
   Link as LinkIcon,
   Link2Off,
   List,
@@ -40,8 +42,10 @@ import {
   Underline as UnderlineIcon,
   Undo2,
 } from 'lucide-react'
+import { listSubtleBorderClass } from '@/lib/chronell-ui-classes'
 import { cn } from '@/lib/utils'
 import { hrefForExternalOpen, openExternalUrl } from '@/lib/open-external'
+import { COMPOSE_FONT_FAMILIES } from '@/lib/compose-font-families'
 import { COMPOSE_FONT_SIZES_PT, composeFontSizePtOptionValue } from '@/lib/compose-font-sizes'
 import { parseZoomShortcutIntentFromKeyboardEvent } from '@/lib/zoom-shortcut-keys'
 import {
@@ -49,6 +53,7 @@ import {
   composeEditorScalePercent,
   useComposeEditorScaleStore
 } from '@/stores/compose-editor-scale'
+import { useComposeEditorEffectiveTheme } from '@/stores/compose-editor-theme'
 import { ComposeTextSnippetsMenu } from '@/components/ComposeTextSnippetsMenu'
 
 function handleTipTapExternalLinkMouse(ev: MouseEvent): boolean {
@@ -80,6 +85,14 @@ interface Props {
    * und das Bild als Daten-URL inline eingefuegt.
    */
   onPickImages?: () => Promise<Array<{ src: string; alt?: string }>>
+  /** Dateien als E-Mail-Anhang (Toolbar-Büroklammer). */
+  onAttachFiles?: (files: File[]) => void
+  /** Badge auf der Büroklammer (lokale Anhänge). */
+  attachmentCount?: number
+  /** OneDrive / SharePoint (Microsoft 365). */
+  onCloudAttach?: () => void
+  /** Badge auf dem Cloud-Button (Reference-Anhänge). */
+  cloudAttachmentCount?: number
   /** Kompakter Editor (z.B. Signatur). */
   variant?: 'default' | 'compact'
   /**
@@ -123,16 +136,22 @@ export function TipTapBody({
   editorMinHeightClass,
   fillHeight = true,
   onPickImages,
+  onAttachFiles,
+  attachmentCount = 0,
+  onCloudAttach,
+  cloudAttachmentCount = 0,
   inEditorSurface = false
 }: Props): JSX.Element {
   const contentMinHeight =
     editorMinHeightClass ??
     (variant === 'compact' ? 'min-h-[7.5rem]' : 'min-h-[220px]')
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const attachmentInputRef = useRef<HTMLInputElement | null>(null)
   const [colorPickerOpen, setColorPickerOpen] = useState<'text' | 'highlight' | null>(null)
   const composeScale = useComposeEditorScaleStore((s) => s.scale)
   const stepComposeScale = useComposeEditorScaleStore((s) => s.stepScale)
   const resetComposeScale = useComposeEditorScaleStore((s) => s.resetScale)
+  const composeEditorTheme = useComposeEditorEffectiveTheme()
 
   const editor = useEditor({
     extensions: [
@@ -247,6 +266,17 @@ export function TipTapBody({
     editor.chain().focus().extendMarkRange('link').unsetLink().run()
   }
 
+  const handleAttachFiles = (): void => {
+    attachmentInputRef.current?.click()
+  }
+
+  const handleAttachmentInputChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
+    const files = e.target.files
+    if (!files?.length || !onAttachFiles) return
+    onAttachFiles(Array.from(files))
+    e.target.value = ''
+  }
+
   const handleInsertImages = async (): Promise<void> => {
     if (onPickImages) {
       try {
@@ -290,14 +320,13 @@ export function TipTapBody({
       })
   }
 
-  const surfaceBorder = inEditorSurface
-    ? 'border-[hsl(var(--compose-surface-border)/0.45)]'
-    : 'border-border/40'
+  const surfaceBorder = inEditorSurface ? '' : 'border-border/40'
 
   return (
     <div
       className={cn(
-        'flex min-h-0 flex-col border-t',
+        'flex min-h-0 flex-col',
+        !inEditorSurface && 'border-t',
         surfaceBorder,
         fillHeight ? 'flex-1' : 'shrink-0',
         className
@@ -313,11 +342,20 @@ export function TipTapBody({
         onLink={handleInsertLink}
         onUnlink={handleRemoveLink}
         onImage={handleInsertImages}
+        onAttach={onAttachFiles ? handleAttachFiles : undefined}
+        attachmentCount={attachmentCount}
+        onCloudAttach={onCloudAttach}
+        cloudAttachmentCount={cloudAttachmentCount}
         colorPickerOpen={colorPickerOpen}
         setColorPickerOpen={setColorPickerOpen}
       />
       <div
-        className={cn('min-h-0 overflow-y-auto', fillHeight ? 'flex-1' : 'max-h-[13.5rem]')}
+        className={cn(
+          'min-h-0 overflow-y-auto',
+          inEditorSurface && 'compose-editor-canvas',
+          fillHeight ? 'flex-1' : 'max-h-[13.5rem]'
+        )}
+        data-compose-theme={inEditorSurface ? composeEditorTheme : undefined}
         style={
           inEditorSurface && composeScale !== 1
             ? ({ zoom: composeScale } as CSSProperties)
@@ -334,6 +372,15 @@ export function TipTapBody({
         className="hidden"
         onChange={handleFilesChosen}
       />
+      {onAttachFiles ? (
+        <input
+          ref={attachmentInputRef}
+          type="file"
+          multiple
+          className="hidden"
+          onChange={handleAttachmentInputChange}
+        />
+      ) : null}
     </div>
   )
 }
@@ -346,6 +393,10 @@ function Toolbar({
   onLink,
   onUnlink,
   onImage,
+  onAttach,
+  attachmentCount = 0,
+  onCloudAttach,
+  cloudAttachmentCount = 0,
   colorPickerOpen,
   setColorPickerOpen
 }: {
@@ -356,12 +407,27 @@ function Toolbar({
   onLink: () => void
   onUnlink: () => void
   onImage: () => void
+  onAttach?: () => void
+  attachmentCount?: number
+  onCloudAttach?: () => void
+  cloudAttachmentCount?: number
   colorPickerOpen: 'text' | 'highlight' | null
   setColorPickerOpen: (v: 'text' | 'highlight' | null) => void
 }): JSX.Element {
   const toolbarChrome = inEditorSurface
-    ? 'border-[hsl(var(--compose-surface-border)/0.5)] bg-[hsl(var(--compose-surface-muted))]'
+    ? 'compose-editor-toolbar-zone'
     : 'border-border/50 bg-secondary/30'
+
+  const fontSelectClass = cn(
+    'rounded border px-2 py-0.5 text-[10px]',
+    inEditorSurface
+      ? 'border-[hsl(var(--compose-surface-border)/0.5)] bg-[hsl(0_0%_14%)] text-foreground'
+      : cn('bg-background', listSubtleBorderClass)
+  )
+
+  useEffect(() => {
+    if (variant === 'default') void import('@/lib/compose-font-loader')
+  }, [variant])
 
   return (
     <div
@@ -451,26 +517,27 @@ function Toolbar({
         <>
           <Separator />
           <select
-            className="max-w-[104px] rounded border border-border/60 bg-background px-1 py-0.5 text-[10px]"
+            className={cn(fontSelectClass, 'w-[184px] max-w-[184px]')}
             title="Schriftart"
             aria-label="Schriftart"
             defaultValue=""
             onChange={(e): void => {
-              const v = e.target.value
-              if (!v) editor.chain().focus().unsetFontFamily().run()
-              else editor.chain().focus().setFontFamily(v).run()
+              const id = e.target.value
+              const entry = COMPOSE_FONT_FAMILIES.find((f) => f.id === id)
+              if (!entry) editor.chain().focus().unsetFontFamily().run()
+              else editor.chain().focus().setFontFamily(entry.value).run()
               e.currentTarget.selectedIndex = 0
             }}
           >
             <option value="">Schrift…</option>
-            <option value="system-ui, sans-serif">System</option>
-            <option value="Arial, Helvetica, sans-serif">Arial</option>
-            <option value="Georgia, serif">Georgia</option>
-            <option value="'Courier New', monospace">Courier</option>
-            <option value="'Times New Roman', Times, serif">Times</option>
+            {COMPOSE_FONT_FAMILIES.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.label}
+              </option>
+            ))}
           </select>
           <select
-            className="w-[54px] rounded border border-border/60 bg-background px-1 py-0.5 text-[10px]"
+            className={cn(fontSelectClass, 'w-[80px]')}
             title="Schriftgröße (pt)"
             aria-label="Schriftgröße"
             defaultValue=""
@@ -628,6 +695,31 @@ function Toolbar({
         onClick={onImage}
         icon={ImageIcon}
       />
+      {onAttach ? (
+        <span className="relative inline-flex">
+          <BarBtn active={false} label="Datei anhängen" onClick={onAttach} icon={Paperclip} />
+          {attachmentCount > 0 ? (
+            <span className="pointer-events-none absolute -right-0.5 -top-0.5 flex h-3.5 min-w-[0.875rem] items-center justify-center rounded-full bg-primary px-0.5 text-[8px] font-semibold leading-none text-primary-foreground">
+              {attachmentCount > 99 ? '99+' : attachmentCount}
+            </span>
+          ) : null}
+        </span>
+      ) : null}
+      {onCloudAttach ? (
+        <span className="relative inline-flex">
+          <BarBtn
+            active={false}
+            label="OneDrive / SharePoint"
+            onClick={onCloudAttach}
+            icon={Cloud}
+          />
+          {cloudAttachmentCount > 0 ? (
+            <span className="pointer-events-none absolute -right-0.5 -top-0.5 flex h-3.5 min-w-[0.875rem] items-center justify-center rounded-full bg-sky-600 px-0.5 text-[8px] font-semibold leading-none text-white">
+              {cloudAttachmentCount > 99 ? '99+' : cloudAttachmentCount}
+            </span>
+          ) : null}
+        </span>
+      ) : null}
 
       <Separator />
 

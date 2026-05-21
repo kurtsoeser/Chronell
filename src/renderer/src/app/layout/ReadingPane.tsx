@@ -78,7 +78,11 @@ import {
   MAIL_READING_CONTEXT_HEIGHT_KEY
 } from '@/app/layout/mail-reading-context-storage'
 import { moduleColumnHeaderReadingToolbarClass } from '@/components/ModuleColumnHeader'
-import { mailPreviewContextPanelClass } from '@/lib/chronell-ui-classes'
+import {
+  mailConversationMessageTileClass,
+  mailConversationStackClass,
+  mailPreviewContextPanelClass
+} from '@/lib/chronell-ui-classes'
 import { MailConversationPreview } from '@/app/layout/MailConversationPreview'
 import { useConversationThreadMessages } from '@/app/layout/use-conversation-thread-messages'
 import { useCreateCloudTaskUiStore } from '@/stores/create-cloud-task-ui'
@@ -705,17 +709,22 @@ export function ReadingPane({
               )}
             </MailConversationPreview>
           ) : (
-            <MailReader
-              message={selectedMessage}
-              account={messageAccount}
-              senderProfilePhoto={senderProfilePhoto}
-              viewerTheme={viewerTheme}
-              autoLoadImages={autoLoadImages}
-              hideEntityConnections={hideEntityConnections}
-              onReply={(): void => openReply('reply', selectedMessage)}
-              onReplyAll={(): void => openReply('replyAll', selectedMessage)}
-              onForward={(): void => openForward(selectedMessage)}
-            />
+            <div className={cn(mailConversationStackClass, 'min-h-0 flex-1 overflow-y-auto')}>
+              <div className={cn(mailConversationMessageTileClass, 'shrink-0')}>
+                <MailReader
+                  message={selectedMessage}
+                  account={messageAccount}
+                  senderProfilePhoto={senderProfilePhoto}
+                  viewerTheme={viewerTheme}
+                  autoLoadImages={autoLoadImages}
+                  hideEntityConnections={hideEntityConnections}
+                  conversationTile
+                  onReply={(): void => openReply('reply', selectedMessage)}
+                  onReplyAll={(): void => openReply('replyAll', selectedMessage)}
+                  onForward={(): void => openForward(selectedMessage)}
+                />
+              </div>
+            </div>
           )}
         </ContentCrossfade>
       )}

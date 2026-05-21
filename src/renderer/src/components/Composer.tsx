@@ -8,27 +8,25 @@ import {
   AlertCircle,
   Loader2,
   ChevronDown,
-  File as FileIcon,
-  FileImage,
-  FileText,
-  Cloud,
 } from 'lucide-react'
 import { ComposeMessageOptionsButton } from '@/components/ComposeMessageOptionsDialog'
 import { cn } from '@/lib/utils'
-import { formatBytes } from '@/lib/format-bytes'
 import { ComposeFromField } from '@/components/ComposeFromField'
 import { ComposeEditorSurface } from '@/components/ComposeEditorSurface'
 import { ComposeEditorThemedPane } from '@/components/ComposeEditorThemedPane'
+import { ComposeMailBodyTile } from '@/components/ComposeMailBodyTile'
+import { composeMailBodyShellClass } from '@/lib/chronell-ui-classes'
 import { ComposeEditorThemeToggle } from '@/components/ComposeEditorThemeToggle'
 import { TipTapBody } from '@/components/TipTapBody'
 import { SignatureTemplateControls } from '@/components/SignatureTemplateControls'
+import { ComposeAttachmentsStrip } from '@/components/ComposeAttachmentsStrip'
 import { OneDriveExplorerDialog } from '@/components/OneDriveExplorerDialog'
 import { RecipientTokenField } from '@/components/RecipientTokenField'
+import { useComposeCloudDrive } from '@/hooks/useComposeCloudDrive'
 import {
   useComposeStore,
   type ComposeAttachmentFile,
-  type ComposeDraft,
-  type ComposeReferenceAttachmentDraft
+  type ComposeDraft
 } from '@/stores/compose'
 import { useAccountsStore } from '@/stores/accounts'
 import type { MailTemplate } from '@shared/types'
@@ -90,10 +88,16 @@ function ComposerWindow({
   const [showQuoted, setShowQuoted] = useState(false)
   const [templates, setTemplates] = useState<MailTemplate[]>([])
   const [attachmentError, setAttachmentError] = useState<string | null>(null)
-  const fileInputRef = useRef<HTMLInputElement | null>(null)
   const dragDepthRef = useRef(0)
   const [draggingFiles, setDraggingFiles] = useState(false)
-  const [driveOpen, setDriveOpen] = useState(false)
+  const {
+    driveOpen,
+    setDriveOpen,
+    openDrive,
+    addCloudAttachment,
+    removeCloudAttachment,
+    insertCloudLinkInBody
+  } = useComposeCloudDrive(draft.id)
   useEffect(() => {
     if (minimized) return
     void window.mailClient.mail
@@ -204,18 +208,6 @@ function ComposerWindow({
     }
   }
 
-  const handleFilesChosen = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ): Promise<void> => {
-    const files = e.target.files
-    if (!files || files.length === 0) return
-    try {
-      await addFilesAsAttachments(Array.from(files))
-    } finally {
-      e.target.value = ''
-    }
-  }
-
   const handleDrop = (e: React.DragEvent<HTMLDivElement>): void => {
     if (!hasDraggedFiles(e)) return
     e.preventDefault()
@@ -239,22 +231,6 @@ function ComposerWindow({
     e.preventDefault()
     e.stopPropagation()
     e.dataTransfer.dropEffect = 'copy'
-  }
-
-  const addCloudAttachment = (file: { name: string; webUrl: string }): void => {
-    const next: ComposeReferenceAttachmentDraft = {
-      id: `cref-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      name: file.name,
-      webUrl: file.webUrl
-    }
-    update(draft.id, { referenceAttachments: [...draft.referenceAttachments, next] })
-    setDriveOpen(false)
-  }
-
-  const removeCloudAttachment = (id: string): void => {
-    update(draft.id, {
-      referenceAttachments: draft.referenceAttachments.filter((r) => r.id !== id)
-    })
   }
 
   const handleDragLeave = (e: React.DragEvent<HTMLDivElement>): void => {
@@ -387,134 +363,132 @@ function ComposerWindow({
         </button>
       </div>
 
-      <ComposeFromField
-        className="px-4"
-        accountId={draft.accountId}
-        sendFromEmail={draft.sendFromEmail ?? null}
-        onAccountChange={(id): void =>
-          update(draft.id, {
-            accountId: id,
-            sendFromEmail: null,
-            savedRemoteDraftId: undefined
-          })
-        }
-        onSendFromChange={(email): void => update(draft.id, { sendFromEmail: email })}
-      />
-
-      <ComposeEditorSurface>
-      <RecipientTokenField
-        inEditorSurface
-        label="An:"
-        accountId={draft.accountId}
-        value={draft.to}
-        onChange={(v): void => update(draft.id, { to: v })}
-        showToggle={!draft.showCcBcc}
-        onToggleCcBcc={(): void => update(draft.id, { showCcBcc: true })}
-      />
-      {draft.showCcBcc && (
-        <>
-          <RecipientTokenField
-            inEditorSurface
-            label="Cc:"
-            accountId={draft.accountId}
-            value={draft.cc}
-            onChange={(v): void => update(draft.id, { cc: v })}
-          />
-          <RecipientTokenField
-            inEditorSurface
-            label="Bcc:"
-            accountId={draft.accountId}
-            value={draft.bcc}
-            onChange={(v): void => update(draft.id, { bcc: v })}
-          />
-        </>
-      )}
-
-      <div className="flex items-center border-b border-[hsl(var(--compose-surface-border)/0.55)] px-3 py-2">
-        <span className="w-12 shrink-0 text-xs text-muted-foreground">Betreff:</span>
-        <input
-          type="text"
-          value={draft.subject}
-          onChange={(e): void => update(draft.id, { subject: e.target.value })}
-          placeholder="(Kein Betreff)"
-          className="flex-1 bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground"
+      <div className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-2">
+        <button
+          type="button"
+          disabled={draft.busy}
+          onClick={(): void => void send(draft.id)}
+          className={cn(
+            'inline-flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold',
+            draft.busy
+              ? 'bg-secondary text-muted-foreground'
+              : 'bg-primary text-primary-foreground hover:bg-primary/90'
+          )}
+        >
+          {draft.busy ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Send className="h-3.5 w-3.5" />
+          )}
+          Senden
+        </button>
+        <ComposeFromField
+          variant="inline"
+          accountId={draft.accountId}
+          sendFromEmail={draft.sendFromEmail ?? null}
+          onAccountChange={(id): void =>
+            update(draft.id, {
+              accountId: id,
+              sendFromEmail: null,
+              savedRemoteDraftId: undefined
+            })
+          }
+          onSendFromChange={(email): void => update(draft.id, { sendFromEmail: email })}
         />
+        <div className="min-w-0 flex-1" />
       </div>
 
-      <ComposeEditorThemedPane className="min-h-0 flex-1">
-        <TipTapBody
-          inEditorSurface
-          className="min-h-0 flex-1 border-t-0"
-          valueHtml={draft.prependRichHtml}
-          onChangeHtml={(v): void => update(draft.id, { prependRichHtml: v })}
-          autoFocus
-          fillHeight
-        />
-      </ComposeEditorThemedPane>
-
-      <div className="shrink-0 border-t border-[hsl(var(--compose-surface-border)/0.5)] bg-[hsl(var(--compose-surface-muted))]">
-        <div className="flex flex-wrap items-start justify-between gap-2 px-3 pt-2">
-          <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-            Signatur / Footer
+      <ComposeEditorSurface>
+      <div className={composeMailBodyShellClass}>
+        <ComposeMailBodyTile className="min-h-[12rem] flex-1">
+          <div className="compose-mail-chrome shrink-0">
+            <RecipientTokenField
+              inMailTile
+              label="An:"
+              accountId={draft.accountId}
+              value={draft.to}
+              onChange={(v): void => update(draft.id, { to: v })}
+              showToggle={!draft.showCcBcc}
+              onToggleCcBcc={(): void => update(draft.id, { showCcBcc: true })}
+            />
+            {draft.showCcBcc && (
+              <>
+                <RecipientTokenField
+                  inMailTile
+                  label="Cc:"
+                  accountId={draft.accountId}
+                  value={draft.cc}
+                  onChange={(v): void => update(draft.id, { cc: v })}
+                />
+                <RecipientTokenField
+                  inMailTile
+                  label="Bcc:"
+                  accountId={draft.accountId}
+                  value={draft.bcc}
+                  onChange={(v): void => update(draft.id, { bcc: v })}
+                />
+              </>
+            )}
+            <div className="flex shrink-0 items-center px-3 py-2">
+              <span className="w-12 shrink-0 text-xs text-muted-foreground">Betreff:</span>
+              <input
+                type="text"
+                value={draft.subject}
+                onChange={(e): void => update(draft.id, { subject: e.target.value })}
+                placeholder="(Kein Betreff)"
+                className="min-w-0 flex-1 bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground"
+              />
+            </div>
           </div>
-          <SignatureTemplateControls
-            accountId={draft.accountId}
-            signatureRichHtml={draft.signatureRichHtml}
-            activeTemplateId={draft.signatureTemplateId ?? null}
-            onSignatureHtmlChange={(html): void => update(draft.id, { signatureRichHtml: html })}
-            onActiveTemplateIdChange={(id): void => update(draft.id, { signatureTemplateId: id })}
-          />
-        </div>
-        <ComposeEditorThemedPane>
-          <TipTapBody
-            inEditorSurface
-            variant="compact"
-            fillHeight={false}
-            className="border-t-0"
-            valueHtml={draft.signatureRichHtml}
-            onChangeHtml={(v): void => update(draft.id, { signatureRichHtml: v })}
-          />
-        </ComposeEditorThemedPane>
+          <ComposeEditorThemedPane className="compose-mail-editor-section min-h-0 flex-1">
+            <TipTapBody
+              inEditorSurface
+              className="min-h-0 flex-1 border-t-0"
+              valueHtml={draft.prependRichHtml}
+              onChangeHtml={(v): void => update(draft.id, { prependRichHtml: v })}
+              onAttachFiles={(files): void => void addFilesAsAttachments(files)}
+              attachmentCount={draft.attachments.length}
+              onCloudAttach={isMicrosoft ? openDrive : undefined}
+              cloudAttachmentCount={draft.referenceAttachments.length}
+              autoFocus
+              fillHeight
+            />
+          </ComposeEditorThemedPane>
+        </ComposeMailBodyTile>
+        <ComposeMailBodyTile className="shrink-0">
+          <div className="flex flex-wrap items-start justify-between gap-2 border-b border-[hsl(var(--compose-surface-border)/0.45)] px-3 py-2">
+            <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+              Signatur / Footer
+            </div>
+            <SignatureTemplateControls
+              accountId={draft.accountId}
+              signatureRichHtml={draft.signatureRichHtml}
+              activeTemplateId={draft.signatureTemplateId ?? null}
+              onSignatureHtmlChange={(html): void => update(draft.id, { signatureRichHtml: html })}
+              onActiveTemplateIdChange={(id): void => update(draft.id, { signatureTemplateId: id })}
+            />
+          </div>
+          <ComposeEditorThemedPane>
+            <TipTapBody
+              inEditorSurface
+              variant="compact"
+              fillHeight={false}
+              className="border-t-0"
+              valueHtml={draft.signatureRichHtml}
+              onChangeHtml={(v): void => update(draft.id, { signatureRichHtml: v })}
+            />
+          </ComposeEditorThemedPane>
+        </ComposeMailBodyTile>
       </div>
       </ComposeEditorSurface>
 
-      {(draft.attachments.length > 0 ||
-        draft.referenceAttachments.length > 0 ||
-        attachmentError) && (
-        <div className="shrink-0 border-b border-border/60 bg-secondary/15 px-4 py-2">
-          {attachmentError && (
-            <div className="mb-1.5 flex items-start gap-1.5 text-[11px] text-destructive">
-              <AlertCircle className="mt-0.5 h-3 w-3 shrink-0" />
-              <span>{attachmentError}</span>
-            </div>
-          )}
-          {(draft.attachments.length > 0 || draft.referenceAttachments.length > 0) && (
-            <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
-              <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                {draft.attachments.length + draft.referenceAttachments.length} Anhang
-                {draft.attachments.length + draft.referenceAttachments.length === 1 ? '' : 'e'}
-                {draft.attachments.length > 0 ? ` · ${formatBytes(attachmentsTotal)}` : ''}
-              </span>
-            </div>
-          )}
-          <div className="flex flex-wrap gap-2">
-            {draft.referenceAttachments.map((r) => (
-              <CloudAttachmentCard
-                key={r.id}
-                name={r.name}
-                onRemove={(): void => removeCloudAttachment(r.id)}
-              />
-            ))}
-            {draft.attachments.map((a) => (
-              <AttachmentChip
-                key={a.id}
-                file={a}
-                onRemove={(): void => removeAttachment(draft.id, a.id)}
-              />
-            ))}
-          </div>
-        </div>
-      )}
+      <ComposeAttachmentsStrip
+        attachments={draft.attachments}
+        referenceAttachments={draft.referenceAttachments}
+        attachmentError={attachmentError}
+        onRemoveLocal={(id): void => removeAttachment(draft.id, id)}
+        onRemoveCloud={removeCloudAttachment}
+      />
 
       {draft.quotedHtml && (
         <div className="border-t border-border/60 bg-background/40 px-4 py-2">
@@ -574,63 +548,6 @@ function ComposerWindow({
       )}
 
       <div className="flex shrink-0 items-center gap-2 border-t border-border px-4 py-2">
-        <button
-          type="button"
-          onClick={(): void => {
-            void send(draft.id)
-          }}
-          disabled={draft.busy}
-          className={cn(
-            'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors',
-            draft.busy
-              ? 'bg-secondary text-muted-foreground'
-              : 'bg-primary text-primary-foreground hover:bg-primary/90'
-          )}
-        >
-          {draft.busy ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Send className="h-3.5 w-3.5" />
-          )}
-          Senden
-        </button>
-        <button
-          type="button"
-          onClick={(): void => fileInputRef.current?.click()}
-          title="Dateien anhängen"
-          aria-label="Dateien anhängen"
-          className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
-        >
-          <Paperclip className="h-3.5 w-3.5" />
-          {draft.attachments.length + draft.referenceAttachments.length > 0 && (
-            <span className="rounded bg-secondary px-1 text-[10px] font-semibold text-foreground">
-              {draft.attachments.length + draft.referenceAttachments.length}
-            </span>
-          )}
-        </button>
-        {isMicrosoft && (
-          <button
-            type="button"
-            title="Aus OneDrive anhängen"
-            aria-label="Aus OneDrive anhängen"
-            onClick={(): void => {
-              setDriveOpen(true)
-            }}
-            className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
-          >
-            <Cloud className="h-3.5 w-3.5" />
-            OneDrive
-          </button>
-        )}
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          className="hidden"
-          onChange={(e): void => {
-            void handleFilesChosen(e)
-          }}
-        />
         {templates.length > 0 && (
           <select
             className="max-w-[130px] rounded border border-border bg-background px-2 py-1 text-xs text-foreground"
@@ -658,7 +575,27 @@ function ComposerWindow({
             ))}
           </select>
         )}
-        <div className="flex-1" />
+        <div className="min-w-0 flex-1" />
+        <button
+          type="button"
+          onClick={(): void => {
+            void send(draft.id)
+          }}
+          disabled={draft.busy}
+          className={cn(
+            'inline-flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors',
+            draft.busy
+              ? 'bg-secondary text-muted-foreground'
+              : 'bg-primary text-primary-foreground hover:bg-primary/90'
+          )}
+        >
+          {draft.busy ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Send className="h-3.5 w-3.5" />
+          )}
+          Senden
+        </button>
         <button
           type="button"
           onClick={(): void => close(draft.id)}
@@ -667,12 +604,15 @@ function ComposerWindow({
           Verwerfen
         </button>
       </div>
-      <OneDriveExplorerDialog
-        open={driveOpen}
-        accountId={draft.accountId}
-        onClose={(): void => setDriveOpen(false)}
-        onPickFile={addCloudAttachment}
-      />
+      {isMicrosoft ? (
+        <OneDriveExplorerDialog
+          open={driveOpen}
+          accountId={draft.accountId}
+          onClose={(): void => setDriveOpen(false)}
+          onPickFile={addCloudAttachment}
+          onInsertLinkInBody={insertCloudLinkInBody}
+        />
+      ) : null}
       {draggingFiles && (
         <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center bg-background/70 backdrop-blur-[1px]">
           <div className="flex flex-col items-center gap-2 rounded-xl border border-primary/50 bg-card px-8 py-6 text-sm font-medium text-foreground shadow-2xl">
@@ -749,76 +689,6 @@ function clampWindowState(
     width,
     height
   }
-}
-
-function CloudAttachmentCard({
-  name,
-  onRemove
-}: {
-  name: string
-  onRemove: () => void
-}): JSX.Element {
-  return (
-    <div className="flex max-w-[260px] flex-col gap-1 rounded-xl border border-sky-500/30 bg-sky-500/5 px-3 py-2 shadow-sm">
-      <div className="flex items-center gap-2">
-        <Cloud className="h-4 w-4 shrink-0 text-sky-600 dark:text-sky-400" />
-        <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-foreground" title={name}>
-          {name}
-        </span>
-        <button
-          type="button"
-          onClick={onRemove}
-          className="rounded p-0.5 text-muted-foreground hover:bg-destructive/20 hover:text-destructive"
-          aria-label="Cloud-Anhang entfernen"
-          title="Entfernen"
-        >
-          <X className="h-3 w-3" />
-        </button>
-      </div>
-      <span className="text-[10px] text-muted-foreground">OneDrive / SharePoint (Link)</span>
-    </div>
-  )
-}
-
-function AttachmentChip({
-  file,
-  onRemove
-}: {
-  file: ComposeAttachmentFile
-  onRemove: () => void
-}): JSX.Element {
-  const Icon = pickAttachmentIcon(file.contentType, file.name)
-  return (
-    <div
-      className="group flex max-w-[260px] flex-col gap-1 rounded-xl border border-border/80 bg-card px-3 py-2 text-[11px] text-foreground shadow-sm"
-      title={`${file.name} · ${formatBytes(file.size)}`}
-    >
-      <div className="flex items-center gap-2">
-        <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-        <span className="min-w-0 flex-1 truncate font-medium">{file.name}</span>
-        <button
-          type="button"
-          onClick={onRemove}
-          className="rounded p-0.5 text-muted-foreground hover:bg-destructive/20 hover:text-destructive"
-          aria-label="Anhang entfernen"
-          title="Entfernen"
-        >
-          <X className="h-3 w-3" />
-        </button>
-      </div>
-      <span className="text-[10px] text-muted-foreground">{formatBytes(file.size)}</span>
-    </div>
-  )
-}
-
-function pickAttachmentIcon(
-  mime: string,
-  name: string
-): React.ComponentType<{ className?: string }> {
-  if (mime.startsWith('image/')) return FileImage
-  const ext = name.split('.').pop()?.toLowerCase() ?? ''
-  if (mime.startsWith('text/') || ['txt', 'md', 'log', 'csv'].includes(ext)) return FileText
-  return FileIcon
 }
 
 function arrayBufferToBase64(buf: ArrayBuffer): string {

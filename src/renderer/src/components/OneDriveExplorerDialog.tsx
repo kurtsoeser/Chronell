@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ChevronDown, ChevronRight, ChevronUp, Cloud, File as FileIcon, Folder, Loader2, Pencil, Star, X } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import { ChevronDown, ChevronRight, ChevronUp, Cloud, File as FileIcon, Folder, Link2, Loader2, Paperclip, Pencil, Star, X } from 'lucide-react'
 import type {
   ComposeDriveExplorerEntry,
   ComposeDriveExplorerFavorite,
@@ -10,6 +11,10 @@ import type {
 import { listSubtleBorderClass } from '@/lib/chronell-ui-classes'
 import { cn } from '@/lib/utils'
 import { formatBytes } from '@/lib/format-bytes'
+import {
+  OneDriveShareLinkSettingsPanel,
+  type DriveShareLinkPickSource
+} from '@/components/OneDriveShareLinkSettingsPanel'
 
 type Crumb = ComposeDriveExplorerNavCrumb
 
@@ -58,9 +63,23 @@ interface Props {
   onClose: () => void
   /** Nur Dateien mit gültigem `webUrl` (ReferenceAttachment). */
   onPickFile: (file: { name: string; webUrl: string }) => void
+  /** Optional: Link in den Mail-Text einfügen (zweite Aktion nach Dateiauswahl). */
+  onInsertLinkInBody?: (file: { name: string; webUrl: string }) => void
+  /** Freigabe-Link per Graph `createLink` konfigurieren (Mail-Composer). */
+  configureSharingLink?: boolean
 }
 
-export function OneDriveExplorerDialog({ open, accountId, onClose, onPickFile }: Props): JSX.Element | null {
+type ExplorerDialogStep = 'browse' | 'link-settings' | 'choose-action'
+
+export function OneDriveExplorerDialog({
+  open,
+  accountId,
+  onClose,
+  onPickFile,
+  onInsertLinkInBody,
+  configureSharingLink = true
+}: Props): JSX.Element | null {
+  const { t } = useTranslation()
   const [scope, setScope] = useState<ComposeDriveExplorerScope>('myfiles')
   const [crumbs, setCrumbs] = useState<Crumb[]>([])
   const [entries, setEntries] = useState<ComposeDriveExplorerEntry[]>([])
@@ -68,6 +87,9 @@ export function OneDriveExplorerDialog({ open, accountId, onClose, onPickFile }:
   const [loadError, setLoadError] = useState<string | null>(null)
   const [favorites, setFavorites] = useState<ComposeDriveExplorerFavorite[]>([])
   const [favoriteHint, setFavoriteHint] = useState<string | null>(null)
+  const [dialogStep, setDialogStep] = useState<ExplorerDialogStep>('browse')
+  const [pendingFile, setPendingFile] = useState<DriveShareLinkPickSource | null>(null)
+  const [resolvedPick, setResolvedPick] = useState<{ name: string; webUrl: string } | null>(null)
   const [savingFavorite, setSavingFavorite] = useState(false)
   const [editingFavoriteId, setEditingFavoriteId] = useState<string | null>(null)
   const [editLabel, setEditLabel] = useState('')
@@ -194,6 +216,9 @@ export function OneDriveExplorerDialog({ open, accountId, onClose, onPickFile }:
       setSavingFavorite(false)
       setEditingFavoriteId(null)
       setEditLabel('')
+      setDialogStep('browse')
+      setPendingFile(null)
+      setResolvedPick(null)
     }
   }, [open])
 
@@ -251,7 +276,45 @@ export function OneDriveExplorerDialog({ open, accountId, onClose, onPickFile }:
     }
     const url = row.webUrl?.trim()
     if (!url) return
-    onPickFile({ name: row.name, webUrl: url })
+
+    if (configureSharingLink) {
+      setPendingFile({
+        id: row.id,
+        name: row.name,
+        driveId: row.driveId ?? null,
+        webUrl: url
+      })
+      setDialogStep('link-settings')
+      return
+    }
+
+    const file = { name: row.name, webUrl: url }
+    if (onInsertLinkInBody) {
+      setResolvedPick(file)
+      setDialogStep('choose-action')
+      return
+    }
+    onPickFile(file)
+    onClose()
+  }
+
+  const dualPickMode = Boolean(onInsertLinkInBody)
+
+  const finishWithPick = (file: { name: string; webUrl: string }): void => {
+    setResolvedPick(null)
+    setPendingFile(null)
+    setDialogStep('browse')
+    onClose()
+  }
+
+  const handleShareLinkApplied = (file: { name: string; webUrl: string }): void => {
+    if (onInsertLinkInBody) {
+      setResolvedPick(file)
+      setDialogStep('choose-action')
+      return
+    }
+    onPickFile(file)
+    finishWithPick(file)
   }
 
   const currentPathFavorite = favorites.find((f) => crumbsMatchNav(f.scope, f.crumbs, scope, crumbs)) ?? null
@@ -395,6 +458,70 @@ export function OneDriveExplorerDialog({ open, accountId, onClose, onPickFile }:
           </button>
         </div>
 
+        {dialogStep === 'link-settings' && pendingFile ? (
+          <OneDriveShareLinkSettingsPanel
+            accountId={accountId}
+            file={pendingFile}
+            onBack={(): void => {
+              setDialogStep('browse')
+              setPendingFile(null)
+            }}
+            onCancel={onClose}
+            onApply={handleShareLinkApplied}
+          />
+        ) : dialogStep === 'choose-action' && resolvedPick ? (
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6">
+              <p className="text-sm font-medium text-foreground">{resolvedPick.name}</p>
+              <p className="mt-2 text-xs text-muted-foreground">
+                {t('mail.composeTile.cloudShareReadyHint', {
+                  defaultValue: 'Freigabe-Link ist bereit. Wie soll er in die Mail?'
+                })}
+              </p>
+            </div>
+            <div
+              className={cn(
+                'shrink-0 space-y-2 border-t bg-secondary/25 px-3 py-2.5',
+                listSubtleBorderClass
+              )}
+            >
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+                  onClick={(): void => {
+                    onPickFile(resolvedPick)
+                    finishWithPick(resolvedPick)
+                  }}
+                >
+                  <Paperclip className="h-3.5 w-3.5" />
+                  {t('mail.composeTile.cloudPickAttach', { defaultValue: 'Als Anhang' })}
+                </button>
+                <button
+                  type="button"
+                  className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary"
+                  onClick={(): void => {
+                    onInsertLinkInBody?.(resolvedPick)
+                    finishWithPick(resolvedPick)
+                  }}
+                >
+                  <Link2 className="h-3.5 w-3.5" />
+                  {t('mail.composeTile.cloudPickLink', { defaultValue: 'Link in Text' })}
+                </button>
+                <button
+                  type="button"
+                  className="rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  onClick={(): void => {
+                    setResolvedPick(null)
+                    setDialogStep('link-settings')
+                  }}
+                >
+                  {t('common.back', { defaultValue: 'Zurück' })}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
         <div className="flex min-h-0 flex-1">
           <nav
             className={cn(
@@ -681,11 +808,24 @@ export function OneDriveExplorerDialog({ open, accountId, onClose, onPickFile }:
                 listSubtleBorderClass
               )}
             >
-              Ordner per Klick öffnen, Datei per Klick als Cloud-Anhang übernehmen. Favoriten lokal (inkl. optionaler
-              Dateiliste); Stift zum Umbenennen, Pfeile zum Sortieren. SharePoint: Website, Bibliothek, Ordner.
+              {configureSharingLink
+                ? t('mail.composeTile.cloudExplorerHintShare', {
+                    defaultValue:
+                      'Datei wählen, Freigabe-Link konfigurieren, dann als Anhang oder Link in den Mail-Text.'
+                  })
+                : dualPickMode
+                  ? t('mail.composeTile.cloudExplorerHintDual', {
+                      defaultValue:
+                        'Ordner öffnen per Klick. Datei wählen, dann als Cloud-Anhang oder Link in den Mail-Text.'
+                    })
+                  : t('mail.composeTile.cloudExplorerHint', {
+                      defaultValue:
+                        'Ordner per Klick öffnen, Datei per Klick als Cloud-Anhang. Favoriten lokal; SharePoint: Website, Bibliothek, Ordner.'
+                    })}
             </div>
           </div>
         </div>
+        )}
       </div>
     </div>
   )

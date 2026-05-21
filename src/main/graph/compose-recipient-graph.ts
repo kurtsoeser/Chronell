@@ -81,7 +81,7 @@ function formatDriveExplorerGraphError(e: unknown): string {
       return `OneDrive nicht gefunden oder nicht bereitgestellt (${m}). Pruefen Sie, ob fuer dieses Konto OneDrive aktiviert ist.`
     }
     if (c === 403 || c === 401) {
-      return `Kein Zugriff auf OneDrive (${m}). Melden Sie sich unter Konten erneut bei Microsoft an (Berechtigung «Files.Read.All» / Dateien).`
+      return `Kein Zugriff auf OneDrive (${m}). Melden Sie sich unter Konten erneut bei Microsoft an (Berechtigungen «Files.ReadWrite.All» / «Sites.ReadWrite.All»).`
     }
     if (c === 400) {
       return `Graph-Anfrage ungueltig (${m}). Oft hilft: Favoriten-Ordner erneut oeffnen oder App neu starten.`

@@ -1931,6 +1931,26 @@ export interface ComposeListDriveExplorerInput {
   siteId?: string | null
 }
 
+/** Geltungsbereich eines per Graph `createLink` erzeugten Freigabe-Links. */
+export type ComposeDriveSharingLinkScope = 'anonymous' | 'organization'
+
+/** Berechtigung des Freigabe-Links. */
+export type ComposeDriveSharingLinkType = 'view' | 'edit'
+
+export interface ComposeCreateDriveSharingLinkInput {
+  accountId: string
+  itemId: string
+  driveId?: string | null
+  type: ComposeDriveSharingLinkType
+  scope: ComposeDriveSharingLinkScope
+  /** ISO-8601, optional (Graph `expirationDateTime`). */
+  expirationDateTime?: string | null
+}
+
+export interface ComposeCreateDriveSharingLinkResult {
+  webUrl: string
+}
+
 /** Eintrag im OneDrive-Explorer (Datei oder Ordner). */
 export interface ComposeDriveExplorerEntry {
   id: string

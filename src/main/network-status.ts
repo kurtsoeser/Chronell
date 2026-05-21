@@ -8,6 +8,27 @@ const POLL_MS = 3000
 let lastOnline: boolean | undefined
 let monitorTimer: NodeJS.Timeout | null = null
 
+type ConnectivityListener = (online: boolean) => void
+const connectivityListeners = new Set<ConnectivityListener>()
+
+/** Main-Prozess: Reaktion auf Online/Offline (z. B. Hintergrund-Suchindex). */
+export function registerAppConnectivityListener(fn: ConnectivityListener): () => void {
+  connectivityListeners.add(fn)
+  return () => {
+    connectivityListeners.delete(fn)
+  }
+}
+
+function notifyConnectivityListeners(online: boolean): void {
+  for (const fn of connectivityListeners) {
+    try {
+      fn(online)
+    } catch (e) {
+      console.warn('[connectivity] listener:', e)
+    }
+  }
+}
+
 function runCatchUpSyncAfterReconnect(): void {
   void (async (): Promise<void> => {
     try {
@@ -44,6 +65,7 @@ function broadcastIfChanged(online: boolean): void {
   if (online && prev === false) {
     runCatchUpSyncAfterReconnect()
   }
+  notifyConnectivityListeners(online)
   for (const win of BrowserWindow.getAllWindows()) {
     if (win.isDestroyed()) continue
     win.webContents.send('app:connectivity', { online } satisfies AppConnectivityState)

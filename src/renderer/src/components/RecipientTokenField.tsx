@@ -18,7 +18,8 @@ export function RecipientTokenField({
   showToggle,
   onToggleCcBcc,
   className,
-  inEditorSurface
+  inEditorSurface,
+  inMailTile
 }: {
   label: string
   value: string
@@ -29,6 +30,8 @@ export function RecipientTokenField({
   className?: string
   /** Innerhalb der dunkleren Compose-Flaeche (An/Betreff/Editor). */
   inEditorSurface?: boolean
+  /** Innerhalb der weissen Mail-Kachel (dezente Trennlinien). */
+  inMailTile?: boolean
 }): JSX.Element {
   const { complete, tail } = useMemo(() => parseRecipientsWithTail(value), [value])
   const [suggestions, setSuggestions] = useState<ComposeRecipientSuggestion[]>([])
@@ -90,13 +93,23 @@ export function RecipientTokenField({
     inputRef.current?.focus()
   }
 
-  const rowBorder = inEditorSurface
-    ? 'border-[hsl(var(--compose-surface-border)/0.55)]'
-    : 'border-border/60'
-  const rowPad = inEditorSurface ? 'px-3' : 'px-4'
+  const rowBorder = inMailTile
+    ? ''
+    : inEditorSurface
+      ? 'border-[hsl(var(--compose-surface-border)/0.55)]'
+      : 'border-border/60'
+  const rowPad = inMailTile || inEditorSurface ? 'px-3' : 'px-4'
 
   return (
-    <div className={cn('relative flex items-start border-b py-2', rowBorder, rowPad, className)}>
+    <div
+      className={cn(
+        'relative flex items-start py-2',
+        !inMailTile && 'border-b',
+        rowBorder,
+        rowPad,
+        className
+      )}
+    >
       <div className="mt-1.5 flex w-12 shrink-0 items-center gap-0.5">
         <span className="text-xs text-muted-foreground">{label}</span>
         <button
@@ -117,9 +130,11 @@ export function RecipientTokenField({
               key={`${r.address}-${idx}`}
               className={cn(
                 'inline-flex max-w-full items-center gap-0.5 rounded-full border px-2 py-0.5 text-[11px] text-foreground',
-                inEditorSurface
-                  ? 'border-[hsl(var(--compose-surface-border)/0.65)] bg-[hsl(var(--compose-surface-muted))]'
-                  : 'border-border/70 bg-secondary/50'
+                inMailTile
+                  ? 'border-[color:var(--compose-chrome-chip-border)] bg-[color:var(--compose-chrome-chip-bg)]'
+                  : inEditorSurface
+                    ? 'border-[hsl(var(--compose-surface-border)/0.65)] bg-[hsl(var(--compose-surface-muted))]'
+                    : 'border-border/70 bg-secondary/50'
               )}
             >
               <span className="truncate">

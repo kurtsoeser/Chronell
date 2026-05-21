@@ -351,54 +351,93 @@
 }
 
 @layer components {
-  /** Compose-Chrome (An/Cc/Betreff, Signatur-Kopf): folgt dem App-Theme. */
+  /** Compose-Chrome (An/Cc/Betreff): App-Hintergrund; Mail-Text in {@link compose-mail-body-tile}. */
   .compose-editor-surface {
     display: flex;
     min-height: 0;
     flex: 1 1 0%;
     flex-direction: column;
     overflow: hidden;
-    background-color: hsl(var(--compose-surface));
+    background-color: hsl(var(--background));
     color: hsl(var(--foreground));
   }
 
-  /** Nur TipTap-Mail- und Signatur-Editor: eigenes Hell/Dunkel. */
-  .compose-editor-themed {
+  .compose-mail-body-shell {
+    display: flex;
+    min-height: 0;
+    flex: 1 1 0%;
+    flex-direction: column;
+    gap: 0.5rem;
+    overflow-y: auto;
+    padding: 0.5rem;
+  }
+
+  /**
+   * Mail-Kachel: dunkler Chrome (An/Betreff, Toolbar, Signatur-Kopf) — unabhängig vom Editor-Hell/Dunkel.
+   */
+  .compose-mail-body-tile {
     display: flex;
     min-height: 0;
     flex-direction: column;
-    background-color: hsl(var(--compose-surface));
-    color: hsl(var(--foreground));
-  }
-
-  .compose-editor-themed[data-compose-theme='light'] {
-    --compose-surface: 220 16% 93%;
-    --compose-surface-muted: 220 14% 90%;
-    --compose-surface-border: 220 14% 84%;
-    --background: 220 20% 97%;
-    --card: 0 0% 100%;
-    --muted: 220 16% 93%;
-    --secondary: 220 16% 93%;
-    --foreground: 222 47% 11%;
-    --muted-foreground: 220 9% 46%;
-    --border: 220 27% 92%;
-    --input: 220 27% 92%;
-    color: hsl(var(--foreground));
-  }
-
-  .compose-editor-themed[data-compose-theme='dark'] {
+    overflow: hidden;
+    border-radius: var(--radius-xl);
+    border: 1px solid hsl(0 0% 100% / 0.07);
+    box-shadow: 0 2px 12px hsl(0 0% 0% / 0.28);
+    background: color-mix(in srgb, var(--chronell-bg-card-solid) 96%, transparent);
+    color: hsl(0 0% 100%);
     --compose-surface: 0 0% 9%;
     --compose-surface-muted: 0 0% 7%;
     --compose-surface-border: 0 0% 15%;
-    --background: 0 0% 7%;
-    --card: 0 0% 14%;
-    --muted: 0 0% 21%;
-    --secondary: 0 0% 17%;
+    --compose-chrome-divider: hsl(0 0% 100% / 0.07);
+    --compose-chrome-chip-border: hsl(0 0% 100% / 0.1);
+    --compose-chrome-chip-bg: hsl(0 0% 100% / 0.06);
+  }
+
+  :root:not(.dark) .compose-mail-body-tile {
+    border-color: hsl(0 0% 0% / 0.08);
+    box-shadow: 0 1px 4px hsl(0 0% 0% / 0.12);
+  }
+
+  /** An / Cc / Betreff innerhalb der Mail-Kachel */
+  .compose-mail-chrome > * + * {
+    border-top: 1px solid var(--compose-chrome-divider);
+  }
+
+  .compose-mail-body-tile .compose-mail-editor-section {
+    border-top: 1px solid var(--compose-chrome-divider);
+  }
+
+  /** Formatierungsleiste — immer dunkel */
+  .compose-editor-toolbar-zone {
+    --compose-surface-muted: 0 0% 7%;
+    --compose-surface-border: 0 0% 15%;
     --foreground: 0 0% 100%;
     --muted-foreground: 220 9% 65%;
-    --border: 0 0% 100% / 0.04;
-    --input: 0 0% 100% / 0.1;
+    border-bottom: 1px solid hsl(var(--compose-surface-border) / 0.5);
+    background-color: hsl(var(--compose-surface-muted));
     color: hsl(var(--foreground));
+  }
+
+  /** Nur TipTap-Textfläche: Hell/Dunkel per Theme-Toggle */
+  .compose-editor-canvas[data-compose-theme='light'] {
+    background-color: #ffffff;
+    color: hsl(222 47% 11%);
+  }
+
+  .compose-editor-canvas[data-compose-theme='dark'] {
+    background-color: hsl(0 0% 9%);
+    color: hsl(0 0% 100%);
+  }
+
+  .compose-editor-canvas .ProseMirror {
+    min-height: 9rem;
+    padding: 0.75rem 1rem 1rem;
+    outline: none;
+    color: inherit;
+  }
+
+  .compose-mail-body-tile .compose-mail-editor-section .border-b {
+    border-color: hsl(var(--compose-surface-border) / 0.45);
   }
 
   .markdown-note-editor .w-md-editor {

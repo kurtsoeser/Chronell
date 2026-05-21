@@ -11,7 +11,11 @@ import {
   type ComposeDriveExplorerScope,
   type ComposeDriveExplorerNavCrumb,
   type ComposeDriveExplorerFavorite,
-  type ComposeSendFromOption
+  type ComposeSendFromOption,
+  type ComposeCreateDriveSharingLinkInput,
+  type ComposeCreateDriveSharingLinkResult,
+  type ComposeDriveSharingLinkScope,
+  type ComposeDriveSharingLinkType
 } from '@shared/types'
 import { listAccounts } from '../accounts'
 import { gmailSendMail, gmailSaveDraft } from '../google/gmail-compose'
@@ -25,6 +29,7 @@ import {
   graphSearchDirectoryUsersForCompose,
   graphSearchMailEnabledGroupsForCompose
 } from '../graph/compose-recipient-graph'
+import { graphCreateDriveSharingLink } from '../graph/drive-sharing-link'
 import {
   isCompleteEmailQuery,
   normalizeRecipientSuggestionQuery
@@ -521,5 +526,49 @@ export function registerMailComposeIpc(): void {
       throw e instanceof Error ? e : new Error(String(e))
     }
   })
+
+  ipcMain.handle(
+    IPC.compose.createDriveSharingLink,
+    async (_event, raw: unknown): Promise<ComposeCreateDriveSharingLinkResult> => {
+      const o = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
+      const accountId = typeof o.accountId === 'string' ? o.accountId.trim() : ''
+      const itemId = typeof o.itemId === 'string' ? o.itemId.trim() : ''
+      if (!accountId || !itemId) {
+        throw new Error('Konto oder Datei-ID fehlt.')
+      }
+      const typeRaw = o.type
+      const type: ComposeDriveSharingLinkType =
+        typeRaw === 'edit' ? 'edit' : 'view'
+      const scopeRaw = o.scope
+      const scope: ComposeDriveSharingLinkScope =
+        scopeRaw === 'anonymous' ? 'anonymous' : 'organization'
+      const driveId =
+        typeof o.driveId === 'string' ? o.driveId.trim() || null : o.driveId === null ? null : undefined
+      const expirationDateTime =
+        typeof o.expirationDateTime === 'string'
+          ? o.expirationDateTime.trim() || null
+          : o.expirationDateTime === null
+            ? null
+            : undefined
+
+      const accounts = await listAccounts()
+      const acc = accounts.find((a) => a.id === accountId)
+      if (!acc) {
+        throw new Error('Konto nicht gefunden oder nicht mehr angemeldet.')
+      }
+      if (acc.provider !== 'microsoft') {
+        throw new Error('Freigabe-Links sind nur fuer Microsoft-365-Konten verfuegbar.')
+      }
+
+      return await graphCreateDriveSharingLink({
+        accountId,
+        itemId,
+        driveId,
+        type,
+        scope,
+        ...(expirationDateTime ? { expirationDateTime } : {})
+      })
+    }
+  )
 }
 
