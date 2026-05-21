@@ -6,9 +6,9 @@ Dieses Dokument beschreibt den **aktuellen Funktionsumfang** der Desktop-App. Es
 |------|------|
 | **Produktname (UI)** | Chronell |
 | **Technischer Name / Installer** | MailClient |
-| **Version** | **0.9.16** |
-| **Stand** | **20. Mai 2026** |
-| **App-ID** | `at.kurtsoeser.mailclient` |
+| **Version** | **0.9.19** |
+| **Stand** | **21. Mai 2026** |
+| **App-ID** | `at.kurtsoeser.chronell` |
 | **Zielplattform** | Windows 11 (primär) |
 | **Autor** | Kurt Soeser |
 
@@ -48,7 +48,7 @@ Chronell ist **kein klassischer E-Mail-Client zum bloßen Lesen von Listen**, so
 - E-Mails in **nächste Schritte** verwandeln (ToDos, Snooze, Wiedervorlage, QuickSteps)
 - **Microsoft 365** und **Google** in **einem Fenster** kombinieren
 - **Lokale SQLite-Datenhaltung** mit **Volltextsuche** auf dem Gerät
-- Moderne UI (React, Tailwind, Dark/Light), **DE/EN**
+- **Fluent-2-Oberfläche** (Mica, Acrylic, Smoke, Design-Presets), React, Tailwind, Dark/Light, **DE/EN**
 
 Marketing-Homepage: [kurtsoeser.github.io/Chronell](https://kurtsoeser.github.io/Chronell/) (Quellen: `docs/`).
 
@@ -101,7 +101,7 @@ Die App gliedert sich in **zehn Hauptmodi** (obere Leiste, Reihenfolge anpassbar
 ### Grundfunktionen
 
 - Ordnerbaum pro Konto, Favoriten, **virtualisierte Listen** (react-virtuoso)
-- Thread-/Nachrichtenansicht, Lesepane, gelesen/ungelesen, markiert
+- Thread-/Nachrichtenansicht, **Lesepane** (mit Kontext-Speicher für Verbindungen/Vorschau, 0.9.19), gelesen/ungelesen, markiert
 - **Rich-Text-Compose** (TipTap), Anhänge, Entwürfe, Vorlagen mit Platzhaltern
 - **Geplanter Versand** (Warteschlange im Main-Prozess)
 - Verschieben, Archivieren, Löschen, Kategorien (Outlook-Masterkategorien)
@@ -178,6 +178,7 @@ Das Modul **„Arbeit“** bündelt offene Punkte aus verschiedenen Quellen als 
 
 - **Mail-ToDos** und **Cloud-Tasks** im Kalender darstellbar
 - Rechte Spalten: optional **Posteingang**, **Vorschau**, **Zeitliste**
+- **Termin- und Cloud-Task-Vorschau** in der rechten Spalte (erweiterte Detailansicht, 0.9.19)
 - **Zeitliste** (`CalendarTimelinePane`): kombinierte Timeline aus ToDos, Tasks und Terminen; abdockbar
 - Notizen an Terminen; Notion-Export von Terminen
 - Kalender-Vorlauf pro Konto konfigurierbar (30 Tage bis „alles“)
@@ -225,7 +226,7 @@ Eigenes Top-Level-Modul **Verbindungen** (`ConnectionsShell`): interaktiver **Gr
 - **Gruppierung:** nach Konto, Objektart, Insel, Zeit (Monat/Woche/Jahr), Domain, Firma, Kalender-/Task-Liste
 - **Layout:** zoomen, fit view, Inseln verschieben, Anordnung speichern
 - **Dichte:** Anzeige „% Mails ohne Verbindung“ mit Scan-Empfehlung
-- **Vorschau** des gewählten Objekts; Sprung ins Zielmodul
+- **Vorschau-Dock** des gewählten Objekts (inkl. **Notiz-Vorschau** im Graph); **Mini-Graph** im Kontext (Mail, Termine, Notizen); **Kontextmenü** am Knoten; Sprung ins Zielmodul
 
 ### KI-gestützte Verbindungen
 
@@ -342,7 +343,14 @@ Einstellungen-Dialog (Zahnrad) mit Reitern:
 | **Kalender** | Zeitzone, API, Sidebar-Sichtbarkeit |
 | **Kontakte** | Hinweise, Sprung zum Personen-Modul |
 | **KI-Verbindungen** | Provider (Gemini/OpenAI/Ollama), Snippet-Modus, Scan-Profile, Audit-Log, Embeddings |
-| **Info** | Version **0.9.16**, Stand **20. Mai 2026**, Produktname, App-ID |
+| **Oberfläche** | Design-Presets (Fluent, Midnight, Nord, …), L0–L3-Oberflächenfarben, Hell/Dunkel |
+| **Info** | Version **0.9.19**, Stand **21. Mai 2026**, Produktname, App-ID |
+
+### Fluent-2-Oberfläche (ab 0.9.17)
+
+- **Mica**-App-Hintergrund, **Acrylic** für Popover/Menüs, **Smoke** für Modale
+- Einheitliche Shell-Bars, Dashboard-Panels und Modul-Spalten (`chronell-tokens.css`)
+- Wählbare **Presets** und eigene Oberflächenfarben — einmal einstellen, konsistent in allen Modulen
 
 ### Cloud-Sync (Profil)
 
@@ -409,12 +417,14 @@ Weitere Systemfunktionen:
 
 Die Root-`README.md` wird mit Meilensteinen nachgezogen. Bei Widersprüchen gilt **dieses Funktionsprotokoll**.
 
-| Thema | Ist-Stand (0.9.16) |
+| Thema | Ist-Stand (0.9.19) |
 |-------|---------------------|
 | Module | **Zehn** Top-Level-Modi inkl. **Verbindungen** und **Bookings** |
+| Oberfläche | **Fluent 2** — Mica-Hintergrund, Acrylic-Popover, Design-Presets (Fluent, Midnight, Nord, …) |
 | Regeln | **Einstellungen → Mail → Regeln** (kein eigener Tab) |
-| Entity-Links | Zentral im Modul **Verbindungen** + in Notizen/Mail |
+| Entity-Links | Zentral im Modul **Verbindungen** + in Notizen/Mail; Vorschau-Dock und Mini-Graph im Lesefenster |
 | Profil-Sync | **Einstellungen → Allgemein → Cloud-Sync** (optional Supabase) |
+| Homepage-Download | `https://kurtsoeser.github.io/Chronell/release/latest/Chronell-setup.exe` (GitHub Pages) |
 
 Bei Widersprüchen gilt **dieses Funktionsprotokoll**.
 
@@ -428,7 +438,9 @@ Bei Widersprüchen gilt **dieses Funktionsprotokoll**.
 npm run build:win
 ```
 
-Ergebnis: `release/<version>/Chronell-<version>-setup.exe` (z. B. `release/0.9.7/Chronell-0.9.7-setup.exe`).
+Ergebnis: `release/<version>/Chronell-<version>-setup.exe` (z. B. `release/0.9.19/Chronell-0.9.19-setup.exe`).
+
+Öffentlicher Download nach `npm run publish:docs-release` und Git-Push: **GitHub Pages** unter `docs/release/latest/Chronell-setup.exe` (Ziel: Installer **unter 100 MB**).
 
 - **NSIS-Installer** deinstalliert bei gleicher `appId` automatisch die **vorherige Programmversion**, bevor die neue installiert wird (`deleteAppDataOnUninstall: false` — **Roaming-Daten bleiben** erhalten).
 - Installationspfad (typisch): `C:\Program Files\Chronell\` (64-Bit; erfordert Admin beim Setup)
@@ -448,7 +460,7 @@ Marker-Datei nach Migration: `%APPDATA%\Chronell\.chronell-migrated-from-mailcli
 **Empfohlene Schritte:**
 
 1. `npm run dev` beenden (alle Chronell-/Electron-Fenster schließen).
-2. `Chronell-0.9.7-setup.exe` ausführen und installieren.
+2. `Chronell-0.9.19-setup.exe` (oder aktuelle Version von der Homepage) ausführen und installieren.
 3. **Chronell** aus dem Startmenü starten — Migration läuft automatisch.
 4. Konten und Einstellungen prüfen; bei Bedarf einmal Sync abwarten.
 5. Optional: alten Ordner `C:\Users\<Du>\AppData\Roaming\mailclient` nach erfolgreicher Prüfung löschen (erst wenn alles passt).
@@ -456,6 +468,22 @@ Marker-Datei nach Migration: `%APPDATA%\Chronell\.chronell-migrated-from-mailcli
 ---
 
 ## 20. Versionshistorie
+
+### 0.9.19 — 21. Mai 2026
+
+- **Verbindungen:** Notiz-Vorschau im Graph, verbesserte Objekt-Vorschau, Kontextmenü am Knoten, Mini-Graph im Kontext
+- **Kalender:** ausgebaute Termin- und Cloud-Task-Vorschau, Zeitliste und Bookings-Anbindung stabiler
+- **Mail:** Lesefenster mit Kontext-Speicher; Graph-API-Throttling und Retry robuster
+- **Aufgaben:** feinere Listen-Darstellung und Anordnung
+- **Installer:** NSIS-Paket verkleinert (unter 100 MB für GitHub Pages); Homepage-Download `release/latest/Chronell-setup.exe`
+- **Homepage:** Screenshots, Release-Texte und Funktionsprotokoll auf 0.9.19
+
+### 0.9.17 — 20. Mai 2026
+
+- **Fluent-2-Redesign:** Mica-Hintergrund, Acrylic für Menüs/Popover, klare Ebenen (L0–L3) in allen Modulen
+- **Design-Presets:** Fluent, Midnight, Nord, Warm Paper — Hell/Dunkel und Oberflächenfarben
+- **Verbindungen:** Vorschau-Dock, Mini-Graph im Kontext, Pfad-Hervorhebung, Knoten-Kontextmenü
+- Viele Bugfixes in Mail, Kalender, Aufgaben, Notizen und Graph-Vorschau
 
 ### 0.9.16 — 20. Mai 2026
 
@@ -480,4 +508,4 @@ Marker-Datei nach Migration: `%APPDATA%\Chronell\.chronell-migrated-from-mailcli
 
 ---
 
-*Letzte Aktualisierung dieses Dokuments: 20. Mai 2026 · Version 0.9.16*
+*Letzte Aktualisierung dieses Dokuments: 21. Mai 2026 · Version 0.9.19*

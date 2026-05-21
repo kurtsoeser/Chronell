@@ -25,6 +25,7 @@
     "generate:calendar-icons": "node scripts/generate-calendar-icon-catalog.mjs",
     "sync-branding": "node scripts/sync-branding-assets.mjs",
     "publish:docs-release": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/publish-docs-release.ps1",
+    "generate:homepage-screenshots": "node scripts/generate-homepage-screenshots.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint . --ext .ts,.tsx --fix",

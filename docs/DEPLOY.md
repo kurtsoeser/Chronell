@@ -86,16 +86,17 @@ npx --yes serve .
 
 Dann im Browser `http://localhost:3000` öffnen.
 
-## Screenshots einpflegen
+## Screenshots
 
-Lege PNG-Dateien in `docs/assets/screenshots/` ab, z. B.:
+Die Homepage bindet PNGs aus `docs/assets/screenshots/` ein (siehe [`assets/screenshots/README.md`](assets/screenshots/README.md)).
 
-- `mail-triage.png`
-- `calendar.png`
-- `work.png`
-- `dashboard.png`
+Neu erzeugen (Marketing-Mockups im Chronell-Look):
 
-Passe danach `docs/index.html` an: `<img>` statt Platzhalter-Gradient in `.screenshot-body`.
+```powershell
+node scripts/generate-homepage-screenshots.mjs
+```
+
+Echte App-Screenshots: gleiche Dateinamen überschreiben, dann committen und pushen.
 
 ## Custom Domain (optional)
 
