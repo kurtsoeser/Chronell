@@ -49,6 +49,11 @@ export interface ComposeReferenceAttachmentDraft {
 export interface ComposeDraft {
   id: string
   accountId: string
+  /**
+   * Abweichende Absender-SMTP (freigegebenes Postfach / Alias).
+   * `null`/`undefined` = Hauptadresse des Kontos.
+   */
+  sendFromEmail?: string | null
   mode: ComposeMode
   to: string
   cc: string
@@ -82,6 +87,9 @@ export interface ComposeDraft {
   importance: MailImportance
   isDeliveryReceiptRequested: boolean
   isReadReceiptRequested: boolean
+  /** S/MIME — noch nicht an Graph angebunden. */
+  smimeEncrypt: boolean
+  smimeSign: boolean
   /** `datetime-local` Wert oder ISO; wenn in Zukunft -> lokale Planung. */
   scheduledSendAt: string | null
   busy?: boolean
@@ -158,6 +166,8 @@ function defaultComposeFields(accountId: string): Pick<
   | 'importance'
   | 'isDeliveryReceiptRequested'
   | 'isReadReceiptRequested'
+  | 'smimeEncrypt'
+  | 'smimeSign'
   | 'scheduledSendAt'
 > {
   const sig = initialSignatureForAccount(accountId)
@@ -168,6 +178,8 @@ function defaultComposeFields(accountId: string): Pick<
     importance: 'normal',
     isDeliveryReceiptRequested: false,
     isReadReceiptRequested: false,
+    smimeEncrypt: false,
+    smimeSign: false,
     scheduledSendAt: null
   }
 }
@@ -488,6 +500,7 @@ export const useComposeStore = create<ComposeState>((set, get) => ({
     try {
       const result = await window.mailClient.compose.saveDraft({
         accountId: draft.accountId,
+        sendFromEmail: draft.sendFromEmail ?? undefined,
         subject: draft.subject || '(Kein Betreff)',
         bodyHtml: bundle.bodyHtml,
         to: bundle.to,
@@ -522,6 +535,14 @@ export const useComposeStore = create<ComposeState>((set, get) => ({
       return
     }
 
+    if (draft.smimeEncrypt || draft.smimeSign) {
+      get().update(id, {
+        error:
+          'S/MIME-Verschluesselung und digitale Signatur sind in Chronell noch nicht verfuegbar.'
+      })
+      return
+    }
+
     const scheduledRaw = draft.scheduledSendAt?.trim()
     let scheduledSendAt: string | null | undefined
     if (scheduledRaw) {
@@ -542,6 +563,7 @@ export const useComposeStore = create<ComposeState>((set, get) => ({
     try {
       const sendResult = await window.mailClient.compose.send({
         accountId: draft.accountId,
+        sendFromEmail: draft.sendFromEmail ?? undefined,
         subject: draft.subject || '(Kein Betreff)',
         bodyHtml,
         to,

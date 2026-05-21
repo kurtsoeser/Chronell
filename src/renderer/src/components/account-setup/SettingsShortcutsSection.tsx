@@ -19,9 +19,9 @@ function ShortcutTable({ groups }: { groups: ShortcutGroup[] }): JSX.Element {
           <table className="w-full border-collapse text-xs">
             <tbody>
               {group.rows.map((row) => (
-                <tr key={`${group.title}-${row.keys}`} className="border-t border-border/30 first:border-t-0">
+                <tr key={`${group.title}-${row.keys}`} className="border-t border-white/[0.04] dark:border-white/[0.04] first:border-t-0">
                   <td className="w-[38%] max-w-[12rem] py-1.5 pr-3 align-top">
-                    <kbd className="inline-block rounded border border-border/40 bg-background px-1.5 py-0.5 font-mono text-[10px] leading-snug text-foreground shadow-sm">
+                    <kbd className="inline-block rounded border border-white/[0.06] dark:border-white/[0.06] bg-background px-1.5 py-0.5 font-mono text-[10px] leading-snug text-foreground shadow-sm">
                       {row.keys}
                     </kbd>
                   </td>
@@ -165,7 +165,7 @@ export function SettingsShortcutsSection(): JSX.Element {
   ]
 
   return (
-    <section className="space-y-2 rounded-md border border-border/35 bg-muted/20 p-3">
+    <section className="space-y-2 rounded-md bg-background/60 p-3">
       <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
         {t('settings.shortcutsHeading')}
       </h3>

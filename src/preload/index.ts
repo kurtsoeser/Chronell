@@ -862,6 +862,8 @@ const api = {
       ipcRenderer.invoke(IPC.compose.send, input),
     saveDraft: (input: ComposeSaveDraftInput): Promise<ComposeSaveDraftResult> =>
       ipcRenderer.invoke(IPC.compose.saveDraft, input),
+    listSendFromOptions: (accountId: string): Promise<import('@shared/types').ComposeSendFromOption[]> =>
+      ipcRenderer.invoke(IPC.compose.listSendFromOptions, { accountId }),
     recipientSuggestions: (args: {
       accountId: string
       query: string

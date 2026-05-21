@@ -137,7 +137,7 @@
     --muted-foreground: 220 9% 65%;
     --secondary-foreground: 0 0% 100%;
     --accent-foreground: 0 0% 100%;
-    --border: 0 0% 100% / 0.075;
+    --border: 0 0% 100% / 0.04;
     --input: 0 0% 100% / 0.1;
   }
 

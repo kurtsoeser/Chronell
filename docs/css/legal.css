@@ -1,0 +1,122 @@
+/* Legal pages (privacy, imprint) */
+
+.legal-page main {
+  padding-top: calc(var(--header-h) + 2rem);
+  padding-bottom: 4rem;
+}
+
+.legal-page .site-header .brand {
+  text-decoration: none;
+}
+
+.legal-wrap {
+  max-width: 48rem;
+  margin: 0 auto;
+}
+
+.legal-wrap h1 {
+  font-size: clamp(1.75rem, 4vw, 2.25rem);
+  font-weight: 800;
+  line-height: 1.2;
+  margin: 0 0 0.5rem;
+  background: var(--brand-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.legal-meta {
+  color: hsl(var(--muted));
+  font-size: 0.9rem;
+  margin: 0 0 2rem;
+}
+
+.legal-body {
+  display: none;
+}
+
+.legal-body.is-active {
+  display: block;
+}
+
+.legal-body h2 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 2rem 0 0.75rem;
+  color: hsl(var(--foreground));
+}
+
+.legal-body h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 1.25rem 0 0.5rem;
+}
+
+.legal-body p,
+.legal-body li {
+  color: hsl(220 10% 88%);
+  font-size: 0.95rem;
+}
+
+.legal-body ul {
+  padding-left: 1.25rem;
+  margin: 0.5rem 0 1rem;
+}
+
+.legal-body table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  margin: 1rem 0;
+}
+
+.legal-body th,
+.legal-body td {
+  border: 1px solid hsl(var(--glass-border));
+  padding: 0.5rem 0.65rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.legal-body th {
+  background: hsl(var(--glass-surface));
+  font-weight: 600;
+}
+
+.legal-body a {
+  color: hsl(var(--chronell-blue));
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.legal-body a:hover {
+  color: hsl(var(--foreground));
+}
+
+.legal-note {
+  margin-top: 2rem;
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius);
+  background: hsl(var(--glass-surface));
+  border: 1px solid hsl(var(--glass-border));
+  font-size: 0.85rem;
+  color: hsl(var(--muted));
+}
+
+.legal-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+  color: hsl(var(--muted));
+  text-decoration: none;
+}
+
+.legal-back:hover {
+  color: hsl(var(--foreground));
+}
+
+.legal-page .site-footer {
+  margin-top: 2rem;
+}

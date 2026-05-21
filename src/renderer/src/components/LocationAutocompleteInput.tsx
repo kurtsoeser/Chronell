@@ -178,7 +178,7 @@ export function LocationAutocompleteInput({
         aria-autocomplete="list"
         placeholder={t('calendar.eventDialog.locationPlaceholder')}
         className={cn(
-          'mt-0.5 w-full rounded-md border border-border/60 bg-secondary/20 px-2 py-1.5 text-[13px] text-foreground outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60',
+          'mt-0.5 w-full rounded-md border border-border bg-secondary/20 px-2 py-1.5 text-[13px] text-foreground outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60',
           inputClassName
         )}
         onChange={(e): void => {
@@ -201,7 +201,7 @@ export function LocationAutocompleteInput({
             <button
               type="button"
               disabled={disabled || geoLoading}
-              className="flex w-full items-center gap-2 border-b border-border/80 px-3 py-2 text-left text-xs hover:bg-secondary/80 disabled:opacity-50"
+              className="flex w-full items-center gap-2 border-b border-white/[0.04] dark:border-white/[0.04] px-3 py-2 text-left text-xs hover:bg-secondary/80 disabled:opacity-50"
               onMouseDown={(e): void => e.preventDefault()}
               onClick={(): void => useCurrentLocation()}
             >
@@ -256,7 +256,7 @@ export function LocationAutocompleteInput({
               </button>
             ))}
           </div>
-          <p className="border-t border-border/80 px-2 py-1 text-[9px] leading-snug text-muted-foreground">
+          <p className="border-t border-white/[0.04] dark:border-white/[0.04] px-2 py-1 text-[9px] leading-snug text-muted-foreground">
             {t('calendar.eventDialog.locationAttribution')}
           </p>
         </div>

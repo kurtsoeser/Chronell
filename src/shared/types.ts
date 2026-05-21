@@ -54,6 +54,23 @@ export interface ConnectedAccount {
    * `null`/`undefined` = nicht gespeichert.
    */
   bookWithMeUrl?: string | null
+  /**
+   * Freigegebene Postfaecher / Send-as-Adressen (Microsoft 365, lokal konfiguriert).
+   */
+  sharedMailboxSendAs?: SharedMailboxSendAs[]
+}
+
+/** Freigegebenes Postfach zum Senden (Microsoft 365). */
+export interface SharedMailboxSendAs {
+  email: string
+  displayName?: string | null
+}
+
+/** Absender-Option im Compose «Von»-Feld. */
+export interface ComposeSendFromOption {
+  email: string
+  displayName?: string | null
+  kind: 'primary' | 'alias' | 'shared'
 }
 
 /** Kalender-Referenz fuer gefiltertes Laden (Microsoft Graph- oder Google-Kalender-ID). */
@@ -77,6 +94,8 @@ export interface PatchAccountInput {
   defaultSignatureTemplateId?: string | null
   /** Persoenliche Book-with-me-URL; `null` = entfernen. */
   bookWithMeUrl?: string | null
+  /** Freigegebene Postfaecher ersetzen die gespeicherte Liste vollstaendig. */
+  sharedMailboxSendAs?: SharedMailboxSendAs[]
 }
 
 export interface AuthResult {
@@ -397,6 +416,7 @@ export interface SettingsBackupAccountPreferenceSnapshot {
   signatureTemplates?: AccountSignatureTemplate[]
   defaultSignatureTemplateId?: string | null
   bookWithMeUrl?: string | null
+  sharedMailboxSendAs?: SharedMailboxSendAs[]
 }
 
 export interface SettingsBackupNotionDestinationSnapshot {
@@ -1812,6 +1832,11 @@ export type MailImportance = 'low' | 'normal' | 'high'
 
 export interface ComposeSendInput {
   accountId: string
+  /**
+   * SMTP-Absender; `null`/`undefined` = Hauptkonto.
+   * Microsoft: freigegebenes Postfach oder Alias (`/users/{smtp}/sendMail`).
+   */
+  sendFromEmail?: string | null
   subject: string
   bodyHtml: string
   to: ComposeRecipient[]
@@ -1858,6 +1883,7 @@ export interface ComposeSendResult {
 /** Server-Entwurf speichern (Ordner «Entwürfe» / Gmail-Drafts). */
 export interface ComposeSaveDraftInput {
   accountId: string
+  sendFromEmail?: string | null
   subject: string
   bodyHtml: string
   to: ComposeRecipient[]

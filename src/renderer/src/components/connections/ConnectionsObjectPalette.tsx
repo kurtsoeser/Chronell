@@ -145,7 +145,7 @@ export function ConnectionsObjectPalette({
             className={cn(
               'ml-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition-colors',
               allKindsActive
-                ? 'cursor-default border-border/60 text-muted-foreground/40'
+                ? 'cursor-default text-muted-foreground/40'
                 : 'border-border text-muted-foreground hover:border-primary/40 hover:bg-primary/10 hover:text-primary'
             )}
           >

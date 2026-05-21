@@ -76,6 +76,11 @@ import {
 } from '@/components/module-shell-layout'
 
 import { GLOBAL_CREATE_EVENT, useGlobalCreateNavigateStore } from '@/lib/global-create'
+import {
+  PEOPLE_SORT_CHANGED_EVENT,
+  readStoredPeopleSort,
+  writeStoredPeopleSort
+} from '@/lib/people-sort-pref'
 import { usePeoplePendingFocusStore } from '@/stores/people-pending-focus'
 import { GROUPED_LIST_VIRTUALIZE_THRESHOLD } from '@/lib/grouped-list-virtuoso'
 type NavKey =
@@ -90,29 +95,9 @@ type NavKey =
 
 
 
-const PEOPLE_SORT_STORAGE_KEY = 'mailclient.people.sortBy'
-
 const PEOPLE_VIEW_STORAGE_KEY = 'mailclient.people.viewMode'
 
 type PeopleListViewMode = 'list' | 'tiles'
-
-function readStoredPeopleSort(): PeopleListSort {
-
-  try {
-
-    const v = window.localStorage.getItem(PEOPLE_SORT_STORAGE_KEY)
-
-    if (v === 'givenName' || v === 'surname' || v === 'displayName') return v
-
-  } catch {
-
-    /* ignore */
-
-  }
-
-  return 'displayName'
-
-}
 
 function readStoredPeopleView(): PeopleListViewMode {
 
@@ -314,19 +299,14 @@ export function PeopleShell(): JSX.Element {
 
 
   const setSortByPersist = useCallback((next: PeopleListSort): void => {
-
     setSortBy(next)
+    writeStoredPeopleSort(next)
+  }, [])
 
-    try {
-
-      window.localStorage.setItem(PEOPLE_SORT_STORAGE_KEY, next)
-
-    } catch {
-
-      /* ignore */
-
-    }
-
+  useEffect(() => {
+    const onChanged = (): void => setSortBy(readStoredPeopleSort())
+    window.addEventListener(PEOPLE_SORT_CHANGED_EVENT, onChanged)
+    return (): void => window.removeEventListener(PEOPLE_SORT_CHANGED_EVENT, onChanged)
   }, [])
 
 

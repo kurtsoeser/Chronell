@@ -1152,6 +1152,7 @@ export const useMailStore = create<MailState>((set, get) => ({
       if (permanent) {
         await window.mailClient.mail.permanentDeleteMessage(messageId)
         advanceSelectionAfterRemoval(messageId, set, get)
+        set({ error: null })
         useUndoStore.getState().pushToast({
           label: `Endgueltig geloescht: ${shorten(subject)}`,
           variant: 'success'
@@ -1159,6 +1160,7 @@ export const useMailStore = create<MailState>((set, get) => ({
       } else {
         await window.mailClient.mail.moveToTrash(messageId)
         advanceSelectionAfterRemoval(messageId, set, get)
+        set({ error: null })
         useUndoStore.getState().pushToast({
           label: `Geloescht: ${shorten(subject)}`,
           variant: 'success',
@@ -1248,7 +1250,12 @@ export const useMailStore = create<MailState>((set, get) => ({
   async emptyTrashFolder(folderId: number): Promise<{ deletedRemote: number }> {
     try {
       const result = await window.mailClient.mail.emptyTrashFolder(folderId)
-      await get().refreshNow()
+      set({ error: null })
+      try {
+        await get().refreshNow()
+      } catch (refreshErr) {
+        console.warn('[mail-store] refreshNow nach Papierkorb leeren fehlgeschlagen:', refreshErr)
+      }
       return result
     } catch (e) {
       console.error('[mail-store] emptyTrashFolder failed', e)

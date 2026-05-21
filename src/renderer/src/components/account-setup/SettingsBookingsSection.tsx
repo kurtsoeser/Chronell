@@ -78,7 +78,7 @@ export function SettingsBookingsSection({
 
   if (subNavId === 'personal') {
     return (
-      <section className="space-y-3 rounded-md border border-border/35 bg-muted/20 p-3">
+      <section className="space-y-3 rounded-md bg-background/60 p-3">
         <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           <CalendarClock className="h-3.5 w-3.5" aria-hidden />
           {t('settings.bookingsPersonalHeading')}
@@ -97,7 +97,7 @@ export function SettingsBookingsSection({
 
   if (subNavId === 'access') {
     return (
-      <section className="space-y-3 rounded-md border border-border/35 bg-muted/20 p-3">
+      <section className="space-y-3 rounded-md bg-background/60 p-3">
         <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           <Shield className="h-3.5 w-3.5" aria-hidden />
           {t('settings.bookingsAccessHeading')}
@@ -137,7 +137,7 @@ export function SettingsBookingsSection({
 
   return (
     <div className="space-y-5">
-      <section className="space-y-2 rounded-md border border-border/35 bg-muted/20 p-3">
+      <section className="space-y-2 rounded-md bg-background/60 p-3">
         <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           <Building2 className="h-3.5 w-3.5" aria-hidden />
           {t('settings.bookingsOverviewHeading')}
@@ -158,7 +158,7 @@ export function SettingsBookingsSection({
         </button>
       </section>
 
-      <section className="space-y-2 rounded-md border border-border/35 bg-muted/20 p-3">
+      <section className="space-y-2 rounded-md bg-background/60 p-3">
         <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           <LayoutGrid className="h-3.5 w-3.5" aria-hidden />
           {t('settings.bookingsTopbarHeading')}
@@ -182,7 +182,7 @@ export function SettingsBookingsSection({
         </button>
       </section>
 
-      <section className="space-y-2 rounded-md border border-border/35 bg-muted/20 p-3">
+      <section className="space-y-2 rounded-md bg-background/60 p-3">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           {t('settings.bookingsRangeHeading')}
         </h3>

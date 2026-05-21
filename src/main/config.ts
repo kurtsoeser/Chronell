@@ -5,6 +5,9 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import type { AppConfig } from '@shared/types'
 import { restartMailPollingInterval } from './mail-poll-runner'
+import { restartMailBodyIndexRunner } from './mail-body-index-runner-bridge'
+import { invalidateCalendarDisplayTimeZoneCache } from './calendar-display-config'
+import { restartProfileSyncRunner } from './sync-profile/profile-sync-runner-bridge'
 import {
   fetchPublisherRemoteOAuthOnce,
   getPublisherEnvOAuthDefaults,
@@ -237,15 +240,12 @@ export async function updateConfig(patch: Partial<AppConfig>): Promise<AppConfig
     restartMailPollingInterval()
   }
   if ('mailBodyIndexEnabled' in patch || 'mailBodyIndexSpeed' in patch) {
-    const { restartMailBodyIndexRunner } = await import('./mail-body-index-queue')
     restartMailBodyIndexRunner()
   }
   if ('profileSyncPollIntervalSeconds' in patch) {
-    const { restartProfileSyncRunner } = await import('./sync-profile/profile-sync-runner')
     restartProfileSyncRunner()
   }
   if ('calendarTimeZone' in patch) {
-    const { invalidateCalendarDisplayTimeZoneCache } = await import('./calendar-display-config')
     invalidateCalendarDisplayTimeZoneCache()
   }
   return resolveAppConfigAsync(mergedPersist)

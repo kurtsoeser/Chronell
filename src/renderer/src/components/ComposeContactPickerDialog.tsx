@@ -66,8 +66,8 @@ export function ComposeContactPickerDialog({ open, accountId, onClose, onPick }:
 
   return (
     <ModalRoot open={open} zIndex={100} centerClassName="items-center justify-center" onBackdropClick={onClose}>
-      <ModalPanel className="flex max-h-[min(420px,80vh)] w-[min(440px,94vw)] flex-col rounded-xl border border-border bg-card shadow-2xl">
-        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+      <ModalPanel className="app-dialog-panel flex max-h-[min(420px,80vh)] w-[min(440px,94vw)] flex-col rounded-xl border border-border bg-card shadow-2xl">
+        <div className="flex items-center justify-between border-b border-white/[0.04] px-4 py-3 dark:border-white/[0.04]">
           <div className="flex items-center gap-2">
             <UserPlus className="h-4 w-4 text-muted-foreground" />
             <h2 className="text-sm font-semibold text-foreground">{title}</h2>
@@ -81,7 +81,7 @@ export function ComposeContactPickerDialog({ open, accountId, onClose, onPick }:
             <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="border-b border-border/60 px-3 py-2">
+        <div className="border-b border-white/[0.04] px-3 py-2 dark:border-white/[0.04]">
           <div className="relative">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <input
@@ -89,7 +89,7 @@ export function ComposeContactPickerDialog({ open, accountId, onClose, onPick }:
               value={query}
               onChange={(e): void => setQuery(e.target.value)}
               placeholder="Name oder E-Mail suchen…"
-              className="w-full rounded-md border border-border/70 bg-background py-1.5 pl-8 pr-2 text-xs text-foreground outline-none ring-0 placeholder:text-muted-foreground focus:border-primary/50"
+              className="w-full rounded-md border border-border bg-background py-1.5 pl-8 pr-2 text-xs text-foreground outline-none ring-0 placeholder:text-muted-foreground focus:border-primary/50"
               autoFocus
             />
           </div>

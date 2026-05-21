@@ -351,6 +351,7 @@
 }
 
 @layer components {
+  /** Compose-Chrome (An/Cc/Betreff, Signatur-Kopf): folgt dem App-Theme. */
   .compose-editor-surface {
     display: flex;
     min-height: 0;
@@ -358,6 +359,45 @@
     flex-direction: column;
     overflow: hidden;
     background-color: hsl(var(--compose-surface));
+    color: hsl(var(--foreground));
+  }
+
+  /** Nur TipTap-Mail- und Signatur-Editor: eigenes Hell/Dunkel. */
+  .compose-editor-themed {
+    display: flex;
+    min-height: 0;
+    flex-direction: column;
+    background-color: hsl(var(--compose-surface));
+    color: hsl(var(--foreground));
+  }
+
+  .compose-editor-themed[data-compose-theme='light'] {
+    --compose-surface: 220 16% 93%;
+    --compose-surface-muted: 220 14% 90%;
+    --compose-surface-border: 220 14% 84%;
+    --background: 220 20% 97%;
+    --card: 0 0% 100%;
+    --muted: 220 16% 93%;
+    --secondary: 220 16% 93%;
+    --foreground: 222 47% 11%;
+    --muted-foreground: 220 9% 46%;
+    --border: 220 27% 92%;
+    --input: 220 27% 92%;
+    color: hsl(var(--foreground));
+  }
+
+  .compose-editor-themed[data-compose-theme='dark'] {
+    --compose-surface: 0 0% 9%;
+    --compose-surface-muted: 0 0% 7%;
+    --compose-surface-border: 0 0% 15%;
+    --background: 0 0% 7%;
+    --card: 0 0% 14%;
+    --muted: 0 0% 21%;
+    --secondary: 0 0% 17%;
+    --foreground: 0 0% 100%;
+    --muted-foreground: 220 9% 65%;
+    --border: 0 0% 100% / 0.04;
+    --input: 0 0% 100% / 0.1;
     color: hsl(var(--foreground));
   }
 
@@ -461,11 +501,22 @@
   }
 
   .dark .account-setup-dialog {
-    --border: 0 0% 100% / 0.038;
-    --input: 0 0% 100% / 0.068;
+    --border: 0 0% 100% / 0.04;
+    --input: 0 0% 100% / 0.07;
   }
 
   .account-setup-dialog .divide-border > :not([hidden]) ~ :not([hidden]) {
     border-color: hsl(var(--border) / 0.85);
+  }
+
+  /** Modale Dialoge (OneDrive, Notion-Picker, …): gleiche dezente --border wie Einstellungen. */
+  .app-dialog-panel {
+    --border: 220 18% 86% / 0.38;
+    --input: 220 18% 84% / 0.52;
+  }
+
+  .dark .app-dialog-panel {
+    --border: 0 0% 100% / 0.04;
+    --input: 0 0% 100% / 0.07;
   }
 }

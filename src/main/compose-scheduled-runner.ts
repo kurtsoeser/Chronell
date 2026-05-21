@@ -50,6 +50,7 @@ async function sendImmediate(input: ComposeSendInput): Promise<void> {
   } else {
     const r = await graphSendMail({
       accountId: input.accountId,
+      sendFromEmail: input.sendFromEmail,
       subject: input.subject,
       bodyHtml: input.bodyHtml,
       to: input.to,

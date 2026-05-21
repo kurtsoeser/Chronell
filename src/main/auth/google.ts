@@ -133,6 +133,11 @@ export type GoogleLoginOptions = {
   /** OAuth prompt; fuer Refresh-Token-Erneuerung typischerweise `consent`. */
   prompt?: 'none' | 'consent' | 'select_account'
   /**
+   * `false` bei Re-Consent: alle Scopes erneut explizit anfordern (nicht nur inkrementell).
+   * Standard `true` (Google-Empfehlung fuer Erstanmeldung).
+   */
+  includeGrantedScopes?: boolean
+  /**
    * Clientschlüssel (Desktop-JSON). Leer = PKCE mit oeffentlichem Client laut Google Native-App-Flow
    * ({@link ClientAuthentication.None}).
    */
@@ -175,7 +180,7 @@ export async function loginGoogle(
     access_type: 'offline',
     scope: [...GOOGLE_OAUTH_SCOPES],
     prompt: options?.prompt ?? 'consent',
-    include_granted_scopes: true,
+    include_granted_scopes: options?.includeGrantedScopes ?? true,
     state,
     code_challenge: challenge,
     code_challenge_method: CodeChallengeMethod.S256,

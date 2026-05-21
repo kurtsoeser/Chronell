@@ -148,12 +148,12 @@ export function SignatureTemplateControls({
   }
 
   const selClass = compact
-    ? 'max-w-[min(200px,46vw)] rounded border border-border/60 bg-background px-1 py-0.5 text-[10px]'
-    : 'max-w-[min(260px,52vw)] rounded border border-border/60 bg-background px-2 py-1 text-xs'
+    ? 'max-w-[min(200px,46vw)] rounded border border-border bg-background px-1 py-0.5 text-[10px]'
+    : 'max-w-[min(260px,52vw)] rounded border border-border bg-background px-2 py-1 text-xs'
 
   const btnClass = compact
-    ? 'inline-flex shrink-0 items-center gap-0.5 rounded border border-border/60 bg-background px-1 py-0.5 text-[10px] text-muted-foreground hover:bg-secondary hover:text-foreground'
-    : 'inline-flex shrink-0 items-center gap-1 rounded border border-border/60 bg-background px-2 py-1 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground'
+    ? 'inline-flex shrink-0 items-center gap-0.5 rounded border border-border bg-background px-1 py-0.5 text-[10px] text-muted-foreground hover:bg-secondary hover:text-foreground'
+    : 'inline-flex shrink-0 items-center gap-1 rounded border border-border bg-background px-2 py-1 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground'
 
   const btnPrimaryClass = cn(
     btnClass,
@@ -270,7 +270,7 @@ export function SignatureTemplateControls({
       {manageOpen && templates.length > 0 && (
         <ul
           className={cn(
-            'max-h-32 overflow-y-auto rounded border border-border/50 bg-background/90 p-1 text-[10px]',
+            'max-h-32 overflow-y-auto rounded-md bg-muted/20 p-1 text-[10px]',
             compact ? 'text-[10px]' : 'text-xs'
           )}
         >

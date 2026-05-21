@@ -3,6 +3,16 @@ import type { EntityEmbeddingProgress } from '@shared/entity-embeddings'
 import type { MailBodyIndexProgress } from '@shared/mail-body-index'
 import type { ConnectedAccount, MailChangedPayload, UserNoteKind } from '@shared/types'
 import { mergeMailChangedPayload } from '@shared/mail-changed-merge'
+import {
+  markProfileDataDirty,
+  scheduleProfileSyncDebounced
+} from '../sync-profile/profile-sync-scheduler'
+import {
+  broadcastProfileSyncApplied,
+  broadcastProfileSyncStatus
+} from '../sync-profile/profile-sync-status-broadcast'
+
+export { broadcastProfileSyncApplied, broadcastProfileSyncStatus }
 
 const MAIL_CHANGED_COALESCE_MS = 100
 
@@ -96,10 +106,8 @@ export function broadcastNotesChanged(payload: {
   for (const win of BrowserWindow.getAllWindows()) {
     win.webContents.send('notes:changed', payload)
   }
-  void import('../sync-profile/profile-sync-scheduler').then((m) => {
-    void m.markProfileDataDirty()
-    m.scheduleProfileSyncDebounced()
-  })
+  void markProfileDataDirty()
+  scheduleProfileSyncDebounced()
 }
 
 /** Ungerichtete entity_links geaendert — alle ConnectionsPanel-Instanzen neu laden. */
@@ -107,10 +115,8 @@ export function broadcastEntityLinksChanged(): void {
   for (const win of BrowserWindow.getAllWindows()) {
     win.webContents.send('entity-links:changed', {})
   }
-  void import('../sync-profile/profile-sync-scheduler').then((m) => {
-    void m.markProfileDataDirty()
-    m.scheduleProfileSyncDebounced()
-  })
+  void markProfileDataDirty()
+  scheduleProfileSyncDebounced()
 }
 
 export function broadcastEntityLinkAiScanProgress(
@@ -130,22 +136,6 @@ export function broadcastEntityEmbeddingProgress(progress: EntityEmbeddingProgre
 export function broadcastMailBodyIndexProgress(progress: MailBodyIndexProgress | null): void {
   for (const win of BrowserWindow.getAllWindows()) {
     win.webContents.send('mail-body-index:progress', progress)
-  }
-}
-
-export function broadcastProfileSyncStatus(): void {
-  void import('../sync-profile/profile-sync-service').then((m) =>
-    m.getProfileSyncStatus().then((status) => {
-      for (const win of BrowserWindow.getAllWindows()) {
-        win.webContents.send('profile-sync:status', status)
-      }
-    })
-  )
-}
-
-export function broadcastProfileSyncApplied(localStorage: Record<string, string>): void {
-  for (const win of BrowserWindow.getAllWindows()) {
-    win.webContents.send('profile-sync:applied', { localStorage })
   }
 }
 

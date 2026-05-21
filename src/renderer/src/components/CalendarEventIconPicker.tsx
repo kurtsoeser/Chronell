@@ -213,7 +213,7 @@ export function CalendarEventIconPicker({
           disabled={disabled || filteredIcons.length === 0}
           title={t('calendar.eventIcon.random')}
           aria-label={t('calendar.eventIcon.random')}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border/60 text-muted-foreground hover:bg-secondary/80 hover:text-foreground disabled:opacity-40"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-secondary/80 hover:text-foreground disabled:opacity-40"
           onClick={(): void => {
             const pool = filteredIcons.length > 0 ? filteredIcons : CALENDAR_EVENT_ICON_CATALOG
             const id = pickRandomCalendarEventIconId(pool)
@@ -228,7 +228,7 @@ export function CalendarEventIconPicker({
           title={t('calendar.eventIcon.clear')}
           aria-label={t('calendar.eventIcon.clear')}
           className={cn(
-            'flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border/60 text-muted-foreground hover:bg-secondary/80 hover:text-foreground disabled:opacity-40',
+            'flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-secondary/80 hover:text-foreground disabled:opacity-40',
             !hasExplicit && 'ring-1 ring-primary/40 bg-primary/10 text-primary'
           )}
           onClick={(): void => {
@@ -309,7 +309,7 @@ export function CalendarEventIconPicker({
               : undefined
           }
           className={cn(
-            'flex h-9 w-9 items-center justify-center rounded-md border border-border/60 bg-secondary/20 text-muted-foreground hover:bg-secondary/60 hover:text-foreground disabled:opacity-50',
+            'flex h-9 w-9 items-center justify-center rounded-md border border-border bg-secondary/20 text-muted-foreground hover:bg-secondary/60 hover:text-foreground disabled:opacity-50',
             compactButtonClassName
           )}
           title={t('calendar.eventIcon.pickerTitle')}

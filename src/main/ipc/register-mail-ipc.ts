@@ -135,6 +135,7 @@ import {
 import { broadcastMailChanged } from './ipc-broadcasts'
 import { applyUndo } from './mail-ipc-undo'
 import { listDistinctTagsForAccount } from '../db/message-tags-repo'
+import { ensureMessageBodyLoaded } from '../message-body-fetch'
 import { registerMailComposeIpc } from './register-mail-compose-ipc'
 import { registerMailFoldersIpc } from './register-mail-folders-ipc'
 import { registerMailListIpc } from './register-mail-list-ipc'
@@ -147,7 +148,6 @@ export function registerMailIpc(): void {
   registerMailMetaIpc()
 
   ipcMain.handle(IPC.mail.getMessage, async (_event, id: number): Promise<MailFull | null> => {
-    const { ensureMessageBodyLoaded } = await import('../message-body-fetch')
     const msg = await ensureMessageBodyLoaded(id)
     return decorateMailFull(msg)
   })

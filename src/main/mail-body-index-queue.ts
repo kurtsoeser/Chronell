@@ -12,6 +12,7 @@ import { broadcastMailBodyIndexProgress } from './ipc/ipc-broadcasts'
 import { fetchAndStoreMessageBodyIfMissing } from './message-body-fetch'
 import { isAppOnline } from './network-status'
 import { yieldToMainThread } from './lib/yield-main-thread'
+import { registerMailBodyIndexRunner } from './mail-body-index-runner-bridge'
 
 const DEBOUNCE_MS = 12_000
 
@@ -153,3 +154,9 @@ export function stopMailBodyIndexRunner(): void {
   lastProgress = null
   broadcastMailBodyIndexProgress(null)
 }
+
+registerMailBodyIndexRunner({
+  start: startMailBodyIndexRunner,
+  stop: stopMailBodyIndexRunner,
+  restart: restartMailBodyIndexRunner
+})

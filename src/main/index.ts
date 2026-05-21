@@ -25,6 +25,15 @@ import {
 import { APP_ID, APP_PRODUCT_NAME } from '@shared/app-version'
 import { attachChromiumZoomShortcutGuard } from './zoom-shortcut-guard'
 import { resolveAppWindowIcon } from './app-icon'
+import {
+  startMailBodyIndexRunner,
+  stopMailBodyIndexRunner
+} from './mail-body-index-runner-bridge'
+import { readStoredSession } from './sync-profile/supabase-session'
+import {
+  startProfileSyncRunner,
+  stopProfileSyncRunner
+} from './sync-profile/profile-sync-runner-bridge'
 
 configureChronellAppPaths()
 
@@ -209,15 +218,12 @@ app.whenReady().then(async () => {
 
   startMailPolling()
   startCalendarSync()
-  const { startMailBodyIndexRunner } = await import('./mail-body-index-queue')
   startMailBodyIndexRunner()
 
   const cfg = await loadConfig()
   if (cfg.profileDataMode === 'cloud') {
-    const { readStoredSession } = await import('./sync-profile/supabase-session')
     const session = await readStoredSession()
     if (session) {
-      const { startProfileSyncRunner } = await import('./sync-profile/profile-sync-runner')
       startProfileSyncRunner()
     }
   }
@@ -235,16 +241,16 @@ app.on('before-quit', () => {
   stopMailPolling()
   stopCalendarSync()
   stopConnectivityMonitoring()
-  void import('./mail-body-index-queue').then((m) => m.stopMailBodyIndexRunner())
-  void import('./sync-profile/profile-sync-runner').then((m) => m.stopProfileSyncRunner())
+  stopMailBodyIndexRunner()
+  stopProfileSyncRunner()
 })
 
 app.on('window-all-closed', () => {
   stopMailPolling()
   stopCalendarSync()
   stopConnectivityMonitoring()
-  void import('./mail-body-index-queue').then((m) => m.stopMailBodyIndexRunner())
-  void import('./sync-profile/profile-sync-runner').then((m) => m.stopProfileSyncRunner())
+  stopMailBodyIndexRunner()
+  stopProfileSyncRunner()
   closeDb()
   if (process.platform !== 'darwin') {
     app.quit()

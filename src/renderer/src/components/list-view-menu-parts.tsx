@@ -11,7 +11,7 @@ export function MenuSectionTitle({ children }: { children: string }): JSX.Elemen
 }
 
 export function MenuDivider(): JSX.Element {
-  return <div className="my-1 border-t border-border/80" role="separator" />
+  return <div className="my-1 border-t border-white/[0.04] dark:border-white/[0.04]" role="separator" />
 }
 
 export function MenuRow({

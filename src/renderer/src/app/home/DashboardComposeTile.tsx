@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AlertCircle, Loader2, Paperclip, Save, Send, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { ComposeFromField } from '@/components/ComposeFromField'
+import { ComposeMessageOptionsButton } from '@/components/ComposeMessageOptionsDialog'
+import { ComposeEditorSurface } from '@/components/ComposeEditorSurface'
+import { ComposeEditorThemedPane } from '@/components/ComposeEditorThemedPane'
+import { ComposeEditorThemeToggle } from '@/components/ComposeEditorThemeToggle'
 import { TipTapBody } from '@/components/TipTapBody'
 import { SignatureTemplateControls } from '@/components/SignatureTemplateControls'
 import { RecipientTokenField } from '@/components/RecipientTokenField'
@@ -110,6 +115,29 @@ export function DashboardComposeTile(): JSX.Element {
       }}
     >
       <div className="flex shrink-0 items-center gap-2 border-b border-border/50 px-2 py-1.5 text-[11px]">
+        <ComposeEditorThemeToggle compact />
+        <ComposeMessageOptionsButton
+          compact
+          isMicrosoft={account?.provider === 'microsoft'}
+          values={{
+            importance: draft.importance,
+            isReadReceiptRequested: draft.isReadReceiptRequested,
+            isDeliveryReceiptRequested: draft.isDeliveryReceiptRequested,
+            smimeEncrypt: draft.smimeEncrypt,
+            smimeSign: draft.smimeSign,
+            scheduledSendAt: draft.scheduledSendAt
+          }}
+          onApply={(v): void =>
+            update(draft.id, {
+              importance: v.importance,
+              isReadReceiptRequested: v.isReadReceiptRequested,
+              isDeliveryReceiptRequested: v.isDeliveryReceiptRequested,
+              smimeEncrypt: v.smimeEncrypt,
+              smimeSign: v.smimeSign,
+              scheduledSendAt: v.scheduledSendAt
+            })
+          }
+        />
         <button
           type="button"
           disabled={draft.busy}
@@ -123,74 +151,76 @@ export function DashboardComposeTile(): JSX.Element {
           <Save className="h-3.5 w-3.5" />
           {t('mail.composeTile.saveDraft')}
         </button>
-        <span className="text-muted-foreground">{t('mail.composeTile.from')}</span>
-        {accounts.length > 1 ? (
-          <select
-            value={draft.accountId}
-            onChange={(e): void =>
-              update(draft.id, { accountId: e.target.value, savedRemoteDraftId: undefined })
-            }
-            className="min-w-0 flex-1 truncate rounded border border-border bg-background px-1.5 py-0.5 text-[11px]"
-          >
-            {accounts.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.email}
-              </option>
-            ))}
-          </select>
-        ) : (
-          <span className="min-w-0 flex-1 truncate font-medium">{account?.email}</span>
-        )}
       </div>
 
-      <RecipientTokenField
-        label={t('mail.composeTile.to')}
+      <ComposeFromField
+        className="border-b border-border/50 px-2 py-1 text-[11px]"
         accountId={draft.accountId}
-        value={draft.to}
-        onChange={(v): void => update(draft.id, { to: v })}
-        showToggle={!draft.showCcBcc}
-        onToggleCcBcc={(): void => update(draft.id, { showCcBcc: true })}
-        className="border-b border-border/50 px-2 py-1"
+        sendFromEmail={draft.sendFromEmail ?? null}
+        onAccountChange={(id): void =>
+          update(draft.id, {
+            accountId: id,
+            sendFromEmail: null,
+            savedRemoteDraftId: undefined
+          })
+        }
+        onSendFromChange={(email): void => update(draft.id, { sendFromEmail: email })}
       />
-      {draft.showCcBcc && (
-        <>
-          <RecipientTokenField
-            label={t('mail.composeTile.cc')}
-            accountId={draft.accountId}
-            value={draft.cc}
-            onChange={(v): void => update(draft.id, { cc: v })}
-            className="border-b border-border/50 px-2 py-1"
-          />
-          <RecipientTokenField
-            label={t('mail.composeTile.bcc')}
-            accountId={draft.accountId}
-            value={draft.bcc}
-            onChange={(v): void => update(draft.id, { bcc: v })}
-            className="border-b border-border/50 px-2 py-1"
-          />
-        </>
-      )}
 
-      <div className="flex shrink-0 items-center gap-2 border-b border-border/50 px-2 py-1.5">
-        <span className="w-9 shrink-0 text-[10px] text-muted-foreground">{t('mail.composeTile.subject')}</span>
-        <input
-          type="text"
-          value={draft.subject}
-          onChange={(e): void => update(draft.id, { subject: e.target.value })}
-          placeholder={t('mail.composeTile.noSubjectPlaceholder')}
-          className="min-w-0 flex-1 bg-transparent text-[11px] text-foreground outline-none placeholder:text-muted-foreground"
+      <ComposeEditorSurface className="min-h-0 flex-1">
+        <RecipientTokenField
+          inEditorSurface
+          label={t('mail.composeTile.to')}
+          accountId={draft.accountId}
+          value={draft.to}
+          onChange={(v): void => update(draft.id, { to: v })}
+          showToggle={!draft.showCcBcc}
+          onToggleCcBcc={(): void => update(draft.id, { showCcBcc: true })}
+          className="border-b border-[hsl(var(--compose-surface-border)/0.55)] px-2 py-1"
         />
-      </div>
+        {draft.showCcBcc && (
+          <>
+            <RecipientTokenField
+              inEditorSurface
+              label={t('mail.composeTile.cc')}
+              accountId={draft.accountId}
+              value={draft.cc}
+              onChange={(v): void => update(draft.id, { cc: v })}
+              className="border-b border-[hsl(var(--compose-surface-border)/0.55)] px-2 py-1"
+            />
+            <RecipientTokenField
+              inEditorSurface
+              label={t('mail.composeTile.bcc')}
+              accountId={draft.accountId}
+              value={draft.bcc}
+              onChange={(v): void => update(draft.id, { bcc: v })}
+              className="border-b border-[hsl(var(--compose-surface-border)/0.55)] px-2 py-1"
+            />
+          </>
+        )}
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <TipTapBody
-          valueHtml={draft.prependRichHtml}
-          onChangeHtml={(v): void => update(draft.id, { prependRichHtml: v })}
-          className="min-h-0 flex-1 border-0 bg-transparent px-1 py-1 text-[11px]"
-          fillHeight
-        />
-        <div className="shrink-0 border-t border-border/40 bg-secondary/10 px-1 py-0.5">
-          <div className="flex flex-wrap items-start justify-between gap-1 px-1 pb-0.5">
+        <div className="flex shrink-0 items-center gap-2 border-b border-[hsl(var(--compose-surface-border)/0.55)] px-2 py-1.5">
+          <span className="w-9 shrink-0 text-[10px] text-muted-foreground">{t('mail.composeTile.subject')}</span>
+          <input
+            type="text"
+            value={draft.subject}
+            onChange={(e): void => update(draft.id, { subject: e.target.value })}
+            placeholder={t('mail.composeTile.noSubjectPlaceholder')}
+            className="min-w-0 flex-1 bg-transparent text-[11px] text-foreground outline-none placeholder:text-muted-foreground"
+          />
+        </div>
+
+        <ComposeEditorThemedPane className="min-h-0 flex-1">
+          <TipTapBody
+            inEditorSurface
+            valueHtml={draft.prependRichHtml}
+            onChangeHtml={(v): void => update(draft.id, { prependRichHtml: v })}
+            className="min-h-0 flex-1 border-t-0"
+            fillHeight
+          />
+        </ComposeEditorThemedPane>
+        <div className="shrink-0 border-t border-[hsl(var(--compose-surface-border)/0.5)] bg-[hsl(var(--compose-surface-muted))]">
+          <div className="flex flex-wrap items-start justify-between gap-1 px-2 py-1">
             <span className="shrink-0 text-[9px] font-medium uppercase tracking-wide text-muted-foreground">
               {t('mail.composeTile.signature', { defaultValue: 'Signatur' })}
             </span>
@@ -203,15 +233,18 @@ export function DashboardComposeTile(): JSX.Element {
               onActiveTemplateIdChange={(id): void => update(draft.id, { signatureTemplateId: id })}
             />
           </div>
-          <TipTapBody
-            variant="compact"
-            fillHeight={false}
-            valueHtml={draft.signatureRichHtml}
-            onChangeHtml={(v): void => update(draft.id, { signatureRichHtml: v })}
-            className="border-0 bg-transparent px-0 py-0 text-[11px]"
-          />
+          <ComposeEditorThemedPane>
+            <TipTapBody
+              inEditorSurface
+              variant="compact"
+              fillHeight={false}
+              valueHtml={draft.signatureRichHtml}
+              onChangeHtml={(v): void => update(draft.id, { signatureRichHtml: v })}
+              className="border-t-0"
+            />
+          </ComposeEditorThemedPane>
         </div>
-      </div>
+      </ComposeEditorSurface>
 
       {(draft.attachments.length > 0 ||
         draft.referenceAttachments.length > 0 ||

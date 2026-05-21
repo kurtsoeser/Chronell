@@ -9,7 +9,7 @@ import { FontSize } from '@tiptap/extension-text-style/font-size'
 import Color from '@tiptap/extension-color'
 import Highlight from '@tiptap/extension-highlight'
 import { TableRow } from '@tiptap/extension-table/row'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { MailTable, MailTableCell, MailTableHeader, type MailTableDesign } from '@/components/tiptap-mail-table'
 import { showAppPrompt } from '@/stores/app-dialog'
 import {
@@ -39,11 +39,17 @@ import {
   Trash2,
   Underline as UnderlineIcon,
   Undo2,
-  MessageSquare,
-  Type
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { hrefForExternalOpen, openExternalUrl } from '@/lib/open-external'
+import { COMPOSE_FONT_SIZES_PT, composeFontSizePtOptionValue } from '@/lib/compose-font-sizes'
+import { parseZoomShortcutIntentFromKeyboardEvent } from '@/lib/zoom-shortcut-keys'
+import {
+  COMPOSE_EDITOR_SCALE_STEP,
+  composeEditorScalePercent,
+  useComposeEditorScaleStore
+} from '@/stores/compose-editor-scale'
+import { ComposeTextSnippetsMenu } from '@/components/ComposeTextSnippetsMenu'
 
 function handleTipTapExternalLinkMouse(ev: MouseEvent): boolean {
   if (ev.defaultPrevented) return false
@@ -124,6 +130,9 @@ export function TipTapBody({
     (variant === 'compact' ? 'min-h-[7.5rem]' : 'min-h-[220px]')
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [colorPickerOpen, setColorPickerOpen] = useState<'text' | 'highlight' | null>(null)
+  const composeScale = useComposeEditorScaleStore((s) => s.scale)
+  const stepComposeScale = useComposeEditorScaleStore((s) => s.stepScale)
+  const resetComposeScale = useComposeEditorScaleStore((s) => s.resetScale)
 
   const editor = useEditor({
     extensions: [
@@ -189,6 +198,22 @@ export function TipTapBody({
   useEffect(() => {
     if (autoFocus && editor) editor.commands.focus('end')
   }, [autoFocus, editor])
+
+  useEffect(() => {
+    if (!inEditorSurface || !editor) return
+    const onKeyDown = (e: KeyboardEvent): void => {
+      if (!editor.isFocused) return
+      const intent = parseZoomShortcutIntentFromKeyboardEvent(e)
+      if (!intent || intent.scope !== 'preview') return
+      e.preventDefault()
+      e.stopPropagation()
+      if (intent.action === 'in') stepComposeScale(COMPOSE_EDITOR_SCALE_STEP)
+      else if (intent.action === 'out') stepComposeScale(-COMPOSE_EDITOR_SCALE_STEP)
+      else resetComposeScale()
+    }
+    window.addEventListener('keydown', onKeyDown, { capture: true })
+    return (): void => window.removeEventListener('keydown', onKeyDown, { capture: true })
+  }, [editor, inEditorSurface, resetComposeScale, stepComposeScale])
 
   if (!editor) {
     return (
@@ -282,13 +307,23 @@ export function TipTapBody({
         editor={editor}
         variant={variant}
         inEditorSurface={inEditorSurface}
+        composeScalePercent={
+          inEditorSurface ? composeEditorScalePercent(composeScale) : undefined
+        }
         onLink={handleInsertLink}
         onUnlink={handleRemoveLink}
         onImage={handleInsertImages}
         colorPickerOpen={colorPickerOpen}
         setColorPickerOpen={setColorPickerOpen}
       />
-      <div className={cn('min-h-0 overflow-y-auto', fillHeight ? 'flex-1' : 'max-h-[13.5rem]')}>
+      <div
+        className={cn('min-h-0 overflow-y-auto', fillHeight ? 'flex-1' : 'max-h-[13.5rem]')}
+        style={
+          inEditorSurface && composeScale !== 1
+            ? ({ zoom: composeScale } as CSSProperties)
+            : undefined
+        }
+      >
         <EditorContent editor={editor} />
       </div>
       <input
@@ -307,6 +342,7 @@ function Toolbar({
   editor,
   variant,
   inEditorSurface,
+  composeScalePercent: composeZoomPct,
   onLink,
   onUnlink,
   onImage,
@@ -316,6 +352,7 @@ function Toolbar({
   editor: Editor
   variant: 'default' | 'compact'
   inEditorSurface?: boolean
+  composeScalePercent?: number
   onLink: () => void
   onUnlink: () => void
   onImage: () => void
@@ -433,9 +470,9 @@ function Toolbar({
             <option value="'Times New Roman', Times, serif">Times</option>
           </select>
           <select
-            className="w-[52px] rounded border border-border/60 bg-background px-1 py-0.5 text-[10px]"
-            title="Schriftgroesse"
-            aria-label="Schriftgroesse"
+            className="w-[54px] rounded border border-border/60 bg-background px-1 py-0.5 text-[10px]"
+            title="Schriftgröße (pt)"
+            aria-label="Schriftgröße"
             defaultValue=""
             onChange={(e): void => {
               const v = e.target.value
@@ -445,39 +482,23 @@ function Toolbar({
             }}
           >
             <option value="">Gr.</option>
-            <option value="12px">12</option>
-            <option value="14px">14</option>
-            <option value="16px">16</option>
-            <option value="18px">18</option>
-            <option value="20px">20</option>
+            {COMPOSE_FONT_SIZES_PT.map((pt) => (
+              <option key={pt} value={composeFontSizePtOptionValue(pt)}>
+                {pt}
+              </option>
+            ))}
           </select>
-          <BarBtn
-            active={false}
-            label="Anrede einfuegen"
-            onClick={(): void => {
-              editor
-                .chain()
-                .focus()
-                .insertContent(
-                  '<blockquote><p>Sehr geehrte Damen und Herren,</p></blockquote><p></p>'
-                )
-                .run()
-            }}
-            icon={MessageSquare}
-          />
-          <BarBtn
-            active={false}
-            label="Grußformel einfuegen"
-            onClick={(): void => {
-              editor
-                .chain()
-                .focus()
-                .insertContent('<p>Mit freundlichen Grüßen</p><p></p>')
-                .run()
-            }}
-            icon={Type}
-          />
+          <ComposeTextSnippetsMenu editor={editor} />
         </>
+      )}
+
+      {variant === 'default' && composeZoomPct != null && composeZoomPct !== 100 && (
+        <span
+          className="tabular-nums text-[10px] text-muted-foreground"
+          title="Text-Zoom (Strg + Plus/Minus, Strg + 0 zurücksetzen)"
+        >
+          {composeZoomPct}%
+        </span>
       )}
 
       <Separator />

@@ -1,6 +1,8 @@
 import type { ComposeReferenceAttachment, MailImportance } from '@shared/types'
+import { listAccounts } from '../accounts'
 import { createGraphClient } from './client'
 import { loadConfig } from '../config'
+import { graphMailboxRoot } from './graph-mailbox-root'
 
 async function getClientFor(accountId: string): Promise<ReturnType<typeof createGraphClient>> {
   const config = await loadConfig()
@@ -9,6 +11,16 @@ async function getClientFor(accountId: string): Promise<ReturnType<typeof create
   }
   const homeAccountId = accountId.replace(/^ms:/, '')
   return createGraphClient(config.microsoftClientId, homeAccountId)
+}
+
+async function resolveMailboxRoot(
+  accountId: string,
+  sendFromEmail?: string | null
+): Promise<string> {
+  const accounts = await listAccounts()
+  const acc = accounts.find((a) => a.id === accountId)
+  if (!acc) throw new Error('Konto nicht gefunden.')
+  return graphMailboxRoot(acc.email, sendFromEmail)
 }
 
 export interface RecipientInput {
@@ -46,6 +58,8 @@ export interface ComposeMessageInput {
   referenceAttachments?: ComposeReferenceAttachment[]
   /** Vorhandener Server-Entwurf: PATCH + /send statt neu anlegen. */
   remoteDraftId?: string | null
+  /** SMTP-Absender; abweichend = freigegebenes Postfach / Alias. */
+  sendFromEmail?: string | null
 }
 
 export type SendMailResult = { sentFromExistingDraft: boolean }
@@ -136,12 +150,13 @@ function partitionAttachments(atts: AttachmentInput[] | undefined): {
 
 async function uploadLargeAttachment(
   client: ReturnType<typeof createGraphClient>,
+  mb: string,
   draftId: string,
   att: AttachmentInput
 ): Promise<void> {
   const buffer = Buffer.from(att.dataBase64, 'base64')
   const session = (await client
-    .api(`/me/messages/${draftId}/attachments/createUploadSession`)
+    .api(`${mb}/messages/${draftId}/attachments/createUploadSession`)
     .post({
       AttachmentItem: {
         attachmentType: 'file',
@@ -174,6 +189,7 @@ async function uploadLargeAttachment(
 
 export async function sendMail(input: ComposeMessageInput): Promise<SendMailResult> {
   const client = await getClientFor(input.accountId)
+  const mb = await resolveMailboxRoot(input.accountId, input.sendFromEmail)
 
   const { inline, large } = partitionAttachments(input.attachments)
   const refAtts = toGraphReferenceAttachments(input.referenceAttachments)
@@ -190,10 +206,10 @@ export async function sendMail(input: ComposeMessageInput): Promise<SendMailResu
 
   const existingDraft = input.remoteDraftId?.trim()
   if (existingDraft) {
-    await client.api(`/me/messages/${existingDraft}`).patch(baseMessage)
-    await graphDeleteDraftFileAndReferenceAttachments(client, existingDraft)
-    await graphApplyDraftAttachments(client, existingDraft, inline, large, refAtts)
-    await client.api(`/me/messages/${existingDraft}/send`).post({})
+    await client.api(`${mb}/messages/${existingDraft}`).patch(baseMessage)
+    await graphDeleteDraftFileAndReferenceAttachments(client, mb, existingDraft)
+    await graphApplyDraftAttachments(client, mb, existingDraft, inline, large, refAtts)
+    await client.api(`${mb}/messages/${existingDraft}/send`).post({})
     return { sentFromExistingDraft: true }
   }
 
@@ -207,7 +223,7 @@ export async function sendMail(input: ComposeMessageInput): Promise<SendMailResu
       ...baseMessage,
       ...(fileAtts.length ? { attachments: fileAtts } : {})
     }
-    await client.api('/me/sendMail').post({
+    await client.api(`${mb}/sendMail`).post({
       message: messagePayload,
       saveToSentItems: true
     })
@@ -218,31 +234,31 @@ export async function sendMail(input: ComposeMessageInput): Promise<SendMailResu
   if (input.replyToRemoteId && input.replyMode) {
     const endpoint =
       input.replyMode === 'forward'
-        ? `/me/messages/${input.replyToRemoteId}/createForward`
+        ? `${mb}/messages/${input.replyToRemoteId}/createForward`
         : input.replyMode === 'replyAll'
-          ? `/me/messages/${input.replyToRemoteId}/createReplyAll`
-          : `/me/messages/${input.replyToRemoteId}/createReply`
+          ? `${mb}/messages/${input.replyToRemoteId}/createReplyAll`
+          : `${mb}/messages/${input.replyToRemoteId}/createReply`
     const draft = (await client.api(endpoint).post({})) as { id: string }
     draftId = draft.id
-    await client.api(`/me/messages/${draftId}`).patch(baseMessage)
+    await client.api(`${mb}/messages/${draftId}`).patch(baseMessage)
   } else {
-    const draft = (await client.api('/me/messages').post(baseMessage)) as { id: string }
+    const draft = (await client.api(`${mb}/messages`).post(baseMessage)) as { id: string }
     draftId = draft.id
   }
 
   for (const att of inline) {
     await client
-      .api(`/me/messages/${draftId}/attachments`)
+      .api(`${mb}/messages/${draftId}/attachments`)
       .post(toGraphAttachments([att])[0])
   }
   for (const att of large) {
-    await uploadLargeAttachment(client, draftId, att)
+    await uploadLargeAttachment(client, mb, draftId, att)
   }
   for (const ref of refAtts) {
-    await client.api(`/me/messages/${draftId}/attachments`).post(ref)
+    await client.api(`${mb}/messages/${draftId}/attachments`).post(ref)
   }
 
-  await client.api(`/me/messages/${draftId}/send`).post({})
+  await client.api(`${mb}/messages/${draftId}/send`).post({})
   return { sentFromExistingDraft: false }
 }
 
@@ -252,11 +268,12 @@ export interface SaveMailDraftInput extends ComposeMessageInput {
 
 async function graphDeleteDraftFileAndReferenceAttachments(
   client: ReturnType<typeof createGraphClient>,
+  mb: string,
   messageId: string
 ): Promise<void> {
   type AttRow = { id: string; ['@odata.type']: string }
   type Page = { value: AttRow[]; ['@odata.nextLink']?: string }
-  let url: string | null = `/me/messages/${messageId}/attachments?$top=100`
+  let url: string | null = `${mb}/messages/${messageId}/attachments?$top=100`
   while (url) {
     const page = (await client.api(url).get()) as Page
     for (const a of page.value) {
@@ -265,7 +282,7 @@ async function graphDeleteDraftFileAndReferenceAttachments(
         t === '#microsoft.graph.fileAttachment' ||
         t === '#microsoft.graph.referenceAttachment'
       ) {
-        await client.api(`/me/messages/${messageId}/attachments/${a.id}`).delete()
+        await client.api(`${mb}/messages/${messageId}/attachments/${a.id}`).delete()
       }
     }
     const next = page['@odata.nextLink'] ?? null
@@ -275,19 +292,20 @@ async function graphDeleteDraftFileAndReferenceAttachments(
 
 async function graphApplyDraftAttachments(
   client: ReturnType<typeof createGraphClient>,
+  mb: string,
   draftId: string,
   inline: AttachmentInput[],
   large: AttachmentInput[],
   refAtts: GraphReferenceAttachment[]
 ): Promise<void> {
   for (const att of inline) {
-    await client.api(`/me/messages/${draftId}/attachments`).post(toGraphAttachments([att])[0])
+    await client.api(`${mb}/messages/${draftId}/attachments`).post(toGraphAttachments([att])[0])
   }
   for (const att of large) {
-    await uploadLargeAttachment(client, draftId, att)
+    await uploadLargeAttachment(client, mb, draftId, att)
   }
   for (const ref of refAtts) {
-    await client.api(`/me/messages/${draftId}/attachments`).post(ref)
+    await client.api(`${mb}/messages/${draftId}/attachments`).post(ref)
   }
 }
 
@@ -297,6 +315,7 @@ async function graphApplyDraftAttachments(
  */
 export async function saveMailDraft(input: SaveMailDraftInput): Promise<{ remoteDraftId: string }> {
   const client = await getClientFor(input.accountId)
+  const mb = await resolveMailboxRoot(input.accountId, input.sendFromEmail)
   const { inline, large } = partitionAttachments(input.attachments)
   const refAtts = toGraphReferenceAttachments(input.referenceAttachments)
   const baseMessage = {
@@ -310,9 +329,9 @@ export async function saveMailDraft(input: SaveMailDraftInput): Promise<{ remote
 
   const rem = input.remoteDraftId?.trim()
   if (rem) {
-    await client.api(`/me/messages/${rem}`).patch(baseMessage)
-    await graphDeleteDraftFileAndReferenceAttachments(client, rem)
-    await graphApplyDraftAttachments(client, rem, inline, large, refAtts)
+    await client.api(`${mb}/messages/${rem}`).patch(baseMessage)
+    await graphDeleteDraftFileAndReferenceAttachments(client, mb, rem)
+    await graphApplyDraftAttachments(client, mb, rem, inline, large, refAtts)
     return { remoteDraftId: rem }
   }
 
@@ -320,18 +339,18 @@ export async function saveMailDraft(input: SaveMailDraftInput): Promise<{ remote
   if (input.replyToRemoteId && input.replyMode) {
     const endpoint =
       input.replyMode === 'forward'
-        ? `/me/messages/${input.replyToRemoteId}/createForward`
+        ? `${mb}/messages/${input.replyToRemoteId}/createForward`
         : input.replyMode === 'replyAll'
-          ? `/me/messages/${input.replyToRemoteId}/createReplyAll`
-          : `/me/messages/${input.replyToRemoteId}/createReply`
+          ? `${mb}/messages/${input.replyToRemoteId}/createReplyAll`
+          : `${mb}/messages/${input.replyToRemoteId}/createReply`
     const draft = (await client.api(endpoint).post({})) as { id: string }
     draftId = draft.id
-    await client.api(`/me/messages/${draftId}`).patch(baseMessage)
+    await client.api(`${mb}/messages/${draftId}`).patch(baseMessage)
   } else {
-    const draft = (await client.api('/me/messages').post(baseMessage)) as { id: string }
+    const draft = (await client.api(`${mb}/messages`).post(baseMessage)) as { id: string }
     draftId = draft.id
   }
 
-  await graphApplyDraftAttachments(client, draftId, inline, large, refAtts)
+  await graphApplyDraftAttachments(client, mb, draftId, inline, large, refAtts)
   return { remoteDraftId: draftId }
 }

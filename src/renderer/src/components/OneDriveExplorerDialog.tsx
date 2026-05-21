@@ -7,6 +7,7 @@ import type {
   ComposeDriveExplorerNavCrumb,
   ComposeDriveExplorerScope
 } from '@shared/types'
+import { listSubtleBorderClass } from '@/lib/chronell-ui-classes'
 import { cn } from '@/lib/utils'
 import { formatBytes } from '@/lib/format-bytes'
 
@@ -373,13 +374,13 @@ export function OneDriveExplorerDialog({ open, accountId, onClose, onPickFile }:
       role="presentation"
     >
       <div
-        className="flex h-[min(560px,78vh)] w-full max-w-[720px] flex-col overflow-hidden rounded-xl border border-border bg-card text-foreground shadow-2xl"
+        className="app-dialog-panel flex h-[min(560px,78vh)] w-full max-w-[720px] flex-col overflow-hidden rounded-xl border border-border bg-card text-foreground shadow-2xl"
         onClick={(e): void => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-label="OneDrive und geteilte Dateien"
       >
-        <div className="flex shrink-0 items-center justify-between border-b border-border/70 px-4 py-3">
+        <div className={cn('flex shrink-0 items-center justify-between border-b px-4 py-3', listSubtleBorderClass)}>
           <div className="flex items-center gap-2">
             <Cloud className="h-4 w-4 text-sky-500" />
             <span className="text-sm font-semibold">OneDrive / SharePoint</span>
@@ -395,7 +396,12 @@ export function OneDriveExplorerDialog({ open, accountId, onClose, onPickFile }:
         </div>
 
         <div className="flex min-h-0 flex-1">
-          <nav className="flex w-[208px] shrink-0 flex-col gap-0.5 border-r border-border/60 bg-secondary/20 p-2">
+          <nav
+            className={cn(
+              'flex w-[208px] shrink-0 flex-col gap-0.5 border-r bg-secondary/20 p-2',
+              listSubtleBorderClass
+            )}
+          >
             <div className="px-1 pb-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
               Favoriten
             </div>
@@ -413,7 +419,7 @@ export function OneDriveExplorerDialog({ open, accountId, onClose, onPickFile }:
                       key={f.id}
                       className={cn(
                         'group relative flex gap-0.5 rounded-md border border-transparent',
-                        active && !editing && 'border-border/50 bg-secondary shadow-sm'
+                        active && !editing && 'bg-secondary shadow-sm'
                       )}
                     >
                       <div className="flex shrink-0 flex-col justify-center py-0.5 pl-0.5">
@@ -529,7 +535,7 @@ export function OneDriveExplorerDialog({ open, accountId, onClose, onPickFile }:
                 })
               )}
             </div>
-            <div className="mb-1.5 h-px shrink-0 bg-border/60" />
+            <div className="mb-1.5 h-px shrink-0 bg-white/[0.04] dark:bg-white/[0.04]" />
             <NavBtn active={scope === 'recent'} label="Zuletzt" onClick={(): void => setSection('recent')} />
             <NavBtn active={scope === 'myfiles'} label="Meine Dateien" onClick={(): void => setSection('myfiles')} />
             <NavBtn active={scope === 'shared'} label="Geteilt" onClick={(): void => setSection('shared')} />
@@ -537,7 +543,12 @@ export function OneDriveExplorerDialog({ open, accountId, onClose, onPickFile }:
           </nav>
 
           <div className="flex min-w-0 flex-1 flex-col">
-            <div className="flex shrink-0 flex-wrap items-center gap-1 border-b border-border/50 px-3 py-2 text-[11px] text-muted-foreground">
+            <div
+              className={cn(
+                'flex shrink-0 flex-wrap items-center gap-1 border-b px-3 py-2 text-[11px] text-muted-foreground',
+                listSubtleBorderClass
+              )}
+            >
               <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
                 <button
                   type="button"
@@ -664,7 +675,12 @@ export function OneDriveExplorerDialog({ open, accountId, onClose, onPickFile }:
               )}
             </div>
 
-            <div className="shrink-0 border-t border-border/60 bg-secondary/15 px-3 py-2 text-[10px] text-muted-foreground">
+            <div
+              className={cn(
+                'shrink-0 border-t bg-secondary/15 px-3 py-2 text-[10px] text-muted-foreground',
+                listSubtleBorderClass
+              )}
+            >
               Ordner per Klick öffnen, Datei per Klick als Cloud-Anhang übernehmen. Favoriten lokal (inkl. optionaler
               Dateiliste); Stift zum Umbenennen, Pfeile zum Sortieren. SharePoint: Website, Bibliothek, Ordner.
             </div>

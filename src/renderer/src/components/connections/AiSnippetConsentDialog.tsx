@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import type { EntityLinkAiPayloadPreview } from '@shared/entity-link-ai-payload'
+import { listSubtleBorderClass } from '@/lib/chronell-ui-classes'
 import { cn } from '@/lib/utils'
 
 export function AiSnippetConsentDialog({
@@ -42,7 +43,7 @@ export function AiSnippetConsentDialog({
         {t('connections.aiPayload.consentHint')}
       </p>
       {preview ? (
-        <div className="max-h-40 overflow-y-auto rounded border border-border/60 bg-background/80 p-2 text-[10px]">
+        <div className="max-h-40 overflow-y-auto rounded-md bg-muted/25 p-2 text-[10px]">
           <p className="font-medium text-foreground">{preview.anchorTitle}</p>
           <ul className="mt-1 space-y-0.5 text-muted-foreground">
             {preview.metadataFields.slice(0, 8).map((f) => (
@@ -52,7 +53,7 @@ export function AiSnippetConsentDialog({
             ))}
           </ul>
           {preview.excerpt ? (
-            <p className="mt-2 border-t border-border/50 pt-2 text-foreground">
+            <p className={cn('mt-2 border-t pt-2 text-foreground', listSubtleBorderClass)}>
               {excerptSourceKey ? (
                 <span className="block text-[9px] text-muted-foreground">
                   {t(excerptSourceKey)}

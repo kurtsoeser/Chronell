@@ -42,9 +42,19 @@ export const GOOGLE_OAUTH_SCOPES = [
   GOOGLE_CONTACTS_SCOPE_URL
 ] as const
 
-function parseStoredScopeParts(scope: string | null | undefined): string[] {
+export function parseStoredScopeParts(scope: string | null | undefined): string[] {
   if (!scope || typeof scope !== 'string') return []
   return scope.split(/[\s,]+/).map((s) => s.trim()).filter(Boolean)
+}
+
+/** Vereinigt gespeicherte und frisch erhaltene OAuth-Scopes (Refresh darf nie enger werden). */
+export function mergeGoogleOAuthScopes(
+  previous: string | null | undefined,
+  incoming: string | null | undefined
+): string | null {
+  const parts = new Set([...parseStoredScopeParts(previous), ...parseStoredScopeParts(incoming)])
+  if (parts.size === 0) return null
+  return [...parts].join(' ')
 }
 
 /** True, wenn die in `scope` gespeicherte OAuth-Antwort den Kontakte-Scope enthält (Leer = unbekannt). */
@@ -58,5 +68,15 @@ export function storedGoogleScopeIncludesGmailFull(scope: string | null | undefi
   return (
     parts.includes(GOOGLE_GMAIL_FULL_SCOPE_URL) ||
     parts.includes('https://mail.google.com')
+  )
+}
+
+export function assertGoogleGmailFullScopeGrantedAfterLogin(scope: string | null | undefined): void {
+  if (storedGoogleScopeIncludesGmailFull(scope)) return
+  throw new Error(
+    'Google hat den Berechtigungsumfang «Gmail Vollzugriff» (https://mail.google.com/) nicht erteilt. ' +
+      'Bitte die Verbindung erneut starten und auf dem Zustimmungsbildschirm alle Gmail-Berechtigungen aktivieren. ' +
+      'Fehlt der Eintrag: In der Google Cloud Console unter OAuth-Zustimmungsbildschirm → Bereiche «https://mail.google.com/» ' +
+      'hinzufügen; bei Test-Apps Ihr Konto unter Testnutzer eintragen.'
   )
 }

@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Datenschutzerklärung für Chronell — Desktop-Arbeitszentrale für Windows mit lokaler Datenhaltung."
+    />
+    <title>Datenschutz — Chronell</title>
+    <link rel="icon" href="assets/favicon.png" type="image/png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/site.css" />
+    <link rel="stylesheet" href="css/legal.css" />
+  </head>
+  <body class="legal-page">
+    <div class="mesh-bg" aria-hidden="true">
+      <div class="starfield"></div>
+    </div>
+
+    <header class="site-header">
+      <div class="container">
+        <a href="index.html" class="brand" aria-label="Chronell Startseite">
+          <img src="assets/chronell-icon.png" alt="" class="brand-logo" width="36" height="36" />
+          <span class="brand-text">Chronell</span>
+        </a>
+        <div class="header-actions">
+          <div class="lang-toggle" role="group" aria-label="Sprache / Language">
+            <button type="button" data-lang="de" class="active">DE</button>
+            <button type="button" data-lang="en">EN</button>
+          </div>
+          <a class="btn btn-ghost" href="index.html">Home</a>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <div class="container legal-wrap">
+        <a href="index.html" class="legal-back" aria-label="Zur Startseite">← Chronell</a>
+
+        <article class="legal-body is-active" data-lang-panel="de" lang="de">
+          <h1>Datenschutzerklärung</h1>
+          <p class="legal-meta">Stand: 22. Mai 2026 · App: Chronell (Beta) · Windows Desktop</p>
+
+          <h2>1. Verantwortlicher</h2>
+          <p>
+            Verantwortlich im Sinne der Datenschutz-Grundverordnung (DSGVO) ist:
+          </p>
+          <p>
+            <strong>Kurt Söser</strong> (Einzelunternehmen)<br />
+            Berggasse 75<br />
+            4400 Steyr<br />
+            Österreich
+          </p>
+          <p>
+            Datenschutz-Anfragen: <a href="mailto:datenschutz@kurtrocks.com">datenschutz@kurtrocks.com</a>
+          </p>
+
+          <h2>2. Geltungsbereich</h2>
+          <p>
+            Diese Erklärung gilt für die Desktop-Anwendung <strong>Chronell</strong> (Windows),
+            die Website
+            <a href="https://kurtsoeser.github.io/Chronell/">kurtsoeser.github.io/Chronell</a>
+            sowie damit verbundene Download- und Hilfeangebote.
+          </p>
+          <p>
+            Chronell ist eine lokale Arbeitszentrale: Der Schwerpunkt der Verarbeitung liegt auf
+            <strong>Ihrem Gerät</strong>. Daten in verbundenen Microsoft-365- und Google-Konten werden über
+            die APIs dieser Anbieter abgerufen und lokal zwischengespeichert. Optionale Funktionen
+            (Cloud-Profil, KI-Vorschläge, Notion, Wetter) verarbeiten zusätzliche Daten nur, wenn Sie sie
+            aktivieren oder nutzen.
+          </p>
+          <p>
+            Chronell befindet sich in der <strong>Beta-Phase</strong> und wird derzeit
+            <strong>kostenfrei</strong> bereitgestellt. Funktionen und Datenflüsse können sich mit Updates
+            ändern; wesentliche Änderungen werden in einer aktualisierten Fassung dieser Seite dokumentiert.
+          </p>
+
+          <h2>3. Kurzüberblick</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Verarbeitung</th>
+                <th>Wo?</th>
+                <th>Wann?</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>E-Mails, Kalender, Aufgaben, Kontakte (Cache)</td>
+                <td>Ihr PC (SQLite)</td>
+                <td>Bei Nutzung verbundener Konten</td>
+              </tr>
+              <tr>
+                <td>OAuth-Anmeldung M365 / Google</td>
+                <td>Microsoft / Google</td>
+                <td>Beim Verbinden eines Kontos</td>
+              </tr>
+              <tr>
+                <td>Profil (Notizen, Verbindungen, Regeln, UI)</td>
+                <td>Ihr PC; optional Supabase (EU)</td>
+                <td>Nur bei aktiviertem Cloud-Sync</td>
+              </tr>
+              <tr>
+                <td>KI-Verbindungsvorschläge</td>
+                <td>Ihr PC und/oder von Ihnen gewählter KI-Anbieter</td>
+                <td>Nur bei aktivierter KI</td>
+              </tr>
+              <tr>
+                <td>Wetterkachel</td>
+                <td>Open-Meteo</td>
+                <td>Wenn Sie einen Ort hinterlegen</td>
+              </tr>
+              <tr>
+                <td>Nutzungsanalyse / Werbung</td>
+                <td colspan="2">Nicht vorgesehen — Chronell setzt keine eigene Analytics-Telemetrie ein</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h2>4. Rechtsgrundlagen</h2>
+          <ul>
+            <li>
+              <strong>Vertrag / vorvertragliche Maßnahmen (Art. 6 Abs. 1 lit. b DSGVO):</strong>
+              Bereitstellung der App und der von Ihnen gewählten Funktionen.
+            </li>
+            <li>
+              <strong>Einwilligung (Art. 6 Abs. 1 lit. a DSGVO):</strong>
+              z. B. optionales Cloud-Profil, KI mit Textauszügen (Snippet-Modus), Verbindung externer Konten.
+            </li>
+            <li>
+              <strong>Berechtigtes Interesse (Art. 6 Abs. 1 lit. f DSGVO):</strong>
+              technische Sicherheit und Stabilität, soweit Ihre Rechte nicht überwiegen.
+            </li>
+          </ul>
+          <p>
+            Einwilligungen können Sie jederzeit mit Wirkung für die Zukunft widerrufen (Konto trennen,
+            Cloud-Sync deaktivieren, Snippet-Modus aus).
+          </p>
+
+          <h2>5. Lokale Datenverarbeitung</h2>
+          <h3>5.1 Gespeicherte Daten</h3>
+          <p>
+            Auf Ihrem Windows-Rechner speichert Chronell u. a. in einer <strong>SQLite-Datenbank</strong>:
+          </p>
+          <ul>
+            <li>E-Mail-Metadaten und -inhalte (innerhalb des eingestellten Sync-Fensters), Anhänge-Metadaten, Ordner, Kategorien, Snooze/Workflow</li>
+            <li>Kalender, Aufgaben (Microsoft To Do, Google Tasks), Kontakte</li>
+            <li>Notizen, Verknüpfungen („Entity-Links“), Regeln, QuickSteps, UI-Einstellungen</li>
+            <li>Volltextsuche (FTS5) über lokal indexierte Inhalte</li>
+          </ul>
+          <p>
+            Speicherort: Benutzerverzeichnis der App (Electron <code>userData</code>, typisch unter Ihrem
+            Windows-Profil). Bei Installation unter <code>C:\Program Files\Chronell</code> verbleiben
+            <strong>Nutzerdaten</strong> dennoch in Ihrem Profil.
+          </p>
+          <h3>5.2 OAuth-Zugangsdaten</h3>
+          <p>
+            Refresh-Tokens für Microsoft- und Google-Konten werden mit <strong>Electron safeStorage</strong>
+            (betriebssystemgestützte Verschlüsselung, soweit verfügbar) geschützt. Sie können optional
+            <strong>eigene OAuth-Client-IDs</strong> in den Einstellungen hinterlegen; Standard ist die vom
+            Herausgeber vorkonfigurierte OAuth-App.
+          </p>
+          <h3>5.3 Keine Mail-Inhalte im Cloud-Profil</h3>
+          <p>
+            Der optionale Cloud-Sync überträgt <strong>nicht</strong> den E-Mail-Cache und
+            <strong>nicht</strong> OAuth-Tokens für M365/Google.
+          </p>
+          <h3>5.4 Deinstallation</h3>
+          <p>
+            Bei Deinstallation können lokale Daten erhalten bleiben. Löschen Sie den Chronell-Datenordner
+            und widerrufen Sie Konten bei Microsoft/Google, wenn Sie alle Spuren entfernen möchten.
+          </p>
+
+          <h2>6. Microsoft 365 und Google</h2>
+          <p>
+            Beim Verbinden eines Kontos leiten wir Sie zur Anmeldung beim jeweiligen Anbieter weiter.
+            Chronell erhält OAuth-Tokens und ruft über die APIs Daten ab, die Sie in der App nutzen.
+          </p>
+          <h3>6.1 Microsoft 365 (Microsoft Graph)</h3>
+          <p>
+            Typische Berechtigungen: Profil, Mail lesen/schreiben/senden, Kalender, Aufgaben, Kontakte,
+            Teams-Chats, OneDrive/SharePoint für Anhänge, Bookings, Gruppenkalender u. a. — je nach
+            genutzten Modulen.
+          </p>
+          <p>
+            Verantwortlicher: Microsoft. Informationen:
+            <a href="https://privacy.microsoft.com/" target="_blank" rel="noopener">privacy.microsoft.com</a>
+          </p>
+          <h3>6.2 Google (Gmail, Kalender, Tasks, Kontakte)</h3>
+          <p>
+            Typische OAuth-Bereiche: OpenID, Profil/E-Mail, Gmail (inkl.
+            <code>https://mail.google.com/</code> für endgültiges Löschen), Kalender, Tasks, Kontakte.
+          </p>
+          <p>
+            Verantwortlicher: Google. Informationen:
+            <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">policies.google.com/privacy</a>
+          </p>
+          <p>
+            Für die OAuth-App-Registrierung bei Google ist der Entwicklerkontakt
+            <a href="mailto:kurtsoeser@gmail.com">kurtsoeser@gmail.com</a> hinterlegt; Datenschutzanfragen
+            richten Sie bitte an <a href="mailto:datenschutz@kurtrocks.com">datenschutz@kurtrocks.com</a>.
+          </p>
+
+          <h2>7. Optionales Cloud-Profil (Supabase)</h2>
+          <p>
+            Bei aktiviertem <strong>Cloud-Sync</strong> wird ein Profil-Snapshot (JSON) mit u. a. Notizen,
+            Entity-Links, Regeln, QuickSteps, Workflow-Einstellungen, UI-Präferenzen und Konten-Präferenzen
+            (z. B. Signaturvorlagen) in <strong>Supabase</strong> gespeichert. Notiz-Anhänge können in einem
+            Storage-Bucket abgelegt werden. Anmeldung: Microsoft 365 oder optional E-Mail-OTP (Supabase Auth).
+          </p>
+          <ul>
+            <li><strong>Region:</strong> EU (eu-west-1)</li>
+            <li><strong>Auftragsverarbeiter:</strong> Supabase, Inc. — mit dem Herausgeber besteht ein Auftragsverarbeitungsvertrag (AVV/DPA)</li>
+            <li><strong>Nicht enthalten:</strong> OAuth-Tokens, vollständige E-Mail-Bodies, Mail-DB-Cache</li>
+          </ul>
+          <p>
+            <strong>Löschung Cloud-Profil:</strong> Schreiben Sie an
+            <a href="mailto:datenschutz@kurtrocks.com">datenschutz@kurtrocks.com</a>. Nach bestätigter
+            Löschung oder Deaktivierung des Cloud-Sync werden die zugehörigen Cloud-Daten innerhalb von
+            <strong>30 Tagen</strong> gelöscht, sofern keine gesetzlichen Aufbewahrungspflichten entgegenstehen.
+          </p>
+
+          <h2>8. KI-Funktionen („KI-Verbindungen“)</h2>
+          <ul>
+            <li><strong>Standard:</strong> nur Metadaten (Betreff, Namen, Datumsangaben, Kurzinfos) — kein vollständiger Mail- oder Notiztext</li>
+            <li><strong>Snippet-Modus (Opt-in):</strong> zusätzlich gekürzter Auszug (max. ca. 500 Zeichen), keine Anhänge</li>
+            <li><strong>Ollama:</strong> Verarbeitung auf Ihrem Rechner, keine Cloud-KI des Herausgebers</li>
+            <li><strong>Gemini / OpenAI:</strong> nur mit <strong>Ihrem API-Schlüssel</strong>, den Sie in der App hinterlegen</li>
+          </ul>
+          <p>
+            Zur Zeit stellt der Herausgeber <strong>keine zentralen KI-API-Schlüssel</strong> bereit; eine
+            spätere Option würde in einer Aktualisierung dieser Erklärung beschrieben. Vorschläge werden nicht
+            automatisch übernommen. Es wird <strong>kein persistentes KI-Audit-Log</strong> auf Servern des
+            Herausgebers geführt.
+          </p>
+          <p>
+            Cloud-KI-Anbieter können Daten in Drittländern (z. B. USA) verarbeiten — prüfen Sie deren
+            Datenschutz- und Auftragsverarbeitungsbedingungen.
+          </p>
+
+          <h2>9. Weitere optionale Dienste</h2>
+          <ul>
+            <li><strong>Open-Meteo:</strong> Geocoding und Wetterprognose bei hinterlegtem Ort (<a href="https://open-meteo.com/" target="_blank" rel="noopener">open-meteo.com</a>)</li>
+            <li><strong>Notion:</strong> nur bei Ihrer eigenen Notion-Verbindung</li>
+            <li><strong>Microsoft Teams:</strong> über Microsoft Graph</li>
+            <li><strong>WhatsApp Web:</strong> eingebettete Web-Ansicht; es gelten die Bedingungen von WhatsApp/Meta</li>
+            <li><strong>GitHub Pages / Releases:</strong> beim Website- oder Download-Aufruf können Server-Logdaten bei GitHub entstehen</li>
+            <li><strong>Remote-OAuth-Konfiguration:</strong> optionaler anonymer Abruf einer HTTPS-JSON-URL des Herausgebers (keine personenbezogenen Nutzerdaten im Request)</li>
+          </ul>
+
+          <h2>10. Speicherdauer</h2>
+          <ul>
+            <li>Lokaler Cache: bis Löschen, Kontotrennung oder Entfernen der App-Daten</li>
+            <li>Cloud-Profil: bis Löschung; nach Löschantrag <strong>30 Tage</strong></li>
+            <li>OAuth-Tokens: bis Kontotrennung oder Widerruf beim Anbieter</li>
+          </ul>
+
+          <h2>11. Keine Pflicht zur Bereitstellung</h2>
+          <p>
+            Die Verbindung von Mail-/Kalenderkonten ist für viele Kernfunktionen technisch erforderlich.
+            Cloud-Sync, KI, Notion und Wetter sind freiwillig.
+          </p>
+
+          <h2>12. Empfänger und Drittlandübermittlung</h2>
+          <p>
+            Empfänger können u. a. Microsoft, Google, Supabase (EU), OpenAI, Google (Gemini), Notion, Meta
+            (WhatsApp) und Open-Meteo sein. Eine Übermittlung in Drittländer (insbesondere USA) kann bei
+            Nutzung dieser Dienste nicht ausgeschlossen werden. Wo möglich, werden EU-Regionen gewählt; es
+            gelten die Vertragsinstrumente der jeweiligen Anbieter (z. B. Standardvertragsklauseln).
+          </p>
+
+          <h2>13. Ihre Rechte</h2>
+          <p>
+            Sie haben u. a. Auskunft, Berichtigung, Löschung, Einschränkung, Datenübertragbarkeit und
+            Widerspruch (DSGVO Art. 15–21). Viele Daten liegen <strong>lokal</strong> — dort können Sie sie
+            durch Kontotrennung oder Löschen der App-Daten beeinflussen. Für Daten bei Microsoft/Google wenden
+            Sie sich zusätzlich an diese Anbieter.
+          </p>
+          <p>
+            Anfragen: <a href="mailto:datenschutz@kurtrocks.com">datenschutz@kurtrocks.com</a> — Antwort in der
+            Regel innerhalb eines Monats.
+          </p>
+
+          <h2>14. Beschwerderecht</h2>
+          <p>
+            Sie können sich bei der <strong>Österreichischen Datenschutzbehörde</strong> beschweren:
+            <a href="https://www.dsb.gv.at/" target="_blank" rel="noopener">dsb.gv.at</a>. Nutzer im Ausland
+            können sich auch an die für ihren Wohnsitz zuständige Behörde wenden.
+          </p>
+
+          <h2>15. Automatisierte Entscheidungen</h2>
+          <p>
+            Chronell trifft keine rechtlich wirksamen Entscheidungen allein durch Profiling. KI-Vorschläge
+            sind Hilfsvorschläge; Sie bestätigen jede Verbindung selbst.
+          </p>
+
+          <h2>16. Sicherheit</h2>
+          <p>
+            Technische Maßnahmen entsprechen dem Stand einer Desktop-Beta, u. a. isolierter Renderer,
+            Preload-IPC, verschlüsselte Token-Speicherung (safeStorage) und OAuth über Loopback auf
+            127.0.0.1. Absolute Sicherheit kann nicht garantiert werden.
+          </p>
+
+          <h2>17. Kinder</h2>
+          <p>
+            Chronell richtet sich an berufliche Erwachsenen-Nutzer. Wir erheben wissentlich keine Daten von
+            Kindern unter 16 Jahren.
+          </p>
+
+          <h2>18. Änderungen</h2>
+          <p>
+            Aktuelle Fassung:
+            <a href="https://kurtsoeser.github.io/Chronell/datenschutz.html">kurtsoeser.github.io/Chronell/datenschutz.html</a>.
+            Bei wesentlichen Änderungen informieren wir in der App oder auf dieser Seite.
+          </p>
+
+          <h2>19. Impressum &amp; Gerichtsstand</h2>
+          <p>
+            <strong>Kurt Söser</strong> (Einzelunternehmen)<br />
+            Berggasse 75, 4400 Steyr, Österreich<br />
+            E-Mail: <a href="mailto:datenschutz@kurtrocks.com">datenschutz@kurtrocks.com</a>
+          </p>
+          <p>
+            <strong>Gerichtsstand:</strong> Steyr, Österreich — soweit gesetzlich zulässig. Die App kann
+            international genutzt werden; es gilt österreichisches Recht unter Beachtung zwingender
+            Verbraucherschutzvorschriften Ihres Wohnsitzstaates.
+          </p>
+
+          <p class="legal-note">
+            Hinweis: Diese Erklärung ersetzt keine individuelle Rechtsberatung. Bei geschäftlicher Nutzung
+            über Ihren Arbeitgeber kann dieser zusätzlich Verantwortlicher für Unternehmensdaten sein.
+          </p>
+        </article>
+
+        <article class="legal-body" data-lang-panel="en" lang="en">
+          <h1>Privacy Policy</h1>
+          <p class="legal-meta">Last updated: 22 May 2026 · App: Chronell (Beta) · Windows Desktop</p>
+
+          <h2>1. Controller</h2>
+          <p>
+            The controller within the meaning of the GDPR is:
+          </p>
+          <p>
+            <strong>Kurt Söser</strong> (sole proprietorship / Einzelunternehmen)<br />
+            Berggasse 75<br />
+            4400 Steyr<br />
+            Austria
+          </p>
+          <p>
+            Privacy requests: <a href="mailto:datenschutz@kurtrocks.com">datenschutz@kurtrocks.com</a>
+          </p>
+
+          <h2>2. Scope</h2>
+          <p>
+            This policy applies to the <strong>Chronell</strong> desktop application (Windows), the website
+            <a href="https://kurtsoeser.github.io/Chronell/">kurtsoeser.github.io/Chronell</a>,
+            and related download and support pages.
+          </p>
+          <p>
+            Chronell is a <strong>local-first</strong> workspace: processing primarily happens on
+            <strong>your device</strong>. Data in connected Microsoft 365 and Google accounts is retrieved via
+            their APIs and cached locally. Optional features (cloud profile, AI suggestions, Notion, weather)
+            process additional data only when you enable or use them.
+          </p>
+          <p>
+            Chronell is in <strong>beta</strong> and currently provided <strong>free of charge</strong>.
+            Features and data flows may change with updates; material changes will be reflected on this page.
+          </p>
+
+          <h2>3. Overview</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Processing</th>
+                <th>Where?</th>
+                <th>When?</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Mail, calendar, tasks, contacts (cache)</td>
+                <td>Your PC (SQLite)</td>
+                <td>When using connected accounts</td>
+              </tr>
+              <tr>
+                <td>M365 / Google OAuth</td>
+                <td>Microsoft / Google</td>
+                <td>When linking an account</td>
+              </tr>
+              <tr>
+                <td>Profile (notes, links, rules, UI)</td>
+                <td>Your PC; optional Supabase (EU)</td>
+                <td>Only with cloud sync enabled</td>
+              </tr>
+              <tr>
+                <td>AI link suggestions</td>
+                <td>Your PC and/or your chosen AI provider</td>
+                <td>Only with AI enabled</td>
+              </tr>
+              <tr>
+                <td>Weather tile</td>
+                <td>Open-Meteo</td>
+                <td>When you save a location</td>
+              </tr>
+              <tr>
+                <td>Analytics / ads</td>
+                <td colspan="2">Not used — Chronell does not run its own analytics telemetry</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h2>4. Legal bases</h2>
+          <ul>
+            <li><strong>Contract (Art. 6(1)(b) GDPR):</strong> providing the app and features you use.</li>
+            <li><strong>Consent (Art. 6(1)(a) GDPR):</strong> e.g. optional cloud profile, AI snippet mode, linking external accounts.</li>
+            <li><strong>Legitimate interests (Art. 6(1)(f) GDPR):</strong> security and stability where your rights do not override.</li>
+          </ul>
+          <p>You may withdraw consent at any time with future effect.</p>
+
+          <h2>5. Local processing</h2>
+          <h3>5.1 Stored data</h3>
+          <p>On your Windows PC, Chronell stores data in a <strong>SQLite database</strong>, including:</p>
+          <ul>
+            <li>Email metadata and content (within your sync window), attachment metadata, folders, categories, snooze/workflow state</li>
+            <li>Calendar, tasks (Microsoft To Do, Google Tasks), contacts</li>
+            <li>Notes, entity links, rules, QuickSteps, UI settings</li>
+            <li>Full-text search (FTS5) over locally indexed content</li>
+          </ul>
+          <p>
+            Location: Electron <code>userData</code> under your Windows profile. User data stays in your
+            profile even if the app is installed under <code>C:\Program Files\Chronell</code>.
+          </p>
+          <h3>5.2 OAuth credentials</h3>
+          <p>
+            Refresh tokens are protected with <strong>Electron safeStorage</strong> where available. By default,
+            the publisher’s preconfigured OAuth apps are used; you may optionally enter your own OAuth client IDs.
+          </p>
+          <h3>5.3 No mail content in cloud profile</h3>
+          <p>Optional cloud sync does <strong>not</strong> upload the mail database or M365/Google OAuth tokens.</p>
+          <h3>5.4 Uninstall</h3>
+          <p>Local data may remain after uninstall. Remove the Chronell data folder and revoke accounts at Microsoft/Google to erase traces.</p>
+
+          <h2>6. Microsoft 365 and Google</h2>
+          <p>When you connect an account, you sign in with the provider. Chronell receives OAuth tokens and fetches data via their APIs.</p>
+          <h3>6.1 Microsoft 365 (Microsoft Graph)</h3>
+          <p>
+            Typical permissions include profile, mail read/write/send, calendar, tasks, contacts, Teams chats,
+            OneDrive/SharePoint for attachments, Bookings, shared calendars, etc., depending on modules used.
+          </p>
+          <p>
+            Controller: Microsoft —
+            <a href="https://privacy.microsoft.com/" target="_blank" rel="noopener">privacy.microsoft.com</a>
+          </p>
+          <h3>6.2 Google (Gmail, Calendar, Tasks, Contacts)</h3>
+          <p>
+            Typical scopes include OpenID, profile/email, Gmail (including <code>https://mail.google.com/</code> for permanent delete),
+            Calendar, Tasks, Contacts.
+          </p>
+          <p>
+            Controller: Google —
+            <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">policies.google.com/privacy</a>
+          </p>
+          <p>
+            Google OAuth app developer contact: <a href="mailto:kurtsoeser@gmail.com">kurtsoeser@gmail.com</a>.
+            Please send privacy requests to <a href="mailto:datenschutz@kurtrocks.com">datenschutz@kurtrocks.com</a>.
+          </p>
+
+          <h2>7. Optional cloud profile (Supabase)</h2>
+          <p>
+            With <strong>cloud sync</strong>, a JSON profile snapshot (notes, entity links, rules, QuickSteps,
+            workflow, UI preferences, account preferences such as signatures) is stored in
+            <strong>Supabase</strong>. Note attachments may use Supabase Storage. Sign-in: Microsoft 365 or optional email OTP.
+          </p>
+          <ul>
+            <li><strong>Region:</strong> EU (eu-west-1)</li>
+            <li><strong>Processor:</strong> Supabase, Inc. — a data processing agreement (DPA) is in place with the publisher</li>
+            <li><strong>Not included:</strong> OAuth tokens, full email bodies, mail DB cache</li>
+          </ul>
+          <p>
+            <strong>Deletion:</strong> Email <a href="mailto:datenschutz@kurtrocks.com">datenschutz@kurtrocks.com</a>.
+            After confirmed deletion or deactivation, cloud data is removed within <strong>30 days</strong>, unless legal retention applies.
+          </p>
+
+          <h2>8. AI features (“AI connections”)</h2>
+          <ul>
+            <li><strong>Default:</strong> metadata only (subject, names, dates, short fields) — never full mail/note body</li>
+            <li><strong>Snippet mode (opt-in):</strong> short excerpt (max. ~500 characters), no attachments</li>
+            <li><strong>Ollama:</strong> on your machine — no publisher cloud AI</li>
+            <li><strong>Gemini / OpenAI:</strong> only with <strong>your API key</strong> entered in the app</li>
+          </ul>
+          <p>
+            The publisher does <strong>not</strong> currently provide central AI API keys; a future option would be described here.
+            Suggestions are not applied automatically. No persistent <strong>server-side AI audit log</strong> is kept by the publisher.
+          </p>
+          <p>Cloud AI providers may process data outside the EU (e.g. USA) — review their terms and DPAs.</p>
+
+          <h2>9. Other optional services</h2>
+          <ul>
+            <li><strong>Open-Meteo:</strong> geocoding and forecast when you save a place</li>
+            <li><strong>Notion:</strong> only with your own Notion connection</li>
+            <li><strong>Microsoft Teams:</strong> via Microsoft Graph</li>
+            <li><strong>WhatsApp Web:</strong> embedded web view; Meta/WhatsApp terms apply</li>
+            <li><strong>GitHub Pages / Releases:</strong> server logs may occur when visiting the site or downloading</li>
+            <li><strong>Remote OAuth config:</strong> optional anonymous HTTPS JSON fetch (no personal user data in the request)</li>
+          </ul>
+
+          <h2>10. Retention</h2>
+          <ul>
+            <li>Local cache: until you delete data, disconnect accounts, or remove app data</li>
+            <li>Cloud profile: until deletion; <strong>30 days</strong> after a deletion request</li>
+            <li>OAuth tokens: until disconnect or provider revocation</li>
+          </ul>
+
+          <h2>11. No obligation to provide data</h2>
+          <p>
+            Linking mail/calendar accounts is technically required for core features. Cloud sync, AI, Notion, and weather are optional.
+          </p>
+
+          <h2>12. Recipients and international transfers</h2>
+          <p>
+            Recipients may include Microsoft, Google, Supabase (EU), OpenAI, Google (Gemini), Notion, Meta (WhatsApp), and Open-Meteo.
+            Transfers to third countries (especially the USA) cannot be ruled out when you use those services. EU regions are used where possible.
+          </p>
+
+          <h2>13. Your rights</h2>
+          <p>
+            You have rights of access, rectification, erasure, restriction, portability, and objection (GDPR Arts. 15–21).
+            Much data is <strong>local</strong> — manage it by disconnecting accounts or deleting app data. For Microsoft/Google data, also contact those providers.
+          </p>
+          <p>Contact: <a href="mailto:datenschutz@kurtrocks.com">datenschutz@kurtrocks.com</a> — we usually respond within one month.</p>
+
+          <h2>14. Complaints</h2>
+          <p>
+            You may lodge a complaint with the <strong>Austrian Data Protection Authority</strong>:
+            <a href="https://www.dsb.gv.at/" target="_blank" rel="noopener">dsb.gv.at</a>.
+            Users abroad may contact their local supervisory authority.
+          </p>
+
+          <h2>15. Automated decisions</h2>
+          <p>Chronell does not make legal decisions by profiling alone. AI suggestions are helpers; you confirm each link.</p>
+
+          <h2>16. Security</h2>
+          <p>
+            Measures appropriate for a desktop beta include an isolated renderer, preload IPC, encrypted token storage (safeStorage),
+            and OAuth via loopback on 127.0.0.1. Absolute security cannot be guaranteed.
+          </p>
+
+          <h2>17. Children</h2>
+          <p>Chronell is aimed at professional adult users. We do not knowingly collect data from children under 16.</p>
+
+          <h2>18. Changes</h2>
+          <p>
+            Current version:
+            <a href="https://kurtsoeser.github.io/Chronell/datenschutz.html">kurtsoeser.github.io/Chronell/datenschutz.html</a>.
+            Material changes will be announced in the app or on this page.
+          </p>
+
+          <h2>19. Legal notice &amp; jurisdiction</h2>
+          <p>
+            <strong>Kurt Söser</strong> (sole proprietorship)<br />
+            Berggasse 75, 4400 Steyr, Austria<br />
+            Email: <a href="mailto:datenschutz@kurtrocks.com">datenschutz@kurtrocks.com</a>
+          </p>
+          <p>
+            <strong>Jurisdiction:</strong> Steyr, Austria, where permitted by law. The app may be used internationally;
+            Austrian law applies subject to mandatory consumer protection rules in your country of residence.
+          </p>
+
+          <p class="legal-note">
+            This policy does not replace individual legal advice. If you use Chronell for work, your employer may also be a controller for business data.
+          </p>
+        </article>
+      </div>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-inner">
+        <nav class="footer-links">
+          <a href="index.html">Home</a>
+          <a href="https://github.com/kurtsoeser/Chronell" target="_blank" rel="noopener">GitHub</a>
+        </nav>
+        <p class="footer-copy">
+          © <span id="year"></span> Kurt Söser —
+          <a href="datenschutz.html">Datenschutz / Privacy</a>
+        </p>
+      </div>
+    </footer>
+
+    <script src="js/privacy.js"></script>
+  </body>
+</html>

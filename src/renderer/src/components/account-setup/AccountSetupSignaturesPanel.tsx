@@ -185,7 +185,7 @@ export default function AccountSetupSignaturesPanel(): JSX.Element {
             <Plus className="h-3.5 w-3.5" />
             {t('settings.signaturesNewButton')}
           </button>
-          <ul className="max-h-64 space-y-0.5 overflow-y-auto rounded-md border border-border/35 bg-background/40 p-1">
+          <ul className="max-h-64 space-y-0.5 overflow-y-auto rounded-md bg-background/60 p-1">
             {sorted.length === 0 ? (
               <li className="px-2 py-2 text-[11px] text-muted-foreground">{t('settings.signaturesEmpty')}</li>
             ) : (

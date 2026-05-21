@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { showAppPrompt } from '@/stores/app-dialog'
 import type { NotionSavedDestination, NotionSearchPageHit } from '@shared/types'
+import { listSubtleBorderClass } from '@/lib/chronell-ui-classes'
 import { cn } from '@/lib/utils'
 import { ModalPanel, ModalRoot } from '@/components/motion/Modal'
 import { useNotionDestinationPickerStore } from '@/stores/notion-destination-picker'
@@ -317,9 +318,9 @@ export function NotionDestinationPickerDialog(): JSX.Element | null {
     >
       <ModalPanel
         aria-labelledby="notion-picker-title"
-        className="flex max-h-[min(480px,72vh)] w-[min(420px,94vw)] flex-col overflow-hidden rounded-xl border border-border bg-card text-foreground shadow-2xl"
+        className="app-dialog-panel flex max-h-[min(480px,72vh)] w-[min(420px,94vw)] flex-col overflow-hidden rounded-xl border border-border bg-card text-foreground shadow-2xl"
       >
-        <div className="border-b border-border/60 px-3 py-2.5">
+        <div className={cn('border-b px-3 py-2.5', listSubtleBorderClass)}>
           <div className="relative">
             <Search
               className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
@@ -356,7 +357,7 @@ export function NotionDestinationPickerDialog(): JSX.Element | null {
             <p className="px-3 py-2 text-xs text-destructive">{error}</p>
           ) : null}
 
-          <div className="border-b border-border/50 px-1 py-1">
+          <div className={cn('border-b px-1 py-1', listSubtleBorderClass)}>
             <button
               type="button"
               disabled={createBusy || searchBusy}
@@ -408,7 +409,12 @@ export function NotionDestinationPickerDialog(): JSX.Element | null {
           )}
         </div>
 
-        <div className="flex items-center gap-1.5 border-t border-border/60 px-3 py-2 text-[10px] text-muted-foreground">
+        <div
+          className={cn(
+            'flex items-center gap-1.5 border-t px-3 py-2 text-[10px] text-muted-foreground',
+            listSubtleBorderClass
+          )}
+        >
           <Star className="h-3 w-3 fill-amber-400 text-amber-400" aria-hidden />
           {t('notion.pickerFavoritesHint')}
         </div>

@@ -598,7 +598,7 @@ export function MetaFolderDialog({
             onAddExc={(): void => setExceptionRows((prev) => [...prev, newExcRow()])}
           />
 
-          <p className="rounded-md border border-border/60 bg-muted/20 px-2.5 py-2 text-[11px] leading-snug text-muted-foreground">
+          <p className="rounded-md bg-muted/25 px-2.5 py-2 text-[11px] leading-snug text-muted-foreground">
             {ruleSummaryDe}
           </p>
 

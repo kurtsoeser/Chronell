@@ -24,7 +24,15 @@ import {
   pullNoteAttachmentsFromCloud,
   pushLocalNoteAttachmentsToCloud
 } from './profile-sync-attachments'
-import { broadcastProfileSyncStatus } from '../ipc/ipc-broadcasts'
+import {
+  broadcastProfileSyncStatus,
+  registerProfileSyncStatusReader
+} from './profile-sync-status-broadcast'
+import { markProfileDataDirty } from './profile-sync-scheduler'
+import {
+  startProfileSyncRunner,
+  stopProfileSyncRunner
+} from './profile-sync-runner-bridge'
 
 let lastSyncError: string | null = null
 let syncInProgress = false
@@ -153,10 +161,8 @@ export async function setProfileDataMode(mode: ProfileDataMode): Promise<Profile
   await updateConfig({ profileDataMode: mode })
   lastSyncError = null
   if (mode === 'cloud') {
-    const { startProfileSyncRunner } = await import('./profile-sync-runner')
     startProfileSyncRunner()
   } else {
-    const { stopProfileSyncRunner } = await import('./profile-sync-runner')
     stopProfileSyncRunner()
   }
   return getProfileSyncStatus()
@@ -186,7 +192,6 @@ export async function signInProfileSyncWithMicrosoft365(): Promise<ProfileSyncSt
   await writeStoredSession(session)
   await updateConfig({ profileDataMode: 'cloud', profileCloudLocalDirtyAt: new Date().toISOString() })
   lastSyncError = null
-  const { startProfileSyncRunner } = await import('./profile-sync-runner')
   startProfileSyncRunner()
   void runProfileSyncInternal({ localStorage: {}, source: 'auto' })
   return getProfileSyncStatus()
@@ -213,7 +218,6 @@ export async function verifyProfileSyncOtp(email: string, token: string): Promis
   await writeStoredSession(data.session)
   await updateConfig({ profileDataMode: 'cloud', profileCloudLocalDirtyAt: new Date().toISOString() })
   lastSyncError = null
-  const { startProfileSyncRunner } = await import('./profile-sync-runner')
   startProfileSyncRunner()
   return getProfileSyncStatus()
 }
@@ -226,7 +230,6 @@ export async function signOutProfileSync(): Promise<ProfileSyncStatus> {
   await clearStoredSession()
   await updateConfig({ profileDataMode: 'local', profileCloudLocalDirtyAt: null })
   lastSyncError = null
-  const { stopProfileSyncRunner } = await import('./profile-sync-runner')
   stopProfileSyncRunner()
   return getProfileSyncStatus()
 }
@@ -466,7 +469,6 @@ export async function runProfileSyncInternal(
 export async function runProfileSyncNow(
   localStorage: Record<string, string>
 ): Promise<ProfileSyncRunResult> {
-  const { markProfileDataDirty } = await import('./profile-sync-scheduler')
   await markProfileDataDirty()
   return runProfileSyncInternal({ localStorage, source: 'manual', resolution: 'auto' })
 }
@@ -485,3 +487,5 @@ export function defaultProfileDeviceLabel(): string {
     return 'Chronell'
   }
 }
+
+registerProfileSyncStatusReader(getProfileSyncStatus)

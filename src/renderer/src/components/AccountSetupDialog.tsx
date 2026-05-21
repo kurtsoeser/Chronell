@@ -10,6 +10,7 @@ import { SettingsThemeColorsSection } from '@/components/account-setup/SettingsT
 import type { AppLocale } from '@/i18n'
 import { useMailStore } from '@/stores/mail'
 import { showAppConfirm } from '@/stores/app-dialog'
+import { settingsTileClass } from '@/lib/chronell-ui-classes'
 import { cn } from '@/lib/utils'
 import { FilterTabs } from '@/components/FilterTabs'
 import { CALENDAR_TIMEZONE_UI_OPTIONS } from '@shared/microsoft-timezones'
@@ -83,6 +84,7 @@ import {
 } from '@/app/home/dashboard-layout'
 import { SettingsScaleControl } from '@/components/account-setup/SettingsScaleControl'
 import { SettingsShortcutsSection } from '@/components/account-setup/SettingsShortcutsSection'
+import { SettingsContactsWorkspaceSection } from '@/components/account-setup/SettingsContactsWorkspaceSection'
 import {
   UI_SCALE_MAX,
   UI_SCALE_MIN,
@@ -123,7 +125,6 @@ import {
 import { openExternalUrl } from '@/lib/open-external'
 import {
   Cloud,
-  Contact,
   Info,
   ExternalLink,
   X,
@@ -1323,7 +1324,7 @@ export function AccountSetupDialog({
         aria-labelledby="settings-dialog-title"
         className="account-setup-dialog flex max-h-[92vh] w-[min(960px,96vw)] max-w-[96vw] flex-col overflow-hidden rounded-xl border border-border bg-card text-foreground shadow-2xl"
       >
-        <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
+        <div className="flex items-center justify-between border-b border-white/[0.04] px-5 py-3.5 dark:border-white/[0.04]">
           <h2 id="settings-dialog-title" className="text-sm font-semibold">
             {t('settings.title')}
           </h2>
@@ -1337,7 +1338,7 @@ export function AccountSetupDialog({
           </button>
         </div>
 
-        <div className="border-b border-border px-5 py-2">
+        <div className="border-b border-white/[0.04] px-5 py-2 dark:border-white/[0.04]">
           <FilterTabs<SettingsTab>
             value={activeTab}
             options={settingsTabOptions}
@@ -1348,7 +1349,7 @@ export function AccountSetupDialog({
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <div className="flex min-h-0 flex-1 divide-x divide-border/80">
+          <div className="flex min-h-0 flex-1 divide-x divide-white/[0.04] dark:divide-white/[0.04]">
             <nav
               className="flex w-[13rem] shrink-0 flex-col gap-0.5 overflow-y-auto bg-muted/15 py-3 pl-2.5 pr-1.5"
               aria-label={t('settings.subNavAria')}
@@ -1382,7 +1383,7 @@ export function AccountSetupDialog({
           {activeTab === 'general' && (
             <div role="tabpanel" aria-label={t('settings.generalPanelAria')} className="space-y-5">
               {subNavId.general === 'language' && (
-              <section className="space-y-2 rounded-md border border-border/35 bg-muted/20 p-3">
+              <section className="space-y-2 rounded-md bg-background/60 p-3">
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   {t('settings.languageSection')}
                 </h3>
@@ -1407,7 +1408,7 @@ export function AccountSetupDialog({
               {subNavId.general === 'shortcuts' && <SettingsShortcutsSection />}
 
               {subNavId.general === 'appearance' && (
-              <section className="space-y-2 rounded-md border border-border/35 bg-muted/20 p-3">
+              <section className="space-y-2 rounded-md bg-background/60 p-3">
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   {t('settings.appearanceHeading')}
                 </h3>
@@ -1473,7 +1474,7 @@ export function AccountSetupDialog({
               )}
 
               {subNavId.general === 'dashboard' && (
-              <section className="space-y-2 rounded-md border border-border/35 bg-muted/20 p-3">
+              <section className="space-y-2 rounded-md bg-background/60 p-3">
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   {t('settings.dashboardGridHeading')}
                 </h3>
@@ -1509,7 +1510,7 @@ export function AccountSetupDialog({
               )}
 
               {subNavId.general === 'weather' && (
-              <section className="space-y-2 rounded-md border border-border/35 bg-muted/20 p-3">
+              <section className="space-y-2 rounded-md bg-background/60 p-3">
                 <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   <Cloud className="h-3.5 w-3.5" aria-hidden />
                   {t('settings.weatherHeading')}
@@ -1570,14 +1571,14 @@ export function AccountSetupDialog({
 
               {subNavId.general === 'oauth' && (
               <>
-              <section className="space-y-2 rounded-md border border-border/35 bg-muted/20 p-3">
+              <section className="space-y-2 rounded-md bg-background/60 p-3">
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   {t('settings.loginHeading')}
                 </h3>
                 <p className="text-xs leading-relaxed text-muted-foreground">{t('settings.loginIntro')}</p>
               </section>
 
-              <details className="group rounded-md border border-border bg-background/40">
+              <details className="group rounded-md bg-background/60">
                 <summary className="cursor-pointer list-none px-3 py-2 text-xs font-medium text-foreground marker:content-none [&::-webkit-details-marker]:hidden">
                   <span className="underline-offset-2 group-open:underline">{t('settings.oauthSummary')}</span>
                   <span className="mt-0.5 block text-[10px] font-normal text-muted-foreground">
@@ -1833,7 +1834,7 @@ export function AccountSetupDialog({
                     {accounts.map((acc) => (
                       <li
                         key={acc.id}
-                        className="rounded-md border border-border bg-background/60 px-3 py-2"
+                        className={cn(settingsTileClass, 'px-3 py-2')}
                       >
                         <div className="flex items-center gap-3">
                           <div
@@ -1904,7 +1905,7 @@ export function AccountSetupDialog({
                             </button>
                           </div>
                         </div>
-                        <div className="mt-2.5 border-t border-border/28 pt-2 pl-10 space-y-2">
+                        <div className="mt-2.5 border-t border-white/[0.04] dark:border-white/[0.04] pt-2 pl-10 space-y-2">
                           <AccountPropertiesMenu
                             provider={acc.provider}
                             accountId={acc.id}
@@ -2023,7 +2024,7 @@ export function AccountSetupDialog({
                 <p className="text-xs leading-relaxed text-muted-foreground">
                   {t('settings.mailBodyIndexIntro')}
                 </p>
-                <label className="flex cursor-pointer items-start gap-3 rounded-md border border-border bg-background/40 p-3">
+                <label className="flex cursor-pointer items-start gap-3 rounded-md bg-background/60 p-3">
                   <input
                     type="checkbox"
                     checked={config?.mailBodyIndexEnabled !== false}
@@ -2074,7 +2075,7 @@ export function AccountSetupDialog({
                   <ImageIcon className="h-3.5 w-3.5" />
                   {t('settings.mailDisplayHeading')}
                 </h3>
-                <div className="space-y-2 rounded-md border border-border bg-muted/20 p-3">
+                <div className="space-y-2 rounded-md bg-background/60 p-3">
                   <p className="text-xs leading-relaxed text-muted-foreground">
                     {t('settings.mailPreviewScaleHint')}
                   </p>
@@ -2095,7 +2096,7 @@ export function AccountSetupDialog({
                     {t('settings.mailPreviewZoomShortcuts')}
                   </p>
                 </div>
-                <label className="flex cursor-pointer items-start gap-3 rounded-md border border-border bg-background/40 p-3">
+                <label className="flex cursor-pointer items-start gap-3 rounded-md bg-background/60 p-3">
                   <input
                     type="checkbox"
                     checked={config?.autoLoadImages ?? true}
@@ -2112,7 +2113,7 @@ export function AccountSetupDialog({
                     </span>
                   </span>
                 </label>
-                <label className="flex cursor-pointer items-start gap-3 rounded-md border border-border bg-background/40 p-3">
+                <label className="flex cursor-pointer items-start gap-3 rounded-md bg-background/60 p-3">
                   <input
                     type="checkbox"
                     checked={flaggedFilterExcludeDeletedJunk}
@@ -2131,7 +2132,7 @@ export function AccountSetupDialog({
                     </span>
                   </span>
                 </label>
-                <div className="space-y-2 rounded-md border border-border bg-muted/20 p-3">
+                <div className="space-y-2 rounded-md bg-background/60 p-3">
                   <div className="flex items-start gap-2">
                     <Eraser className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
                     <div className="min-w-0 flex-1 space-y-1">
@@ -2169,7 +2170,7 @@ export function AccountSetupDialog({
                     {t('settings.triageNeedMailAccount')}
                   </p>
                 ) : (
-                  <div className="space-y-2 rounded-md border border-border bg-background/40 p-3">
+                  <div className="space-y-2 rounded-md bg-background/60 p-3">
                     <label htmlFor="mail-sidebar-vis-account" className="sr-only">
                       {t('settings.mailSidebarFoldersAccountSr')}
                     </label>
@@ -2239,7 +2240,7 @@ export function AccountSetupDialog({
                     {t('settings.triageNeedMailAccount')}
                   </p>
                 ) : (
-                  <div className="space-y-2 rounded-md border border-border bg-background/40 p-3">
+                  <div className="space-y-2 rounded-md bg-background/60 p-3">
                     <div className="flex flex-wrap items-center gap-2">
                       <label htmlFor="wf-mail-account" className="sr-only">
                         {t('settings.wfAccountSr')}
@@ -2368,7 +2369,7 @@ export function AccountSetupDialog({
                       </div>
                     )}
 
-                    <div className="flex flex-wrap items-end gap-2 rounded-md border border-border bg-background/40 p-2">
+                    <div className="flex flex-wrap items-end gap-2 rounded-md bg-background/60 p-2">
                       <div className="min-w-0 flex-1 space-y-1">
                         <span className="text-[10px] text-muted-foreground">{t('settings.newCategory')}</span>
                         <input
@@ -2634,9 +2635,9 @@ export function AccountSetupDialog({
                       return (
                         <div
                           key={acc.id}
-                          className="rounded-md border border-border/35 bg-background/40 p-2.5 shadow-sm"
+                          className="rounded-md bg-background/60 p-2.5 shadow-sm"
                         >
-                          <div className="mb-2 border-b border-border/30 pb-2">
+                          <div className="mb-2 border-b border-white/[0.04] dark:border-white/[0.04] pb-2">
                             <p className="truncate text-[11px] font-semibold text-foreground">{acc.displayName}</p>
                             <p className="truncate text-[10px] text-muted-foreground">{acc.email}</p>
                             <p className="mt-0.5 text-[9px] uppercase tracking-wide text-muted-foreground/90">
@@ -2669,7 +2670,7 @@ export function AccountSetupDialog({
                                 )}
                               </div>
                               {acc.provider === 'microsoft' ? (
-                                <div className="space-y-1 border-t border-border/30 pt-2">
+                                <div className="space-y-1 border-t border-white/[0.04] dark:border-white/[0.04] pt-2">
                                   <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                                     {t('settings.calendarSidebarGroupCalendars')}
                                   </p>
@@ -2715,7 +2716,7 @@ export function AccountSetupDialog({
           {activeTab === 'info' && (
             <div role="tabpanel" aria-label={t('settings.infoPanelAria')} className="space-y-5">
               {subNavId.info === 'about' && (
-              <section className="space-y-4 rounded-md border border-border/35 bg-muted/20 p-4">
+              <section className="space-y-4 rounded-md bg-background/60 p-4">
                 <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   <Info className="h-3.5 w-3.5" aria-hidden />
                   {t('settings.infoAboutHeading')}
@@ -2774,30 +2775,16 @@ export function AccountSetupDialog({
           {activeTab === 'contacts' && (
             <div role="tabpanel" aria-label={t('settings.contactsPanelAria')} className="space-y-5">
               {subNavId.contacts === 'workspace' && (
-              <section className="space-y-2">
-                <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  <Contact className="h-3.5 w-3.5" aria-hidden />
-                  {t('settings.contactsWorkspaceHeading')}
-                </h3>
-                <p className="text-xs leading-relaxed text-muted-foreground">{t('settings.contactsWorkspaceIntro')}</p>
-                <button
-                  type="button"
-                  onClick={(): void => {
+                <SettingsContactsWorkspaceSection
+                  onOpenModule={(): void => {
                     setAppMode('people')
                     onClose()
                   }}
-                  className={cn(
-                    'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
-                    'bg-primary text-primary-foreground hover:bg-primary/90'
-                  )}
-                >
-                  {t('settings.contactsOpenModule')}
-                </button>
-              </section>
+                />
               )}
 
               {subNavId.contacts === 'google' && (
-              <section className="space-y-2 rounded-md border border-border/35 bg-muted/20 p-3">
+              <section className="space-y-2 rounded-md bg-background/60 p-3">
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   {t('settings.contactsGoogleHeading')}
                 </h3>
@@ -2806,7 +2793,7 @@ export function AccountSetupDialog({
               )}
 
               {subNavId.contacts === 'microsoft' && (
-              <section className="space-y-2 rounded-md border border-border/35 bg-muted/20 p-3">
+              <section className="space-y-2 rounded-md bg-background/60 p-3">
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   {t('settings.contactsMicrosoftHeading')}
                 </h3>

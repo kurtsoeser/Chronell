@@ -210,6 +210,7 @@ export const IPC = {
   compose: {
     send: 'compose:send',
     saveDraft: 'compose:save-draft',
+    listSendFromOptions: 'compose:list-send-from-options',
     recipientSuggestions: 'compose:recipient-suggestions',
     listDriveExplorer: 'compose:list-drive-explorer',
     listDriveExplorerFavorites: 'compose:list-drive-explorer-favorites',

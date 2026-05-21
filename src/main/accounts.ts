@@ -61,7 +61,8 @@ export function accountPreferencesForBackup(
     calendarLoadAheadDays: a.calendarLoadAheadDays ?? null,
     signatureTemplates: a.signatureTemplates,
     defaultSignatureTemplateId: a.defaultSignatureTemplateId ?? null,
-    bookWithMeUrl: a.bookWithMeUrl ?? null
+    bookWithMeUrl: a.bookWithMeUrl ?? null,
+    sharedMailboxSendAs: a.sharedMailboxSendAs
   }))
 }
 
@@ -100,6 +101,9 @@ export async function mergeAccountPreferencesFromBackup(
     }
     if ('bookWithMeUrl' in p) {
       merged.bookWithMeUrl = p.bookWithMeUrl ?? null
+    }
+    if (Array.isArray(p.sharedMailboxSendAs)) {
+      merged.sharedMailboxSendAs = p.sharedMailboxSendAs
     }
     return merged
   })

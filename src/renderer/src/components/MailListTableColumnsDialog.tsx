@@ -71,7 +71,7 @@ export function MailListTableColumnsDialog({
               <div
                 key={id}
                 className={cn(
-                  'flex items-center gap-2 border-b border-border/60 px-2 py-1.5 last:border-b-0',
+                  'flex items-center gap-2 border-b border-white/[0.04] px-2 py-1.5 last:border-b-0 dark:border-white/[0.04]',
                   enabled && 'bg-secondary/25'
                 )}
               >

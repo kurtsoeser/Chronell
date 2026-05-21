@@ -92,7 +92,7 @@ function SortableHoverActionRow({
       ref={setNodeRef}
       style={style}
       className={cn(
-        'flex items-center gap-2 rounded-md border border-border/35 bg-background px-2 py-1.5',
+        'flex items-center gap-2 rounded-md bg-background/80 px-2 py-1.5',
         !visible && 'opacity-55',
         isDragging && 'shadow-md'
       )}
@@ -230,7 +230,7 @@ export function SettingsMailListHoverActionsSection(): JSX.Element {
   const dragTitle = t('settings.mailListHover.dragTitle')
 
   return (
-    <section className="space-y-3 rounded-md border border-border/35 bg-muted/20 p-3">
+    <section className="space-y-3 rounded-md bg-background/60 p-3">
       <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
         <MousePointerClick className="h-3.5 w-3.5" aria-hidden />
         {t('settings.mailListHover.heading')}
@@ -289,7 +289,7 @@ function QuickStepAddButtons({
   label: string
 }): JSX.Element {
   return (
-    <div className="space-y-1.5 border-t border-border/30 pt-2">
+    <div className="space-y-1.5 border-t border-white/[0.04] dark:border-white/[0.04] pt-2">
       <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
       <div className="flex flex-wrap gap-1.5">
         {quickSteps.map((q) => (

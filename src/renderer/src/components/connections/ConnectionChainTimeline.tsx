@@ -21,7 +21,7 @@ export function ConnectionChainTimeline({
               {i > 0 ? <span className="text-[9px] text-muted-foreground">→</span> : null}
               <span
                 className={cn(
-                  'inline-flex max-w-[8rem] items-center gap-0.5 truncate rounded border border-border/60 bg-background/80 px-1 py-0.5',
+                  'inline-flex max-w-[8rem] items-center gap-0.5 truncate rounded-md bg-muted/30 px-1 py-0.5',
                   compact ? 'text-[9px]' : 'text-[10px]'
                 )}
                 title={step.title}

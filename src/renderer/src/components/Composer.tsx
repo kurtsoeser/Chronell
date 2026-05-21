@@ -12,10 +12,14 @@ import {
   FileImage,
   FileText,
   Cloud,
-  Cog
 } from 'lucide-react'
+import { ComposeMessageOptionsButton } from '@/components/ComposeMessageOptionsDialog'
 import { cn } from '@/lib/utils'
 import { formatBytes } from '@/lib/format-bytes'
+import { ComposeFromField } from '@/components/ComposeFromField'
+import { ComposeEditorSurface } from '@/components/ComposeEditorSurface'
+import { ComposeEditorThemedPane } from '@/components/ComposeEditorThemedPane'
+import { ComposeEditorThemeToggle } from '@/components/ComposeEditorThemeToggle'
 import { TipTapBody } from '@/components/TipTapBody'
 import { SignatureTemplateControls } from '@/components/SignatureTemplateControls'
 import { OneDriveExplorerDialog } from '@/components/OneDriveExplorerDialog'
@@ -90,21 +94,6 @@ function ComposerWindow({
   const dragDepthRef = useRef(0)
   const [draggingFiles, setDraggingFiles] = useState(false)
   const [driveOpen, setDriveOpen] = useState(false)
-  const [sendOptionsOpen, setSendOptionsOpen] = useState(false)
-  const sendOptionsRef = useRef<HTMLDivElement | null>(null)
-
-  useEffect(() => {
-    if (!sendOptionsOpen) return
-    const onDocMouseDown = (e: MouseEvent): void => {
-      const el = sendOptionsRef.current
-      if (el && !el.contains(e.target as Node)) {
-        setSendOptionsOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', onDocMouseDown)
-    return (): void => document.removeEventListener('mousedown', onDocMouseDown)
-  }, [sendOptionsOpen])
-
   useEffect(() => {
     if (minimized) return
     void window.mailClient.mail
@@ -331,6 +320,7 @@ function ComposerWindow({
         <span className="min-w-0 flex-1 truncate px-1 font-medium">
           {draft.subject || titleForMode(draft.mode)}
         </span>
+        <ComposeEditorThemeToggle compact />
         <button
           type="button"
           onClick={(e): void => {
@@ -351,97 +341,28 @@ function ComposerWindow({
           <Save className="h-3.5 w-3.5" />
           <span className="hidden sm:inline">Entwurf</span>
         </button>
-        <div className="relative shrink-0" ref={sendOptionsRef}>
-          <button
-            type="button"
-            onClick={(e): void => {
-              e.stopPropagation()
-              setSendOptionsOpen((o) => !o)
-            }}
-            className={cn(
-              'rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground',
-              sendOptionsOpen && 'bg-secondary text-foreground'
-            )}
-            aria-expanded={sendOptionsOpen}
-            aria-haspopup="dialog"
-            aria-label="Sendeoptionen"
-            title="Sendeoptionen (Zustellung, Lesebestätigung, Wichtigkeit, Zeitplan)"
-          >
-            <Cog className="h-3.5 w-3.5" />
-          </button>
-          {sendOptionsOpen && (
-            <div
-              className="absolute right-0 top-full z-[70] mt-1 w-[min(18rem,calc(100vw-2rem))] rounded-lg border border-border bg-card p-3 text-[11px] text-foreground shadow-xl"
-              role="dialog"
-              aria-label="Sendeoptionen"
-              onMouseDown={(e): void => e.stopPropagation()}
-            >
-              {isMicrosoft ? (
-                <div className="flex flex-col gap-3">
-                  <label className="flex cursor-pointer items-center gap-2 text-muted-foreground">
-                    <input
-                      type="checkbox"
-                      checked={draft.isDeliveryReceiptRequested}
-                      onChange={(e): void =>
-                        update(draft.id, { isDeliveryReceiptRequested: e.target.checked })
-                      }
-                      className="rounded border-border"
-                    />
-                    <span>Zustellbestätigung</span>
-                  </label>
-                  <label className="flex cursor-pointer items-center gap-2 text-muted-foreground">
-                    <input
-                      type="checkbox"
-                      checked={draft.isReadReceiptRequested}
-                      onChange={(e): void =>
-                        update(draft.id, { isReadReceiptRequested: e.target.checked })
-                      }
-                      className="rounded border-border"
-                    />
-                    <span>Lesebestätigung</span>
-                  </label>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-muted-foreground">Wichtigkeit:</span>
-                    <select
-                      className="min-w-0 flex-1 rounded border border-border bg-background px-2 py-1 text-[11px] text-foreground"
-                      value={draft.importance}
-                      onChange={(e): void =>
-                        update(draft.id, {
-                          importance: e.target.value as ComposeDraft['importance']
-                        })
-                      }
-                    >
-                      <option value="normal">Normal</option>
-                      <option value="high">Hoch</option>
-                      <option value="low">Niedrig</option>
-                    </select>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-muted-foreground">Senden:</span>
-                    <input
-                      type="datetime-local"
-                      value={draft.scheduledSendAt ?? ''}
-                      onChange={(e): void =>
-                        update(draft.id, {
-                          scheduledSendAt: e.target.value ? e.target.value : null
-                        })
-                      }
-                      className="w-full rounded border border-border bg-background px-2 py-1 text-[11px] text-foreground"
-                    />
-                    <span className="text-[10px] leading-snug text-muted-foreground">
-                      Leer = sofort. Geplant nur ohne lokale Dateianhänge.
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-[10px] leading-relaxed text-muted-foreground">
-                  Zustell-/Lesebestätigung, Wichtigkeit und geplanter Versand sind bei
-                  Microsoft-Konten verfügbar.
-                </p>
-              )}
-            </div>
-          )}
-        </div>
+        <ComposeMessageOptionsButton
+          compact
+          isMicrosoft={isMicrosoft}
+          values={{
+            importance: draft.importance,
+            isReadReceiptRequested: draft.isReadReceiptRequested,
+            isDeliveryReceiptRequested: draft.isDeliveryReceiptRequested,
+            smimeEncrypt: draft.smimeEncrypt,
+            smimeSign: draft.smimeSign,
+            scheduledSendAt: draft.scheduledSendAt
+          }}
+          onApply={(v): void =>
+            update(draft.id, {
+              importance: v.importance,
+              isReadReceiptRequested: v.isReadReceiptRequested,
+              isDeliveryReceiptRequested: v.isDeliveryReceiptRequested,
+              smimeEncrypt: v.smimeEncrypt,
+              smimeSign: v.smimeSign,
+              scheduledSendAt: v.scheduledSendAt
+            })
+          }
+        />
         <button
           type="button"
           onClick={(): void =>
@@ -466,22 +387,21 @@ function ComposerWindow({
         </button>
       </div>
 
-      {/* Account-Auswahl */}
-      <div className="flex items-center gap-2 border-b border-border/60 px-4 py-2 text-xs">
-        <span className="text-muted-foreground">Von:</span>
-        {accounts.length > 1 ? (
-          <AccountPicker
-            currentAccountId={draft.accountId}
-            onChange={(id): void =>
-              update(draft.id, { accountId: id, savedRemoteDraftId: undefined })
-            }
-          />
-        ) : (
-          <span className="font-medium">{account?.email ?? '(kein Konto)'}</span>
-        )}
-      </div>
+      <ComposeFromField
+        className="px-4"
+        accountId={draft.accountId}
+        sendFromEmail={draft.sendFromEmail ?? null}
+        onAccountChange={(id): void =>
+          update(draft.id, {
+            accountId: id,
+            sendFromEmail: null,
+            savedRemoteDraftId: undefined
+          })
+        }
+        onSendFromChange={(email): void => update(draft.id, { sendFromEmail: email })}
+      />
 
-      <div className="compose-editor-surface">
+      <ComposeEditorSurface>
       <RecipientTokenField
         inEditorSurface
         label="An:"
@@ -521,14 +441,16 @@ function ComposerWindow({
         />
       </div>
 
-      <TipTapBody
-        inEditorSurface
-        className="min-h-0 flex-1 border-t-0"
-        valueHtml={draft.prependRichHtml}
-        onChangeHtml={(v): void => update(draft.id, { prependRichHtml: v })}
-        autoFocus
-        fillHeight
-      />
+      <ComposeEditorThemedPane className="min-h-0 flex-1">
+        <TipTapBody
+          inEditorSurface
+          className="min-h-0 flex-1 border-t-0"
+          valueHtml={draft.prependRichHtml}
+          onChangeHtml={(v): void => update(draft.id, { prependRichHtml: v })}
+          autoFocus
+          fillHeight
+        />
+      </ComposeEditorThemedPane>
 
       <div className="shrink-0 border-t border-[hsl(var(--compose-surface-border)/0.5)] bg-[hsl(var(--compose-surface-muted))]">
         <div className="flex flex-wrap items-start justify-between gap-2 px-3 pt-2">
@@ -543,16 +465,18 @@ function ComposerWindow({
             onActiveTemplateIdChange={(id): void => update(draft.id, { signatureTemplateId: id })}
           />
         </div>
-        <TipTapBody
-          inEditorSurface
-          variant="compact"
-          fillHeight={false}
-          className="border-t-0"
-          valueHtml={draft.signatureRichHtml}
-          onChangeHtml={(v): void => update(draft.id, { signatureRichHtml: v })}
-        />
+        <ComposeEditorThemedPane>
+          <TipTapBody
+            inEditorSurface
+            variant="compact"
+            fillHeight={false}
+            className="border-t-0"
+            valueHtml={draft.signatureRichHtml}
+            onChangeHtml={(v): void => update(draft.id, { signatureRichHtml: v })}
+          />
+        </ComposeEditorThemedPane>
       </div>
-      </div>
+      </ComposeEditorSurface>
 
       {(draft.attachments.length > 0 ||
         draft.referenceAttachments.length > 0 ||
@@ -769,34 +693,6 @@ function ComposerWindow({
         <div className="absolute bottom-1 right-1 h-2 w-2 border-b border-r border-muted-foreground/70" />
       </div>
     </div>
-  )
-}
-
-function AccountPicker({
-  currentAccountId,
-  onChange
-}: {
-  currentAccountId: string
-  onChange: (id: string) => void
-}): JSX.Element {
-  const accounts = useAccountsStore((s) => s.accounts)
-  const current = useMemo(
-    () => accounts.find((a) => a.id === currentAccountId),
-    [accounts, currentAccountId]
-  )
-  return (
-    <select
-      value={currentAccountId}
-      onChange={(e): void => onChange(e.target.value)}
-      className="flex-1 truncate rounded border border-border bg-background px-2 py-1 text-xs outline-none focus:border-ring"
-    >
-      {accounts.map((acc) => (
-        <option key={acc.id} value={acc.id}>
-          {acc.displayName} ({acc.email})
-        </option>
-      ))}
-      {!current && <option value={currentAccountId}>Konto nicht verfuegbar</option>}
-    </select>
   )
 }
 

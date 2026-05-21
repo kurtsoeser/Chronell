@@ -10,13 +10,15 @@ import {
   type ComposeDriveExplorerEntry,
   type ComposeDriveExplorerScope,
   type ComposeDriveExplorerNavCrumb,
-  type ComposeDriveExplorerFavorite
+  type ComposeDriveExplorerFavorite,
+  type ComposeSendFromOption
 } from '@shared/types'
 import { listAccounts } from '../accounts'
 import { gmailSendMail, gmailSaveDraft } from '../google/gmail-compose'
 import { insertScheduledCompose } from '../db/compose-scheduled-repo'
 import { searchPeopleContactsForCompose, listBootstrapPeopleContactsForCompose } from '../db/people-repo'
 import { sendMail as graphSendMail, saveMailDraft as graphSaveMailDraft } from '../graph/compose'
+import { listComposeSendFromOptions } from '../graph/compose-send-from'
 import {
   graphListDriveExplorer,
   graphSearchPeopleForCompose,
@@ -97,6 +99,7 @@ export function registerMailComposeIpc(): void {
       } else {
         const r = await graphSendMail({
           accountId: input.accountId,
+          sendFromEmail: input.sendFromEmail,
           subject: input.subject,
           bodyHtml: input.bodyHtml,
           to: input.to,
@@ -204,6 +207,7 @@ export function registerMailComposeIpc(): void {
       } else {
         result = await graphSaveMailDraft({
           accountId: input.accountId,
+          sendFromEmail: input.sendFromEmail,
           subject: input.subject,
           bodyHtml: input.bodyHtml,
           to: toRecipients,
@@ -225,6 +229,15 @@ export function registerMailComposeIpc(): void {
         void runFolderSync(draftsFolder.id).catch(() => undefined)
       }
       return result
+    }
+  )
+
+  ipcMain.handle(
+    IPC.compose.listSendFromOptions,
+    async (_event, args: { accountId: string }): Promise<ComposeSendFromOption[]> => {
+      const accountId = typeof args?.accountId === 'string' ? args.accountId.trim() : ''
+      if (!accountId) return []
+      return listComposeSendFromOptions(accountId)
     }
   )
 

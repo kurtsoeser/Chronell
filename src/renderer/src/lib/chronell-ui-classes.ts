@@ -52,3 +52,13 @@ export const listDivideClass =
 
 export const listSubtleBorderClass =
   'border-white/[0.04] dark:border-white/[0.04]'
+
+/** Einstellungen: Gruppierung per Hintergrund (ohne Kachelrahmen). */
+export const settingsSectionClass = 'rounded-md bg-background/60'
+
+/** Einstellungen/Dialoge: Eintrag-Kachel (z. B. verbundenes Konto). */
+export const settingsTileClass = 'rounded-md bg-background/60'
+
+/** Einstellungen: dezenter Rand fuer Steuerelemente. */
+export const settingsControlBorderClass =
+  'border-white/[0.06] dark:border-white/[0.06]'

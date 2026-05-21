@@ -76,9 +76,12 @@ Unter **Bereiche hinzufügen** mindestens das anfordern, was die App nutzt (sieh
 - `openid`
 - Nutzer-E-Mail / Profil (in der Console oft als **userinfo.email**, **userinfo.profile** o. ä. gelistet)
 - `https://www.googleapis.com/auth/gmail.modify`
+- **`https://mail.google.com/`** (Gmail Vollzugriff — **Pflicht** für Papierkorb leeren und endgültiges Löschen; eingeschränkter Scope, Verifizierung nötig)
 - `https://www.googleapis.com/auth/calendar`
 
-Nur Scopes beantragen, die ihr **wirklich** braucht — weniger Umfang kann die Prüfung erleichtern.
+Ohne `https://mail.google.com/` auf dem Zustimmungsbildschirm können Nutzer Mails zwar in den Papierkorb verschieben, aber weder den Papierkorb leeren noch Mails dort endgültig löschen.
+
+Nur Scopes beantragen, die ihr **wirklich** braucht — weniger Umfang kann die Prüfung erleichtern (der Gmail-Vollzugriff-Scope ist für Löschen jedoch nicht optional).
 
 ---
 

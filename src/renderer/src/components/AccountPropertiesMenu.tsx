@@ -141,7 +141,7 @@ export function AccountPropertiesMenu({
 
             {colorExpanded && (
               <div
-                className="border-t border-border/50 bg-secondary/15 px-2 py-2"
+                className="border-t border-white/[0.04] bg-secondary/15 px-2 py-2 dark:border-white/[0.04]"
                 role="group"
                 aria-label="Kontofarbe waehlen"
               >

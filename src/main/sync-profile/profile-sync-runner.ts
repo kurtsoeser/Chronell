@@ -7,7 +7,11 @@ import {
   scheduleProfileSyncDebounced,
   setProfileSyncDebouncedHandler
 } from './profile-sync-scheduler'
-import { broadcastProfileSyncStatus } from '../ipc/ipc-broadcasts'
+import {
+  broadcastProfileSyncApplied,
+  broadcastProfileSyncStatus
+} from './profile-sync-status-broadcast'
+import { registerProfileSyncRunner } from './profile-sync-runner-bridge'
 
 let pollTimer: ReturnType<typeof setInterval> | null = null
 let startupDone = false
@@ -20,7 +24,6 @@ async function runAutoSync(): Promise<void> {
     source: 'auto'
   })
   if (result.ok && result.localStorage) {
-    const { broadcastProfileSyncApplied } = await import('../ipc/ipc-broadcasts')
     broadcastProfileSyncApplied(result.localStorage)
   }
   void broadcastProfileSyncStatus()
@@ -63,3 +66,9 @@ export function restartProfileSyncRunner(): void {
   stopProfileSyncRunner()
   startProfileSyncRunner()
 }
+
+registerProfileSyncRunner({
+  start: startProfileSyncRunner,
+  stop: stopProfileSyncRunner,
+  restart: restartProfileSyncRunner
+})

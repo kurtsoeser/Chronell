@@ -514,7 +514,7 @@ export function MetaFolderRuleFlow(props: MetaFolderRuleFlowProps): JSX.Element 
   const showExceptionsBlock = interactive || exceptionRows.length > 0
 
   return (
-    <div className="rounded-xl border border-border/80 bg-gradient-to-b from-muted/30 to-card/80 p-3 shadow-inner">
+    <div className="rounded-xl bg-gradient-to-b from-muted/30 to-card/80 p-3 shadow-inner">
       <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
         <Layers className="h-3.5 w-3.5" />
         Regel grafisch

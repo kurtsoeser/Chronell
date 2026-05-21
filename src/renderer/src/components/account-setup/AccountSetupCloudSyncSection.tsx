@@ -342,7 +342,7 @@ export function AccountSetupCloudSyncSection(): JSX.Element {
           ) : null}
 
           {!signedIn && dataMode === 'cloud' && configured ? (
-            <div className="space-y-3 rounded-md border border-border bg-muted/20 p-3">
+            <div className="space-y-3 rounded-md bg-background/60 p-3">
               <p className="text-[11px] text-muted-foreground">{t('settings.cloudSync.loginIntro')}</p>
               <button
                 type="button"

@@ -93,7 +93,7 @@ function SortableModuleRow({
       ref={setNodeRef}
       style={style}
       className={cn(
-        'flex items-center gap-2 rounded-md border border-border/35 bg-background px-2 py-1.5',
+        'flex items-center gap-2 rounded-md bg-background/80 px-2 py-1.5',
         !visible && 'opacity-55',
         isDragging && 'shadow-md'
       )}
@@ -195,7 +195,7 @@ export function SettingsTopbarModulesSection(): JSX.Element {
   const dragTitle = t('topbar.moduleDragTitle')
 
   return (
-    <section className="space-y-2 rounded-md border border-border/35 bg-muted/20 p-3">
+    <section className="space-y-2 rounded-md bg-background/60 p-3">
       <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
         <LayoutGrid className="h-3.5 w-3.5" aria-hidden />
         {t('settings.modulesHeading')}

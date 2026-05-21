@@ -1,8 +1,15 @@
 import { google } from 'googleapis'
 import { loadConfig } from '../config'
 import { createGoogleOAuth2Client } from '../auth/google'
-import { GOOGLE_CONTACTS_SCOPE_URL, storedGoogleScopeIncludesContacts } from '../auth/google-scopes'
-import { assertStoredGoogleGmailFullScope } from './gmail-scope-errors'
+import {
+  GOOGLE_CONTACTS_SCOPE_URL,
+  mergeGoogleOAuthScopes,
+  storedGoogleScopeIncludesContacts
+} from '../auth/google-scopes'
+import {
+  enrichStoredGoogleScopesFromAccessToken,
+  resolveGoogleCredentialScopes
+} from './google-token-scope'
 import { getGoogleCredentials, saveGoogleCredentialsForAccount } from './google-credentials-store'
 
 export type GetGoogleApisOptions = {
@@ -41,10 +48,6 @@ export async function getGoogleApis(
         'Bitte das Google-Konto in den Einstellungen entfernen und erneut verbinden, damit der Zugriff auf Kontakte erteilt wird.'
     )
   }
-  if (options?.requireGmailFullScope && stored.scope) {
-    assertStoredGoogleGmailFullScope(stored.scope)
-  }
-
   const oauth2 = createGoogleOAuth2Client(clientId, clientSecret ?? undefined)
   oauth2.setCredentials({
     refresh_token: stored.refresh_token,
@@ -55,16 +58,25 @@ export async function getGoogleApis(
   oauth2.on('tokens', async (t) => {
     const cur = await getGoogleCredentials(accountId)
     const base = cur ?? {}
+    const access = t.access_token ?? base.access_token ?? null
+    let scope = mergeGoogleOAuthScopes(base.scope, t.scope)
+    if (access) {
+      scope = await resolveGoogleCredentialScopes({ scope, access_token: access })
+    }
     await saveGoogleCredentialsForAccount(accountId, {
       ...base,
-      access_token: t.access_token ?? base.access_token ?? null,
+      access_token: access,
       expiry_date: t.expiry_date ?? base.expiry_date ?? null,
       refresh_token: t.refresh_token ?? base.refresh_token ?? null,
-      scope: t.scope ?? base.scope ?? null,
+      scope,
       token_type: t.token_type ?? base.token_type ?? null,
       id_token: t.id_token ?? base.id_token ?? null
     })
   })
+
+  if (options?.requireGmailFullScope) {
+    await enrichStoredGoogleScopesFromAccessToken(accountId)
+  }
 
   return {
     gmail: google.gmail({ version: 'v1', auth: oauth2 }),
@@ -98,7 +110,7 @@ export async function getFreshGoogleAccessToken(accountId: string): Promise<stri
       access_token: t.access_token ?? base.access_token ?? null,
       expiry_date: t.expiry_date ?? base.expiry_date ?? null,
       refresh_token: t.refresh_token ?? base.refresh_token ?? null,
-      scope: t.scope ?? base.scope ?? null,
+      scope: mergeGoogleOAuthScopes(base.scope, t.scope),
       token_type: t.token_type ?? base.token_type ?? null,
       id_token: t.id_token ?? base.id_token ?? null
     })

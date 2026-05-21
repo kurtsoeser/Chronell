@@ -9,10 +9,14 @@ import {
   removeMsalAccount
 } from '../auth/microsoft'
 import { loginGoogle } from '../auth/google'
+import { mergeGoogleOAuthScopes } from '../auth/google-scopes'
+import { assertGoogleGmailFullScopeOnAccessToken, resolveGoogleCredentialScopes } from '../google/google-token-scope'
 import {
   saveGoogleCredentialsForAccount,
-  removeGoogleCredentials
+  removeGoogleCredentials,
+  getGoogleCredentials
 } from '../google/google-credentials-store'
+import { revokeGoogleAccountTokens } from '../google/google-token-revoke'
 import { clearGoogleSyncMetaForAccount } from '../google/google-sync-meta-store'
 import { getMe } from '../graph/client'
 import { runInitialSync } from '../sync-runner'
@@ -162,11 +166,20 @@ export function registerAuthIpc(): void {
     }
     const { sub, email, name } = parseGoogleIdToken(idt)
     const accountId = `google:${sub}`
+    const resolvedScope = await resolveGoogleCredentialScopes({
+      scope: mergeGoogleOAuthScopes(null, tokens.scope),
+      access_token: tokens.access_token ?? null
+    })
+    await assertGoogleGmailFullScopeOnAccessToken(
+      accountId,
+      tokens.access_token ?? null,
+      resolvedScope
+    )
     await saveGoogleCredentialsForAccount(accountId, {
       refresh_token: tokens.refresh_token,
       access_token: tokens.access_token ?? null,
       expiry_date: tokens.expiry_date ?? null,
-      scope: tokens.scope ?? null,
+      scope: resolvedScope,
       token_type: tokens.token_type ?? null,
       id_token: idt
     })
@@ -218,14 +231,23 @@ export function registerAuthIpc(): void {
     }
 
     const expectedSub = id.replace(/^google:/, '')
+    const prevCreds = await getGoogleCredentials(id)
+    await revokeGoogleAccountTokens(id)
+
     const { tokens } = await loginGoogle(config.googleClientId.trim(), {
       loginHint: prev.email,
       prompt: 'consent',
+      includeGrantedScopes: false,
       clientSecret: gSecret && gSecret.length > 0 ? gSecret : undefined
     })
     if (!tokens.refresh_token) {
       throw new Error('Google hat keinen Refresh-Token zurueckgegeben.')
     }
+    const mergedScope = await resolveGoogleCredentialScopes({
+      scope: mergeGoogleOAuthScopes(prevCreds?.scope, tokens.scope),
+      access_token: tokens.access_token ?? null
+    })
+    await assertGoogleGmailFullScopeOnAccessToken(id, tokens.access_token ?? null, mergedScope)
     const idt = tokens.id_token
     if (!idt) {
       throw new Error('Google hat kein id_token zurueckgegeben.')
@@ -241,7 +263,7 @@ export function registerAuthIpc(): void {
       refresh_token: tokens.refresh_token,
       access_token: tokens.access_token ?? null,
       expiry_date: tokens.expiry_date ?? null,
-      scope: tokens.scope ?? null,
+      scope: mergedScope,
       token_type: tokens.token_type ?? null,
       id_token: idt
     })
@@ -424,6 +446,7 @@ export function registerAuthIpc(): void {
         signatureTemplates?: unknown
         defaultSignatureTemplateId?: string | null
         bookWithMeUrl?: string | null
+        sharedMailboxSendAs?: unknown
       }
       const accountId = typeof body.accountId === 'string' ? body.accountId.trim() : ''
       if (!accountId) {
@@ -434,8 +457,11 @@ export function registerAuthIpc(): void {
       const hasSig = 'signatureTemplates' in body
       const hasDef = 'defaultSignatureTemplateId' in body
       const hasBookWithMe = 'bookWithMeUrl' in body
-      if (!hasColor && !hasAhead && !hasSig && !hasDef && !hasBookWithMe) {
-        throw new Error('Keine Aenderungen (Farbe, Kalender, Signaturvorlagen, Book with me).')
+      const hasSharedMailboxes = 'sharedMailboxSendAs' in body
+      if (!hasColor && !hasAhead && !hasSig && !hasDef && !hasBookWithMe && !hasSharedMailboxes) {
+        throw new Error(
+          'Keine Aenderungen (Farbe, Kalender, Signaturvorlagen, Book with me, freigegebene Postfaecher).'
+        )
       }
       const current = await listAccounts()
       const prev = current.find((a) => a.id === accountId)
@@ -503,6 +529,33 @@ export function registerAuthIpc(): void {
           }
         } else {
           throw new Error('Ungueltige Book-with-me-URL.')
+        }
+      }
+      if (hasSharedMailboxes) {
+        if (body.sharedMailboxSendAs === null || body.sharedMailboxSendAs === undefined) {
+          delete account.sharedMailboxSendAs
+        } else if (!Array.isArray(body.sharedMailboxSendAs)) {
+          throw new Error('Freigegebene Postfaecher: ungueltiges Format.')
+        } else {
+          const parsed: import('@shared/types').SharedMailboxSendAs[] = []
+          const seen = new Set<string>()
+          for (const row of body.sharedMailboxSendAs) {
+            if (!row || typeof row !== 'object') continue
+            const r = row as Record<string, unknown>
+            const email = typeof r.email === 'string' ? r.email.trim() : ''
+            if (!email || !email.includes('@')) continue
+            const key = email.toLowerCase()
+            if (seen.has(key)) continue
+            seen.add(key)
+            parsed.push({
+              email,
+              displayName:
+                typeof r.displayName === 'string' && r.displayName.trim()
+                  ? r.displayName.trim()
+                  : null
+            })
+          }
+          account.sharedMailboxSendAs = parsed.length > 0 ? parsed : undefined
         }
       }
       await upsertAccount(account)

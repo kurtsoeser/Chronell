@@ -652,7 +652,6 @@ export function ReadingPane({
         <ReadingPaneCompose
           draft={readingPaneDraft}
           onPopOut={(): void => popOutCompose(readingPaneDraft.id)}
-          onClose={(): void => closeCompose(readingPaneDraft.id)}
         />
       ) : !selectedMessageId ? (
         <EmptyState

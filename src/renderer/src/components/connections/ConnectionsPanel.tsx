@@ -581,7 +581,7 @@ export function EntityContextRelations({
       ) : null}
 
       {activeTab === 'quality' && links.length > 0 && aiReady ? (
-            <div className="space-y-1 rounded-md border border-border/60 bg-secondary/20 p-2">
+            <div className="space-y-1 rounded-md bg-secondary/25 p-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-[10px] font-medium text-foreground">
                   {t('connections.quality.title')}
@@ -820,7 +820,7 @@ function ConnectionsPicker({
                     type="button"
                     disabled={busy}
                     onClick={(): void => void addLink(c.target)}
-                    className="flex w-full items-center gap-2 border-b border-border/50 px-2 py-1.5 text-left text-xs hover:bg-secondary/50 last:border-0"
+                    className="flex w-full items-center gap-2 border-b border-white/[0.04] px-2 py-1.5 text-left text-xs hover:bg-secondary/50 last:border-0 dark:border-white/[0.04]"
                   >
                     <CandIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                     <span className="min-w-0 flex-1 truncate">{c.title}</span>

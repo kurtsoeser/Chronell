@@ -6,10 +6,14 @@ import {
   Paperclip,
   Save,
   Send,
-  SquareArrowOutUpRight,
-  X
+  SquareArrowOutUpRight
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { ComposeFromField } from '@/components/ComposeFromField'
+import { ComposeMessageOptionsButton } from '@/components/ComposeMessageOptionsDialog'
+import { ComposeEditorSurface } from '@/components/ComposeEditorSurface'
+import { ComposeEditorThemedPane } from '@/components/ComposeEditorThemedPane'
+import { ComposeEditorThemeToggle } from '@/components/ComposeEditorThemeToggle'
 import { TipTapBody } from '@/components/TipTapBody'
 import { SignatureTemplateControls } from '@/components/SignatureTemplateControls'
 import { RecipientTokenField } from '@/components/RecipientTokenField'
@@ -37,12 +41,10 @@ function arrayBufferToBase64(buf: ArrayBuffer): string {
 
 export function ReadingPaneCompose({
   draft,
-  onPopOut,
-  onClose
+  onPopOut
 }: {
   draft: ComposeDraft
   onPopOut: () => void
-  onClose: () => void
 }): JSX.Element {
   const { t } = useTranslation()
   const accounts = useAccountsStore((s) => s.accounts)
@@ -60,15 +62,6 @@ export function ReadingPaneCompose({
 
   const account = accounts.find((a) => a.id === draft.accountId) ?? accounts[0]
   const attachmentsTotal = draft.attachments.reduce((s, a) => s + a.size, 0)
-  const isDraftEdit = draft.linkedMessageId != null && draft.savedRemoteDraftId != null
-  const composeModeLabel =
-    draft.mode === 'forward'
-      ? t('mail.readingPane.composingForward', { defaultValue: 'Weiterleitung verfassen' })
-      : draft.mode === 'reply' || draft.mode === 'replyAll'
-        ? t('mail.readingPane.composingReply', { defaultValue: 'Antwort verfassen' })
-        : isDraftEdit
-          ? t('mail.readingPane.editingDraft', { defaultValue: 'Entwurf bearbeiten' })
-          : t('mail.readingPane.composingNew', { defaultValue: 'Neue E-Mail' })
 
   const addFiles = useCallback(
     async (files: File[]): Promise<void> => {
@@ -108,20 +101,7 @@ export function ReadingPaneCompose({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2">
-        <button
-          type="button"
-          disabled={draft.busy}
-          title={t('mail.composeTile.saveDraft')}
-          onClick={(): void => void saveRemoteDraft(draft.id)}
-          className={cn(
-            'inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs font-medium text-foreground hover:bg-secondary',
-            draft.busy && 'pointer-events-none opacity-50'
-          )}
-        >
-          <Save className="h-3.5 w-3.5" />
-          {t('mail.composeTile.saveDraft')}
-        </button>
+      <div className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-2">
         <button
           type="button"
           disabled={draft.busy}
@@ -140,51 +120,67 @@ export function ReadingPaneCompose({
           )}
           {t('mail.composeTile.send')}
         </button>
-        <button
-          type="button"
-          title={t('mail.readingPane.composePopOutTitle')}
-          onClick={onPopOut}
-          className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground"
-        >
-          <SquareArrowOutUpRight className="h-3.5 w-3.5" />
-          {t('mail.readingPane.composePopOut')}
-        </button>
         <div className="flex-1" />
         <button
           type="button"
-          title={t('mail.readingPane.composeCloseTitle')}
-          onClick={onClose}
-          className="rounded-md p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
-          aria-label={t('mail.readingPane.composeCloseTitle')}
+          disabled={draft.busy}
+          title={t('mail.composeTile.saveDraft')}
+          aria-label={t('mail.composeTile.saveDraft')}
+          onClick={(): void => void saveRemoteDraft(draft.id)}
+          className={cn(
+            'rounded-md border border-border p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground',
+            draft.busy && 'pointer-events-none opacity-50'
+          )}
         >
-          <X className="h-4 w-4" />
+          <Save className="h-3.5 w-3.5" />
+        </button>
+        <ComposeEditorThemeToggle />
+        <ComposeMessageOptionsButton
+          isMicrosoft={account?.provider === 'microsoft'}
+          values={{
+            importance: draft.importance,
+            isReadReceiptRequested: draft.isReadReceiptRequested,
+            isDeliveryReceiptRequested: draft.isDeliveryReceiptRequested,
+            smimeEncrypt: draft.smimeEncrypt,
+            smimeSign: draft.smimeSign,
+            scheduledSendAt: draft.scheduledSendAt
+          }}
+          onApply={(v): void =>
+            update(draft.id, {
+              importance: v.importance,
+              isReadReceiptRequested: v.isReadReceiptRequested,
+              isDeliveryReceiptRequested: v.isDeliveryReceiptRequested,
+              smimeEncrypt: v.smimeEncrypt,
+              smimeSign: v.smimeSign,
+              scheduledSendAt: v.scheduledSendAt
+            })
+          }
+        />
+        <button
+          type="button"
+          title={t('mail.readingPane.composePopOutTitle')}
+          aria-label={t('mail.readingPane.composePopOutTitle')}
+          onClick={onPopOut}
+          className="rounded-md border border-border p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
+        >
+          <SquareArrowOutUpRight className="h-3.5 w-3.5" />
         </button>
       </div>
 
-      <div className="shrink-0 border-b border-border/60 px-3 py-1.5 text-xs">
-        <span className="text-muted-foreground">{t('mail.composeTile.from')} </span>
-        {accounts.length > 1 ? (
-          <select
-            value={draft.accountId}
-            onChange={(e): void =>
-              update(draft.id, { accountId: e.target.value, savedRemoteDraftId: undefined })
-            }
-            className="max-w-full rounded border border-border bg-background px-2 py-0.5 text-xs"
-          >
-            {accounts.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.displayName} ({a.email})
-              </option>
-            ))}
-          </select>
-        ) : (
-          <span className="font-medium">{account?.email ?? '—'}</span>
-        )}
-        <span className="ml-2 text-[10px] text-muted-foreground">{composeModeLabel}</span>
-      </div>
+      <ComposeFromField
+        accountId={draft.accountId}
+        sendFromEmail={draft.sendFromEmail ?? null}
+        onAccountChange={(id): void =>
+          update(draft.id, {
+            accountId: id,
+            sendFromEmail: null,
+            savedRemoteDraftId: undefined
+          })
+        }
+        onSendFromChange={(email): void => update(draft.id, { sendFromEmail: email })}
+      />
 
-      <div
-        className="compose-editor-surface"
+      <ComposeEditorSurface
         onDragOver={(e): void => {
           if (!Array.from(e.dataTransfer.types).includes('Files')) return
           e.preventDefault()
@@ -234,14 +230,16 @@ export function ReadingPaneCompose({
         />
       </div>
 
-        <TipTapBody
-          inEditorSurface
-          className="min-h-0 flex-1 border-t-0"
-          valueHtml={draft.prependRichHtml}
-          onChangeHtml={(v): void => update(draft.id, { prependRichHtml: v })}
-          autoFocus
-          fillHeight
-        />
+        <ComposeEditorThemedPane className="min-h-0 flex-1">
+          <TipTapBody
+            inEditorSurface
+            className="min-h-0 flex-1 border-t-0"
+            valueHtml={draft.prependRichHtml}
+            onChangeHtml={(v): void => update(draft.id, { prependRichHtml: v })}
+            autoFocus
+            fillHeight
+          />
+        </ComposeEditorThemedPane>
         <div className="shrink-0 border-t border-[hsl(var(--compose-surface-border)/0.5)] bg-[hsl(var(--compose-surface-muted))]">
           <div className="flex flex-wrap items-center justify-between gap-1 px-3 py-1">
             <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
@@ -256,16 +254,18 @@ export function ReadingPaneCompose({
               onActiveTemplateIdChange={(id): void => update(draft.id, { signatureTemplateId: id })}
             />
           </div>
-          <TipTapBody
-            inEditorSurface
-            variant="compact"
-            fillHeight={false}
-            className="border-t-0"
-            valueHtml={draft.signatureRichHtml}
-            onChangeHtml={(v): void => update(draft.id, { signatureRichHtml: v })}
-          />
+          <ComposeEditorThemedPane>
+            <TipTapBody
+              inEditorSurface
+              variant="compact"
+              fillHeight={false}
+              className="border-t-0"
+              valueHtml={draft.signatureRichHtml}
+              onChangeHtml={(v): void => update(draft.id, { signatureRichHtml: v })}
+            />
+          </ComposeEditorThemedPane>
         </div>
-      </div>
+      </ComposeEditorSurface>
 
       {draft.quotedHtml && (
         <div className="shrink-0 border-t border-border/60 bg-background/40 px-3 py-2">

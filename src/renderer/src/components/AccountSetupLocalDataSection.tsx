@@ -61,7 +61,7 @@ export function AccountSetupLocalDataSection({
             </p>
           ) : null}
           {localDataUsage.totalBytes > 0 ? (
-            <div className="space-y-1.5 rounded-md border border-border bg-muted/20 px-2.5 py-2">
+            <div className="space-y-1.5 rounded-md bg-background/60 px-2.5 py-2">
               <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                 {t('settings.localDataBreakdownTitle')}
               </p>
@@ -109,7 +109,7 @@ export function AccountSetupLocalDataSection({
               ) : null}
             </div>
           ) : null}
-          <ul className="max-h-36 space-y-0.5 overflow-y-auto rounded-md border border-border bg-muted/20 px-2 py-1.5 text-[10px]">
+          <ul className="max-h-36 space-y-0.5 overflow-y-auto rounded-md bg-background/60 px-2 py-1.5 text-[10px]">
             {localDataUsage.categories
               .filter((c) => c.bytes > 0)
               .slice(0, 12)
