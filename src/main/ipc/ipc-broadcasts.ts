@@ -1,5 +1,6 @@
 import { BrowserWindow } from 'electron'
 import type { EntityEmbeddingProgress } from '@shared/entity-embeddings'
+import type { MailBodyIndexProgress } from '@shared/mail-body-index'
 import type { ConnectedAccount, MailChangedPayload, UserNoteKind } from '@shared/types'
 import { mergeMailChangedPayload } from '@shared/mail-changed-merge'
 
@@ -123,6 +124,12 @@ export function broadcastEntityLinkAiScanProgress(
 export function broadcastEntityEmbeddingProgress(progress: EntityEmbeddingProgress | null): void {
   for (const win of BrowserWindow.getAllWindows()) {
     win.webContents.send('entity-embeddings:index-progress', progress)
+  }
+}
+
+export function broadcastMailBodyIndexProgress(progress: MailBodyIndexProgress | null): void {
+  for (const win of BrowserWindow.getAllWindows()) {
+    win.webContents.send('mail-body-index:progress', progress)
   }
 }
 

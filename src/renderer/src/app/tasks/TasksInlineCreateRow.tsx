@@ -10,6 +10,7 @@ import {
 } from '@/app/tasks/tasks-create-defaults'
 import type { TaskItemWithContext, TasksViewSelection } from '@/app/tasks/tasks-types'
 import { cloudTaskAccountOptionLabel } from '@/lib/cloud-task-accounts'
+import { listSubtleBorderClass } from '@/lib/chronell-ui-classes'
 import { cn } from '@/lib/utils'
 
 export interface TasksInlineCreateRowProps {
@@ -130,7 +131,7 @@ export function TasksInlineCreateRow({
     'min-w-0 rounded border border-border/80 bg-background px-1.5 py-1 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30'
 
   return (
-    <li className="relative border-b border-dashed border-border/80 bg-muted/15">
+    <li className={cn('relative border-b border-dashed bg-muted/15', listSubtleBorderClass)}>
       <div className="flex items-start gap-1.5 px-2 py-1.5">
         <span className="flex w-4 shrink-0 justify-center self-start py-2" aria-hidden>
           <Circle className="h-4 w-4 text-muted-foreground/25" />

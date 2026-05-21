@@ -303,6 +303,15 @@ const api = {
       limitPerKind?: number
     }): Promise<GlobalSearchResult> => ipcRenderer.invoke(IPC.app.globalSearch, args)
   },
+  mailBodyIndex: {
+    getStatus: (): Promise<import('@shared/mail-body-index').MailBodyIndexStatus> =>
+      ipcRenderer.invoke(IPC.mailBodyIndex.getStatus),
+    setSettings: (patch: {
+      enabled?: boolean
+      speed?: import('@shared/mail-body-index').MailBodyIndexSpeed
+    }): Promise<import('@shared/mail-body-index').MailBodyIndexStatus> =>
+      ipcRenderer.invoke(IPC.mailBodyIndex.setSettings, patch)
+  },
   config: {
     get: (): Promise<AppConfig> => ipcRenderer.invoke(IPC.config.get),
     setMicrosoftClientId: (clientId: string): Promise<AppConfig> =>
@@ -1150,6 +1159,18 @@ const api = {
       ipcRenderer.on('entity-embeddings:index-progress', listener)
       return (): void => {
         ipcRenderer.off('entity-embeddings:index-progress', listener)
+      }
+    },
+    onMailBodyIndexProgress: (
+      handler: (progress: import('@shared/mail-body-index').MailBodyIndexProgress | null) => void
+    ): (() => void) => {
+      const listener = (
+        _e: IpcRendererEvent,
+        progress: import('@shared/mail-body-index').MailBodyIndexProgress | null
+      ): void => handler(progress)
+      ipcRenderer.on('mail-body-index:progress', listener)
+      return (): void => {
+        ipcRenderer.off('mail-body-index:progress', listener)
       }
     },
     onTeamsChatPopoutClosed: (handler: (payload: TeamsChatPopoutRef) => void): (() => void) => {

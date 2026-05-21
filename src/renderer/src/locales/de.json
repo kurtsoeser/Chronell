@@ -23,6 +23,9 @@
   "app": {
     "loadingShell": "Laden …"
   },
+  "mailBodyIndex": {
+    "progressLabel": "Suche: {{done}} von {{total}} Mails vorbereitet ({{pending}} ausstehend)"
+  },
   "notion": {
     "contextSend": "An Notion-Seite senden…",
     "contextSendAsNewPage": "Als neue Notion-Seite…",
@@ -1371,6 +1374,16 @@
     "mailPanelAria": "Mail",
     "syncWindowHeading": "Sync-Zeitraum",
     "syncWindowIntro": "Begrenzt, wie weit zurück neue Mails synchronisiert werden. Spart Speicher und Bandbreite bei großen Postfächern. Bereits geladene ältere Mails bleiben erhalten.",
+    "mailBodyIndexHeading": "Hintergrund-Suche",
+    "mailBodyIndexIntro": "Lädt Mail-Texte im Hintergrund, damit die globale Suche auch ungeöffnete Mails findet. Höhere Geschwindigkeit belastet Microsoft/Google-APIs stärker.",
+    "mailBodyIndexEnabledTitle": "Mail-Texte im Hintergrund indexieren",
+    "mailBodyIndexEnabledHint": "Wenn aus, werden Bodies nur beim Öffnen einer Mail geladen. Die Suche nutzt dann Betreff, Absender und Vorschau.",
+    "mailBodyIndexSpeedLabel": "Geschwindigkeit",
+    "mailBodyIndexSpeed": {
+      "slow": "Langsam (ca. 3 Mails / 2 Min.)",
+      "normal": "Normal (ca. 6 Mails / 1,5 Min.)",
+      "fast": "Schnell (ca. 12 Mails / 45 Sek.)"
+    },
     "mailDisplayHeading": "Mail-Anzeige",
     "mailListHoverHeading": "Mailliste: Mouse-over-Leiste",
     "mailListHover": {

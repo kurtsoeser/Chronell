@@ -4,6 +4,11 @@ import type {
   GlobalSearchResult,
   SearchHit
 } from '@shared/types'
+import {
+  buildSqlLikeTokenAndClause,
+  buildSqlPhraseRankCaseMulti,
+  splitSearchTokens
+} from '@shared/search-token-query'
 import { getDb } from './db/index'
 import { decorateMailListLike } from './ipc/ipc-helpers'
 import { normalizeMessagesFtsMatchQuery } from './db/messages-repo'
@@ -24,15 +29,16 @@ function resolveNoteSearchTitle(note: {
   return ''
 }
 
-function likeNeedle(raw: string): string | null {
-  const cleaned = raw.trim().replace(/[%_]/g, '')
-  if (cleaned.length < 2) return null
-  return `%${cleaned}%`
-}
-
-function searchCalendarEvents(needle: string, limit: number): CalendarEventView[] {
-  const like = likeNeedle(needle)
-  if (!like) return []
+function searchCalendarEvents(rawQuery: string, limit: number): CalendarEventView[] {
+  const params: unknown[] = []
+  const where = buildSqlLikeTokenAndClause(
+    ['title', "IFNULL(location, '')"],
+    rawQuery,
+    params
+  )
+  if (!where) return []
+  const phraseRank = buildSqlPhraseRankCaseMulti(['title', "IFNULL(location, '')"], rawQuery)
+  const orderSql = phraseRank ? `${phraseRank.sql}, start_iso DESC` : `start_iso DESC`
   const rows = getDb()
     .prepare(
       `SELECT
@@ -40,11 +46,11 @@ function searchCalendarEvents(needle: string, limit: number): CalendarEventView[
          account_color_class, title, start_iso, end_iso, is_all_day, location,
          web_link, join_url, organizer, display_color_hex, calendar_can_edit
        FROM calendar_events
-       WHERE title LIKE ? OR IFNULL(location, '') LIKE ?
-       ORDER BY start_iso DESC
+       WHERE ${where}
+       ORDER BY ${orderSql}
        LIMIT ?`
     )
-    .all(like, like, limit) as Array<{
+    .all(...params, ...(phraseRank?.params ?? []), limit) as Array<{
     id: string
     account_id: string
     source: 'microsoft' | 'google'
@@ -86,7 +92,7 @@ function searchCalendarEvents(needle: string, limit: number): CalendarEventView[
 }
 
 function searchCloudTasks(
-  needle: string,
+  rawQuery: string,
   limit: number
 ): Array<{
   accountId: string
@@ -96,18 +102,23 @@ function searchCloudTasks(
   notes: string | null
   dueIso: string | null
 }> {
-  const like = likeNeedle(needle)
-  if (!like) return []
+  const params: unknown[] = []
+  const where = buildSqlLikeTokenAndClause(['title', "IFNULL(notes, '')"], rawQuery, params)
+  if (!where) return []
+  const phraseRank = buildSqlPhraseRankCaseMulti(['title', "IFNULL(notes, '')"], rawQuery)
+  const orderSql = phraseRank
+    ? `${phraseRank.sql}, completed ASC, due_iso ASC NULLS LAST, title ASC`
+    : `completed ASC, due_iso ASC NULLS LAST, title ASC`
   return getDb()
     .prepare(
       `SELECT account_id as accountId, list_id as listId, task_id as taskId,
               title, notes, due_iso as dueIso
        FROM cloud_tasks
-       WHERE title LIKE ? OR IFNULL(notes, '') LIKE ?
-       ORDER BY completed ASC, due_iso ASC NULLS LAST, title ASC
+       WHERE ${where}
+       ORDER BY ${orderSql}
        LIMIT ?`
     )
-    .all(like, like, limit) as Array<{
+    .all(...params, ...(phraseRank?.params ?? []), limit) as Array<{
     accountId: string
     listId: string
     taskId: string
@@ -117,23 +128,41 @@ function searchCloudTasks(
   }>
 }
 
-function searchContacts(needle: string, limit: number): GlobalSearchContactHit[] {
-  const like = likeNeedle(needle)
-  if (!like) return []
+function searchContacts(rawQuery: string, limit: number): GlobalSearchContactHit[] {
+  const params: unknown[] = []
+  const where = buildSqlLikeTokenAndClause(
+    [
+      "IFNULL(display_name, '')",
+      'primary_email',
+      "IFNULL(emails_json, '')",
+      "IFNULL(company, '')"
+    ],
+    rawQuery,
+    params
+  )
+  if (!where) return []
+  const phraseRank = buildSqlPhraseRankCaseMulti(
+    [
+      "IFNULL(display_name, '')",
+      "IFNULL(company, '')",
+      'primary_email',
+      "IFNULL(emails_json, '')"
+    ],
+    rawQuery
+  )
+  const orderSql = phraseRank
+    ? `${phraseRank.sql}, is_favorite DESC, display_name ASC`
+    : `is_favorite DESC, display_name ASC`
   const rows = getDb()
     .prepare(
       `SELECT id, account_id as accountId, display_name as displayName, primary_email as primaryEmail
        FROM people_contacts
        WHERE primary_email IS NOT NULL AND primary_email != ''
-         AND (
-           LOWER(IFNULL(display_name, '')) LIKE LOWER(?)
-           OR LOWER(primary_email) LIKE LOWER(?)
-           OR LOWER(IFNULL(emails_json, '')) LIKE LOWER(?)
-         )
-       ORDER BY is_favorite DESC, display_name ASC
+         AND (${where})
+       ORDER BY ${orderSql}
        LIMIT ?`
     )
-    .all(like, like, like, limit) as Array<{
+    .all(...params, ...(phraseRank?.params ?? []), limit) as Array<{
     id: number
     accountId: string
     displayName: string | null
@@ -166,7 +195,7 @@ export function globalSearch(rawQuery: string, limitPerKind = 8): GlobalSearchRe
     tasks: [],
     contacts: []
   }
-  if (!fts && !likeNeedle(query)) return empty
+  if (!fts && splitSearchTokens(query).length === 0) return empty
 
   const mails: SearchHit[] = fts
     ? decorateMailListLike(searchMessages(query, limitPerKind))

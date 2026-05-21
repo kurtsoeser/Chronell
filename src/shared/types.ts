@@ -110,6 +110,12 @@ export interface AppConfig {
    */
   mailPollIntervalSeconds?: number
   /**
+   * Mail-Bodies im Hintergrund fuer die Volltextsuche laden. Standard: an.
+   */
+  mailBodyIndexEnabled?: boolean
+  /** Geschwindigkeit der Hintergrund-Body-Indexierung. Standard: `normal`. */
+  mailBodyIndexSpeed?: import('./mail-body-index').MailBodyIndexSpeed
+  /**
    * Externe Bilder in HTML-Mails automatisch laden. Wenn `false` muss der
    * Benutzer pro Mail explizit auf "Bilder laden" klicken.
    */

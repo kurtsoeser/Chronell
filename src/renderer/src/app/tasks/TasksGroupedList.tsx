@@ -10,6 +10,7 @@ import { de, enUS } from 'date-fns/locale'
 
 import type { ConnectedAccount } from '@shared/types'
 
+import { listSubtleBorderClass } from '@/lib/chronell-ui-classes'
 import { cn } from '@/lib/utils'
 
 import { motionListItemExit } from '@/lib/motion'
@@ -258,7 +259,10 @@ export function TasksGroupedList({
 
                 aria-expanded={!isCollapsed}
 
-                className="sticky top-0 z-[1] flex w-full items-center gap-1.5 border-b border-border/60 bg-card/95 px-2 py-1.5 text-left backdrop-blur hover:bg-muted/20"
+                className={cn(
+                  'sticky top-0 z-[1] flex w-full items-center gap-1.5 border-b bg-card/95 px-2 py-1.5 text-left backdrop-blur hover:bg-muted/20',
+                  listSubtleBorderClass
+                )}
 
                 onClick={(): void => toggleGroup(collapseKey)}
 
@@ -342,7 +346,8 @@ export function TasksGroupedList({
 
                       className={cn(
 
-                        'relative cursor-default border-b border-border/60 select-none',
+                        'relative cursor-default border-b select-none',
+                        listSubtleBorderClass,
 
                         checked && 'bg-primary/8',
 

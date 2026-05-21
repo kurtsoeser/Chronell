@@ -1,6 +1,9 @@
 import { normalizeEntityIconColor } from '@shared/entity-icon-color'
 import { getDb } from './index'
-import { normalizeMessagesFtsMatchQuery } from './messages-repo'
+import {
+  buildSqlPhraseRankCaseMulti,
+  normalizeFtsTokenOrPhraseMatchQuery
+} from '@shared/search-token-query'
 import type {
   SettingsBackupUserNoteSnapshot,
   UserNote,
@@ -736,8 +739,20 @@ export function listNotes(filters: UserNoteListFilters = {}): UserNoteListItem[]
  * FTS5-Volltextsuche ueber Titel, Body, Termin-Titel und Mail-Betreff.
  */
 export function searchNotes(filters: UserNoteSearchFilters): UserNoteListItem[] {
-  const cleaned = normalizeMessagesFtsMatchQuery(filters.query)
+  const cleaned = normalizeFtsTokenOrPhraseMatchQuery(filters.query)
   if (!cleaned) return []
+
+  const phraseRank = buildSqlPhraseRankCaseMulti(
+    [
+      "COALESCE(n.title, '')",
+      "COALESCE(m.subject, '')",
+      "COALESCE(n.body, '')"
+    ],
+    filters.query
+  )
+  const orderSql = phraseRank
+    ? `${phraseRank.sql}, bm25(user_notes_fts), n.updated_at DESC, n.id DESC`
+    : `bm25(user_notes_fts), n.updated_at DESC, n.id DESC`
 
   const kinds = (filters.kinds ?? []).filter((k) => k === 'mail' || k === 'calendar' || k === 'standalone')
   const kindClause =
@@ -748,6 +763,7 @@ export function searchNotes(filters: UserNoteSearchFilters): UserNoteListItem[] 
       ? Math.min(Math.floor(filters.limit), 100)
       : 30
 
+  const baseParams: unknown[] = [cleaned, ...(phraseRank?.params ?? [])]
   const rows = getDb()
     .prepare(
       `SELECT
@@ -767,10 +783,10 @@ export function searchNotes(filters: UserNoteSearchFilters): UserNoteListItem[] 
        LEFT JOIN messages m ON m.id = n.message_id
        WHERE user_notes_fts MATCH ?
        ${kindClause}
-       ORDER BY bm25(user_notes_fts), n.updated_at DESC, n.id DESC
+       ORDER BY ${orderSql}
        LIMIT ?`
     )
-    .all(...(kinds.length > 0 ? [cleaned, ...kinds, limit] : [cleaned, limit])) as UserNoteListRow[]
+    .all(...(kinds.length > 0 ? [...baseParams, ...kinds, limit] : [...baseParams, limit])) as UserNoteListRow[]
 
   return rows.map(rowToListItem)
 }

@@ -6,6 +6,10 @@ import {
 } from './entity-links-repo'
 import type { MailFull, MailListItem } from '@shared/types'
 import { rowToListItem, rowToFull, type MessageRow } from './messages-repo-core'
+import {
+  buildSqlPhraseRankCase,
+  normalizeFtsTokenOrPhraseMatchQuery
+} from '@shared/search-token-query'
 import { LIST_COLUMNS, normalizeMessagesFtsMatchQuery } from './messages-repo-list'
 export function setMessageReadLocal(id: number, isRead: boolean): void {
   const db = getDb()
@@ -229,17 +233,22 @@ export interface SearchHit extends MailListItem {
 }
 
 /**
- * FTS5-Volltextsuche ueber `subject`, `from_*` und `body_text` aller Mails.
+ * FTS5-Volltextsuche ueber `subject`, `from_*`, `snippet` und `body_text` aller Mails.
  * Eingabe-Query wird zu einer Prefix-Suche pro Token gewandelt
  * ("kurt sept" -> "kurt* sept*").
  */
 export function searchMessages(rawQuery: string, limit = 30): SearchHit[] {
-  const cleaned = normalizeMessagesFtsMatchQuery(rawQuery)
+  const cleaned = normalizeFtsTokenOrPhraseMatchQuery(rawQuery)
   if (!cleaned) return []
+
+  const phraseRank = buildSqlPhraseRankCase('m.subject', "IFNULL(m.snippet, '')", rawQuery)
+  const orderSql = phraseRank
+    ? `${phraseRank.sql}, bm25(messages_fts), m.received_at DESC NULLS LAST`
+    : `bm25(messages_fts), m.received_at DESC NULLS LAST`
 
   const db = getDb()
   const rows = db
-    .prepare<[string, number], MessageRow & { folder_name: string | null; folder_well_known: string | null }>(
+    .prepare(
       `SELECT
          m.id, m.account_id, m.folder_id, m.thread_id, m.remote_id, m.remote_thread_id,
          m.subject, m.from_addr, m.from_name, m.to_addrs, m.cc_addrs, m.snippet,
@@ -251,10 +260,12 @@ export function searchMessages(rawQuery: string, limit = 30): SearchHit[] {
        JOIN messages m ON m.id = fts.rowid
        LEFT JOIN folders f ON f.id = m.folder_id
        WHERE messages_fts MATCH ?
-       ORDER BY bm25(messages_fts), m.received_at DESC NULLS LAST
+       ORDER BY ${orderSql}
        LIMIT ?`
     )
-    .all(cleaned, limit)
+    .all(cleaned, ...(phraseRank?.params ?? []), limit) as Array<
+      MessageRow & { folder_name: string | null; folder_well_known: string | null }
+    >
 
   return rows.map((r) => ({
     ...rowToListItem(r),
@@ -282,6 +293,35 @@ export function clearWaitingForReplyOnThreads(accountId: string, remoteThreadIds
   ).run(accountId, ...ids)
 }
 
+/** Anzahl Mails ohne lokalen Body (fuer Such-Indexierung). */
+export function countMessagesNeedingBodyIndex(): number {
+  const row = getDb()
+    .prepare(
+      `SELECT COUNT(*) as c FROM messages
+       WHERE remote_id IS NOT NULL AND trim(remote_id) != ''
+         AND (body_text IS NULL OR trim(body_text) = '')
+         AND (body_html IS NULL OR trim(body_html) = '')`
+    )
+    .get() as { c: number }
+  return row.c
+}
+
+/** Mails ohne lokalen Body (neueste zuerst) fuer Hintergrund-FTS-Indexierung. */
+export function listMessageIdsNeedingBodyIndex(limit: number): number[] {
+  const cap = Math.min(Math.max(Math.floor(limit), 1), 50)
+  const rows = getDb()
+    .prepare(
+      `SELECT id FROM messages
+       WHERE remote_id IS NOT NULL AND trim(remote_id) != ''
+         AND (body_text IS NULL OR trim(body_text) = '')
+         AND (body_html IS NULL OR trim(body_html) = '')
+       ORDER BY received_at DESC NULLS LAST, id DESC
+       LIMIT ?`
+    )
+    .all(cap) as Array<{ id: number }>
+  return rows.map((r) => r.id)
+}
+
 export function updateMessageBodiesLocal(
   id: number,
   bodyHtml: string | null,
@@ -293,6 +333,18 @@ export function updateMessageBodiesLocal(
     bodyText,
     id
   )
+}
+
+/**
+ * Mail existiert beim Provider nicht mehr (404): Snippet/Betreff als body_text,
+ * damit die Hintergrund-Indexierung nicht erneut versucht und FTS etwas hat.
+ */
+export function markMessageBodyIndexFallbackLocal(id: number): void {
+  const msg = getMessageById(id)
+  if (!msg) return
+  const parts = [msg.snippet?.trim(), msg.subject?.trim()].filter((p): p is string => Boolean(p))
+  const text = parts.length > 0 ? parts.join('\n\n') : '.'
+  updateMessageBodiesLocal(id, null, text)
 }
 
 export function getMessageById(id: number): MailFull | null {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { normalizeMessagesFtsMatchQuery } from './messages-repo'
+import { normalizeFtsMatchQuery as normalizeMessagesFtsMatchQuery } from '@shared/search-token-query'
 
 describe('notes FTS query', () => {
   it('requires at least two characters per token', () => {

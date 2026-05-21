@@ -9,6 +9,10 @@ export const IPC = {
     openExternal: 'app:open-external',
     globalSearch: 'app:global-search'
   },
+  mailBodyIndex: {
+    getStatus: 'mail-body-index:get-status',
+    setSettings: 'mail-body-index:set-settings'
+  },
   config: {
     get: 'config:get',
     setMicrosoftClientId: 'config:set-microsoft-client-id',

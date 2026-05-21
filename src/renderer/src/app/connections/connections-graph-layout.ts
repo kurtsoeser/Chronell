@@ -1,4 +1,5 @@
 import type { EntityGraphClusterMode, EntityGraphEdge, EntityGraphNode } from '@shared/entity-links'
+import { normalizeSearchPhrase, textMatchesAllSearchTokens } from '@shared/search-token-query'
 import { resolveLayoutClusterKey } from '@/app/connections/connections-cluster-keys'
 import { computeConnectedComponentKeys } from '@/app/connections/graph-components'
 
@@ -1070,23 +1071,26 @@ export function graphContentBounds(layout: LayoutNode[]): {
   return { minX, minY, maxX, maxY }
 }
 
+function phraseRankForGraphNode(node: EntityGraphNode, rawQuery: string): number {
+  const phrase = normalizeSearchPhrase(rawQuery)?.toLowerCase()
+  if (!phrase) return 0
+  const title = node.title.toLowerCase()
+  const subtitle = node.subtitle?.toLowerCase() ?? ''
+  if (title.includes(phrase)) return 0
+  if (subtitle.includes(phrase)) return 1
+  return 2
+}
+
 export function filterGraphByQuery(
   nodes: EntityGraphNode[],
   edges: EntityGraphEdge[],
   query: string
 ): { nodes: EntityGraphNode[]; edges: EntityGraphEdge[] } {
-  const q = query.trim().toLowerCase()
-  if (!q) return { nodes, edges }
-  const keys = new Set(
-    nodes
-      .filter(
-        (n) =>
-          n.title.toLowerCase().includes(q) ||
-          (n.subtitle?.toLowerCase().includes(q) ?? false) ||
-          n.kind.toLowerCase().includes(q)
-      )
-      .map((n) => n.key)
-  )
+  if (!query.trim()) return { nodes, edges }
+  const matched = nodes
+    .filter((n) => textMatchesAllSearchTokens(query, n.title, n.subtitle, n.kind))
+    .sort((a, b) => phraseRankForGraphNode(a, query) - phraseRankForGraphNode(b, query))
+  const keys = new Set(matched.map((n) => n.key))
   if (keys.size === 0) return { nodes: [], edges: [] }
   for (const e of edges) {
     if (keys.has(e.aKey)) keys.add(e.bKey)

@@ -1,8 +1,14 @@
 import { listAccounts } from './accounts'
-import { getMessageById, updateMessageBodiesLocal } from './db/messages-repo'
+import {
+  getMessageById,
+  markMessageBodyIndexFallbackLocal,
+  updateMessageBodiesLocal
+} from './db/messages-repo'
 import { createGraphClient } from './graph/client'
 import { loadConfig } from './config'
+import { isGraphItemNotFound } from './graph/graph-request-errors'
 import { getGoogleApis } from './google/google-auth-client'
+import { withGraphMailboxSlot } from './graph/graph-mailbox-queue'
 import type { gmail_v1 } from 'googleapis'
 import type { MailFull } from '@shared/types'
 
@@ -59,6 +65,17 @@ function messageNeedsBody(msg: MailFull): boolean {
   return !hasHtml && !hasText
 }
 
+function isProviderMessageNotFound(e: unknown, provider: 'microsoft' | 'google'): boolean {
+  if (provider === 'microsoft') return isGraphItemNotFound(e)
+  if (e && typeof e === 'object') {
+    const code = (e as { code?: unknown }).code
+    if (code === 404 || code === '404') return true
+    const status = (e as { response?: { status?: number } }).response?.status
+    if (status === 404) return true
+  }
+  return false
+}
+
 async function fetchGraphMessageBody(
   accountId: string,
   remoteId: string
@@ -69,10 +86,9 @@ async function fetchGraphMessageBody(
   }
   const homeAccountId = accountId.replace(/^ms:/, '')
   const client = createGraphClient(config.microsoftClientId, homeAccountId)
-  const m = (await client
-    .api(`/me/messages/${remoteId}`)
-    .select(['body'])
-    .get()) as {
+  const m = await withGraphMailboxSlot(accountId, () =>
+    client.api(`/me/messages/${remoteId}`).select(['body']).get()
+  ) as {
     body?: { contentType: 'html' | 'text'; content: string } | null
   }
   const html = m.body && m.body.contentType === 'html' ? m.body.content : null
@@ -94,25 +110,55 @@ async function fetchGmailMessageBody(
   return { bodyHtml: bodies.html, bodyText }
 }
 
-/** Laedt Mail-Body vom Provider nach, wenn lokal noch keiner gespeichert ist. */
-export async function ensureMessageBodyLoaded(messageId: number): Promise<MailFull | null> {
+export interface FetchMessageBodyOptions {
+  /** Hintergrund-Indexierung: keine Warn-Stacks bei erwarteten 404. */
+  background?: boolean
+}
+
+/**
+ * Laedt Mail-Body vom Provider und speichert ihn lokal, wenn noch keiner vorhanden ist.
+ * @returns true wenn ein Body neu indexiert wurde
+ */
+export async function fetchAndStoreMessageBodyIfMissing(
+  messageId: number,
+  opts?: FetchMessageBodyOptions
+): Promise<boolean> {
   const msg = getMessageById(messageId)
-  if (!msg || !messageNeedsBody(msg)) return msg
+  if (!msg || !messageNeedsBody(msg)) return false
 
   const accounts = await listAccounts()
   const account = accounts.find((a) => a.id === msg.accountId)
-  if (!account || !msg.remoteId) return msg
+  if (!account || !msg.remoteId) return false
 
   try {
     const bodies =
       account.provider === 'google'
         ? await fetchGmailMessageBody(account.id, msg.remoteId)
         : await fetchGraphMessageBody(account.id, msg.remoteId)
-    if (!bodies.bodyHtml && !bodies.bodyText) return msg
+    if (!bodies.bodyHtml && !bodies.bodyText) return false
     updateMessageBodiesLocal(messageId, bodies.bodyHtml, bodies.bodyText)
-    return getMessageById(messageId)
+    return true
   } catch (e) {
-    console.warn('[message-body-fetch] Body konnte nicht geladen werden:', messageId, e)
-    return msg
+    if (isProviderMessageNotFound(e, account.provider)) {
+      markMessageBodyIndexFallbackLocal(messageId)
+      return false
+    }
+    if (!opts?.background) {
+      console.warn('[message-body-fetch] Body konnte nicht geladen werden:', messageId, e)
+    } else {
+      const hint = e instanceof Error ? e.message : String(e)
+      console.warn(
+        `[message-body-fetch] Hintergrund-Indexierung uebersprungen (id=${messageId}): ${hint}`
+      )
+    }
+    return false
   }
+}
+
+/** Laedt Mail-Body vom Provider nach, wenn lokal noch keiner gespeichert ist. */
+export async function ensureMessageBodyLoaded(messageId: number): Promise<MailFull | null> {
+  const msg = getMessageById(messageId)
+  if (!msg || !messageNeedsBody(msg)) return msg
+  await fetchAndStoreMessageBodyIfMissing(messageId)
+  return getMessageById(messageId)
 }

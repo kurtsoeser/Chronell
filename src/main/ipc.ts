@@ -19,6 +19,7 @@ import { registerBookingsIpc } from './ipc/register-bookings-ipc'
 import { registerNotionIpc } from './ipc/register-notion-ipc'
 import { registerTeamsChatPopoutIpc } from './ipc/register-teams-chat-popout-ipc'
 import { registerMailReadingPopoutIpc } from './ipc/register-mail-reading-popout-ipc'
+import { registerMailBodyIndexIpc } from './ipc/register-mail-body-index-ipc'
 import { ensureAccountProfilePhotosForMissing } from './ipc/ipc-helpers'
 import { broadcastSyncStatus, broadcastMailChanged, broadcastNotesChanged } from './ipc/ipc-broadcasts'
 
@@ -44,6 +45,7 @@ export function registerIpcHandlers(): void {
   registerNotionIpc()
   registerTeamsChatPopoutIpc()
   registerMailReadingPopoutIpc()
+  registerMailBodyIndexIpc()
 
   setImmediate(() => {
     void ensureAccountProfilePhotosForMissing().catch((e) =>

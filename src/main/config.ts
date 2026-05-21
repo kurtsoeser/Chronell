@@ -21,6 +21,8 @@ const PERSISTED_CONFIG_KEYS: (keyof AppConfig)[] = [
   'notionClientSecret',
   'syncWindowDays',
   'mailPollIntervalSeconds',
+  'mailBodyIndexEnabled',
+  'mailBodyIndexSpeed',
   'autoLoadImages',
   'launchOnLogin',
   'calendarTimeZone',
@@ -46,6 +48,8 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
   notionClientSecret: null,
   syncWindowDays: 90,
   mailPollIntervalSeconds: 60,
+  mailBodyIndexEnabled: true,
+  mailBodyIndexSpeed: 'normal',
   autoLoadImages: true,
   launchOnLogin: false,
   calendarTimeZone: null,
@@ -231,6 +235,10 @@ export async function updateConfig(patch: Partial<AppConfig>): Promise<AppConfig
   remoteOAuthCache = undefined
   if ('mailPollIntervalSeconds' in patch) {
     restartMailPollingInterval()
+  }
+  if ('mailBodyIndexEnabled' in patch || 'mailBodyIndexSpeed' in patch) {
+    const { restartMailBodyIndexRunner } = await import('./mail-body-index-queue')
+    restartMailBodyIndexRunner()
   }
   if ('profileSyncPollIntervalSeconds' in patch) {
     const { restartProfileSyncRunner } = await import('./sync-profile/profile-sync-runner')

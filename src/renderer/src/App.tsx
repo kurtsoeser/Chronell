@@ -18,6 +18,7 @@ import {
 } from '@/app/layout/topbar-module-prefs'
 import { subscribeConnectivityFromMain } from './stores/connectivity'
 import { ProfileSyncBridge } from './components/ProfileSyncBridge'
+import { MailBodyIndexProgressBar } from '@/app/layout/MailBodyIndexProgressBar'
 import { useSnoozeUiStore } from './stores/snooze-ui'
 import { useCreateCloudTaskUiStore } from './stores/create-cloud-task-ui'
 import { useNotionDestinationPickerStore } from './stores/notion-destination-picker'
@@ -249,6 +250,7 @@ export function App(): JSX.Element {
       <Suspense fallback={<TopbarFallback />}>
         <Topbar onOpenAccountDialog={(): void => openAccountSettings('general')} />
       </Suspense>
+      <MailBodyIndexProgressBar />
       <div className="chronell-module-shell flex min-h-0 flex-1 flex-col">
         <Suspense fallback={<AppShellFallback />}>
           {mode === 'home' && <HomeDashboard />}

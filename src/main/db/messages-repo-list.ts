@@ -1,3 +1,8 @@
+import {
+  escapeSqlLikePattern,
+  normalizeFtsMatchQuery,
+  normalizeFtsTokenOrPhraseMatchQuery
+} from '@shared/search-token-query'
 import { getDb } from './index'
 import type { MailListItem, MetaFolderCriteria, MetaFolderExceptionClause } from '@shared/types'
 import { findFolderByWellKnown } from './folders-repo'
@@ -55,23 +60,16 @@ function mapOpenTodoJoinRow(r: InboxOpenTodoJoinRow): MailListItem {
   }
 }
 
-function escapeSqlLikePattern(s: string): string {
-  return s.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_')
-}
-
 /**
  * FTS5-MATCH-String (Prefix-Tokens), konsistent mit {@link searchMessages}.
  */
 export function normalizeMessagesFtsMatchQuery(rawQuery: string): string | null {
-  const cleaned = rawQuery
-    .trim()
-    .replace(/["()]/g, ' ')
-    .split(/\s+/)
-    .filter((t) => t.length >= 2)
-    .map((t) => `${t.replace(/[^\w\u00C0-\u017F]/g, '')}*`)
-    .filter((t) => t.length > 1)
-    .join(' ')
-  return cleaned.length > 0 ? cleaned : null
+  return normalizeFtsMatchQuery(rawQuery)
+}
+
+/** FTS MATCH inkl. Phrase (Meta-Ordner, konsistent mit {@link searchMessages}). */
+export function normalizeMessagesFtsTokenOrPhraseMatchQuery(rawQuery: string): string | null {
+  return normalizeFtsTokenOrPhraseMatchQuery(rawQuery)
 }
 
 export function metaFolderCriteriaHasActiveFilter(criteria: MetaFolderCriteria): boolean {
@@ -119,7 +117,7 @@ function collectMetaFolderAtomSqlFragments(src: MetaFolderAtomSource, params: un
   }
   const ftsFrags: string[] = []
   for (const line of ftsLines) {
-    const fts = normalizeMessagesFtsMatchQuery(line)
+    const fts = normalizeMessagesFtsTokenOrPhraseMatchQuery(line)
     if (fts) {
       ftsFrags.push(`m.id IN (SELECT rowid FROM messages_fts WHERE messages_fts MATCH ?)`)
       params.push(fts)

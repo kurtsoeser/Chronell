@@ -63,6 +63,10 @@ interface AccountsState {
   setGoogleClientId: (clientId: string, clientSecret?: string | null) => Promise<void>
   setNotionCredentials: (clientId: string, clientSecret?: string | null) => Promise<void>
   setSyncWindowDays: (days: number | null) => Promise<void>
+  setMailBodyIndexSettings: (patch: {
+    enabled?: boolean
+    speed?: import('@shared/mail-body-index').MailBodyIndexSpeed
+  }) => Promise<void>
   setAutoLoadImages: (value: boolean) => Promise<void>
   setCalendarTimeZone: (iana: string | null) => Promise<void>
   setWeatherLocation: (loc: AppConfigWeatherLocation | null) => Promise<void>
@@ -183,6 +187,21 @@ export const useAccountsStore = create<AccountsState>((set, get) => ({
     set({ error: null })
     try {
       const config = await window.mailClient.config.setSyncWindowDays(days)
+      set({ config })
+    } catch (e) {
+      set({ error: e instanceof Error ? e.message : String(e) })
+      throw e
+    }
+  },
+
+  async setMailBodyIndexSettings(patch: {
+    enabled?: boolean
+    speed?: import('@shared/mail-body-index').MailBodyIndexSpeed
+  }): Promise<void> {
+    set({ error: null })
+    try {
+      await window.mailClient.mailBodyIndex.setSettings(patch)
+      const config = await window.mailClient.config.get()
       set({ config })
     } catch (e) {
       set({ error: e instanceof Error ? e.message : String(e) })

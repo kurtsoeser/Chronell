@@ -16,6 +16,7 @@ import { listAccounts } from './accounts'
 import { runInboxRulesForNewMessages } from './rule-runner'
 import { broadcastMailChanged } from './ipc/ipc-broadcasts'
 import { queueEntityEmbeddingsAfterMailSync } from './ai/entity-embeddings-queue'
+import { queueMailBodyIndexAfterSync } from './mail-body-index-queue'
 
 export type SyncState = 'idle' | 'syncing-folders' | 'syncing-messages' | 'error'
 
@@ -48,6 +49,7 @@ export async function runInitialSync(
     broadcast({ accountId, state: 'idle' })
     broadcastMailChanged(accountId)
     queueEntityEmbeddingsAfterMailSync(accountId)
+    queueMailBodyIndexAfterSync(accountId)
     return { folders: result.folders, inboxMessages: result.inboxMessages }
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e)
@@ -73,6 +75,7 @@ export async function runFolderSync(folderId: number, limit = 50): Promise<numbe
     broadcast({ accountId: folder.accountId, state: 'idle' })
     broadcastMailChanged(folder.accountId)
     queueEntityEmbeddingsAfterMailSync(folder.accountId)
+    queueMailBodyIndexAfterSync(folder.accountId)
     return count
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e)
@@ -102,6 +105,7 @@ export async function runFolderPoll(folderId: number): Promise<number> {
     if (added > 0) {
       broadcastMailChanged(folder.accountId, { kind: 'poll', folderIds: [folder.id] })
       queueEntityEmbeddingsAfterMailSync(folder.accountId)
+      queueMailBodyIndexAfterSync(folder.accountId)
       if (folder.wellKnown === 'inbox' && remoteIds.length > 0) {
         const idMap = listMessageIdsByRemoteIds(folder.accountId, remoteIds)
         const ids = [...idMap.values()]

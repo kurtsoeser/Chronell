@@ -13,6 +13,11 @@ import { showAppConfirm } from '@/stores/app-dialog'
 import { cn } from '@/lib/utils'
 import { FilterTabs } from '@/components/FilterTabs'
 import { CALENDAR_TIMEZONE_UI_OPTIONS } from '@shared/microsoft-timezones'
+import {
+  MAIL_BODY_INDEX_SPEED_OPTIONS,
+  normalizeMailBodyIndexSpeed,
+  type MailBodyIndexSpeed
+} from '@shared/mail-body-index'
 import { OUTLOOK_COLOR_PRESET_OPTIONS, outlookCategoryDotClass } from '@/lib/outlook-category-colors'
 import { geocodeOpenMeteoPlace } from '@/lib/open-meteo-weather'
 import { buildFolderTree, type FolderNode } from '@/lib/folder-tree'
@@ -136,7 +141,8 @@ import {
   Download,
   Upload,
   PanelLeft,
-  HardDrive
+  HardDrive,
+  FileSearch
 } from 'lucide-react'
 
 type SettingsTab = 'general' | 'accounts' | 'mail' | 'calendar' | 'bookings' | 'contacts' | 'notes' | 'info'
@@ -258,6 +264,7 @@ export function AccountSetupDialog({
     setMicrosoftClientId,
     setGoogleClientId,
     setSyncWindowDays,
+    setMailBodyIndexSettings,
     setAutoLoadImages,
     setCalendarTimeZone,
     setWeatherLocation,
@@ -882,6 +889,32 @@ export function AccountSetupDialog({
       for (const acc of accounts) {
         void triggerSync(acc.id)
       }
+    } catch (e) {
+      setLocalError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleMailBodyIndexEnabledChange(enabled: boolean): Promise<void> {
+    setBusy(true)
+    setLocalError(null)
+    try {
+      await setMailBodyIndexSettings({ enabled })
+    } catch (e) {
+      setLocalError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleMailBodyIndexSpeedChange(value: string): Promise<void> {
+    setBusy(true)
+    setLocalError(null)
+    try {
+      await setMailBodyIndexSettings({
+        speed: normalizeMailBodyIndexSpeed(value as MailBodyIndexSpeed)
+      })
     } catch (e) {
       setLocalError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -1973,6 +2006,54 @@ export function AccountSetupDialog({
                     </option>
                   ))}
                 </select>
+              </section>
+              )}
+
+              {subNavId.mail === 'sync' && (
+              <section className="space-y-2">
+                <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  <FileSearch className="h-3.5 w-3.5" />
+                  {t('settings.mailBodyIndexHeading')}
+                </h3>
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  {t('settings.mailBodyIndexIntro')}
+                </p>
+                <label className="flex cursor-pointer items-start gap-3 rounded-md border border-border bg-background/40 p-3">
+                  <input
+                    type="checkbox"
+                    checked={config?.mailBodyIndexEnabled !== false}
+                    onChange={(e): void => {
+                      void handleMailBodyIndexEnabledChange(e.target.checked)
+                    }}
+                    disabled={busy}
+                    className="mt-0.5 h-4 w-4 cursor-pointer accent-primary"
+                  />
+                  <span className="flex-1 text-xs">
+                    <span className="block font-medium text-foreground">
+                      {t('settings.mailBodyIndexEnabledTitle')}
+                    </span>
+                    <span className="mt-0.5 block leading-relaxed text-muted-foreground">
+                      {t('settings.mailBodyIndexEnabledHint')}
+                    </span>
+                  </span>
+                </label>
+                <label className="block space-y-1 text-xs">
+                  <span className="font-medium text-foreground">{t('settings.mailBodyIndexSpeedLabel')}</span>
+                  <select
+                    value={normalizeMailBodyIndexSpeed(config?.mailBodyIndexSpeed)}
+                    onChange={(e): void => {
+                      void handleMailBodyIndexSpeedChange(e.target.value)
+                    }}
+                    disabled={busy || config?.mailBodyIndexEnabled === false}
+                    className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-xs outline-none focus:border-ring disabled:opacity-50"
+                  >
+                    {MAIL_BODY_INDEX_SPEED_OPTIONS.map((speed) => (
+                      <option key={speed} value={speed}>
+                        {t(`settings.mailBodyIndexSpeed.${speed}`)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               </section>
               )}
 
