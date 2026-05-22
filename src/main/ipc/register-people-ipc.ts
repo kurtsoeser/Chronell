@@ -14,6 +14,7 @@ import {
 } from '@shared/types'
 import {
   getPeopleNavCounts,
+  findPeopleContactByEmailForUi,
   listPeopleForUi,
   setFavoriteForPeopleContact,
   syncPeopleForAccount,
@@ -81,6 +82,17 @@ export function registerPeopleIpc(): void {
     if (!Number.isFinite(id) || id <= 0) return null
     return getPeopleContactById(id)
   })
+
+  ipcMain.removeHandler(IPC.people.findByEmail)
+  ipcMain.handle(
+    IPC.people.findByEmail,
+    (_event, raw: unknown): PeopleContactView | null => {
+      const o = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
+      const email = typeof o.email === 'string' ? o.email : ''
+      const accountId = typeof o.accountId === 'string' ? o.accountId.trim() || null : null
+      return findPeopleContactByEmailForUi(email, accountId)
+    }
+  )
 
   ipcMain.removeHandler(IPC.people.getNavCounts)
   ipcMain.handle(IPC.people.getNavCounts, async (): Promise<PeopleNavCounts> => {

@@ -268,6 +268,7 @@ export function AccountSetupDialog({
     setSyncWindowDays,
     setMailBodyIndexSettings,
     setAutoLoadImages,
+    setGravatarEnabled,
     setCalendarTimeZone,
     setWeatherLocation,
     addMicrosoftAccount,
@@ -876,6 +877,18 @@ export function AccountSetupDialog({
     setLocalError(null)
     try {
       await setAutoLoadImages(value)
+    } catch (e) {
+      setLocalError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleToggleGravatar(value: boolean): Promise<void> {
+    setBusy(true)
+    setLocalError(null)
+    try {
+      await setGravatarEnabled(value)
     } catch (e) {
       setLocalError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -2110,6 +2123,23 @@ export function AccountSetupDialog({
                     <span className="block font-medium text-foreground">{t('settings.autoImagesTitle')}</span>
                     <span className="mt-0.5 block leading-relaxed text-muted-foreground">
                       {t('settings.autoImagesHint')}
+                    </span>
+                  </span>
+                </label>
+                <label className="flex cursor-pointer items-start gap-3 rounded-md bg-background/60 p-3">
+                  <input
+                    type="checkbox"
+                    checked={config?.gravatarEnabled === true}
+                    onChange={(e): void => {
+                      void handleToggleGravatar(e.target.checked)
+                    }}
+                    disabled={busy}
+                    className="mt-0.5 h-4 w-4 cursor-pointer accent-primary"
+                  />
+                  <span className="flex-1 text-xs">
+                    <span className="block font-medium text-foreground">{t('settings.gravatarTitle')}</span>
+                    <span className="mt-0.5 block leading-relaxed text-muted-foreground">
+                      {t('settings.gravatarHint')}
                     </span>
                   </span>
                 </label>

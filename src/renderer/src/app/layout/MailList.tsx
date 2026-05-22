@@ -57,7 +57,10 @@ import { ObjectNoteDialog, type ObjectNoteTarget } from '@/components/ObjectNote
 import { Avatar } from '@/components/Avatar'
 import { AccountColorStripe } from '@/components/AccountColorStripe'
 import { resolvedAccountColorCss } from '@/lib/avatar-color'
-import { profilePhotoSrcForEmail } from '@/lib/contact-avatar'
+import { combineSenderAvatarImageSrc, profilePhotoSrcForEmail } from '@/lib/contact-avatar'
+import { useSenderContactPhoto } from '@/lib/use-sender-contact-photo'
+import { normalizeMailSenderEmail } from '@shared/mail-sender-email'
+import { useCreateContactFromMailStore } from '@/stores/create-contact-from-mail'
 import { StatusDot } from '@/components/StatusDot'
 import { MailListViewMenu } from '@/components/MailListViewMenu'
 import { moduleColumnHeaderMailListRowClass } from '@/components/ModuleColumnHeader'
@@ -343,7 +346,13 @@ export function MailList(): JSX.Element {
       openSnoozePicker,
       refreshNow,
       sendToNotion: createMailSendToNotionHandler(),
-      sendToNotionAsNewPage: createMailSendAsNewNotionPageHandler()
+      sendToNotionAsNewPage: createMailSendAsNewNotionPageHandler(),
+      createContactFromSender: (message): void => {
+        useCreateContactFromMailStore.getState().openFromMessage(message)
+      },
+      openSenderContact: (contactId): void => {
+        useCreateContactFromMailStore.getState().openContactInPeople(contactId)
+      }
     }),
     [
       openReply,
@@ -498,6 +507,19 @@ export function MailList(): JSX.Element {
             )
           : undefined
 
+      let senderContactId: number | null = null
+      if (normalizeMailSenderEmail(message.fromAddr)) {
+        try {
+          const hit = await window.mailClient.people.findByEmail({
+            email: message.fromAddr!,
+            accountId: message.accountId
+          })
+          senderContactId = hit?.id ?? null
+        } catch {
+          senderContactId = null
+        }
+      }
+
       const items = buildMailContextItems(message, mailContextHandlers, {
         ...ui,
         categorySubmenu: cat.length > 0 ? cat : undefined,
@@ -505,6 +527,7 @@ export function MailList(): JSX.Element {
         removeMailTodoOnly: listKind === 'todo',
         moveSubmenuContent,
         allowsCloudTaskCreate: accountSupportsCloudTasks(primaryAcc),
+        senderContactId,
         t
       })
       setContextMenu({ x: anchor.x, y: anchor.y, items })
@@ -1009,7 +1032,9 @@ const ThreadHeadRow = memo(function ThreadHeadRow({
   }, [threadMessages, thread.rootMessage])
   const root = useMemo(() => pickThreadRootMessage(displayMessages), [displayMessages])
   const latest = useMemo(() => pickThreadLatestMessage(displayMessages), [displayMessages])
-  const senderPhoto = profilePhotoSrcForEmail(accounts, profilePhotoDataUrls, root.fromAddr)
+  const accountSenderPhoto = profilePhotoSrcForEmail(accounts, profilePhotoDataUrls, root.fromAddr)
+  const contactSenderPhoto = useSenderContactPhoto(root.fromAddr, root.accountId)
+  const senderPhoto = combineSenderAvatarImageSrc(accountSenderPhoto, contactSenderPhoto)
   const hasMultiple = thread.messageCount > 1
   const outlookExpandHeader = !tableMode && hasMultiple && expanded
   const dateIso = messageListDateIso(latest)

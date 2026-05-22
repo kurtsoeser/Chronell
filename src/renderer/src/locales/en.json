@@ -1488,6 +1488,8 @@
     },
     "autoImagesTitle": "Load external images automatically",
     "autoImagesHint": "Images load directly from servers. For privacy this can enable tracking pixels. When off, you can load images per message manually.",
+    "gravatarTitle": "Load Gravatar avatars",
+    "gravatarHint": "Profile photos from gravatar.com based on email address. Off by default: initials, address book contact photos, and your account profile photo only. No external requests to Gravatar.",
     "flaggedMailboxFilterTitle": "Flagged-mail filter: ignore Deleted/Junk",
     "flaggedMailboxFilterHint": "For the “Mailbox flag” list filter, only threads count where at least one message is actively flagged outside “Deleted Items” and “Junk”. This trims legacy flags left in deleted/spam-like folders — separate from Microsoft To Do. To remove flags on the server entirely, use Outlook or Graph/PowerShell.",
     "bulkUnflagSettingsHeading": "Remove flags on the server (OWA / Outlook)",
@@ -1671,7 +1673,9 @@
     "contextMenu": {
       "removeTodoOnly": "Remove to-do entry (keep message)",
       "removeTodoOnlyBulk": "Remove to-do entries ({{count}})",
-      "aiConnections": "Check connections with AI"
+      "aiConnections": "Check connections with AI",
+      "createSenderContact": "Save sender as contact",
+      "openSenderContact": "Open contact"
     },
     "move": {
       "menu": "Move",

@@ -29,6 +29,7 @@ function mergeCloudConfig(local: AppConfig, remote: AppConfig): AppConfig {
     syncWindowDays: remote.syncWindowDays,
     mailPollIntervalSeconds: remote.mailPollIntervalSeconds,
     autoLoadImages: remote.autoLoadImages,
+    gravatarEnabled: remote.gravatarEnabled,
     launchOnLogin: remote.launchOnLogin,
     calendarTimeZone: remote.calendarTimeZone,
     weatherLatitude: remote.weatherLatitude,

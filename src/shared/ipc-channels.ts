@@ -21,6 +21,7 @@ export const IPC = {
     setMailPollIntervalSeconds: 'config:set-mail-poll-interval-seconds',
     setProfileSyncPollIntervalSeconds: 'config:set-profile-sync-poll-interval-seconds',
     setAutoLoadImages: 'config:set-auto-load-images',
+    setGravatarEnabled: 'config:set-gravatar-enabled',
     setCalendarTimeZone: 'config:set-calendar-time-zone',
     setWeatherLocation: 'config:set-weather-location',
     setWorkflowMailFoldersIntroDismissed: 'config:set-workflow-mail-folders-intro-dismissed',
@@ -268,6 +269,7 @@ export const IPC = {
   people: {
     list: 'people:list',
     getById: 'people:get-by-id',
+    findByEmail: 'people:find-by-email',
     getNavCounts: 'people:get-nav-counts',
     syncAccount: 'people:sync-account',
     syncAll: 'people:sync-all',

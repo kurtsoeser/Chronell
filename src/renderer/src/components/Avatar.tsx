@@ -6,7 +6,8 @@ import {
   bgToRingClass,
   initialsFor
 } from '@/lib/avatar-color'
-import { gravatarUrlForEmail } from '@/lib/gravatar'
+import { gravatarUrlForEmail, isGravatarEnabled } from '@/lib/gravatar'
+import { useAccountsStore } from '@/stores/accounts'
 
 export type AvatarSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl'
 
@@ -76,6 +77,9 @@ export function Avatar({
       ? `${bgToRingClass(accountColor)} ring-1 ring-offset-1 ring-offset-card`
       : ''
 
+  const gravatarEnabled = useAccountsStore((s) => isGravatarEnabled(s.config))
+  const allowGravatar = useGravatar && gravatarEnabled
+
   const [gravatarUrl, setGravatarUrl] = useState<string | null>(null)
   const [imgFailed, setImgFailed] = useState(false)
 
@@ -84,7 +88,7 @@ export function Avatar({
   }, [imageSrcProp, gravatarUrl])
 
   useEffect(() => {
-    if (imageSrcProp || !useGravatar) {
+    if (imageSrcProp || !allowGravatar) {
       setGravatarUrl(null)
       return
     }
@@ -110,7 +114,7 @@ export function Avatar({
     return (): void => {
       cancelled = true
     }
-  }, [email, imageSrcProp, useGravatar, size])
+  }, [email, imageSrcProp, allowGravatar, size])
 
   const resolvedSrc = imageSrcProp || gravatarUrl || undefined
   const showImage = Boolean(resolvedSrc) && !imgFailed

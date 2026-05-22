@@ -59,6 +59,10 @@ const CreateCloudTaskFromMailDialogHost = lazy(async () => {
   const m = await import('./components/CreateCloudTaskFromMailDialogHost')
   return { default: m.CreateCloudTaskFromMailDialogHost }
 })
+const MailCreateContactHost = lazy(async () => {
+  const m = await import('./app/layout/MailCreateContactHost')
+  return { default: m.MailCreateContactHost }
+})
 
 const HomeDashboard = lazy(async () => {
   const m = await import('./app/home/HomeDashboard')
@@ -315,6 +319,9 @@ export function App(): JSX.Element {
           <CreateCloudTaskFromMailDialogHost />
         </Suspense>
       ) : null}
+      <Suspense fallback={null}>
+        <MailCreateContactHost />
+      </Suspense>
       <ToastStack />
       <Suspense fallback={null}>
         <AppDialogHost />

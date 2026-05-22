@@ -1488,6 +1488,8 @@
     },
     "autoImagesTitle": "Externe Bilder automatisch laden",
     "autoImagesHint": "Bilder werden direkt vom Server geladen. Aus Datenschutzgründen kann das Tracking-Pixel ermöglichen. Wenn ausgeschaltet, kannst du Bilder pro Mail manuell laden.",
+    "gravatarTitle": "Gravatar-Avatare laden",
+    "gravatarHint": "Profilbilder von gravatar.com anhand der E-Mail-Adresse. Standard aus: nur Initialen, Kontaktfotos aus dem Adressbuch und dein Konto-Profilbild. Keine externen Anfragen an Gravatar.",
     "flaggedMailboxFilterTitle": "Kennzeichnungs-Filter: Gelöschte/Junk ignorieren",
     "flaggedMailboxFilterHint": "Im Menü «Kennzeichnung (Postfach)» werden nur Threads gezählt und angezeigt, bei denen mindestens eine Mail außerhalb von «Gelöschte Elemente» und «Junk» aktiv gekennzeichnet ist. Reduziert Altlasten in gelöschtem/spamverdächtigem Postfach — unabhängig von Microsoft To Do. Zum vollständigen Entfernen von Kennzeichnungen am Server: Outlook oder Graph/PowerShell.",
     "bulkUnflagSettingsHeading": "Kennzeichnungen am Server entfernen (OWA / Outlook)",
@@ -1671,7 +1673,9 @@
     "contextMenu": {
       "removeTodoOnly": "To-Do-Eintrag entfernen (Mail bleibt)",
       "removeTodoOnlyBulk": "To-Do-Einträge entfernen ({{count}})",
-      "aiConnections": "Verbindungen mit KI prüfen"
+      "aiConnections": "Verbindungen mit KI prüfen",
+      "createSenderContact": "Absender als Kontakt speichern",
+      "openSenderContact": "Kontakt öffnen"
     },
     "move": {
       "menu": "Verschieben",

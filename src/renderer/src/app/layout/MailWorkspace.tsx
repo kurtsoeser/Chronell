@@ -206,6 +206,7 @@ export function MailWorkspace(props: { onOpenAccountDialog: () => void }): JSX.E
           <InboxCalendarSidebar hideChrome />
         </CalendarFloatingPanel>
       ) : null}
+
     </div>
   )
 }

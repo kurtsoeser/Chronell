@@ -33,6 +33,7 @@ import {
   getPeopleNavCounts as repoGetPeopleNavCounts,
   getPeopleSyncCursor,
   insertPeopleContactRow,
+  findPeopleContactByEmail,
   listPeopleContacts,
   replaceContactsForAccount,
   setPeopleFavorite as repoSetPeopleFavorite,
@@ -43,6 +44,13 @@ import {
 
 export function listPeopleForUi(input: PeopleListInput) {
   return listPeopleContacts(input)
+}
+
+export function findPeopleContactByEmailForUi(
+  email: string,
+  preferredAccountId?: string | null
+): PeopleContactView | null {
+  return findPeopleContactByEmail(email, preferredAccountId)
 }
 
 export async function getPeopleNavCounts(): Promise<PeopleNavCounts> {

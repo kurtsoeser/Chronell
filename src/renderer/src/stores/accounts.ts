@@ -68,6 +68,7 @@ interface AccountsState {
     speed?: import('@shared/mail-body-index').MailBodyIndexSpeed
   }) => Promise<void>
   setAutoLoadImages: (value: boolean) => Promise<void>
+  setGravatarEnabled: (value: boolean) => Promise<void>
   setCalendarTimeZone: (iana: string | null) => Promise<void>
   setWeatherLocation: (loc: AppConfigWeatherLocation | null) => Promise<void>
   addMicrosoftAccount: () => Promise<void>
@@ -213,6 +214,17 @@ export const useAccountsStore = create<AccountsState>((set, get) => ({
     set({ error: null })
     try {
       const config = await window.mailClient.config.setAutoLoadImages(value)
+      set({ config })
+    } catch (e) {
+      set({ error: e instanceof Error ? e.message : String(e) })
+      throw e
+    }
+  },
+
+  async setGravatarEnabled(value: boolean): Promise<void> {
+    set({ error: null })
+    try {
+      const config = await window.mailClient.config.setGravatarEnabled(value)
       set({ config })
     } catch (e) {
       set({ error: e instanceof Error ? e.message : String(e) })

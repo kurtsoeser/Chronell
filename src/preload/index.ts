@@ -328,6 +328,8 @@ const api = {
       ipcRenderer.invoke(IPC.config.setProfileSyncPollIntervalSeconds, seconds),
     setAutoLoadImages: (value: boolean): Promise<AppConfig> =>
       ipcRenderer.invoke(IPC.config.setAutoLoadImages, value),
+    setGravatarEnabled: (value: boolean): Promise<AppConfig> =>
+      ipcRenderer.invoke(IPC.config.setGravatarEnabled, value),
     setCalendarTimeZone: (iana: string | null): Promise<AppConfig> =>
       ipcRenderer.invoke(IPC.config.setCalendarTimeZone, iana),
     setWeatherLocation: (loc: AppConfigWeatherLocation | null): Promise<AppConfig> =>
@@ -997,6 +999,10 @@ const api = {
       ipcRenderer.invoke(IPC.people.list, input),
     getById: (contactId: number): Promise<PeopleContactView | null> =>
       ipcRenderer.invoke(IPC.people.getById, contactId),
+    findByEmail: (input: {
+      email: string
+      accountId?: string | null
+    }): Promise<PeopleContactView | null> => ipcRenderer.invoke(IPC.people.findByEmail, input),
     getNavCounts: (): Promise<PeopleNavCounts> => ipcRenderer.invoke(IPC.people.getNavCounts),
     syncAccount: (accountId: string): Promise<PeopleSyncAccountResult> =>
       ipcRenderer.invoke(IPC.people.syncAccount, accountId),

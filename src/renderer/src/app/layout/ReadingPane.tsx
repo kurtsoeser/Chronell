@@ -62,7 +62,12 @@ import { cn } from '@/lib/utils'
 import { ContentCrossfade } from '@/components/motion/ContentCrossfade'
 import { LoadingIndicator } from '@/components/motion/LoadingIndicator'
 import { Avatar } from '@/components/Avatar'
-import { profilePhotoSrcForEmail } from '@/lib/contact-avatar'
+import { combineSenderAvatarImageSrc, profilePhotoSrcForEmail } from '@/lib/contact-avatar'
+import { useSenderContactPhoto } from '@/lib/use-sender-contact-photo'
+import { buildMailSenderContextItems } from '@/lib/mail-sender-context-menu'
+import { findContactByEmail } from '@/lib/contact-photo-by-email'
+import { useCreateContactFromMailStore } from '@/stores/create-contact-from-mail'
+import { ContextMenu, type ContextMenuItem } from '@/components/ContextMenu'
 import { ReadingPaneCompose } from '@/components/ReadingPaneCompose'
 import { MailCategoriesPopover } from '@/components/MailCategoriesPopover'
 import { MailTodoScheduleButton } from '@/components/MailTodoSchedulePopover'
@@ -308,10 +313,15 @@ export function ReadingPane({
   const messageAccount =
     accounts.find((a) => a.id === selectedMessage?.accountId) ?? null
 
-  const senderProfilePhoto =
+  const accountSenderPhoto =
     selectedMessage != null
       ? profilePhotoSrcForEmail(accounts, profilePhotoDataUrls, selectedMessage.fromAddr)
       : undefined
+  const contactSenderPhoto = useSenderContactPhoto(
+    selectedMessage?.fromAddr,
+    selectedMessage?.accountId
+  )
+  const senderProfilePhoto = combineSenderAvatarImageSrc(accountSenderPhoto, contactSenderPhoto)
 
   const conversationThread = useConversationThreadMessages(selectedMessage, threadMessages)
 
@@ -809,6 +819,13 @@ function MailReader({
   useMailPreviewZoom(shadowHostRef, { attachKey: message.id })
   const [categoryOpen, setCategoryOpen] = useState(false)
   const [categoryAnchor, setCategoryAnchor] = useState({ x: 0, y: 0 })
+  const [senderMenu, setSenderMenu] = useState<{
+    x: number
+    y: number
+    items: ContextMenuItem[]
+  } | null>(null)
+  const openContactFromMail = useCreateContactFromMailStore((s) => s.openFromMessage)
+  const openContactInPeople = useCreateContactFromMailStore((s) => s.openContactInPeople)
   const contextPanelMax = mailReadingContextHeightMax()
   const [contextPanelHeight, setContextPanelHeight] = useResizableHeight({
     storageKey: MAIL_READING_CONTEXT_HEIGHT_KEY,
@@ -1062,7 +1079,28 @@ function MailReader({
           selectedNames={categories}
           onClose={(): void => setCategoryOpen(false)}
         />
-        <div className="flex items-start gap-3">
+        <div
+          className="flex items-start gap-3"
+          onContextMenu={(e): void => {
+            if (!message.fromAddr?.trim()) return
+            e.preventDefault()
+            e.stopPropagation()
+            void (async (): Promise<void> => {
+              const hit = await findContactByEmail(message.fromAddr, message.accountId)
+              const items = buildMailSenderContextItems(
+                message,
+                hit?.id ?? null,
+                {
+                  onCreateContact: (): void => openContactFromMail(message),
+                  onOpenContact: openContactInPeople
+                },
+                t
+              )
+              if (items.length === 0) return
+              setSenderMenu({ x: e.clientX, y: e.clientY, items })
+            })()
+          }}
+        >
           <Avatar
             name={message.fromName}
             email={message.fromAddr}
@@ -1167,6 +1205,15 @@ function MailReader({
             />
           </div>
         </>
+      ) : null}
+
+      {senderMenu ? (
+        <ContextMenu
+          x={senderMenu.x}
+          y={senderMenu.y}
+          items={senderMenu.items}
+          onClose={(): void => setSenderMenu(null)}
+        />
       ) : null}
 
     </div>

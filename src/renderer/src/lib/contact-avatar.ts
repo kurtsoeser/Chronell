@@ -12,3 +12,11 @@ export function profilePhotoSrcForEmail(
   if (!acc) return undefined
   return photoDataUrls[acc.id]
 }
+
+/** Konto-Profilbild hat Vorrang vor lokalem Kontaktfoto. */
+export function combineSenderAvatarImageSrc(
+  accountProfilePhoto: string | undefined,
+  contactPhoto: string | null | undefined
+): string | undefined {
+  return accountProfilePhoto ?? contactPhoto ?? undefined
+}

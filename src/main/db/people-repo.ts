@@ -1,3 +1,4 @@
+import { contactEmailsJsonContains, normalizeMailSenderEmail } from '@shared/mail-sender-email'
 import { getDb } from './index'
 import type { PeopleContactView, PeopleListInput, PeopleListSort, PeopleNavCounts, Provider } from '@shared/types'
 
@@ -620,4 +621,50 @@ export function listBootstrapPeopleContactsForCompose(args: {
        LIMIT ?`
     )
     .all(args.accountId, lim) as Array<{ email: string; displayName: string | null }>
+}
+
+function findPeopleContactByEmailInScope(
+  normalizedEmail: string,
+  accountId: string | null
+): PeopleContactView | null {
+  const db = getDb()
+  const primarySql = accountId
+    ? `SELECT * FROM people_contacts
+       WHERE account_id = @acc AND LOWER(TRIM(IFNULL(primary_email,''))) = @e
+       ORDER BY id LIMIT 1`
+    : `SELECT * FROM people_contacts
+       WHERE LOWER(TRIM(IFNULL(primary_email,''))) = @e
+       ORDER BY id LIMIT 1`
+  const primaryRow = db.prepare(primarySql).get({ e: normalizedEmail, acc: accountId ?? '' }) as
+    | DbRow
+    | undefined
+  if (primaryRow) return rowToView(primaryRow)
+
+  const jsonSql = accountId
+    ? `SELECT * FROM people_contacts
+       WHERE account_id = @acc AND emails_json IS NOT NULL AND emails_json != ''`
+    : `SELECT * FROM people_contacts
+       WHERE emails_json IS NOT NULL AND emails_json != ''`
+  const jsonRows = db.prepare(jsonSql).all({ acc: accountId ?? '' }) as DbRow[]
+  for (const row of jsonRows) {
+    if (contactEmailsJsonContains(row.emails_json, normalizedEmail)) {
+      return rowToView(row)
+    }
+  }
+  return null
+}
+
+/** Kontakt anhand normalisierter E-Mail (primär + emails_json); bevorzugt `preferredAccountId`. */
+export function findPeopleContactByEmail(
+  email: string,
+  preferredAccountId?: string | null
+): PeopleContactView | null {
+  const normalized = normalizeMailSenderEmail(email)
+  if (!normalized) return null
+  const acc = preferredAccountId?.trim() || null
+  if (acc) {
+    const hit = findPeopleContactByEmailInScope(normalized, acc)
+    if (hit) return hit
+  }
+  return findPeopleContactByEmailInScope(normalized, null)
 }

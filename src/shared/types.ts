@@ -139,6 +139,11 @@ export interface AppConfig {
    * Benutzer pro Mail explizit auf "Bilder laden" klicken.
    */
   autoLoadImages: boolean
+  /**
+   * Gravatar-Avatare fuer Absender/Kontakte (externe Anfragen an gravatar.com).
+   * Standard: aus — Initialen, lokale Kontaktfotos und Konto-Profilbilder bleiben aktiv.
+   */
+  gravatarEnabled?: boolean
   /** Windows: App beim Anmelden starten. */
   launchOnLogin?: boolean
   /**

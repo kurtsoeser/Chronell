@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { AlertCircle, Loader2, X } from 'lucide-react'
 import type { ConnectedAccount, PeopleContactView, PeopleCreateContactInput } from '@shared/types'
+import type { CreateContactFromMailDraft } from '@/stores/create-contact-from-mail'
 import { cn } from '@/lib/utils'
 import { ModalPanel, ModalRoot } from '@/components/motion/Modal'
 
@@ -23,6 +24,7 @@ export function PeopleNewContactDialog({
   onClose,
   accounts,
   preferredAccountId,
+  initialDraft,
   onCreated
 }: Props): JSX.Element | null {
   const { t } = useTranslation()
@@ -50,17 +52,22 @@ export function PeopleNewContactDialog({
     if (!open) return
     setError(null)
     setBusy(false)
-    setDisplayName('')
+    setDisplayName(initialDraft?.displayName?.trim() ?? '')
     setGivenName('')
     setSurname('')
-    setPrimaryEmail('')
+    setPrimaryEmail(initialDraft?.primaryEmail?.trim() ?? '')
     setCompany('')
     setJobTitle('')
     setMobilePhone('')
     setNotes('')
-    const preferred = preferredAccountId && accounts.some((a) => a.id === preferredAccountId)
-    setAccountId(preferred ? preferredAccountId! : accounts[0]?.id ?? '')
-  }, [open, accounts, preferredAccountId])
+    const draftAcc = initialDraft?.accountId?.trim()
+    const preferred =
+      (draftAcc && accounts.some((a) => a.id === draftAcc) ? draftAcc : null) ??
+      (preferredAccountId && accounts.some((a) => a.id === preferredAccountId)
+        ? preferredAccountId
+        : null)
+    setAccountId(preferred ?? accounts[0]?.id ?? '')
+  }, [open, accounts, preferredAccountId, initialDraft])
 
   if (!open) return null
 

@@ -10,6 +10,7 @@ export function registerConfigIpc(): void {
   ipcMain.removeHandler(IPC.config.setGoogleClientId)
   ipcMain.removeHandler(IPC.config.setSyncWindowDays)
   ipcMain.removeHandler(IPC.config.setAutoLoadImages)
+  ipcMain.removeHandler(IPC.config.setGravatarEnabled)
   ipcMain.removeHandler(IPC.config.setCalendarTimeZone)
   ipcMain.removeHandler(IPC.config.setWeatherLocation)
   ipcMain.removeHandler(IPC.config.setWorkflowMailFoldersIntroDismissed)
@@ -86,6 +87,13 @@ export function registerConfigIpc(): void {
     IPC.config.setAutoLoadImages,
     async (_event, value: boolean): Promise<AppConfig> => {
       return updateConfig({ autoLoadImages: Boolean(value) })
+    }
+  )
+
+  ipcMain.handle(
+    IPC.config.setGravatarEnabled,
+    async (_event, value: boolean): Promise<AppConfig> => {
+      return updateConfig({ gravatarEnabled: Boolean(value) })
     }
   )
 

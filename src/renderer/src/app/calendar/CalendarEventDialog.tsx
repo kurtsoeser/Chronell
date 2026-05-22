@@ -225,8 +225,8 @@ function mergeYmdIntoDatetimeLocal(dtLocal: string, ymd: string): string {
 
 function fieldChipClass(locked: boolean): string {
   return cn(
-    'inline-flex min-h-[30px] max-w-full shrink-0 items-center rounded-md border border-border/70 bg-secondary/35 px-2 py-1 text-[13px] font-medium tabular-nums text-foreground transition-colors',
-    'hover:bg-secondary/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35',
+    'inline-flex min-h-[30px] max-w-full shrink-0 items-center rounded-md border border-border bg-secondary/35 px-2 py-1 text-[13px] font-medium tabular-nums text-foreground transition-colors',
+    'hover:border-border hover:bg-secondary/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/25',
     locked ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
   )
 }
