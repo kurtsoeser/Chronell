@@ -6,7 +6,7 @@
 .DESCRIPTION
   Wird automatisch vor npm run build:win ausgefuehrt (npm prebuild:win Hook).
   Fragt interaktiv: neue Patch-Version oder gleiche Version neu bauen.
-  Nach dem Build (postbuild-win.ps1): optional Veröffentlichung auf GitHub.
+  Nach dem Build (postbuild-win.ps1): automatische Veröffentlichung auf GitHub (Release + git push).
 
 .EXAMPLE
   .\scripts\prepare-win-version.ps1

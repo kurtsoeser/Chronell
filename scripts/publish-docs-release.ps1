@@ -13,7 +13,8 @@ param(
   [string] $Version,
   [switch] $NoOpen,
   [switch] $IndexOnly,
-  [switch] $SkipGitHubRelease
+  [switch] $SkipGitHubRelease,
+  [switch] $PushGit
 )
 
 Set-StrictMode -Version Latest
@@ -28,6 +29,11 @@ try {
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 Set-Location -LiteralPath $repoRoot
+
+$autoRelease = $env:CHRONELL_AUTO_RELEASE -eq '1' -or $PushGit
+if ($autoRelease) {
+  & (Join-Path $PSScriptRoot 'ensure-git-lfs.ps1') | Out-Null
+}
 
 function Read-PackageVersion {
   $pkg = Get-Content -LiteralPath (Join-Path $repoRoot 'package.json') -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -72,7 +78,8 @@ function Publish-GitHubReleaseAsset {
   param(
     [string] $Version,
     [string] $SetupPath,
-    [string] $VersionedAssetName
+    [string] $VersionedAssetName,
+    [switch] $Strict
   )
 
   $ghTag = "v$Version"
@@ -117,7 +124,10 @@ function Publish-GitHubReleaseAsset {
     Write-Host "  GitHub Releases: $ghDownloadUrl" -ForegroundColor Green
     Write-Host '  Homepage-Download verweist auf diese URL (site.js + latest.json).' -ForegroundColor DarkGray
   } else {
-    Write-Host '  gh release upload fehlgeschlagen - Homepage-Download funktioniert erst nach erneutem Upload.' -ForegroundColor Yellow
+    Write-Host '  gh release upload fehlgeschlagen - pruefe: gh auth login' -ForegroundColor Yellow
+    if ($Strict) {
+      exit 1
+    }
   }
 }
 
@@ -221,9 +231,15 @@ Write-Host "  Stabil:   docs/release/latest/$stableName"
 Write-Host "  Archiv:   docs/release/$Version/$versionedName"
 Write-Host "  Manifest: docs/release/latest.json"
 Write-Host "  Index:    docs/release/versions.json"
-Write-Host ''
-Write-Host 'Als Naechstes: docs/release committen und pushen (Git LFS + GitHub Pages).' -ForegroundColor DarkGray
-Write-Host "  Oeffentlicher Download: $ghDownloadUrl" -ForegroundColor DarkGray
+if (-not $IndexOnly) {
+  & (Join-Path $PSScriptRoot 'sync-homepage-download-urls.ps1') -Version $Version
+}
+
+if (-not $autoRelease) {
+  Write-Host ''
+  Write-Host 'Als Naechstes: npm run publish:docs-release -PushGit  oder erneut npm run build:win' -ForegroundColor DarkGray
+  Write-Host "  Oeffentlicher Download: $ghDownloadUrl" -ForegroundColor DarkGray
+}
 
 if (-not $IndexOnly -and -not $SkipGitHubRelease) {
   $setupForRelease = Join-Path $versionDir $versionedName
@@ -231,10 +247,15 @@ if (-not $IndexOnly -and -not $SkipGitHubRelease) {
     $setupForRelease = Join-Path $latestDir $stableName
   }
   if (Test-Path -LiteralPath $setupForRelease) {
-    Publish-GitHubReleaseAsset -Version $Version -SetupPath $setupForRelease -VersionedAssetName $versionedName
+    Publish-GitHubReleaseAsset -Version $Version -SetupPath $setupForRelease -VersionedAssetName $versionedName -Strict:$autoRelease
   }
 }
 
-if (-not $NoOpen) {
+if ($autoRelease) {
+  & (Join-Path $PSScriptRoot 'push-release-to-github.ps1') -Version $Version
+  if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+  }
+} elseif (-not $NoOpen) {
   Start-Process -FilePath 'explorer.exe' -ArgumentList @($docsRelease)
 }

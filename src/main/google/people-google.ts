@@ -185,7 +185,11 @@ function isGoogleExpiredSyncToken(err: unknown): boolean {
   const o = err as { message?: string; errors?: Array<{ reason?: string }> }
   if (o.errors?.some((e) => e.reason === 'EXPIRED_SYNC_TOKEN')) return true
   const msg = String(o.message ?? '').toLowerCase()
-  return msg.includes('expired_sync_token') || msg.includes('expired sync token')
+  return (
+    msg.includes('expired_sync_token') ||
+    msg.includes('expired sync token') ||
+    msg.includes('sync token is expired')
+  )
 }
 
 async function googleListConnectionsPages(args: {

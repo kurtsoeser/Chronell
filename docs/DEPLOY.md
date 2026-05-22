@@ -29,19 +29,20 @@ Die angezeigte Versionsnummer kommt aus `release/latest.json`.
 
 ### Installer veröffentlichen
 
-Bei `npm run build:win` erscheint **nach dem Build** die Abfrage, ob die Version auf GitHub veröffentlicht werden soll. Bei **Ja** werden Installer, Manifeste und GitHub Release automatisch erledigt (`scripts/postbuild-win.ps1` → `publish-docs-release.ps1`).
-
-Manuell (ohne erneuten Build):
-
 ```powershell
-npm run publish:docs-release
+npm run build:win
 ```
 
-Das kopiert den Setup-Installer nach `docs/release/<version>/` und `docs/release/latest/`, aktualisiert `latest.json`, lädt per `gh` auf GitHub Releases hoch und öffnet den Ordner.
+Nach dem Build läuft **automatisch** (`postbuild-win.ps1` → `publish-docs-release.ps1`):
 
-Anschließend `docs/release/` (inkl. `latest/` und `latest.json`) committen und pushen.
+- Installer nach `docs/release/` (Git LFS)
+- Manifeste `latest.json` / `versions.json`
+- Upload auf GitHub Releases
+- `git commit` + `git push` (Homepage auf GitHub Pages)
 
-Ohne interaktive Veröffentlichungsabfrage: `CHRONELL_NO_PUBLISH_PROMPT=1` oder nur `npm run build:win:inner` nach `prebuild:win`.
+**Nur lokal bauen:** `npm run build:win:local`
+
+**Manuell** (ohne Build): `npm run publish:docs-release:full`
 
 Details: [`docs/release/README.md`](release/README.md)
 

@@ -1,25 +1,21 @@
 ﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
-  Nach erfolgreichem Windows-Build: optional Homepage + GitHub Release veroeffentlichen.
+  Nach erfolgreichem Windows-Build: Homepage, GitHub Release und Git-Push automatisch.
 
 .DESCRIPTION
   Wird von npm run build:win nach build:win:inner aufgerufen (via run-finish-win-build.mjs).
-  Fragt interaktiv, ob der Installer nach docs/release kopiert und als GitHub Release hochgeladen wird.
+  Standard: alles automatisch (kein zweites Nachfragen).
+  Nur lokal bauen: CHRONELL_SKIP_PUBLISH=1 oder npm run build:win:local
 
 .EXAMPLE
   .\scripts\postbuild-win.ps1
 
 .EXAMPLE
-  .\scripts\postbuild-win.ps1 -NoPrompt
-
-.EXAMPLE
-  .\scripts\postbuild-win.ps1 -PublishGitHub
+  .\scripts\postbuild-win.ps1 -SkipPublish
 #>
 [CmdletBinding()]
 param(
-  [switch] $NoPrompt,
-  [switch] $PublishGitHub,
   [switch] $SkipPublish
 )
 
@@ -43,45 +39,6 @@ function Read-PackageVersion([string] $PackageJsonPath) {
   return [string] $pkg.version
 }
 
-function Test-InteractivePrompt {
-  if ($env:CI -eq 'true' -or $env:CI -eq '1') {
-    return $false
-  }
-  if ($env:CHRONELL_NO_PUBLISH_PROMPT -eq '1') {
-    return $false
-  }
-  return [Environment]::UserInteractive
-}
-
-function Read-PublishGitHubChoice([string] $Version) {
-  Write-Host ''
-  Write-Host ('Build abgeschlossen - Version ' + $Version) -ForegroundColor Green
-  Write-Host ''
-  Write-Host '  [J] Auf GitHub veroeffentlichen' -ForegroundColor Green
-  Write-Host '      Installer nach docs/release kopieren, Manifeste aktualisieren, GitHub Release hochladen'
-  Write-Host '  [N] Nur lokal behalten' -ForegroundColor Yellow
-  Write-Host '      Installer liegt unter release/<version>/ (kein Upload)'
-  Write-Host ''
-  Write-Host '  Hinweis: docs/release/ danach committen und pushen (Git LFS); Download via GitHub Releases.' -ForegroundColor DarkGray
-  Write-Host ''
-
-  while ($true) {
-    $raw = Read-Host 'Auf GitHub veroeffentlichen? [J/n]'
-    if ($null -eq $raw) {
-      Write-Host 'Keine Eingabe moeglich (nicht-interaktiv): kein Upload.' -ForegroundColor DarkGray
-      return $false
-    }
-    $answer = $raw.Trim()
-    if ($answer -eq '' -or $answer -match '^(j|ja|y|yes)$') {
-      return $true
-    }
-    if ($answer -match '^(n|nein|no)$') {
-      return $false
-    }
-    Write-Host 'Bitte J (veroeffentlichen) oder N (nur lokal) eingeben.' -ForegroundColor Yellow
-  }
-}
-
 # --- main ---
 $repoRoot = Get-RepoRoot
 Set-Location -LiteralPath $repoRoot
@@ -101,35 +58,33 @@ foreach ($candidate in $setupCandidates) {
 }
 
 if (-not $hasInstaller) {
-  Write-Host ('Kein Setup unter release\' + $version + ' gefunden - Veroeffentlichung uebersprungen.') -ForegroundColor Yellow
+  Write-Host ('Kein Setup unter release\' + $version + ' gefunden — Veroeffentlichung uebersprungen.') -ForegroundColor Yellow
   exit 0
 }
 
-$wantPublish = $false
-if ($PublishGitHub) {
-  $wantPublish = $true
-} elseif ($SkipPublish) {
-  $wantPublish = $false
-} elseif ($NoPrompt -or -not (Test-InteractivePrompt)) {
-  $wantPublish = $false
-} else {
-  $wantPublish = Read-PublishGitHubChoice -Version $version
-}
-
-if (-not $wantPublish) {
+if ($SkipPublish -or $env:CHRONELL_SKIP_PUBLISH -eq '1') {
   Write-Host ''
   Write-Host ('Lokaler Installer: ' + $installerPath) -ForegroundColor DarkGray
-  Write-Host 'Spaeter veroeffentlichen: npm run publish:docs-release' -ForegroundColor DarkGray
+  Write-Host 'Veroeffentlichung uebersprungen (CHRONELL_SKIP_PUBLISH oder -SkipPublish).' -ForegroundColor DarkGray
   exit 0
 }
 
-Write-Step ('Veroeffentlichen: docs/release + GitHub Release (v' + $version + ')')
+$env:CHRONELL_AUTO_RELEASE = '1'
+
+Write-Step ('Automatische Veroeffentlichung v' + $version)
+Write-Host '  1/3 Installer + Manifeste + GitHub Release' -ForegroundColor DarkGray
+Write-Host '  2/3 Homepage-Download-URLs' -ForegroundColor DarkGray
+Write-Host '  3/3 Git commit + push (Git LFS, GitHub Pages)' -ForegroundColor DarkGray
+Write-Host ''
+
 $publishScript = Join-Path $PSScriptRoot 'publish-docs-release.ps1'
-& $publishScript -Version $version
+& $publishScript -Version $version -NoOpen -PushGit
 
 if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) {
   exit $LASTEXITCODE
 }
 
 Write-Host ''
-Write-Host 'Naechster Schritt: docs/release/ committen und pushen (Git LFS + GitHub Releases).' -ForegroundColor Cyan
+Write-Host ('Fertig — Version ' + $version + ' ist online.') -ForegroundColor Green
+Write-Host ('  Download: https://github.com/kurtsoeser/Chronell/releases/download/v' + $version + '/Chronell-' + $version + '-setup.exe') -ForegroundColor Green
+Write-Host '  Homepage: https://kurtsoeser.github.io/Chronell/ (nach kurzer Wartezeit)' -ForegroundColor Green

@@ -8,7 +8,8 @@ import {
 import { shell } from 'electron'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { randomBytes, createHash } from 'node:crypto'
-import { msalCachePlugin } from './msal-cache'
+import { invalidateMsalCacheMemory, msalCachePlugin } from './msal-cache'
+import { withMicrosoftTokenLock } from './msal-token-lock'
 
 export const MICROSOFT_SCOPES = [
   'offline_access',
@@ -242,12 +243,14 @@ export async function loginMicrosoft(
 
   const { code } = result
 
-  const tokenResponse = await pca.acquireTokenByCode({
-    code,
-    scopes: [...MICROSOFT_SCOPES],
-    redirectUri: loopback.redirectUri,
-    codeVerifier: verifier
-  })
+  const tokenResponse = await withMicrosoftTokenLock(clientId, () =>
+    pca.acquireTokenByCode({
+      code,
+      scopes: [...MICROSOFT_SCOPES],
+      redirectUri: loopback.redirectUri,
+      codeVerifier: verifier
+    })
+  )
 
   if (!tokenResponse) {
     throw new Error('Kein Token vom Identitaetsanbieter erhalten.')
@@ -257,6 +260,10 @@ export async function loginMicrosoft(
 
 /** Verhindert parallele Browser-Consent-Flows fuer dasselbe Konto (Sync/Kalender parallel). */
 const interactiveConsentLocks = new Map<string, Promise<void>>()
+
+/** Verhindert Browser-Spam, wenn Consent das eigentliche Problem nicht loest. */
+const lastConsentAttemptMs = new Map<string, number>()
+const CONSENT_COOLDOWN_MS = 5 * 60 * 1000
 
 function consentLockKey(clientId: string, homeAccountId: string): string {
   return `${clientId}\n${homeAccountId}`
@@ -286,6 +293,7 @@ async function ensureMicrosoftConsentInteractive(clientId: string, account: Acco
 export async function listMsalAccounts(clientId: string): Promise<
   Array<{ homeAccountId: string; username: string; name?: string; tenantId: string }>
 > {
+  return withMicrosoftTokenLock(clientId, async () => {
   const pca = getPca(clientId)
   const cache = pca.getTokenCache()
   const accounts = await cache.getAllAccounts()
@@ -295,28 +303,32 @@ export async function listMsalAccounts(clientId: string): Promise<
     name: a.name,
     tenantId: a.tenantId
   }))
+  })
 }
 
 export async function removeMsalAccount(clientId: string, homeAccountId: string): Promise<void> {
-  const pca = getPca(clientId)
-  const cache = pca.getTokenCache()
-  const account = await cache.getAccountByHomeId(homeAccountId)
-  if (account) {
-    await cache.removeAccount(account)
-  }
+  await withMicrosoftTokenLock(clientId, async () => {
+    const pca = getPca(clientId)
+    const cache = pca.getTokenCache()
+    const account = await cache.getAccountByHomeId(homeAccountId)
+    if (account) {
+      await cache.removeAccount(account)
+    }
+    invalidateMsalCacheMemory()
+  })
 }
 
-export async function acquireTokenSilent(
+async function acquireTokenSilentOnce(
   clientId: string,
   homeAccountId: string
 ): Promise<AuthenticationResult> {
-  const pca = getPca(clientId)
-  const cache = pca.getTokenCache()
-  const account = await cache.getAccountByHomeId(homeAccountId)
-  if (!account) {
-    throw new Error('Konto nicht im MSAL-Cache gefunden.')
-  }
-  try {
+  return withMicrosoftTokenLock(clientId, async () => {
+    const pca = getPca(clientId)
+    const cache = pca.getTokenCache()
+    const account = await cache.getAccountByHomeId(homeAccountId)
+    if (!account) {
+      throw new Error('Konto nicht im MSAL-Cache gefunden.')
+    }
     const result = await pca.acquireTokenSilent({
       account,
       scopes: [...MICROSOFT_SCOPES]
@@ -325,25 +337,44 @@ export async function acquireTokenSilent(
       throw new Error('Silent token acquisition gab kein Ergebnis zurueck.')
     }
     return result
+  })
+}
+
+export async function acquireTokenSilent(
+  clientId: string,
+  homeAccountId: string
+): Promise<AuthenticationResult> {
+  try {
+    return await acquireTokenSilentOnce(clientId, homeAccountId)
   } catch (e) {
     if (!(e instanceof InteractionRequiredAuthError)) {
       throw e
     }
+    const pca = getPca(clientId)
+    const cache = pca.getTokenCache()
+    const account = await cache.getAccountByHomeId(homeAccountId)
+    if (!account) {
+      throw new Error('Konto nicht im MSAL-Cache gefunden.')
+    }
+    const consentKey = consentLockKey(clientId, account.homeAccountId)
+    const lastAttempt = lastConsentAttemptMs.get(consentKey) ?? 0
+    const inCooldown = Date.now() - lastAttempt < CONSENT_COOLDOWN_MS
     console.warn(
-      '[auth] Microsoft benoetigt erneute Zustimmung (z. B. neue API-Berechtigungen). Es wird ein Browserfenster geoeffnet.'
+      '[auth] InteractionRequired —',
+      e.errorCode ?? 'unknown',
+      e.subError ?? '',
+      e.correlationId ?? '',
+      e.message,
+      inCooldown ? '(Consent-Cooldown aktiv, kein neues Browserfenster)' : ''
     )
+    if (inCooldown) {
+      throw e
+    }
+    console.warn(
+      '[auth] Microsoft benoetigt erneute Zustimmung. Es wird ein Browserfenster geoeffnet.'
+    )
+    lastConsentAttemptMs.set(consentKey, Date.now())
     await ensureMicrosoftConsentInteractive(clientId, account)
-    const accountAfter = await cache.getAccountByHomeId(homeAccountId)
-    if (!accountAfter) {
-      throw new Error('Konto nach Zustimmung nicht mehr im MSAL-Cache gefunden.')
-    }
-    const result = await pca.acquireTokenSilent({
-      account: accountAfter,
-      scopes: [...MICROSOFT_SCOPES]
-    })
-    if (!result) {
-      throw new Error('Nach Zustimmung: Silent token acquisition gab kein Ergebnis zurueck.')
-    }
-    return result
+    return await acquireTokenSilentOnce(clientId, homeAccountId)
   }
 }

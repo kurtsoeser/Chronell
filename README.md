@@ -285,17 +285,13 @@ Setup & Schema: [`docs/plans/cloud-sync-profil.md`](docs/plans/cloud-sync-profil
 npm run build:win
 ```
 
-Nach dem Build erscheint die Abfrage, ob die Version auch auf **GitHub** veröffentlicht werden soll (Installer nach `docs/release/`, Manifeste, GitHub Release via `gh`). Bei **Ja** passiert das automatisch; bei **Nein** nur lokaler Build unter `release/<version>/`.
+Eine Frage zu Beginn (neue Version **J** / gleiche Version **N**), danach automatisch: Build → GitHub Release → Homepage-Manifeste → `git push` (Git LFS). Download funktioniert über GitHub Releases.
 
-Manuell (ohne erneuten Build):
+Nur lokal bauen (ohne Upload/Push): `npm run build:win:local`
 
-```powershell
-npm run publish:docs-release
-```
+Manuell nachziehen: `npm run publish:docs-release:full`
 
-Anschließend `docs/release/` committen und pushen (GitHub Pages). Details: [`docs/DEPLOY.md`](docs/DEPLOY.md).
-
-> Installer sind ~90 MB. GitHub erlaubt bis **100 MB pro Datei** im Repo; bei größeren Builds: Git LFS oder nur GitHub Releases.
+Details: [`docs/DEPLOY.md`](docs/DEPLOY.md) · [`docs/release/README.md`](docs/release/README.md)
 
 ---
 
@@ -333,15 +329,9 @@ npm run build:win
 
 Ausgabe: `release/<version>/Chronell-<version>-setup.exe` (lokal, in `.gitignore`).
 
-Ohne interaktive Versionsabfrage (gleiche Version neu bauen):
+Ohne Versionsabfrage (Patch automatisch erhoehen): `npm run prebuild:win -- -NoPrompt` vor `build:win`, oder in CI `CHRONELL_NO_VERSION_PROMPT=1`.
 
-```powershell
-npm run prebuild:win -- -NoBump
-npm run build:win:inner
-npm run finish:win
-```
-
-(`prebuild:win` laeuft bei `npm run build:win` automatisch einmal; nicht doppelt aufrufen.)
+Gleiche Version neu bauen: bei der Versionsabfrage **N** waehlen, oder `npm run build:win:local` fuer rein lokalen Build.
 
 Hinweis: `signAndEditExecutable: false` in `electron-builder.yml` — für Verteilung später **Authenticode**-Signatur empfohlen.
 

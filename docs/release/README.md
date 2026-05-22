@@ -1,27 +1,40 @@
 # Chronell-Installer für die Homepage
 
-Die Download-Buttons laden **`release/latest.json`** und **`release/versions.json`**, setzen den Link auf **`githubDownloadUrl`** (GitHub Releases) und nutzen GitHub Pages (`stableUrl`) nur als Fallback.
-
-**Installer im Repo:** `docs/release/**/*.exe` per **Git LFS** (auch >100 MB). GitHub Pages liefert LFS-Dateien nicht als echten Installer — der öffentliche Download läuft über **GitHub Releases**.
-
-## Veröffentlichen
-
-Bei `npm run build:win` erscheint nach dem Build eine Abfrage, ob die Version veröffentlicht werden soll (**Ja** = Skript automatisch).
-
-Manuell:
+## Ein Befehl — alles automatisch
 
 ```powershell
-npm run publish:docs-release
+npm run build:win
 ```
 
-Das Skript kopiert den Installer nach `docs/release/<version>/` und `docs/release/latest/`, aktualisiert die Manifeste, lädt per `gh` auf **GitHub Releases** hoch und öffnet den Ordner zur Kontrolle.
+1. **Eine Frage** zu Beginn: neue Patch-Version `[J]` oder gleiche Version neu bauen `[N]`
+2. Danach läuft alles von selbst:
+   - Windows-Installer bauen
+   - Installer nach `docs/release/` kopieren (Git LFS)
+   - `latest.json` / `versions.json` aktualisieren
+   - Installer auf **GitHub Releases** hochladen (öffentlicher Download)
+   - Homepage-Download-URLs setzen
+   - **Git commit + push** → GitHub Pages aktualisiert sich
 
-Anschließend committen und pushen (inkl. `git lfs push` — passiert bei normalem `git push` meist automatisch):
+**Download-URL** (sofort nach Upload): steht am Ende der Build-Ausgabe.
+
+**Nur lokal bauen** (ohne Upload/Push):
 
 ```powershell
-git add docs/release .gitattributes
-git commit -m "Release 0.9.x: Installer per LFS, Download via GitHub Releases"
-git push origin main
+npm run build:win:local
 ```
 
-**Git LFS einmalig:** `.\scripts\setup-git-lfs.ps1` — Details: `docs/DEPLOY.md`.
+## Voraussetzungen (einmalig)
+
+- [Git LFS](https://git-lfs.github.com/) installiert
+- [GitHub CLI](https://cli.github.com/) mit `gh auth login`
+- Git-Remote `origin` auf `kurtsoeser/Chronell`
+
+LFS einrichten (falls noch nicht geschehen): `.\scripts\ensure-git-lfs.ps1`
+
+## Manuell nachziehen
+
+```powershell
+npm run publish:docs-release:full
+```
+
+Details: `docs/DEPLOY.md`
