@@ -5,7 +5,11 @@ import {
   utcIsoFromWallDateTime
 } from '@shared/calendar-datetime'
 
-import type { TaskItemRow, TaskListRow } from '@shared/types'
+import type { TaskItemRow, TaskListRow, TaskSaveRecurrence } from '@shared/types'
+import {
+  buildMicrosoftTodoRecurrencePayload,
+  parseGraphTodoRecurrence
+} from '../task-recurrence'
 
 import { graphWindowsZoneToIana, ianaToWindowsTimeZone } from '@shared/microsoft-timezones'
 
@@ -80,6 +84,8 @@ interface GraphTodoTask {
   status?: string | null
 
   dueDateTime?: GraphDateTimeTimeZone | null
+
+  recurrence?: unknown
 
 }
 
@@ -183,6 +189,8 @@ function rowFromGraphTask(listId: string, t: GraphTodoTask): TaskItemRow | null 
 
   const completed = t.status === 'completed'
 
+  const recurrence = parseGraphTodoRecurrence(t.recurrence)
+
   return {
 
     id: t.id,
@@ -195,7 +203,9 @@ function rowFromGraphTask(listId: string, t: GraphTodoTask): TaskItemRow | null 
 
     dueIso: graphDueToIso(t.dueDateTime),
 
-    notes: bodyNotes(t.body ?? undefined)
+    notes: bodyNotes(t.body ?? undefined),
+
+    ...(recurrence ? { recurrence, recurrenceLocalOnly: false } : {})
 
   }
 
@@ -393,7 +403,13 @@ export async function graphCreateTodoTask(
 
   listId: string,
 
-  input: { title: string; notes?: string | null; dueIso?: string | null; completed?: boolean }
+  input: {
+    title: string
+    notes?: string | null
+    dueIso?: string | null
+    completed?: boolean
+    recurrence?: TaskSaveRecurrence | null
+  }
 
 ): Promise<TaskItemRow> {
 
@@ -420,6 +436,20 @@ export async function graphCreateTodoTask(
     const due = await dueIsoToGraphPayload(String(input.dueIso))
 
     if (due) body.dueDateTime = due
+
+  }
+
+  if (input.recurrence && input.dueIso?.trim()) {
+
+    const { iana, windows } = await graphTodoTimeZone()
+
+    Object.assign(
+
+      body,
+
+      buildMicrosoftTodoRecurrencePayload(input.recurrence, String(input.dueIso), windows, iana)
+
+    )
 
   }
 

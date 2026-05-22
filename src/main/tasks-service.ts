@@ -1,5 +1,6 @@
 import { listAccounts } from './accounts'
-import type { ConnectedAccount, TaskItemRow, TaskListRow } from '@shared/types'
+import type { ConnectedAccount, TaskItemRow, TaskListRow, TaskSaveRecurrence } from '@shared/types'
+import { mergeCloudTasksRecurrenceFromCache } from './db/cloud-tasks-repo'
 import {
   graphCreateTodoTask,
   graphDeleteTodoTask,
@@ -47,22 +48,42 @@ export async function listTasksForAccount(
   opts?: { showCompleted?: boolean; showHidden?: boolean }
 ): Promise<TaskItemRow[]> {
   const acc = await resolveConnectedAccount(accountId)
+  let tasks: TaskItemRow[]
   if (acc.provider === 'google') {
-    return googleListTasksInList(accountId, listId, opts)
+    tasks = await googleListTasksInList(accountId, listId, opts)
+  } else {
+    tasks = await runGraphMailboxRequest(accountId, `listTodoTasks ${listId}`, () =>
+      graphListTodoTasks(accountId, listId, opts)
+    )
   }
-  return runGraphMailboxRequest(accountId, `listTodoTasks ${listId}`, () =>
-    graphListTodoTasks(accountId, listId, opts)
-  )
+  return mergeCloudTasksRecurrenceFromCache(accountId, listId, tasks)
 }
 
 export async function createTaskForAccount(
   accountId: string,
   listId: string,
-  input: { title: string; notes?: string | null; dueIso?: string | null; completed?: boolean }
+  input: {
+    title: string
+    notes?: string | null
+    dueIso?: string | null
+    completed?: boolean
+    recurrence?: TaskSaveRecurrence | null
+  }
 ): Promise<TaskItemRow> {
   const acc = await resolveConnectedAccount(accountId)
+  if (input.recurrence && !input.dueIso?.trim()) {
+    throw new Error('Wiederholende Aufgabe: Faelligkeitsdatum ist erforderlich.')
+  }
   if (acc.provider === 'google') {
-    return googleInsertTask(accountId, listId, input)
+    const row = await googleInsertTask(accountId, listId, input)
+    if (input.recurrence) {
+      return {
+        ...row,
+        recurrence: input.recurrence,
+        recurrenceLocalOnly: true
+      }
+    }
+    return row
   }
   return graphCreateTodoTask(accountId, listId, input)
 }

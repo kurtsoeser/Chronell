@@ -563,13 +563,17 @@
    * Scoped --border/--input, damit alle border-border-*-Utilities mitziehen.
    */
   .account-setup-dialog {
-    --border: 220 18% 86% / 0.38;
-    --input: 220 18% 84% / 0.52;
+    --border: 220 18% 86%;
+    --input: 220 18% 84%;
+    --border-opacity: 0.38;
+    --input-opacity: 0.52;
   }
 
   .dark .account-setup-dialog {
-    --border: 0 0% 100% / 0.04;
-    --input: 0 0% 100% / 0.07;
+    --border: 0 0% 26%;
+    --input: 0 0% 30%;
+    --border-opacity: 0.55;
+    --input-opacity: 0.65;
   }
 
   .account-setup-dialog .divide-border > :not([hidden]) ~ :not([hidden]) {
@@ -578,12 +582,75 @@
 
   /** Modale Dialoge (OneDrive, Notion-Picker, …): gleiche dezente --border wie Einstellungen. */
   .app-dialog-panel {
-    --border: 220 18% 86% / 0.38;
-    --input: 220 18% 84% / 0.52;
+    --border: 220 18% 86%;
+    --input: 220 18% 84%;
+    --border-opacity: 0.38;
+    --input-opacity: 0.52;
   }
 
   .dark .app-dialog-panel {
-    --border: 0 0% 100% / 0.04;
-    --input: 0 0% 100% / 0.07;
+    --border: 0 0% 26%;
+    --input: 0 0% 30%;
+    --border-opacity: 0.55;
+    --input-opacity: 0.65;
+  }
+
+  /**
+   * Standard fuer Eingabefelder (input, select, textarea) — dezenter Rand statt
+   * border-border/80 (Tailwind-Opazitaet wuerde sonst helle Vollrahmen erzeugen).
+   */
+  .chronell-field-control {
+    border-radius: var(--radius-sm);
+    border-width: 1px;
+    border-style: solid;
+    border-color: hsl(var(--input) / var(--input-opacity, 1));
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease,
+      background-color 0.15s ease;
+  }
+
+  .chronell-field-control::placeholder {
+    color: hsl(var(--muted-foreground));
+  }
+
+  .chronell-field-control:hover:not(:disabled):not(:focus):not(:focus-visible) {
+    border-color: hsl(var(--input) / calc(var(--input-opacity, 1) * 1.15));
+  }
+
+  .chronell-field-control:focus,
+  .chronell-field-control:focus-visible {
+    border-color: hsl(var(--primary) / 0.55);
+    outline: none;
+    box-shadow:
+      0 0 0 1px hsl(var(--primary) / 0.18),
+      0 0 0 3px hsl(var(--ring) / 0.22);
+  }
+
+  .dark .chronell-field-control:focus,
+  .dark .chronell-field-control:focus-visible {
+    border-color: hsl(var(--primary) / 0.6);
+    box-shadow:
+      0 0 0 1px hsl(var(--primary) / 0.28),
+      0 0 0 3px hsl(var(--ring) / 0.2);
+  }
+
+  .chronell-field-control:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  /**
+   * Fallback fuer verbliebene input/select/textarea mit border-border/NN — verhindert
+   * helle Vollrahmen, wenn Tailwind die Opazitaets-Suffixe auf --border anwendet.
+   */
+  .dark
+    :is(input, select, textarea):not(.chronell-field-control):not([class*='border-none']):is(
+      [class*='border-border/'],
+      .border-border
+    ) {
+    border-color: hsl(var(--input) / var(--input-opacity, 0.45)) !important;
   }
 }

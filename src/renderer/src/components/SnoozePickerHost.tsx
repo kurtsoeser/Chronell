@@ -16,6 +16,7 @@ interface MessageSnoozeMeta {
  */
 export function SnoozePickerHost(): JSX.Element {
   const pendingMessageId = useSnoozeUiStore((s) => s.pendingMessageId)
+  const bulkMessageIds = useSnoozeUiStore((s) => s.bulkMessageIds)
   const anchor = useSnoozeUiStore((s) => s.anchor)
   const close = useSnoozeUiStore((s) => s.close)
   const snoozeMessage = useMailStore((s) => s.snoozeMessage)
@@ -46,14 +47,26 @@ export function SnoozePickerHost(): JSX.Element {
     }
   }, [pendingMessageId])
 
+  function snoozeTargets(): number[] {
+    if (bulkMessageIds && bulkMessageIds.length > 0) return bulkMessageIds
+    if (pendingMessageId != null) return [pendingMessageId]
+    return []
+  }
+
   function handleSelect(wakeAtIso: string, preset: SnoozePreset): void {
-    if (pendingMessageId == null) return
-    void snoozeMessage(pendingMessageId, wakeAtIso, preset)
+    const targets = snoozeTargets()
+    if (targets.length === 0) return
+    void (async (): Promise<void> => {
+      for (const id of targets) await snoozeMessage(id, wakeAtIso, preset)
+    })()
   }
 
   function handleClear(): void {
-    if (pendingMessageId == null) return
-    void unsnoozeMessage(pendingMessageId)
+    const targets = snoozeTargets()
+    if (targets.length === 0) return
+    void (async (): Promise<void> => {
+      for (const id of targets) await unsnoozeMessage(id)
+    })()
   }
 
   return (

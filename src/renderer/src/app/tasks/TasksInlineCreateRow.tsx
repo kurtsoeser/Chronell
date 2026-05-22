@@ -10,7 +10,7 @@ import {
 } from '@/app/tasks/tasks-create-defaults'
 import type { TaskItemWithContext, TasksViewSelection } from '@/app/tasks/tasks-types'
 import { cloudTaskAccountOptionLabel } from '@/lib/cloud-task-accounts'
-import { listSubtleBorderClass } from '@/lib/chronell-ui-classes'
+import { fieldControlClass, listSubtleBorderClass } from '@/lib/chronell-ui-classes'
 import { cn } from '@/lib/utils'
 
 export interface TasksInlineCreateRowProps {
@@ -127,9 +127,6 @@ export function TasksInlineCreateRow({
 
   if (taskAccounts.length === 0) return null
 
-  const fieldClass =
-    'min-w-0 rounded border border-border/80 bg-background px-1.5 py-1 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30'
-
   return (
     <li className={cn('relative border-b border-dashed bg-muted/15', listSubtleBorderClass)}>
       <div className="flex items-start gap-1.5 px-2 py-1.5">
@@ -144,7 +141,7 @@ export function TasksInlineCreateRow({
                   value={accountId}
                   onChange={(e): void => setAccountId(e.target.value)}
                   aria-label={t('tasks.create.account')}
-                  className={cn(fieldClass, 'max-w-[9rem] shrink-0')}
+                  className={cn(fieldControlClass, 'max-w-[9rem] shrink-0 px-1.5 py-1 text-xs')}
                 >
                   {taskAccounts.map((a) => (
                     <option key={a.id} value={a.id}>
@@ -157,7 +154,7 @@ export function TasksInlineCreateRow({
                   disabled={listsLoading || lists.length === 0}
                   onChange={(e): void => setListId(e.target.value)}
                   aria-label={t('tasks.create.list')}
-                  className={cn(fieldClass, 'max-w-[8rem] shrink-0')}
+                  className={cn(fieldControlClass, 'max-w-[8rem] shrink-0 px-1.5 py-1 text-xs')}
                 >
                   {lists.map((l) => (
                     <option key={l.id} value={l.id}>
@@ -180,7 +177,7 @@ export function TasksInlineCreateRow({
                   void submit()
                 }
               }}
-              className={cn(fieldClass, 'min-w-[8rem] flex-1')}
+              className={cn(fieldControlClass, 'min-w-[8rem] flex-1 px-1.5 py-1 text-xs')}
             />
             <input
               type="date"
@@ -188,7 +185,7 @@ export function TasksInlineCreateRow({
               disabled={busy}
               onChange={(e): void => setDue(e.target.value)}
               aria-label={t('tasks.create.due')}
-              className={cn(fieldClass, 'w-[8.5rem] shrink-0')}
+              className={cn(fieldControlClass, 'w-[8.5rem] shrink-0 px-1.5 py-1 text-xs')}
             />
             <input
               type="text"
@@ -202,7 +199,7 @@ export function TasksInlineCreateRow({
                   void submit()
                 }
               }}
-              className={cn(fieldClass, 'min-w-[6rem] flex-[2]')}
+              className={cn(fieldControlClass, 'min-w-[6rem] flex-[2] px-1.5 py-1 text-xs')}
             />
             {busy ? (
               <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" aria-hidden />

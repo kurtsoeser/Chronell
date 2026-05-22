@@ -727,6 +727,10 @@ export type CalendarRecurrenceRangeEndMode = 'never' | 'until' | 'count'
 export interface CalendarSaveEventRecurrence {
   frequency: CalendarRecurrenceFrequency
   rangeEnd: CalendarRecurrenceRangeEndMode
+  /** Für weekly/biweekly: ausgewählte Wochentage (`monday`..`sunday`). */
+  weekdays?: Array<
+    'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday'
+  >
   /** `YYYY-MM-DD`, wenn `rangeEnd === 'until'` */
   untilDate?: string | null
   /** Wenn `rangeEnd === 'count'`: 1–999 (inkl. erstem Termin). */
@@ -856,6 +860,26 @@ export interface TaskListRow {
   provider: 'microsoft' | 'google'
 }
 
+/** Serienfrequenz für Cloud-Aufgaben (gleiches Modell wie Kalendertermine). */
+export type TaskRecurrenceFrequency = CalendarRecurrenceFrequency
+
+/** Ende der Aufgaben-Serie. */
+export type TaskRecurrenceRangeEndMode = CalendarRecurrenceRangeEndMode
+
+/**
+ * Wiederholende Cloud-Aufgabe beim Anlegen.
+ * Microsoft To Do: Graph `recurrence`. Google Tasks: nur lokal (API ohne Serien).
+ */
+export interface TaskSaveRecurrence {
+  frequency: TaskRecurrenceFrequency
+  rangeEnd: TaskRecurrenceRangeEndMode
+  weekdays?: Array<
+    'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday'
+  >
+  untilDate?: string | null
+  count?: number | null
+}
+
 /** Einzelne Cloud-Aufgabe (nicht Mail-Triage-ToDos). */
 export interface TaskItemRow {
   id: string
@@ -869,6 +893,10 @@ export interface TaskItemRow {
   iconId?: string | null
   /** Hex-Farbe für das Anzeige-Icon. */
   iconColor?: string | null
+  /** Serienmuster (Graph oder lokal bei Google). */
+  recurrence?: TaskSaveRecurrence | null
+  /** true = nur in der App gespeichert (Google Tasks API ohne Wiederholung). */
+  recurrenceLocalOnly?: boolean
 }
 
 /** Lokales Aufgaben-Icon und Farbe setzen/entfernen. */
@@ -907,6 +935,8 @@ export interface TasksCreateTaskInput {
   notes?: string | null
   dueIso?: string | null
   completed?: boolean
+  /** Serienaufgabe (MS365: Graph; Google: lokales Metadatum). Erfordert `dueIso`. */
+  recurrence?: TaskSaveRecurrence | null
 }
 
 export interface TasksPatchTaskInput {

@@ -42,6 +42,11 @@ import { dueIsoFromClientInput } from '@shared/calendar-datetime'
 import { cloudTaskStableKey } from '@shared/work-item-keys'
 import { applyCloudTaskPersistTarget } from '@/app/calendar/apply-cloud-task-persist'
 import { CalendarEventRecurrenceSection } from '@/app/calendar/CalendarEventRecurrenceSection'
+import {
+  buildTaskSaveRecurrence,
+  defaultWeekdayFromDueYmd,
+  validateTaskRecurrenceForm
+} from '@/lib/task-recurrence-form'
 import { isWritableCalendarTarget } from '@/app/calendar/calendar-create-destination'
 import {
   scheduleFromCalendarCreateRange,
@@ -379,6 +384,9 @@ export function CalendarEventDialog({
   const [recurEnd, setRecurEnd] = useState<CalendarRecurrenceRangeEndMode>('never')
   const [recurUntilDate, setRecurUntilDate] = useState('')
   const [recurCount, setRecurCount] = useState('10')
+  const [recurWeekdays, setRecurWeekdays] = useState<
+    Array<'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday'>
+  >([])
 
   const [createKind, setCreateKind] = useState<CalendarEventDialogCreateKind>('event')
   const [taskAccountId, setTaskAccountId] = useState('')
@@ -535,6 +543,7 @@ export function CalendarEventDialog({
       setRecurEnd('never')
       setRecurUntilDate('')
       setRecurCount('10')
+      setRecurWeekdays([])
       const calId = initialEvent.graphCalendarId?.trim() ?? ''
       setGraphCalendarId(calId)
       setDestinationSelectValue(calendarDestinationKey(initialEvent.accountId, calId))
@@ -1052,9 +1061,37 @@ export function CalendarEventDialog({
         setLocalError(t('calendar.eventDialog.enterTitle'))
         return
       }
+      const taskDueYmd = taskDue.trim()
+      const taskRecurErr = validateTaskRecurrenceForm(
+        { recurFreq, recurEnd, recurUntilDate, recurCount, recurWeekdays },
+        taskDueYmd
+      )
+      if (taskRecurErr === 'dueRequired') {
+        setLocalError(t('tasks.create.recurrenceDueRequired'))
+        return
+      }
+      if (taskRecurErr === 'untilInvalid') {
+        setLocalError(t('tasks.create.recurrenceUntilInvalid'))
+        return
+      }
+      if (taskRecurErr === 'untilBeforeDue') {
+        setLocalError(t('tasks.create.recurrenceUntilBeforeDue'))
+        return
+      }
+      if (taskRecurErr === 'countInvalid') {
+        setLocalError(t('tasks.create.recurrenceCountInvalid'))
+        return
+      }
+      const taskRecurrence = buildTaskSaveRecurrence({
+        recurFreq,
+        recurEnd,
+        recurUntilDate,
+        recurCount,
+        recurWeekdays
+      })
       setBusy(true)
       try {
-        const dueIso = dueIsoFromClientInput(taskDue.trim() || null)
+        const dueIso = dueIsoFromClientInput(taskDueYmd || null)
         const plannedStartIso = datetimeLocalValueToIso(taskPlannedStart)
         const plannedEndIso = datetimeLocalValueToIso(taskPlannedEnd)
         const row = await window.mailClient.tasks.createTask({
@@ -1063,7 +1100,8 @@ export function CalendarEventDialog({
           title: subject.trim(),
           notes: taskNotes.trim() || null,
           dueIso,
-          completed: false
+          completed: false,
+          ...(taskRecurrence ? { recurrence: taskRecurrence } : {})
         })
         if (plannedStartIso && plannedEndIso) {
           const taskKey = cloudTaskStableKey(taskAccountId, taskListId, row.id)
@@ -1175,6 +1213,9 @@ export function CalendarEventDialog({
       recurrence = {
         frequency: recurFreq,
         rangeEnd: recurEnd,
+        ...((recurFreq === 'weekly' || recurFreq === 'biweekly') && recurWeekdays.length > 0
+          ? { weekdays: recurWeekdays }
+          : {}),
         ...(recurEnd === 'until' ? { untilDate: recurUntilDate } : {}),
         ...(recurEnd === 'count' ? { count: parseInt(recurCount, 10) } : {})
       }
@@ -1561,11 +1602,44 @@ export function CalendarEventDialog({
                   <input
                     type="date"
                     value={taskDue}
-                    onChange={(e): void => setTaskDue(e.target.value)}
+                    onChange={(e): void => {
+                      const v = e.target.value
+                      setTaskDue(v)
+                      if (
+                        v &&
+                        recurWeekdays.length === 0 &&
+                        (recurFreq === 'weekly' || recurFreq === 'biweekly')
+                      ) {
+                        setRecurWeekdays(defaultWeekdayFromDueYmd(v))
+                      }
+                    }}
                     disabled={busy}
                     className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-[13px]"
                   />
                 </label>
+                <CalendarEventRecurrenceSection
+                  i18nPrefix="tasks.create"
+                  recurFreq={recurFreq}
+                  setRecurFreq={(v): void => {
+                    setRecurFreq(v)
+                    if (
+                      (v === 'weekly' || v === 'biweekly') &&
+                      recurWeekdays.length === 0 &&
+                      taskDue.trim()
+                    ) {
+                      setRecurWeekdays(defaultWeekdayFromDueYmd(taskDue.trim()))
+                    }
+                  }}
+                  recurEnd={recurEnd}
+                  setRecurEnd={setRecurEnd}
+                  recurUntilDate={recurUntilDate}
+                  setRecurUntilDate={setRecurUntilDate}
+                  recurCount={recurCount}
+                  setRecurCount={setRecurCount}
+                  recurWeekdays={recurWeekdays}
+                  setRecurWeekdays={setRecurWeekdays}
+                  eventFieldsLocked={busy}
+                />
                 <label className="block space-y-1 text-[11px]">
                   <span className="text-muted-foreground">{t('tasks.create.notes')}</span>
                   <textarea
@@ -1793,6 +1867,8 @@ export function CalendarEventDialog({
                 setRecurUntilDate={setRecurUntilDate}
                 recurCount={recurCount}
                 setRecurCount={setRecurCount}
+                recurWeekdays={recurWeekdays}
+                setRecurWeekdays={setRecurWeekdays}
                 eventFieldsLocked={eventFieldsLocked}
               />
             ) : null}
@@ -1819,6 +1895,22 @@ export function CalendarEventDialog({
               </div>
             ) : selectedAccount?.provider === 'microsoft' ? (
               <div className="border-b border-border py-1">
+                <PropertyRow icon={Users} label={t('calendar.eventDialog.attendeesRowLabel')}>
+                  <div className="space-y-1.5">
+                    <div className="mt-1 rounded-md border border-border bg-background px-2 py-1.5">
+                      <RecipientTokenField
+                        label=""
+                        value={attendeeInput}
+                        onChange={setAttendeeInput}
+                        accountId={accountId}
+                        className="border-0 px-0 py-0"
+                      />
+                    </div>
+                    <p className="text-[10px] leading-snug text-muted-foreground">
+                      {t('calendar.eventDialog.attendeesInviteHint')}
+                    </p>
+                  </div>
+                </PropertyRow>
                 <PropertyRow icon={Video} label={t('calendar.eventDialog.teamsMeetingRowLabel')}>
                   <div className="space-y-1.5">
                     <label className="flex cursor-pointer items-center gap-2 text-[13px]">
@@ -1839,22 +1931,6 @@ export function CalendarEventDialog({
                         {msEventDetailsError}
                       </p>
                     ) : null}
-                  </div>
-                </PropertyRow>
-                <PropertyRow icon={Users} label={t('calendar.eventDialog.attendeesRowLabel')}>
-                  <div className="space-y-1.5">
-                    <div className="mt-1 rounded-md border border-border bg-background px-2 py-1.5">
-                      <RecipientTokenField
-                        label={t('calendar.eventDialog.attendeesRowLabel')}
-                        value={attendeeInput}
-                        onChange={setAttendeeInput}
-                        accountId={accountId}
-                        className="border-0 px-0 py-0"
-                      />
-                    </div>
-                    <p className="text-[10px] leading-snug text-muted-foreground">
-                      {t('calendar.eventDialog.attendeesInviteHint')}
-                    </p>
                   </div>
                 </PropertyRow>
               </div>

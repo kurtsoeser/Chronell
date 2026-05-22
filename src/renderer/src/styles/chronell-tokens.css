@@ -84,7 +84,9 @@
     --secondary-foreground: 222 47% 11%;
     --accent-foreground: 222 47% 11%;
     --border: 220 27% 92%;
-    --input: 220 27% 92%;
+    --input: 220 27% 88%;
+    --border-opacity: 1;
+    --input-opacity: 1;
     --radius: var(--radius-sm);
   }
 
@@ -137,8 +139,11 @@
     --muted-foreground: 220 9% 65%;
     --secondary-foreground: 0 0% 100%;
     --accent-foreground: 0 0% 100%;
-    --border: 0 0% 100% / 0.04;
-    --input: 0 0% 100% / 0.1;
+    /* Nur HSL-Komponenten (ohne Alpha) — Opazitaet via Tailwind border-border/… oder --border-opacity */
+    --border: 0 0% 24%;
+    --input: 0 0% 28%;
+    --border-opacity: 0.35;
+    --input-opacity: 0.45;
   }
 
   body {

@@ -18,6 +18,16 @@ function graphDayOfWeek(parts: CalendarZonedParts): (typeof GRAPH_DOW)[number] {
   const idx = Math.min(Math.max(parts.weekday - 1, 0), 6)
   return GRAPH_DOW[idx]!
 }
+function normalizedWeekdays(
+  recurrence: CalendarSaveEventRecurrence,
+  fallback: (typeof GRAPH_DOW)[number]
+): (typeof GRAPH_DOW)[number][] {
+  const input = recurrence.weekdays ?? []
+  const valid = input.filter((d): d is (typeof GRAPH_DOW)[number] =>
+    (GRAPH_DOW as readonly string[]).includes(d)
+  )
+  return valid.length > 0 ? Array.from(new Set(valid)) : [fallback]
+}
 
 function googleByDay(parts: CalendarZonedParts): string {
   return GOOGLE_BYDAY[parts.weekday - 1]!
@@ -38,19 +48,25 @@ export function buildMicrosoftGraphRecurrencePayload(
       pattern = { type: 'daily', interval: 1 }
       break
     case 'weekly':
+      {
+        const days = normalizedWeekdays(recurrence, graphDayOfWeek(startLocal))
       pattern = {
         type: 'weekly',
         interval: 1,
-        daysOfWeek: [graphDayOfWeek(startLocal)],
+        daysOfWeek: days,
         firstDayOfWeek: 'monday'
+      }
       }
       break
     case 'biweekly':
+      {
+        const days = normalizedWeekdays(recurrence, graphDayOfWeek(startLocal))
       pattern = {
         type: 'weekly',
         interval: 2,
-        daysOfWeek: [graphDayOfWeek(startLocal)],
+        daysOfWeek: days,
         firstDayOfWeek: 'monday'
+      }
       }
       break
     case 'monthly':
@@ -110,7 +126,9 @@ export function buildGoogleEventRecurrence(
   calendarIanaTz: string,
   isAllDay: boolean
 ): string[] {
-  const byday = googleByDay(startLocal)
+  const byday = normalizedWeekdays(recurrence, graphDayOfWeek(startLocal))
+    .map((d) => GOOGLE_BYDAY[GRAPH_DOW.indexOf(d)]!)
+    .join(',')
   let freqPart = ''
   switch (recurrence.frequency) {
     case 'daily':

@@ -3,7 +3,7 @@ import { format, parseISO } from 'date-fns'
 import { de as deFns, enUS as enUSFns } from 'date-fns/locale'
 import type { Locale } from 'date-fns'
 import { useTranslation } from 'react-i18next'
-import { CheckSquare, Loader2, Square } from 'lucide-react'
+import { CheckSquare, Loader2, Square, StickyNote } from 'lucide-react'
 import type { WorkItemPlannedSchedule } from '@shared/work-item'
 import type { TaskItemWithContext } from '@/app/tasks/tasks-types'
 import type { CloudTaskDisplayPatch, CloudTaskSaveDraft } from '@/app/work/CloudTaskWorkItemDetail'
@@ -96,6 +96,7 @@ export function CloudTaskItemPreview(props: {
   const [plannedStartDraft, setPlannedStartDraft] = useState('')
   const [plannedEndDraft, setPlannedEndDraft] = useState('')
   const [inlineError, setInlineError] = useState<string | null>(null)
+  const [notesSectionExpanded, setNotesSectionExpanded] = useState(false)
 
   const titleInputRef = useRef<HTMLInputElement>(null)
   const notesEditorRef = useRef<HTMLTextAreaElement>(null)
@@ -231,10 +232,16 @@ export function CloudTaskItemPreview(props: {
   const beginInlineEdit = useCallback(
     (field: PreviewEditField): void => {
       if (!editable || saving) return
+      if (field === 'notes') setNotesSectionExpanded(true)
       setEditingField(field)
     },
     [editable, saving]
   )
+
+  const hasNotes = Boolean(task.notes?.trim())
+  const notesSummary = hasNotes
+    ? task.notes!.trim().replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80)
+    : t('calendar.cloudTaskPreview.notesEmpty')
 
   const inlineEditHandlers = useCallback(
     (field: PreviewEditField) => {
@@ -447,7 +454,14 @@ export function CloudTaskItemPreview(props: {
             </p>
           )}
         </div>
-        <PreviewFoldSection title={t('calendar.cloudTaskPreview.notesLabel')} collapsedDefault>
+        <PreviewFoldSection
+          icon={StickyNote}
+          title={t('calendar.cloudTaskPreview.notesLabel')}
+          expanded={notesSectionExpanded}
+          onToggle={(): void => setNotesSectionExpanded((v) => !v)}
+          summary={notesSummary}
+          iconClassName={hasNotes ? 'fill-amber-300 text-amber-500' : undefined}
+        >
           {editingField === 'notes' ? (
             <textarea
               ref={notesEditorRef}

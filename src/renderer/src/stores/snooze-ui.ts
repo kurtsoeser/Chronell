@@ -8,8 +8,10 @@ interface SnoozePickerAnchor {
 interface SnoozeUiState {
   /** Mail, fuer die der Picker geoeffnet ist. null = geschlossen. */
   pendingMessageId: number | null
+  /** Zusaetzliche Mails fuer Massen-Snooze (gleiche Uhrzeit). */
+  bulkMessageIds: number[] | null
   anchor: SnoozePickerAnchor | null
-  open: (messageId: number, anchor: SnoozePickerAnchor) => void
+  open: (messageId: number, anchor: SnoozePickerAnchor, bulkMessageIds?: number[]) => void
   close: () => void
 }
 
@@ -20,11 +22,16 @@ interface SnoozeUiState {
  */
 export const useSnoozeUiStore = create<SnoozeUiState>((set) => ({
   pendingMessageId: null,
+  bulkMessageIds: null,
   anchor: null,
-  open(messageId, anchor): void {
-    set({ pendingMessageId: messageId, anchor })
+  open(messageId, anchor, bulkMessageIds): void {
+    const bulk =
+      bulkMessageIds && bulkMessageIds.length > 1
+        ? [...new Set(bulkMessageIds.filter((id) => Number.isFinite(id)))]
+        : null
+    set({ pendingMessageId: messageId, anchor, bulkMessageIds: bulk })
   },
   close(): void {
-    set({ pendingMessageId: null, anchor: null })
+    set({ pendingMessageId: null, bulkMessageIds: null, anchor: null })
   }
 }))

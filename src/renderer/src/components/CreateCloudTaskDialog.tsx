@@ -1,7 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
 import { AlertCircle, Loader2, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import type { ConnectedAccount, TaskListRow } from '@shared/types'
+import type {
+  CalendarRecurrenceRangeEndMode,
+  ConnectedAccount,
+  TaskListRow
+} from '@shared/types'
+import { CalendarEventRecurrenceSection } from '@/app/calendar/CalendarEventRecurrenceSection'
+import {
+  buildTaskSaveRecurrence,
+  defaultWeekdayFromDueYmd,
+  type TaskRecurrenceUiFrequency,
+  validateTaskRecurrenceForm
+} from '@/lib/task-recurrence-form'
 import { dueIsoFromClientInput } from '@shared/calendar-datetime'
 import { cloudTaskStableKey } from '@shared/work-item-keys'
 import { applyCloudTaskPersistTarget } from '@/app/calendar/apply-cloud-task-persist'
@@ -61,6 +72,13 @@ export function CreateCloudTaskDialog({
   const [plannedEnd, setPlannedEnd] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [recurFreq, setRecurFreq] = useState<TaskRecurrenceUiFrequency>('none')
+  const [recurEnd, setRecurEnd] = useState<CalendarRecurrenceRangeEndMode>('never')
+  const [recurUntilDate, setRecurUntilDate] = useState('')
+  const [recurCount, setRecurCount] = useState('10')
+  const [recurWeekdays, setRecurWeekdays] = useState<
+    Array<'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday'>
+  >([])
 
   useEffect(() => {
     if (!open) return
@@ -72,6 +90,11 @@ export function CreateCloudTaskDialog({
     setTitle('')
     setNotes('')
     setError(null)
+    setRecurFreq('none')
+    setRecurEnd('never')
+    setRecurUntilDate('')
+    setRecurCount('10')
+    setRecurWeekdays([])
     if (initialRange) {
       const sched = scheduleFromCalendarCreateRange(initialRange, timeZone)
       setDue(sched.dueDate)
@@ -124,12 +147,46 @@ export function CreateCloudTaskDialog({
     !busy &&
     !listsLoading
 
+  const selectedAccount = taskAccounts.find((a) => a.id === accountId)
+
   async function handleSubmit(): Promise<void> {
     if (!canSubmit) return
     setBusy(true)
     setError(null)
     try {
-      const dueIso = dueIsoFromClientInput(due.trim() || null)
+      const dueYmd = due.trim()
+      const recurErr = validateTaskRecurrenceForm(
+        { recurFreq, recurEnd, recurUntilDate, recurCount, recurWeekdays },
+        dueYmd
+      )
+      if (recurErr === 'dueRequired') {
+        setError(t('tasks.create.recurrenceDueRequired'))
+        setBusy(false)
+        return
+      }
+      if (recurErr === 'untilInvalid') {
+        setError(t('tasks.create.recurrenceUntilInvalid'))
+        setBusy(false)
+        return
+      }
+      if (recurErr === 'untilBeforeDue') {
+        setError(t('tasks.create.recurrenceUntilBeforeDue'))
+        setBusy(false)
+        return
+      }
+      if (recurErr === 'countInvalid') {
+        setError(t('tasks.create.recurrenceCountInvalid'))
+        setBusy(false)
+        return
+      }
+      const recurrence = buildTaskSaveRecurrence({
+        recurFreq,
+        recurEnd,
+        recurUntilDate,
+        recurCount,
+        recurWeekdays
+      })
+      const dueIso = dueIsoFromClientInput(dueYmd || null)
       const plannedStartIso = datetimeLocalValueToIso(plannedStart)
       const plannedEndIso = datetimeLocalValueToIso(plannedEnd)
       const row = await window.mailClient.tasks.createTask({
@@ -138,7 +195,8 @@ export function CreateCloudTaskDialog({
         title: title.trim(),
         notes: notes.trim() || null,
         dueIso,
-        completed: false
+        completed: false,
+        ...(recurrence ? { recurrence } : {})
       })
       if (plannedStartIso && plannedEndIso) {
         const taskKey = cloudTaskStableKey(accountId, listId, row.id)
@@ -257,10 +315,49 @@ export function CreateCloudTaskDialog({
                   <input
                     type="date"
                     value={due}
-                    onChange={(e): void => setDue(e.target.value)}
+                    onChange={(e): void => {
+                      const v = e.target.value
+                      setDue(v)
+                      if (
+                        v &&
+                        recurWeekdays.length === 0 &&
+                        (recurFreq === 'weekly' || recurFreq === 'biweekly')
+                      ) {
+                        setRecurWeekdays(defaultWeekdayFromDueYmd(v))
+                      }
+                    }}
                     className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm"
                   />
                 </label>
+
+                <CalendarEventRecurrenceSection
+                  i18nPrefix="tasks.create"
+                  recurFreq={recurFreq}
+                  setRecurFreq={(v): void => {
+                    setRecurFreq(v)
+                    if (
+                      (v === 'weekly' || v === 'biweekly') &&
+                      recurWeekdays.length === 0 &&
+                      due.trim()
+                    ) {
+                      setRecurWeekdays(defaultWeekdayFromDueYmd(due.trim()))
+                    }
+                  }}
+                  recurEnd={recurEnd}
+                  setRecurEnd={setRecurEnd}
+                  recurUntilDate={recurUntilDate}
+                  setRecurUntilDate={setRecurUntilDate}
+                  recurCount={recurCount}
+                  setRecurCount={setRecurCount}
+                  recurWeekdays={recurWeekdays}
+                  setRecurWeekdays={setRecurWeekdays}
+                  eventFieldsLocked={busy}
+                />
+                {selectedAccount?.provider === 'google' && recurFreq !== 'none' ? (
+                  <p className="text-[10px] leading-snug text-muted-foreground">
+                    {t('tasks.create.recurrenceGoogleNote')}
+                  </p>
+                ) : null}
 
                 <label className="block space-y-1">
                   <span className="text-xs text-muted-foreground">{t('tasks.create.notes')}</span>

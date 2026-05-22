@@ -1,6 +1,7 @@
 import { normalizeEntityIconColor } from '@shared/entity-icon-color'
 import { getDb } from './index'
-import type { TaskItemRow, TaskListRow } from '@shared/types'
+import type { TaskItemRow, TaskListRow, TaskSaveRecurrence } from '@shared/types'
+import { deserializeTaskRecurrence, serializeTaskRecurrence } from '../task-recurrence'
 
 interface TaskListDbRow {
   account_id: string
@@ -20,6 +21,8 @@ interface CloudTaskDbRow {
   notes: string | null
   icon_id: string | null
   icon_color: string | null
+  recurrence_json: string | null
+  recurrence_local_only: number
 }
 
 function rowToTaskList(r: TaskListDbRow): TaskListRow {
@@ -32,6 +35,7 @@ function rowToTaskList(r: TaskListDbRow): TaskListRow {
 }
 
 function rowToTaskItem(r: CloudTaskDbRow): TaskItemRow {
+  const recurrence = deserializeTaskRecurrence(r.recurrence_json)
   return {
     id: r.task_id,
     listId: r.list_id,
@@ -40,11 +44,12 @@ function rowToTaskItem(r: CloudTaskDbRow): TaskItemRow {
     dueIso: r.due_iso,
     notes: r.notes,
     iconId: r.icon_id?.trim() ? r.icon_id.trim() : null,
-    iconColor: r.icon_color?.trim() ? r.icon_color.trim() : null
+    iconColor: r.icon_color?.trim() ? r.icon_color.trim() : null,
+    ...(recurrence ? { recurrence, recurrenceLocalOnly: r.recurrence_local_only === 1 } : {})
   }
 }
 
-const CLOUD_TASK_SELECT = `account_id, list_id, task_id, title, completed, due_iso, notes, icon_id, icon_color`
+const CLOUD_TASK_SELECT = `account_id, list_id, task_id, title, completed, due_iso, notes, icon_id, icon_color, recurrence_json, recurrence_local_only`
 
 const UPSERT_LIST = `
   INSERT INTO task_lists (account_id, list_id, name, is_default, provider, synced_at)
@@ -58,15 +63,22 @@ const UPSERT_LIST = `
 
 const UPSERT_TASK = `
   INSERT INTO cloud_tasks (
-    account_id, list_id, task_id, title, completed, due_iso, notes, synced_at
+    account_id, list_id, task_id, title, completed, due_iso, notes,
+    recurrence_json, recurrence_local_only, synced_at
   ) VALUES (
-    @account_id, @list_id, @task_id, @title, @completed, @due_iso, @notes, datetime('now')
+    @account_id, @list_id, @task_id, @title, @completed, @due_iso, @notes,
+    @recurrence_json, @recurrence_local_only, datetime('now')
   )
   ON CONFLICT(account_id, list_id, task_id) DO UPDATE SET
     title = excluded.title,
     completed = excluded.completed,
     due_iso = excluded.due_iso,
     notes = excluded.notes,
+    recurrence_json = COALESCE(excluded.recurrence_json, cloud_tasks.recurrence_json),
+    recurrence_local_only = CASE
+      WHEN excluded.recurrence_json IS NOT NULL THEN excluded.recurrence_local_only
+      ELSE cloud_tasks.recurrence_local_only
+    END,
     synced_at = datetime('now')
 `
 
@@ -141,7 +153,9 @@ export function upsertCloudTasks(accountId: string, tasks: TaskItemRow[]): void 
         title: task.title,
         completed: task.completed ? 1 : 0,
         due_iso: task.dueIso,
-        notes: task.notes
+        notes: task.notes,
+        recurrence_json: serializeTaskRecurrence(task.recurrence),
+        recurrence_local_only: task.recurrenceLocalOnly === true ? 1 : 0
       })
     }
   })
@@ -306,6 +320,47 @@ export function getCloudTaskFromCache(
     )
     .get(accountId, listId, taskId.trim()) as CloudTaskDbRow | undefined
   return row ? rowToTaskItem(row) : null
+}
+
+/** Serien-Metadatum setzen (z. B. Google-Fallback nach Anlegen). */
+export function setCloudTaskRecurrence(
+  accountId: string,
+  listId: string,
+  taskId: string,
+  recurrence: TaskSaveRecurrence | null,
+  localOnly: boolean
+): void {
+  getDb()
+    .prepare(
+      `UPDATE cloud_tasks SET recurrence_json = ?, recurrence_local_only = ?, synced_at = datetime('now')
+       WHERE account_id = ? AND list_id = ? AND task_id = ?`
+    )
+    .run(
+      serializeTaskRecurrence(recurrence),
+      localOnly ? 1 : 0,
+      accountId,
+      listId,
+      taskId.trim()
+    )
+}
+
+export function mergeCloudTasksRecurrenceFromCache(
+  accountId: string,
+  listId: string,
+  incoming: TaskItemRow[]
+): TaskItemRow[] {
+  const cached = listCloudTasksFromCache(accountId, listId, { showCompleted: true })
+  const byId = new Map(cached.map((t) => [t.id, t]))
+  return incoming.map((t) => {
+    if (t.recurrence) return t
+    const c = byId.get(t.id)
+    if (!c?.recurrence) return t
+    return {
+      ...t,
+      recurrence: c.recurrence,
+      recurrenceLocalOnly: c.recurrenceLocalOnly
+    }
+  })
 }
 
 export function deleteCloudTasksDataForAccount(accountId: string): void {

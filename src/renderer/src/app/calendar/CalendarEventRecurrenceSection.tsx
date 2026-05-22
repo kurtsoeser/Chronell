@@ -5,6 +5,8 @@ import type { CalendarRecurrenceFrequency, CalendarRecurrenceRangeEndMode } from
 type RecurrenceUiFrequency = 'none' | CalendarRecurrenceFrequency
 
 interface Props {
+  /** i18n-Prefix, z. B. `calendar.eventDialog` oder `tasks.create`. */
+  i18nPrefix?: string
   recurFreq: RecurrenceUiFrequency
   setRecurFreq: (v: RecurrenceUiFrequency) => void
   recurEnd: CalendarRecurrenceRangeEndMode
@@ -13,10 +15,19 @@ interface Props {
   setRecurUntilDate: (v: string) => void
   recurCount: string
   setRecurCount: (v: string) => void
+  recurWeekdays: Array<
+    'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday'
+  >
+  setRecurWeekdays: (
+    v: Array<
+      'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday'
+    >
+  ) => void
   eventFieldsLocked: boolean
 }
 
 export function CalendarEventRecurrenceSection({
+  i18nPrefix = 'calendar.eventDialog',
   recurFreq,
   setRecurFreq,
   recurEnd,
@@ -25,18 +36,33 @@ export function CalendarEventRecurrenceSection({
   setRecurUntilDate,
   recurCount,
   setRecurCount,
+  recurWeekdays,
+  setRecurWeekdays,
   eventFieldsLocked
 }: Props): JSX.Element {
   const { t } = useTranslation()
+  const tk = (key: string): string => t(`${i18nPrefix}.${key}`)
+  const weekdayButtons: Array<{
+    key: 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday'
+    label: string
+  }> = [
+    { key: 'monday', label: t('calendar.eventDialog.weekdayMon') },
+    { key: 'tuesday', label: t('calendar.eventDialog.weekdayTue') },
+    { key: 'wednesday', label: t('calendar.eventDialog.weekdayWed') },
+    { key: 'thursday', label: t('calendar.eventDialog.weekdayThu') },
+    { key: 'friday', label: t('calendar.eventDialog.weekdayFri') },
+    { key: 'saturday', label: t('calendar.eventDialog.weekdaySat') },
+    { key: 'sunday', label: t('calendar.eventDialog.weekdaySun') }
+  ]
 
   return (
     <div className="border-b border-border py-3">
       <div className="mb-2 flex items-center gap-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
         <Repeat2 className="h-3.5 w-3.5" />
-        {t('calendar.eventDialog.recurrenceHeading')}
+        {tk('recurrenceHeading')}
       </div>
       <label className="block text-[11px] text-muted-foreground" htmlFor="cal-recur-freq">
-        {t('calendar.eventDialog.recurrenceFreqLabel')}
+        {tk('recurrenceFreqLabel')}
       </label>
       <select
         id="cal-recur-freq"
@@ -57,17 +83,43 @@ export function CalendarEventRecurrenceSection({
         }}
         className="mt-1 w-full rounded-md border border-border bg-background px-2 py-2 text-[13px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        <option value="none">{t('calendar.eventDialog.recurrenceFreqNone')}</option>
-        <option value="daily">{t('calendar.eventDialog.recurrenceFreqDaily')}</option>
-        <option value="weekly">{t('calendar.eventDialog.recurrenceFreqWeekly')}</option>
-        <option value="biweekly">{t('calendar.eventDialog.recurrenceFreqBiweekly')}</option>
-        <option value="monthly">{t('calendar.eventDialog.recurrenceFreqMonthly')}</option>
-        <option value="yearly">{t('calendar.eventDialog.recurrenceFreqYearly')}</option>
+        <option value="none">{tk('recurrenceFreqNone')}</option>
+        <option value="daily">{tk('recurrenceFreqDaily')}</option>
+        <option value="weekly">{tk('recurrenceFreqWeekly')}</option>
+        <option value="biweekly">{tk('recurrenceFreqBiweekly')}</option>
+        <option value="monthly">{tk('recurrenceFreqMonthly')}</option>
+        <option value="yearly">{tk('recurrenceFreqYearly')}</option>
       </select>
       {recurFreq !== 'none' ? (
         <div className="mt-3 space-y-2">
+          {(recurFreq === 'weekly' || recurFreq === 'biweekly') ? (
+            <div className="space-y-1.5">
+              <p className="text-[11px] text-muted-foreground">{tk('recurrenceWeekdaysLabel')}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {weekdayButtons.map((day) => {
+                  const active = recurWeekdays.includes(day.key)
+                  return (
+                    <button
+                      key={day.key}
+                      type="button"
+                      disabled={eventFieldsLocked}
+                      onClick={(): void => {
+                        const next = active
+                          ? recurWeekdays.filter((d) => d !== day.key)
+                          : [...recurWeekdays, day.key]
+                        setRecurWeekdays(next)
+                      }}
+                      className={`h-8 min-w-8 rounded-full border px-2 text-xs ${active ? 'border-primary bg-primary/20 text-foreground' : 'border-border bg-background text-muted-foreground'} disabled:opacity-60`}
+                    >
+                      {day.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          ) : null}
           <label className="block text-[11px] text-muted-foreground" htmlFor="cal-recur-end">
-            {t('calendar.eventDialog.recurrenceEndLabel')}
+            {tk('recurrenceEndLabel')}
           </label>
           <select
             id="cal-recur-end"
@@ -79,14 +131,14 @@ export function CalendarEventRecurrenceSection({
             }}
             className="w-full rounded-md border border-border bg-background px-2 py-2 text-[13px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <option value="never">{t('calendar.eventDialog.recurrenceEndNever')}</option>
-            <option value="until">{t('calendar.eventDialog.recurrenceEndUntil')}</option>
-            <option value="count">{t('calendar.eventDialog.recurrenceEndCount')}</option>
+            <option value="never">{tk('recurrenceEndNever')}</option>
+            <option value="until">{tk('recurrenceEndUntil')}</option>
+            <option value="count">{tk('recurrenceEndCount')}</option>
           </select>
           {recurEnd === 'until' ? (
             <label className="block text-[11px]">
               <span className="mb-1 block text-muted-foreground">
-                {t('calendar.eventDialog.recurrenceUntilLabel')}
+                {tk('recurrenceUntilLabel')}
               </span>
               <input
                 type="date"
@@ -100,7 +152,7 @@ export function CalendarEventRecurrenceSection({
           {recurEnd === 'count' ? (
             <label className="block text-[11px]">
               <span className="mb-1 block text-muted-foreground">
-                {t('calendar.eventDialog.recurrenceCountLabel')}
+                {tk('recurrenceCountLabel')}
               </span>
               <input
                 type="number"
@@ -114,7 +166,7 @@ export function CalendarEventRecurrenceSection({
             </label>
           ) : null}
           <p className="text-[10px] leading-snug text-muted-foreground">
-            {t('calendar.eventDialog.recurrenceHint')}
+            {tk('recurrenceHint')}
           </p>
         </div>
       ) : null}

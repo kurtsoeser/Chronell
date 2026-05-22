@@ -12,6 +12,7 @@ import {
   isoToDatetimeLocalValue
 } from '@/app/work-items/work-item-datetime'
 import { EntityContextBlock } from '@/components/connections/EntityContextBlock'
+import { TaskRecurrenceSummaryFromItem } from '@/components/TaskRecurrenceSummary'
 
 export interface CloudTaskSaveDraft {
   title: string
@@ -128,6 +129,8 @@ export function CloudTaskWorkItemDetail({
           className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary"
         />
       </div>
+      <TaskRecurrenceSummaryFromItem task={item.task} />
+
       <div>
         <label className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
           {t('tasks.shell.fieldDue')}

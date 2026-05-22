@@ -69,3 +69,10 @@ export const settingsTileClass = 'rounded-md bg-background/60'
 /** Einstellungen: dezenter Rand fuer Steuerelemente. */
 export const settingsControlBorderClass =
   'border-white/[0.06] dark:border-white/[0.06]'
+
+/**
+ * Standard input/select/textarea — Styles in globals.css (.chronell-field-control).
+ * Statt `border border-border` oder `border-border/80` (erzeugt im Dark Mode helle Vollrahmen).
+ */
+export const fieldControlClass =
+  'chronell-field-control min-w-0 outline-none disabled:cursor-not-allowed'

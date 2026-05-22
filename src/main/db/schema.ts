@@ -1328,5 +1328,13 @@ export const MIGRATIONS: Migration[] = [
 
       INSERT INTO messages_fts(messages_fts) VALUES('rebuild');
     `
+  },
+  {
+    version: 44,
+    description: 'Cloud-Aufgaben: lokales Serien-Metadatum (Google-Fallback)',
+    sql: `
+      ALTER TABLE cloud_tasks ADD COLUMN recurrence_json TEXT NULL;
+      ALTER TABLE cloud_tasks ADD COLUMN recurrence_local_only INTEGER NOT NULL DEFAULT 0;
+    `
   }
 ]

@@ -143,7 +143,8 @@ export function registerTasksIpc(): void {
       title,
       notes: input.notes ?? null,
       dueIso: input.dueIso ?? null,
-      completed: input.completed === true
+      completed: input.completed === true,
+      recurrence: input.recurrence ?? null
     })
     afterTaskCreated(accountId, task)
     return task

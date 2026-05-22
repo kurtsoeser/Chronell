@@ -115,6 +115,11 @@ import {
   MailListTableRowIcons,
   type MailTableCellCtx
 } from '@/app/layout/mail-list-table-parts'
+import { useMailListBulkSelection, messageIdFromMailListRow } from '@/lib/mail-list-bulk-selection'
+import { MailListRowCheckbox } from '@/components/MailListRowCheckbox'
+import { MailListSelectableCheckbox } from '@/components/MailListSelectableCheckbox'
+import { MailListBulkActionBar } from '@/components/MailListBulkActionBar'
+import type { TodoDueKindOpen } from '@shared/types'
 
 interface MailContextState {
   x: number
@@ -465,76 +470,6 @@ export function MailList(): JSX.Element {
       ? foldersByAccount[account.id]?.find((f) => f.id === selectFolderId)
       : null
 
-  const openMailContext = useCallback(
-    async (
-      e: React.MouseEvent,
-      message: MailListItem,
-      opts?: MailListContextOpts
-    ): Promise<void> => {
-      e.preventDefault()
-      e.stopPropagation()
-      const anchor = { x: e.clientX, y: e.clientY }
-      const ui = {
-        snoozeAnchor: anchor,
-        applyToMessageIds: opts?.applyToMessageIds,
-        threadMessagesForContext: opts?.threadMessagesForContext
-      }
-      const cat = await buildMailCategorySubmenuItems(message, ui, refreshNow)
-      const ctxMsgs = resolveContextMsgs(message, opts?.threadMessagesForContext)
-      const targetIds = resolveContextTargetIds(message, opts?.applyToMessageIds)
-      const ctxAccountIds = new Set(ctxMsgs.map((m) => m.accountId))
-      const primaryAcc = accounts.find((a) => a.id === message.accountId)
-      const canMoveToFolder =
-        ctxAccountIds.size === 1 &&
-        (primaryAcc?.provider === 'microsoft' || primaryAcc?.provider === 'google')
-
-      const moveSubmenuContent =
-        canMoveToFolder && primaryAcc
-          ? (
-              <MailMoveSubmenuPanel
-                messageIds={targetIds}
-                accountId={message.accountId}
-                folders={foldersByAccount[message.accountId] ?? []}
-                isGmail={primaryAcc.provider === 'google'}
-                onCloseRoot={(): void => setContextMenu(null)}
-                onBrowseOther={(): void =>
-                  setMoveFolderPicker({
-                    accountId: message.accountId,
-                    messageIds: targetIds
-                  })
-                }
-              />
-            )
-          : undefined
-
-      let senderContactId: number | null = null
-      if (normalizeMailSenderEmail(message.fromAddr)) {
-        try {
-          const hit = await window.mailClient.people.findByEmail({
-            email: message.fromAddr!,
-            accountId: message.accountId
-          })
-          senderContactId = hit?.id ?? null
-        } catch {
-          senderContactId = null
-        }
-      }
-
-      const items = buildMailContextItems(message, mailContextHandlers, {
-        ...ui,
-        categorySubmenu: cat.length > 0 ? cat : undefined,
-        deletedItemsFolder: listKind === 'folder' && folder?.wellKnown === 'deleteditems',
-        removeMailTodoOnly: listKind === 'todo',
-        moveSubmenuContent,
-        allowsCloudTaskCreate: accountSupportsCloudTasks(primaryAcc),
-        senderContactId,
-        t
-      })
-      setContextMenu({ x: anchor.x, y: anchor.y, items })
-    },
-    [mailContextHandlers, refreshNow, listKind, folder, t, accounts, foldersByAccount]
-  )
-
   const sync =
     mailListUsesCrossAccountThreadScope(listKind)
       ? (Object.values(syncByAccount).find((s) => s.state.startsWith('syncing')) ??
@@ -681,6 +616,197 @@ export function MailList(): JSX.Element {
     ]
   )
 
+  const listScopeKey = `${listKind}:${selectFolderId ?? ''}:${selectFolderAccountId ?? ''}:${selectedMetaFolderId ?? ''}:${todoDueKind ?? ''}:${filter}`
+  const bulkSelection = useMailListBulkSelection(visibleFlatRows, listScopeKey)
+  const bulkSelectionMode = bulkSelection.selectionUiActive
+
+  const messageById = useMemo((): Map<number, MailListItem> => {
+    const map = new Map<number, MailListItem>()
+    for (const m of messages) map.set(m.id, m)
+    for (const list of Object.values(threadMessages)) {
+      for (const m of list) map.set(m.id, m)
+    }
+    return map
+  }, [messages, threadMessages])
+
+  const bulkSelectedMessages = useMemo((): MailListItem[] => {
+    const out: MailListItem[] = []
+    for (const id of bulkSelection.selectedIds) {
+      const m = messageById.get(id)
+      if (m) out.push(m)
+    }
+    return out
+  }, [bulkSelection.selectedIds, messageById])
+
+  const resolveBulkContextIds = useCallback(
+    (message: MailListItem, opts?: MailListContextOpts): number[] => {
+      if (bulkSelection.selectedCount > 0 && bulkSelection.isSelected(message.id)) {
+        return [...bulkSelection.selectedIds]
+      }
+      return resolveContextTargetIds(message, opts?.applyToMessageIds)
+    },
+    [bulkSelection]
+  )
+
+  const runBulkArchive = useCallback((): void => {
+    const ids = [...bulkSelection.selectedIds]
+    markExiting(ids, () => {
+      void (async (): Promise<void> => {
+        for (const id of ids) await archiveMessage(id)
+        bulkSelection.clear()
+      })()
+    })
+  }, [bulkSelection, archiveMessage, markExiting])
+
+  const runBulkDelete = useCallback((): void => {
+    const ids = [...bulkSelection.selectedIds]
+    markExiting(ids, () => {
+      void (async (): Promise<void> => {
+        for (const id of ids) await deleteMessageOrRemoveTodoEntry(id)
+        bulkSelection.clear()
+      })()
+    })
+  }, [bulkSelection, deleteMessageOrRemoveTodoEntry, markExiting])
+
+  const runBulkMarkRead = useCallback((): void => {
+    void (async (): Promise<void> => {
+      for (const id of bulkSelection.selectedIds) await setMessageRead(id, true)
+    })()
+  }, [bulkSelection.selectedIds, setMessageRead])
+
+  const runBulkMarkUnread = useCallback((): void => {
+    void (async (): Promise<void> => {
+      for (const id of bulkSelection.selectedIds) await setMessageRead(id, false)
+    })()
+  }, [bulkSelection.selectedIds, setMessageRead])
+
+  const runBulkToggleFlag = useCallback((): void => {
+    const listed = bulkSelectedMessages
+    if (listed.length === 0) return
+    const allFlagged = listed.every((m) => m.isFlagged)
+    void (async (): Promise<void> => {
+      for (const m of listed) {
+        if (allFlagged && m.isFlagged) await toggleMessageFlag(m.id)
+        if (!allFlagged && !m.isFlagged) await toggleMessageFlag(m.id)
+      }
+    })()
+  }, [bulkSelectedMessages, toggleMessageFlag])
+
+  const runBulkTodo = useCallback(
+    (dueKind: TodoDueKindOpen): void => {
+      void (async (): Promise<void> => {
+        for (const id of bulkSelection.selectedIds) await setTodoForMessage(id, dueKind)
+      })()
+    },
+    [bulkSelection.selectedIds, setTodoForMessage]
+  )
+
+  const runBulkMove = useCallback((): void => {
+    const listed = bulkSelectedMessages
+    if (listed.length === 0) return
+    const accountIds = new Set(listed.map((m) => m.accountId))
+    if (accountIds.size !== 1) return
+    setMoveFolderPicker({
+      accountId: listed[0]!.accountId,
+      messageIds: [...bulkSelection.selectedIds]
+    })
+  }, [bulkSelectedMessages, bulkSelection.selectedIds])
+
+  const runBulkSnooze = useCallback(
+    (anchor: { x: number; y: number }): void => {
+      const ids = [...bulkSelection.selectedIds]
+      if (ids.length === 0) return
+      openSnoozePicker(ids[0]!, anchor, ids)
+    },
+    [bulkSelection.selectedIds, openSnoozePicker]
+  )
+
+  const openMailContext = useCallback(
+    async (
+      e: React.MouseEvent,
+      message: MailListItem,
+      opts?: MailListContextOpts
+    ): Promise<void> => {
+      e.preventDefault()
+      e.stopPropagation()
+      const anchor = { x: e.clientX, y: e.clientY }
+      const targetIds = resolveBulkContextIds(message, opts)
+      const useBulkCtx =
+        bulkSelection.selectedCount > 0 && bulkSelection.isSelected(message.id)
+      const ctxMsgs = useBulkCtx
+        ? bulkSelectedMessages
+        : resolveContextMsgs(message, opts?.threadMessagesForContext)
+      const ui = {
+        snoozeAnchor: anchor,
+        applyToMessageIds: targetIds,
+        threadMessagesForContext:
+          ctxMsgs.length > 1 ? ctxMsgs : opts?.threadMessagesForContext
+      }
+      const cat = await buildMailCategorySubmenuItems(message, ui, refreshNow)
+      const ctxAccountIds = new Set(ctxMsgs.map((m) => m.accountId))
+      const primaryAcc = accounts.find((a) => a.id === message.accountId)
+      const canMoveToFolder =
+        ctxAccountIds.size === 1 &&
+        (primaryAcc?.provider === 'microsoft' || primaryAcc?.provider === 'google')
+
+      const moveSubmenuContent =
+        canMoveToFolder && primaryAcc
+          ? (
+              <MailMoveSubmenuPanel
+                messageIds={targetIds}
+                accountId={message.accountId}
+                folders={foldersByAccount[message.accountId] ?? []}
+                isGmail={primaryAcc.provider === 'google'}
+                onCloseRoot={(): void => setContextMenu(null)}
+                onBrowseOther={(): void =>
+                  setMoveFolderPicker({
+                    accountId: message.accountId,
+                    messageIds: targetIds
+                  })
+                }
+              />
+            )
+          : undefined
+
+      let senderContactId: number | null = null
+      if (normalizeMailSenderEmail(message.fromAddr)) {
+        try {
+          const hit = await window.mailClient.people.findByEmail({
+            email: message.fromAddr!,
+            accountId: message.accountId
+          })
+          senderContactId = hit?.id ?? null
+        } catch {
+          senderContactId = null
+        }
+      }
+
+      const items = buildMailContextItems(message, mailContextHandlers, {
+        ...ui,
+        categorySubmenu: cat.length > 0 ? cat : undefined,
+        deletedItemsFolder: listKind === 'folder' && folder?.wellKnown === 'deleteditems',
+        removeMailTodoOnly: listKind === 'todo',
+        moveSubmenuContent,
+        allowsCloudTaskCreate: accountSupportsCloudTasks(primaryAcc),
+        senderContactId,
+        t
+      })
+      setContextMenu({ x: anchor.x, y: anchor.y, items })
+    },
+    [
+      resolveBulkContextIds,
+      bulkSelection,
+      bulkSelectedMessages,
+      mailContextHandlers,
+      refreshNow,
+      listKind,
+      folder,
+      t,
+      accounts,
+      foldersByAccount
+    ]
+  )
+
   return (
     <section
       ref={listPanelRef as Ref<HTMLElement>}
@@ -688,6 +814,23 @@ export function MailList(): JSX.Element {
     >
       <div className={moduleColumnHeaderMailListRowClass}>
         <div className="flex min-w-0 shrink-0 items-center gap-2">
+          {bulkSelectionMode ? (
+            <MailListRowCheckbox
+              checked={bulkSelection.allVisibleSelected}
+              indeterminate={
+                bulkSelection.someVisibleSelected && !bulkSelection.allVisibleSelected
+              }
+              ariaLabel={
+                bulkSelection.allVisibleSelected
+                  ? t('mail.list.deselectAllVisible')
+                  : t('mail.list.selectAllVisible')
+              }
+              onChange={(): void => {
+                if (bulkSelection.allVisibleSelected) bulkSelection.clear()
+                else bulkSelection.selectAllVisible()
+              }}
+            />
+          ) : null}
           {mailListUsesCrossAccountThreadScope(listKind) ? (
             <span className="flex shrink-0 -space-x-0.5" title={t('mail.list.accountColorsTitle')}>
               {accounts.map((a) => (
@@ -801,6 +944,23 @@ export function MailList(): JSX.Element {
         </div>
       </div>
 
+      {bulkSelection.selectedCount > 0 ? (
+        <MailListBulkActionBar
+          selectedCount={bulkSelection.selectedCount}
+          selectedMessages={bulkSelectedMessages}
+          listKind={listKind}
+          onClear={bulkSelection.clear}
+          onArchive={runBulkArchive}
+          onDelete={runBulkDelete}
+          onMarkRead={runBulkMarkRead}
+          onMarkUnread={runBulkMarkUnread}
+          onToggleFlag={runBulkToggleFlag}
+          onMove={runBulkMove}
+          onTodo={runBulkTodo}
+          onSnooze={runBulkSnooze}
+        />
+      ) : null}
+
       {tableMode && flatRows.length > 0 && !loading && (
         <MailListTableHeader columns={tableColumns} gridTemplate={tableGridTemplate} />
       )}
@@ -859,6 +1019,8 @@ export function MailList(): JSX.Element {
             itemContent={(index): JSX.Element => {
               const row = visibleFlatRows[index]
               if (!row) return <div />
+              const rowMessageId = messageIdFromMailListRow(row)
+              const bulkChecked = bulkSelection.isSelected(rowMessageId)
               if (row.kind === 'thread-head') {
                 const t = row.thread
                 const isExpanded = expandedThreads.has(t.threadKey)
@@ -876,6 +1038,12 @@ export function MailList(): JSX.Element {
                     expanded={isExpanded}
                     threadSelected={threadSelected}
                     headSelected={t.latestMessage.id === selectedMessageId}
+                    bulkChecked={bulkChecked}
+                    bulkSelectionMode={bulkSelectionMode}
+                    onBulkToggle={(): void => bulkSelection.toggle(rowMessageId)}
+                    onBulkPointerDown={(modifiers): void =>
+                      bulkSelection.handleRowPointerDown(rowMessageId, modifiers)
+                    }
                     onToggleExpand={(): void => toggleThreadExpanded(t.threadKey)}
                     onSelectMessage={(id): void => {
                       void selectMessage(id)
@@ -906,6 +1074,12 @@ export function MailList(): JSX.Element {
                     foldersByAccount={foldersByAccount}
                     showInboxAccountStripe={mailListUsesCrossAccountThreadScope(listKind)}
                     selected={row.message.id === selectedMessageId}
+                    bulkChecked={bulkChecked}
+                    bulkSelectionMode={bulkSelectionMode}
+                    onBulkToggle={(): void => bulkSelection.toggle(rowMessageId)}
+                    onBulkPointerDown={(modifiers): void =>
+                      bulkSelection.handleRowPointerDown(rowMessageId, modifiers)
+                    }
                     onSelectMessage={(id): void => {
                       void selectMessage(id)
                     }}
@@ -952,6 +1126,7 @@ export function MailList(): JSX.Element {
           const pick = moveFolderPicker
           if (!pick) return
           await moveMessagesToFolder(pick.messageIds, folderId)
+          bulkSelection.clear()
         }}
       />
     </section>
@@ -988,6 +1163,10 @@ const ThreadHeadRow = memo(function ThreadHeadRow({
   expanded,
   threadSelected,
   headSelected,
+  bulkChecked,
+  bulkSelectionMode,
+  onBulkToggle,
+  onBulkPointerDown,
   onToggleExpand,
   onSelectMessage,
   onOpenPopout,
@@ -1011,6 +1190,14 @@ const ThreadHeadRow = memo(function ThreadHeadRow({
   expanded: boolean
   threadSelected: boolean
   headSelected: boolean
+  bulkChecked: boolean
+  bulkSelectionMode: boolean
+  onBulkToggle: () => void
+  onBulkPointerDown: (modifiers: {
+    shiftKey: boolean
+    ctrlKey: boolean
+    metaKey: boolean
+  }) => void
   onToggleExpand: () => void
   onSelectMessage: (id: number) => void
   onOpenPopout: (id: number, e: React.MouseEvent) => void
@@ -1076,7 +1263,17 @@ const ThreadHeadRow = memo(function ThreadHeadRow({
     [latest, root, senderLabel, isUnread, showPreviewInSubject, account]
   )
 
-  function handleHeaderClick(): void {
+  function handleHeaderClick(e: React.MouseEvent): void {
+    onBulkPointerDown({
+      shiftKey: e.shiftKey,
+      ctrlKey: e.ctrlKey,
+      metaKey: e.metaKey
+    })
+    const hasModifier = e.shiftKey || e.ctrlKey || e.metaKey
+    if (hasModifier) {
+      onSelectMessage(latest.id)
+      return
+    }
     if (hasMultiple) {
       onToggleExpand()
       if (!expanded && !threadSelected) {
@@ -1106,6 +1303,7 @@ const ThreadHeadRow = memo(function ThreadHeadRow({
         outlookExpandHeader ? 'py-1.5' : 'py-2.5',
         latest.isVipSender && 'ring-1 ring-amber-500/35 ring-inset',
         (headSelected || (threadSelected && !headSelected)) && 'chronell-list-row--selected',
+        bulkChecked && 'bg-primary/10 ring-1 ring-primary/25 ring-inset',
         'cursor-grab active:cursor-grabbing',
         isRowExiting && motionListItemExit
       )}
@@ -1118,6 +1316,14 @@ const ThreadHeadRow = memo(function ThreadHeadRow({
       {showInboxAccountStripe && account && (
         <AccountColorStripe color={account.color} className={MAIL_LIST_UNIFIED_INBOX_STRIPE_BAR} />
       )}
+      <MailListSelectableCheckbox
+        checked={bulkChecked}
+        bulkSelectionMode={bulkSelectionMode}
+        hoverGroup="row"
+        ariaLabel={t('mail.list.selectRow')}
+        onChange={onBulkToggle}
+        className={outlookExpandHeader ? 'mt-0.5' : 'mt-2'}
+      />
       <button
         type="button"
         onClick={(e): void => {
@@ -1154,7 +1360,7 @@ const ThreadHeadRow = memo(function ThreadHeadRow({
       {tableMode ? (
         <button
           type="button"
-          onClick={handleHeaderClick}
+          onClick={(e): void => handleHeaderClick(e)}
           onDoubleClick={(e): void => {
             e.stopPropagation()
             onOpenPopout(latest.id, e)
@@ -1174,7 +1380,7 @@ const ThreadHeadRow = memo(function ThreadHeadRow({
       ) : (
       <button
         type="button"
-        onClick={handleHeaderClick}
+        onClick={(e): void => handleHeaderClick(e)}
         onDoubleClick={(e): void => {
           e.stopPropagation()
           onOpenPopout(latest.id, e)
@@ -1337,6 +1543,10 @@ const ThreadSubRow = memo(function ThreadSubRow({
   foldersByAccount,
   showInboxAccountStripe,
   selected,
+  bulkChecked,
+  bulkSelectionMode,
+  onBulkToggle,
+  onBulkPointerDown,
   onSelectMessage,
   onOpenPopout,
   onContextMail,
@@ -1354,6 +1564,14 @@ const ThreadSubRow = memo(function ThreadSubRow({
   foldersByAccount: Record<string, MailFolder[]>
   showInboxAccountStripe: boolean
   selected: boolean
+  bulkChecked: boolean
+  bulkSelectionMode: boolean
+  onBulkToggle: () => void
+  onBulkPointerDown: (modifiers: {
+    shiftKey: boolean
+    ctrlKey: boolean
+    metaKey: boolean
+  }) => void
   onSelectMessage: (id: number) => void
   onOpenPopout: (id: number, e: React.MouseEvent) => void
   onContextMail: (e: React.MouseEvent, msg: MailListItem, opts?: MailListContextOpts) => void
@@ -1393,6 +1611,15 @@ const ThreadSubRow = memo(function ThreadSubRow({
     [message, primaryLabel, showPreviewInSubject, stripeAccount]
   )
 
+  function handleSubRowClick(e: React.MouseEvent): void {
+    onBulkPointerDown({
+      shiftKey: e.shiftKey,
+      ctrlKey: e.ctrlKey,
+      metaKey: e.metaKey
+    })
+    onSelectMessage(message.id)
+  }
+
   return (
     <div
       draggable
@@ -1405,8 +1632,9 @@ const ThreadSubRow = memo(function ThreadSubRow({
         e.dataTransfer.effectAllowed = 'move'
       }}
       className={cn(
-        'group/subrow relative ml-7 cursor-grab active:cursor-grabbing',
+        'group/subrow relative ml-7 flex cursor-grab items-start gap-1 active:cursor-grabbing',
         message.isVipSender && 'ring-1 ring-amber-500/25 ring-inset',
+        bulkChecked && 'bg-primary/10',
         isRowExiting && motionListItemExit
       )}
       title={
@@ -1421,15 +1649,24 @@ const ThreadSubRow = memo(function ThreadSubRow({
       {stripeAccount && (
         <AccountColorStripe color={stripeAccount.color} className={MAIL_LIST_UNIFIED_INBOX_STRIPE_BAR} />
       )}
+      <MailListSelectableCheckbox
+        checked={bulkChecked}
+        bulkSelectionMode={bulkSelectionMode}
+        hoverGroup="subrow"
+        ariaLabel={t('mail.list.selectRow')}
+        onChange={onBulkToggle}
+        className="mt-2 ml-1"
+      />
       <button
         type="button"
-        onClick={(): void => onSelectMessage(message.id)}
+        onClick={handleSubRowClick}
         onDoubleClick={(e): void => {
           e.stopPropagation()
           onOpenPopout(message.id, e)
         }}
         onContextMenu={(e): void => onContextMail(e, message)}
         className={cn(
+          'min-w-0 flex-1',
           tableMode
             ? 'grid w-full items-center gap-x-1 py-1 pl-2 pr-2 text-left transition-colors'
             : 'flex w-full flex-col gap-0.5 py-1.5 pl-2 pr-2 text-left transition-colors',
