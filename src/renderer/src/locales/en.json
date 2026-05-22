@@ -2502,6 +2502,7 @@
       "mailCc": "Cc",
       "mailSubject": "Subject",
       "sendMail": "Send invitation",
+      "recipientRequired": "Please enter at least one recipient.",
       "sendSuccess": "The invitation was sent.",
       "copyInvite": "Copy text",
       "copyBookingLink": "Copy booking link",

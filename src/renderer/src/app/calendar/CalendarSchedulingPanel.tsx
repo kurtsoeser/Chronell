@@ -181,7 +181,11 @@ export function CalendarSchedulingPanel({
           title: t('calendar.scheduling.panelTitle')
         })
       } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e)
+        const raw = e instanceof Error ? e.message : String(e)
+        const msg =
+          raw === 'SCHEDULING_RECIPIENT_REQUIRED'
+            ? t('calendar.scheduling.recipientRequired')
+            : raw
         setSendError(msg)
       } finally {
         setSending(false)

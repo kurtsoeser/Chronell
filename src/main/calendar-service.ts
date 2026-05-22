@@ -9,6 +9,7 @@ import {
   graphPatchCalendarColor,
   graphCreateTeamsCalendarEvent,
   graphCreateSimpleCalendarEvent,
+  graphAddEventFileAttachments,
   graphUpdateCalendarEvent,
   graphPatchCalendarEventTimes,
   graphDeleteCalendarEvent,
@@ -395,6 +396,9 @@ export async function createSimpleCalendarEventForAccount(
     teamsMeeting: input.teamsMeeting,
     recurrence: input.recurrence ?? null
   })
+  if (input.attachments?.length) {
+    await graphAddEventFileAttachments(input.accountId, r.id, input.attachments, input.graphCalendarId ?? null)
+  }
   return { id: r.id, webLink: r.webLink }
 }
 
@@ -430,6 +434,9 @@ export async function updateCalendarEventForAccount(input: CalendarUpdateEventIn
     attendeeEmails: rest.attendeeEmails,
     teamsMeeting: rest.teamsMeeting
   })
+  if (input.attachments?.length) {
+    await graphAddEventFileAttachments(accountId, graphEventId, input.attachments, input.graphCalendarId ?? null)
+  }
 }
 
 export async function patchCalendarEventScheduleForAccount(input: CalendarPatchScheduleInput): Promise<void> {

@@ -2475,6 +2475,7 @@
       "mailCc": "Cc",
       "mailSubject": "Betreff",
       "sendMail": "Einladung senden",
+      "recipientRequired": "Bitte mindestens einen Empfänger angeben.",
       "sendSuccess": "Die Einladung wurde versendet.",
       "copyInvite": "Text kopieren",
       "copyBookingLink": "Buchungslink kopieren",

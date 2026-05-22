@@ -89,7 +89,7 @@ export function BookingsAppointmentPreview({
 
   const whenLabel = useMemo(() => {
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-      return `${appointment.startIso} – ${appointment.endIso}`
+      return t('bookings.preview.invalidDate')
     }
     const sameDay = format(start, 'yyyy-MM-dd') === format(end, 'yyyy-MM-dd')
     if (sameDay) {

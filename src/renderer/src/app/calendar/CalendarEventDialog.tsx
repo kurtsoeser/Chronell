@@ -33,6 +33,7 @@ import type {
   CalendarRecurrenceFrequency,
   CalendarRecurrenceRangeEndMode,
   CalendarSaveEventRecurrence,
+  ComposeAttachment,
   ConnectedAccount,
   MailMasterCategory,
   TaskListRow
@@ -64,11 +65,13 @@ import { resolvedAccountColorCss } from '@/lib/avatar-color'
 import { EntityContextBlock } from '@/components/connections/EntityContextBlock'
 import { TipTapBody } from '@/components/TipTapBody'
 import { sanitizeComposeHtmlFragment } from '@/lib/sanitize-compose-html'
+import { appendHtmlToComposeBody, cloudFileLinkHtml } from '@/lib/compose-cloud-link'
 import { CalendarEventDescriptionPreview } from '@/app/calendar/CalendarEventDescriptionPreview'
 import { CalendarEventIconPicker } from '@/components/CalendarEventIconPicker'
 import { LocationAutocompleteInput } from '@/components/LocationAutocompleteInput'
 import { calendarEventIconIsExplicit } from '@/lib/calendar-event-icons'
 import { useThemeStore } from '@/stores/theme'
+import { OneDriveExplorerDialog } from '@/components/OneDriveExplorerDialog'
 
 function dateToDatetimeLocal(d: Date): string {
   return format(d, "yyyy-MM-dd'T'HH:mm")
@@ -340,6 +343,8 @@ export function CalendarEventDialog({
   const [dtEnd, setDtEnd] = useState('')
   const [busy, setBusy] = useState(false)
   const [localError, setLocalError] = useState<string | null>(null)
+  const [driveOpen, setDriveOpen] = useState(false)
+  const [eventAttachments, setEventAttachments] = useState<ComposeAttachment[]>([])
   const [showAdvancedDateTime, setShowAdvancedDateTime] = useState(false)
   const [schedulePicker, setSchedulePicker] = useState<SchedulePickerKind | null>(null)
   const [schedulePickerPos, setSchedulePickerPos] = useState<{
@@ -383,6 +388,24 @@ export function CalendarEventDialog({
 
   const taskTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
 
+  async function addFilesAsEventAttachments(files: File[]): Promise<void> {
+    if (files.length === 0) return
+    const mapped: ComposeAttachment[] = []
+    for (const f of files) {
+      const buf = await f.arrayBuffer()
+      const bytes = new Uint8Array(buf)
+      let binary = ''
+      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]!)
+      mapped.push({
+        name: f.name,
+        contentType: f.type || 'application/octet-stream',
+        size: f.size,
+        dataBase64: btoa(binary)
+      })
+    }
+    setEventAttachments((prev) => [...prev, ...mapped])
+  }
+
   function applyTaskScheduleFromRange(range: CalendarCreateRange | null | undefined): void {
     if (!range) {
       setTaskDue('')
@@ -406,6 +429,7 @@ export function CalendarEventDialog({
     setSchedulePicker(null)
     setSchedulePickerPos(null)
     setDescriptionHtml('')
+    setEventAttachments([])
     setCreateKind(initialCreateKind ?? 'event')
     setTaskNotes('')
 
@@ -771,6 +795,7 @@ export function CalendarEventDialog({
     () => calendarAccounts.find((a) => a.id === accountId),
     [calendarAccounts, accountId]
   )
+  const cloudLinkAccount = selectedAccount?.provider === 'microsoft' ? selectedAccount : null
 
   useEffect(() => {
     if (isAllDay) setTeamsMeeting(false)
@@ -1101,6 +1126,9 @@ export function CalendarEventDialog({
                   : {})
               }
             : {}),
+          ...(selectedAccount?.provider === 'microsoft' && eventAttachments.length > 0
+            ? { attachments: eventAttachments }
+            : {}),
           ...(recurrence ? { recurrence } : {})
         })
         if (calendarEventIconIsExplicit(eventIconId) && created.id?.trim()) {
@@ -1150,6 +1178,10 @@ export function CalendarEventDialog({
                   ? { teamsMeeting: !isAllDay && teamsMeeting }
                   : {})
               }
+            : {})
+          ,
+          ...(initialEvent.source === 'microsoft' && eventAttachments.length > 0
+            ? { attachments: eventAttachments }
             : {})
         }
 
@@ -1885,6 +1917,14 @@ export function CalendarEventDialog({
                       valueHtml={descriptionHtml}
                       onChangeHtml={setDescriptionHtml}
                       placeholder={t('calendar.eventDialog.descriptionEditorPlaceholder')}
+                      onAttachFiles={
+                        cloudLinkAccount
+                          ? (files): void => {
+                              void addFilesAsEventAttachments(files)
+                            }
+                          : undefined
+                      }
+                      onCloudAttach={cloudLinkAccount ? (): void => setDriveOpen(true) : undefined}
                       editorMinHeightClass="min-h-[440px]"
                       className="min-h-[520px] rounded-md border border-border bg-background !border-t-0"
                     />
@@ -2133,6 +2173,20 @@ export function CalendarEventDialog({
             </div>
           ) : null}
         </div>
+      ) : null}
+
+      {cloudLinkAccount ? (
+        <OneDriveExplorerDialog
+          open={driveOpen}
+          accountId={cloudLinkAccount.id}
+          configureSharingLink={false}
+          onClose={(): void => setDriveOpen(false)}
+          onPickFile={(file): void => {
+            setDescriptionHtml((prev) =>
+              appendHtmlToComposeBody(prev, cloudFileLinkHtml(file.name, file.webUrl))
+            )
+          }}
+        />
       ) : null}
     </ModalRoot>
   )

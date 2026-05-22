@@ -11,7 +11,7 @@ export async function sendSchedulingInvitationMail(options: {
 }): Promise<void> {
   const to = parseRecipients(options.to)
   if (to.length === 0) {
-    throw new Error('Bitte mindestens einen Empfaenger angeben.')
+    throw new Error('SCHEDULING_RECIPIENT_REQUIRED')
   }
   const cc = options.cc?.trim() ? parseRecipients(options.cc) : []
 

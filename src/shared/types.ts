@@ -750,6 +750,8 @@ export interface CalendarSaveEventInput {
   attendeeEmails?: string[] | null
   /** Microsoft 365: Teams-Besprechung (`isOnlineMeeting` / `onlineMeetingProvider`) — nicht fuer Ganztage. Einladungen unabhaengig davon. */
   teamsMeeting?: boolean | null
+  /** Microsoft 365: optionale Dateianhaenge fuer den Termin. */
+  attachments?: ComposeAttachment[] | null
   /** Serientermin (nur Anlegen; Bearbeiten der Serie ist nicht implementiert). */
   recurrence?: CalendarSaveEventRecurrence | null
 }

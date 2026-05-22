@@ -7,7 +7,8 @@ import {
 import type {
   CalendarGraphCalendarRow,
   CalendarM365GroupCalendarsPage,
-  CalendarSaveEventRecurrence
+  CalendarSaveEventRecurrence,
+  ComposeAttachment
 } from '@shared/types'
 import { buildMicrosoftGraphRecurrencePayload } from '../calendar-recurrence'
 import {
@@ -786,6 +787,29 @@ export async function graphUpdateCalendarEvent(
   }
   const path = graphEventInstancePath(graphEventId, input.graphCalendarId)
   await client.api(path).patch(payload)
+}
+
+export async function graphAddEventFileAttachments(
+  accountId: string,
+  graphEventId: string,
+  attachments: ComposeAttachment[],
+  graphCalendarId?: string | null
+): Promise<void> {
+  if (!attachments.length) return
+  const client = await getClientFor(accountId)
+  const path = `${graphEventInstancePath(graphEventId, graphCalendarId)}/attachments`
+  for (const att of attachments) {
+    const name = att.name?.trim()
+    const contentType = att.contentType?.trim()
+    const contentBytes = att.dataBase64?.trim()
+    if (!name || !contentType || !contentBytes) continue
+    await client.api(path).post({
+      '@odata.type': '#microsoft.graph.fileAttachment',
+      name,
+      contentType,
+      contentBytes
+    })
+  }
 }
 
 /** Nur Start/Ende/Ganztaegig patchen (Drag & Drop / Resize), ohne Body zu ueberschreiben. */

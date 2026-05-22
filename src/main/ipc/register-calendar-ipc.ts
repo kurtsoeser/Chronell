@@ -205,6 +205,23 @@ export function registerCalendarIpc(): void {
   ipcMain.handle(
     IPC.calendar.createEvent,
     async (_event, input: CalendarSaveEventInput): Promise<CalendarSaveEventResult> => {
+      if (!input?.accountId?.trim()) {
+        throw new Error('Ungueltige Parameter fuer calendar:create-event (accountId fehlt).')
+      }
+      if (!input?.subject?.trim()) {
+        throw new Error('Ungueltige Parameter fuer calendar:create-event (subject fehlt).')
+      }
+      if (!input?.startIso?.trim() || !input?.endIso?.trim()) {
+        throw new Error('Ungueltige Parameter fuer calendar:create-event (Zeitraum fehlt).')
+      }
+      const start = Number.parseFloat(String(Date.parse(input.startIso)))
+      const end = Number.parseFloat(String(Date.parse(input.endIso)))
+      if (!Number.isFinite(start) || !Number.isFinite(end)) {
+        throw new Error('Ungueltige Parameter fuer calendar:create-event (ungueltiges Datum).')
+      }
+      if (input.isAllDay ? end <= start : end <= start) {
+        throw new Error('Ungueltige Parameter fuer calendar:create-event (Ende muss nach Start liegen).')
+      }
       assertAppOnline()
       const result = await createSimpleCalendarEventForAccount(input)
       await afterCalendarEventCreated(input.accountId, input, result)
