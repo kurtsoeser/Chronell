@@ -6,7 +6,8 @@ import {
   sanitizeMailHtml,
   buildMailShadowRootInnerHtml,
   softenLightEmailBackgroundsForDarkViewer,
-  stripUnresolvedCidUrls
+  stripUnresolvedCidUrls,
+  upgradeInsecureMailResourceUrls
 } from './sanitize'
 
 describe('replaceInlineCidImages', () => {
@@ -32,6 +33,22 @@ describe('stripUnresolvedCidUrls', () => {
   })
 })
 
+describe('upgradeInsecureMailResourceUrls', () => {
+  it('hebt http-Bild-URLs auf https an (App-CSP)', () => {
+    const html =
+      '<img src="http://s3-eu-west-1.amazonaws.com/files.crsend.com/22000/22934/images/YouTube.png">'
+    const out = upgradeInsecureMailResourceUrls(html)
+    expect(out).toContain('https://s3-eu-west-1.amazonaws.com/')
+    expect(out).not.toContain('http://s3-eu-west-1.amazonaws.com/')
+  })
+
+  it('hebt http in style url() an', () => {
+    const html = '<td style="background-image:url(http://cdn.example/bg.png)">'
+    const out = upgradeInsecureMailResourceUrls(html)
+    expect(out).toContain('url(https://cdn.example/bg.png)')
+  })
+})
+
 describe('sanitizeMailHtml', () => {
   it('entfernt script und blockiert https-Bilder ohne loadImages', () => {
     const dirty = '<p>Hi</p><script>alert(1)</script><img src="https://x.example/track.png">'
@@ -45,6 +62,12 @@ describe('sanitizeMailHtml', () => {
     const html = '<img src="data:image/png;base64,AAA">'
     const clean = sanitizeMailHtml(html, { loadImages: true })
     expect(clean).toContain('data:image/png;base64,AAA')
+  })
+
+  it('upgraded http-Bild-URLs beim Sanitize', () => {
+    const html = '<img src="http://cdn.example/icon.png">'
+    const clean = sanitizeMailHtml(html, { loadImages: true })
+    expect(clean).toContain('https://cdn.example/icon.png')
   })
 
   it('neutralisiert ms-outlook-Link fuer externes Oeffnen', () => {

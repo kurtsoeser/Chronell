@@ -148,6 +148,23 @@ export function stripUnresolvedCidUrls(html: string): string {
 }
 
 /**
+ * Newsletter/HTML-Mails nutzen oft `http://`-Bilder. Die App-CSP im Hauptdokument
+ * erlaubt nur `https:` (Shadow-Root erbt diese Policy). S3 & Co. sprechen in der
+ * Regel auch per HTTPS — gleiche URL, kein Locker der globalen CSP noetig.
+ */
+export function upgradeInsecureMailResourceUrls(html: string): string {
+  if (!html || !/http:\/\//i.test(html)) return html
+
+  let out = html.replace(
+    /(<img\b[^>]*\bsrc\s*=\s*["'])http:/gi,
+    '$1https:'
+  )
+  out = out.replace(/\b(src|originalsrc|data-cid-src|xsrc)\s*=\s*(["'])http:/gi, '$1$2https:')
+  out = out.replace(/url\s*\(\s*(["']?)http:/gi, 'url($1https:')
+  return out
+}
+
+/**
  * Sanitisiert HTML-Mail-Inhalt fuer die sichere Anzeige im srcdoc-Iframe (CSP ohne JS).
  * Externe Bilder werden standardmaessig blockiert (Privacy: kein Tracker-Pixel-Load).
  */
@@ -155,7 +172,7 @@ export function sanitizeMailHtml(html: string, options: { loadImages?: boolean }
   const loadImages = options.loadImages ?? false
   installMailAnchorNeutralizer()
 
-  const cleaned = DOMPurify.sanitize(html, {
+  const cleaned = DOMPurify.sanitize(upgradeInsecureMailResourceUrls(html), {
     ALLOWED_TAGS,
     ALLOWED_ATTR,
     ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel|data):|(?:[a-z\-]+):|#)/i,

@@ -9,6 +9,7 @@ import { shell } from 'electron'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { randomBytes, createHash } from 'node:crypto'
 import { invalidateMsalCacheMemory, msalCachePlugin } from './msal-cache'
+import { awaitMicrosoftSilentGate, runMicrosoftInteractiveLogin } from './msal-silent-gate'
 import { withMicrosoftTokenLock } from './msal-token-lock'
 
 export const MICROSOFT_SCOPES = [
@@ -194,68 +195,71 @@ export async function loginMicrosoft(
   clientId: string,
   options?: LoginMicrosoftOptions
 ): Promise<AuthenticationResult> {
-  const pca = getPca(clientId)
-  const { verifier, challenge } = generatePkce()
-  const state = base64UrlEncode(randomBytes(16))
+  return runMicrosoftInteractiveLogin(async () => {
+    const pca = getPca(clientId)
+    const { verifier, challenge } = generatePkce()
+    const state = base64UrlEncode(randomBytes(16))
 
-  const loopback = await startLoopbackServer(state)
+    const loopback = await startLoopbackServer(state)
 
-  const authUrl = await pca.getAuthCodeUrl({
-    scopes: [...MICROSOFT_SCOPES],
-    redirectUri: loopback.redirectUri,
-    codeChallenge: challenge,
-    codeChallengeMethod: 'S256',
-    state,
-    prompt: options?.prompt ?? 'select_account',
-    ...(options?.loginHint?.trim() ? { loginHint: options.loginHint.trim() } : {})
-  })
-
-  await shell.openExternal(authUrl)
-
-  let timeoutId: ReturnType<typeof setTimeout> | undefined
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    timeoutId = setTimeout(() => {
-      try {
-        loopback.cancel()
-      } catch {
-        /* already closed */
-      }
-      reject(
-        new Error(
-          'Zeitueberschreitung: Die Anmeldung im Browser wurde nicht abgeschlossen. Bitte erneut versuchen und das Fenster von Microsoft bis zur Bestaetigung durchlaufen lassen.'
-        )
-      )
-    }, OAUTH_LOOPBACK_TIMEOUT_MS)
-  })
-
-  let result: LoopbackResult
-  try {
-    result = await Promise.race([loopback.done, timeoutPromise])
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e)
-    if (msg === 'cancelled') {
-      throw new Error('Anmeldung abgebrochen.')
-    }
-    throw e instanceof Error ? e : new Error(msg)
-  } finally {
-    if (timeoutId !== undefined) clearTimeout(timeoutId)
-  }
-
-  const { code } = result
-
-  const tokenResponse = await withMicrosoftTokenLock(clientId, () =>
-    pca.acquireTokenByCode({
-      code,
+    const authUrl = await pca.getAuthCodeUrl({
       scopes: [...MICROSOFT_SCOPES],
       redirectUri: loopback.redirectUri,
-      codeVerifier: verifier
+      codeChallenge: challenge,
+      codeChallengeMethod: 'S256',
+      state,
+      prompt: options?.prompt ?? 'select_account',
+      ...(options?.loginHint?.trim() ? { loginHint: options.loginHint.trim() } : {})
     })
-  )
 
-  if (!tokenResponse) {
-    throw new Error('Kein Token vom Identitaetsanbieter erhalten.')
-  }
-  return tokenResponse
+    await shell.openExternal(authUrl)
+
+    let timeoutId: ReturnType<typeof setTimeout> | undefined
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => {
+        try {
+          loopback.cancel()
+        } catch {
+          /* already closed */
+        }
+        reject(
+          new Error(
+            'Zeitueberschreitung: Die Anmeldung im Browser wurde nicht abgeschlossen. Bitte erneut versuchen und das Fenster von Microsoft bis zur Bestaetigung durchlaufen lassen.'
+          )
+        )
+      }, OAUTH_LOOPBACK_TIMEOUT_MS)
+    })
+
+    let result: LoopbackResult
+    try {
+      result = await Promise.race([loopback.done, timeoutPromise])
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      if (msg === 'cancelled') {
+        throw new Error('Anmeldung abgebrochen.')
+      }
+      throw e instanceof Error ? e : new Error(msg)
+    } finally {
+      if (timeoutId !== undefined) clearTimeout(timeoutId)
+    }
+
+    const { code } = result
+
+    const tokenResponse = await withMicrosoftTokenLock(clientId, () =>
+      pca.acquireTokenByCode({
+        code,
+        scopes: [...MICROSOFT_SCOPES],
+        redirectUri: loopback.redirectUri,
+        codeVerifier: verifier
+      })
+    )
+
+    if (!tokenResponse) {
+      throw new Error('Kein Token vom Identitaetsanbieter erhalten.')
+    }
+    invalidateMsalCacheMemory()
+    return tokenResponse
+  })
 }
 
 /** Verhindert parallele Browser-Consent-Flows fuer dasselbe Konto (Sync/Kalender parallel). */
@@ -279,7 +283,7 @@ async function ensureMicrosoftConsentInteractive(clientId: string, account: Acco
   const run = (async (): Promise<void> => {
     try {
       await loginMicrosoft(clientId, {
-        prompt: 'consent',
+        prompt: 'login',
         loginHint: account.username
       })
     } finally {
@@ -322,6 +326,7 @@ async function acquireTokenSilentOnce(
   clientId: string,
   homeAccountId: string
 ): Promise<AuthenticationResult> {
+  await awaitMicrosoftSilentGate()
   return withMicrosoftTokenLock(clientId, async () => {
     const pca = getPca(clientId)
     const cache = pca.getTokenCache()

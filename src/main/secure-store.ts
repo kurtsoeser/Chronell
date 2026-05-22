@@ -29,7 +29,11 @@ export async function readSecure(name: string): Promise<string | null> {
     try {
       const blob = await readFile(path)
       return safeStorage.decryptString(blob)
-    } catch {
+    } catch (e) {
+      console.warn(
+        `[secure-store] Entschluesselung fehlgeschlagen (${name}) — Token-Cache leer, erneute Anmeldung noetig:`,
+        e instanceof Error ? e.message : e
+      )
       return null
     }
   }

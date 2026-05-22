@@ -29,6 +29,9 @@ export const msalCachePlugin: ICachePlugin = {
       if (!loadedFromDisk) {
         serializedCache = await readSecure(CACHE_NAME)
         loadedFromDisk = true
+        if (serializedCache === null) {
+          console.warn('[msal-cache] Kein gespeicherter Token-Cache auf der Platte (erste Anmeldung oder Entschluesselung fehlgeschlagen).')
+        }
       }
       if (serializedCache !== null) {
         context.tokenCache.deserialize(serializedCache)
