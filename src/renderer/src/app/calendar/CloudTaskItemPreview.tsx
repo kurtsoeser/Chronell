@@ -19,6 +19,8 @@ import { resolveEntityIconColor } from '@shared/entity-icon-color'
 import { RichTextNotesPreview } from '@/components/RichTextNotesPreview'
 import { useThemeStore } from '@/stores/theme'
 import { cn } from '@/lib/utils'
+import { PreviewFoldSection } from '@/components/PreviewFoldSection'
+import { EntityContextBlock } from '@/components/connections/EntityContextBlock'
 
 function formatIsoDate(iso: string | null, locale: Locale): string | null {
   if (!iso) return null
@@ -445,10 +447,7 @@ export function CloudTaskItemPreview(props: {
             </p>
           )}
         </div>
-        <div>
-          <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-            {t('calendar.cloudTaskPreview.notesLabel')}
-          </p>
+        <PreviewFoldSection title={t('calendar.cloudTaskPreview.notesLabel')} collapsedDefault>
           {editingField === 'notes' ? (
             <textarea
               ref={notesEditorRef}
@@ -481,7 +480,14 @@ export function CloudTaskItemPreview(props: {
               )}
             </div>
           ) : null}
-        </div>
+        </PreviewFoldSection>
+
+        <EntityContextBlock
+          anchor={{ kind: 'cloud_task', accountId: task.accountId, listId: task.listId, taskId: task.id }}
+          showObjectNote={false}
+          contentPaddingClass="px-0"
+          sectionCollapsedDefault
+        />
       </div>
     </div>
   )

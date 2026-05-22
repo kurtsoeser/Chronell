@@ -56,6 +56,7 @@ import {
   isoToDatetimeLocalValue
 } from '@/app/work-items/work-item-datetime'
 import { cloudTaskAccountOptionLabel } from '@/lib/cloud-task-accounts'
+import { formatAttachmentBytes } from '@/lib/attachment-files'
 import { cn } from '@/lib/utils'
 import { ModalPanel, ModalRoot } from '@/components/motion/Modal'
 import { openExternalUrl } from '@/lib/open-external'
@@ -69,6 +70,7 @@ import { appendHtmlToComposeBody, cloudFileLinkHtml } from '@/lib/compose-cloud-
 import { CalendarEventDescriptionPreview } from '@/app/calendar/CalendarEventDescriptionPreview'
 import { CalendarEventIconPicker } from '@/components/CalendarEventIconPicker'
 import { LocationAutocompleteInput } from '@/components/LocationAutocompleteInput'
+import { RecipientTokenField } from '@/components/RecipientTokenField'
 import { calendarEventIconIsExplicit } from '@/lib/calendar-event-icons'
 import { useThemeStore } from '@/stores/theme'
 import { OneDriveExplorerDialog } from '@/components/OneDriveExplorerDialog'
@@ -345,6 +347,8 @@ export function CalendarEventDialog({
   const [localError, setLocalError] = useState<string | null>(null)
   const [driveOpen, setDriveOpen] = useState(false)
   const [eventAttachments, setEventAttachments] = useState<ComposeAttachment[]>([])
+  const [attachmentError, setAttachmentError] = useState<string | null>(null)
+  const [draggingFiles, setDraggingFiles] = useState(false)
   const [showAdvancedDateTime, setShowAdvancedDateTime] = useState(false)
   const [schedulePicker, setSchedulePicker] = useState<SchedulePickerKind | null>(null)
   const [schedulePickerPos, setSchedulePickerPos] = useState<{
@@ -387,11 +391,35 @@ export function CalendarEventDialog({
   const [taskPlannedEnd, setTaskPlannedEnd] = useState('')
 
   const taskTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+  const MAX_EVENT_ATTACHMENTS_TOTAL_BYTES = 25 * 1024 * 1024
+  const dragDepthRef = useRef(0)
+
+  function hasDraggedFiles(e: React.DragEvent<HTMLElement>): boolean {
+    const types = e.dataTransfer?.types
+    if (!types) return false
+    return Array.from(types).includes('Files')
+  }
 
   async function addFilesAsEventAttachments(files: File[]): Promise<void> {
     if (files.length === 0) return
+    if (selectedAccount?.provider !== 'microsoft') {
+      setAttachmentError(t('calendar.eventDialog.attachmentProviderUnsupported'))
+      return
+    }
+    setAttachmentError(null)
+    const currentTotal = eventAttachments.reduce((s, a) => s + (a.size || 0), 0)
+    let running = currentTotal
     const mapped: ComposeAttachment[] = []
     for (const f of files) {
+      if (running + f.size > MAX_EVENT_ATTACHMENTS_TOTAL_BYTES) {
+        setAttachmentError(
+          t('calendar.eventDialog.attachmentMax', {
+            maxMb: Math.round(MAX_EVENT_ATTACHMENTS_TOTAL_BYTES / (1024 * 1024)),
+            file: f.name
+          })
+        )
+        continue
+      }
       const buf = await f.arrayBuffer()
       const bytes = new Uint8Array(buf)
       let binary = ''
@@ -402,8 +430,54 @@ export function CalendarEventDialog({
         size: f.size,
         dataBase64: btoa(binary)
       })
+      running += f.size
     }
     setEventAttachments((prev) => [...prev, ...mapped])
+  }
+
+  const handleEditorDrop = (e: React.DragEvent<HTMLDivElement>): void => {
+    if (!hasDraggedFiles(e)) return
+    e.preventDefault()
+    e.stopPropagation()
+    dragDepthRef.current = 0
+    setDraggingFiles(false)
+    void addFilesAsEventAttachments(Array.from(e.dataTransfer.files))
+  }
+
+  const handleEditorDragEnter = (e: React.DragEvent<HTMLDivElement>): void => {
+    if (!hasDraggedFiles(e)) return
+    e.preventDefault()
+    e.stopPropagation()
+    dragDepthRef.current += 1
+    setDraggingFiles(true)
+  }
+
+  const handleEditorDragOver = (e: React.DragEvent<HTMLDivElement>): void => {
+    if (!hasDraggedFiles(e)) return
+    e.preventDefault()
+    e.stopPropagation()
+    e.dataTransfer.dropEffect = 'copy'
+  }
+
+  const handleEditorDragLeave = (e: React.DragEvent<HTMLDivElement>): void => {
+    if (!hasDraggedFiles(e)) return
+    e.preventDefault()
+    e.stopPropagation()
+    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1)
+    if (dragDepthRef.current === 0) setDraggingFiles(false)
+  }
+
+  const handleEditorPaste = (e: React.ClipboardEvent<HTMLDivElement>): void => {
+    const items = Array.from(e.clipboardData?.items ?? [])
+    if (items.length === 0) return
+    const files = items
+      .filter((item) => item.kind === 'file')
+      .map((item) => item.getAsFile())
+      .filter((f): f is File => Boolean(f))
+    if (files.length === 0) return
+    e.preventDefault()
+    e.stopPropagation()
+    void addFilesAsEventAttachments(files)
   }
 
   function applyTaskScheduleFromRange(range: CalendarCreateRange | null | undefined): void {
@@ -430,6 +504,7 @@ export function CalendarEventDialog({
     setSchedulePickerPos(null)
     setDescriptionHtml('')
     setEventAttachments([])
+    setAttachmentError(null)
     setCreateKind(initialCreateKind ?? 'event')
     setTaskNotes('')
 
@@ -1727,14 +1802,15 @@ export function CalendarEventDialog({
               <div className="border-b border-border py-1">
                 <PropertyRow icon={Users} label={t('calendar.eventDialog.attendeesRowLabel')}>
                   <div className="space-y-1.5">
-                    <textarea
-                      value={attendeeInput}
-                      onChange={(e): void => setAttendeeInput(e.target.value)}
-                      disabled={eventFieldsLocked}
-                      placeholder={t('calendar.eventDialog.attendeesPlaceholder')}
-                      rows={3}
-                      className="mt-1 w-full resize-y rounded-md border border-border bg-background px-2 py-1.5 font-mono text-[12px] text-foreground outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60"
-                    />
+                    <div className="mt-1 rounded-md border border-border bg-background px-2 py-1.5">
+                      <RecipientTokenField
+                        label={t('calendar.eventDialog.attendeesRowLabel')}
+                        value={attendeeInput}
+                        onChange={setAttendeeInput}
+                        accountId={accountId}
+                        className="border-0 px-0 py-0"
+                      />
+                    </div>
                     <p className="text-[10px] leading-snug text-muted-foreground">
                       {t('calendar.eventDialog.attendeesInviteHint')}
                     </p>
@@ -1767,14 +1843,15 @@ export function CalendarEventDialog({
                 </PropertyRow>
                 <PropertyRow icon={Users} label={t('calendar.eventDialog.attendeesRowLabel')}>
                   <div className="space-y-1.5">
-                    <textarea
-                      value={attendeeInput}
-                      onChange={(e): void => setAttendeeInput(e.target.value)}
-                      disabled={msTeamsUiLocked}
-                      placeholder={t('calendar.eventDialog.attendeesPlaceholder')}
-                      rows={3}
-                      className="mt-1 w-full resize-y rounded-md border border-border bg-background px-2 py-1.5 font-mono text-[12px] text-foreground outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60"
-                    />
+                    <div className="mt-1 rounded-md border border-border bg-background px-2 py-1.5">
+                      <RecipientTokenField
+                        label={t('calendar.eventDialog.attendeesRowLabel')}
+                        value={attendeeInput}
+                        onChange={setAttendeeInput}
+                        accountId={accountId}
+                        className="border-0 px-0 py-0"
+                      />
+                    </div>
                     <p className="text-[10px] leading-snug text-muted-foreground">
                       {t('calendar.eventDialog.attendeesInviteHint')}
                     </p>
@@ -1913,21 +1990,73 @@ export function CalendarEventDialog({
                       className="w-full"
                     />
                   ) : (
-                    <TipTapBody
-                      valueHtml={descriptionHtml}
-                      onChangeHtml={setDescriptionHtml}
-                      placeholder={t('calendar.eventDialog.descriptionEditorPlaceholder')}
-                      onAttachFiles={
-                        cloudLinkAccount
-                          ? (files): void => {
-                              void addFilesAsEventAttachments(files)
-                            }
-                          : undefined
-                      }
-                      onCloudAttach={cloudLinkAccount ? (): void => setDriveOpen(true) : undefined}
-                      editorMinHeightClass="min-h-[440px]"
-                      className="min-h-[520px] rounded-md border border-border bg-background !border-t-0"
-                    />
+                    <div
+                      className={cn(
+                        'rounded-md transition-colors',
+                        draggingFiles && 'bg-primary/10 ring-1 ring-primary/35'
+                      )}
+                      onDragEnter={handleEditorDragEnter}
+                      onDragOver={handleEditorDragOver}
+                      onDragLeave={handleEditorDragLeave}
+                      onDrop={handleEditorDrop}
+                      onPasteCapture={handleEditorPaste}
+                    >
+                      <TipTapBody
+                        valueHtml={descriptionHtml}
+                        onChangeHtml={setDescriptionHtml}
+                        placeholder={t('calendar.eventDialog.descriptionEditorPlaceholder')}
+                        onAttachFiles={
+                          cloudLinkAccount
+                            ? (files): void => {
+                                void addFilesAsEventAttachments(files)
+                              }
+                            : undefined
+                        }
+                        attachmentCount={eventAttachments.length}
+                        onCloudAttach={cloudLinkAccount ? (): void => setDriveOpen(true) : undefined}
+                        editorMinHeightClass="min-h-[440px]"
+                        className="min-h-[520px] rounded-md border border-border bg-background !border-t-0"
+                      />
+                      {draggingFiles ? (
+                        <p className="px-2 pb-2 text-[10px] text-muted-foreground">
+                          {t('calendar.eventDialog.attachmentsDropHint')}
+                        </p>
+                      ) : null}
+                      {attachmentError ? (
+                        <p className="text-[10px] text-destructive">{attachmentError}</p>
+                      ) : null}
+                      {eventAttachments.length > 0 ? (
+                        <div className="space-y-1.5">
+                          <p className="text-[10px] font-medium text-muted-foreground">
+                            {t('calendar.eventDialog.attachments')}
+                          </p>
+                          <div className="space-y-1">
+                            {eventAttachments.map((a, idx) => (
+                              <div
+                                key={`${a.name}-${idx}`}
+                                className="flex items-center justify-between gap-2 rounded border border-border/70 bg-muted/20 px-2 py-1"
+                              >
+                                <div className="min-w-0">
+                                  <p className="truncate text-[11px] text-foreground">{a.name}</p>
+                                  <p className="text-[10px] text-muted-foreground">
+                                    {formatAttachmentBytes(a.size || 0)}
+                                  </p>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={(): void =>
+                                    setEventAttachments((prev) => prev.filter((_, i) => i !== idx))
+                                  }
+                                  className="text-[10px] text-muted-foreground hover:text-foreground"
+                                >
+                                  {t('common.remove')}
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
                   )}
                 </div>
               </PropertyRow>

@@ -193,13 +193,13 @@ function TopbarGlobalCreateSplit({
   accounts,
   setAppMode,
   onOpenAccountDialog,
-  openNew
+  openFloatingNew
 }: {
   mode: AppShellMode
   accounts: ConnectedAccount[]
   setAppMode: (m: AppShellMode) => void
   onOpenAccountDialog: () => void
-  openNew: (accountId: string) => void
+  openFloatingNew: (accountId: string) => string
 }): JSX.Element {
   const { t } = useTranslation()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -225,7 +225,7 @@ function TopbarGlobalCreateSplit({
       onOpenAccountDialog()
       return
     }
-    openNew(first.id)
+    openFloatingNew(first.id)
   }
 
   function isCreateKindDisabled(kind: GlobalCreateKind): boolean {
@@ -422,7 +422,7 @@ export function Topbar({ onOpenAccountDialog }: Props): JSX.Element {
   const mode = useAppModeStore((s) => s.mode)
   const setAppMode = useAppModeStore((s) => s.setMode)
   const accounts = useAccountsStore((s) => s.accounts)
-  const openNew = useComposeStore((s) => s.openNew)
+  const openFloatingNew = useComposeStore((s) => s.openFloatingNew)
   const refreshNow = useMailStore((s) => s.refreshNow)
   const anyAccountSyncing = useMailStore(
     useShallow((s) =>
@@ -672,7 +672,7 @@ export function Topbar({ onOpenAccountDialog }: Props): JSX.Element {
           accounts={accounts}
           setAppMode={setAppMode}
           onOpenAccountDialog={onOpenAccountDialog}
-          openNew={openNew}
+          openFloatingNew={openFloatingNew}
         />
 
         <button
