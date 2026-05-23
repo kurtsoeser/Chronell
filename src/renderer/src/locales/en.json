@@ -1151,7 +1151,7 @@
     },
     "appearanceHeading": "Appearance & size",
     "uiScaleLabel": "Interface size",
-    "uiScaleHint": "Scales fonts and spacing across the app (menus, lists, calendar). Useful on high-DPI or small screens.",
+    "uiScaleHint": "Scales the whole interface uniformly (sidebar, quick access, calendar, lists). Separate from mail preview zoom (Ctrl+Plus/Minus). Useful on high-DPI or small screens.",
     "uiScaleShortcuts": "Keyboard: Ctrl+Shift+Plus/Minus to zoom the interface, Ctrl+Shift+0 to reset. Full list: Settings → General → Keyboard shortcuts.",
     "mailPreviewScaleLabel": "Default mail preview zoom",
     "mailPreviewScaleHint": "Size of message content in the reading pane. You can also use Ctrl+wheel, Ctrl+Plus/Minus, or pinch-to-zoom in the preview.",

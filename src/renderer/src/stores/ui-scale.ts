@@ -2,12 +2,14 @@ import { create } from 'zustand'
 
 const STORAGE_KEY = 'mailclient.uiScale.v1'
 
-export const UI_SCALE_MIN = 0.85
+export const UI_SCALE_MIN = 0.65
 export const UI_SCALE_MAX = 1.35
 export const UI_SCALE_STEP = 0.05
 export const UI_SCALE_DEFAULT = 1
 
-export const UI_SCALE_PRESETS = [0.85, 0.9, 0.95, 1, 1.05, 1.1, 1.15, 1.25, 1.35] as const
+export const UI_SCALE_PRESETS = [
+  0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1, 1.05, 1.1, 1.15, 1.25, 1.35
+] as const
 
 function clampUiScale(value: number): number {
   if (!Number.isFinite(value)) return UI_SCALE_DEFAULT
@@ -33,8 +35,23 @@ function persistUiScale(scale: number): void {
   }
 }
 
+/**
+ * Gesamte App-Oberfläche (Chromium-zoom auf html).
+ * Skaliert rem, px und feste Tailwind-Größen gleichermaßen.
+ *
+ * Getrennt davon: Mail-Vorschau-Zoom (`useMailPreviewScaleStore`, style.zoom am Shadow-Host)
+ * und Editor-Zoom im Composer (`useComposeEditorScaleStore`).
+ */
 function applyUiScale(scale: number): void {
-  document.documentElement.style.fontSize = `${Math.round(scale * 100)}%`
+  const root = document.documentElement
+  root.style.setProperty('--ui-scale', String(scale))
+  if (scale === UI_SCALE_DEFAULT) {
+    root.style.zoom = ''
+    root.style.fontSize = ''
+  } else {
+    root.style.fontSize = ''
+    root.style.zoom = String(scale)
+  }
 }
 
 const initialScale = readStoredUiScale()

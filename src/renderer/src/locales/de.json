@@ -1151,7 +1151,7 @@
     },
     "appearanceHeading": "Darstellung & Größe",
     "uiScaleLabel": "Größe der Oberfläche",
-    "uiScaleHint": "Skaliert Schrift und Abstände in der gesamten App (Menüs, Listen, Kalender). Hilfreich auf hochauflösenden oder kleinen Bildschirmen.",
+    "uiScaleHint": "Skaliert die gesamte Oberfläche einheitlich (Sidebar, Schnellzugriff, Kalender, Listen). Getrennt davon: Zoom der Mail-Vorschau (Strg+Plus/Minus). Hilfreich auf hochauflösenden oder kleinen Bildschirmen.",
     "uiScaleShortcuts": "Tastatur: Strg+Umschalt+Plus/Minus zum Vergrößern/Verkleinern, Strg+Umschalt+0 für Standard. Alle Kürzel: Einstellungen → Allgemein → Tastenkürzel.",
     "mailPreviewScaleLabel": "Standard-Zoom der Mail-Vorschau",
     "mailPreviewScaleHint": "Größe des Mail-Inhalts in der Lesevorschau. Du kannst in der Vorschau auch Strg+Mausrad, Strg+Plus/Minus oder Pinch-to-Zoom nutzen.",

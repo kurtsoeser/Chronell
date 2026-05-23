@@ -290,6 +290,18 @@ ipcRenderer.on('tasks:changed', (_e: IpcRendererEvent, payload: { accountId: str
   scheduleTasksChangedRendererFlush()
 })
 
+const zoomShortcutHandlers = new Set<
+  (intent: import('@shared/zoom-shortcut-keys').ZoomShortcutIntent) => void
+>()
+
+ipcRenderer.on(
+  'app:zoom-shortcut',
+  (_e: IpcRendererEvent, intent: import('@shared/zoom-shortcut-keys').ZoomShortcutIntent) => {
+    if (!intent?.scope || !intent?.action) return
+    for (const handler of zoomShortcutHandlers) handler(intent)
+  }
+)
+
 const api = {
   app: {
     getVersion: (): Promise<string> => ipcRenderer.invoke(IPC.app.getVersion),
@@ -1116,6 +1128,14 @@ const api = {
       mailChangedHandlers.add(handler)
       return (): void => {
         mailChangedHandlers.delete(handler)
+      }
+    },
+    onZoomShortcut: (
+      handler: (intent: import('@shared/zoom-shortcut-keys').ZoomShortcutIntent) => void
+    ): (() => void) => {
+      zoomShortcutHandlers.add(handler)
+      return (): void => {
+        zoomShortcutHandlers.delete(handler)
       }
     },
     onMailBulkUnflagProgress: (handler: (payload: MailBulkUnflagProgressPayload) => void): (() => void) => {

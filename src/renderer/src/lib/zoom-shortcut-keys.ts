@@ -14,6 +14,7 @@ export function parseZoomShortcutIntentFromKeyboardEvent(e: KeyboardEvent) {
     metaKey: e.metaKey,
     altKey: e.altKey,
     shiftKey: e.shiftKey,
-    code: e.code
+    code: e.code,
+    key: e.key
   })
 }
