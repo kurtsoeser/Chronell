@@ -1,10 +1,16 @@
 ﻿{
-    "latest":  "0.9.20",
+    "latest":  "0.9.21",
     "beta":  true,
-    "downloadUrl":  "https://github.com/kurtsoeser/Chronell/releases/download/v0.9.20/Chronell-0.9.20-setup.exe",
+    "downloadUrl":  "https://github.com/kurtsoeser/Chronell/releases/download/v0.9.21/Chronell-0.9.21-setup.exe",
     "stableUrl":  "release/latest/Chronell-setup.exe",
-    "githubDownloadUrl":  "https://github.com/kurtsoeser/Chronell/releases/download/v0.9.20/Chronell-0.9.20-setup.exe",
+    "githubDownloadUrl":  "https://github.com/kurtsoeser/Chronell/releases/download/v0.9.21/Chronell-0.9.21-setup.exe",
     "versions":  [
+                     {
+                         "version":  "0.9.21",
+                         "setupUrl":  "release/0.9.21/Chronell-0.9.21-setup.exe",
+                         "downloadUrl":  "https://github.com/kurtsoeser/Chronell/releases/download/v0.9.21/Chronell-0.9.21-setup.exe",
+                         "githubDownloadUrl":  "https://github.com/kurtsoeser/Chronell/releases/download/v0.9.21/Chronell-0.9.21-setup.exe"
+                     },
                      {
                          "version":  "0.9.20",
                          "setupUrl":  "release/0.9.20/Chronell-0.9.20-setup.exe",
