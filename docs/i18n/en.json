@@ -8,6 +8,7 @@
     "compare": "vs Outlook",
     "updates": "Updates",
     "highlights": "What's new",
+    "showcase": "Why Chronell",
     "features": "Features",
     "modules": "Modules",
     "download": "Download",
@@ -244,6 +245,62 @@
       "b1": "Notes, connections, rules, quick steps, workflow, UI settings",
       "b2": "Background auto-sync; on conflict choose cloud or local",
       "b3": "No mail content, no OAuth tokens in the cloud"
+    }
+  },
+  "showcase": {
+    "eyebrow": "More than mail & calendar",
+    "title": "One window — connections instead of silos",
+    "lead": "Outlook, Apple Mail, or separate apps each show only a slice. Chronell connects mail, calendar, tasks, notes, and contacts — visible in the graph, without putting your data in someone else's cloud.",
+    "mockup": {
+      "nav": {
+        "home": "Home",
+        "mail": "Mail",
+        "calendar": "Calendar",
+        "tasks": "Tasks",
+        "notes": "Notes",
+        "people": "Contacts",
+        "connections": "Connections"
+      }
+    },
+    "calendar": {
+      "vs": "Instead of calendar tab + mail tab + to-do app",
+      "title": "One calendar for events, mail to-dos, and cloud tasks",
+      "desc": "Chronell puts M365 and Google calendars, open mail to-dos, and Microsoft To Do / Google Tasks in one week view — with a timeline column and optional mail preview beside it.",
+      "b1": "Timeline: Overdue, today, and later in one column — not just colored blocks in the grid.",
+      "b2": "Context: Select an event and see the related mail or note in the right column.",
+      "b3": "Book with me & recurrence: Booking links and series without switching to Outlook on the web."
+    },
+    "tasks": {
+      "vs": "Instead of To Do as a separate Microsoft add-in",
+      "title": "Tasks where you already work",
+      "desc": "Microsoft To Do and Google Tasks live in Chronell next to mail and calendar — with due buckets and a week grid for planned blocks.",
+      "b1": "One window: Create a task from mail, schedule it on the calendar, triage it in Work.",
+      "b2": "Recurrence: Repeating cloud tasks (native on M365, local for Google) — not just one-off flags.",
+      "b3": "No context loss: Detail panel and global search across tasks, mail, and events."
+    },
+    "notes": {
+      "vs": "Instead of notes in OneNote and mail in Outlook",
+      "title": "Core notes that participate",
+      "desc": "Notes attach to mail, events, or stand alone — with Markdown, sections, and entity links into the connection graph.",
+      "b1": "Linked: Connect from the reading pane or an event — the graph shows the relationship.",
+      "b2": "Editor: Markdown with live preview, attachments, and optional show on calendar.",
+      "b3": "Cloud sync: Profile including notes on a second PC — mail content stays with providers."
+    },
+    "contacts": {
+      "vs": "Instead of an address book without work context",
+      "title": "People with history, not just fields",
+      "desc": "Contacts from Microsoft 365 and Google — cached locally, fast to search, linked to mail, events, and notes.",
+      "b1": "One search index: Person, mail, note, and event via Ctrl+K — offline from SQLite.",
+      "b2": "Linked objects: See at a glance which mail and tasks belong to a contact.",
+      "b3": "Multi-account: Several accounts, one people view — no profile switching in the browser."
+    },
+    "connections": {
+      "vs": "Outlook, Gmail, and others don't have this",
+      "title": "Connections — your work network visible",
+      "desc": "The graph shows mail, events, tasks, notes, and contacts as nodes. Islands group related work; AI suggests links — you confirm each one.",
+      "b1": "No silos: Project mail, workshop event, and note as a connected island — not hunting across five apps.",
+      "b2": "AI with opt-in: Scan for missing links; text excerpts only when you allow it.",
+      "b3": "Everywhere: Mini-graph in the reading pane, preview dock, and dedicated module — layout savable."
     }
   },
   "limits": {

@@ -8,6 +8,7 @@
     "compare": "vs Outlook",
     "updates": "Updates",
     "highlights": "Neuigkeiten",
+    "showcase": "Warum Chronell",
     "features": "Features",
     "modules": "Module",
     "download": "Download",
@@ -244,6 +245,62 @@
       "b1": "Notizen, Verbindungen, Regeln, QuickSteps, Workflow, UI-Einstellungen",
       "b2": "Auto-Sync im Hintergrund, Konflikt: Cloud oder lokal wählen",
       "b3": "Keine Mail-Inhalte, keine OAuth-Tokens in der Cloud"
+    }
+  },
+  "showcase": {
+    "eyebrow": "Mehr als Mail & Kalender",
+    "title": "Ein Fenster — Zusammenhänge statt Silos",
+    "lead": "Outlook, Apple Mail oder getrennte Apps zeigen jeweils nur einen Ausschnitt. Chronell verbindet Mail, Kalender, Aufgaben, Notizen und Kontakte — sichtbar im Graph, ohne deine Daten in eine fremde Cloud zu legen.",
+    "mockup": {
+      "nav": {
+        "home": "Start",
+        "mail": "Mail",
+        "calendar": "Kalender",
+        "tasks": "Aufgaben",
+        "notes": "Notizen",
+        "people": "Kontakte",
+        "connections": "Verbindungen"
+      }
+    },
+    "calendar": {
+      "vs": "Statt Kalender-Tab + Mail-Tab + To-Do-App",
+      "title": "Ein Kalender für Termine, Mail-ToDos und Cloud-Tasks",
+      "desc": "Chronell legt M365- und Google-Kalender, offene Mail-ToDos und Microsoft To Do / Google Tasks in eine Wochenansicht — mit Zeitliste und optionaler Mail-Vorschau daneben.",
+      "b1": "Zeitliste: Überfällig, heute und später in einer Spalte — nicht nur farbige Blöcke im Raster.",
+      "b2": "Kontext: Termin auswählen und die zugehörige Mail oder Notiz direkt in der rechten Spalte sehen.",
+      "b3": "Book with me & Serien: Buchungslinks und Wiederholungen ohne Outlook-Web-Wechsel."
+    },
+    "tasks": {
+      "vs": "Statt To Do nur als separates Microsoft-Add-in",
+      "title": "Aufgaben dort, wo du ohnehin arbeitest",
+      "desc": "Microsoft To Do und Google Tasks leben in Chronell neben Mail und Kalender — mit Fälligkeits-Buckets und Wochenraster für geplante Blöcke.",
+      "b1": "Ein Fenster: Aufgabe aus Mail erzeugen, im Kalender einplanen, in „Alle Arbeit“ triagieren.",
+      "b2": "Serien: Wiederholende Cloud-Tasks (M365 nativ, Google lokal) — nicht nur einmalige Flags.",
+      "b3": "Kein Kontextverlust: Detail-Panel und globale Suche über Tasks, Mails und Termine."
+    },
+    "notes": {
+      "vs": "Statt Notizen in OneNote und Mails in Outlook",
+      "title": "Kernnotizen, die mitarbeiten",
+      "desc": "Notizen hängen an Mails, Terminen oder stehen frei — mit Markdown, Abschnitten und Entity-Links in den Verbindungs-Graph.",
+      "b1": "Verknüpft: Aus dem Lesefenster oder Termin heraus verlinken — der Graph zeigt den Zusammenhang.",
+      "b2": "Editor: Markdown mit Live-Vorschau, Anhänge und optional „Im Kalender anzeigen“.",
+      "b3": "Cloud-Sync: Profil inkl. Notizen auf dem zweiten PC — Mail-Inhalte bleiben bei den Anbietern."
+    },
+    "contacts": {
+      "vs": "Statt Adressbuch ohne Arbeitskontext",
+      "title": "Personen mit Geschichte, nicht nur Feldern",
+      "desc": "Kontakte von Microsoft 365 und Google — lokal gecacht, schnell durchsuchbar, mit Verknüpfungen zu Mails, Terminen und Notizen.",
+      "b1": "Ein Suchindex: Person, Mail, Notiz und Termin über Strg+K — offline aus SQLite.",
+      "b2": "Verknüpfte Objekte: Sieh auf einen Blick, welche Mails und Aufgaben zu einem Kontakt gehören.",
+      "b3": "Multi-Konto: Mehrere Konten, eine Personen-Ansicht — ohne Profil-Wechsel im Browser."
+    },
+    "connections": {
+      "vs": "Das gibt es in Outlook, Gmail & Co. nicht",
+      "title": "Verbindungen — dein Arbeitsnetz sichtbar",
+      "desc": "Der Graph zeigt Mail, Termine, Aufgaben, Notizen und Kontakte als Knoten. Inseln gruppieren zusammengehörige Arbeit; KI schlägt Links vor — du bestätigst jeden einzelnen.",
+      "b1": "Kein Silo: Projekt-Mail, Workshop-Termin und Notiz als verbundene Insel — nicht in fünf Apps suchen.",
+      "b2": "KI mit Opt-in: Scan nach fehlenden Verknüpfungen; Textauszüge nur, wenn du es erlaubst.",
+      "b3": "Überall erreichbar: Mini-Graph im Lesefenster, Vorschau-Dock und eigenes Modul — Layout speicherbar."
     }
   },
   "limits": {
