@@ -2,7 +2,13 @@
 
 Die Marketing-Website liegt in diesem Ordner (`docs/`) als statische HTML-Seite.
 
-## Live-URL (nach Aktivierung)
+## Offizielle Web-Adresse
+
+**https://chronell.app/**
+
+Die Custom Domain ist in GitHub Pages hinterlegt und in [`CNAME`](CNAME) im Repo festgehalten. DNS: **CNAME** `chronell.app` → `kurtsoeser.github.io` (oder A/AAAA laut GitHub-Dokumentation).
+
+Technischer GitHub-Pages-Pfad (leitet nach Domain-Einrichtung auf `chronell.app` um):
 
 **https://kurtsoeser.github.io/Chronell/**
 
@@ -15,7 +21,8 @@ Die Marketing-Website liegt in diesem Ordner (`docs/`) als statische HTML-Seite.
    - **Branch:** `main` (oder dein Default-Branch)
    - **Folder:** `/docs`
 4. **Save** klicken
-5. Nach 1–3 Minuten ist die Seite erreichbar (grüner Hinweis mit URL)
+5. Unter **Custom domain:** `chronell.app` eintragen, **Enforce HTTPS** aktivieren
+6. Nach 1–3 Minuten ist die Seite unter `chronell.app` erreichbar (grüner Hinweis mit URL)
 
 ## Download (CTA)
 
@@ -38,7 +45,7 @@ Nach dem Build läuft **automatisch** (`postbuild-win.ps1` → `publish-docs-rel
 - Installer nach `docs/release/` (Git LFS)
 - Manifeste `latest.json` / `versions.json`
 - Upload auf GitHub Releases
-- `git commit` + `git push` (Homepage auf GitHub Pages)
+- `git commit` + `git push` (Homepage auf GitHub Pages / chronell.app)
 
 **Nur lokal bauen:** `npm run build:win:local`
 
@@ -84,10 +91,6 @@ node scripts/generate-homepage-screenshots.mjs
 
 Echte App-Screenshots: gleiche Dateinamen überschreiben, dann committen und pushen.
 
-## Custom Domain (optional)
-
-Unter **Pages → Custom domain** z. B. `chronell.app` eintragen und bei deinem DNS-Provider einen **CNAME** auf `kurtsoeser.github.io` setzen.
-
 ## Social Preview
 
-Unter **Settings → General → Social preview** ein Bild hochladen (z. B. `assets/chronell-logo.png` oder Export von `assets/og-image.svg` als PNG 1280×640).
+Unter **Settings → General → Social preview** ein Bild hochladen (z. B. `assets/chronell-logo.png` oder Export von `assets/og-image.svg` als PNG 1280×640). Open-Graph-Metadaten in `index.html` verweisen auf `https://chronell.app/`.

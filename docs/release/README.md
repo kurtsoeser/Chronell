@@ -13,7 +13,7 @@ npm run build:win
    - `latest.json` / `versions.json` aktualisieren
    - Installer auf **GitHub Releases** hochladen (öffentlicher Download)
    - Homepage-Download-URLs setzen
-   - **Git commit + push** → GitHub Pages aktualisiert sich
+   - **Git commit + push** → GitHub Pages / [chronell.app](https://chronell.app/) aktualisiert sich
 
 **Download-URL** (sofort nach Upload): steht am Ende der Build-Ausgabe.
 

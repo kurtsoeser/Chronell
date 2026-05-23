@@ -1,7 +1,10 @@
 import { APP_PRODUCT_NAME } from './app-version'
 
-/** Öffentliche Produktseite (GitHub Pages). */
-export const APP_HOMEPAGE_URL = 'https://kurtsoeser.github.io/Chronell/' as const
+/** Offizielle Chronell-Website. */
+export const APP_HOMEPAGE_URL = 'https://chronell.app/' as const
+
+/** Datenschutzerklärung auf der Website. */
+export const APP_PRIVACY_URL = 'https://chronell.app/datenschutz.html' as const
 
 /**
  * Zentrale Branding-Pfade.

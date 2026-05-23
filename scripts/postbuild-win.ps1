@@ -87,4 +87,4 @@ if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) {
 Write-Host ''
 Write-Host ('Fertig — Version ' + $version + ' ist online.') -ForegroundColor Green
 Write-Host ('  Download: https://github.com/kurtsoeser/Chronell/releases/download/v' + $version + '/Chronell-' + $version + '-setup.exe') -ForegroundColor Green
-Write-Host '  Homepage: https://kurtsoeser.github.io/Chronell/ (nach kurzer Wartezeit)' -ForegroundColor Green
+Write-Host '  Homepage: https://chronell.app/ (nach kurzer Wartezeit)' -ForegroundColor Green

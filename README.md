@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| **Homepage & Download** | [kurtsoeser.github.io/Chronell](https://kurtsoeser.github.io/Chronell/) |
+| **Homepage & Download** | [chronell.app](https://chronell.app/) |
 | **Aktuelle Version** | **0.9.21** (23. Mai 2026) |
 | **Windows-Installer** | [GitHub Release](https://github.com/kurtsoeser/Chronell/releases/latest) (primär; auch Installer >100 MB via Git LFS im Repo) |
 | **Technischer Repo-Name** | MailClient · **App-ID:** `at.kurtsoeser.chronell` |
@@ -73,7 +73,7 @@ Typische Zielgruppe: Power-User mit Microsoft 365 und/oder Gmail, mehrere Postf�
 | **Kalender Gantt** | Zeitstrahl mit Mail-ToDos, Tasks und Terminen |
 | **Modul „Alle Arbeit“** | Liste/Kanban + Workflow-Threads mit „Verbindungen mit KI prüfen“ |
 | **Home-Dashboard** | Erweiterte Kacheln, freies Pixel-Layout |
-| **Homepage** | Highlights Verbindungen · KI · Cloud-Sync — [kurtsoeser.github.io/Chronell](https://kurtsoeser.github.io/Chronell/) |
+| **Homepage** | Highlights Verbindungen · KI · Cloud-Sync — [chronell.app](https://chronell.app/) |
 
 ---
 
@@ -277,7 +277,7 @@ Setup & Schema: [`docs/plans/cloud-sync-profil.md`](docs/plans/cloud-sync-profil
 
 ### Endnutzer (Windows 11)
 
-1. Installer von der [Homepage](https://kurtsoeser.github.io/Chronell/) oder [GitHub Releases](https://github.com/kurtsoeser/Chronell/releases/latest) laden  
+1. Installer von [chronell.app](https://chronell.app/) oder [GitHub Releases](https://github.com/kurtsoeser/Chronell/releases/latest) laden  
 2. `Chronell-setup.exe` ausführen und installieren  
 3. Beim ersten Start: **Ersteinrichtungs-Assistent** (Microsoft/Google anmelden)
 

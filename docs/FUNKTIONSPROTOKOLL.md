@@ -50,7 +50,7 @@ Chronell ist **kein klassischer E-Mail-Client zum bloßen Lesen von Listen**, so
 - **Lokale SQLite-Datenhaltung** mit **Volltextsuche** auf dem Gerät
 - **Fluent-2-Oberfläche** (Mica, Acrylic, Smoke, Design-Presets), React, Tailwind, Dark/Light, **DE/EN**
 
-Marketing-Homepage: [kurtsoeser.github.io/Chronell](https://kurtsoeser.github.io/Chronell/) (Quellen: `docs/`).
+Marketing-Homepage: [chronell.app](https://chronell.app/) (Quellen: `docs/`).
 
 ---
 
