@@ -6,8 +6,8 @@ Dieses Dokument beschreibt den **aktuellen Funktionsumfang** der Desktop-App. Es
 |------|------|
 | **Produktname (UI)** | Chronell |
 | **Technischer Name / Installer** | MailClient |
-| **Version** | **0.9.20** |
-| **Stand** | **22. Mai 2026** |
+| **Version** | **0.9.21** |
+| **Stand** | **23. Mai 2026** |
 | **App-ID** | `at.kurtsoeser.chronell` |
 | **Zielplattform** | Windows 11 (primär) |
 | **Autor** | Kurt Soeser |
@@ -87,7 +87,7 @@ Die App gliedert sich in **zehn Hauptmodi** (obere Leiste, Reihenfolge anpassbar
 ## 3. Konten und Authentifizierung
 
 - **Mehrere Konten** parallel (Microsoft 365, Google)
-- **Microsoft Graph** (Mail, Kalender, Kontakte, To Do, Teams, …)
+- **Microsoft Graph** (Mail, Kalender, Kontakte, To Do, Teams, …); **MSAL-Cache** und Token-Lock für stabilere Anmeldung (0.9.21)
 - **Google APIs** (Gmail, Calendar, People, Tasks, …)
 - Ersteinrichtung mit Browser-OAuth; optional **eigene OAuth-App** (Azure / Google Cloud) unter Einstellungen
 - Build-Zeit-Konfiguration über `MAILCLIENT_*`-Umgebungsvariablen; optional Remote-OAuth-JSON
@@ -102,6 +102,9 @@ Die App gliedert sich in **zehn Hauptmodi** (obere Leiste, Reihenfolge anpassbar
 
 - Ordnerbaum pro Konto, Favoriten, **virtualisierte Listen** (react-virtuoso)
 - Thread-/Nachrichtenansicht, **Lesepane** (Kontext-Speicher für Verbindungen/Vorschau; Konversations-Vorschau, 0.9.20), gelesen/ungelesen, markiert
+- **Mehrfachauswahl** (0.9.21): Checkboxen in der Mail-Liste, Aktionsleiste (Archivieren, Löschen, Gelesen/Ungelesen, Kennzeichnen, Verschieben, ToDo, Snooze) für die gesamte Auswahl
+- **ToDo-Thread-Cache** (0.9.21): schnellere Anzeige, wenn ein Thread bereits Mail-ToDos hat
+- **Link-Farben** in Editor und Lesevorschau (0.9.21): lesbare Hyperlinks in Hell- und Dunkelmodus
 - **Lesevorschau-Zoom** (Strg+Mausrad, Strg+Plus/Minus, Pinch; Standard in Einstellungen)
 - **Composer** (0.9.20): modularer Aufbau, Pop-out-Fenster, **TipTap**-Editor mit Hell/Dunkel-Theme
 - **Absender:** Hauptkonto, Alias, freigegebenes Postfach (M365); **Nachrichtenoptionen** (Vertraulichkeit, Lese-/Zustellungsbestätigung, geplanter Versand)
@@ -158,6 +161,7 @@ Das Modul **„Arbeit“** bündelt offene Punkte aus verschiedenen Quellen als 
 - Zentraler Modus für **Microsoft To Do** und **Google Tasks**
 - Listen-, **Kanban-** und **Kalender-Ansicht**
 - Inline-Erstellung, Detail-Panel, Drag-and-Drop (Fälligkeit / Spalten)
+- **Wiederholung / Serien** für Cloud-Tasks (0.9.21): M365 nativ über Graph; Google lokal in der App gespeichert
 - Dialoge zum Anlegen von Cloud-Tasks (auch aus Mail-Kontext)
 - Sync-Status und Cache pro Konto
 
@@ -174,7 +178,7 @@ Das Modul **„Arbeit“** bündelt offene Punkte aus verschiedenen Quellen als 
 ### Termine
 
 - Multi-Kalender (Microsoft, Google, M365-Gruppenkalender)
-- Termin-Dialog inkl. **Serien / Wiederholung**
+- Termin-Dialog inkl. **Serien / Wiederholung** (0.9.21: überarbeiteter Dialog, klarere Felder, Termin aus Topbar)
 - Drag & Resize mit Persistenz über Graph/Google
 - Sichtbarkeit und Sidebar-Einblendung pro Kalender (Einstellungen)
 - Zeitzonen-Unterstützung (Microsoft-Zeitzonenliste)
@@ -342,14 +346,14 @@ Einstellungen-Dialog (Zahnrad) mit Reitern:
 
 | Reiter | Inhalte |
 |--------|---------|
-| **Allgemein** | Sprache (DE/EN), Dashboard-Raster, Wetter-Ort, OAuth, Notion, **Cloud-Sync**, Backup |
+| **Allgemein** | Sprache (DE/EN), Dashboard-Raster, Wetter-Ort, OAuth, Notion, **Cloud-Sync**, **Backup** (manuell + Auto-Backup, Inhaltsvorschau) |
 | **Konten** | Verbundene Konten, Farben, Sync, Cache leeren, Kalender-Vorlauf |
 | **Mail** | Sync-Fenster, Anzeige, Sidebar-Ordner, Triage-Ordner, Kategorien, **Regeln** |
 | **Kalender** | Zeitzone, API, Sidebar-Sichtbarkeit |
 | **Kontakte** | Hinweise, Sprung zum Personen-Modul |
 | **KI-Verbindungen** | Provider (Gemini/OpenAI/Ollama), Snippet-Modus, Scan-Profile, Audit-Log, Embeddings |
 | **Oberfläche** | Design-Presets (Fluent, Midnight, Nord, …), L0–L3-Oberflächenfarben, Hell/Dunkel |
-| **Info** | Version **0.9.20**, Stand **22. Mai 2026**, Produktname, App-ID |
+| **Info** | Version **0.9.21**, Stand **23. Mai 2026**, Produktname, App-ID |
 
 ### Fluent-2-Oberfläche (ab 0.9.17)
 
@@ -378,7 +382,7 @@ Optional über **Supabase** (`chronell_profile_snapshots`):
 
 Weitere Systemfunktionen:
 
-- **Einstellungs-Backup** (Export/Import JSON inkl. localStorage)
+- **Einstellungs-Backup** (0.9.21): Export/Import JSON inkl. localStorage; **Auto-Backup** in wählbaren Ordner; **Inhaltsvorschau** vor Import (`SettingsBackupContentsDialog`)
 - **Lokale Daten** — Speicherverbrauch anzeigen, Cache/DB bereinigen
 - **Bulk-Entflaggen** auf dem Server (Dialog)
 - Theming Hell / Dunkel / System, Akzentfarben
@@ -423,14 +427,14 @@ Weitere Systemfunktionen:
 
 Die Root-`README.md` wird mit Meilensteinen nachgezogen. Bei Widersprüchen gilt **dieses Funktionsprotokoll**.
 
-| Thema | Ist-Stand (0.9.20) |
+| Thema | Ist-Stand (0.9.21) |
 |-------|---------------------|
 | Module | **Zehn** Top-Level-Modi inkl. **Verbindungen** und **Bookings** |
 | Oberfläche | **Fluent 2** — Mica-Hintergrund, Acrylic-Popover, Design-Presets (Fluent, Midnight, Nord, …) |
 | Regeln | **Einstellungen → Mail → Regeln** (kein eigener Tab) |
 | Entity-Links | Zentral im Modul **Verbindungen** + in Notizen/Mail; Vorschau-Dock und Mini-Graph im Lesefenster |
 | Profil-Sync | **Einstellungen → Allgemein → Cloud-Sync** (optional Supabase) |
-| Homepage-Download | [GitHub Releases](https://github.com/kurtsoeser/Chronell/releases/download/v0.9.20/Chronell-0.9.20-setup.exe) (Installer im Repo per Git LFS) |
+| Homepage-Download | [GitHub Releases](https://github.com/kurtsoeser/Chronell/releases/download/v0.9.21/Chronell-0.9.21-setup.exe) (Installer im Repo per Git LFS) |
 
 Bei Widersprüchen gilt **dieses Funktionsprotokoll**.
 
@@ -466,7 +470,7 @@ Marker-Datei nach Migration: `%APPDATA%\Chronell\.chronell-migrated-from-mailcli
 **Empfohlene Schritte:**
 
 1. `npm run dev` beenden (alle Chronell-/Electron-Fenster schließen).
-2. `Chronell-0.9.20-setup.exe` (oder aktuelle Version von der Homepage) ausführen und installieren.
+2. `Chronell-0.9.21-setup.exe` (oder aktuelle Version von der Homepage) ausführen und installieren.
 3. **Chronell** aus dem Startmenü starten — Migration läuft automatisch.
 4. Konten und Einstellungen prüfen; bei Bedarf einmal Sync abwarten.
 5. Optional: alten Ordner `C:\Users\<Du>\AppData\Roaming\mailclient` nach erfolgreicher Prüfung löschen (erst wenn alles passt).
@@ -474,6 +478,14 @@ Marker-Datei nach Migration: `%APPDATA%\Chronell\.chronell-migrated-from-mailcli
 ---
 
 ## 20. Versionshistorie
+
+### 0.9.21 — 23. Mai 2026
+
+- **Mail:** Mehrfachauswahl mit Aktionsleiste (Archivieren, Löschen, Kennzeichnen, Verschieben, ToDo, Snooze); ToDo-Thread-Cache; lesbare Link-Farben in Editor und Lesevorschau
+- **Kalender:** überarbeiteter Termin-Dialog; Serien für Termine und Cloud-Tasks (M365 nativ, Google lokal)
+- **Einstellungen:** Auto-Backup in Ordner, Inhaltsvorschau vor Import; modularer Backup-Bereich
+- **Anmeldung:** MSAL-Cache-Optimierung, Token-Lock, Silent-Gate — weniger Anmeldeprobleme
+- **Release:** Installer über GitHub Releases; Homepage und Doku auf 0.9.21
 
 ### 0.9.20 — 22. Mai 2026
 
@@ -523,4 +535,4 @@ Marker-Datei nach Migration: `%APPDATA%\Chronell\.chronell-migrated-from-mailcli
 
 ---
 
-*Letzte Aktualisierung dieses Dokuments: 22. Mai 2026 · Version 0.9.20*
+*Letzte Aktualisierung dieses Dokuments: 23. Mai 2026 · Version 0.9.21*

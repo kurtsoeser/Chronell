@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Chronell — Manage deine Zeit, nicht deine Inbox",
-    "description": "Chronell 0.9.20: Neuer Composer, TipTap-Editor, OneDrive- und SharePoint-Anhänge — Desktop-Arbeitszentrale für Windows 11 mit Microsoft 365 und Google."
+    "description": "Chronell 0.9.21: Mail-Mehrfachauswahl, überarbeiteter Termin-Dialog, Aufgaben-Serien, Auto-Backup — Desktop-Arbeitszentrale für Windows 11 mit Microsoft 365 und Google."
   },
   "nav": {
     "method": "Die Methode",
@@ -26,7 +26,7 @@
     "taglineLine2Accent": "Inbox",
     "taglineLine2Suffix": "",
     "positioning": "Chronell ist kein E-Mail-Client. Es ist ein System für deine Zeit.",
-    "subline": "Microsoft 365 und Google in einer Desktop-Arbeitszentrale — neuer Composer mit OneDrive-Anhängen, Verbindungs-Graph, KI-Vorschläge, Cloud-Sync und Bookings. Für Windows 11.",
+    "subline": "Microsoft 365 und Google in einer Desktop-Arbeitszentrale — Mail-Mehrfachauswahl, Termine mit Serien, Auto-Backup, Verbindungs-Graph mit KI und Cloud-Sync. Für Windows 11.",
     "ctaDownload": "Für Windows herunterladen",
     "ctaMethod": "Methode entdecken",
     "mockup": {
@@ -158,8 +158,16 @@
     "eyebrow": "Release-Überblick",
     "title": "Was in den letzten Updates passiert ist",
     "lead": "Vom neuen Fluent-Look über den Verbindungs-Graph bis zum Profil-Sync — Chronell wächst schnell, ohne deine Mails in die Cloud zu legen.",
-    "v0920": {
+    "v0921": {
       "badge": "Aktuell",
+      "date": "Mai 2026",
+      "title": "Mail-Bulk, Termine & Backup",
+      "b1": "Mail-Mehrfachauswahl: mehrere Nachrichten markieren und gemeinsam archivieren, löschen, kennzeichnen, als ToDo planen oder snoozen",
+      "b2": "Termin-Dialog überarbeitet: schnelleres Anlegen, klarere Felder; Serien/Wiederholung für Kalendertermine und Cloud-Tasks (M365 nativ, Google lokal)",
+      "b3": "Einstellungen: Auto-Backup in einen Ordner deiner Wahl, Inhaltsvorschau vor Import; ToDo-Thread-Cache und lesbare Link-Farben in Editor und Lesevorschau",
+      "b4": "Stabilere Anmeldung (MSAL-Cache, Token-Lock); Installer-Download über GitHub Releases; Homepage und Doku auf 0.9.21"
+    },
+    "v0920": {
       "date": "Mai 2026",
       "title": "Composer, Editor & Cloud-Anhänge",
       "b1": "Neuer Composer: Absender mit Alias und freigegebenem Postfach, Nachrichtenoptionen, Textbausteine, Editor Hell/Dunkel",
@@ -208,27 +216,27 @@
   "highlights": {
     "eyebrow": "Neu ausprobieren",
     "title": "Vier Schwerpunkte der aktuellen Beta",
-    "lead": "Version 0.9.20 bringt einen neuen Composer mit TipTap-Editor, OneDrive- und SharePoint-Anhängen sowie feinerem Zoom — auf Fluent-Design, KI und Cloud-Sync aufbauend.",
+    "lead": "Version 0.9.21 bringt Mail-Mehrfachauswahl, einen überarbeiteten Termin-Dialog mit Serien, Auto-Backup und stabilere Anmeldung — auf Composer, Fluent-Design und Cloud-Sync aufbauend.",
     "compose": {
-      "title": "Composer neu",
-      "desc": "Mail schreiben wie in Outlook — aber in Chronell: modularer Composer, Rich-Text-Editor und Microsoft-365-Cloud direkt aus dem Anhang-Menü.",
-      "b1": "Absender: Hauptkonto, Alias, freigegebenes Postfach; Nachrichtenoptionen und geplanter Versand",
-      "b2": "OneDrive / SharePoint: Datei als Cloud-Link-Anhang oder Freigabe-Link im Text — mit Berechtigungen und Ablaufdatum",
-      "b3": "Textbausteine, Editor Hell/Dunkel, Compose-Kachel auf dem Home-Dashboard"
+      "title": "Mail-Mehrfachauswahl",
+      "desc": "Mehrere Mails auf einmal triagieren — ohne jede Nachricht einzeln zu öffnen.",
+      "b1": "Checkboxen in der Liste; Aktionsleiste mit Archivieren, Löschen, Gelesen/Ungelesen, Kennzeichnen",
+      "b2": "Verschieben, als ToDo (heute, morgen, Woche, später) oder Snooze für die gesamte Auswahl",
+      "b3": "ToDo-Thread-Cache: schnellere Anzeige, wenn derselbe Thread schon ToDos hat"
     },
     "connections": {
-      "title": "Verbindungen",
-      "desc": "Dein Arbeitsnetz als Graph — mit Vorschau, Kontext und weniger Reibung beim Verknüpfen.",
-      "b1": "Vorschau-Dock und Mini-Graph direkt bei Mail, Terminen und Notizen",
-      "b2": "Pfad zwischen Objekten, Kontextmenü, Insel-Scan und Dichte-Anzeige",
-      "b3": "Drag & Drop, Gruppierung, gespeichertes Layout — spring von überall ins Modul"
+      "title": "Termine & Serien",
+      "desc": "Neue Termine schneller anlegen — mit Wiederholung für Kalender und Cloud-Tasks.",
+      "b1": "Überarbeiteter Termin-Dialog: klarere Felder, bessere Vorschau in Kalender und Bookings",
+      "b2": "Serien für Kalendertermine; Cloud-Tasks mit Wiederholung (M365 nativ, Google lokal gespeichert)",
+      "b3": "Termin aus der Topbar; Scheduling-Panel und Mail-Versand aus dem Termin-Kontext"
     },
     "ai": {
-      "title": "KI-Vorschläge",
-      "desc": "Chronell schlägt passende Verknüpfungen vor — du entscheidest bei jeder einzelnen Verbindung.",
-      "b1": "Gemini, OpenAI oder Ollama lokal — API-Keys im Secure Store",
-      "b2": "Standard nur Metadaten; Textauszüge nur mit deinem Opt-in",
-      "b3": "Insel-Scan, Mail-Badges, Qualität bestehender Links prüfen"
+      "title": "Backup & Profil",
+      "desc": "Deine Chronell-Konfiguration sicher aufbewahren — manuell oder automatisch.",
+      "b1": "Auto-Backup in einen Ordner: Intervall und Zielordner in den Einstellungen",
+      "b2": "Inhaltsvorschau vor Import: sieh genau, was in der Sicherungsdatei steckt",
+      "b3": "Gleicher Umfang wie Cloud-Sync: Regeln, Notizen, Verbindungen, UI — ohne Mail-Inhalte"
     },
     "cloudSync": {
       "title": "Cloud-Sync",
@@ -362,12 +370,12 @@
     "privacy": "Datenschutz"
   },
   "whatsNew": {
-    "label": "Version 0.9.20",
-    "tagline": "Composer · OneDrive-Anhänge · TipTap-Editor · Zoom"
+    "label": "Version 0.9.21",
+    "tagline": "Mail-Bulk · Termine & Serien · Auto-Backup · stabile Anmeldung"
   },
   "cta": {
     "title": "Bereit für das neue Chronell?",
-    "body": "Lade Version 0.9.20 für Windows 11 — neuer Composer mit Cloud-Anhängen, überarbeiteter Editor, Verbindungs-Graph mit KI und optional Cloud-Sync. Updates ersetzen deine Version ohne Datenverlust.",
+    "body": "Lade Version 0.9.21 für Windows 11 — Mail-Mehrfachauswahl, Termine mit Serien, Auto-Backup, Composer mit Cloud-Anhängen und optional Cloud-Sync. Updates ersetzen deine Version ohne Datenverlust.",
     "button": "Jetzt herunterladen"
   }
 }

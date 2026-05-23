@@ -21,7 +21,7 @@ Die Marketing-Website liegt in diesem Ordner (`docs/`) als statische HTML-Seite.
 
 Alle Download-Buttons verweisen auf **GitHub Releases** (`githubDownloadUrl` in `release/latest.json`), z. B.:
 
-`https://github.com/kurtsoeser/Chronell/releases/download/v0.9.20/Chronell-0.9.20-setup.exe`
+`https://github.com/kurtsoeser/Chronell/releases/download/v0.9.21/Chronell-0.9.21-setup.exe`
 
 Die Seite lädt `docs/js/site.js`, das `latest.json` auswertet und den Link setzt. GitHub Pages (`release/latest/Chronell-setup.exe`) ist nur Fallback — mit **Git LFS** im Repo liefert Pages keinen echten Installer.
 

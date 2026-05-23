@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | **Homepage & Download** | [kurtsoeser.github.io/Chronell](https://kurtsoeser.github.io/Chronell/) |
-| **Aktuelle Version** | **0.9.20** (22. Mai 2026) |
+| **Aktuelle Version** | **0.9.21** (23. Mai 2026) |
 | **Windows-Installer** | [GitHub Release](https://github.com/kurtsoeser/Chronell/releases/latest) (primär; auch Installer >100 MB via Git LFS im Repo) |
 | **Technischer Repo-Name** | MailClient · **App-ID:** `at.kurtsoeser.chronell` |
 | **Ausführliches Protokoll** | [`docs/FUNKTIONSPROTOKOLL.md`](docs/FUNKTIONSPROTOKOLL.md) |
@@ -59,6 +59,10 @@ Typische Zielgruppe: Power-User mit Microsoft 365 und/oder Gmail, mehrere Postf�
 
 | Bereich | Was neu ist |
 |--------|-------------|
+| **Mail (0.9.21)** | Mehrfachauswahl in der Liste: Archivieren, Löschen, Kennzeichnen, Verschieben, ToDo und Snooze für viele Mails auf einmal; ToDo-Thread-Cache |
+| **Kalender (0.9.21)** | Überarbeiteter Termin-Dialog; Serien/Wiederholung für Termine und Cloud-Tasks |
+| **Backup (0.9.21)** | Auto-Backup in Ordner, Inhaltsvorschau vor Import |
+| **Anmeldung (0.9.21)** | Stabilere MSAL-Anmeldung (Cache, Token-Lock) |
 | **Composer (0.9.20)** | Neuer modularer Composer: TipTap-Editor, Absender/Alias/freigegebenes Postfach, Textbausteine, Nachrichtenoptionen, OneDrive-/SharePoint-Anhänge |
 | **Lesevorschau** | Konversations-Vorschau, Zoom (Strg+Mausrad); Oberflächen-Zoom in Einstellungen |
 | **Verbindungen** | Eigenes Modul mit interaktivem Graph: Mail, Notizen, Tasks, Termine, Kontakte verknüpfen; Layout speichern, Inseln, Dichte-Scan |
