@@ -79,6 +79,43 @@ function setupMobileNav() {
   })
 }
 
+function setupHeroDemo() {
+  const root = document.getElementById('hero-demo')
+  if (!root) return
+
+  const tabs = root.querySelectorAll('[data-demo-tab]')
+  const panels = root.querySelectorAll('[data-demo-panel]')
+  const captions = root.querySelectorAll('[data-demo-caption]')
+
+  function activate(id) {
+    tabs.forEach((tab) => {
+      const on = tab.dataset.demoTab === id
+      tab.classList.toggle('active', on)
+      tab.setAttribute('aria-selected', on ? 'true' : 'false')
+    })
+    panels.forEach((panel) => {
+      const on = panel.dataset.demoPanel === id
+      panel.classList.toggle('active', on)
+      panel.hidden = !on
+    })
+    captions.forEach((cap) => {
+      const on = cap.dataset.demoCaption === id
+      cap.classList.toggle('active', on)
+      cap.hidden = !on
+    })
+  }
+
+  tabs.forEach((tab) => {
+    tab.addEventListener('click', () => {
+      const id = tab.dataset.demoTab
+      if (id) activate(id)
+    })
+  })
+
+  const initial = root.querySelector('[data-demo-tab].active')?.dataset.demoTab ?? 'mail'
+  activate(initial)
+}
+
 function setupReveal() {
   const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   const els = document.querySelectorAll('.reveal')
@@ -294,6 +331,7 @@ async function init() {
     if (currentLang !== 'en') await loadLang('en')
   }
   await setupDownloadLinks()
+  setupHeroDemo()
   setupReveal()
 }
 

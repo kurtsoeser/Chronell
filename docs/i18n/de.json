@@ -41,7 +41,26 @@
       "tasks": "Aufgaben",
       "notes": "Kernnotizen",
       "connections": "Verbindungen",
-      "badge": "→ Heute · 14:00"
+      "badge": "→ Heute · 14:00",
+      "badgeTodo": "→ ToDo · heute"
+    },
+    "demo": {
+      "tabs": {
+        "mail": "Mail",
+        "calendar": "Kalender",
+        "tasks": "Aufgaben",
+        "notes": "Notizen",
+        "contacts": "Kontakte",
+        "connections": "Verbindungen"
+      },
+      "caption": {
+        "mail": "Triage statt Dauer-Posteingang — mehrere Mails markieren, als ToDo planen oder snoozen, ohne jeden Thread einzeln zu öffnen.",
+        "calendar": "Termine, Mail-ToDos und Cloud-Tasks in einer Woche — mit Zeitliste und Mail-Kontext in der gleichen Ansicht.",
+        "tasks": "Microsoft To Do und Google Tasks neben Mail und Kalender — Fälligkeit, Serien und geplante Blöcke in einem Fenster.",
+        "notes": "Kernnotizen an Mails und Terminen — Markdown mit Vorschau und direkte Verknüpfung in den Graph.",
+        "contacts": "Kontakte mit verknüpften Mails und Aufgaben — Personen als Knoten im Arbeitsnetz, nicht nur Adressbuch.",
+        "connections": "Dein einzigartiges Arbeitsnetz: Mail, Termine, Tasks und Notizen als Graph — mit KI-Vorschlägen, die du bestätigst."
+      }
     }
   },
   "quote": {

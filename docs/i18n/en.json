@@ -41,7 +41,26 @@
       "tasks": "Tasks",
       "notes": "Core notes",
       "connections": "Connections",
-      "badge": "→ Today · 2:00 PM"
+      "badge": "→ Today · 2:00 PM",
+      "badgeTodo": "→ To-do · today"
+    },
+    "demo": {
+      "tabs": {
+        "mail": "Mail",
+        "calendar": "Calendar",
+        "tasks": "Tasks",
+        "notes": "Notes",
+        "contacts": "Contacts",
+        "connections": "Connections"
+      },
+      "caption": {
+        "mail": "Triage instead of an endless inbox — select multiple messages, turn them into to-dos or snooze them without opening every thread.",
+        "calendar": "Events, mail to-dos, and cloud tasks in one week view — with a timeline and mail context in the same screen.",
+        "tasks": "Microsoft To Do and Google Tasks beside mail and calendar — due dates, recurrence, and planned blocks in one window.",
+        "notes": "Core notes on mail and events — Markdown with preview and direct links into the graph.",
+        "contacts": "Contacts with linked mail and tasks — people as nodes in your work network, not just an address book.",
+        "connections": "Your unique work network: mail, events, tasks, and notes as a graph — with AI suggestions you confirm."
+      }
     }
   },
   "quote": {

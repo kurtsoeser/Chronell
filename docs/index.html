@@ -110,64 +110,245 @@
             <span class="hero-download-version" data-download-version hidden></span>
             <span data-download-note data-i18n="download.betaNote">Aktuelle Beta — kostenlos, ohne Warteliste.</span>
           </p>
-          <div class="hero-mockup reveal reveal-delay-3" aria-hidden="true">
+          <div class="hero-mockup-interactive reveal reveal-delay-3" id="hero-demo">
+            <div class="hero-demo-tabs" role="tablist" aria-label="Chronell Module">
+              <button type="button" class="hero-demo-tab active" role="tab" aria-selected="true" data-demo-tab="mail" id="hero-tab-mail">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><path d="M22 6l-10 7L2 6"/></svg>
+                <span data-i18n="hero.demo.tabs.mail">Mail</span>
+              </button>
+              <button type="button" class="hero-demo-tab" role="tab" aria-selected="false" data-demo-tab="calendar" id="hero-tab-calendar">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                <span data-i18n="hero.demo.tabs.calendar">Kalender</span>
+              </button>
+              <button type="button" class="hero-demo-tab" role="tab" aria-selected="false" data-demo-tab="tasks" id="hero-tab-tasks">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                <span data-i18n="hero.demo.tabs.tasks">Aufgaben</span>
+              </button>
+              <button type="button" class="hero-demo-tab" role="tab" aria-selected="false" data-demo-tab="notes" id="hero-tab-notes">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+                <span data-i18n="hero.demo.tabs.notes">Notizen</span>
+              </button>
+              <button type="button" class="hero-demo-tab" role="tab" aria-selected="false" data-demo-tab="contacts" id="hero-tab-contacts">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                <span data-i18n="hero.demo.tabs.contacts">Kontakte</span>
+              </button>
+              <button type="button" class="hero-demo-tab" role="tab" aria-selected="false" data-demo-tab="connections" id="hero-tab-connections">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                <span data-i18n="hero.demo.tabs.connections">Verbindungen</span>
+              </button>
+            </div>
             <div class="mockup-frame glass-panel-elevated">
               <div class="app-chrome">
                 <img src="assets/chronell-icon.png" alt="" class="app-chrome-icon" width="18" height="18" />
                 <span class="app-chrome-title">Chronell</span>
               </div>
-              <div class="mockup-body">
-                <div class="mockup-sidebar">
-                  <div class="mockup-sidebar-item active">
-                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><path d="M22 6l-10 7L2 6"/></svg>
-                    <span data-i18n="hero.mockup.inbox">Posteingang</span>
-                  </div>
-                  <div class="mockup-sidebar-item">
-                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg><span data-i18n="hero.mockup.today">Heute</span>
-                  </div>
-                  <div class="mockup-sidebar-item">
-                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4"/></svg><span data-i18n="hero.mockup.inProgress">In Bearbeitung</span>
-                  </div>
-                  <div class="mockup-sidebar-item">
-                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><span data-i18n="hero.mockup.waiting">Warte auf</span>
-                  </div>
-                  <div class="mockup-sidebar-item">
-                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg><span data-i18n="hero.mockup.done">Erledigt</span>
-                  </div>
-                  <div class="mockup-sidebar-divider"></div>
-                  <div class="mockup-sidebar-item">
-                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>                    <span data-i18n="hero.mockup.calendar">Kalender</span>
-                  </div>
-                  <div class="mockup-sidebar-item mockup-sidebar-item--accent">
-                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg><span data-i18n="hero.mockup.bookings">Bookings</span>
-                  </div>
-                  <div class="mockup-sidebar-item">
-                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span data-i18n="hero.mockup.tasks">Aufgaben</span>
-                  </div>
-                  <div class="mockup-sidebar-item">
-                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span data-i18n="hero.mockup.notes">Kernnotizen</span>
-                  </div>
-                  <div class="mockup-sidebar-item mockup-sidebar-item--accent">
-                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg><span data-i18n="hero.mockup.connections">Verbindungen</span>
+              <div class="hero-demo-panels">
+                <!-- Mail: Triage & Bulk -->
+                <div class="hero-demo-panel active" data-demo-panel="mail" role="tabpanel" aria-labelledby="hero-tab-mail">
+                  <div class="mockup-body mockup-body--mail-triage">
+                    <div class="mockup-sidebar">
+                      <div class="mockup-sidebar-item">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/></svg>
+                        <span data-i18n="hero.mockup.inbox">Posteingang</span>
+                      </div>
+                      <div class="mockup-sidebar-item active">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                        <span data-i18n="hero.mockup.today">Heute</span>
+                      </div>
+                      <div class="mockup-sidebar-item">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4"/></svg>
+                        <span data-i18n="hero.mockup.inProgress">In Bearbeitung</span>
+                      </div>
+                      <div class="mockup-sidebar-item">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/></svg>
+                        <span data-i18n="hero.mockup.waiting">Warte auf</span>
+                      </div>
+                      <div class="mockup-sidebar-divider"></div>
+                      <div class="mockup-sidebar-item mockup-sidebar-item--accent">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/></svg>
+                        <span data-i18n="hero.mockup.connections">Verbindungen</span>
+                      </div>
+                    </div>
+                    <div class="mockup-list">
+                      <div class="mockup-bulk-bar" aria-hidden="true">
+                        <span class="mockup-bulk-dot"></span><span class="mockup-bulk-dot"></span><span class="mockup-bulk-dot"></span>
+                        <span class="mockup-skel"></span>
+                      </div>
+                      <div class="mockup-list-item unread">
+                        <span class="mockup-list-check checked"></span>
+                        <div class="lines-wrap"><div class="top-line"></div><div class="bot-line"></div></div>
+                      </div>
+                      <div class="mockup-list-item urgent">
+                        <span class="mockup-list-check checked"></span>
+                        <div class="lines-wrap"><div class="top-line"></div><div class="bot-line"></div></div>
+                      </div>
+                      <div class="mockup-list-item unread">
+                        <span class="mockup-list-check"></span>
+                        <div class="lines-wrap"><div class="top-line"></div><div class="bot-line"></div></div>
+                      </div>
+                      <div class="mockup-list-item">
+                        <span class="mockup-list-check"></span>
+                        <div class="lines-wrap"><div class="top-line"></div><div class="bot-line"></div></div>
+                      </div>
+                    </div>
+                    <div class="mockup-detail">
+                      <div class="header"></div>
+                      <div class="sub"></div>
+                      <div class="body-line"></div>
+                      <div class="body-line"></div>
+                      <span class="badge" data-i18n="hero.mockup.badgeTodo">→ ToDo · heute</span>
+                    </div>
                   </div>
                 </div>
-                <div class="mockup-list">
-                  <div class="mockup-list-item unread"><div class="top-line"></div><div class="bot-line"></div></div>
-                  <div class="mockup-list-item urgent"><div class="top-line"></div><div class="bot-line"></div></div>
-                  <div class="mockup-list-item unread"><div class="top-line"></div><div class="bot-line"></div></div>
-                  <div class="mockup-list-item"><div class="top-line"></div><div class="bot-line"></div></div>
-                  <div class="mockup-list-item"><div class="top-line"></div><div class="bot-line"></div></div>
-                  <div class="mockup-list-item done"><div class="top-line"></div><div class="bot-line"></div></div>
+                <!-- Kalender -->
+                <div class="hero-demo-panel" data-demo-panel="calendar" role="tabpanel" aria-labelledby="hero-tab-calendar" hidden>
+                  <div class="mockup-body mockup-body--calendar">
+                    <div class="mockup-pane mockup-pane--nav mockup-cal-accounts">
+                      <div class="mockup-cal-mini" aria-hidden="true">
+                        <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+                        <span></span><span></span><span></span><span></span><span></span><span class="today"></span><span></span>
+                      </div>
+                      <div class="mockup-skel"></div>
+                      <div class="mockup-skel mockup-skel--dim"></div>
+                    </div>
+                    <div class="mockup-pane mockup-pane--grid mockup-cal-grid" aria-hidden="true">
+                      <div class="mockup-cal-grid-head"></div><div class="mockup-cal-grid-head"></div><div class="mockup-cal-grid-head"></div>
+                      <div class="mockup-cal-grid-head"></div><div class="mockup-cal-grid-head"></div><div class="mockup-cal-grid-head today-col"></div><div class="mockup-cal-grid-head"></div>
+                      <div class="mockup-cal-event mockup-cal-event--violet" style="grid-column: 2; grid-row: 2 / span 2"></div>
+                      <div class="mockup-cal-event mockup-cal-event--orange" style="grid-column: 5; grid-row: 3 / span 2"></div>
+                      <div class="mockup-cal-now" style="grid-column: 1 / -1; grid-row: 4"></div>
+                      <div class="mockup-cal-event mockup-cal-event--blue" style="grid-column: 6; grid-row: 2 / span 2"></div>
+                    </div>
+                    <div class="mockup-pane mockup-pane--timeline">
+                      <div class="mockup-timeline-item">
+                        <span class="time mockup-skel"></span>
+                        <div class="lines"><div class="mockup-skel"></div></div>
+                        <span class="tag tag--overdue"></span>
+                      </div>
+                      <div class="mockup-timeline-item">
+                        <span class="time mockup-skel"></span>
+                        <div class="lines"><div class="mockup-skel"></div></div>
+                        <span class="tag tag--today"></span>
+                      </div>
+                    </div>
+                    <div class="mockup-pane mockup-pane--preview mockup-detail">
+                      <div class="header"></div><div class="sub"></div><div class="body-line"></div>
+                    </div>
+                  </div>
                 </div>
-                <div class="mockup-detail">
-                  <div class="header"></div>
-                  <div class="sub"></div>
-                  <div class="body-line"></div>
-                  <div class="body-line"></div>
-                  <div class="body-line"></div>
-                  <span class="badge" data-i18n="hero.mockup.badge">→ Heute · 14:00</span>
+                <!-- Aufgaben -->
+                <div class="hero-demo-panel" data-demo-panel="tasks" role="tabpanel" aria-labelledby="hero-tab-tasks" hidden>
+                  <div class="mockup-body mockup-body--tasks">
+                    <div class="mockup-pane mockup-pane--nav">
+                      <div class="mockup-cal-mini" aria-hidden="true">
+                        <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+                        <span></span><span></span><span></span><span></span><span></span><span class="today"></span><span></span>
+                      </div>
+                      <div class="mockup-skel mockup-skel--bright"></div>
+                    </div>
+                    <div class="mockup-pane">
+                      <div class="mockup-task-group">
+                        <div class="mockup-task-group-label mockup-task-group-label--overdue"></div>
+                        <div class="mockup-task-row"><span class="mockup-task-check"></span><span class="mockup-skel"></span></div>
+                        <div class="mockup-task-row"><span class="mockup-task-check"></span><span class="mockup-skel"></span></div>
+                      </div>
+                      <div class="mockup-task-group">
+                        <div class="mockup-task-group-label mockup-task-group-label--today"></div>
+                        <div class="mockup-task-row"><span class="mockup-task-check"></span><span class="mockup-skel"></span></div>
+                        <div class="mockup-task-row"><span class="mockup-task-check"></span><span class="mockup-skel mockup-skel--dim"></span></div>
+                      </div>
+                    </div>
+                    <div class="mockup-pane mockup-task-cal" aria-hidden="true">
+                      <div class="mockup-cal-grid-head"></div><div class="mockup-cal-grid-head"></div><div class="mockup-cal-grid-head"></div>
+                      <div class="mockup-cal-grid-head"></div><div class="mockup-cal-grid-head today-col"></div><div class="mockup-cal-grid-head"></div><div class="mockup-cal-grid-head"></div>
+                      <div class="mockup-task-block" style="grid-column: 5; grid-row: 3 / span 3"></div>
+                    </div>
+                    <div class="mockup-pane mockup-pane--empty"><span class="mockup-skel mockup-skel--dim"></span></div>
+                  </div>
+                </div>
+                <!-- Notizen -->
+                <div class="hero-demo-panel" data-demo-panel="notes" role="tabpanel" aria-labelledby="hero-tab-notes" hidden>
+                  <div class="mockup-body mockup-body--notes">
+                    <div class="mockup-pane mockup-notes-tree">
+                      <div class="mockup-skel mockup-skel--bright"></div>
+                      <div class="mockup-skel"></div><div class="mockup-skel"></div><div class="mockup-skel mockup-skel--dim"></div>
+                    </div>
+                    <div class="mockup-pane mockup-notes-list">
+                      <div class="mockup-skel active-note"></div>
+                      <div class="mockup-skel"></div><div class="mockup-skel mockup-skel--dim"></div>
+                    </div>
+                    <div class="mockup-pane mockup-notes-editor">
+                      <div class="mockup-notes-toolbar" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+                      <div class="col"><div class="mockup-skel"></div><div class="mockup-skel"></div><div class="mockup-skel mockup-skel--dim"></div></div>
+                      <div class="col"><div class="mockup-skel"></div><div class="mockup-skel mockup-skel--dim"></div></div>
+                    </div>
+                  </div>
+                </div>
+                <!-- Kontakte -->
+                <div class="hero-demo-panel" data-demo-panel="contacts" role="tabpanel" aria-labelledby="hero-tab-contacts" hidden>
+                  <div class="mockup-body mockup-body--contacts">
+                    <div class="mockup-pane">
+                      <div class="mockup-contact-row active"><span class="mockup-avatar"></span><span class="mockup-skel mockup-skel--bright"></span></div>
+                      <div class="mockup-contact-row"><span class="mockup-avatar"></span><span class="mockup-skel"></span></div>
+                      <div class="mockup-contact-row"><span class="mockup-avatar"></span><span class="mockup-skel mockup-skel--dim"></span></div>
+                    </div>
+                    <div class="mockup-pane mockup-contact-detail">
+                      <span class="mockup-avatar"></span>
+                      <div class="mockup-skel mockup-skel--bright" style="width: 55%; height: 8px; margin-bottom: 0.5rem"></div>
+                      <div class="mockup-skel mockup-skel--dim" style="width: 85%"></div>
+                    </div>
+                    <div class="mockup-pane">
+                      <div class="mockup-linked-item"><span class="dot"></span><span class="mockup-skel" style="flex: 1"></span></div>
+                      <div class="mockup-linked-item"><span class="dot"></span><span class="mockup-skel mockup-skel--dim" style="flex: 1"></span></div>
+                    </div>
+                  </div>
+                </div>
+                <!-- Verbindungen -->
+                <div class="hero-demo-panel" data-demo-panel="connections" role="tabpanel" aria-labelledby="hero-tab-connections" hidden>
+                  <div class="mockup-body mockup-body--connections">
+                    <div class="mockup-pane mockup-list mockup-list-compact">
+                      <div class="mockup-list-item unread"><div class="top-line"></div><div class="bot-line"></div></div>
+                      <div class="mockup-list-item"><div class="top-line"></div><div class="bot-line"></div></div>
+                      <div class="mockup-list-item"><div class="top-line"></div><div class="bot-line"></div></div>
+                    </div>
+                    <div class="mockup-pane mockup-graph" aria-hidden="true">
+                      <svg class="connectors" viewBox="0 0 400 220" preserveAspectRatio="none">
+                        <line x1="155" y1="55" x2="248" y2="95" /><line x1="248" y1="95" x2="195" y2="145" />
+                        <line x1="155" y1="55" x2="120" y2="130" /><line x1="195" y1="145" x2="235" y2="168" />
+                      </svg>
+                      <span class="mockup-graph-island" style="top: 10%; left: 34%">Insel</span>
+                      <div class="mockup-graph-node mockup-graph-node--a">
+                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/></svg>
+                        <div class="lines"><div class="mockup-skel mockup-skel--bright"></div></div>
+                        <span class="link-badge"></span>
+                      </div>
+                      <div class="mockup-graph-node mockup-graph-node--b">
+                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/></svg>
+                        <div class="lines"><div class="mockup-skel"></div></div>
+                        <span class="link-badge"></span>
+                      </div>
+                      <div class="mockup-graph-node mockup-graph-node--c">
+                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/></svg>
+                        <div class="lines"><div class="mockup-skel mockup-skel--dim"></div></div>
+                        <span class="link-badge"></span>
+                      </div>
+                      <div class="mockup-graph-node mockup-graph-node--d">
+                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
+                        <div class="lines"><div class="mockup-skel"></div></div>
+                        <span class="link-badge"></span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
+            </div>
+            <div class="hero-demo-captions">
+              <p class="hero-demo-caption active" data-demo-caption="mail" data-i18n="hero.demo.caption.mail"></p>
+              <p class="hero-demo-caption" data-demo-caption="calendar" data-i18n="hero.demo.caption.calendar" hidden></p>
+              <p class="hero-demo-caption" data-demo-caption="tasks" data-i18n="hero.demo.caption.tasks" hidden></p>
+              <p class="hero-demo-caption" data-demo-caption="notes" data-i18n="hero.demo.caption.notes" hidden></p>
+              <p class="hero-demo-caption" data-demo-caption="contacts" data-i18n="hero.demo.caption.contacts" hidden></p>
+              <p class="hero-demo-caption" data-demo-caption="connections" data-i18n="hero.demo.caption.connections" hidden></p>
             </div>
           </div>
         </div>
