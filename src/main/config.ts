@@ -41,7 +41,12 @@ const PERSISTED_CONFIG_KEYS: (keyof AppConfig)[] = [
   'profileCloudLastPulledAt',
   'profileCloudLastPushedAt',
   'profileCloudLocalDirtyAt',
-  'profileSyncPollIntervalSeconds'
+  'profileSyncPollIntervalSeconds',
+  'settingsAutoBackupEnabled',
+  'settingsAutoBackupDirectory',
+  'settingsAutoBackupLastAt',
+  'settingsAutoBackupLastPath',
+  'settingsAutoBackupLastError'
 ]
 
 export const DEFAULT_APP_CONFIG: AppConfig = {
@@ -68,7 +73,12 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
   profileCloudLastPulledAt: null,
   profileCloudLastPushedAt: null,
   profileCloudLocalDirtyAt: null,
-  profileSyncPollIntervalSeconds: 300
+  profileSyncPollIntervalSeconds: 300,
+  settingsAutoBackupEnabled: false,
+  settingsAutoBackupDirectory: null,
+  settingsAutoBackupLastAt: null,
+  settingsAutoBackupLastPath: null,
+  settingsAutoBackupLastError: null
 }
 
 let remoteOAuthCache: PublisherRemoteOAuthPayload | null | undefined = undefined

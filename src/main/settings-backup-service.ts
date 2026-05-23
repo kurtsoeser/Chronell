@@ -324,7 +324,7 @@ function parseEntityLinksBackup(raw: unknown[]): SettingsBackupEntityLinkSnapsho
         calendarAccountId: l.calendarAccountId,
         calendarGraphEventId: l.calendarGraphEventId
       })
-    } else {
+    } else if (targetKind === 'cloud_task') {
       if (
         typeof l.taskAccountId !== 'string' ||
         typeof l.taskListId !== 'string' ||
@@ -338,6 +338,9 @@ function parseEntityLinksBackup(raw: unknown[]): SettingsBackupEntityLinkSnapsho
         taskListId: l.taskListId,
         taskId: l.taskId
       })
+    } else if (targetKind === 'people_contact') {
+      if (typeof l.peopleContactId !== 'number' || !Number.isFinite(l.peopleContactId)) continue
+      out.push({ ...base, peopleContactId: Math.floor(l.peopleContactId) })
     }
   }
   return out
@@ -430,6 +433,27 @@ function parseAccountPreferencesBackup(raw: unknown[]): SettingsBackupAccountPre
           : typeof row.bookWithMeUrl === 'string'
             ? row.bookWithMeUrl.trim() || null
             : null
+    }
+    if (Array.isArray(row.sharedMailboxSendAs)) {
+      const mailboxes: NonNullable<
+        SettingsBackupAccountPreferenceSnapshot['sharedMailboxSendAs']
+      > = []
+      for (const item of row.sharedMailboxSendAs) {
+        if (!isRecord(item)) continue
+        if (typeof item.email !== 'string' || !item.email.trim()) continue
+        mailboxes.push({
+          email: item.email.trim(),
+          displayName:
+            item.displayName == null
+              ? null
+              : typeof item.displayName === 'string'
+                ? item.displayName
+                : null
+        })
+      }
+      if (mailboxes.length > 0) {
+        pref.sharedMailboxSendAs = mailboxes
+      }
     }
     out.push(pref)
   }

@@ -188,6 +188,13 @@ export interface AppConfig {
   profileCloudLocalDirtyAt?: string | null
   /** Hintergrund-Poll-Intervall in Sekunden (120–1800), Standard 300. */
   profileSyncPollIntervalSeconds?: number
+  /** Automatisches JSON-Backup nach größeren Änderungen (ohne Dialog). */
+  settingsAutoBackupEnabled?: boolean
+  /** Zielordner für Auto-Backup (`mailclient-einstellungen-latest.json` + datierte Kopien). */
+  settingsAutoBackupDirectory?: string | null
+  settingsAutoBackupLastAt?: string | null
+  settingsAutoBackupLastPath?: string | null
+  settingsAutoBackupLastError?: string | null
 }
 
 export type ProfileDataMode = 'local' | 'cloud'
@@ -541,6 +548,22 @@ export type SettingsBackupPickResult =
   | { ok: true; backup: SettingsBackupPayload }
   | { ok: false; cancelled: true }
   | { ok: false; error: string }
+
+export interface SettingsAutoBackupStatus {
+  enabled: boolean
+  directory: string | null
+  lastAt: string | null
+  lastPath: string | null
+  lastError: string | null
+}
+
+export type SettingsAutoBackupRunResult =
+  | { ok: true; path: string }
+  | { ok: false; error: string }
+
+export type SettingsBackupDirectoryPickResult =
+  | { ok: true; path: string }
+  | { ok: false; cancelled: true }
 
 /** ZIP-Archiv des userData-Ordners (portable = ohne Chromium-Caches). */
 export const LOCAL_DATA_ARCHIVE_FORMAT_VERSION = 1 as const

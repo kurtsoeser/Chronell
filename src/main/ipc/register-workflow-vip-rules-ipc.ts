@@ -20,6 +20,7 @@ import { addVipSender, removeVipSender, listVipEmailsForAccount } from '../db/vi
 import { getActionById, markUndone } from '../db/message-actions-repo'
 import type { MailRuleDefinition, MailRuleTrigger } from '@shared/mail-rules'
 import { applyUndo } from './mail-ipc-undo'
+import { notifySettingsBackupDataChanged } from '../settings-auto-backup-service'
 
 export function registerWorkflowVipRulesIpc(): void {
   ipcMain.handle(IPC.workflow.listBoards, (): WorkflowBoard[] => listWorkflowBoards())
@@ -28,6 +29,7 @@ export function registerWorkflowVipRulesIpc(): void {
     IPC.workflow.updateBoardColumns,
     (_event, args: { boardId: number; columns: WorkflowColumn[] }): void => {
       updateWorkflowBoardColumns(args.boardId, args.columns)
+      notifySettingsBackupDataChanged()
     }
   )
 
@@ -37,6 +39,7 @@ export function registerWorkflowVipRulesIpc(): void {
     IPC.vip.add,
     (_event, args: { accountId: string; email: string }): void => {
       addVipSender(args.accountId, args.email)
+      notifySettingsBackupDataChanged()
     }
   )
 
@@ -44,6 +47,7 @@ export function registerWorkflowVipRulesIpc(): void {
     IPC.vip.remove,
     (_event, args: { accountId: string; email: string }): void => {
       removeVipSender(args.accountId, args.email)
+      notifySettingsBackupDataChanged()
     }
   )
 
@@ -56,7 +60,11 @@ export function registerWorkflowVipRulesIpc(): void {
     (
       _event,
       input: { name: string; enabled: boolean; trigger: MailRuleTrigger; definition: MailRuleDefinition }
-    ) => rulesCreate(input)
+    ) => {
+      const rule = rulesCreate(input)
+      notifySettingsBackupDataChanged()
+      return rule
+    }
   )
 
   ipcMain.handle(
@@ -73,11 +81,16 @@ export function registerWorkflowVipRulesIpc(): void {
           definition: MailRuleDefinition
         }>
       }
-    ) => rulesUpdate(args.id, args.patch)
+    ) => {
+      const rule = rulesUpdate(args.id, args.patch)
+      notifySettingsBackupDataChanged()
+      return rule
+    }
   )
 
   ipcMain.handle(IPC.rules.delete, (_event, id: number): void => {
     rulesDelete(id)
+    notifySettingsBackupDataChanged()
   })
 
   ipcMain.handle(

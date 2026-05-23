@@ -303,7 +303,13 @@ export const IPC = {
   settingsBackup: {
     exportToFile: 'settings-backup:export-to-file',
     pickAndRead: 'settings-backup:pick-and-read',
-    applyFull: 'settings-backup:apply-full'
+    applyFull: 'settings-backup:apply-full',
+    buildPreview: 'settings-backup:build-preview',
+    summarize: 'settings-backup:summarize',
+    getAutoBackupStatus: 'settings-backup:get-auto-backup-status',
+    setAutoBackup: 'settings-backup:set-auto-backup',
+    pickAutoBackupDirectory: 'settings-backup:pick-auto-backup-directory',
+    runAutoBackupNow: 'settings-backup:run-auto-backup-now'
   },
   profileSync: {
     getStatus: 'profile-sync:get-status',

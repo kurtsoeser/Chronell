@@ -17,6 +17,10 @@ import {
   verifyProfileSyncOtp
 } from '../sync-profile/profile-sync-service'
 import { setCachedProfileUiPrefs } from '../sync-profile/profile-sync-ui-prefs-cache'
+import {
+  markProfileDataDirty,
+  scheduleProfileSyncDebounced
+} from '../sync-profile/profile-sync-scheduler'
 
 export function registerProfileSyncIpc(): void {
   ipcMain.removeHandler(IPC.profileSync.getStatus)
@@ -102,7 +106,11 @@ export function registerProfileSyncIpc(): void {
       for (const [k, v] of Object.entries(localStorage as Record<string, unknown>)) {
         if (typeof v === 'string') flat[k] = v
       }
-      setCachedProfileUiPrefs(flat)
+      const changed = setCachedProfileUiPrefs(flat)
+      if (changed) {
+        void markProfileDataDirty()
+        scheduleProfileSyncDebounced()
+      }
     }
   )
 }

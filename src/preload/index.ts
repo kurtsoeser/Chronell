@@ -347,7 +347,28 @@ const api = {
     pickAndRead: (): Promise<SettingsBackupPickResult> =>
       ipcRenderer.invoke(IPC.settingsBackup.pickAndRead),
     applyFull: (backup: SettingsBackupPayload): Promise<void> =>
-      ipcRenderer.invoke(IPC.settingsBackup.applyFull, backup)
+      ipcRenderer.invoke(IPC.settingsBackup.applyFull, backup),
+    buildPreview: (
+      localStorage: Record<string, string>
+    ): Promise<import('@shared/settings-backup-summary').SettingsBackupContentsSummary> =>
+      ipcRenderer.invoke(IPC.settingsBackup.buildPreview, localStorage),
+    summarize: (
+      backup: SettingsBackupPayload
+    ): Promise<import('@shared/settings-backup-summary').SettingsBackupContentsSummary> =>
+      ipcRenderer.invoke(IPC.settingsBackup.summarize, backup),
+    getAutoBackupStatus: (): Promise<import('@shared/types').SettingsAutoBackupStatus> =>
+      ipcRenderer.invoke(IPC.settingsBackup.getAutoBackupStatus),
+    setAutoBackup: (patch: {
+      enabled?: boolean
+      directory?: string | null
+    }): Promise<import('@shared/types').SettingsAutoBackupStatus> =>
+      ipcRenderer.invoke(IPC.settingsBackup.setAutoBackup, patch),
+    pickAutoBackupDirectory: (): Promise<import('@shared/types').SettingsBackupDirectoryPickResult> =>
+      ipcRenderer.invoke(IPC.settingsBackup.pickAutoBackupDirectory),
+    runAutoBackupNow: (
+      localStorage: Record<string, string>
+    ): Promise<import('@shared/types').SettingsAutoBackupRunResult> =>
+      ipcRenderer.invoke(IPC.settingsBackup.runAutoBackupNow, localStorage)
   },
   profileSync: {
     getStatus: (): Promise<import('@shared/types').ProfileSyncStatus> =>

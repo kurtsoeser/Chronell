@@ -28,6 +28,8 @@ function mergeCloudConfig(local: AppConfig, remote: AppConfig): AppConfig {
     ...local,
     syncWindowDays: remote.syncWindowDays,
     mailPollIntervalSeconds: remote.mailPollIntervalSeconds,
+    mailBodyIndexEnabled: remote.mailBodyIndexEnabled,
+    mailBodyIndexSpeed: remote.mailBodyIndexSpeed,
     autoLoadImages: remote.autoLoadImages,
     gravatarEnabled: remote.gravatarEnabled,
     launchOnLogin: remote.launchOnLogin,
@@ -36,7 +38,8 @@ function mergeCloudConfig(local: AppConfig, remote: AppConfig): AppConfig {
     weatherLongitude: remote.weatherLongitude,
     weatherLocationName: remote.weatherLocationName,
     workflowMailFoldersIntroDismissed: remote.workflowMailFoldersIntroDismissed,
-    firstRunSetupCompleted: remote.firstRunSetupCompleted
+    firstRunSetupCompleted: remote.firstRunSetupCompleted,
+    profileSyncPollIntervalSeconds: remote.profileSyncPollIntervalSeconds
   })
 }
 

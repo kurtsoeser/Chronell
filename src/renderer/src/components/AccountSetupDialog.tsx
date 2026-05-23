@@ -109,12 +109,8 @@ import type {
   LocalDataUsageReport
 } from '@shared/types'
 import { formatBytes } from '@/lib/format-bytes'
-import { AccountSetupLocalDataSection } from '@/components/AccountSetupLocalDataSection'
+import { AccountSetupBackupSection } from '@/components/account-setup/AccountSetupBackupSection'
 import { AccountSetupCloudSyncSection } from '@/components/account-setup/AccountSetupCloudSyncSection'
-import {
-  replaceLocalStorageFromBackup,
-  snapshotLocalStorage
-} from '@/lib/local-storage-snapshot'
 import { APP_BRANDING } from '@shared/app-branding'
 import {
   APP_ID,
@@ -140,8 +136,6 @@ import {
   ListChecks,
   ListTodo,
   RefreshCw,
-  Download,
-  Upload,
   PanelLeft,
   HardDrive,
   FileSearch
@@ -363,7 +357,6 @@ export function AccountSetupDialog({
   const [tasksCacheNotice, setTasksCacheNotice] = useState<string | null>(null)
   const [colorSavingAccountId, setColorSavingAccountId] = useState<string | null>(null)
   const [aheadSavingAccountId, setAheadSavingAccountId] = useState<string | null>(null)
-  const [backupBusy, setBackupBusy] = useState(false)
   const [backupNotice, setBackupNotice] = useState<string | null>(null)
   const [localDataUsage, setLocalDataUsage] = useState<LocalDataUsageReport | null>(null)
   const [localDataScanning, setLocalDataScanning] = useState(false)
@@ -1227,24 +1220,6 @@ export function AccountSetupDialog({
     }
   }
 
-  async function handleExportSettingsBackup(): Promise<void> {
-    setBackupNotice(null)
-    setLocalError(null)
-    setBackupBusy(true)
-    try {
-      const ls = snapshotLocalStorage()
-      const r = await window.mailClient.settingsBackup.exportToFile(ls)
-      if (!r.ok) {
-        return
-      }
-      setBackupNotice(t('settings.backupSavedPath', { path: r.path }))
-    } catch (e) {
-      setLocalError(e instanceof Error ? e.message : String(e))
-    } finally {
-      setBackupBusy(false)
-    }
-  }
-
   async function handleOptimizeLocalData(): Promise<void> {
     setBackupNotice(null)
     setLocalError(null)
@@ -1301,32 +1276,6 @@ export function AccountSetupDialog({
       setLocalError(e instanceof Error ? e.message : String(e))
     } finally {
       setLocalDataBusy(false)
-    }
-  }
-
-  async function handleImportSettingsBackup(): Promise<void> {
-    setBackupNotice(null)
-    setLocalError(null)
-    setBackupBusy(true)
-    try {
-      const pick = await window.mailClient.settingsBackup.pickAndRead()
-      if (!pick.ok) {
-        if ('error' in pick) setLocalError(pick.error)
-        return
-      }
-      const ok = await showAppConfirm(t('settings.importConfirmBody'), {
-        title: t('settings.importConfirmTitle'),
-        variant: 'danger',
-        confirmLabel: t('common.import')
-      })
-      if (!ok) return
-      await window.mailClient.settingsBackup.applyFull(pick.backup)
-      replaceLocalStorageFromBackup(pick.backup.localStorage)
-      window.location.reload()
-    } catch (e) {
-      setLocalError(e instanceof Error ? e.message : String(e))
-    } finally {
-      setBackupBusy(false)
     }
   }
 
@@ -1708,68 +1657,23 @@ export function AccountSetupDialog({
               {subNavId.general === 'cloudSync' && <AccountSetupCloudSyncSection />}
 
               {subNavId.general === 'backup' && (
-              <section className="space-y-2 border-t border-border pt-4">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  {t('settings.backupHeading')}
-                </h3>
-                <p className="text-xs leading-relaxed text-muted-foreground">{t('settings.backupIntro')}</p>
-                <p className="text-[11px] leading-relaxed text-muted-foreground">
-                  {t('settings.backupAiConnectionsNote')}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={(): void => void handleExportSettingsBackup()}
-                    disabled={backupBusy || busy}
-                    className={cn(
-                      'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
-                      backupBusy || busy
-                        ? 'bg-secondary text-muted-foreground'
-                        : 'border border-border bg-secondary/80 text-foreground hover:bg-secondary'
-                    )}
-                  >
-                    {backupBusy ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Download className="h-3.5 w-3.5" />
-                    )}
-                    {t('settings.exportDots')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(): void => void handleImportSettingsBackup()}
-                    disabled={backupBusy || busy}
-                    className={cn(
-                      'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
-                      backupBusy || busy
-                        ? 'bg-secondary text-muted-foreground'
-                        : 'border border-border bg-secondary/80 text-foreground hover:bg-secondary'
-                    )}
-                  >
-                    {backupBusy ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Upload className="h-3.5 w-3.5" />
-                    )}
-                    {t('settings.importDots')}
-                  </button>
-                </div>
-                {backupNotice ? (
-                  <p className="text-[10px] text-emerald-600 dark:text-emerald-500">{backupNotice}</p>
-                ) : null}
-
-                <AccountSetupLocalDataSection
-                  localDataUsage={localDataUsage}
-                  localDataScanning={localDataScanning}
-                  localDataBusy={localDataBusy}
-                  backupBusy={backupBusy}
-                  busy={busy}
-                  onOptimize={(): void => void handleOptimizeLocalData()}
-                  onExportPortable={(): void => void handleExportLocalDataArchive('portable')}
-                  onExportFull={(): void => void handleExportLocalDataArchive('full')}
-                  onImportArchive={(): void => void handleImportLocalDataArchive()}
-                />
-              </section>
+                <>
+                  <AccountSetupBackupSection
+                    busy={busy}
+                    localDataUsage={localDataUsage}
+                    localDataScanning={localDataScanning}
+                    localDataBusy={localDataBusy}
+                    onOptimize={(): void => void handleOptimizeLocalData()}
+                    onExportPortable={(): void => void handleExportLocalDataArchive('portable')}
+                    onExportFull={(): void => void handleExportLocalDataArchive('full')}
+                    onImportArchive={(): void => void handleImportLocalDataArchive()}
+                    onError={setLocalError}
+                    onNotice={setBackupNotice}
+                  />
+                  {backupNotice ? (
+                    <p className="text-[10px] text-emerald-600 dark:text-emerald-500">{backupNotice}</p>
+                  ) : null}
+                </>
               )}
             </div>
           )}
