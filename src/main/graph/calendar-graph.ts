@@ -17,7 +17,6 @@ import {
 } from '@shared/microsoft-m365-group-calendar'
 import { mapWithConcurrency } from '../map-with-concurrency'
 import { createGraphClient } from './client'
-import { mapWithConcurrency } from '../map-with-concurrency'
 import { runGraphMailboxRequest } from './graph-account-request'
 import { loadConfig } from '../config'
 import { graphWindowsZoneToIana, ianaToWindowsTimeZone } from '@shared/microsoft-timezones'
@@ -301,8 +300,60 @@ const m365UnifiedGroupListCache = new Map<string, { at: number; groups: GraphDir
 const M365_UNIFIED_GROUP_LIST_CACHE_MS = 5 * 60 * 1000
 
 function isUnifiedMicrosoft365Group(o: GraphDirectoryObject): boolean {
-  if (o['@odata.type'] !== '#microsoft.graph.group') return false
+  const odataType = o['@odata.type']
+  if (odataType && odataType !== '#microsoft.graph.group') return false
   return Array.isArray(o.groupTypes) && o.groupTypes.includes('Unified')
+}
+
+function graphCollectionNextPath(nextLink: string | undefined): string | null {
+  if (!nextLink) return null
+  return nextLink.replace(/^https?:\/\/[^/]+\/v[0-9.]+/, '')
+}
+
+function formatGraphMembershipError(e: unknown): string {
+  if (e && typeof e === 'object') {
+    const ge = e as { statusCode?: number; code?: string; message?: string }
+    const parts = [
+      ge.statusCode != null ? `HTTP ${ge.statusCode}` : null,
+      ge.code,
+      ge.message
+    ].filter(Boolean)
+    if (parts.length > 0) return parts.join(' ')
+  }
+  return String(e)
+}
+
+type M365GroupMembershipListMode = 'transitive' | 'direct'
+
+/**
+ * Graph verlangt bei OData-Cast + $select den Advanced-Query-Header (siehe user-list-transitivememberof).
+ */
+async function fetchM365GroupMembershipPages(
+  client: Awaited<ReturnType<typeof getClientFor>>,
+  mode: M365GroupMembershipListMode
+): Promise<GraphDirectoryObject[]> {
+  const base =
+    mode === 'transitive'
+      ? '/me/transitiveMemberOf/microsoft.graph.group'
+      : '/me/memberOf/microsoft.graph.group'
+  const members: GraphDirectoryObject[] = []
+  let nextPath: string | null = null
+  let first = true
+  while (first || nextPath) {
+    const page = first
+      ? ((await client
+          .api(base)
+          .header('ConsistencyLevel', 'eventual')
+          .query({ $count: 'true', $select: 'id,displayName,groupTypes', $top: '100' })
+          .get()) as GraphDirectoryCollection)
+      : ((await client.api(nextPath!).get()) as GraphDirectoryCollection)
+    first = false
+    for (const v of page.value ?? []) {
+      if (isUnifiedMicrosoft365Group(v) && v.id) members.push(v)
+    }
+    nextPath = graphCollectionNextPath(page['@odata.nextLink'])
+  }
+  return members
 }
 
 /**
@@ -310,21 +361,23 @@ function isUnifiedMicrosoft365Group(o: GraphDirectoryObject): boolean {
  */
 async function loadUnifiedGroupsSorted(accountId: string): Promise<GraphDirectoryObject[]> {
   const client = await getClientFor(accountId)
-  const members: GraphDirectoryObject[] = []
-  let url: string | null =
-    '/me/transitiveMemberOf?$select=id,displayName,groupTypes&$top=100'
+  let members: GraphDirectoryObject[]
   try {
-    while (url) {
-      const page = (await client.api(url).get()) as GraphDirectoryCollection
-      for (const v of page.value ?? []) {
-        if (isUnifiedMicrosoft365Group(v) && v.id) members.push(v)
-      }
-      const next = page['@odata.nextLink']
-      url = next ? next.replace(/^https?:\/\/[^/]+\/v[0-9.]+/, '') : null
-    }
+    members = await fetchM365GroupMembershipPages(client, 'transitive')
   } catch (e) {
-    console.warn('[calendar-graph] transitiveMemberOf (Gruppenkalender) fehlgeschlagen:', e)
-    return []
+    try {
+      members = await fetchM365GroupMembershipPages(client, 'direct')
+      console.warn(
+        '[calendar-graph] transitiveMemberOf fehlgeschlagen, nutze memberOf (nur direkte Mitgliedschaften):',
+        formatGraphMembershipError(e)
+      )
+    } catch (e2) {
+      console.warn(
+        '[calendar-graph] Gruppenkalender nicht geladen (Arbeits-/Schulkonto und GroupMember.Read.All mit Admin-Zustimmung noetig):',
+        formatGraphMembershipError(e2)
+      )
+      return []
+    }
   }
 
   const unique = new Map<string, GraphDirectoryObject>()

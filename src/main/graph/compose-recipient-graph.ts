@@ -546,6 +546,8 @@ export async function graphSearchMailEnabledGroupsForCompose(
   try {
     res = (await client
       .api('/me/transitiveMemberOf/microsoft.graph.group')
+      .header('ConsistencyLevel', 'eventual')
+      .query({ $count: 'true' })
       .filter(`mailEnabled eq true and startswith(displayName,'${esc}')`)
       .select('displayName,mail')
       .top(Math.min(Math.max(limit, 1), 12))

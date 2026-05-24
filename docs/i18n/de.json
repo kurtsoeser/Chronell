@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Chronell — Manage deine Zeit, nicht deine Inbox",
-    "description": "Chronell 0.9.21: Mail-Mehrfachauswahl, überarbeiteter Termin-Dialog, Aufgaben-Serien, Auto-Backup — Desktop-Arbeitszentrale für Windows 11 mit Microsoft 365 und Google."
+    "description": "Chronell 0.9.22: Neues Branding, Oberflächen-Zoom, M365-Gruppenkalender — Desktop-Arbeitszentrale für Windows 11 mit Microsoft 365 und Google."
   },
   "nav": {
     "method": "Die Methode",
@@ -27,7 +27,7 @@
     "taglineLine2Accent": "Inbox",
     "taglineLine2Suffix": "",
     "positioning": "Chronell ist kein E-Mail-Client. Es ist ein System für deine Zeit.",
-    "subline": "Microsoft 365 und Google in einer Desktop-Arbeitszentrale — Mail-Mehrfachauswahl, Termine mit Serien, Auto-Backup, Verbindungs-Graph mit KI und Cloud-Sync. Für Windows 11.",
+    "subline": "Microsoft 365 und Google in einer Desktop-Arbeitszentrale — neues Chronell-Branding auf chronell.app, Oberflächen-Zoom, Gruppenkalender, Mail-Mehrfachauswahl und Verbindungs-Graph. Für Windows 11.",
     "ctaDownload": "Für Windows herunterladen",
     "ctaMethod": "Methode entdecken",
     "mockup": {
@@ -178,14 +178,22 @@
     "eyebrow": "Release-Überblick",
     "title": "Was in den letzten Updates passiert ist",
     "lead": "Vom neuen Fluent-Look über den Verbindungs-Graph bis zum Profil-Sync — Chronell wächst schnell, ohne deine Mails in die Cloud zu legen.",
-    "v0921": {
+    "v0922": {
       "badge": "Aktuell",
+      "date": "Mai 2026",
+      "title": "Branding, Zoom & Gruppenkalender",
+      "b1": "Neues Chronell-Icon und Logo in App, Taskleiste und auf chronell.app — einheitliches Erscheinungsbild",
+      "b2": "Oberflächen-Zoom: Strg+Umschalt+Plus/Minus/0 zuverlässig auch auf deutscher Tastatur (Weiterleitung über den Main-Prozess)",
+      "b3": "Microsoft-365-Gruppenkalender: transitive Mitgliedschaft mit Fallback auf direkte Gruppen; klarere Hinweise bei fehlenden Berechtigungen",
+      "b4": "Composer: Gruppen-Empfänger-Suche über erweiterten Graph-Query; Homepage mit interaktiver Modul-Demo und verfeinerten Mockups"
+    },
+    "v0921": {
       "date": "Mai 2026",
       "title": "Mail-Bulk, Termine & Backup",
       "b1": "Mail-Mehrfachauswahl: mehrere Nachrichten markieren und gemeinsam archivieren, löschen, kennzeichnen, als ToDo planen oder snoozen",
       "b2": "Termin-Dialog überarbeitet: schnelleres Anlegen, klarere Felder; Serien/Wiederholung für Kalendertermine und Cloud-Tasks (M365 nativ, Google lokal)",
       "b3": "Einstellungen: Auto-Backup in einen Ordner deiner Wahl, Inhaltsvorschau vor Import; ToDo-Thread-Cache und lesbare Link-Farben in Editor und Lesevorschau",
-      "b4": "Stabilere Anmeldung (MSAL-Cache, Token-Lock); Installer-Download über GitHub Releases; Homepage und Doku auf 0.9.21"
+      "b4": "Stabilere Anmeldung (MSAL-Cache, Token-Lock); Installer-Download über GitHub Releases"
     },
     "v0920": {
       "date": "Mai 2026",
@@ -236,34 +244,34 @@
   "highlights": {
     "eyebrow": "Neu ausprobieren",
     "title": "Vier Schwerpunkte der aktuellen Beta",
-    "lead": "Version 0.9.21 bringt Mail-Mehrfachauswahl, einen überarbeiteten Termin-Dialog mit Serien, Auto-Backup und stabilere Anmeldung — auf Composer, Fluent-Design und Cloud-Sync aufbauend.",
+    "lead": "Version 0.9.22 bringt neues Branding auf chronell.app, zuverlässigen Oberflächen-Zoom und stabilere M365-Gruppenkalender — auf Mail-Mehrfachauswahl, Termin-Serien und Cloud-Sync aufbauend.",
     "compose": {
-      "title": "Mail-Mehrfachauswahl",
-      "desc": "Mehrere Mails auf einmal triagieren — ohne jede Nachricht einzeln zu öffnen.",
-      "b1": "Checkboxen in der Liste; Aktionsleiste mit Archivieren, Löschen, Gelesen/Ungelesen, Kennzeichnen",
-      "b2": "Verschieben, als ToDo (heute, morgen, Woche, später) oder Snooze für die gesamte Auswahl",
-      "b3": "ToDo-Thread-Cache: schnellere Anzeige, wenn derselbe Thread schon ToDos hat"
+      "title": "Neues Erscheinungsbild",
+      "desc": "Chronell mit frischem Icon und Logo — in der App, in der Taskleiste und auf der Website.",
+      "b1": "Einheitliches Branding von Desktop bis chronell.app",
+      "b2": "Aktualisierte App-Icons für Windows-Build und Installer",
+      "b3": "Homepage mit interaktiver Modul-Demo und verfeinerten Mockups"
     },
     "connections": {
-      "title": "Termine & Serien",
-      "desc": "Neue Termine schneller anlegen — mit Wiederholung für Kalender und Cloud-Tasks.",
-      "b1": "Überarbeiteter Termin-Dialog: klarere Felder, bessere Vorschau in Kalender und Bookings",
-      "b2": "Serien für Kalendertermine; Cloud-Tasks mit Wiederholung (M365 nativ, Google lokal gespeichert)",
-      "b3": "Termin aus der Topbar; Scheduling-Panel und Mail-Versand aus dem Termin-Kontext"
+      "title": "Gruppenkalender M365",
+      "desc": "Microsoft-365-Gruppenkalender zuverlässiger laden — auch in komplexen Tenant-Setups.",
+      "b1": "Transitive Mitgliedschaft mit Fallback auf direkte Gruppen",
+      "b2": "Klarere Fehlermeldungen, wenn GroupMember.Read.All fehlt",
+      "b3": "Kalender-Farben und Termine aus Gruppenpostfächern in einer Woche"
     },
     "ai": {
-      "title": "Backup & Profil",
-      "desc": "Deine Chronell-Konfiguration sicher aufbewahren — manuell oder automatisch.",
-      "b1": "Auto-Backup in einen Ordner: Intervall und Zielordner in den Einstellungen",
-      "b2": "Inhaltsvorschau vor Import: sieh genau, was in der Sicherungsdatei steckt",
-      "b3": "Gleicher Umfang wie Cloud-Sync: Regeln, Notizen, Verbindungen, UI — ohne Mail-Inhalte"
+      "title": "Oberflächen-Zoom",
+      "desc": "Die gesamte Oberfläche skalieren — getrennt vom Zoom der Mail-Vorschau.",
+      "b1": "Strg+Umschalt+Plus/Minus/0 auch auf deutscher Tastatur",
+      "b2": "Shortcuts werden im Main-Prozess abgefangen und an den Renderer weitergeleitet",
+      "b3": "Presets und Hinweise in Einstellungen → Tastenkürzel"
     },
     "cloudSync": {
-      "title": "Cloud-Sync",
-      "desc": "Optional dein Arbeitsprofil auf mehreren Windows-PCs — E-Mails syncen weiterhin über Microsoft und Google.",
-      "b1": "Notizen, Verbindungen, Regeln, QuickSteps, Workflow, UI-Einstellungen",
-      "b2": "Auto-Sync im Hintergrund, Konflikt: Cloud oder lokal wählen",
-      "b3": "Keine Mail-Inhalte, keine OAuth-Tokens in der Cloud"
+      "title": "Mail-Triage & Serien",
+      "desc": "Aus 0.9.21: Mehrere Mails auf einmal bearbeiten und Termine mit Wiederholung planen.",
+      "b1": "Mail-Mehrfachauswahl: Archivieren, ToDo, Snooze für die gesamte Auswahl",
+      "b2": "Termin-Dialog mit Serien für Kalender und Cloud-Tasks",
+      "b3": "Auto-Backup und Cloud-Sync für dein Profil — ohne Mail-Inhalte in der Cloud"
     }
   },
   "showcase": {
@@ -446,12 +454,12 @@
     "privacy": "Datenschutz"
   },
   "whatsNew": {
-    "label": "Version 0.9.21",
-    "tagline": "Mail-Bulk · Termine & Serien · Auto-Backup · stabile Anmeldung"
+    "label": "Version 0.9.22",
+    "tagline": "Neues Branding · Oberflächen-Zoom · Gruppenkalender · chronell.app"
   },
   "cta": {
     "title": "Bereit für das neue Chronell?",
-    "body": "Lade Version 0.9.21 für Windows 11 — Mail-Mehrfachauswahl, Termine mit Serien, Auto-Backup, Composer mit Cloud-Anhängen und optional Cloud-Sync. Updates ersetzen deine Version ohne Datenverlust.",
+    "body": "Lade Version 0.9.22 für Windows 11 — neues Branding, Oberflächen-Zoom, M365-Gruppenkalender, Mail-Mehrfachauswahl, Termine mit Serien und optional Cloud-Sync. Updates ersetzen deine Version ohne Datenverlust.",
     "button": "Jetzt herunterladen"
   }
 }

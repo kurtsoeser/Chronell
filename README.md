@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | **Homepage & Download** | [chronell.app](https://chronell.app/) |
-| **Aktuelle Version** | **0.9.21** (23. Mai 2026) |
+| **Aktuelle Version** | **0.9.22** (24. Mai 2026) |
 | **Windows-Installer** | [GitHub Release](https://github.com/kurtsoeser/Chronell/releases/latest) (primär; auch Installer >100 MB via Git LFS im Repo) |
 | **Technischer Repo-Name** | MailClient · **App-ID:** `at.kurtsoeser.chronell` |
 | **Ausführliches Protokoll** | [`docs/FUNKTIONSPROTOKOLL.md`](docs/FUNKTIONSPROTOKOLL.md) |
@@ -59,6 +59,10 @@ Typische Zielgruppe: Power-User mit Microsoft 365 und/oder Gmail, mehrere Postf�
 
 | Bereich | Was neu ist |
 |--------|-------------|
+| **Branding (0.9.22)** | Neues Chronell-Icon und Logo in App, Taskleiste und auf [chronell.app](https://chronell.app/) |
+| **Oberfläche (0.9.22)** | Oberflächen-Zoom (Strg+Umschalt+Plus/Minus/0) zuverlässig auch auf deutscher Tastatur — Weiterleitung über den Main-Prozess |
+| **Kalender (0.9.22)** | M365-Gruppenkalender: transitive Mitgliedschaft mit Fallback; klarere Hinweise bei fehlenden Berechtigungen |
+| **Composer (0.9.22)** | Gruppen-Empfänger-Suche über erweiterten Graph-Query |
 | **Mail (0.9.21)** | Mehrfachauswahl in der Liste: Archivieren, Löschen, Kennzeichnen, Verschieben, ToDo und Snooze für viele Mails auf einmal; ToDo-Thread-Cache |
 | **Kalender (0.9.21)** | Überarbeiteter Termin-Dialog; Serien/Wiederholung für Termine und Cloud-Tasks |
 | **Backup (0.9.21)** | Auto-Backup in Ordner, Inhaltsvorschau vor Import |

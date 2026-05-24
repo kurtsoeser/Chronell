@@ -6,8 +6,8 @@ Dieses Dokument beschreibt den **aktuellen Funktionsumfang** der Desktop-App. Es
 |------|------|
 | **Produktname (UI)** | Chronell |
 | **Technischer Name / Installer** | MailClient |
-| **Version** | **0.9.21** |
-| **Stand** | **23. Mai 2026** |
+| **Version** | **0.9.22** |
+| **Stand** | **24. Mai 2026** |
 | **App-ID** | `at.kurtsoeser.chronell` |
 | **Zielplattform** | Windows 11 (primär) |
 | **Autor** | Kurt Soeser |
@@ -110,6 +110,7 @@ Die App gliedert sich in **zehn Hauptmodi** (obere Leiste, Reihenfolge anpassbar
 - **Absender:** Hauptkonto, Alias, freigegebenes Postfach (M365); **Nachrichtenoptionen** (Vertraulichkeit, Lese-/Zustellungsbestätigung, geplanter Versand)
 - **Textbausteine** im Composer; Signaturvorlagen wie zuvor
 - **Anhänge:** lokal + **OneDrive / SharePoint** als Cloud-Link-Anhang oder Freigabe-Link im Text (Explorer, Favoriten, Link-Berechtigungen und Ablauf)
+- **Gruppen-Empfänger** (0.9.22): Suche mail-aktivierter Microsoft-365-Gruppen im Composer über erweiterten Graph-Query (`ConsistencyLevel: eventual`)
 - Entwürfe, Vorlagen mit Platzhaltern
 - **Geplanter Versand** (Warteschlange im Main-Prozess; im Composer konfigurierbar)
 - Verschieben, Archivieren, Löschen, Kategorien (Outlook-Masterkategorien)
@@ -177,7 +178,8 @@ Das Modul **„Arbeit“** bündelt offene Punkte aus verschiedenen Quellen als 
 
 ### Termine
 
-- Multi-Kalender (Microsoft, Google, M365-Gruppenkalender)
+- Multi-Kalender (Microsoft, Google, **M365-Gruppenkalender**)
+- **Gruppenkalender** (0.9.22): Laden über `transitiveMemberOf` mit Fallback auf `memberOf` (direkte Mitgliedschaften); Advanced-Query-Header; klarere Fehlermeldungen bei fehlendem `GroupMember.Read.All`
 - Termin-Dialog inkl. **Serien / Wiederholung** (0.9.21: überarbeiteter Dialog, klarere Felder, Termin aus Topbar)
 - Drag & Resize mit Persistenz über Graph/Google
 - Sichtbarkeit und Sidebar-Einblendung pro Kalender (Einstellungen)
@@ -353,7 +355,7 @@ Einstellungen-Dialog (Zahnrad) mit Reitern:
 | **Kontakte** | Hinweise, Sprung zum Personen-Modul |
 | **KI-Verbindungen** | Provider (Gemini/OpenAI/Ollama), Snippet-Modus, Scan-Profile, Audit-Log, Embeddings |
 | **Oberfläche** | Design-Presets (Fluent, Midnight, Nord, …), L0–L3-Oberflächenfarben, Hell/Dunkel |
-| **Info** | Version **0.9.21**, Stand **23. Mai 2026**, Produktname, App-ID |
+| **Info** | Version **0.9.22**, Stand **24. Mai 2026**, Produktname, App-ID |
 
 ### Fluent-2-Oberfläche (ab 0.9.17)
 
@@ -387,7 +389,7 @@ Weitere Systemfunktionen:
 - **Bulk-Entflaggen** auf dem Server (Dialog)
 - Theming Hell / Dunkel / System, Akzentfarben
 - Globale Tastenkürzel; **Übersicht** in Einstellungen → Allgemein (Mail, Zoom, Kalender)
-- **Oberflächen-Zoom** (Strg+Umschalt+Plus/Minus) und **Mail-Vorschau-Zoom** getrennt konfigurierbar
+- **Oberflächen-Zoom** (Strg+Umschalt+Plus/Minus/0) und **Mail-Vorschau-Zoom** getrennt konfigurierbar; **0.9.22:** Shortcuts werden im Main-Prozess abgefangen und an den Renderer weitergeleitet (zuverlässig auf DE-Tastaturen)
 
 ---
 
@@ -427,14 +429,14 @@ Weitere Systemfunktionen:
 
 Die Root-`README.md` wird mit Meilensteinen nachgezogen. Bei Widersprüchen gilt **dieses Funktionsprotokoll**.
 
-| Thema | Ist-Stand (0.9.21) |
+| Thema | Ist-Stand (0.9.22) |
 |-------|---------------------|
 | Module | **Zehn** Top-Level-Modi inkl. **Verbindungen** und **Bookings** |
 | Oberfläche | **Fluent 2** — Mica-Hintergrund, Acrylic-Popover, Design-Presets (Fluent, Midnight, Nord, …) |
 | Regeln | **Einstellungen → Mail → Regeln** (kein eigener Tab) |
 | Entity-Links | Zentral im Modul **Verbindungen** + in Notizen/Mail; Vorschau-Dock und Mini-Graph im Lesefenster |
 | Profil-Sync | **Einstellungen → Allgemein → Cloud-Sync** (optional Supabase) |
-| Homepage-Download | [GitHub Releases](https://github.com/kurtsoeser/Chronell/releases/download/v0.9.21/Chronell-0.9.21-setup.exe) (Installer im Repo per Git LFS) |
+| Homepage-Download | [GitHub Releases](https://github.com/kurtsoeser/Chronell/releases/download/v0.9.22/Chronell-0.9.22-setup.exe) (Installer im Repo per Git LFS) |
 
 Bei Widersprüchen gilt **dieses Funktionsprotokoll**.
 
@@ -470,7 +472,7 @@ Marker-Datei nach Migration: `%APPDATA%\Chronell\.chronell-migrated-from-mailcli
 **Empfohlene Schritte:**
 
 1. `npm run dev` beenden (alle Chronell-/Electron-Fenster schließen).
-2. `Chronell-0.9.21-setup.exe` (oder aktuelle Version von der Homepage) ausführen und installieren.
+2. `Chronell-0.9.22-setup.exe` (oder aktuelle Version von der Homepage) ausführen und installieren.
 3. **Chronell** aus dem Startmenü starten — Migration läuft automatisch.
 4. Konten und Einstellungen prüfen; bei Bedarf einmal Sync abwarten.
 5. Optional: alten Ordner `C:\Users\<Du>\AppData\Roaming\mailclient` nach erfolgreicher Prüfung löschen (erst wenn alles passt).
@@ -478,6 +480,14 @@ Marker-Datei nach Migration: `%APPDATA%\Chronell\.chronell-migrated-from-mailcli
 ---
 
 ## 20. Versionshistorie
+
+### 0.9.22 — 24. Mai 2026
+
+- **Branding:** neues Chronell-Icon und Logo in App, Windows-Build und auf [chronell.app](https://chronell.app/)
+- **Oberfläche:** Oberflächen-Zoom (Strg+Umschalt+Plus/Minus/0) über Main-Prozess — zuverlässig auf deutscher Tastatur
+- **Kalender:** M365-Gruppenkalender mit transitiveMemberOf und Fallback; bessere Graph-Fehlermeldungen
+- **Composer:** Gruppen-Empfänger-Suche mit Advanced-Query-Header
+- **Homepage:** Release-Texte, Highlights und Download auf 0.9.22; interaktive Modul-Demo
 
 ### 0.9.21 — 23. Mai 2026
 
@@ -535,4 +545,4 @@ Marker-Datei nach Migration: `%APPDATA%\Chronell\.chronell-migrated-from-mailcli
 
 ---
 
-*Letzte Aktualisierung dieses Dokuments: 23. Mai 2026 · Version 0.9.21*
+*Letzte Aktualisierung dieses Dokuments: 24. Mai 2026 · Version 0.9.22*

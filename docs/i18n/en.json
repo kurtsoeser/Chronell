@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Chronell — Manage your time, not your inbox",
-    "description": "Chronell 0.9.21: Mail bulk selection, refined event dialog, task recurrence, auto backup — desktop work hub for Windows 11 with Microsoft 365 and Google."
+    "description": "Chronell 0.9.22: New branding, UI zoom, M365 group calendars — desktop work hub for Windows 11 with Microsoft 365 and Google."
   },
   "nav": {
     "method": "The Method",
@@ -27,7 +27,7 @@
     "taglineLine2Accent": "inbox",
     "taglineLine2Suffix": ".",
     "positioning": "Chronell is not an email client. It's a system to manage your time.",
-    "subline": "Microsoft 365 and Google in one desktop workspace — mail bulk selection, events with recurrence, auto backup, connection graph with AI, and cloud sync. Built for Windows 11.",
+    "subline": "Microsoft 365 and Google in one desktop workspace — new Chronell branding on chronell.app, UI zoom, group calendars, mail bulk selection, and connection graph. Built for Windows 11.",
     "ctaDownload": "Download for Windows",
     "ctaMethod": "Discover the method",
     "mockup": {
@@ -178,14 +178,22 @@
     "eyebrow": "Release overview",
     "title": "What shipped in recent updates",
     "lead": "From the new Fluent look to the connection graph and profile sync — Chronell moves fast without putting your mail in the cloud.",
-    "v0921": {
+    "v0922": {
       "badge": "Current",
+      "date": "May 2026",
+      "title": "Branding, zoom & group calendars",
+      "b1": "New Chronell icon and logo in the app, taskbar, and on chronell.app — consistent look everywhere",
+      "b2": "UI zoom: Ctrl+Shift+Plus/Minus/0 works reliably on German keyboards too (routed via the main process)",
+      "b3": "Microsoft 365 group calendars: transitive membership with fallback to direct groups; clearer hints when permissions are missing",
+      "b4": "Composer: group recipient search via advanced Graph query; homepage with interactive module demo and refined mockups"
+    },
+    "v0921": {
       "date": "May 2026",
       "title": "Mail bulk, events & backup",
       "b1": "Mail bulk selection: select multiple messages and archive, delete, flag, turn into to-dos, or snooze in one go",
       "b2": "Refined event dialog: faster creation, clearer fields; recurrence for calendar events and cloud tasks (native on M365, local for Google)",
       "b3": "Settings: auto backup to a folder you choose, contents preview before import; to-do thread cache and readable link colors in editor and reading preview",
-      "b4": "More reliable sign-in (MSAL cache, token lock); installer download via GitHub Releases; homepage and docs on 0.9.21"
+      "b4": "More reliable sign-in (MSAL cache, token lock); installer download via GitHub Releases"
     },
     "v0920": {
       "date": "May 2026",
@@ -236,34 +244,34 @@
   "highlights": {
     "eyebrow": "Try it now",
     "title": "Four focus areas in the current beta",
-    "lead": "Version 0.9.21 adds mail bulk selection, a refined event dialog with recurrence, auto backup, and more reliable sign-in — building on the composer, Fluent design, and cloud sync.",
+    "lead": "Version 0.9.22 adds new branding on chronell.app, reliable UI zoom, and stabler M365 group calendars — building on mail bulk selection, event recurrence, and cloud sync.",
     "compose": {
-      "title": "Mail bulk selection",
-      "desc": "Triage multiple messages at once — without opening each one individually.",
-      "b1": "Checkboxes in the list; action bar with archive, delete, read/unread, flag",
-      "b2": "Move, turn into to-dos (today, tomorrow, week, later), or snooze the whole selection",
-      "b3": "To-do thread cache: faster display when the same thread already has to-dos"
+      "title": "Fresh look",
+      "desc": "Chronell with a new icon and logo — in the app, taskbar, and on the website.",
+      "b1": "Consistent branding from desktop to chronell.app",
+      "b2": "Updated app icons for the Windows build and installer",
+      "b3": "Homepage with interactive module demo and refined mockups"
     },
     "connections": {
-      "title": "Events & recurrence",
-      "desc": "Create new events faster — with recurrence for calendar and cloud tasks.",
-      "b1": "Refined event dialog: clearer fields, better preview in calendar and Bookings",
-      "b2": "Recurrence for calendar events; cloud tasks with series (native on M365, stored locally for Google)",
-      "b3": "New event from the top bar; scheduling panel and mail send from the event context"
+      "title": "M365 group calendars",
+      "desc": "Load Microsoft 365 group calendars more reliably — even in complex tenant setups.",
+      "b1": "Transitive membership with fallback to direct groups",
+      "b2": "Clearer errors when GroupMember.Read.All is missing",
+      "b3": "Group mailbox events and colors in one week view"
     },
     "ai": {
-      "title": "Backup & profile",
-      "desc": "Keep your Chronell configuration safe — manually or automatically.",
-      "b1": "Auto backup to a folder: interval and destination in settings",
-      "b2": "Contents preview before import: see exactly what is in the backup file",
-      "b3": "Same scope as cloud sync: rules, notes, connections, UI — no mail content"
+      "title": "UI zoom",
+      "desc": "Scale the entire interface — separate from mail preview zoom.",
+      "b1": "Ctrl+Shift+Plus/Minus/0 on German keyboards too",
+      "b2": "Shortcuts captured in the main process and forwarded to the renderer",
+      "b3": "Presets and hints in Settings → Keyboard shortcuts"
     },
     "cloudSync": {
-      "title": "Cloud sync",
-      "desc": "Optionally sync your work profile across Windows PCs — mail still syncs via Microsoft and Google.",
-      "b1": "Notes, connections, rules, quick steps, workflow, UI settings",
-      "b2": "Background auto-sync; on conflict choose cloud or local",
-      "b3": "No mail content, no OAuth tokens in the cloud"
+      "title": "Mail triage & recurrence",
+      "desc": "From 0.9.21: Process multiple messages at once and plan events with recurrence.",
+      "b1": "Mail bulk selection: archive, to-dos, snooze for the whole selection",
+      "b2": "Event dialog with recurrence for calendar and cloud tasks",
+      "b3": "Auto backup and cloud sync for your profile — no mail content in the cloud"
     }
   },
   "showcase": {
@@ -446,12 +454,12 @@
     "privacy": "Privacy"
   },
   "whatsNew": {
-    "label": "Version 0.9.21",
-    "tagline": "Mail bulk · events & recurrence · auto backup · reliable sign-in"
+    "label": "Version 0.9.22",
+    "tagline": "New branding · UI zoom · group calendars · chronell.app"
   },
   "cta": {
     "title": "Ready for the new Chronell?",
-    "body": "Download version 0.9.21 for Windows 11 — mail bulk selection, events with recurrence, auto backup, composer with cloud attachments, and optional cloud sync. Updates replace your version without losing data.",
+    "body": "Download version 0.9.22 for Windows 11 — new branding, UI zoom, M365 group calendars, mail bulk selection, events with recurrence, and optional cloud sync. Updates replace your version without losing data.",
     "button": "Download now"
   }
 }
