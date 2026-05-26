@@ -5,9 +5,15 @@ import { QUICK_CREATE_PLACEHOLDER_EVENT_ID } from '@/app/calendar/calendar-quick
 import { CALENDAR_KIND_CLOUD_TASK } from '@/app/calendar/cloud-task-calendar'
 import { CALENDAR_KIND_MAIL_TODO } from '@/app/calendar/mail-todo-calendar'
 import { CALENDAR_KIND_USER_NOTE } from '@/app/calendar/notes-calendar'
+import {
+  formatFcEventTimeRangeText,
+  isDayGridMonthFcView
+} from '@/app/calendar/calendar-fc-event-time-range'
 import { isMultiMonthFcView, multiMonthFcEventContent } from '@/app/calendar/calendar-fc-multimonth'
 import { appendCalendarEventIconSvg } from '@/lib/calendar-event-icon-markup'
 import { calendarEventIconIsExplicit } from '@/lib/calendar-event-icons'
+
+const DAY_GRID_MONTH_ICON_PX = 11
 
 export type CalendarFcEntryKind = 'appointment' | 'mail' | 'task' | 'note'
 
@@ -37,10 +43,14 @@ export function resolveCalendarFcEntryKind(arg: EventContentArg): CalendarFcEntr
   return 'appointment'
 }
 
-function createKindIcon(kind: CalendarFcEntryKind, label: string): SVGSVGElement {
+function createKindIcon(
+  kind: CalendarFcEntryKind,
+  label: string,
+  className = 'fc-cal-event-kind-icon'
+): SVGSVGElement {
   const svg = document.createElementNS(SVG_NS, 'svg')
   svg.setAttribute('viewBox', '0 0 24 24')
-  svg.setAttribute('class', 'fc-cal-event-kind-icon')
+  svg.setAttribute('class', className)
   svg.setAttribute('role', 'img')
   svg.setAttribute('aria-label', label)
   svg.setAttribute('focusable', 'false')
@@ -69,21 +79,28 @@ export function calendarFcEventContent(
   const entryKind = resolveCalendarFcEntryKind(arg)
   const cloudTask = arg.event.extendedProps.cloudTask as TaskItemRow | undefined
   const taskCompleted = entryKind === 'task' && cloudTask?.completed === true
+  const monthLayout = isDayGridMonthFcView(arg.view.type)
 
   const root = document.createElement('div')
   root.className = taskCompleted
     ? 'fc-cal-event-custom fc-cal-event-custom--completed'
     : 'fc-cal-event-custom'
+  if (monthLayout) {
+    root.classList.add('fc-cal-event-custom--month')
+  }
 
   const body = document.createElement('div')
   body.className = 'fc-cal-event-custom-body'
 
-  if (arg.timeText) {
+  const timeLabel = monthLayout
+    ? formatFcEventTimeRangeText(arg)
+    : arg.timeText?.trim() || null
+  if (timeLabel) {
     const timeEl = document.createElement('div')
     timeEl.className = taskCompleted
       ? 'fc-cal-event-custom-time fc-cal-event-custom-time--completed'
       : 'fc-cal-event-custom-time'
-    timeEl.textContent = arg.timeText
+    timeEl.textContent = timeLabel
     body.appendChild(timeEl)
   }
 
@@ -92,9 +109,13 @@ export function calendarFcEventContent(
     ? 'fc-cal-event-custom-title fc-cal-event-custom-title--completed'
     : 'fc-cal-event-custom-title'
   titleEl.textContent = arg.event.title ?? ''
-  body.appendChild(titleEl)
 
-  root.appendChild(body)
+  const titleRow = document.createElement('div')
+  titleRow.className = 'fc-cal-event-custom-title-row'
+  const iconHost = monthLayout ? titleRow : root
+  const iconClass = monthLayout
+    ? 'fc-cal-event-kind-icon fc-cal-event-kind-icon--inline'
+    : 'fc-cal-event-kind-icon'
 
   const calEv = arg.event.extendedProps.calendarEvent as CalendarEventView | undefined
   const userNote = arg.event.extendedProps.userNote as UserNoteListItem | undefined
@@ -103,15 +124,20 @@ export function calendarFcEventContent(
   const taskIconColor = resolveEntityIconColor(cloudTask?.iconColor)
   const noteIconId = userNote?.iconId
   const noteIconColor = resolveEntityIconColor(userNote?.iconColor)
+  const iconSize = monthLayout ? DAY_GRID_MONTH_ICON_PX : 14
   if (calendarEventIconIsExplicit(eventIconId)) {
-    appendCalendarEventIconSvg(root, eventIconId, 'fc-cal-event-kind-icon')
+    appendCalendarEventIconSvg(iconHost, eventIconId, iconClass, undefined, iconSize)
   } else if (entryKind === 'task' && calendarEventIconIsExplicit(taskIconId)) {
-    appendCalendarEventIconSvg(root, taskIconId, 'fc-cal-event-kind-icon', taskIconColor)
+    appendCalendarEventIconSvg(iconHost, taskIconId, iconClass, taskIconColor, iconSize)
   } else if (entryKind === 'note' && calendarEventIconIsExplicit(noteIconId)) {
-    appendCalendarEventIconSvg(root, noteIconId, 'fc-cal-event-kind-icon', noteIconColor)
+    appendCalendarEventIconSvg(iconHost, noteIconId, iconClass, noteIconColor, iconSize)
   } else {
-    root.appendChild(createKindIcon(entryKind, labels[entryKind]))
+    iconHost.appendChild(createKindIcon(entryKind, labels[entryKind], iconClass))
   }
+
+  titleRow.appendChild(titleEl)
+  body.appendChild(monthLayout ? titleRow : titleEl)
+  root.appendChild(body)
 
   return { domNodes: [root] }
 }

@@ -912,6 +912,15 @@ export function CalendarShell(): JSX.Element {
     return o
   }, [t])
 
+  const dayGridMonthView = useMemo(
+    () => ({
+      dayGridMonth: {
+        moreLinkClick: 'popover' as const
+      }
+    }),
+    []
+  )
+
   const multiMonthViews = useMemo(
     () => ({
       [MULTI_MONTH_YEAR_VIEW_ID]: {
@@ -3113,6 +3122,7 @@ export function CalendarShell(): JSX.Element {
                 weekends={!calSettings.hideWeekends}
                 views={{
                   ...multiDayViews,
+                  ...dayGridMonthView,
                   ...multiMonthViews
                 }}
                 initialView={readCalendarActiveFcView()}

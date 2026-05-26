@@ -9,14 +9,15 @@ import {
 export function calendarEventIconSvgMarkup(
   iconId: string | undefined | null,
   className: string,
-  colorHex?: string | null
+  colorHex?: string | null,
+  size = 14
 ): string | null {
   if (!calendarEventIconIsExplicit(iconId)) return null
   const Icon = resolveCalendarEventIcon(iconId)
   return renderToStaticMarkup(
     createElement(Icon, {
       className,
-      size: 14,
+      size,
       strokeWidth: 2,
       color: colorHex ?? undefined,
       'aria-hidden': true
@@ -28,9 +29,10 @@ export function appendCalendarEventIconSvg(
   parent: HTMLElement,
   iconId: string | undefined | null,
   className: string,
-  colorHex?: string | null
+  colorHex?: string | null,
+  size = 14
 ): void {
-  const markup = calendarEventIconSvgMarkup(iconId, className, colorHex)
+  const markup = calendarEventIconSvgMarkup(iconId, className, colorHex, size)
   if (!markup) return
   const tpl = document.createElement('template')
   tpl.innerHTML = markup.trim()

@@ -404,6 +404,42 @@
   min-height: 1.75rem;
 }
 
+.calendar-notion-shell .fc-daygrid-event .fc-cal-event-custom--month {
+  padding: 2px 6px 3px;
+}
+
+.calendar-notion-shell .fc-daygrid-event .fc-cal-event-custom--month .fc-cal-event-custom-time {
+  padding-right: 0;
+  font-size: var(--chronell-fc-font-size-2xs);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  opacity: 0.92;
+}
+
+.calendar-notion-shell .fc-daygrid-event .fc-cal-event-custom-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+
+.calendar-notion-shell .fc-daygrid-event .fc-cal-event-kind-icon--inline {
+  position: static;
+  top: auto;
+  right: auto;
+  width: 11px;
+  height: 11px;
+  margin-top: 1px;
+  flex-shrink: 0;
+}
+
+.calendar-notion-shell .fc-daygrid-event .fc-cal-event-custom--month .fc-cal-event-custom-title {
+  -webkit-line-clamp: 3;
+  margin-top: 0;
+  flex: 1;
+  min-width: 0;
+}
+
 .calendar-notion-shell .fc-daygrid-event .fc-cal-event-custom-time {
   font-size: var(--chronell-fc-font-size-2xs);
   font-weight: 500;
@@ -412,6 +448,79 @@
 .calendar-notion-shell .fc-daygrid-event .fc-cal-event-custom-title {
   -webkit-line-clamp: 4;
   margin-top: 1px;
+}
+
+/* „+ weitere“-Popover: Fluent-Acryl wie Schnell-Termin */
+.calendar-notion-shell .fc-more-popover.fc-popover {
+  min-width: min(280px, calc(100vw - 2rem));
+  max-width: min(360px, calc(100vw - 1.5rem));
+  border: 1px solid var(--chronell-border-strong);
+  border-radius: 12px;
+  background: var(--chronell-acrylic-bg);
+  -webkit-backdrop-filter: blur(var(--chronell-acrylic-blur)) saturate(135%);
+  backdrop-filter: blur(var(--chronell-acrylic-blur)) saturate(135%);
+  box-shadow:
+    0 32px 80px rgba(0, 0, 0, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  color: hsl(var(--popover-foreground));
+}
+
+.calendar-notion-shell .fc-more-popover .fc-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.65rem;
+  background: transparent;
+  border-bottom: 1px solid hsl(var(--border) / 0.85);
+}
+
+.calendar-notion-shell .fc-more-popover .fc-popover-title {
+  font-size: var(--chronell-fc-font-size-sm);
+  font-weight: 600;
+  color: hsl(var(--foreground));
+  margin: 0;
+}
+
+.calendar-notion-shell .fc-more-popover .fc-popover-close {
+  cursor: pointer;
+  opacity: 0.65;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0.15rem 0.35rem;
+  border-radius: 6px;
+  transition:
+    opacity var(--motion-fast) var(--motion-ease),
+    background-color var(--motion-fast) var(--motion-ease);
+}
+
+.calendar-notion-shell .fc-more-popover .fc-popover-close:hover {
+  opacity: 1;
+  background: hsl(var(--secondary) / 0.55);
+}
+
+.calendar-notion-shell .fc-more-popover .fc-popover-body {
+  min-width: 0;
+  padding: 0.45rem 0.5rem 0.55rem;
+  background: transparent;
+}
+
+.calendar-notion-shell .fc-more-popover .fc-daygrid-event {
+  margin-top: 3px;
+  border-radius: 8px;
+}
+
+.calendar-notion-shell .fc-daygrid-more-link {
+  font-size: var(--chronell-fc-font-size-2xs);
+  font-weight: 500;
+  border-radius: 4px;
+  padding: 1px 4px;
+  transition: background-color var(--motion-fast) var(--motion-ease);
+}
+
+.calendar-notion-shell .fc-daygrid-more-link:hover {
+  background: hsl(var(--secondary) / 0.45);
 }
 
 .calendar-notion-shell .fc-event-main-frame {
