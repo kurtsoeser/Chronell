@@ -72,9 +72,9 @@ if ($SkipPublish -or $env:CHRONELL_SKIP_PUBLISH -eq '1') {
 $env:CHRONELL_AUTO_RELEASE = '1'
 
 Write-Step ('Automatische Veroeffentlichung v' + $version)
-Write-Host '  1/3 Installer + Manifeste + GitHub Release' -ForegroundColor DarkGray
+Write-Host '  1/3 Installer + Manifeste' -ForegroundColor DarkGray
 Write-Host '  2/3 Homepage-Download-URLs' -ForegroundColor DarkGray
-Write-Host '  3/3 Git commit + push (Git LFS, GitHub Pages)' -ForegroundColor DarkGray
+Write-Host '  3/3 Git commit + push + GitHub Release (LFS, Pages, Installer)' -ForegroundColor DarkGray
 Write-Host ''
 
 $publishScript = Join-Path $PSScriptRoot 'publish-docs-release.ps1'

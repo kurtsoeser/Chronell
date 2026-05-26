@@ -5,7 +5,7 @@ import { parseZoomShortcutIntentFromKeyboardEvent } from '@/lib/zoom-shortcut-ke
 
 /**
  * Strg/Cmd + Plus/Minus/0 — Oberflächengröße (gleicher Store wie Einstellungen).
- * Im Composer: Schriftgröße des Schreibfelds. Mail-Vorschau: Mausrad/Pinch/Buttons.
+ * Im Composer: Schriftgröße des Schreibfelds. Über Mail-/Kalender-Vorschau: Inhalts-Zoom.
  */
 export function useZoomShortcuts(): void {
   useEffect(() => {

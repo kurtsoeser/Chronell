@@ -10,6 +10,8 @@ import {
 import { useSanitizedHtmlShadowRoot } from '@/lib/use-sanitized-html-shadow-root'
 import { previewSectionDividerClass } from '@/lib/chronell-ui-classes'
 import { cn } from '@/lib/utils'
+import { useMailPreviewZoom } from '@/hooks/use-mail-preview-zoom'
+import { useMailPreviewScaleStore } from '@/stores/mail-preview-scale'
 
 const DESCRIPTION_MAX_HEIGHT_PX = Math.min(
   typeof window !== 'undefined' ? window.innerHeight * 0.7 : 720,
@@ -34,6 +36,7 @@ export function CalendarEventDescriptionPreview({
 }: CalendarEventDescriptionPreviewProps): JSX.Element {
   const { t } = useTranslation()
   const shadowHostRef = useRef<HTMLDivElement>(null)
+  const previewScale = useMailPreviewScaleStore((s) => s.scale)
   const [contentHeight, setContentHeight] = useState(48)
   const darkPalette = useThemeStore((s) => s.darkPalette)
   const customColors = useThemeStore((s) => s.customColors)
@@ -43,6 +46,7 @@ export function CalendarEventDescriptionPreview({
   )
 
   const isEmpty = useMemo(() => isEffectivelyEmptyDescriptionHtml(html), [html])
+  useMailPreviewZoom(shadowHostRef, { attachKey: html, enabled: !isEmpty })
 
   const safeHtml = useMemo(() => {
     if (isEmpty) return ''
@@ -51,11 +55,19 @@ export function CalendarEventDescriptionPreview({
 
   const shadowInnerHtml = useMemo(
     () =>
-      isEmpty ? '' : buildMailShadowRootInnerHtml(safeHtml, viewerTheme, 1, mailDarkSurfaceHex),
-    [isEmpty, safeHtml, viewerTheme, mailDarkSurfaceHex]
+      isEmpty
+        ? ''
+        : buildMailShadowRootInnerHtml(safeHtml, viewerTheme, previewScale, mailDarkSurfaceHex),
+    [isEmpty, safeHtml, viewerTheme, previewScale, mailDarkSurfaceHex]
   )
 
-  useSanitizedHtmlShadowRoot(shadowHostRef, shadowInnerHtml, 'calendar', viewerTheme)
+  useSanitizedHtmlShadowRoot(
+    shadowHostRef,
+    shadowInnerHtml,
+    'calendar',
+    viewerTheme,
+    previewScale
+  )
 
   useLayoutEffect(() => {
     if (isEmpty) return
@@ -69,7 +81,7 @@ export function CalendarEventDescriptionPreview({
     measureHost()
     const tid = window.requestAnimationFrame(measureHost)
     return (): void => window.cancelAnimationFrame(tid)
-  }, [isEmpty, shadowInnerHtml])
+  }, [isEmpty, shadowInnerHtml, previewScale])
 
   if (isEmpty) {
     return (
@@ -101,7 +113,8 @@ export function CalendarEventDescriptionPreview({
         ref={shadowHostRef}
         className="mail-reading-shadow-host chronell-surface-flat block w-full border-0"
         data-mail-viewer-theme={viewerTheme}
-        style={{ height: frameHeight }}
+        data-mail-preview-scale={String(previewScale)}
+        style={{ height: frameHeight, zoom: previewScale }}
         role="document"
         aria-label={t('calendar.eventDialog.description')}
       />

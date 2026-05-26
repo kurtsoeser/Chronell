@@ -710,17 +710,34 @@
   color: hsl(var(--muted-foreground));
 }
 
-/* Jahresansicht: 4×3, groessere Typo — Abstand nur per gap (kein width-Override: Resize-Loop) */
-.calendar-notion-shell--multimonth-year .fc-multimonth {
+/* Jahresansicht: 4×3, volle Spaltenbreite, etwas hoehere Kacheln */
+.calendar-notion-shell--multimonth-year .fc-multimonth.fc-multimonth-multicol {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  width: 100%;
+  max-width: 100%;
   overflow-y: auto;
   align-content: flex-start;
-  gap: 1rem 1.15rem;
-  padding: 0.4rem 0.3rem;
+  gap: 0.9rem 0.7rem;
+  padding: 0.35rem 0.15rem;
+  flex-wrap: unset;
 }
 
 .calendar-notion-shell--multimonth-year .fc-multimonth-multicol .fc-multimonth-month {
-  padding: 0.5rem;
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0;
+  padding: 0.4rem 0.3rem 0.55rem;
   box-sizing: border-box;
+}
+
+.calendar-notion-shell--multimonth-year .fc-multimonth-daygrid-table,
+.calendar-notion-shell--multimonth-year .fc-multimonth-header-table {
+  width: 100%;
+}
+
+.calendar-notion-shell--multimonth-year .fc-multimonth .fc-daygrid-day-frame {
+  min-height: 1.15rem;
 }
 
 .calendar-notion-shell--multimonth-year .fc-multimonth-month {

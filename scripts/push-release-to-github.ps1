@@ -16,6 +16,8 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'release-git-helpers.ps1')
+
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 Set-Location -LiteralPath $repoRoot
 
@@ -25,40 +27,67 @@ if ($env:CHRONELL_SKIP_GIT_PUSH -eq '1') {
 }
 
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-  Write-Host 'git nicht gefunden — Push uebersprungen.' -ForegroundColor Yellow
+  Write-Host 'git nicht gefunden - Push uebersprungen.' -ForegroundColor Yellow
   exit 0
 }
 
 & (Join-Path $PSScriptRoot 'ensure-git-lfs.ps1') | Out-Null
 
-$branch = (git rev-parse --abbrev-ref HEAD 2>$null).Trim()
-if (-not $branch) {
-  Write-Host 'Kein Git-Branch — Push uebersprungen.' -ForegroundColor Yellow
+$branchResult = Invoke-GitCli -GitArgs @('rev-parse', '--abbrev-ref', 'HEAD')
+$branch = ($branchResult.Output | Select-Object -First 1).ToString().Trim()
+if ($branchResult.ExitCode -ne 0 -or -not $branch) {
+  Write-Host 'Kein Git-Branch - Push uebersprungen.' -ForegroundColor Yellow
   exit 0
 }
 
-git add .gitattributes docs/release package.json src/shared/app-version.ts docs/index.html 2>$null
+$addResult = Invoke-GitCli -GitArgs @(
+  'add', '.gitattributes', 'docs/release', 'package.json', 'src/shared/app-version.ts', 'docs/index.html'
+)
+if ($addResult.ExitCode -ne 0) {
+  Write-CliFailure -Result $addResult -Context 'git add fehlgeschlagen.'
+  exit $addResult.ExitCode
+}
 
-$porcelain = git status --porcelain 2>$null
+$statusResult = Invoke-GitCli -GitArgs @('status', '--porcelain')
+$porcelain = ($statusResult.Output | Out-String).Trim()
 if (-not $porcelain) {
-  Write-Host 'Keine Aenderungen zum Pushen — bereits aktuell.' -ForegroundColor DarkGray
-  exit 0
+  Write-Host 'Keine Aenderungen zum Pushen - bereits aktuell.' -ForegroundColor DarkGray
+} else {
+  $msg = ('Release {0}: Installer, Manifeste und Homepage' -f $Version)
+  $commitResult = Invoke-GitCli -GitArgs @('commit', '-m', $msg)
+  if ($commitResult.ExitCode -ne 0) {
+    Write-CliFailure -Result $commitResult -Context 'git commit fehlgeschlagen.'
+    exit $commitResult.ExitCode
+  }
+
+  Write-Host ''
+  Write-Host "Pushe nach origin/$branch (inkl. Git LFS) ..." -ForegroundColor Cyan
+  $pushResult = Invoke-GitCli -GitArgs @('push', 'origin', $branch)
+  if ($pushResult.ExitCode -ne 0) {
+    Write-CliFailure -Result $pushResult -Context 'git push fehlgeschlagen — pruefe Netzwerk und gh/git-Anmeldung.'
+    exit $pushResult.ExitCode
+  }
 }
 
-$msg = ('Release {0}: Installer, Manifeste und Homepage' -f $Version)
-git commit -m $msg
-if ($LASTEXITCODE -ne 0) {
-  Write-Host 'git commit fehlgeschlagen.' -ForegroundColor Yellow
-  exit $LASTEXITCODE
+$tag = "v$Version"
+$tagMsg = "Release $Version"
+$tagVerify = Invoke-GitCli -GitArgs @('rev-parse', '-q', '--verify', "refs/tags/$tag")
+if ($tagVerify.ExitCode -ne 0) {
+  $tagCreate = Invoke-GitCli -GitArgs @('tag', '-a', $tag, '-m', $tagMsg)
+} else {
+  $tagCreate = Invoke-GitCli -GitArgs @('tag', '-f', '-a', $tag, '-m', $tagMsg)
+}
+if ($tagCreate.ExitCode -ne 0) {
+  Write-CliFailure -Result $tagCreate -Context "git tag $tag fehlgeschlagen."
+  exit $tagCreate.ExitCode
 }
 
-Write-Host ''
-Write-Host "Pushe nach origin/$branch (inkl. Git LFS) ..." -ForegroundColor Cyan
-git push origin $branch
-if ($LASTEXITCODE -ne 0) {
-  Write-Host 'git push fehlgeschlagen — pruefe Netzwerk und gh/git-Anmeldung.' -ForegroundColor Yellow
-  exit $LASTEXITCODE
+$tagPush = Invoke-GitCli -GitArgs @('push', 'origin', $tag, '--force')
+if ($tagPush.ExitCode -ne 0) {
+  Write-CliFailure -Result $tagPush -Context "git push Tag $tag fehlgeschlagen."
+  exit $tagPush.ExitCode
 }
 
-Write-Host 'GitHub Pages aktualisiert sich in 1–3 Minuten.' -ForegroundColor Green
+Write-Host "Git-Tag $tag auf HEAD gesetzt und gepusht." -ForegroundColor DarkGray
+Write-Host 'GitHub Pages aktualisiert sich in 1-3 Minuten.' -ForegroundColor Green
 Write-Host 'Download (sofort): GitHub Releases' -ForegroundColor Green

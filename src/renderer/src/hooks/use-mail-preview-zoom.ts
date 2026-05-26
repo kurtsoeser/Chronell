@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, type RefObject } from 'react'
+import { bindMailPreviewZoomHover } from '@/lib/mail-preview-zoom-hover'
 import {
   MAIL_PREVIEW_SCALE_MAX,
   MAIL_PREVIEW_SCALE_MIN,
@@ -83,6 +84,8 @@ export function useMailPreviewZoom(
       if (e.touches.length < 2) pinchRef.current = null
     }
 
+    const unbindHover = bindMailPreviewZoomHover(host)
+
     document.addEventListener('wheel', onWheel, { passive: false, capture: true })
     host.addEventListener('touchstart', onTouchStart, { passive: true })
     host.addEventListener('touchmove', onTouchMove, { passive: false })
@@ -90,6 +93,7 @@ export function useMailPreviewZoom(
     host.addEventListener('touchcancel', onTouchEnd, { passive: true })
 
     return (): void => {
+      unbindHover()
       document.removeEventListener('wheel', onWheel, { capture: true })
       host.removeEventListener('touchstart', onTouchStart)
       host.removeEventListener('touchmove', onTouchMove)

@@ -29,6 +29,7 @@ try {
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 Set-Location -LiteralPath $repoRoot
+. (Join-Path $PSScriptRoot 'release-git-helpers.ps1')
 
 $autoRelease = $env:CHRONELL_AUTO_RELEASE -eq '1' -or $PushGit
 if ($autoRelease) {
@@ -65,15 +66,6 @@ function Get-DocsReleaseVersions {
   return $dirs | Sort-Object { [version]$_.Name } -Descending
 }
 
-function Invoke-GhCli {
-  param([Parameter(Mandatory)][string[]] $GhArgs)
-  # Start-Process zerlegt Argumente mit Leerzeichen (z. B. --title "Chronell 0.9.16")
-  # und gh interpretiert dann "0.9.16" als Release-Name → "no matches found".
-  & gh @GhArgs
-  if ($null -ne $LASTEXITCODE) { return [int] $LASTEXITCODE }
-  return 0
-}
-
 function Publish-GitHubReleaseAsset {
   param(
     [string] $Version,
@@ -83,51 +75,78 @@ function Publish-GitHubReleaseAsset {
   )
 
   $ghTag = "v$Version"
+  $ghRepo = 'kurtsoeser/Chronell'
   $ghDownloadUrl = "https://github.com/kurtsoeser/Chronell/releases/download/$ghTag/$VersionedAssetName"
 
   if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
     Write-Host '  gh CLI nicht gefunden - GitHub Release uebersprungen.' -ForegroundColor Yellow
     Write-Host '  Installation: https://cli.github.com/' -ForegroundColor DarkGray
+    if ($Strict) { exit 1 }
     return
   }
 
   Write-Host ''
   Write-Host 'GitHub Release (primaerer Homepage-Download):' -ForegroundColor Cyan
 
+  $headResult = Invoke-GitCli -GitArgs @('rev-parse', 'HEAD')
+  $headSha = ($headResult.Output | Select-Object -First 1).ToString().Trim()
+  if ($headResult.ExitCode -ne 0 -or -not $headSha) {
+    Write-Host '  git rev-parse HEAD fehlgeschlagen - kein Release moeglich.' -ForegroundColor Yellow
+    if ($Strict) { exit 1 }
+    return
+  }
+
   $releaseTitle = "Chronell $Version"
   $releaseNotes = "Windows-11-Beta-Installer fuer Chronell $Version."
 
-  $viewExit = Invoke-GhCli -GhArgs @('release', 'view', $ghTag, '--repo', 'kurtsoeser/Chronell')
-  if ($viewExit -ne 0) {
-    Write-Host "  Erstelle Release $ghTag ..." -ForegroundColor DarkGray
-    $createExit = Invoke-GhCli -GhArgs @(
-      'release', 'create', $ghTag,
+  $viewResult = Invoke-GhCli -GhArgs @('release', 'view', $ghTag, '--repo', $ghRepo)
+  $uploaded = $false
+
+  if ($viewResult.ExitCode -eq 0) {
+    Write-Host "  Release $ghTag existiert - lade Installer hoch ..." -ForegroundColor DarkGray
+  } else {
+    $shortSha = $headSha.Substring(0, 7)
+    Write-Host "  Erstelle Release $ghTag (Commit $shortSha) ..." -ForegroundColor DarkGray
+    $createResult = Invoke-GhCli -GhArgs @(
+      'release', 'create', $ghTag, $SetupPath,
       '--title', $releaseTitle,
       '--notes', $releaseNotes,
-      '--repo', 'kurtsoeser/Chronell'
+      '--repo', $ghRepo,
+      '--target', $headSha,
+      '--clobber'
     )
-    if ($createExit -ne 0) {
-      Write-Host '  gh release create fehlgeschlagen - pruefe gh auth und Tag.' -ForegroundColor Yellow
-      return
+    if ($createResult.ExitCode -eq 0) {
+      Write-Host '  Release angelegt und Installer hochgeladen.' -ForegroundColor Green
+      $uploaded = $true
+    } else {
+      Write-CliFailure -Result $createResult -Context 'gh release create fehlgeschlagen.'
+      $viewRetry = Invoke-GhCli -GhArgs @('release', 'view', $ghTag, '--repo', $ghRepo)
+      if ($viewRetry.ExitCode -ne 0) {
+        if ($Strict) { exit 1 }
+        return
+      }
+      Write-Host "  Release $ghTag vorhanden - versuche Upload erneut ..." -ForegroundColor DarkGray
     }
-    Write-Host '  Release angelegt.' -ForegroundColor Green
-  } else {
-    Write-Host "  Release $ghTag existiert bereits - lade Installer hoch ..." -ForegroundColor DarkGray
   }
 
-  $uploadExit = Invoke-GhCli -GhArgs @(
-    'release', 'upload', $ghTag, $SetupPath,
-    '--clobber',
-    '--repo', 'kurtsoeser/Chronell'
-  )
-  if ($uploadExit -eq 0) {
+  if (-not $uploaded) {
+    $uploadResult = Invoke-GhCli -GhArgs @(
+      'release', 'upload', $ghTag, $SetupPath,
+      '--clobber',
+      '--repo', $ghRepo
+    )
+    if ($uploadResult.ExitCode -eq 0) {
+      $uploaded = $true
+    } else {
+      Write-CliFailure -Result $uploadResult -Context 'gh release upload fehlgeschlagen - pruefe: gh auth login'
+      if ($Strict) { exit 1 }
+      return
+    }
+  }
+
+  if ($uploaded) {
     Write-Host "  GitHub Releases: $ghDownloadUrl" -ForegroundColor Green
     Write-Host '  Homepage-Download verweist auf diese URL (site.js + latest.json).' -ForegroundColor DarkGray
-  } else {
-    Write-Host '  gh release upload fehlgeschlagen - pruefe: gh auth login' -ForegroundColor Yellow
-    if ($Strict) {
-      exit 1
-    }
   }
 }
 
@@ -241,13 +260,14 @@ if (-not $autoRelease) {
   Write-Host "  Oeffentlicher Download: $ghDownloadUrl" -ForegroundColor DarkGray
 }
 
-if (-not $IndexOnly -and -not $SkipGitHubRelease) {
+$setupForRelease = $null
+if (-not $IndexOnly) {
   $setupForRelease = Join-Path $versionDir $versionedName
   if (-not (Test-Path -LiteralPath $setupForRelease)) {
     $setupForRelease = Join-Path $latestDir $stableName
   }
-  if (Test-Path -LiteralPath $setupForRelease) {
-    Publish-GitHubReleaseAsset -Version $Version -SetupPath $setupForRelease -VersionedAssetName $versionedName -Strict:$autoRelease
+  if (-not (Test-Path -LiteralPath $setupForRelease)) {
+    $setupForRelease = $null
   }
 }
 
@@ -258,4 +278,8 @@ if ($autoRelease) {
   }
 } elseif (-not $NoOpen) {
   Start-Process -FilePath 'explorer.exe' -ArgumentList @($docsRelease)
+}
+
+if (-not $IndexOnly -and -not $SkipGitHubRelease -and $setupForRelease) {
+  Publish-GitHubReleaseAsset -Version $Version -SetupPath $setupForRelease -VersionedAssetName $versionedName -Strict:$autoRelease
 }

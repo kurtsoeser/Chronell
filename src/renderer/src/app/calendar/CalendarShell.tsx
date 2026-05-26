@@ -918,9 +918,10 @@ export function CalendarShell(): JSX.Element {
         type: 'multiMonthYear' as const,
         /** 4×3-Raster: alle 12 Monate auf einen Blick */
         multiMonthMaxColumns: 4,
-        multiMonthMinWidth: 108,
-        /** Etwas hoeher als 2.15 — Platz fuer groessere Monats-/Tages-Typo */
-        aspectRatio: 1.82,
+        /** Niedrig halten, damit bei schmaler Kalenderspalte (Sidebar/Vorschau) 4 Spalten bleiben */
+        multiMonthMinWidth: 64,
+        /** Niedriger = hoehere Monatskacheln (width/height) */
+        aspectRatio: 1.38,
         fixedWeekCount: true,
         showNonCurrentDates: true,
         dayHeaderFormat: { weekday: 'narrow' } as const,
