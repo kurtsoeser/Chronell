@@ -140,7 +140,7 @@ export function OneDriveShareLinkSettingsPanel({
           <div className="text-sm font-semibold text-foreground">
             {t('mail.composeTile.cloudShareTitle', { defaultValue: 'Linkeinstellungen' })}
           </div>
-          <div className="truncate text-[11px] text-muted-foreground" title={file.name}>
+          <div className="truncate text-xs text-muted-foreground" title={file.name}>
             {file.name}
           </div>
         </div>
@@ -187,7 +187,7 @@ export function OneDriveShareLinkSettingsPanel({
                     <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                     <span className="min-w-0 flex-1">
                       <span className="block text-sm font-medium text-foreground">{opt.label}</span>
-                      <span className="block text-[11px] text-muted-foreground">{opt.hint}</span>
+                      <span className="block text-xs text-muted-foreground">{opt.hint}</span>
                     </span>
                   </button>
                 </li>
@@ -248,7 +248,7 @@ export function OneDriveShareLinkSettingsPanel({
                   defaultValue: 'Ablaufdatum'
                 })}
               />
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 {t('mail.composeTile.cloudShareExpirationHint', {
                   defaultValue: 'Leer lassen = Link ohne Ablauf (unbegrenzt gültig, sofern die Organisation das erlaubt).'
                 })}

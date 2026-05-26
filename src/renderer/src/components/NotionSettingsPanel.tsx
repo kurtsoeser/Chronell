@@ -189,15 +189,15 @@ export function NotionSettingsPanel({
       <p className="text-xs leading-relaxed text-muted-foreground">{t('settings.notionIntro')}</p>
 
       <div className="space-y-2 rounded-md border border-primary/30 bg-primary/5 p-3">
-        <p className="text-[11px] font-semibold text-foreground">{t('settings.notionInternalHeading')}</p>
-        <p className="text-[10px] leading-relaxed text-muted-foreground">{t('settings.notionInternalIntro')}</p>
+        <p className="text-xs font-semibold text-foreground">{t('settings.notionInternalHeading')}</p>
+        <p className="text-2xs leading-relaxed text-muted-foreground">{t('settings.notionInternalIntro')}</p>
         <input
           type="password"
           value={internalTokenInput}
           onChange={(e): void => setInternalTokenInput(e.target.value)}
           placeholder={t('settings.notionInternalTokenPlaceholder')}
           disabled={busy || status?.connected === true}
-          className="w-full rounded-md border border-border bg-background px-3 py-1.5 font-mono text-[10px] outline-none focus:border-ring"
+          className="w-full rounded-md border border-border bg-background px-3 py-1.5 font-mono text-2xs outline-none focus:border-ring"
         />
         <button
           type="button"
@@ -215,12 +215,12 @@ export function NotionSettingsPanel({
       </div>
 
       <details className="rounded-md bg-background/60">
-        <summary className="cursor-pointer px-3 py-2 text-[11px] font-medium text-foreground">
+        <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-foreground">
           {t('settings.notionOAuthSummary')}
         </summary>
         <div className={cn('space-y-2 border-t px-3 py-3', listSubtleBorderClass)}>
-          <p className="text-[10px] leading-relaxed text-muted-foreground">{t('settings.notionOAuthHint')}</p>
-          <p className="rounded-md bg-background/50 px-2 py-1.5 font-mono text-[10px] leading-relaxed text-muted-foreground">
+          <p className="text-2xs leading-relaxed text-muted-foreground">{t('settings.notionOAuthHint')}</p>
+          <p className="rounded-md bg-background/50 px-2 py-1.5 font-mono text-2xs leading-relaxed text-muted-foreground">
             {t('settings.notionRedirectPortalHint')}{' '}
             <span className="text-foreground">{NOTION_OAUTH_REDIRECT_URI_PORTAL_ENTRY}</span>
             <br />
@@ -228,7 +228,7 @@ export function NotionSettingsPanel({
             <span className="text-foreground">{NOTION_OAUTH_REDIRECT_URI}</span>
           </p>
           <div className="space-y-2">
-            <label className="block text-[11px] font-medium text-foreground" htmlFor="notion-client-id">
+            <label className="block text-xs font-medium text-foreground" htmlFor="notion-client-id">
               {t('settings.notionClientId')}
             </label>
             <input
@@ -239,7 +239,7 @@ export function NotionSettingsPanel({
               placeholder={t('settings.notionClientIdPlaceholder')}
               className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-xs outline-none focus:border-ring"
             />
-            <label className="block text-[11px] font-medium text-foreground" htmlFor="notion-client-secret">
+            <label className="block text-xs font-medium text-foreground" htmlFor="notion-client-secret">
               {t('settings.notionClientSecret')}
             </label>
             <input
@@ -268,7 +268,7 @@ export function NotionSettingsPanel({
               {t('common.save')}
             </button>
             {oauthReady ? (
-              <p className="text-[10px] text-emerald-600 dark:text-emerald-500">
+              <p className="text-2xs text-emerald-600 dark:text-emerald-500">
                 {t('settings.notionCredentialsOk')}
               </p>
             ) : null}
@@ -296,7 +296,7 @@ export function NotionSettingsPanel({
       <div className={cn('flex flex-wrap gap-2 border-t pt-3', listSubtleBorderClass)}>
         {status?.connected ? (
           <>
-            <p className="w-full text-[11px] text-muted-foreground">
+            <p className="w-full text-xs text-muted-foreground">
               {status.authMode === 'internal'
                 ? t('settings.notionConnectedInternal')
                 : t('settings.notionConnected', {
@@ -319,12 +319,12 @@ export function NotionSettingsPanel({
       {status?.connected ? (
         <div className={cn('space-y-3 border-t pt-3', listSubtleBorderClass)}>
           <div>
-            <p className="text-[11px] font-medium text-foreground">{t('settings.notionDestinationsHeading')}</p>
-            <p className="mt-0.5 text-[10px] text-muted-foreground">{t('settings.notionInternalShareHint')}</p>
+            <p className="text-xs font-medium text-foreground">{t('settings.notionDestinationsHeading')}</p>
+            <p className="mt-0.5 text-2xs text-muted-foreground">{t('settings.notionInternalShareHint')}</p>
           </div>
 
           <div className="space-y-2 rounded-md bg-background/60 p-2">
-            <p className="text-[11px] font-semibold text-foreground">{t('settings.notionFavoritesHeading')}</p>
+            <p className="text-xs font-semibold text-foreground">{t('settings.notionFavoritesHeading')}</p>
             {destinations?.favorites.length ? (
               <ul className="max-h-52 space-y-1 overflow-y-auto">
                 {destinations.favorites.map((f) => {
@@ -346,12 +346,12 @@ export function NotionSettingsPanel({
                         </p>
                         <div className="mt-0.5 flex flex-wrap gap-1">
                           {isMailDefault ? (
-                            <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[9px] font-medium text-primary">
+                            <span className="rounded bg-primary/15 px-1.5 py-0.5 text-3xs font-medium text-primary">
                               {t('settings.notionBadgeMailDefault')}
                             </span>
                           ) : null}
                           {isCalDefault ? (
-                            <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[9px] font-medium text-primary">
+                            <span className="rounded bg-primary/15 px-1.5 py-0.5 text-3xs font-medium text-primary">
                               {t('settings.notionBadgeCalDefault')}
                             </span>
                           ) : null}
@@ -405,12 +405,12 @@ export function NotionSettingsPanel({
                 })}
               </ul>
             ) : (
-              <p className="text-[10px] text-muted-foreground">{t('settings.notionFavoritesEmpty')}</p>
+              <p className="text-2xs text-muted-foreground">{t('settings.notionFavoritesEmpty')}</p>
             )}
           </div>
 
           <div className="space-y-2">
-            <p className="text-[11px] font-medium text-foreground">{t('settings.notionAddPageHeading')}</p>
+            <p className="text-xs font-medium text-foreground">{t('settings.notionAddPageHeading')}</p>
             <div className="flex flex-wrap gap-2">
               <input
                 type="search"
@@ -446,7 +446,7 @@ export function NotionSettingsPanel({
                         {h.title}
                       </span>
                       {already ? (
-                        <span className="flex shrink-0 items-center gap-1 text-[10px] text-muted-foreground">
+                        <span className="flex shrink-0 items-center gap-1 text-2xs text-muted-foreground">
                           <Star className="h-3 w-3 fill-amber-400 text-amber-400" aria-hidden />
                           {t('settings.notionAlreadyFavorite')}
                         </span>
@@ -454,7 +454,7 @@ export function NotionSettingsPanel({
                         <button
                           type="button"
                           disabled={busy}
-                          className="flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/10"
+                          className="flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-2xs font-medium text-primary hover:bg-primary/10"
                           onClick={(): void => void handleAddFavorite(h)}
                         >
                           <Star className="h-3 w-3" aria-hidden />

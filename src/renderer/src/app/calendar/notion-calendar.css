@@ -81,6 +81,17 @@
   border-color: hsl(var(--border));
 }
 
+/* Woche/Tag: Spalten müssen zwischen Ganztag- und Zeitraster exakt ausgerichtet bleiben.
+   Ursache für „Bruch“ sind oft wechselnde Scrollbar-Gutter-Breiten (Windows) je nach Inhalt. */
+.calendar-notion-shell .fc-scroller {
+  scrollbar-gutter: stable;
+}
+
+.calendar-notion-shell .fc-timegrid .fc-scrollgrid-sync-table {
+  width: 100%;
+  table-layout: fixed;
+}
+
 .calendar-notion-shell .fc-col-header-cell {
   background: hsl(var(--background));
   padding: 10px 0 8px;
@@ -122,6 +133,11 @@
 .calendar-notion-shell .fc-timegrid .fc-scrollgrid-shrink-cushion,
 .calendar-notion-shell .fc-timegrid .fc-scrollgrid-sticky-shim {
   background: hsl(var(--background));
+}
+
+/* Woche/Tag: erzwinge konstante Scrollbar-Breite (Windows), damit Header/Ganztag/Body exakt gleiche Spalten haben */
+.calendar-notion-shell .fc-timegrid .fc-scrollgrid-section-body .fc-scroller {
+  overflow-y: scroll !important;
 }
 
 .calendar-notion-shell .fc-col-header-cell-cushion {
@@ -347,6 +363,11 @@
   overflow: hidden;
 }
 
+/* Wochenansicht: kein rechtes Freiraum-Padding mehr (kein Absolute-Icon) */
+.calendar-notion-shell .fc-timegrid-event .fc-cal-event-custom--timegrid {
+  padding: 2px 5px 2px 5px;
+}
+
 .calendar-notion-shell .fc-cal-event-custom-body {
   display: flex;
   flex-direction: column;
@@ -361,6 +382,12 @@
   overflow: hidden;
   text-overflow: ellipsis;
   padding-right: 14px;
+}
+
+/* time-row in Woche/Monat: padding-right nicht nötig (kein Absolut-Icon) */
+.calendar-notion-shell .fc-cal-event-custom--timegrid .fc-cal-event-custom-time,
+.calendar-notion-shell .fc-cal-event-custom--month .fc-cal-event-custom-time {
+  padding-right: 0;
 }
 
 .calendar-notion-shell .fc-cal-event-custom-title {
@@ -399,6 +426,31 @@
   pointer-events: none;
 }
 
+/* Icon + Uhrzeit (oder Titel) in einer Zeile — Monat und Wochenansicht */
+.calendar-notion-shell .fc-cal-event-custom-time-row,
+.calendar-notion-shell .fc-cal-event-custom-title-row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+}
+
+.calendar-notion-shell .fc-cal-event-custom-time-row .fc-cal-event-custom-time {
+  flex: 1;
+  min-width: 0;
+}
+
+.calendar-notion-shell .fc-cal-event-kind-icon--inline {
+  position: static;
+  top: auto;
+  right: auto;
+  flex-shrink: 0;
+  display: block;
+  margin-top: 0;
+}
+
 .calendar-notion-shell .fc-daygrid-event .fc-cal-event-custom {
   padding: 3px 18px 4px 5px;
   min-height: 1.75rem;
@@ -414,23 +466,13 @@
   font-weight: 600;
   letter-spacing: 0.01em;
   opacity: 0.92;
-}
-
-.calendar-notion-shell .fc-daygrid-event .fc-cal-event-custom-title-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 4px;
+  flex: 1;
   min-width: 0;
 }
 
 .calendar-notion-shell .fc-daygrid-event .fc-cal-event-kind-icon--inline {
-  position: static;
-  top: auto;
-  right: auto;
-  width: 11px;
-  height: 11px;
-  margin-top: 1px;
-  flex-shrink: 0;
+  width: 9px;
+  height: 9px;
 }
 
 .calendar-notion-shell .fc-daygrid-event .fc-cal-event-custom--month .fc-cal-event-custom-title {
@@ -646,6 +688,17 @@
   right: 2px;
   width: 12px;
   height: 12px;
+}
+
+/* Wochenansicht: Icon 10 px neben der Uhrzeit */
+.calendar-notion-shell .fc-timegrid-event .fc-cal-event-kind-icon--inline {
+  width: 10px;
+  height: 10px;
+}
+
+.calendar-notion-shell .fc-timegrid .fc-daygrid-event .fc-cal-event-kind-icon--inline {
+  width: 10px;
+  height: 10px;
 }
 
 .calendar-notion-shell .fc-timegrid .fc-daygrid-body-natural .fc-daygrid-day-events {

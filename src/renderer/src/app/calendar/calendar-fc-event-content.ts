@@ -7,13 +7,15 @@ import { CALENDAR_KIND_MAIL_TODO } from '@/app/calendar/mail-todo-calendar'
 import { CALENDAR_KIND_USER_NOTE } from '@/app/calendar/notes-calendar'
 import {
   formatFcEventTimeRangeText,
-  isDayGridMonthFcView
+  isDayGridMonthFcView,
+  isTimeGridFcView
 } from '@/app/calendar/calendar-fc-event-time-range'
 import { isMultiMonthFcView, multiMonthFcEventContent } from '@/app/calendar/calendar-fc-multimonth'
 import { appendCalendarEventIconSvg } from '@/lib/calendar-event-icon-markup'
 import { calendarEventIconIsExplicit } from '@/lib/calendar-event-icons'
 
-const DAY_GRID_MONTH_ICON_PX = 11
+const DAY_GRID_MONTH_ICON_PX = 9
+const TIME_GRID_ICON_PX = 10
 
 export type CalendarFcEntryKind = 'appointment' | 'mail' | 'task' | 'note'
 
@@ -65,7 +67,7 @@ function createKindIcon(
   return svg
 }
 
-/** Einheitlicher Event-Inhalt: Zeit, Titel, Art-Icon rechts oben. */
+/** Einheitlicher Event-Inhalt: Monat/Woche = Icon vor Uhrzeit (eine Zeile) + Titel darunter. */
 export function calendarFcEventContent(
   arg: EventContentArg,
   labels: CalendarFcEventContentLabels
@@ -80,29 +82,18 @@ export function calendarFcEventContent(
   const cloudTask = arg.event.extendedProps.cloudTask as TaskItemRow | undefined
   const taskCompleted = entryKind === 'task' && cloudTask?.completed === true
   const monthLayout = isDayGridMonthFcView(arg.view.type)
+  const timeGridLayout = isTimeGridFcView(arg.view.type)
+  const inlineIconLayout = monthLayout || timeGridLayout
 
   const root = document.createElement('div')
   root.className = taskCompleted
     ? 'fc-cal-event-custom fc-cal-event-custom--completed'
     : 'fc-cal-event-custom'
-  if (monthLayout) {
-    root.classList.add('fc-cal-event-custom--month')
-  }
+  if (monthLayout) root.classList.add('fc-cal-event-custom--month')
+  if (timeGridLayout) root.classList.add('fc-cal-event-custom--timegrid')
 
   const body = document.createElement('div')
   body.className = 'fc-cal-event-custom-body'
-
-  const timeLabel = monthLayout
-    ? formatFcEventTimeRangeText(arg)
-    : arg.timeText?.trim() || null
-  if (timeLabel) {
-    const timeEl = document.createElement('div')
-    timeEl.className = taskCompleted
-      ? 'fc-cal-event-custom-time fc-cal-event-custom-time--completed'
-      : 'fc-cal-event-custom-time'
-    timeEl.textContent = timeLabel
-    body.appendChild(timeEl)
-  }
 
   const titleEl = document.createElement('div')
   titleEl.className = taskCompleted
@@ -110,33 +101,67 @@ export function calendarFcEventContent(
     : 'fc-cal-event-custom-title'
   titleEl.textContent = arg.event.title ?? ''
 
-  const titleRow = document.createElement('div')
-  titleRow.className = 'fc-cal-event-custom-title-row'
-  const iconHost = monthLayout ? titleRow : root
-  const iconClass = monthLayout
+  const iconClass = inlineIconLayout
     ? 'fc-cal-event-kind-icon fc-cal-event-kind-icon--inline'
     : 'fc-cal-event-kind-icon'
+  const iconSize = monthLayout ? DAY_GRID_MONTH_ICON_PX : timeGridLayout ? TIME_GRID_ICON_PX : 14
 
-  const calEv = arg.event.extendedProps.calendarEvent as CalendarEventView | undefined
-  const userNote = arg.event.extendedProps.userNote as UserNoteListItem | undefined
-  const eventIconId = calEv?.icon
-  const taskIconId = cloudTask?.iconId
-  const taskIconColor = resolveEntityIconColor(cloudTask?.iconColor)
-  const noteIconId = userNote?.iconId
-  const noteIconColor = resolveEntityIconColor(userNote?.iconColor)
-  const iconSize = monthLayout ? DAY_GRID_MONTH_ICON_PX : 14
-  if (calendarEventIconIsExplicit(eventIconId)) {
-    appendCalendarEventIconSvg(iconHost, eventIconId, iconClass, undefined, iconSize)
-  } else if (entryKind === 'task' && calendarEventIconIsExplicit(taskIconId)) {
-    appendCalendarEventIconSvg(iconHost, taskIconId, iconClass, taskIconColor, iconSize)
-  } else if (entryKind === 'note' && calendarEventIconIsExplicit(noteIconId)) {
-    appendCalendarEventIconSvg(iconHost, noteIconId, iconClass, noteIconColor, iconSize)
-  } else {
-    iconHost.appendChild(createKindIcon(entryKind, labels[entryKind], iconClass))
+  const appendEntryIcon = (host: HTMLElement): void => {
+    const calEv = arg.event.extendedProps.calendarEvent as CalendarEventView | undefined
+    const userNote = arg.event.extendedProps.userNote as UserNoteListItem | undefined
+    const eventIconId = calEv?.icon
+    const taskIconId = cloudTask?.iconId
+    const taskIconColor = resolveEntityIconColor(cloudTask?.iconColor)
+    const noteIconId = userNote?.iconId
+    const noteIconColor = resolveEntityIconColor(userNote?.iconColor)
+    if (calendarEventIconIsExplicit(eventIconId)) {
+      appendCalendarEventIconSvg(host, eventIconId, iconClass, undefined, iconSize)
+    } else if (entryKind === 'task' && calendarEventIconIsExplicit(taskIconId)) {
+      appendCalendarEventIconSvg(host, taskIconId, iconClass, taskIconColor, iconSize)
+    } else if (entryKind === 'note' && calendarEventIconIsExplicit(noteIconId)) {
+      appendCalendarEventIconSvg(host, noteIconId, iconClass, noteIconColor, iconSize)
+    } else {
+      host.appendChild(createKindIcon(entryKind, labels[entryKind], iconClass))
+    }
   }
 
-  titleRow.appendChild(titleEl)
-  body.appendChild(monthLayout ? titleRow : titleEl)
+  const timeLabel = monthLayout
+    ? formatFcEventTimeRangeText(arg)
+    : arg.timeText?.trim() || null
+
+  if (inlineIconLayout) {
+    if (timeLabel) {
+      const timeRow = document.createElement('div')
+      timeRow.className = 'fc-cal-event-custom-time-row'
+      appendEntryIcon(timeRow)
+      const timeEl = document.createElement('div')
+      timeEl.className = taskCompleted
+        ? 'fc-cal-event-custom-time fc-cal-event-custom-time--completed'
+        : 'fc-cal-event-custom-time'
+      timeEl.textContent = timeLabel
+      timeRow.appendChild(timeEl)
+      body.appendChild(timeRow)
+      body.appendChild(titleEl)
+    } else {
+      const titleRow = document.createElement('div')
+      titleRow.className = 'fc-cal-event-custom-title-row'
+      appendEntryIcon(titleRow)
+      titleRow.appendChild(titleEl)
+      body.appendChild(titleRow)
+    }
+  } else {
+    if (timeLabel) {
+      const timeEl = document.createElement('div')
+      timeEl.className = taskCompleted
+        ? 'fc-cal-event-custom-time fc-cal-event-custom-time--completed'
+        : 'fc-cal-event-custom-time'
+      timeEl.textContent = timeLabel
+      body.appendChild(timeEl)
+    }
+    body.appendChild(titleEl)
+    appendEntryIcon(root)
+  }
+
   root.appendChild(body)
 
   return { domNodes: [root] }

@@ -7,6 +7,11 @@ export function isDayGridMonthFcView(viewType: string): boolean {
   return viewType === DAY_GRID_MONTH_VIEW_ID
 }
 
+/** timeGridWeek, timeGridDay, timeGrid2Day … */
+export function isTimeGridFcView(viewType: string): boolean {
+  return viewType.startsWith('timeGrid')
+}
+
 function formatHhMm(d: Date): string {
   return format(d, 'HH:mm')
 }
