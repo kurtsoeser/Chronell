@@ -1,6 +1,7 @@
 import type { ConnectedAccount, NoteSection, UserNoteListItem } from '@shared/types'
 import { LOCAL_NOTES_ACCOUNT_KEY, noteAccountKey } from '@/lib/notes-sidebar-accounts'
 import type { NotesSidebarListMode } from '@/lib/notes-sidebar-storage'
+import { readNotesSettingsPrefs } from '@/lib/notes-settings-prefs'
 
 /** Filter in der Sektionen-Ansicht der linken Spalte. */
 export type NotesSectionsNavScope = 'all' | 'ungrouped' | { sectionId: number }
@@ -23,12 +24,16 @@ function parseSectionsScope(raw: unknown): NotesSectionsNavScope | null {
 }
 
 export function defaultNavSelection(mode: NotesSidebarListMode): NotesNavSelection {
-  return mode === 'sections'
-    ? { kind: 'sections', scope: 'ungrouped' }
-    : { kind: 'accounts', accountKey: LOCAL_NOTES_ACCOUNT_KEY }
+  if (mode === 'sections') {
+    return { kind: 'sections', scope: readNotesSettingsPrefs().defaultSectionsNavScope }
+  }
+  return { kind: 'accounts', accountKey: LOCAL_NOTES_ACCOUNT_KEY }
 }
 
 export function readNotesNavSelection(mode: NotesSidebarListMode): NotesNavSelection {
+  if (!readNotesSettingsPrefs().rememberLastNavSelection) {
+    return defaultNavSelection(mode)
+  }
   try {
     const raw = window.localStorage.getItem(NAV_SELECTION_KEY)
     if (!raw) return defaultNavSelection(mode)
@@ -62,6 +67,7 @@ export function readNotesNavSelection(mode: NotesSidebarListMode): NotesNavSelec
 }
 
 export function persistNotesNavSelection(selection: NotesNavSelection): void {
+  if (!readNotesSettingsPrefs().rememberLastNavSelection) return
   try {
     window.localStorage.setItem(NAV_SELECTION_KEY, JSON.stringify(selection))
   } catch {

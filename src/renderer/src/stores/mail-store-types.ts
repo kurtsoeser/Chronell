@@ -7,10 +7,11 @@ export type MailListKind =
   | 'waiting'
   | 'unified_inbox'
   | 'meta_folder'
+  | 'category'
 
 /** Thread-Keys pro Konto trennen (Unified-Inbox und Meta-Ordner). */
 export function mailListUsesCrossAccountThreadScope(kind: MailListKind): boolean {
-  return kind === 'unified_inbox' || kind === 'meta_folder'
+  return kind === 'unified_inbox' || kind === 'meta_folder' || kind === 'category'
 }
 
 export interface AccountListMetaEntry {

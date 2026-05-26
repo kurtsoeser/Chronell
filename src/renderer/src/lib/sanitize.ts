@@ -27,6 +27,19 @@ const ALLOWED_ATTR = [
 
 let mailAnchorNeutralizeInstalled = false
 
+/** Abgestimmt auf styles/chronell-scrollbars.css (--chronell-scrollbar-size: 2px). */
+const MAIL_SHADOW_SCROLLBAR_LIGHT_CSS = `
+    ::-webkit-scrollbar { width: 2px; height: 2px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(120, 120, 120, 0.45); border-radius: 999px; }
+`
+
+const MAIL_SHADOW_SCROLLBAR_DARK_CSS = `
+    ::-webkit-scrollbar { width: 2px; height: 2px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.22); border-radius: 999px; }
+`
+
 /**
  * Erzwingt, dass externe Ziele nie als echtes `href` im Iframe landen (sonst CSP
  * ERR_BLOCKED_BY_CSP bevor `preventDefault` zuverlaessig greift). Stattdessen
@@ -256,6 +269,7 @@ function buildMailShadowLightThemeCss(contentPadding: string): string {
   return `
   <style>
     :root { color-scheme: light; }
+    ${MAIL_SHADOW_SCROLLBAR_LIGHT_CSS}
     html, body { margin: 0; padding: 0; background: #ffffff; color: #1f1f23;
       font: 14px/1.55 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
       word-wrap: break-word; forced-color-adjust: none; }
@@ -344,6 +358,7 @@ function buildMailDarkHtmlShellCss(
   <style>
     ${hostBlock}
     *, *::before, *::after { box-sizing: inherit; }
+    ${MAIL_SHADOW_SCROLLBAR_DARK_CSS}
     .mail-html-root {
       forced-color-adjust: none;
       min-height: ${hostSelector === ':host' ? '0' : 'calc(100vh - 28px)'};
@@ -419,7 +434,7 @@ function buildCalendarDescriptionDarkThemeCss(surfaceHex?: string): string {
   return `${buildMailDarkHtmlShellCss(mailDarkSurfaceCss(surfaceHex), ':root', '14px 18px', '100%')}
   <style>
     html, body { overflow: hidden; }
-    pre { padding: 8px 12px; overflow: auto; scrollbar-width: thin; }
+    pre { padding: 8px 12px; overflow: auto; }
   </style>`
 }
 
@@ -440,7 +455,7 @@ const calendarDescriptionLightThemeCss = `
     blockquote { border-left: 3px solid #d6d6db; margin: 0 0 0 4px; padding: 4px 12px; color: #555; }
     table { max-width: 100%; }
     pre, code { background: #f4f4f6; padding: 2px 4px; border-radius: 3px; font-size: 12px; color: #1f1f23; }
-    pre { padding: 8px 12px; overflow: auto; scrollbar-width: thin; }
+    pre { padding: 8px 12px; overflow: auto; }
     hr { border: 0; border-top: 1px solid #e5e5ea; margin: 12px 0; }
   </style>
 `

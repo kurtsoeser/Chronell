@@ -137,7 +137,7 @@ export function NotesAttachmentsPanel({
             type="button"
             disabled={busy}
             onClick={(): void => fileInputRef.current?.click()}
-            className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[10px] font-medium text-foreground hover:bg-secondary disabled:opacity-50"
+            className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-2xs font-medium text-foreground hover:bg-secondary disabled:opacity-50"
           >
             <Paperclip className="h-3 w-3" />
             {t('notes.attachments.addFile')}
@@ -147,7 +147,7 @@ export function NotesAttachmentsPanel({
               type="button"
               disabled={busy}
               onClick={(): void => setDriveOpen(true)}
-              className="inline-flex items-center gap-1 rounded-md border border-sky-500/30 bg-sky-500/5 px-2 py-1 text-[10px] font-medium text-foreground hover:bg-sky-500/10 disabled:opacity-50"
+              className="inline-flex items-center gap-1 rounded-md border border-sky-500/30 bg-sky-500/5 px-2 py-1 text-2xs font-medium text-foreground hover:bg-sky-500/10 disabled:opacity-50"
             >
               <Cloud className="h-3 w-3 text-sky-600 dark:text-sky-400" />
               {t('notes.attachments.addCloud')}
@@ -169,14 +169,14 @@ export function NotesAttachmentsPanel({
       />
 
       {error ? (
-        <div className="mb-2 flex items-start gap-1.5 text-[11px] text-destructive">
+        <div className="mb-2 flex items-start gap-1.5 text-xs text-destructive">
           <AlertCircle className="mt-0.5 h-3 w-3 shrink-0" />
           <span>{error}</span>
         </div>
       ) : null}
 
       {!loading && items.length === 0 ? (
-        <p className="text-[11px] text-muted-foreground">{t('notes.attachments.empty')}</p>
+        <p className="text-xs text-muted-foreground">{t('notes.attachments.empty')}</p>
       ) : (
         <div className="flex flex-wrap gap-2">
           {items.map((att) =>
@@ -191,7 +191,7 @@ export function NotesAttachmentsPanel({
                 <button
                   type="button"
                   onClick={(): void => void handleOpen(att)}
-                  className="self-start px-1 text-[10px] text-primary hover:underline"
+                  className="self-start px-1 text-2xs text-primary hover:underline"
                 >
                   {t('notes.attachments.openLink')}
                 </button>
@@ -209,7 +209,7 @@ export function NotesAttachmentsPanel({
                 <button
                   type="button"
                   onClick={(): void => void handleSaveAs(att)}
-                  className="inline-flex items-center gap-0.5 self-start px-1 text-[10px] text-primary hover:underline"
+                  className="inline-flex items-center gap-0.5 self-start px-1 text-2xs text-primary hover:underline"
                 >
                   <Download className="h-2.5 w-2.5" />
                   {t('notes.attachments.saveAs')}
@@ -231,7 +231,7 @@ export function NotesAttachmentsPanel({
       ) : null}
 
       {!microsoftAccount && items.length === 0 ? (
-        <p className="mt-1 text-[10px] text-muted-foreground">{t('notes.attachments.cloudRequiresM365')}</p>
+        <p className="mt-1 text-2xs text-muted-foreground">{t('notes.attachments.cloudRequiresM365')}</p>
       ) : null}
     </section>
   )

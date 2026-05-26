@@ -740,7 +740,7 @@ export function ConnectionsShell(): JSX.Element {
                     value={query}
                     onChange={(e): void => setQuery(e.target.value)}
                     placeholder={t('connections.shell.searchPlaceholder')}
-                    className="h-7 w-full rounded-md border border-border bg-background pl-8 pr-2 text-[11px] outline-none focus:border-primary"
+                    className="h-7 w-full rounded-md border border-border bg-background pl-8 pr-2 text-xs outline-none focus:border-primary"
                   />
                 </div>
                 {selected ? (

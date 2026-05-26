@@ -29,7 +29,7 @@ export interface UseMailPreviewZoomOptions {
   attachKey?: string | number
 }
 
-/** Strg+Mausrad und Pinch-to-Zoom für die Mail-Vorschau (Shadow-Host). Tastatur: useZoomShortcuts. */
+/** Strg+Mausrad und Pinch-to-Zoom für die Mail-Vorschau (Shadow-Host). */
 export function useMailPreviewZoom(
   hostRef: RefObject<HTMLElement | null>,
   opts: UseMailPreviewZoomOptions = {}

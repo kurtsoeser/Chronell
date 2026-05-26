@@ -79,7 +79,7 @@ export function TasksCalendarToolbar({
         <button
           type="button"
           onClick={calToday}
-          className="rounded px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
+          className="rounded px-2 py-0.5 text-2xs font-medium text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
         >
           {t('tasks.shell.calendarToday')}
         </button>
@@ -91,7 +91,9 @@ export function TasksCalendarToolbar({
         >
           <ChevronRight className="h-4 w-4" />
         </button>
-        <span className="min-w-0 truncate font-semibold text-foreground">{calendarTitle}</span>
+        <span className="chronell-type-calendar-range-title min-w-0 truncate text-foreground">
+          {calendarTitle}
+        </span>
       </div>
       <div
         className="flex shrink-0 items-center gap-0.5 rounded-md border border-border p-0.5"
@@ -102,7 +104,7 @@ export function TasksCalendarToolbar({
           type="button"
           onClick={(): void => setDateMode('due')}
           className={cn(
-            'rounded-md px-2 py-1 text-[10px] font-medium',
+            'rounded-md px-2 py-1 text-2xs font-medium',
             dateMode === 'due'
               ? 'bg-secondary text-foreground'
               : 'text-muted-foreground hover:bg-secondary/50'
@@ -114,7 +116,7 @@ export function TasksCalendarToolbar({
           type="button"
           onClick={(): void => setDateMode('planned')}
           className={cn(
-            'rounded-md px-2 py-1 text-[10px] font-medium',
+            'rounded-md px-2 py-1 text-2xs font-medium',
             dateMode === 'planned'
               ? 'bg-secondary text-foreground'
               : 'text-muted-foreground hover:bg-secondary/50'
@@ -128,7 +130,7 @@ export function TasksCalendarToolbar({
           <button
             type="button"
             onClick={(): void => setViewMenuOpen((o) => !o)}
-            className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[10px] font-medium hover:bg-secondary/60"
+            className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-2xs font-medium hover:bg-secondary/60"
           >
             {viewIdToLabel(activeFcView, t)}
             <ChevronDown className={cn('h-3 w-3', viewMenuOpen && 'rotate-180')} />

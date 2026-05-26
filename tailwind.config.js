@@ -123,6 +123,18 @@ export default {
       fontFamily: {
         sans: ['var(--chronell-font-family)']
       },
+      /** rem — skaliert mit Oberflächengröße (html). Statt text-[Npx] text-2xs … text-base nutzen. */
+      fontSize: {
+        '3xs': ['var(--chronell-text-3xs)', { lineHeight: '0.75rem' }],
+        '2xs': ['var(--chronell-text-2xs)', { lineHeight: '0.875rem' }],
+        xs: ['var(--chronell-text-xs)', { lineHeight: '1rem' }],
+        sm: ['var(--chronell-text-sm)', { lineHeight: '1.125rem' }],
+        base: ['var(--chronell-text-md)', { lineHeight: '1.25rem' }],
+        md: ['var(--chronell-text-base)', { lineHeight: '1.375rem' }],
+        lg: ['var(--chronell-text-lg)', { lineHeight: '1.5rem' }],
+        xl: ['var(--chronell-text-xl)', { lineHeight: '1.625rem' }],
+        '2xl': ['var(--chronell-text-2xl)', { lineHeight: '1.75rem' }]
+      },
       transitionTimingFunction: {
         chronell: 'var(--motion-ease)'
       },

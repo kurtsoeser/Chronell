@@ -15,6 +15,7 @@ const ARRANGE_ORDER: TaskListArrangeBy[] = [
   'calendar_day',
   'todo_bucket',
   'due_date',
+  'item_type',
   'status',
   'title',
   'list',

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { isChromiumZoomShortcutInput, parseZoomShortcutIntent } from './zoom-shortcut-keys'
+import { isAppZoomShortcutInput, isChromiumZoomShortcutInput, parseZoomShortcutIntent } from './zoom-shortcut-keys'
 
 describe('parseZoomShortcutIntent', () => {
-  it('maps Ctrl+Minus to preview zoom out', () => {
+  it('maps Ctrl+Minus to ui zoom out', () => {
     expect(
       parseZoomShortcutIntent({
         ctrlKey: true,
@@ -11,10 +11,10 @@ describe('parseZoomShortcutIntent', () => {
         shiftKey: false,
         code: 'Minus'
       })
-    ).toEqual({ scope: 'preview', action: 'out' })
+    ).toEqual({ scope: 'ui', action: 'out' })
   })
 
-  it('maps Ctrl+Shift+Minus to ui zoom out', () => {
+  it('maps Ctrl+Shift+Minus to ui zoom out (DE plus key often needs shift)', () => {
     expect(
       parseZoomShortcutIntent({
         ctrlKey: true,
@@ -26,20 +26,7 @@ describe('parseZoomShortcutIntent', () => {
     ).toEqual({ scope: 'ui', action: 'out' })
   })
 
-  it('maps Ctrl+Shift+Slash (DE minus key) to ui zoom out', () => {
-    expect(
-      parseZoomShortcutIntent({
-        ctrlKey: true,
-        metaKey: false,
-        altKey: false,
-        shiftKey: true,
-        code: 'Slash',
-        key: '_'
-      })
-    ).toEqual({ scope: 'ui', action: 'out' })
-  })
-
-  it('maps Ctrl+Slash (DE minus key) to preview zoom out', () => {
+  it('maps Ctrl+Slash (DE minus key) to ui zoom out', () => {
     expect(
       parseZoomShortcutIntent({
         ctrlKey: true,
@@ -49,16 +36,16 @@ describe('parseZoomShortcutIntent', () => {
         code: 'Slash',
         key: '-'
       })
-    ).toEqual({ scope: 'preview', action: 'out' })
+    ).toEqual({ scope: 'ui', action: 'out' })
   })
 
-  it('maps Ctrl+Shift+Equal to ui zoom in', () => {
+  it('maps Ctrl+Equal to ui zoom in', () => {
     expect(
       parseZoomShortcutIntent({
         ctrlKey: true,
         metaKey: false,
         altKey: false,
-        shiftKey: true,
+        shiftKey: false,
         code: 'Equal'
       })
     ).toEqual({ scope: 'ui', action: 'in' })
@@ -76,12 +63,24 @@ describe('parseZoomShortcutIntent', () => {
       })
     ).toEqual({ scope: 'ui', action: 'in' })
   })
+
+  it('maps Ctrl+0 to ui zoom reset', () => {
+    expect(
+      parseZoomShortcutIntent({
+        ctrlKey: true,
+        metaKey: false,
+        altKey: false,
+        shiftKey: false,
+        code: 'Digit0'
+      })
+    ).toEqual({ scope: 'ui', action: 'reset' })
+  })
 })
 
-describe('isChromiumZoomShortcutInput', () => {
+describe('isAppZoomShortcutInput', () => {
   it('blocks Ctrl+Minus (Chromium page zoom)', () => {
     expect(
-      isChromiumZoomShortcutInput({
+      isAppZoomShortcutInput({
         control: true,
         meta: false,
         shift: false,
@@ -92,22 +91,9 @@ describe('isChromiumZoomShortcutInput', () => {
     ).toBe(true)
   })
 
-  it('does not block Ctrl+Shift+Minus (app ui-scale)', () => {
+  it('blocks Ctrl+Slash (DE minus)', () => {
     expect(
-      isChromiumZoomShortcutInput({
-        control: true,
-        meta: false,
-        shift: true,
-        alt: false,
-        key: '_',
-        code: 'Minus'
-      })
-    ).toBe(false)
-  })
-
-  it('does not block Ctrl+Slash (DE preview zoom)', () => {
-    expect(
-      isChromiumZoomShortcutInput({
+      isAppZoomShortcutInput({
         control: true,
         meta: false,
         shift: false,
@@ -115,45 +101,31 @@ describe('isChromiumZoomShortcutInput', () => {
         key: '-',
         code: 'Slash'
       })
-    ).toBe(false)
+    ).toBe(true)
   })
 
-  it('does not block Ctrl+Shift+Slash (DE ui-scale)', () => {
+  it('blocks Ctrl+Shift+BracketRight (DE plus)', () => {
     expect(
-      isChromiumZoomShortcutInput({
-        control: true,
-        meta: false,
-        shift: true,
-        alt: false,
-        key: '_',
-        code: 'Slash'
-      })
-    ).toBe(false)
-  })
-
-  it('does not block Ctrl+Shift+Equal (app ui-scale)', () => {
-    expect(
-      isChromiumZoomShortcutInput({
+      isAppZoomShortcutInput({
         control: true,
         meta: false,
         shift: true,
         alt: false,
         key: '+',
-        code: 'Equal'
+        code: 'BracketRight'
       })
-    ).toBe(false)
+    ).toBe(true)
   })
 
-  it('does not block Ctrl+Shift+0 (app ui-scale reset)', () => {
-    expect(
-      isChromiumZoomShortcutInput({
-        control: true,
-        meta: false,
-        shift: true,
-        alt: false,
-        key: '0',
-        code: 'Digit0'
-      })
-    ).toBe(false)
+  it('isChromiumZoomShortcutInput delegates to isAppZoomShortcutInput', () => {
+    const input = {
+      control: true,
+      meta: false,
+      shift: true,
+      alt: false,
+      key: '+',
+      code: 'BracketRight'
+    }
+    expect(isChromiumZoomShortcutInput(input)).toBe(isAppZoomShortcutInput(input))
   })
 })

@@ -40,6 +40,8 @@ import {
   mailTodoItemsToFullCalendarEvents
 } from './mail-todo-calendar'
 import { useCalendarFcEventContent } from '@/app/calendar/use-calendar-fc-event-content'
+import { useCalendarSettingsPrefs } from '@/lib/use-calendar-settings-prefs'
+import { timeGridSlotMinutesToDuration } from '@/app/calendar/calendar-shell-storage'
 import './notion-calendar.css'
 
 /** Standard-Laenge fuer neue Zeitbloecke (Ganztag -> Zeitleiste, fehlendes Ende, Posteingang auf Tag). */
@@ -161,6 +163,11 @@ export function MailTodoCalendar({
   onViewMeta,
   className
 }: MailTodoCalendarProps): JSX.Element {
+  const calSettings = useCalendarSettingsPrefs()
+  const slotDuration = useMemo(
+    () => timeGridSlotMinutesToDuration(calSettings.defaultTimeGridSlotMinutes),
+    [calSettings.defaultTimeGridSlotMinutes]
+  )
   const calendarFcEventContentRender = useCalendarFcEventContent()
   const calendarRef = useRef<FullCalendar>(null)
   const resolvedFcView = fcView ?? calendarView
@@ -372,7 +379,7 @@ export function MailTodoCalendar({
   return (
     <div ref={shellRef} className={className ?? 'calendar-notion-shell h-full min-h-0 flex-1'}>
       <FullCalendar
-        key={`${timeZone}-${resolvedFcView}`}
+        key={`${timeZone}-${resolvedFcView}-${calSettings.weekStartsOn}-${calSettings.slotMinTime}-${calSettings.slotMaxTime}-${calSettings.hideWeekends}-${calSettings.defaultTimeGridSlotMinutes}`}
         ref={(inst): void => {
           assignMergedFullCalendarRef(inst, calendarRef, fullCalendarRef)
         }}
@@ -381,13 +388,14 @@ export function MailTodoCalendar({
         height="100%"
         timeZone={timeZone}
         headerToolbar={false}
-        firstDay={1}
+        firstDay={calSettings.weekStartsOn}
+        weekends={!calSettings.hideWeekends}
         views={{ ...multiDayViews }}
         initialView={resolvedFcView}
-        slotMinTime="00:00:00"
-        slotMaxTime="24:00:00"
-        scrollTime="07:00:00"
-        slotDuration="00:30:00"
+        slotMinTime={calSettings.slotMinTime}
+        slotMaxTime={calSettings.slotMaxTime}
+        scrollTime={calSettings.scrollTime}
+        slotDuration={slotDuration}
         slotLabelInterval="01:00:00"
         defaultTimedEventDuration="00:30:00"
         nowIndicator

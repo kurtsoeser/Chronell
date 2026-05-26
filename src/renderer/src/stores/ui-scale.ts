@@ -2,6 +2,14 @@ import { create } from 'zustand'
 
 const STORAGE_KEY = 'mailclient.uiScale.v1'
 
+/**
+ * Referenz-Schriftgröße bei 100 % (rem-Bezug).
+ * Deutlich unter Browser-Standard 16px — „100 %“ = kompakte App-Dichte (nicht Browser-Zoom).
+ */
+export const UI_SCALE_ROOT_FONT_PX = 11
+
+export const UI_SCALE_CHANGED_EVENT = 'mailclient:ui-scale-changed'
+
 export const UI_SCALE_MIN = 0.65
 export const UI_SCALE_MAX = 1.35
 export const UI_SCALE_STEP = 0.05
@@ -36,22 +44,22 @@ function persistUiScale(scale: number): void {
 }
 
 /**
- * Gesamte App-Oberfläche (Chromium-zoom auf html).
- * Skaliert rem, px und feste Tailwind-Größen gleichermaßen.
- *
- * Getrennt davon: Mail-Vorschau-Zoom (`useMailPreviewScaleStore`, style.zoom am Shadow-Host)
- * und Editor-Zoom im Composer (`useComposeEditorScaleStore`).
+ * Einheitliche Skalierung über html font-size (rem).
+ * Kein CSS zoom: FullCalendar-Hit-Tests + Modals (Portal auf body) bleiben konsistent.
  */
 function applyUiScale(scale: number): void {
-  const root = document.documentElement
-  root.style.setProperty('--ui-scale', String(scale))
-  if (scale === UI_SCALE_DEFAULT) {
+  const html = document.documentElement
+  const root = document.getElementById('root')
+
+  html.style.setProperty('--ui-scale', String(scale))
+  html.style.zoom = ''
+  html.style.fontSize = `${UI_SCALE_ROOT_FONT_PX * scale}px`
+
+  if (root) {
     root.style.zoom = ''
-    root.style.fontSize = ''
-  } else {
-    root.style.fontSize = ''
-    root.style.zoom = String(scale)
   }
+
+  window.dispatchEvent(new CustomEvent(UI_SCALE_CHANGED_EVENT, { detail: { scale } }))
 }
 
 const initialScale = readStoredUiScale()

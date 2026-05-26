@@ -3,6 +3,8 @@
  * (hell/dunkel, Paletten). FullCalendar v6: https://fullcalendar.io/docs/css-custom-properties
  */
 .calendar-notion-shell {
+  width: 100%;
+  min-width: 0;
   --cal-today: hsl(var(--destructive));
   --cal-now-line: var(--chronell-accent-primary, hsl(var(--primary)));
 
@@ -24,12 +26,50 @@
   --fc-button-active-bg-color: hsl(var(--muted));
   --fc-event-border-color: transparent;
   --fc-event-text-on-color: hsl(var(--primary-foreground));
+
+  --chronell-fc-font-size: var(--chronell-text-sm);
+  --chronell-fc-font-size-xs: var(--chronell-text-xs);
+  --chronell-fc-font-size-2xs: var(--chronell-text-2xs);
+  --chronell-fc-font-size-md: var(--chronell-text-md);
+  --chronell-fc-font-size-lg: var(--chronell-text-lg);
+}
+
+.calendar-notion-shell .calendar-fc-host {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+}
+
+.calendar-notion-shell .calendar-fc-host > div {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
 }
 
 .calendar-notion-shell .fc {
+  width: 100%;
+  height: 100%;
   font-family: var(--chronell-font-family);
-  font-size: 12px;
+  font-size: var(--chronell-fc-font-size);
   letter-spacing: 0.01em;
+}
+
+.calendar-notion-shell .fc-view-harness {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+}
+
+.calendar-notion-shell .fc-view-harness-active > .fc-view {
+  width: 100%;
 }
 
 .calendar-notion-shell .fc-theme-standard td,
@@ -45,10 +85,33 @@
   background: hsl(var(--background));
   padding: 10px 0 8px;
   font-weight: 500;
-  font-size: 11px;
+  font-size: var(--chronell-fc-font-size-xs);
   color: hsl(var(--muted-foreground));
   text-transform: none;
   border-bottom: 1px solid hsl(var(--border));
+}
+
+/* Woche/Tag: moderate Hoehe, Datum vertikal zentriert */
+.calendar-notion-shell .fc-timegrid .fc-col-header-cell {
+  padding: 0;
+  vertical-align: middle;
+}
+
+.calendar-notion-shell .fc-timegrid .fc-col-header-cell .fc-scrollgrid-sync-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 2rem;
+  padding: 4px 0;
+  box-sizing: border-box;
+}
+
+.calendar-notion-shell .fc-timegrid .fc-col-header-cell-cushion {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.25;
 }
 
 /* Woche/Tag: Scrollbar-Ausgleichsspalte rechts — sonst heller Streifen neben dem letzten Tag */
@@ -77,14 +140,23 @@
   font-weight: 600;
 }
 
+.calendar-notion-shell .fc-timegrid .fc-day-today .fc-col-header-cell-cushion {
+  min-height: 1.5rem;
+  padding: 2px 10px;
+}
+
 .calendar-notion-shell .fc-day-today .fc-scrollgrid-sync-inner {
   position: relative;
+}
+
+.calendar-notion-shell .fc-timegrid .fc-day-today .fc-scrollgrid-sync-inner {
+  position: static;
 }
 
 .calendar-notion-shell .fc-timegrid-axis-cushion,
 .calendar-notion-shell .fc-timegrid-slot-label-cushion {
   color: hsl(var(--muted-foreground));
-  font-size: 11px;
+  font-size: var(--chronell-fc-font-size-xs);
   font-weight: 400;
 }
 
@@ -143,17 +215,17 @@
 .calendar-notion-shell .fc-timegrid-event .fc-event-resizer-start,
 .calendar-notion-shell .fc-timegrid-event .fc-event-resizer-end {
   cursor: ns-resize;
-  height: 10px;
-  border-radius: 4px;
+  height: 5px;
+  border-radius: 2px;
   background: hsl(0 0% 100% / 0.35);
 }
 
 .calendar-notion-shell .fc-timegrid-event .fc-event-resizer-start {
-  margin: 2px 4px 0;
+  margin: 1px 4px 0;
 }
 
 .calendar-notion-shell .fc-timegrid-event .fc-event-resizer-end {
-  margin: 0 4px 2px;
+  margin: 0 4px 1px;
 }
 
 .dark .calendar-notion-shell .fc-timegrid-event .fc-event-resizer-start,
@@ -181,7 +253,7 @@
 }
 
 .calendar-notion-shell .fc-event-main {
-  font-size: 11px;
+  font-size: var(--chronell-fc-font-size-xs);
   line-height: 1.35;
   font-weight: 500;
 }
@@ -282,7 +354,7 @@
 }
 
 .calendar-notion-shell .fc-cal-event-custom-time {
-  font-size: 10px;
+  font-size: var(--chronell-fc-font-size-2xs);
   line-height: 1.25;
   opacity: 0.9;
   white-space: nowrap;
@@ -292,7 +364,7 @@
 }
 
 .calendar-notion-shell .fc-cal-event-custom-title {
-  font-size: 11px;
+  font-size: var(--chronell-fc-font-size-xs);
   font-weight: 500;
   line-height: 1.35;
   overflow: hidden;
@@ -333,7 +405,7 @@
 }
 
 .calendar-notion-shell .fc-daygrid-event .fc-cal-event-custom-time {
-  font-size: 10px;
+  font-size: var(--chronell-fc-font-size-2xs);
   font-weight: 500;
 }
 
@@ -350,15 +422,20 @@
   border-radius: 6px;
   padding: 2px 4px;
   margin-top: 2px;
-  font-size: 11px;
+  font-size: var(--chronell-fc-font-size-xs);
 }
 
 .calendar-notion-shell .fc-daygrid-day-frame {
   min-height: 100px;
 }
 
+/* Woche/Tag Ganztägig: natuerliche Hoehe (kein Monats-Mindestmass) */
+.calendar-notion-shell .fc-timegrid .fc-daygrid-day-frame {
+  min-height: 0;
+}
+
 .calendar-notion-shell .fc-daygrid-day-number {
-  font-size: 11px;
+  font-size: var(--chronell-fc-font-size-xs);
   padding: 6px 8px;
   color: hsl(var(--muted-foreground));
   font-weight: 500;
@@ -446,8 +523,8 @@
 }
 
 .calendar-notion-shell .fc-timegrid .fc-daygrid-event .fc-cal-event-custom {
-  min-height: 1.2rem;
-  padding: 2px 16px 2px 4px;
+  min-height: 1.05rem;
+  padding: 1px 14px 1px 4px;
 }
 
 .calendar-notion-shell .fc-timegrid .fc-daygrid-event .fc-cal-event-custom-title {
@@ -500,7 +577,7 @@
 }
 
 .calendar-notion-shell .fc-multimonth-title {
-  font-size: 13px;
+  font-size: var(--chronell-fc-font-size-md);
   font-weight: 600;
   color: hsl(var(--foreground));
   padding: 0.45rem 0.35rem 0.25rem;
@@ -513,7 +590,7 @@
 }
 
 .calendar-notion-shell .fc-multimonth .fc-col-header-cell-cushion {
-  font-size: 10px;
+  font-size: var(--chronell-fc-font-size-2xs);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -553,7 +630,7 @@
 }
 
 .calendar-notion-shell .fc-multimonth .fc-daygrid-day-number {
-  font-size: 11px;
+  font-size: var(--chronell-fc-font-size-xs);
   font-weight: 600;
   padding: 2px 0;
   color: hsl(var(--foreground));
@@ -574,7 +651,7 @@
 .calendar-notion-shell .fc-multimonth .fc-day-today .fc-daygrid-day-number {
   width: 1.35rem;
   height: 1.35rem;
-  font-size: 11px;
+  font-size: var(--chronell-fc-font-size-xs);
   font-weight: 700;
   display: inline-flex;
   align-items: center;
@@ -624,7 +701,7 @@
 }
 
 .calendar-notion-shell .fc-multimonth .fc-daygrid-more-link {
-  font-size: 9px;
+  font-size: var(--chronell-text-3xs);
   line-height: 1.1;
   padding: 0 2px;
   margin: 0;
@@ -651,17 +728,17 @@
 }
 
 .calendar-notion-shell--multimonth-year .fc-multimonth-title {
-  font-size: 20px;
+  font-size: var(--chronell-text-2xl);
   padding: 0.5rem 0.4rem 0.35rem;
 }
 
 .calendar-notion-shell--multimonth-year .fc-multimonth .fc-col-header-cell-cushion {
-  font-size: 13px;
+  font-size: var(--chronell-fc-font-size-md);
   padding-bottom: 5px;
 }
 
 .calendar-notion-shell--multimonth-year .fc-multimonth .fc-daygrid-day-number {
-  font-size: 14px;
+  font-size: var(--chronell-text-base);
   padding: 3px 0;
 }
 
@@ -673,7 +750,7 @@
 .calendar-notion-shell--multimonth-year .fc-multimonth .fc-day-today .fc-daygrid-day-number {
   width: 1.65rem;
   height: 1.65rem;
-  font-size: 13px;
+  font-size: var(--chronell-fc-font-size-md);
   background: hsl(var(--primary));
   color: hsl(var(--primary-foreground));
 }
@@ -689,7 +766,7 @@
 }
 
 .calendar-notion-shell--multimonth-year .fc-multimonth .fc-daygrid-more-link {
-  font-size: 10px;
+  font-size: var(--chronell-fc-font-size-2xs);
 }
 
 .calendar-notion-shell .fc-scrollgrid-section-body > td {
@@ -706,7 +783,7 @@
   background: hsl(var(--muted)) !important;
   color: hsl(var(--foreground));
   font-weight: 600;
-  font-size: 12px;
+  font-size: var(--chronell-fc-font-size);
 }
 
 .calendar-notion-shell .fc-list-event:hover td {

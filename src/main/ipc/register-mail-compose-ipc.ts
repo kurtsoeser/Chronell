@@ -4,6 +4,7 @@ import {
   type ComposeSendInput,
   type ComposeSaveDraftInput,
   type ComposeSaveDraftResult,
+  type ComposeDisposeDraftInput,
   type ComposeSendResult,
   type ComposeRecipientSuggestion,
   type ComposeListDriveExplorerInput,
@@ -234,6 +235,18 @@ export function registerMailComposeIpc(): void {
         void runFolderSync(draftsFolder.id).catch(() => undefined)
       }
       return result
+    }
+  )
+
+  ipcMain.handle(
+    IPC.compose.disposeDraft,
+    async (_event, input: ComposeDisposeDraftInput): Promise<void> => {
+      if (!input.accountId?.trim()) return
+      await disposeComposeDraft({
+        accountId: input.accountId,
+        remoteDraftId: input.remoteDraftId,
+        linkedMessageId: input.linkedMessageId
+      })
     }
   )
 

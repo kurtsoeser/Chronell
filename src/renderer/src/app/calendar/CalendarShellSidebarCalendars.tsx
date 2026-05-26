@@ -146,7 +146,7 @@ function DroppableBucket({
     >
       {children}
       {emptyLabel ? (
-        <p className="px-2 py-1 text-[10px] text-muted-foreground/80">{emptyLabel}</p>
+        <p className="px-2 py-1 text-2xs text-muted-foreground/80">{emptyLabel}</p>
       ) : null}
     </div>
   )
@@ -340,7 +340,7 @@ export function CalendarShellSidebarCalendars({
       <li key={`${accountId}:${c.id}`} className="list-none">
         <div
           className={cn(
-            'flex w-full cursor-context-menu items-center gap-0.5 rounded-md px-0.5 py-1.5 text-left text-[12px] text-muted-foreground'
+            'flex w-full cursor-context-menu items-center gap-0.5 rounded-md px-0.5 py-1.5 text-left text-sm text-muted-foreground'
           )}
           onContextMenu={(e): void => {
             if (c.id === SIDEBAR_DEFAULT_CAL_ID) {
@@ -371,7 +371,7 @@ export function CalendarShellSidebarCalendars({
           <CalendarFolderColorSwatch hex={iconHex} />
           <span className="min-w-0 flex-1 truncate text-foreground">{c.name}</span>
           {opts?.showAccountHint && acc ? (
-            <span className="max-w-[72px] shrink-0 truncate text-[9px] text-muted-foreground/70" title={acc.email}>
+            <span className="max-w-[72px] shrink-0 truncate text-3xs text-muted-foreground/70" title={acc.email}>
               {acc.email}
             </span>
           ) : null}
@@ -462,7 +462,7 @@ export function CalendarShellSidebarCalendars({
                   <span className="block truncate text-xs font-semibold text-foreground">
                     {a.displayName || a.email}
                   </span>
-                  <span className="block truncate text-[10px] text-muted-foreground">{a.email}</span>
+                  <span className="block truncate text-2xs text-muted-foreground">{a.email}</span>
                 </span>
               </button>
               <AccountSyncStatusButton
@@ -482,7 +482,7 @@ export function CalendarShellSidebarCalendars({
                   className="left-0 top-1 bottom-1 w-0.5 rounded-full opacity-60"
                 />
                 {showCalLoading ? (
-                  <div className="flex items-center gap-2 px-2 py-1.5 text-[10px] text-muted-foreground">
+                  <div className="flex items-center gap-2 px-2 py-1.5 text-2xs text-muted-foreground">
                     <Loader2 className="h-3 w-3 shrink-0 animate-spin" />
                     {t('calendar.shell.calendarsLoading')}
                   </div>
@@ -543,7 +543,7 @@ export function CalendarShellSidebarCalendars({
                               className="min-w-0 flex-1 rounded-md py-0.5 text-left hover:bg-secondary/40"
                               title={group.name}
                             >
-                              <p className="truncate px-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                              <p className="truncate px-0.5 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
                                 {group.name}
                               </p>
                             </button>
@@ -571,7 +571,7 @@ export function CalendarShellSidebarCalendars({
                               setNewAccountGroupDraft((d) => (d ? { ...d, name: e.target.value } : d))
                             }
                             placeholder={t('calendar.shell.sidebarGroupNamePlaceholder')}
-                            className="w-full rounded-md border border-border bg-background px-2 py-1 text-[11px]"
+                            className="w-full rounded-md border border-border bg-background px-2 py-1 text-xs"
                             autoFocus
                             onKeyDown={(e): void => {
                               if (e.key === 'Escape') {
@@ -589,7 +589,7 @@ export function CalendarShellSidebarCalendars({
                           <div className="flex gap-1">
                             <button
                               type="button"
-                              className="rounded-md bg-primary px-2 py-1 text-[11px] text-primary-foreground"
+                              className="rounded-md bg-primary px-2 py-1 text-xs text-primary-foreground"
                               onClick={(): void => {
                                 const name = newAccountGroupDraft.name.trim()
                                 if (name) setLayout((prev) => addAccountGroup(prev, a.id, name))
@@ -600,7 +600,7 @@ export function CalendarShellSidebarCalendars({
                             </button>
                             <button
                               type="button"
-                              className="rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:bg-secondary/60"
+                              className="rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-secondary/60"
                               onClick={(): void => setNewAccountGroupDraft(null)}
                             >
                               {t('calendar.shell.sidebarCancel')}
@@ -611,7 +611,7 @@ export function CalendarShellSidebarCalendars({
                         <button
                           type="button"
                           onClick={(): void => setNewAccountGroupDraft({ accountId: a.id, name: '' })}
-                          className="w-full rounded-md px-2 py-1.5 text-left text-[11px] text-primary hover:bg-primary/10"
+                          className="w-full rounded-md px-2 py-1.5 text-left text-xs text-primary hover:bg-primary/10"
                         >
                           {t('calendar.shell.sidebarAddAccountGroup')}
                         </button>
@@ -644,11 +644,11 @@ export function CalendarShellSidebarCalendars({
                             {groupBranchOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
                           </button>
                           <Users className="h-3.5 w-3.5 shrink-0 text-muted-foreground/80" aria-hidden />
-                          <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-muted-foreground">
+                          <span className="min-w-0 flex-1 truncate text-xs font-medium text-muted-foreground">
                             {t('calendar.shell.groupCalendarsSubgroup')}
                           </span>
                           {groupTotalBadge != null ? (
-                            <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground/90">
+                            <span className="shrink-0 text-2xs tabular-nums text-muted-foreground/90">
                               ({groupTotalBadge})
                             </span>
                           ) : null}
@@ -656,14 +656,14 @@ export function CalendarShellSidebarCalendars({
                         {groupBranchOpen ? (
                           <ul className="relative mt-1 ml-4 space-y-0.5 border-l border-border/60 pl-2">
                             {groupLoading && groupList.length === 0 ? (
-                              <li className="flex items-center gap-2 px-1 py-1 text-[10px] text-muted-foreground">
+                              <li className="flex items-center gap-2 px-1 py-1 text-2xs text-muted-foreground">
                                 <Loader2 className="h-3 w-3 shrink-0 animate-spin" />
                                 {t('calendar.shell.groupCalendarsLoading')}
                               </li>
                             ) : !groupLoading &&
                               groupList.length === 0 &&
                               (!groupPaging || groupPaging.total === 0) ? (
-                              <li className="px-1 py-1 text-[10px] leading-snug text-muted-foreground">
+                              <li className="px-1 py-1 text-2xs leading-snug text-muted-foreground">
                                 {t('calendar.shell.groupCalendarsEmptyHint')}
                               </li>
                             ) : (
@@ -678,7 +678,7 @@ export function CalendarShellSidebarCalendars({
                                         void fetchMoreMicrosoft365GroupCalendars(a.id, groupPaging.nextOffset)
                                       }}
                                       className={cn(
-                                        'w-full rounded-md px-2 py-1.5 text-left text-[11px] font-medium text-primary hover:bg-primary/10',
+                                        'w-full rounded-md px-2 py-1.5 text-left text-xs font-medium text-primary hover:bg-primary/10',
                                         groupLoading && 'cursor-not-allowed opacity-50'
                                       )}
                                     >
@@ -714,7 +714,7 @@ export function CalendarShellSidebarCalendars({
   const renderSectionsMode = (): JSX.Element => (
     <div className="space-y-3">
       <div>
-        <p className="mb-1 px-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <p className="mb-1 px-1 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
           {t('calendar.shell.sidebarUngroupedLabel')}
         </p>
         <DroppableBucket
@@ -780,7 +780,7 @@ export function CalendarShellSidebarCalendars({
             setAddingGlobalSection(true)
             setNewGlobalSectionName('')
           }}
-          className="w-full rounded-md px-2 py-1.5 text-left text-[11px] text-primary hover:bg-primary/10"
+          className="w-full rounded-md px-2 py-1.5 text-left text-xs text-primary hover:bg-primary/10"
         >
           {t('calendar.shell.sidebarAddGlobalSection')}
         </button>
@@ -790,7 +790,7 @@ export function CalendarShellSidebarCalendars({
             value={newGlobalSectionName}
             onChange={(e): void => setNewGlobalSectionName(e.target.value)}
             placeholder={t('calendar.shell.sidebarSectionNamePlaceholder')}
-            className="w-full rounded-md border border-border bg-background px-2 py-1 text-[11px]"
+            className="w-full rounded-md border border-border bg-background px-2 py-1 text-xs"
             autoFocus
             onKeyDown={(e): void => {
               if (e.key === 'Escape') {
@@ -808,7 +808,7 @@ export function CalendarShellSidebarCalendars({
           <div className="flex gap-1">
             <button
               type="button"
-              className="rounded-md bg-primary px-2 py-1 text-[11px] text-primary-foreground"
+              className="rounded-md bg-primary px-2 py-1 text-xs text-primary-foreground"
               onClick={(): void => {
                 const name = newGlobalSectionName.trim()
                 if (name) setLayout((prev) => addGlobalSection(prev, name))
@@ -820,7 +820,7 @@ export function CalendarShellSidebarCalendars({
             </button>
             <button
               type="button"
-              className="rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:bg-secondary/60"
+              className="rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-secondary/60"
               onClick={(): void => {
                 setAddingGlobalSection(false)
                 setNewGlobalSectionName('')
@@ -836,7 +836,7 @@ export function CalendarShellSidebarCalendars({
 
   return (
     <div>
-      <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+      <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         {layout.listMode === 'accounts' ? t('calendar.shell.accountsSection') : t('calendar.shell.sidebarListModeSections')}
       </p>
 
@@ -845,7 +845,7 @@ export function CalendarShellSidebarCalendars({
           type="button"
           onClick={(): void => setLayout((p) => ({ ...p, listMode: 'accounts' }))}
           className={cn(
-            'flex-1 rounded-md px-2 py-1.5 text-[11px] font-medium transition-colors',
+            'flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors',
             layout.listMode === 'accounts' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground'
           )}
         >
@@ -855,7 +855,7 @@ export function CalendarShellSidebarCalendars({
           type="button"
           onClick={(): void => setLayout((p) => ({ ...p, listMode: 'sections' }))}
           className={cn(
-            'flex-1 rounded-md px-2 py-1.5 text-[11px] font-medium transition-colors',
+            'flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors',
             layout.listMode === 'sections' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground'
           )}
         >
@@ -867,14 +867,14 @@ export function CalendarShellSidebarCalendars({
         <button
           type="button"
           onClick={showAllCalendarsInView}
-          className="mb-2 w-full rounded-lg px-2 py-2 text-left text-[12px] text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground"
+          className="mb-2 w-full rounded-lg px-2 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground"
         >
           {t('calendar.shell.showAllCalendars')}
         </button>
       ) : null}
 
       {calendarLinkedAccounts.length === 0 ? (
-        <p className="px-2 text-[12px] text-muted-foreground">{t('calendar.shell.noLinkedAccount')}</p>
+        <p className="px-2 text-sm text-muted-foreground">{t('calendar.shell.noLinkedAccount')}</p>
       ) : (
         <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
           {layout.listMode === 'accounts' ? renderAccountsMode() : renderSectionsMode()}

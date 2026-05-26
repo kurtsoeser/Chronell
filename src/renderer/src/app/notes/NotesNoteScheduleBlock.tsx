@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { ChronellDateField } from '@/components/ChronellDateField'
 import type { UserNote } from '@shared/types'
 
 function toLocalDateInput(iso: string | null): string {
@@ -27,8 +28,16 @@ function combineLocalDateTime(date: string, time: string): string | null {
   return d.toISOString()
 }
 
+function addMinutesToTimeInput(startTime: string, minutes: number): string {
+  const [h, m] = startTime.split(':').map(Number)
+  const total = (h * 60 + m + minutes) % (24 * 60)
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
+}
+
 export interface NotesNoteScheduleBlockProps {
   note: Pick<UserNote, 'scheduledStartIso' | 'scheduledEndIso' | 'scheduledAllDay'>
+  defaultExpanded?: boolean
+  defaultDurationMinutes?: number
   disabled?: boolean
   onChange: (value: {
     scheduledStartIso: string | null
@@ -40,10 +49,13 @@ export interface NotesNoteScheduleBlockProps {
 
 export function NotesNoteScheduleBlock({
   note,
+  defaultExpanded = false,
+  defaultDurationMinutes = 30,
   disabled = false,
   onChange
 }: NotesNoteScheduleBlockProps): JSX.Element {
   const { t } = useTranslation()
+  const [blockOpen, setBlockOpen] = useState(defaultExpanded || Boolean(note.scheduledStartIso))
   const [enabled, setEnabled] = useState(Boolean(note.scheduledStartIso))
   const [allDay, setAllDay] = useState(note.scheduledAllDay)
   const [date, setDate] = useState(() => toLocalDateInput(note.scheduledStartIso))
@@ -51,12 +63,14 @@ export function NotesNoteScheduleBlock({
   const [endTime, setEndTime] = useState(() => toLocalTimeInput(note.scheduledEndIso))
 
   useEffect(() => {
-    setEnabled(Boolean(note.scheduledStartIso))
+    const hasSchedule = Boolean(note.scheduledStartIso)
+    setEnabled(hasSchedule)
+    setBlockOpen(defaultExpanded || hasSchedule)
     setAllDay(note.scheduledAllDay)
     setDate(toLocalDateInput(note.scheduledStartIso))
     setStartTime(toLocalTimeInput(note.scheduledStartIso))
     setEndTime(toLocalTimeInput(note.scheduledEndIso))
-  }, [note.scheduledStartIso, note.scheduledEndIso, note.scheduledAllDay])
+  }, [note.scheduledStartIso, note.scheduledEndIso, note.scheduledAllDay, defaultExpanded])
 
   function emit(nextEnabled: boolean, nextAllDay: boolean, nextDate: string, nextStart: string, nextEnd: string): void {
     if (!nextEnabled) {
@@ -88,20 +102,40 @@ export function NotesNoteScheduleBlock({
 
   return (
     <div className="rounded-lg border border-border bg-background/60 p-3">
-      <label className="flex items-center gap-2 text-xs font-medium text-foreground">
-        <input
-          type="checkbox"
-          checked={enabled}
-          disabled={disabled}
-          onChange={(e): void => {
-            const next = e.target.checked
-            setEnabled(next)
-            emit(next, allDay, date, startTime, endTime)
-          }}
-        />
-        {t('notes.schedule.enable')}
-      </label>
-      {enabled ? (
+      <button
+        type="button"
+        onClick={(): void => setBlockOpen((o) => !o)}
+        className="flex w-full items-center justify-between gap-2 text-left text-xs font-medium text-foreground"
+      >
+        <span>{t('notes.schedule.sectionTitle')}</span>
+        <span className="text-muted-foreground">{blockOpen ? '▾' : '▸'}</span>
+      </button>
+      {blockOpen ? (
+        <label className="mt-2 flex items-center gap-2 text-xs font-medium text-foreground">
+          <input
+            type="checkbox"
+            checked={enabled}
+            disabled={disabled}
+            onChange={(e): void => {
+              const next = e.target.checked
+              setEnabled(next)
+              if (next && !note.scheduledStartIso) {
+                const today = toLocalDateInput(new Date().toISOString())
+                const start = toLocalTimeInput(new Date().toISOString())
+                const end = addMinutesToTimeInput(start, defaultDurationMinutes)
+                setDate(today)
+                setStartTime(start)
+                setEndTime(end)
+                emit(true, allDay, today, start, end)
+                return
+              }
+              emit(next, allDay, date, startTime, endTime)
+            }}
+          />
+          {t('notes.schedule.enable')}
+        </label>
+      ) : null}
+      {blockOpen && enabled ? (
         <div className="mt-3 space-y-2">
           <label className="flex items-center gap-2 text-xs text-muted-foreground">
             <input
@@ -116,16 +150,13 @@ export function NotesNoteScheduleBlock({
             />
             {t('notes.schedule.allDay')}
           </label>
-          <input
-            type="date"
+          <ChronellDateField
             value={date}
             disabled={disabled}
-            onChange={(e): void => {
-              const next = e.target.value
+            onChange={(next): void => {
               setDate(next)
               emit(true, allDay, next, startTime, endTime)
             }}
-            className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs"
           />
           {!allDay ? (
             <div className="grid grid-cols-2 gap-2">

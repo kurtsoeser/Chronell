@@ -69,6 +69,12 @@ const SettingsMailListHoverActionsSection = lazy(() =>
 const AccountSetupNotesPanel = lazy(
   () => import('@/components/account-setup/AccountSetupNotesPanel')
 )
+const AccountSetupTasksPanel = lazy(
+  () => import('@/components/account-setup/AccountSetupTasksPanel')
+)
+const AccountSetupCalendarPanel = lazy(
+  () => import('@/components/account-setup/AccountSetupCalendarPanel')
+)
 const SettingsAiConnectionsSection = lazy(() =>
   import('@/components/account-setup/SettingsAiConnectionsSection').then((m) => ({
     default: m.SettingsAiConnectionsSection
@@ -141,16 +147,17 @@ import {
   FileSearch
 } from 'lucide-react'
 
-type SettingsTab = 'general' | 'accounts' | 'mail' | 'calendar' | 'bookings' | 'contacts' | 'notes' | 'info'
+type SettingsTab = 'general' | 'accounts' | 'mail' | 'calendar' | 'bookings' | 'contacts' | 'notes' | 'tasks' | 'info'
 
 const SETTINGS_SUB_DEFAULT: Record<SettingsTab, string> = {
   general: 'language',
   accounts: 'connected',
   mail: 'sync',
-  calendar: 'timezone',
+  calendar: 'workspace',
   bookings: 'overview',
   contacts: 'workspace',
   notes: 'workspace',
+  tasks: 'workspace',
   info: 'about'
 }
 
@@ -211,7 +218,7 @@ function renderCalendarSidebarCheckboxRow(
           onToggle(accId, cal.id, e.target.checked)
         }}
       />
-      <span className="min-w-0 flex-1 text-[11px] leading-snug text-foreground">{cal.name}</span>
+      <span className="min-w-0 flex-1 text-xs leading-snug text-foreground">{cal.name}</span>
     </label>
   )
 }
@@ -304,6 +311,7 @@ export function AccountSetupDialog({
         { id: 'bookings' as const, label: t('settings.tabBookings') },
         { id: 'contacts' as const, label: t('settings.tabContacts') },
         { id: 'notes' as const, label: t('settings.tabNotes') },
+        { id: 'tasks' as const, label: t('settings.tabTasks') },
         { id: 'info' as const, label: t('settings.tabInfo') }
       ] satisfies Array<{ id: SettingsTab; label: string }>,
     [t]
@@ -501,6 +509,12 @@ export function AccountSetupDialog({
         ]
       case 'calendar':
         return [
+          { id: 'workspace', label: t('settings.calendarWorkspaceHeading') },
+          { id: 'display', label: t('settings.calendarDisplayHeading') },
+          { id: 'layers', label: t('settings.calendarLayersHeading') },
+          { id: 'panels', label: t('settings.calendarPanelsHeading') },
+          { id: 'timeline', label: t('settings.calendarTimelineHeading') },
+          { id: 'advanced', label: t('settings.calendarAdvancedHeading') },
           { id: 'timezone', label: t('settings.calendarTzHeading') },
           { id: 'bookWithMe', label: t('settings.bookWithMeHeading') },
           { id: 'api', label: t('settings.calendarApiHeading') },
@@ -522,10 +536,24 @@ export function AccountSetupDialog({
       case 'notes':
         return [
           { id: 'workspace', label: t('settings.notesWorkspaceHeading') },
+          { id: 'display', label: t('settings.notesDisplayHeading') },
+          { id: 'editor', label: t('settings.notesEditorHeading') },
           { id: 'sidebar', label: t('settings.notesSidebarHeading') },
           { id: 'pages', label: t('settings.notesPagesHeading') },
           { id: 'calendar', label: t('settings.notesCalendarHeading') },
-          { id: 'linked', label: t('settings.notesLinkedHeading') }
+          { id: 'linked', label: t('settings.notesLinkedHeading') },
+          { id: 'workflow', label: t('settings.notesWorkflowHeading') }
+        ]
+      case 'tasks':
+        return [
+          { id: 'workspace', label: t('settings.tasksWorkspaceHeading') },
+          { id: 'display', label: t('settings.tasksDisplayHeading') },
+          { id: 'list', label: t('settings.tasksListHeading') },
+          { id: 'due', label: t('settings.tasksDueHeading') },
+          { id: 'kanban', label: t('settings.tasksKanbanHeading') },
+          { id: 'mail', label: t('settings.tasksMailHeading') },
+          { id: 'detail', label: t('settings.tasksDetailHeading') },
+          { id: 'sync', label: t('settings.tasksSyncHeading') }
         ]
       case 'info':
         return [{ id: 'about', label: t('settings.infoAboutHeading') }]
@@ -1284,7 +1312,7 @@ export function AccountSetupDialog({
     <ModalRoot open={open} zIndex={200} onBackdropClick={onClose}>
       <ModalPanel
         aria-labelledby="settings-dialog-title"
-        className="account-setup-dialog flex max-h-[92vh] w-[min(960px,96vw)] max-w-[96vw] flex-col overflow-hidden rounded-xl border border-border bg-card text-foreground shadow-2xl"
+        className="account-setup-dialog flex max-h-[92vh] w-[min(960px,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-xl border border-border bg-card text-foreground shadow-2xl"
       >
         <div className="flex items-center justify-between border-b border-white/[0.04] px-5 py-3.5 dark:border-white/[0.04]">
           <h2 id="settings-dialog-title" className="text-sm font-semibold">
@@ -1324,7 +1352,7 @@ export function AccountSetupDialog({
                     setSubNavId((prev) => ({ ...prev, [activeTab]: item.id }))
                   }}
                   className={cn(
-                    'w-full rounded-md px-2 py-2 text-left text-[11px] font-medium leading-snug transition-colors',
+                    'w-full rounded-md px-2 py-2 text-left text-xs font-medium leading-snug transition-colors',
                     subNavId[activeTab] === item.id
                       ? 'bg-secondary text-foreground shadow-sm'
                       : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground'
@@ -1375,7 +1403,7 @@ export function AccountSetupDialog({
                   {t('settings.appearanceHeading')}
                 </h3>
               <p className="text-xs leading-relaxed text-muted-foreground">{t('settings.uiScaleHint')}</p>
-              <p className="text-[10px] leading-relaxed text-muted-foreground">{t('settings.uiScaleShortcuts')}</p>
+              <p className="text-2xs leading-relaxed text-muted-foreground">{t('settings.uiScaleShortcuts')}</p>
               <SettingsScaleControl
                 id="mailclient-ui-scale"
                 label={t('settings.uiScaleLabel')}
@@ -1390,7 +1418,7 @@ export function AccountSetupDialog({
                 resetLabel={t('settings.scaleReset')}
               />
               <div className="mt-3">
-                <label htmlFor="mailclient-theme-mode" className="block text-[11px] font-medium text-foreground mb-1">
+                <label htmlFor="mailclient-theme-mode" className="block text-xs font-medium text-foreground mb-1">
                   {t('topbar.appearance')}
                 </label>
                 <select
@@ -1405,7 +1433,7 @@ export function AccountSetupDialog({
                 </select>
 
                 <div className="mt-3">
-                  <label htmlFor="mailclient-theme-accent" className="block text-[11px] font-medium text-foreground mb-1">
+                  <label htmlFor="mailclient-theme-accent" className="block text-xs font-medium text-foreground mb-1">
                     {t('settings.accentLabel')}
                   </label>
                   <select
@@ -1424,7 +1452,7 @@ export function AccountSetupDialog({
 
                 <SettingsThemeColorsSection />
 
-                <p className="text-[10px] leading-relaxed text-muted-foreground mt-1">{t('settings.themeHint')}</p>
+                <p className="text-2xs leading-relaxed text-muted-foreground mt-1">{t('settings.themeHint')}</p>
               </div>
             </section>
             )}
@@ -1441,7 +1469,7 @@ export function AccountSetupDialog({
                   {t('settings.dashboardGridHeading')}
                 </h3>
                 <p className="text-xs leading-relaxed text-muted-foreground">{t('settings.dashboardGridHint')}</p>
-                <label htmlFor="mailclient-dash-grid-step" className="block text-[11px] font-medium text-foreground">
+                <label htmlFor="mailclient-dash-grid-step" className="block text-xs font-medium text-foreground">
                   {t('settings.dashboardGridLabel')}
                 </label>
                 <input
@@ -1461,7 +1489,7 @@ export function AccountSetupDialog({
                   }}
                   className="w-full max-w-xs rounded-md border border-border bg-background px-3 py-1.5 text-xs tabular-nums outline-none focus:border-ring"
                 />
-                <p className="text-[10px] leading-relaxed text-muted-foreground">
+                <p className="text-2xs leading-relaxed text-muted-foreground">
                   {t('settings.dashboardGridRange', {
                     min: DASHBOARD_GRID_STEP_MIN_PX,
                     max: DASHBOARD_GRID_STEP_MAX_PX,
@@ -1478,7 +1506,7 @@ export function AccountSetupDialog({
                   {t('settings.weatherHeading')}
                 </h3>
                 <p className="text-xs leading-relaxed text-muted-foreground">{t('settings.weatherIntro')}</p>
-                <label htmlFor="mailclient-weather-place" className="block text-[11px] font-medium text-foreground">
+                <label htmlFor="mailclient-weather-place" className="block text-xs font-medium text-foreground">
                   {t('settings.weatherPlaceLabel')}
                 </label>
                 <div className="flex flex-wrap gap-2">
@@ -1519,7 +1547,7 @@ export function AccountSetupDialog({
                   </button>
                 </div>
                 {config?.weatherLatitude != null && config?.weatherLongitude != null ? (
-                  <p className="text-[10px] text-muted-foreground">
+                  <p className="text-2xs text-muted-foreground">
                     {t('settings.weatherActive', {
                       name: config.weatherLocationName ?? t('settings.weatherCoordsFallback'),
                       lat: config.weatherLatitude.toFixed(2),
@@ -1527,7 +1555,7 @@ export function AccountSetupDialog({
                     })}
                   </p>
                 ) : null}
-                {weatherMsg ? <p className="text-[10px] text-emerald-600 dark:text-emerald-500">{weatherMsg}</p> : null}
+                {weatherMsg ? <p className="text-2xs text-emerald-600 dark:text-emerald-500">{weatherMsg}</p> : null}
               </section>
               )}
 
@@ -1543,7 +1571,7 @@ export function AccountSetupDialog({
               <details className="group rounded-md bg-background/60">
                 <summary className="cursor-pointer list-none px-3 py-2 text-xs font-medium text-foreground marker:content-none [&::-webkit-details-marker]:hidden">
                   <span className="underline-offset-2 group-open:underline">{t('settings.oauthSummary')}</span>
-                  <span className="mt-0.5 block text-[10px] font-normal text-muted-foreground">
+                  <span className="mt-0.5 block text-2xs font-normal text-muted-foreground">
                     {t('settings.oauthSub')}
                   </span>
                 </summary>
@@ -1576,7 +1604,7 @@ export function AccountSetupDialog({
                       </button>
                     </div>
                     {hasClientId && (
-                      <p className="text-[10px] text-emerald-500">{t('settings.azureActive')}</p>
+                      <p className="text-2xs text-emerald-500">{t('settings.azureActive')}</p>
                     )}
                   </section>
 
@@ -1626,7 +1654,7 @@ export function AccountSetupDialog({
                       </button>
                     </div>
                     {googleOAuthReady && (
-                      <p className="text-[10px] text-emerald-500">{t('settings.googleActive')}</p>
+                      <p className="text-2xs text-emerald-500">{t('settings.googleActive')}</p>
                     )}
                   </section>
                 </div>
@@ -1671,7 +1699,7 @@ export function AccountSetupDialog({
                     onNotice={setBackupNotice}
                   />
                   {backupNotice ? (
-                    <p className="text-[10px] text-emerald-600 dark:text-emerald-500">{backupNotice}</p>
+                    <p className="text-2xs text-emerald-600 dark:text-emerald-500">{backupNotice}</p>
                   ) : null}
                 </>
               )}
@@ -1736,10 +1764,10 @@ export function AccountSetupDialog({
                 <p className="text-xs leading-relaxed text-muted-foreground">{t('settings.accountsIntro')}</p>
 
                 {mailCacheNotice ? (
-                  <p className="text-[10px] text-emerald-600 dark:text-emerald-500">{mailCacheNotice}</p>
+                  <p className="text-2xs text-emerald-600 dark:text-emerald-500">{mailCacheNotice}</p>
                 ) : null}
                 {tasksCacheNotice ? (
-                  <p className="text-[10px] text-emerald-600 dark:text-emerald-500">{tasksCacheNotice}</p>
+                  <p className="text-2xs text-emerald-600 dark:text-emerald-500">{tasksCacheNotice}</p>
                 ) : null}
 
                 {accounts.length === 0 ? (
@@ -1756,7 +1784,7 @@ export function AccountSetupDialog({
                         <div className="flex items-center gap-3">
                           <div
                             className={cn(
-                              'flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-white',
+                              'flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-2xs font-semibold text-white',
                               accountColorToCssBackground(acc.color) ? '' : acc.color
                             )}
                             style={
@@ -1771,7 +1799,7 @@ export function AccountSetupDialog({
                             <div className="truncate text-xs font-medium text-foreground">
                               {acc.displayName}
                             </div>
-                            <div className="truncate text-[10px] text-muted-foreground">{acc.email}</div>
+                            <div className="truncate text-2xs text-muted-foreground">{acc.email}</div>
                           </div>
                           <div className="flex shrink-0 items-center gap-0.5">
                             {acc.provider === 'microsoft' ? (
@@ -2009,7 +2037,7 @@ export function AccountSetupDialog({
                     onReset={resetMailPreviewScale}
                     resetLabel={t('settings.scaleReset')}
                   />
-                  <p className="text-[10px] leading-relaxed text-muted-foreground">
+                  <p className="text-2xs leading-relaxed text-muted-foreground">
                     {t('settings.mailPreviewZoomShortcuts')}
                   </p>
                 </div>
@@ -2150,7 +2178,7 @@ export function AccountSetupDialog({
                                 )
                               }}
                             />
-                            <span className="min-w-0 flex-1 text-[11px] leading-snug text-foreground">
+                            <span className="min-w-0 flex-1 text-xs leading-snug text-foreground">
                               {folder.name}
                             </span>
                           </label>
@@ -2198,19 +2226,19 @@ export function AccountSetupDialog({
                         type="button"
                         disabled={wfBusy || !wfAccountId}
                         onClick={(): void => void handleWfEnsureDefaults()}
-                        className="shrink-0 rounded-md border border-border bg-secondary px-2 py-1 text-[10px] font-medium text-secondary-foreground hover:bg-secondary/80 disabled:opacity-50"
+                        className="shrink-0 rounded-md border border-border bg-secondary px-2 py-1 text-2xs font-medium text-secondary-foreground hover:bg-secondary/80 disabled:opacity-50"
                       >
                         {t('settings.wfEnsureDefaults')}
                       </button>
                     </div>
                     {wfErr && (
-                      <div className="rounded border border-destructive/40 bg-destructive/10 p-2 text-[10px] text-destructive">
+                      <div className="rounded border border-destructive/40 bg-destructive/10 p-2 text-2xs text-destructive">
                         {wfErr}
                       </div>
                     )}
                     <div className="grid gap-2 sm:grid-cols-2">
                       <div className="space-y-1">
-                        <span className="text-[10px] text-muted-foreground">{t('settings.wfWipLabel')}</span>
+                        <span className="text-2xs text-muted-foreground">{t('settings.wfWipLabel')}</span>
                         <select
                           value={wfWipPick}
                           onChange={(e): void => setWfWipPick(e.target.value)}
@@ -2226,7 +2254,7 @@ export function AccountSetupDialog({
                         </select>
                       </div>
                       <div className="space-y-1">
-                        <span className="text-[10px] text-muted-foreground">{t('settings.wfDoneLabel')}</span>
+                        <span className="text-2xs text-muted-foreground">{t('settings.wfDoneLabel')}</span>
                         <select
                           value={wfDonePick}
                           onChange={(e): void => setWfDonePick(e.target.value)}
@@ -2246,7 +2274,7 @@ export function AccountSetupDialog({
                       type="button"
                       disabled={wfBusy || !wfAccountId}
                       onClick={(): void => void handleWfSaveMapping()}
-                      className="inline-flex w-full items-center justify-center gap-1 rounded-md bg-primary px-2 py-1.5 text-[10px] font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 sm:w-auto"
+                      className="inline-flex w-full items-center justify-center gap-1 rounded-md bg-primary px-2 py-1.5 text-2xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 sm:w-auto"
                     >
                       {wfBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
                       {t('settings.wfSaveMapping')}
@@ -2291,21 +2319,21 @@ export function AccountSetupDialog({
                         type="button"
                         disabled={catBusy || !categoryAccountId}
                         onClick={(): void => void refreshMasterCategories()}
-                        className="shrink-0 rounded-md border border-border bg-secondary px-2 py-1 text-[10px] font-medium text-secondary-foreground hover:bg-secondary/80 disabled:opacity-50"
+                        className="shrink-0 rounded-md border border-border bg-secondary px-2 py-1 text-2xs font-medium text-secondary-foreground hover:bg-secondary/80 disabled:opacity-50"
                       >
                         {t('common.refresh')}
                       </button>
                     </div>
 
                     {catErr && (
-                      <div className="rounded border border-destructive/40 bg-destructive/10 p-2 text-[10px] text-destructive">
+                      <div className="rounded border border-destructive/40 bg-destructive/10 p-2 text-2xs text-destructive">
                         {catErr}
                       </div>
                     )}
 
                     <div className="flex flex-wrap items-end gap-2 rounded-md bg-background/60 p-2">
                       <div className="min-w-0 flex-1 space-y-1">
-                        <span className="text-[10px] text-muted-foreground">{t('settings.newCategory')}</span>
+                        <span className="text-2xs text-muted-foreground">{t('settings.newCategory')}</span>
                         <input
                           value={newCatName}
                           onChange={(e): void => setNewCatName(e.target.value)}
@@ -2316,7 +2344,7 @@ export function AccountSetupDialog({
                       <select
                         value={newCatColor}
                         onChange={(e): void => setNewCatColor(e.target.value)}
-                        className="rounded border border-border bg-background px-1 py-1 text-[10px] outline-none"
+                        className="rounded border border-border bg-background px-1 py-1 text-2xs outline-none"
                       >
                         {OUTLOOK_COLOR_PRESET_OPTIONS.map((o) => (
                           <option key={o.value} value={o.value}>
@@ -2328,7 +2356,7 @@ export function AccountSetupDialog({
                         type="button"
                         disabled={catBusy || !newCatName.trim()}
                         onClick={(): void => void handleCreateMasterCategory()}
-                        className="inline-flex shrink-0 items-center gap-1 rounded-md bg-primary px-2 py-1 text-[10px] font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                        className="inline-flex shrink-0 items-center gap-1 rounded-md bg-primary px-2 py-1 text-2xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                       >
                         {catBusy ? (
                           <Loader2 className="h-3 w-3 animate-spin" />
@@ -2368,7 +2396,7 @@ export function AccountSetupDialog({
                                 <select
                                   value={editColor}
                                   onChange={(e): void => setEditColor(e.target.value)}
-                                  className="rounded border border-border bg-background text-[10px]"
+                                  className="rounded border border-border bg-background text-2xs"
                                 >
                                   {OUTLOOK_COLOR_PRESET_OPTIONS.map((o) => (
                                     <option key={o.value} value={o.value}>
@@ -2380,7 +2408,7 @@ export function AccountSetupDialog({
                                   type="button"
                                   disabled={catBusy || !editName.trim()}
                                   onClick={(): void => void handleSaveMasterCategoryEdit()}
-                                  className="text-[10px] font-medium text-primary hover:underline disabled:opacity-50"
+                                  className="text-2xs font-medium text-primary hover:underline disabled:opacity-50"
                                 >
                                   {t('common.save')}
                                 </button>
@@ -2388,7 +2416,7 @@ export function AccountSetupDialog({
                                   type="button"
                                   disabled={catBusy}
                                   onClick={(): void => setEditingId(null)}
-                                  className="text-[10px] text-muted-foreground hover:text-foreground"
+                                  className="text-2xs text-muted-foreground hover:text-foreground"
                                 >
                                   {t('common.cancel')}
                                 </button>
@@ -2404,7 +2432,7 @@ export function AccountSetupDialog({
                                     setEditName(c.displayName)
                                     setEditColor(c.color || 'preset4')
                                   }}
-                                  className="shrink-0 text-[10px] text-muted-foreground hover:text-foreground"
+                                  className="shrink-0 text-2xs text-muted-foreground hover:text-foreground"
                                 >
                                   {t('common.edit')}
                                 </button>
@@ -2454,6 +2482,17 @@ export function AccountSetupDialog({
 
           {activeTab === 'calendar' && (
             <div role="tabpanel" aria-label={t('settings.tabCalendar')} className="space-y-5">
+              {(subNavId.calendar === 'workspace' ||
+                subNavId.calendar === 'display' ||
+                subNavId.calendar === 'layers' ||
+                subNavId.calendar === 'panels' ||
+                subNavId.calendar === 'timeline' ||
+                subNavId.calendar === 'advanced') && (
+                <Suspense fallback={<AccountSetupPanelFallback />}>
+                  <AccountSetupCalendarPanel section={subNavId.calendar} onClose={onClose} />
+                </Suspense>
+              )}
+
               {subNavId.calendar === 'timezone' && (
               <section className="space-y-2">
                 <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -2496,7 +2535,7 @@ export function AccountSetupDialog({
                 ) : (
                   <div className="space-y-2">
                     <div>
-                      <div className="mb-1 text-[10px] font-medium text-muted-foreground">
+                      <div className="mb-1 text-2xs font-medium text-muted-foreground">
                         {t('settings.calendarAccountLabel')}
                       </div>
                       <select
@@ -2514,7 +2553,7 @@ export function AccountSetupDialog({
                     </div>
                     {calendarAheadTargetAccount ? (
                       <div className="space-y-1.5">
-                        <div className="text-[10px] font-medium text-muted-foreground">
+                        <div className="text-2xs font-medium text-muted-foreground">
                           {t('settings.calendarAheadLabel')}
                         </div>
                         <select
@@ -2539,7 +2578,7 @@ export function AccountSetupDialog({
                           ))}
                         </select>
                         {aheadSavingAccountId === calendarAheadTargetAccount.id ? (
-                          <p className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                          <p className="flex items-center gap-1 text-2xs text-muted-foreground">
                             <Loader2 className="h-3 w-3 animate-spin" />
                             {t('settings.savingDots')}
                           </p>
@@ -2572,21 +2611,21 @@ export function AccountSetupDialog({
                           className="rounded-md bg-background/60 p-2.5 shadow-sm"
                         >
                           <div className="mb-2 border-b border-white/[0.04] dark:border-white/[0.04] pb-2">
-                            <p className="truncate text-[11px] font-semibold text-foreground">{acc.displayName}</p>
-                            <p className="truncate text-[10px] text-muted-foreground">{acc.email}</p>
-                            <p className="mt-0.5 text-[9px] uppercase tracking-wide text-muted-foreground/90">
+                            <p className="truncate text-xs font-semibold text-foreground">{acc.displayName}</p>
+                            <p className="truncate text-2xs text-muted-foreground">{acc.email}</p>
+                            <p className="mt-0.5 text-3xs uppercase tracking-wide text-muted-foreground/90">
                               {acc.provider === 'google'
                                 ? t('settings.calendarSidebarProviderGoogle')
                                 : t('settings.calendarSidebarProviderMicrosoft')}
                             </p>
                           </div>
                           {!pack || (pack.loading && pack.calendars.length === 0) ? (
-                            <p className="flex items-center gap-1 py-1 text-[10px] text-muted-foreground">
+                            <p className="flex items-center gap-1 py-1 text-2xs text-muted-foreground">
                               <Loader2 className="h-3 w-3 shrink-0 animate-spin" aria-hidden />
                               {t('settings.catLoading')}
                             </p>
                           ) : pack.error ? (
-                            <div className="rounded border border-destructive/40 bg-destructive/10 p-2 text-[10px] text-destructive">
+                            <div className="rounded border border-destructive/40 bg-destructive/10 p-2 text-2xs text-destructive">
                               {pack.error}
                             </div>
                           ) : (
@@ -2605,18 +2644,18 @@ export function AccountSetupDialog({
                               </div>
                               {acc.provider === 'microsoft' ? (
                                 <div className="space-y-1 border-t border-white/[0.04] dark:border-white/[0.04] pt-2">
-                                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                  <p className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
                                     {t('settings.calendarSidebarGroupCalendars')}
                                   </p>
                                   {pack.groupLoading ? (
-                                    <p className="flex items-center gap-1 py-0.5 text-[10px] text-muted-foreground">
+                                    <p className="flex items-center gap-1 py-0.5 text-2xs text-muted-foreground">
                                       <Loader2 className="h-3 w-3 shrink-0 animate-spin" aria-hidden />
                                       {t('settings.calendarSidebarGroupCalendarsLoading')}
                                     </p>
                                   ) : pack.groupError ? (
-                                    <p className="text-[10px] text-destructive">{pack.groupError}</p>
+                                    <p className="text-2xs text-destructive">{pack.groupError}</p>
                                   ) : pack.groupCalendars.length === 0 ? (
-                                    <p className="text-[10px] text-muted-foreground">
+                                    <p className="text-2xs text-muted-foreground">
                                       {t('settings.calendarSidebarGroupCalendarsEmpty')}
                                     </p>
                                   ) : (
@@ -2681,7 +2720,7 @@ export function AccountSetupDialog({
                       <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden />
                       {t('settings.infoHomepageLink')}
                     </button>
-                    <p className="text-[10px] leading-relaxed text-muted-foreground">
+                    <p className="text-2xs leading-relaxed text-muted-foreground">
                       {t('settings.infoHomepageHint')}
                     </p>
                   </div>
@@ -2692,7 +2731,7 @@ export function AccountSetupDialog({
                   <dt className="font-medium text-muted-foreground">{t('settings.infoReleaseDateLabel')}</dt>
                   <dd className="text-foreground">{formatAppReleaseDate(locale)}</dd>
                 </dl>
-                <p className="text-[10px] leading-relaxed text-muted-foreground">
+                <p className="text-2xs leading-relaxed text-muted-foreground">
                   {t('settings.infoBuildNote', { appId: APP_ID })}
                 </p>
               </section>
@@ -2703,6 +2742,12 @@ export function AccountSetupDialog({
           {activeTab === 'notes' && (
             <Suspense fallback={<AccountSetupPanelFallback />}>
               <AccountSetupNotesPanel section={subNavId.notes} onClose={onClose} />
+            </Suspense>
+          )}
+
+          {activeTab === 'tasks' && (
+            <Suspense fallback={<AccountSetupPanelFallback />}>
+              <AccountSetupTasksPanel section={subNavId.tasks} onClose={onClose} />
             </Suspense>
           )}
 

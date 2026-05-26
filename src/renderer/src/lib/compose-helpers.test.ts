@@ -4,7 +4,10 @@ import {
   buildForwardBody,
   buildReplyBody,
   formatRecipientsForInput,
+  formatRecipientsWithTail,
   parseRecipients,
+  parseRecipientsBulk,
+  parseRecipientsWithTail,
   plainToHtml,
   withForwardPrefix,
   withReplyPrefix
@@ -24,6 +27,45 @@ describe('formatRecipientsForInput', () => {
     const s = formatRecipientsForInput([{ address: 'a@b.c', name: 'A' }, { address: 'x@y.z' }])
     expect(s).toContain('A <a@b.c>')
     expect(s).toContain('x@y.z')
+  })
+})
+
+describe('formatRecipientsWithTail / parseRecipientsWithTail', () => {
+  it('erhaelt Leerzeichen im Tail beim Tippen von Namen', () => {
+    expect(formatRecipientsWithTail([], 'Brigit Karre')).toBe('Brigit Karre')
+    const { complete, tail } = parseRecipientsWithTail('Brigit Karre')
+    expect(complete).toEqual([])
+    expect(tail).toBe('Brigit Karre')
+  })
+
+  it('trennt bei Komma, Semikolon und Zeilenumbruch', () => {
+    expect(parseRecipients('a@b.c; b@b.c')).toEqual([
+      { address: 'a@b.c' },
+      { address: 'b@b.c' }
+    ])
+    expect(parseRecipients('a@b.c\nb@b.c')).toEqual([
+      { address: 'a@b.c' },
+      { address: 'b@b.c' }
+    ])
+  })
+})
+
+describe('parseRecipientsBulk', () => {
+  it('parst Tabellenzeilen Name[TAB]E-Mail', () => {
+    expect(parseRecipientsBulk('Brigit Karre\tkarre@haup.ac.at')).toEqual([
+      { address: 'karre@haup.ac.at', name: 'Brigit Karre' }
+    ])
+  })
+
+  it('parst mehrzeilige Listen', () => {
+    expect(
+      parseRecipientsBulk('a@b.c\nMax <max@test.de>\tb@b.c, c@b.c')
+    ).toEqual([
+      { address: 'a@b.c' },
+      { address: 'max@test.de', name: 'Max' },
+      { address: 'b@b.c' },
+      { address: 'c@b.c' }
+    ])
   })
 })
 

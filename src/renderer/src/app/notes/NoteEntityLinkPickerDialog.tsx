@@ -118,7 +118,7 @@ export function NoteEntityLinkPickerDialog({
               type="button"
               onClick={(): void => setPickerKind('all')}
               className={cn(
-                'rounded-md border px-2 py-0.5 text-[10px]',
+                'rounded-md border px-2 py-0.5 text-2xs',
                 pickerKind === 'all'
                   ? 'border-primary bg-primary/10 text-foreground'
                   : 'border-border text-muted-foreground hover:bg-secondary/60'
@@ -132,7 +132,7 @@ export function NoteEntityLinkPickerDialog({
                 type="button"
                 onClick={(): void => setPickerKind(kind)}
                 className={cn(
-                  'rounded-md border px-2 py-0.5 text-[10px]',
+                  'rounded-md border px-2 py-0.5 text-2xs',
                   pickerKind === kind
                     ? 'border-primary bg-primary/10 text-foreground'
                     : 'border-border text-muted-foreground hover:bg-secondary/60'
@@ -168,7 +168,7 @@ export function NoteEntityLinkPickerDialog({
                   >
                     <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                     <span className="min-w-0 flex-1 truncate">{c.title}</span>
-                    <span className="shrink-0 text-[10px] text-muted-foreground">
+                    <span className="shrink-0 text-2xs text-muted-foreground">
                       {t(`notes.links.kind.${c.target.kind}`)}
                     </span>
                   </button>

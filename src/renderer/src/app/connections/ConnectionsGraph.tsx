@@ -638,7 +638,7 @@ export function ConnectionsGraph({
       </div>
       ) : null}
 
-      <p className="pointer-events-none absolute bottom-2 left-3 z-10 max-w-md text-[10px] text-muted-foreground">
+      <p className="pointer-events-none absolute bottom-2 left-3 z-10 max-w-md text-xs text-muted-foreground">
         {paletteDragOver
           ? t('connections.palette.dropHint')
           : linkDrag
@@ -659,7 +659,7 @@ export function ConnectionsGraph({
       </p>
 
       {linkBusy ? (
-        <div className="pointer-events-none absolute left-1/2 top-3 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-md border border-border bg-card/95 px-2 py-1 text-[10px] text-muted-foreground shadow-sm">
+        <div className="pointer-events-none absolute left-1/2 top-3 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-md border border-border bg-card/95 px-2 py-1 text-xs text-muted-foreground shadow-sm">
           <Loader2 className="h-3 w-3 animate-spin" />
           {t('connections.graph.linking')}
         </div>

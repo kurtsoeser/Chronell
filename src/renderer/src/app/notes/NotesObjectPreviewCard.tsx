@@ -28,13 +28,13 @@ export function NotesObjectPreviewCard({
               <div className="min-w-0 flex-1 truncate text-xs font-semibold text-foreground">{subject}</div>
               {note.mailHasAttachments ? <Paperclip className="h-3 w-3 shrink-0 text-muted-foreground" /> : null}
             </div>
-            <div className="mt-0.5 truncate text-[11px] text-muted-foreground">{sender}</div>
+            <div className="mt-0.5 truncate text-xs text-muted-foreground">{sender}</div>
             {note.mailSnippet?.trim() ? (
-              <div className="mt-1 line-clamp-3 text-[11px] leading-snug text-muted-foreground">
+              <div className="mt-1 line-clamp-3 text-xs leading-snug text-muted-foreground">
                 {note.mailSnippet.trim()}
               </div>
             ) : null}
-            <div className="mt-1 flex flex-wrap gap-2 text-[10px] text-muted-foreground">
+            <div className="mt-1 flex flex-wrap gap-2 text-2xs text-muted-foreground">
               {accountLabel ? <span>{accountLabel}</span> : null}
               {date ? <span>{formatNoteDate(date, locale)}</span> : null}
               {note.mailIsRead === false ? <span>{t('notes.shell.unreadMail')}</span> : null}
@@ -52,7 +52,7 @@ export function NotesObjectPreviewCard({
         <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
         <div className="min-w-0 flex-1">
           <div className="truncate text-xs font-semibold text-foreground">{title}</div>
-          <div className="mt-0.5 flex flex-wrap gap-2 text-[11px] text-muted-foreground">
+          <div className="mt-0.5 flex flex-wrap gap-2 text-xs text-muted-foreground">
             {note.eventStartIsoSnapshot ? <span>{formatNoteDate(note.eventStartIsoSnapshot, locale)}</span> : null}
             {accountLabel ? <span>{accountLabel}</span> : null}
           </div>

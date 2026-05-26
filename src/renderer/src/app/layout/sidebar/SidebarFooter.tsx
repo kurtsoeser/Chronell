@@ -41,7 +41,7 @@ export function SidebarFooter({
     >
       <div className="flex shrink-0 -space-x-1">
         {accounts.length === 0 ? (
-          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-muted-foreground ring-2 ring-sidebar">
+          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-2xs font-semibold text-muted-foreground ring-2 ring-sidebar">
             ?
           </div>
         ) : (
@@ -83,7 +83,7 @@ export function SidebarFooter({
           })
         )}
       </div>
-      <span className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground">
+      <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
         {accounts.length === 0
           ? t('sidebar.accountCountNone')
           : accounts.length === 1

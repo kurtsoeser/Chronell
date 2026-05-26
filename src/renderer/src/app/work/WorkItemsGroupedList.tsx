@@ -22,6 +22,8 @@ import { workItemsToViews } from '@/app/work-items/work-item-mapper'
 import { GROUPED_LIST_VIRTUALIZE_THRESHOLD } from '@/lib/grouped-list-virtuoso'
 import { dueDateInputValue } from '@/app/work-items/work-item-datetime'
 import { openMailReadingPopout } from '@/lib/open-mail-reading-popout'
+import { useTasksSettingsPrefs } from '@/lib/use-tasks-settings-prefs'
+import { resolveTaskOverdueRowStyle } from '@/lib/task-row-overdue-style'
 
 function dueDateLabel(dueIso: string | null): string {
   return dueIso ? dueDateInputValue(dueIso) : ''
@@ -53,6 +55,7 @@ export function WorkItemsGroupedList({
   onContextMenu
 }: WorkItemsGroupedListProps): JSX.Element {
   const { t, i18n } = useTranslation()
+  const tasksSettings = useTasksSettingsPrefs()
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
   const accountById = useMemo(() => new Map(accounts.map((a) => [a.id, a] as const)), [accounts])
   const itemByKey = useMemo(() => new Map(items.map((i) => [i.stableKey, i] as const)), [items])
@@ -116,26 +119,39 @@ export function WorkItemsGroupedList({
       if (!view) return null
       const active = selectedKey === view.stableKey
       const acc = accountById.get(view.accountId)
-      const stripe = acc ? resolvedAccountColorCss(acc.color) : undefined
+      const accountStripe = acc ? resolvedAccountColorCss(acc.color) : undefined
+      const overdueStyle =
+        !view.completed && view.bucket === 'overdue'
+          ? resolveTaskOverdueRowStyle(
+              { dueIso: view.dueAtIso, completed: view.completed },
+              tasksSettings,
+              timeZone,
+              accountStripe
+            )
+          : { stripeColor: accountStripe, rowStyle: undefined }
       const isMail = view.kind === 'mail_todo'
       return (
         <div
           key={view.stableKey}
-          className={cn('relative border-b border-border/60', active && 'bg-secondary/30')}
+          style={overdueStyle.rowStyle}
+          className={cn(
+            'relative border-b border-border/60',
+            active && !overdueStyle.rowStyle && 'bg-secondary/30'
+          )}
           onContextMenu={
             onContextMenu ? (e): void => onContextMenu(item, e) : undefined
           }
         >
-          {acc ? (
+          {overdueStyle.stripeColor ? (
+            <span
+              className="pointer-events-none absolute left-0 top-1 bottom-1 w-0.5 rounded-full opacity-90"
+              style={{ backgroundColor: overdueStyle.stripeColor }}
+              aria-hidden
+            />
+          ) : acc ? (
             <AccountColorStripe
               color={acc.color}
               className="left-0 top-1 bottom-1 w-0.5 rounded-full opacity-70"
-            />
-          ) : stripe ? (
-            <span
-              className="pointer-events-none absolute left-0 top-1 bottom-1 w-0.5 rounded-full opacity-70"
-              style={{ backgroundColor: stripe }}
-              aria-hidden
             />
           ) : null}
           <div className="flex items-start gap-1.5 px-2">
@@ -148,7 +164,9 @@ export function WorkItemsGroupedList({
                   return
                 }
                 e.stopPropagation()
-                openMailReadingPopout(item.messageId, { osWindow: e.shiftKey })
+                if (item.kind === 'mail_todo') {
+                  openMailReadingPopout(item.messageId, { osWindow: e.shiftKey })
+                }
               }}
               className={cn(
                 'min-w-0 flex-1 py-2 pl-1 pr-1 text-left text-xs',
@@ -182,7 +200,7 @@ export function WorkItemsGroupedList({
         </div>
       )
     },
-    [accountById, onContextMenu, onItemClick, onSelect, onToggleCompleted, selectedKey, t, timeZone]
+    [accountById, onContextMenu, onItemClick, onSelect, onToggleCompleted, selectedKey, t, timeZone, tasksSettings]
   )
 
   if (flat && items.length >= GROUPED_LIST_VIRTUALIZE_THRESHOLD) {
@@ -219,11 +237,11 @@ export function WorkItemsGroupedList({
                 {group.todoKind != null ? (
                   <TodoDueBucketBadge kind={group.todoKind} />
                 ) : (
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  <span className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
                     {group.label}
                   </span>
                 )}
-                <span className="ml-auto text-[10px] tabular-nums text-muted-foreground">
+                <span className="ml-auto text-2xs tabular-nums text-muted-foreground">
                   {group.items.length}
                 </span>
               </button>
@@ -272,7 +290,9 @@ export function WorkItemsGroupedList({
                   return
                 }
                 e.stopPropagation()
-                openMailReadingPopout(item.messageId, { osWindow: e.shiftKey })
+                if (item.kind === 'mail_todo') {
+                  openMailReadingPopout(item.messageId, { osWindow: e.shiftKey })
+                }
               }}
                           className={cn(
                             'min-w-0 flex-1 py-2 pl-1 pr-1 text-left text-xs',

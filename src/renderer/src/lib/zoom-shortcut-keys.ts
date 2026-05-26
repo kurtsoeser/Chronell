@@ -1,6 +1,7 @@
 import { parseZoomShortcutIntent } from '@shared/zoom-shortcut-keys'
 
 export {
+  isAppZoomShortcutInput,
   isChromiumZoomShortcutInput,
   parseZoomShortcutIntent,
   type ZoomShortcutAction,

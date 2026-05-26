@@ -117,7 +117,7 @@ export function SortableSidebarNavButton({
           {label}
         </span>
         {hasCount && (
-          <span className="shrink-0 rounded-full bg-primary/15 px-1.5 text-[10px] font-semibold tabular-nums text-primary">
+          <span className="shrink-0 rounded-full bg-primary/15 px-1.5 text-2xs font-semibold tabular-nums text-primary">
             {count! > 999 ? '999+' : count}
           </span>
         )}

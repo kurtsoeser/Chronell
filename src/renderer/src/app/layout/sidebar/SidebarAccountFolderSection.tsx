@@ -165,12 +165,12 @@ export function SidebarAccountFolderSection({
                 {account.displayName}
               </span>
               {!accountOpen && inboxUnread > 0 && (
-                <span className="shrink-0 rounded-full bg-primary/15 px-1.5 text-[10px] font-semibold tabular-nums text-primary">
+                <span className="shrink-0 rounded-full bg-primary/15 px-1.5 text-2xs font-semibold tabular-nums text-primary">
                   {inboxUnread > 999 ? '999+' : inboxUnread}
                 </span>
               )}
             </span>
-            <span className="block truncate text-[10px] text-muted-foreground">
+            <span className="block truncate text-2xs text-muted-foreground">
               {account.email}
             </span>
           </span>
@@ -230,7 +230,7 @@ export function SidebarAccountFolderSection({
             className="left-0 top-1 bottom-1 w-0.5 rounded-full opacity-60"
           />
           {visible.length === 0 && !isSyncing && !inlineEdit && (
-            <li className="px-2 py-1 text-[10px] text-muted-foreground/60">Noch keine Ordner</li>
+            <li className="px-2 py-1 text-2xs text-muted-foreground/60">Noch keine Ordner</li>
           )}
           {visible.map((node) => (
             <SidebarFolderRow

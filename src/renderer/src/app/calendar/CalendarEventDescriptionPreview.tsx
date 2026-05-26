@@ -75,7 +75,7 @@ export function CalendarEventDescriptionPreview({
     return (
       <p
         className={cn(
-          'text-[13px] italic leading-snug text-muted-foreground',
+          'text-base italic leading-snug text-muted-foreground',
           className
         )}
       >

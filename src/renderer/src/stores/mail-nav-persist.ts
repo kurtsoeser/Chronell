@@ -6,7 +6,8 @@ const MAIL_LIST_KINDS = [
   'snoozed',
   'waiting',
   'unified_inbox',
-  'meta_folder'
+  'meta_folder',
+  'category'
 ] as const
 
 export type StoredMailListKind = (typeof MAIL_LIST_KINDS)[number]
@@ -21,6 +22,9 @@ export interface LastMailNavV1 {
   folderId: number | null
   /** Gesetzt wenn `listKind === 'meta_folder'`. */
   metaFolderId: number | null
+  /** Gesetzt wenn `listKind === 'category'`. */
+  categoryAccountId?: string | null
+  categoryName?: string | null
   selectedMessageId: number | null
 }
 
@@ -54,6 +58,12 @@ export function readLastMailNav(): LastMailNavV1 | null {
         o.metaFolderId === undefined || o.metaFolderId === null
           ? null
           : Number(o.metaFolderId),
+      categoryAccountId:
+        o.categoryAccountId === undefined || o.categoryAccountId === null
+          ? null
+          : String(o.categoryAccountId),
+      categoryName:
+        o.categoryName === undefined || o.categoryName === null ? null : String(o.categoryName),
       selectedMessageId:
         o.selectedMessageId === undefined || o.selectedMessageId === null
           ? null
@@ -97,6 +107,12 @@ export function lastMailNavIsRestorable(
     case 'meta_folder': {
       if (nav.metaFolderId == null || Number.isNaN(nav.metaFolderId)) return false
       return knownMetaFolderIds.has(nav.metaFolderId)
+    }
+    case 'category': {
+      const name = (nav.categoryName ?? '').trim()
+      if (!name) return false
+      if (nav.categoryAccountId) return knownAccountIds.has(nav.categoryAccountId)
+      return true
     }
     default:
       return false

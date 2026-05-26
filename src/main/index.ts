@@ -34,8 +34,42 @@ import {
   startProfileSyncRunner,
   stopProfileSyncRunner
 } from './sync-profile/profile-sync-runner-bridge'
+import {
+  enqueueIcsFilePath,
+  extractIcsPathsFromArgv,
+  isIcsFilePath,
+  notifyRendererOfPendingIcsFiles
+} from './ics-open-queue'
 
 configureChronellAppPaths()
+
+for (const icsPath of extractIcsPathsFromArgv(process.argv)) {
+  enqueueIcsFilePath(icsPath)
+}
+
+const gotSingleInstanceLock = app.requestSingleInstanceLock()
+if (!gotSingleInstanceLock) {
+  app.quit()
+} else {
+  app.on('second-instance', (_event, argv) => {
+    for (const icsPath of extractIcsPathsFromArgv(argv)) {
+      enqueueIcsFilePath(icsPath)
+    }
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      if (mainWindow.isMinimized()) mainWindow.restore()
+      mainWindow.show()
+      mainWindow.focus()
+      notifyRendererOfPendingIcsFiles(mainWindow)
+    }
+  })
+
+  app.on('open-file', (event, filePath) => {
+    event.preventDefault()
+    if (!isIcsFilePath(filePath)) return
+    enqueueIcsFilePath(filePath)
+    notifyRendererOfPendingIcsFiles(mainWindow)
+  })
+}
 
 if (process.platform === 'win32') {
   app.setAppUserModelId(APP_ID)
@@ -151,6 +185,10 @@ function createMainWindow(): void {
   } else {
     void mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
+
+  mainWindow.webContents.once('did-finish-load', () => {
+    notifyRendererOfPendingIcsFiles(mainWindow)
+  })
 }
 
 app.whenReady().then(async () => {

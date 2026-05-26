@@ -50,6 +50,12 @@ extraResources:
 # Icon + EXE-Metadaten: scripts/after-pack-embed-icon.cjs (rcedit, nach dem Packen).
 afterPack: scripts/after-pack-embed-icon.cjs
 
+fileAssociations:
+  - ext: ics
+    name: iCalendar
+    description: iCalendar-Termin (.ics)
+    role: Editor
+
 win:
   icon: icon.ico
   publisherName: Kurt Soeser

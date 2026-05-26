@@ -199,7 +199,9 @@ export const IPC = {
     updateMetaFolder: 'mail:update-meta-folder',
     deleteMetaFolder: 'mail:delete-meta-folder',
     reorderMetaFolders: 'mail:reorder-meta-folders',
-    listMetaFolderMessages: 'mail:list-meta-folder-messages'
+    listMetaFolderMessages: 'mail:list-meta-folder-messages',
+    /** Mails nach Kategorie (message_tags.tag), optional pro Konto. */
+    listCategoryMessages: 'mail:list-category-messages'
   },
   folder: {
     create: 'folder:create',
@@ -211,6 +213,7 @@ export const IPC = {
   compose: {
     send: 'compose:send',
     saveDraft: 'compose:save-draft',
+    disposeDraft: 'compose:dispose-draft',
     listSendFromOptions: 'compose:list-send-from-options',
     recipientSuggestions: 'compose:recipient-suggestions',
     listDriveExplorer: 'compose:list-drive-explorer',
@@ -240,7 +243,9 @@ export const IPC = {
     patchEventIcon: 'calendar:patch-event-icon',
     transferEvent: 'calendar:transfer-event',
     syncAccount: 'calendar:sync-account',
-    getAccountSyncStates: 'calendar:get-account-sync-states'
+    getAccountSyncStates: 'calendar:get-account-sync-states',
+    parseIcsFile: 'calendar:parse-ics-file',
+    pickIcsFile: 'calendar:pick-ics-file'
   },
   tasks: {
     listLists: 'tasks:list-lists',

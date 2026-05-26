@@ -496,7 +496,7 @@ export function CalendarGanttTimelineView({
         <div className="relative" ref={scaleMenuRef}>
           <button
             type="button"
-            className="flex items-center gap-1 rounded-md border border-border bg-secondary px-2 py-1 text-[11px] font-medium text-secondary-foreground hover:bg-secondary/80"
+            className="flex items-center gap-1 rounded-md border border-border bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground hover:bg-secondary/80"
             onClick={(): void => setScaleMenuOpen((o) => !o)}
           >
             {scaleLabel(scale)}
@@ -510,7 +510,7 @@ export function CalendarGanttTimelineView({
                   type="button"
                   role="menuitem"
                   className={cn(
-                    'flex w-full px-3 py-1.5 text-left text-[13px] hover:bg-accent',
+                    'flex w-full px-3 py-1.5 text-left text-base hover:bg-accent',
                     s === scale && 'bg-muted font-medium'
                   )}
                   onClick={(): void => {
@@ -529,7 +529,7 @@ export function CalendarGanttTimelineView({
             type="button"
             disabled={Boolean(newEventDisabled)}
             className={cn(
-              'ml-auto flex items-center gap-1 rounded-md bg-primary px-2 py-1 text-[11px] font-medium text-primary-foreground hover:bg-primary/90',
+              'ml-auto flex items-center gap-1 rounded-md bg-primary px-2 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90',
               newEventDisabled && 'cursor-not-allowed opacity-45'
             )}
             onClick={(): void => {

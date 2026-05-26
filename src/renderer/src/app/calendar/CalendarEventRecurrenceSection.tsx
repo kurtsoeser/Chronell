@@ -1,5 +1,6 @@
 import { Repeat2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { ChronellDateField } from '@/components/ChronellDateField'
 import type { CalendarRecurrenceFrequency, CalendarRecurrenceRangeEndMode } from '@shared/types'
 
 type RecurrenceUiFrequency = 'none' | CalendarRecurrenceFrequency
@@ -57,11 +58,11 @@ export function CalendarEventRecurrenceSection({
 
   return (
     <div className="border-b border-border py-3">
-      <div className="mb-2 flex items-center gap-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+      <div className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
         <Repeat2 className="h-3.5 w-3.5" />
         {tk('recurrenceHeading')}
       </div>
-      <label className="block text-[11px] text-muted-foreground" htmlFor="cal-recur-freq">
+      <label className="block text-xs text-muted-foreground" htmlFor="cal-recur-freq">
         {tk('recurrenceFreqLabel')}
       </label>
       <select
@@ -81,7 +82,7 @@ export function CalendarEventRecurrenceSection({
             setRecurFreq(v)
           }
         }}
-        className="mt-1 w-full rounded-md border border-border bg-background px-2 py-2 text-[13px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60"
+        className="mt-1 w-full rounded-md border border-border bg-background px-2 py-2 text-base text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60"
       >
         <option value="none">{tk('recurrenceFreqNone')}</option>
         <option value="daily">{tk('recurrenceFreqDaily')}</option>
@@ -94,7 +95,7 @@ export function CalendarEventRecurrenceSection({
         <div className="mt-3 space-y-2">
           {(recurFreq === 'weekly' || recurFreq === 'biweekly') ? (
             <div className="space-y-1.5">
-              <p className="text-[11px] text-muted-foreground">{tk('recurrenceWeekdaysLabel')}</p>
+              <p className="text-xs text-muted-foreground">{tk('recurrenceWeekdaysLabel')}</p>
               <div className="flex flex-wrap gap-1.5">
                 {weekdayButtons.map((day) => {
                   const active = recurWeekdays.includes(day.key)
@@ -118,7 +119,7 @@ export function CalendarEventRecurrenceSection({
               </div>
             </div>
           ) : null}
-          <label className="block text-[11px] text-muted-foreground" htmlFor="cal-recur-end">
+          <label className="block text-xs text-muted-foreground" htmlFor="cal-recur-end">
             {tk('recurrenceEndLabel')}
           </label>
           <select
@@ -129,28 +130,27 @@ export function CalendarEventRecurrenceSection({
               const v = e.target.value
               if (v === 'never' || v === 'until' || v === 'count') setRecurEnd(v)
             }}
-            className="w-full rounded-md border border-border bg-background px-2 py-2 text-[13px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full rounded-md border border-border bg-background px-2 py-2 text-base text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <option value="never">{tk('recurrenceEndNever')}</option>
             <option value="until">{tk('recurrenceEndUntil')}</option>
             <option value="count">{tk('recurrenceEndCount')}</option>
           </select>
           {recurEnd === 'until' ? (
-            <label className="block text-[11px]">
+            <label className="block text-xs">
               <span className="mb-1 block text-muted-foreground">
                 {tk('recurrenceUntilLabel')}
               </span>
-              <input
-                type="date"
+              <ChronellDateField
                 value={recurUntilDate}
-                onChange={(e): void => setRecurUntilDate(e.target.value)}
+                onChange={setRecurUntilDate}
                 disabled={eventFieldsLocked}
-                className="w-full rounded border border-border bg-background px-2 py-1 text-xs"
+                className="text-xs"
               />
             </label>
           ) : null}
           {recurEnd === 'count' ? (
-            <label className="block text-[11px]">
+            <label className="block text-xs">
               <span className="mb-1 block text-muted-foreground">
                 {tk('recurrenceCountLabel')}
               </span>
@@ -165,7 +165,7 @@ export function CalendarEventRecurrenceSection({
               />
             </label>
           ) : null}
-          <p className="text-[10px] leading-snug text-muted-foreground">
+          <p className="text-2xs leading-snug text-muted-foreground">
             {tk('recurrenceHint')}
           </p>
         </div>

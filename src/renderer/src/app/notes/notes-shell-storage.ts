@@ -1,4 +1,9 @@
-export type NotesLinkedPreviewPlacement = 'dock' | 'float'
+import {
+  readNotesSettingsPrefs,
+  type NotesLinkedPreviewPlacement
+} from '@/lib/notes-settings-prefs'
+
+export type { NotesLinkedPreviewPlacement }
 
 export const NOTES_LINKED_PREVIEW_OPEN_KEY = 'mailclient.notesShell.linkedPreviewOpen'
 export const NOTES_LINKED_PREVIEW_PLACEMENT_KEY = 'mailclient.notesShell.linkedPreviewPlacement'
@@ -6,10 +11,13 @@ export const NOTES_FLOAT_PREVIEW_SIZE_KEY = 'mailclient.notesShell.floatPreviewS
 
 export function readNotesLinkedPreviewOpen(): boolean {
   try {
-    return window.localStorage.getItem(NOTES_LINKED_PREVIEW_OPEN_KEY) === '1'
+    const raw = window.localStorage.getItem(NOTES_LINKED_PREVIEW_OPEN_KEY)
+    if (raw === '1') return true
+    if (raw === '0') return false
   } catch {
-    return false
+    // ignore
   }
+  return readNotesSettingsPrefs().defaultLinkedPreviewOpen
 }
 
 export function persistNotesLinkedPreviewOpen(open: boolean): void {
@@ -23,10 +31,11 @@ export function persistNotesLinkedPreviewOpen(open: boolean): void {
 export function readNotesLinkedPreviewPlacement(): NotesLinkedPreviewPlacement {
   try {
     const v = window.localStorage.getItem(NOTES_LINKED_PREVIEW_PLACEMENT_KEY)
-    return v === 'float' ? 'float' : 'dock'
+    if (v === 'float' || v === 'dock') return v
   } catch {
-    return 'dock'
+    // ignore
   }
+  return readNotesSettingsPrefs().defaultLinkedPreviewPlacement
 }
 
 export function persistNotesLinkedPreviewPlacement(placement: NotesLinkedPreviewPlacement): void {

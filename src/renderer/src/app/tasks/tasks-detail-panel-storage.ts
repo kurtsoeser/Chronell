@@ -1,3 +1,5 @@
+import { readTasksSettingsPrefs } from '@/lib/tasks-settings-prefs'
+
 export const TASKS_DETAIL_OPEN_KEY = 'mailclient.tasks.detailOpen'
 export const TASKS_FLOAT_DETAIL_SIZE_KEY = 'mailclient.tasks.float.detail'
 
@@ -9,7 +11,7 @@ export function readTasksDetailOpenFromStorage(): boolean {
   } catch {
     // ignore
   }
-  return true
+  return readTasksSettingsPrefs().defaultDetailOpen
 }
 
 export function persistTasksDetailOpen(value: boolean): void {

@@ -190,7 +190,8 @@ export function MailList(): JSX.Element {
     foldersByAccount,
     syncByAccount,
     metaFolders,
-    selectedMetaFolderId
+    selectedMetaFolderId,
+    selectedCategoryName
   } = useMailStore(
     useShallow((s) => ({
       messages: s.messages,
@@ -204,7 +205,8 @@ export function MailList(): JSX.Element {
       foldersByAccount: s.foldersByAccount,
       syncByAccount: s.syncByAccount,
       metaFolders: s.metaFolders,
-      selectedMetaFolderId: s.selectedMetaFolderId
+      selectedMetaFolderId: s.selectedMetaFolderId,
+      selectedCategoryName: s.selectedCategoryName
     }))
   )
   const [aiHintsEnabled, setAiHintsEnabled] = useState(false)
@@ -491,6 +493,8 @@ export function MailList(): JSX.Element {
         ? t('mail.list.snoozedTitle')
         : listKind === 'unified_inbox'
           ? t('mail.list.unifiedInbox')
+          : listKind === 'category'
+            ? selectedCategoryName?.trim() || 'Kategorie'
           : listKind === 'meta_folder'
             ? metaFolderTitle
             : listKind === 'todo'
@@ -616,7 +620,7 @@ export function MailList(): JSX.Element {
     ]
   )
 
-  const listScopeKey = `${listKind}:${selectFolderId ?? ''}:${selectFolderAccountId ?? ''}:${selectedMetaFolderId ?? ''}:${todoDueKind ?? ''}:${filter}`
+  const listScopeKey = `${listKind}:${selectFolderId ?? ''}:${selectFolderAccountId ?? ''}:${selectedMetaFolderId ?? ''}:${selectedCategoryName ?? ''}:${todoDueKind ?? ''}:${filter}`
   const bulkSelection = useMailListBulkSelection(visibleFlatRows, listScopeKey)
   const bulkSelectionMode = bulkSelection.selectionUiActive
 
@@ -1009,7 +1013,7 @@ export function MailList(): JSX.Element {
                   {todoKind != null ? (
                     <TodoDueBucketBadge kind={todoKind} />
                   ) : (
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    <span className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
                       {label}
                     </span>
                   )}
@@ -2102,6 +2106,8 @@ function EmptyHint({
           ? t('mail.list.emptyUnifiedInboxes')
           : listKind === 'meta_folder'
             ? t('mail.list.emptyMeta')
+            : listKind === 'category'
+              ? 'Keine Mails in dieser Kategorie.'
             : t('mail.list.emptyFolder')}
       </div>
     </div>

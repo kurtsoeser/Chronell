@@ -1,4 +1,8 @@
-export type MetaFolderUiPreset = 'unread' | 'flagged' | 'attachments' | 'fulltext' | 'custom'
+export interface MetaFolderScopeFolderGroup {
+  accountId: string
+  accountLabel: string
+  folders: Array<{ id: number; name: string }>
+}
 
 export interface MetaFolderExcRowState {
   id: string
@@ -7,4 +11,5 @@ export interface MetaFolderExcRowState {
   flagged: boolean
   attach: boolean
   from: string
+  matchOp: 'and' | 'or'
 }

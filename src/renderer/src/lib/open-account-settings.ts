@@ -8,6 +8,7 @@ export type OpenAccountSettingsTab =
   | 'bookings'
   | 'contacts'
   | 'notes'
+  | 'tasks'
   | 'info'
 
 export type OpenAccountSettingsDetail = {

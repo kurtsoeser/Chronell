@@ -12,7 +12,7 @@ export interface ParsedRecipient {
 export function parseRecipients(input: string): ParsedRecipient[] {
   if (!input.trim()) return []
   const { complete, tail } = parseRecipientsWithTail(input)
-  const last = parseOneRecipientEntry(tail)
+  const last = parseRecipientEntry(tail)
   return last ? [...complete, last] : complete
 }
 
@@ -22,18 +22,20 @@ export function formatRecipientsForInput(recipients: ParsedRecipient[]): string 
     .join(', ')
 }
 
-function parseOneRecipientEntry(entry: string): ParsedRecipient | null {
+const COMPLETE_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+export function parseRecipientEntry(entry: string): ParsedRecipient | null {
   const trimmed = entry.trim()
   if (!trimmed) return null
   const match = trimmed.match(/^(.*?)<([^>]+)>\s*$/)
   if (match) {
     const name = match[1]?.trim().replace(/^["']|["']$/g, '') || undefined
     const address = match[2]?.trim() ?? ''
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) return null
+    if (!COMPLETE_EMAIL_RE.test(address)) return null
     return { address, name }
   }
   const address = trimmed
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) return null
+  if (!COMPLETE_EMAIL_RE.test(address)) return null
   return { address }
 }
 
@@ -45,31 +47,86 @@ export function parseRecipientsWithTail(input: string): {
   complete: ParsedRecipient[]
   tail: string
 } {
+  const normalized = input.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
   const complete: ParsedRecipient[] = []
   let buf = ''
   let depth = 0
-  for (let i = 0; i < input.length; i++) {
-    const c = input[i]
+  for (let i = 0; i < normalized.length; i++) {
+    const c = normalized[i]
     if (c === '<') depth++
     else if (c === '>') depth = Math.max(0, depth - 1)
-    if ((c === ',' || c === ';') && depth === 0) {
+    if ((c === ',' || c === ';' || c === '\n') && depth === 0) {
       const part = buf.trim()
       buf = ''
-      const one = parseOneRecipientEntry(part)
+      const one = parseRecipientEntry(part)
       if (one) complete.push(one)
       continue
     }
     buf += c
   }
-  return { complete, tail: buf.trim() }
+  return { complete, tail: buf }
 }
 
 export function formatRecipientsWithTail(complete: ParsedRecipient[], tail: string): string {
   const base = formatRecipientsForInput(complete)
-  const t = tail.trim()
-  if (!t) return base
-  if (!base) return t
-  return `${base}, ${t}`
+  if (!tail) return base
+  if (!base) return tail
+  return `${base}, ${tail}`
+}
+
+/**
+ * Mehrere Empfaenger aus Zwischenablage (Tabellen: Tab/Zeile, Listen: Komma/Semikolon).
+ * Erkennt auch Zeilen «Name[TAB]email@…».
+ */
+export function parseRecipientsBulk(raw: string): ParsedRecipient[] {
+  const out: ParsedRecipient[] = []
+  const seen = new Set<string>()
+  const push = (r: ParsedRecipient | null): void => {
+    if (!r) return
+    const key = r.address.toLowerCase()
+    if (seen.has(key)) return
+    seen.add(key)
+    out.push(r)
+  }
+
+  const parseTabSeparatedRow = (line: string): void => {
+    const cells = line.split('\t').map((c) => c.trim()).filter(Boolean)
+    if (cells.length === 0) return
+    let pendingName: string | undefined
+    for (const cell of cells) {
+      if (/[,;]/.test(cell)) {
+        for (const r of parseRecipients(cell)) {
+          push(
+            !r.name && pendingName ? { address: r.address, name: pendingName } : r
+          )
+          pendingName = undefined
+        }
+        continue
+      }
+      const one = parseRecipientEntry(cell)
+      if (one) {
+        push(
+          !one.name && pendingName ? { address: one.address, name: pendingName } : one
+        )
+        pendingName = undefined
+      } else if (!cell.includes('@')) {
+        pendingName = cell
+      }
+    }
+  }
+
+  for (const line of raw.split(/\r?\n/)) {
+    const trimmed = line.trim()
+    if (!trimmed) continue
+    if (trimmed.includes('\t')) {
+      parseTabSeparatedRow(trimmed)
+      continue
+    }
+    for (const r of parseRecipients(trimmed)) {
+      push(r)
+    }
+  }
+  return out
 }
 
 export { normalizeRecipientSuggestionQuery } from '@shared/compose-recipient-query'

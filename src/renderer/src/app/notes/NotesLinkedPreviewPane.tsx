@@ -36,14 +36,14 @@ function NotesLinkedPreviewTabs({
             title={entry.label}
             onClick={(): void => onSelectKey(entry.key)}
             className={cn(
-              'max-w-[9.5rem] shrink-0 rounded-md border px-2 py-1 text-left text-[10px] leading-tight transition-colors',
+              'max-w-[9.5rem] shrink-0 rounded-md border px-2 py-1 text-left text-2xs leading-tight transition-colors',
               active
                 ? 'border-primary bg-primary/10 text-foreground'
                 : 'border-border bg-background/80 text-muted-foreground hover:bg-secondary/60 hover:text-foreground'
             )}
           >
             <span className="block truncate font-medium">{entry.label}</span>
-            <span className="block truncate text-[9px] opacity-80">{entry.kindLabel}</span>
+            <span className="block truncate text-3xs opacity-80">{entry.kindLabel}</span>
           </button>
         )
       })}
@@ -158,7 +158,9 @@ export function NotesLinkedPreviewPane({
   editing,
   accounts,
   dockWidthPx,
-  onDockWidthDrag
+  onDockWidthDrag,
+  floatDefaultWidth = 420,
+  floatDefaultHeight = 480
 }: {
   open: boolean
   placement: NotesLinkedPreviewPlacement
@@ -171,6 +173,8 @@ export function NotesLinkedPreviewPane({
   accounts: ConnectedAccount[]
   dockWidthPx: number
   onDockWidthDrag: (delta: number) => void
+  floatDefaultWidth?: number
+  floatDefaultHeight?: number
 }): JSX.Element | null {
   const { t } = useTranslation()
 
@@ -187,7 +191,7 @@ export function NotesLinkedPreviewPane({
     />
   )
 
-  const floatWidth = Math.min(900, Math.max(300, Math.round(dockWidthPx)))
+  const floatWidth = Math.min(900, Math.max(300, Math.round(floatDefaultWidth)))
   const floatPos = useMemo(() => {
     const x = Math.max(12, window.innerWidth - floatWidth - 20)
     return { x, y: 68 }
@@ -216,6 +220,7 @@ export function NotesLinkedPreviewPane({
           open
           title={t('notes.shell.linkedObject')}
           widthPx={floatWidth}
+          initialHeightPx={floatDefaultHeight}
           minHeightPx={360}
           persistSizeKey={NOTES_FLOAT_PREVIEW_SIZE_KEY}
           defaultPosition={floatPos}

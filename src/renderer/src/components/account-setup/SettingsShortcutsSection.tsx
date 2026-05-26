@@ -15,13 +15,13 @@ function ShortcutTable({ groups }: { groups: ShortcutGroup[] }): JSX.Element {
     <div className="space-y-4">
       {groups.map((group) => (
         <div key={group.title}>
-          <h4 className="mb-1.5 text-[11px] font-semibold text-foreground">{group.title}</h4>
+          <h4 className="mb-1.5 text-xs font-semibold text-foreground">{group.title}</h4>
           <table className="w-full border-collapse text-xs">
             <tbody>
               {group.rows.map((row) => (
                 <tr key={`${group.title}-${row.keys}`} className="border-t border-white/[0.04] dark:border-white/[0.04] first:border-t-0">
                   <td className="w-[38%] max-w-[12rem] py-1.5 pr-3 align-top">
-                    <kbd className="inline-block rounded border border-white/[0.06] dark:border-white/[0.06] bg-background px-1.5 py-0.5 font-mono text-[10px] leading-snug text-foreground shadow-sm">
+                    <kbd className="inline-block rounded border border-white/[0.06] dark:border-white/[0.06] bg-background px-1.5 py-0.5 font-mono text-2xs leading-snug text-foreground shadow-sm">
                       {row.keys}
                     </kbd>
                   </td>
@@ -45,26 +45,6 @@ export function SettingsShortcutsSection(): JSX.Element {
       title: t('settings.shortcuts.sectionZoom'),
       rows: [
         {
-          keys: t('settings.shortcuts.keys.previewZoomIn', { mod }),
-          description: t('settings.shortcuts.desc.previewZoomIn')
-        },
-        {
-          keys: t('settings.shortcuts.keys.previewZoomOut', { mod }),
-          description: t('settings.shortcuts.desc.previewZoomOut')
-        },
-        {
-          keys: t('settings.shortcuts.keys.previewZoomReset', { mod }),
-          description: t('settings.shortcuts.desc.previewZoomReset')
-        },
-        {
-          keys: t('settings.shortcuts.keys.previewWheel', { mod }),
-          description: t('settings.shortcuts.desc.previewWheel')
-        },
-        {
-          keys: t('settings.shortcuts.keys.previewPinch'),
-          description: t('settings.shortcuts.desc.previewPinch')
-        },
-        {
           keys: t('settings.shortcuts.keys.uiZoomIn', { mod }),
           description: t('settings.shortcuts.desc.uiZoomIn')
         },
@@ -75,6 +55,18 @@ export function SettingsShortcutsSection(): JSX.Element {
         {
           keys: t('settings.shortcuts.keys.uiZoomReset', { mod }),
           description: t('settings.shortcuts.desc.uiZoomReset')
+        },
+        {
+          keys: t('settings.shortcuts.keys.composeZoomIn', { mod }),
+          description: t('settings.shortcuts.desc.composeZoomIn')
+        },
+        {
+          keys: t('settings.shortcuts.keys.previewWheel', { mod }),
+          description: t('settings.shortcuts.desc.previewWheel')
+        },
+        {
+          keys: t('settings.shortcuts.keys.previewPinch'),
+          description: t('settings.shortcuts.desc.previewPinch')
         }
       ]
     },
@@ -171,7 +163,7 @@ export function SettingsShortcutsSection(): JSX.Element {
       </h3>
       <p className="text-xs leading-relaxed text-muted-foreground">{t('settings.shortcutsIntro')}</p>
       <ShortcutTable groups={groups} />
-      <p className="text-[10px] leading-relaxed text-muted-foreground">{t('settings.shortcutsFootnote')}</p>
+      <p className="text-2xs leading-relaxed text-muted-foreground">{t('settings.shortcutsFootnote')}</p>
     </section>
   )
 }

@@ -185,7 +185,7 @@ export function NotesLinkedItemPreview({
           <NoteDisplayIcon note={linkedNote} className="mt-0.5 h-4 w-4 shrink-0" />
           <div className="min-w-0 flex-1">
             <div className="text-sm font-semibold text-foreground">{title}</div>
-            <div className="mt-0.5 text-[11px] text-muted-foreground">
+            <div className="mt-0.5 text-xs text-muted-foreground">
               {t(`notes.kind.${linkedNote.kind}`)}
               {' · '}
               {formatNoteDate(linkedNote.updatedAt, i18n.language)}

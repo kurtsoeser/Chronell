@@ -4,7 +4,7 @@ import { PenLine, Plus, Star, Trash2 } from 'lucide-react'
 import type { AccountSignatureTemplate } from '@shared/types'
 import { useAccountsStore } from '@/stores/accounts'
 import { showAppConfirm, showAppPrompt } from '@/stores/app-dialog'
-import { TipTapBody } from '@/components/TipTapBody'
+import { SignatureFooterEditor } from '@/components/SignatureFooterEditor'
 import {
   newSignatureTemplateId,
   removeSignatureTemplate,
@@ -154,7 +154,7 @@ export default function AccountSetupSignaturesPanel(): JSX.Element {
       </div>
 
       <label className="block space-y-1">
-        <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+        <span className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
           {t('settings.signaturesAccountLabel')}
         </span>
         <select
@@ -187,7 +187,7 @@ export default function AccountSetupSignaturesPanel(): JSX.Element {
           </button>
           <ul className="max-h-64 space-y-0.5 overflow-y-auto rounded-md bg-background/60 p-1">
             {sorted.length === 0 ? (
-              <li className="px-2 py-2 text-[11px] text-muted-foreground">{t('settings.signaturesEmpty')}</li>
+              <li className="px-2 py-2 text-xs text-muted-foreground">{t('settings.signaturesEmpty')}</li>
             ) : (
               sorted.map((tpl) => (
                 <li key={tpl.id}>
@@ -195,7 +195,7 @@ export default function AccountSetupSignaturesPanel(): JSX.Element {
                     type="button"
                     onClick={(): void => loadTemplate(tpl)}
                     className={cn(
-                      'flex w-full items-center gap-1 rounded px-2 py-1.5 text-left text-[11px] hover:bg-secondary/60',
+                      'flex w-full items-center gap-1 rounded px-2 py-1.5 text-left text-xs hover:bg-secondary/60',
                       tpl.id === selectedId && 'bg-primary/10 font-medium text-primary'
                     )}
                   >
@@ -218,8 +218,8 @@ export default function AccountSetupSignaturesPanel(): JSX.Element {
             placeholder={t('settings.signaturesNamePlaceholder')}
             className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs outline-none focus:border-ring"
           />
-          <TipTapBody
-            variant="compact"
+          <SignatureFooterEditor
+            layout="standalone"
             valueHtml={draftHtml}
             onChangeHtml={setDraftHtml}
             placeholder={t('settings.signaturesEditorPlaceholder')}

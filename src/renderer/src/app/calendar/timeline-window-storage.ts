@@ -1,3 +1,5 @@
+import { readCalendarSettingsPrefs } from '@/lib/calendar-settings-prefs'
+
 export type TimelineWindowSize = 'week' | 'month' | 'quarter'
 
 const KEY = 'mailclient.calendarTimelineWindow.v1'
@@ -13,7 +15,7 @@ export function readTimelineWindowSize(): TimelineWindowSize {
   } catch {
     // ignore
   }
-  return DEFAULT_TIMELINE_WINDOW_SIZE
+  return readCalendarSettingsPrefs().defaultTimelineWindowSize
 }
 
 export function persistTimelineWindowSize(size: TimelineWindowSize): void {

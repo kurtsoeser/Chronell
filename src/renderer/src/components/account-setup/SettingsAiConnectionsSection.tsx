@@ -225,10 +225,10 @@ export function SettingsAiConnectionsSection(): JSX.Element {
       </label>
 
       <div>
-        <span className="mb-1 block text-[11px] font-medium text-foreground">
+        <span className="mb-1 block text-xs font-medium text-foreground">
           {t('settings.aiConnections.provider')}
         </span>
-        <p className="mb-1.5 text-[10px] text-muted-foreground">
+        <p className="mb-1.5 text-2xs text-muted-foreground">
           {t('settings.aiConnections.providerHint')}
         </p>
         <select
@@ -244,12 +244,12 @@ export function SettingsAiConnectionsSection(): JSX.Element {
           <option value="ollama">Ollama (lokal)</option>
         </select>
         {isOllama ? (
-          <p className="mt-1 text-[10px] text-muted-foreground">
+          <p className="mt-1 text-2xs text-muted-foreground">
             {t('settings.aiConnections.ollamaLocalHint')}
           </p>
         ) : null}
         {!settings.hasActiveApiKey && settings.enabled ? (
-          <p className="mt-1 text-[10px] text-amber-600 dark:text-amber-500">
+          <p className="mt-1 text-2xs text-amber-600 dark:text-amber-500">
             {isOllama
               ? t('settings.aiConnections.ollamaModelMissing')
               : t('settings.aiConnections.activeKeyMissing')}
@@ -260,7 +260,7 @@ export function SettingsAiConnectionsSection(): JSX.Element {
       {isOllama ? (
         <div className="chronell-prompt-card max-w-md space-y-2 p-3">
           <label className="flex flex-col gap-1">
-            <span className="text-[11px] font-medium text-foreground">
+            <span className="text-xs font-medium text-foreground">
               {t('settings.aiConnections.ollamaBaseUrl')}
             </span>
             <input
@@ -275,7 +275,7 @@ export function SettingsAiConnectionsSection(): JSX.Element {
                 }
               }}
             />
-            <span className="text-[10px] text-muted-foreground">
+            <span className="text-2xs text-muted-foreground">
               {t('settings.aiConnections.ollamaBaseUrlHint')}
             </span>
           </label>
@@ -283,7 +283,7 @@ export function SettingsAiConnectionsSection(): JSX.Element {
             <button
               type="button"
               disabled={busy || ollamaModelsLoading}
-              className="rounded-md border border-border px-2 py-1 text-[11px] hover:bg-secondary disabled:opacity-50"
+              className="rounded-md border border-border px-2 py-1 text-xs hover:bg-secondary disabled:opacity-50"
               onClick={(): void => void refreshOllamaModels(settings.ollamaBaseUrl)}
             >
               {ollamaModelsLoading ? (
@@ -298,7 +298,7 @@ export function SettingsAiConnectionsSection(): JSX.Element {
             <button
               type="button"
               disabled={busy || ollamaTestLoading}
-              className="rounded-md border border-border px-2 py-1 text-[11px] hover:bg-secondary disabled:opacity-50"
+              className="rounded-md border border-border px-2 py-1 text-xs hover:bg-secondary disabled:opacity-50"
               onClick={(): void => {
                 setOllamaTestLoading(true)
                 setOllamaTestResult(null)
@@ -331,13 +331,13 @@ export function SettingsAiConnectionsSection(): JSX.Element {
               )}
             </button>
             {ollamaModelsError ? (
-              <span className="text-[10px] text-amber-600 dark:text-amber-500">{ollamaModelsError}</span>
+              <span className="text-2xs text-amber-600 dark:text-amber-500">{ollamaModelsError}</span>
             ) : null}
           </div>
           {ollamaTestResult ? (
             <p
               className={cn(
-                'text-[10px]',
+                'text-2xs',
                 ollamaTestResult.ok
                   ? 'text-emerald-700 dark:text-emerald-400'
                   : 'text-amber-600 dark:text-amber-500'
@@ -347,13 +347,13 @@ export function SettingsAiConnectionsSection(): JSX.Element {
             </p>
           ) : null}
           {usesCompactPrompts ? (
-            <p className="text-[10px] text-muted-foreground">
+            <p className="text-2xs text-muted-foreground">
               {t('settings.aiConnections.ollamaCompactPrompts')}
             </p>
           ) : null}
           {ollamaModels.length > 0 ? (
             <label className="flex flex-col gap-1">
-              <span className="text-[11px] font-medium text-foreground">
+              <span className="text-xs font-medium text-foreground">
                 {t('settings.aiConnections.ollamaModelSelect')}
               </span>
               <select
@@ -379,10 +379,10 @@ export function SettingsAiConnectionsSection(): JSX.Element {
       ) : null}
 
       <div className="chronell-prompt-card max-w-md space-y-2 p-3">
-        <p className="text-[11px] font-medium text-foreground">
+        <p className="text-xs font-medium text-foreground">
           {t('settings.aiConnections.embeddingsHeading')}
         </p>
-        <p className="text-[10px] text-muted-foreground">
+        <p className="text-2xs text-muted-foreground">
           {t('settings.aiConnections.embeddingsHint')}
         </p>
         <label className="flex cursor-pointer items-start gap-2">
@@ -398,7 +398,7 @@ export function SettingsAiConnectionsSection(): JSX.Element {
           </span>
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-[11px] font-medium text-foreground">
+          <span className="text-xs font-medium text-foreground">
             {t('settings.aiConnections.embeddingModel')}
           </span>
           <input
@@ -411,7 +411,7 @@ export function SettingsAiConnectionsSection(): JSX.Element {
               if (v) void persist({ embeddingModel: v })
             }}
           />
-          <span className="text-[10px] text-muted-foreground">
+          <span className="text-2xs text-muted-foreground">
             {t('settings.aiConnections.embeddingModelHint')}
           </span>
         </label>
@@ -456,7 +456,7 @@ export function SettingsAiConnectionsSection(): JSX.Element {
           </span>
         </label>
         {embedStatus ? (
-          <p className="text-[10px] text-muted-foreground">
+          <p className="text-2xs text-muted-foreground">
             {t('settings.aiConnections.embeddingStatus', {
               indexed: embedStatus.indexedCount,
               pending: embedStatus.pendingEstimate
@@ -467,7 +467,7 @@ export function SettingsAiConnectionsSection(): JSX.Element {
           <button
             type="button"
             disabled={busy || embedRebuildBusy || !settings.embeddingsEnabled}
-            className="rounded-md border border-border px-2 py-1 text-[11px] hover:bg-secondary disabled:opacity-50"
+            className="rounded-md border border-border px-2 py-1 text-xs hover:bg-secondary disabled:opacity-50"
             onClick={(): void => {
               setEmbedRebuildBusy(true)
               void window.mailClient.aiConnections
@@ -510,7 +510,7 @@ export function SettingsAiConnectionsSection(): JSX.Element {
             <button
               type="button"
               disabled={busy}
-              className="rounded-md border border-border px-2 py-1 text-[11px] hover:bg-secondary"
+              className="rounded-md border border-border px-2 py-1 text-xs hover:bg-secondary"
               onClick={(): void => {
                 void window.mailClient.aiConnections.cancelEmbeddingRebuild()
                 void loadEmbedStatus()
@@ -523,10 +523,10 @@ export function SettingsAiConnectionsSection(): JSX.Element {
       </div>
 
       <div className="max-w-md space-y-1.5">
-        <span className="text-[11px] font-medium text-foreground">
+        <span className="text-xs font-medium text-foreground">
           {t('settings.aiConnections.snippetMode')}
         </span>
-        <p className="text-[10px] text-muted-foreground">
+        <p className="text-2xs text-muted-foreground">
           {t('settings.aiConnections.snippetModeHint')}
         </p>
         {(['off', 'on', 'ask'] as const).map((mode) => (
@@ -553,7 +553,7 @@ export function SettingsAiConnectionsSection(): JSX.Element {
       </div>
 
       <label className="flex max-w-md flex-col gap-1">
-        <span className="text-[11px] font-medium text-foreground">
+        <span className="text-xs font-medium text-foreground">
           {t('settings.aiConnections.minConfidence', {
             percent: Math.round(settings.minConfidence * 100)
           })}
@@ -573,7 +573,7 @@ export function SettingsAiConnectionsSection(): JSX.Element {
           }}
           className="w-full"
         />
-        <span className="text-[10px] text-muted-foreground">
+        <span className="text-2xs text-muted-foreground">
           {t('settings.aiConnections.minConfidenceHint')}
         </span>
       </label>
@@ -596,7 +596,7 @@ export function SettingsAiConnectionsSection(): JSX.Element {
         </span>
       </label>
       {settings.compareProviders ? (
-        <p className="text-[10px] text-muted-foreground">
+        <p className="text-2xs text-muted-foreground">
           {t('settings.aiConnections.compareProvidersHint')}
         </p>
       ) : null}
@@ -615,13 +615,13 @@ export function SettingsAiConnectionsSection(): JSX.Element {
           {t('settings.aiConnections.showLinkQualityOnGraph')}
         </span>
       </label>
-      <p className="text-[10px] text-muted-foreground">
+      <p className="text-2xs text-muted-foreground">
         {t('settings.aiConnections.showLinkQualityOnGraphHint')}
       </p>
 
       <div className="grid max-w-md grid-cols-2 gap-3">
         <label className="flex flex-col gap-1">
-          <span className="text-[11px] font-medium text-foreground">
+          <span className="text-xs font-medium text-foreground">
             {t('settings.aiConnections.scanLookbackDays')}
           </span>
           <input
@@ -638,7 +638,7 @@ export function SettingsAiConnectionsSection(): JSX.Element {
           />
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-[11px] font-medium text-foreground">
+          <span className="text-xs font-medium text-foreground">
             {t('settings.aiConnections.scanMaxAnchors')}
           </span>
           <input
@@ -658,10 +658,10 @@ export function SettingsAiConnectionsSection(): JSX.Element {
 
       {settings.enabled ? (
         <div className="chronell-prompt-card max-w-md space-y-2 p-3">
-          <p className="text-[11px] font-medium text-foreground">
+          <p className="text-xs font-medium text-foreground">
             {t('settings.aiConnections.domainProfilesTitle')}
           </p>
-          <p className="text-[10px] text-muted-foreground">
+          <p className="text-2xs text-muted-foreground">
             {t('settings.aiConnections.domainProfilesHint')}
           </p>
           {(settings.customDomainProfiles ?? []).map((profile, index) => (
@@ -699,7 +699,7 @@ export function SettingsAiConnectionsSection(): JSX.Element {
               <button
                 type="button"
                 disabled={busy}
-                className="self-start text-[10px] text-destructive hover:underline"
+                className="self-start text-2xs text-destructive hover:underline"
                 onClick={(): void => {
                   const next = (settings.customDomainProfiles ?? []).filter((_, i) => i !== index)
                   void persist({ customDomainProfiles: next })
@@ -712,7 +712,7 @@ export function SettingsAiConnectionsSection(): JSX.Element {
           <button
             type="button"
             disabled={busy || (settings.customDomainProfiles?.length ?? 0) >= 8}
-            className="rounded-md border border-border px-2 py-1 text-[11px] hover:bg-secondary disabled:opacity-50"
+            className="rounded-md border border-border px-2 py-1 text-xs hover:bg-secondary disabled:opacity-50"
             onClick={(): void => {
               const id = `custom_${Date.now()}`
               const row: AiLinkCustomDomainProfile = {
@@ -732,10 +732,10 @@ export function SettingsAiConnectionsSection(): JSX.Element {
 
       {settings.enabled && auditRows.length > 0 ? (
         <div className="chronell-prompt-card max-w-md p-3">
-          <p className="mb-2 text-[11px] font-medium text-foreground">
+          <p className="mb-2 text-xs font-medium text-foreground">
             {t('settings.aiConnections.auditTitle')}
           </p>
-          <ul className="max-h-32 space-y-1 overflow-y-auto text-[10px] text-muted-foreground">
+          <ul className="max-h-32 space-y-1 overflow-y-auto text-2xs text-muted-foreground">
             {auditRows.map((row) => (
               <li key={row.id} className="flex flex-wrap gap-x-2">
                 <span className="text-foreground/80">
@@ -754,10 +754,10 @@ export function SettingsAiConnectionsSection(): JSX.Element {
         </div>
       ) : null}
 
-      <p className="text-[10px] text-muted-foreground">{t('settings.aiConnections.backupNote')}</p>
+      <p className="text-2xs text-muted-foreground">{t('settings.aiConnections.backupNote')}</p>
 
       <div>
-        <span className="mb-1 block text-[11px] font-medium text-foreground">
+        <span className="mb-1 block text-xs font-medium text-foreground">
           {isOllama
             ? t('settings.aiConnections.ollamaModelManual')
             : t('settings.aiConnections.model')}
@@ -807,21 +807,21 @@ export function SettingsAiConnectionsSection(): JSX.Element {
           <p className="text-xs font-medium text-foreground">
             {t('settings.aiConnections.snippetConsentTitle')}
           </p>
-          <p className="text-[11px] text-muted-foreground whitespace-pre-line">
+          <p className="text-xs text-muted-foreground whitespace-pre-line">
             {t('settings.aiConnections.snippetConsentBody')}
           </p>
           <div className="flex gap-2">
             <button
               type="button"
               onClick={(): void => void confirmSnippetConsent()}
-              className="rounded-md bg-primary px-2 py-1 text-[11px] text-primary-foreground"
+              className="rounded-md bg-primary px-2 py-1 text-xs text-primary-foreground"
             >
               {t('settings.aiConnections.snippetConsentConfirm')}
             </button>
             <button
               type="button"
               onClick={(): void => setSnippetConsentOpen(false)}
-              className="rounded-md border border-border px-2 py-1 text-[11px]"
+              className="rounded-md border border-border px-2 py-1 text-xs"
             >
               {t('common.cancel')}
             </button>
@@ -836,7 +836,7 @@ export function SettingsAiConnectionsSection(): JSX.Element {
               ? t('settings.aiConnections.consentTitleOllama')
               : t('settings.aiConnections.consentTitle')}
           </p>
-          <p className="text-[11px] text-muted-foreground whitespace-pre-line">
+          <p className="text-xs text-muted-foreground whitespace-pre-line">
             {isOllama
               ? t('settings.aiConnections.consentBodyOllama')
               : t('settings.aiConnections.consentBody')}
@@ -845,14 +845,14 @@ export function SettingsAiConnectionsSection(): JSX.Element {
             <button
               type="button"
               onClick={(): void => void confirmConsent()}
-              className="rounded-md bg-primary px-2 py-1 text-[11px] text-primary-foreground"
+              className="rounded-md bg-primary px-2 py-1 text-xs text-primary-foreground"
             >
               {t('settings.aiConnections.consentConfirm')}
             </button>
             <button
               type="button"
               onClick={(): void => setConsentOpen(false)}
-              className="rounded-md border border-border px-2 py-1 text-[11px]"
+              className="rounded-md border border-border px-2 py-1 text-xs"
             >
               {t('common.cancel')}
             </button>
@@ -884,7 +884,7 @@ function ProviderApiKeyBlock({
 }): JSX.Element {
   return (
     <div className="chronell-prompt-card p-3">
-      <span className="mb-2 block text-[11px] font-medium text-foreground">{label}</span>
+      <span className="mb-2 block text-xs font-medium text-foreground">{label}</span>
       <div className="flex flex-wrap items-center gap-2">
         <input
           type="password"
@@ -903,7 +903,7 @@ function ProviderApiKeyBlock({
           type="button"
           disabled={busy || !draft.trim()}
           onClick={onSave}
-          className="rounded-md border border-border px-2 py-1 text-[11px] hover:bg-secondary"
+          className="rounded-md border border-border px-2 py-1 text-xs hover:bg-secondary"
         >
           {t('settings.aiConnections.saveKey')}
         </button>
@@ -912,13 +912,13 @@ function ProviderApiKeyBlock({
             type="button"
             disabled={busy}
             onClick={onClear}
-            className="rounded-md border border-border px-2 py-1 text-[11px] text-muted-foreground hover:bg-secondary"
+            className="rounded-md border border-border px-2 py-1 text-xs text-muted-foreground hover:bg-secondary"
           >
             {t('settings.aiConnections.clearKey')}
           </button>
         ) : null}
       </div>
-      <p className="mt-1 text-[10px] text-muted-foreground">
+      <p className="mt-1 text-2xs text-muted-foreground">
         {hasKey ? t('settings.aiConnections.keyStored') : t('settings.aiConnections.keyMissing')}
       </p>
     </div>

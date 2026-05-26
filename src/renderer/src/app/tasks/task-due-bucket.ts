@@ -1,15 +1,21 @@
 import type { TaskItemRow, TodoDueKindList } from '@shared/types'
 import { rankOpenTodoBucket } from '@/lib/todo-due-bucket'
+import type { TasksOverdueMode } from '@/lib/tasks-settings-prefs'
 import { classifyDueAtIso, normalizeDueAtIso } from '@/app/work-items/work-item-due'
 
 export function classifyTaskItemDueBucket(
   task: Pick<TaskItemRow, 'dueIso' | 'completed'>,
   timeZone: string,
-  nowMs = Date.now()
+  nowMs = Date.now(),
+  overdueMode: TasksOverdueMode = 'start_of_day'
 ): TodoDueKindList {
   if (task.completed) return 'done'
   const dueAt = task.dueIso ? normalizeDueAtIso(task.dueIso, timeZone) : null
   if (!dueAt) return 'later'
+  if (overdueMode === 'due_datetime') {
+    const nowIso = new Date(nowMs).toISOString()
+    if (dueAt < nowIso) return 'overdue'
+  }
   return classifyDueAtIso(dueAt, timeZone, nowMs)
 }
 

@@ -1,91 +1,64 @@
-import { Fragment, useEffect, useRef, useState } from 'react'
-import {
-  ArrowDown,
-  Ban,
-  ChevronDown,
-  Filter,
-  FolderInput,
-  Layers,
-  MailOpen,
-  Paperclip,
-  Search,
-  Star,
-  UserRound,
-  X
-} from 'lucide-react'
+import { Fragment } from 'react'
+import { ArrowDown, Ban, Filter, FolderInput, Info, Layers, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { MetaFolderExcRowState, MetaFolderUiPreset } from '@/components/meta-folder-ui-types'
+import { MetaFolderMatchExpressionEditor } from '@/components/MetaFolderMatchExpressionEditor'
+import type { MetaFolderExcRowState, MetaFolderScopeFolderGroup } from '@/components/meta-folder-ui-types'
+import {
+  matchExpressionHasActiveFilter,
+  matchExpressionSummaryDe,
+  type MetaFolderConditionGroup
+} from '@shared/meta-folder-match-expression'
+
+function folderScopeLabel(
+  folderScopeGroups: MetaFolderScopeFolderGroup[],
+  folderId: number
+): string {
+  for (const g of folderScopeGroups) {
+    const f = g.folders.find((x) => x.id === folderId)
+    if (f) return `${f.name} (${g.accountLabel})`
+  }
+  return `#${folderId}`
+}
 
 function scopeSummaryDe(
   useScope: boolean,
   scopeFolderIds: number[],
-  folderOptions: Array<{ id: number; label: string }>
+  folderScopeGroups: MetaFolderScopeFolderGroup[]
 ): string {
   if (!useScope || scopeFolderIds.length === 0) {
     return 'Alle synchronisierten Ordner außer Papierkorb und Junk-E-Mail.'
   }
   const labels = scopeFolderIds
-    .map((id) => folderOptions.find((o) => o.id === id)?.label ?? `#${id}`)
+    .map((id) => folderScopeLabel(folderScopeGroups, id))
     .slice(0, 4)
   const more = scopeFolderIds.length > 4 ? ` … (+${scopeFolderIds.length - 4} weitere)` : ''
   return `Nur in ${scopeFolderIds.length} ausgewählten Ordnern: ${labels.join(', ')}${more}.`
 }
 
 export function buildMetaFolderRuleSummaryDe(args: {
-  preset: MetaFolderUiPreset
   useScope: boolean
   scopeFolderIds: number[]
-  folderOptions: Array<{ id: number; label: string }>
-  matchCombine: 'and' | 'or'
-  customUnread: boolean
-  customFlagged: boolean
-  customAttach: boolean
-  fullTextLines: string[]
-  fromLines: string[]
+  folderScopeGroups: MetaFolderScopeFolderGroup[]
+  matchRoot: MetaFolderConditionGroup
   exceptionRows: MetaFolderExcRowState[]
+  exceptionsMatchOp: 'and' | 'or'
 }): string {
   const {
-    preset,
     useScope,
     scopeFolderIds,
-    folderOptions,
-    matchCombine,
-    customUnread,
-    customFlagged,
-    customAttach,
-    fullTextLines,
-    fromLines,
-    exceptionRows
+    folderScopeGroups,
+    matchRoot,
+    exceptionRows,
+    exceptionsMatchOp
   } = args
   const parts: string[] = []
-  parts.push(scopeSummaryDe(useScope, scopeFolderIds, folderOptions))
+  parts.push(scopeSummaryDe(useScope, scopeFolderIds, folderScopeGroups))
 
-  const join = matchCombine === 'or' ? ' oder ' : ' und '
-  if (preset === 'unread') parts.push('Es erscheinen nur ungelesene Mails.')
-  else if (preset === 'flagged') parts.push('Es erscheinen nur markierte Mails.')
-  else if (preset === 'attachments') parts.push('Es erscheinen nur Mails mit Anhang.')
-  else if (preset === 'fulltext') {
-    const lines = fullTextLines.map((l) => l.trim()).filter((l) => l.length >= 2)
-    if (lines.length === 0) parts.push('Volltextfilter (noch zu kurz).')
-    else if (lines.length === 1) parts.push(`Volltext passt auf: „${lines[0]}“.`)
-    else parts.push(`Volltext (eine Zeile reicht): ${lines.map((x) => `„${x}“`).join(' oder ')}.`)
-  } else {
-    const bits: string[] = []
-    if (customUnread) bits.push('ungelesen')
-    if (customFlagged) bits.push('markiert')
-    if (customAttach) bits.push('mit Anhang')
-    const fts = fullTextLines.map((l) => l.trim()).filter((l) => l.length >= 2)
-    if (fts.length === 1) bits.push(`Volltext „${fts[0]}“`)
-    else if (fts.length > 1) bits.push(`Volltext-Zeilen (ODER): ${fts.map((x) => `„${x}“`).join(' oder ')}`)
-    const fromBits = fromLines.map((l) => l.trim()).filter((l) => l.length >= 2)
-    if (fromBits.length === 1) bits.push(`Absender enthält „${fromBits[0]}“`)
-    else if (fromBits.length > 1)
-      bits.push(`Absender-Zeilen (ODER): ${fromBits.map((x) => `„${x}“`).join(' oder ')}`)
-    if (bits.length === 0) parts.push('Hauptfilter: (noch nichts gewählt).')
-    else
-      parts.push(
-        `Hauptfilter (${matchCombine === 'or' ? 'mindestens eine Bedingung' : 'alle Bedingungen'}): ${bits.join(join)}.`
-      )
+  const matchSummary = matchExpressionSummaryDe(matchRoot)
+  if (!matchSummary && !(useScope && scopeFolderIds.length > 0)) {
+    parts.push('Filter: (noch keine Bedingung unter „Was?“).')
+  } else if (matchSummary) {
+    parts.push(`Was?: ${matchSummary}.`)
   }
 
   const exBits: string[] = []
@@ -98,10 +71,12 @@ export function buildMetaFolderRuleSummaryDe(args: {
     if (rt.length >= 2) sub.push(`Volltext „${rt}“`)
     const rf = r.from.trim()
     if (rf.length >= 2) sub.push(`Absender „${rf}“`)
-    if (sub.length > 0) exBits.push(`(${sub.join(' und ')})`)
+    const internalJoin = r.matchOp === 'or' ? ' oder ' : ' und '
+    if (sub.length > 0) exBits.push(`(${sub.join(internalJoin)})`)
   }
   if (exBits.length > 0) {
-    parts.push(`Ausnahme — ausschließen wenn ${exBits.join(' oder ')} (je Karte: innerhalb UND).`)
+    const outerJoin = exceptionsMatchOp === 'or' ? ' oder ' : ' und '
+    parts.push(`Was nicht? — ausschließen wenn ${exBits.join(outerJoin)}.`)
   }
 
   return parts.join(' ')
@@ -134,39 +109,68 @@ function StepBadge({ n, tone }: { n: number; tone: 'emerald' | 'sky' | 'rose' })
   )
 }
 
-function JoinPill({ label }: { label: string }): JSX.Element {
+function RuleHintIcon({ text }: { text: string }): JSX.Element {
   return (
-    <span className="rounded-full border border-dashed border-muted-foreground/40 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-      {label}
-    </span>
+    <button
+      type="button"
+      className="inline-flex shrink-0 rounded-full p-0.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
+      title={text}
+      aria-label="Hinweis"
+    >
+      <Info className="h-3.5 w-3.5" aria-hidden />
+    </button>
+  )
+}
+
+function LogicToggle({
+  label,
+  value,
+  onChange
+}: {
+  label?: string
+  value: 'and' | 'or'
+  onChange: (v: 'and' | 'or') => void
+}): JSX.Element {
+  return (
+    <div className="flex items-center gap-1 rounded-md bg-background/60 px-1 py-0.5 text-[10px]">
+      {label && <span className="px-1 text-muted-foreground">{label}</span>}
+      <button
+        type="button"
+        className={cn(
+          'rounded px-1.5 py-0.5 font-semibold',
+          value === 'and' ? 'bg-primary text-primary-foreground' : 'hover:bg-secondary'
+        )}
+        onClick={(): void => onChange('and')}
+      >
+        UND
+      </button>
+      <button
+        type="button"
+        className={cn(
+          'rounded px-1.5 py-0.5 font-semibold',
+          value === 'or' ? 'bg-primary text-primary-foreground' : 'hover:bg-secondary'
+        )}
+        onClick={(): void => onChange('or')}
+      >
+        ODER
+      </button>
+    </div>
   )
 }
 
 export interface MetaFolderRuleFlowProps {
-  preset: MetaFolderUiPreset
   interactive: boolean
   useScope: boolean
   scopeFolderIds: number[]
-  folderOptions: Array<{ id: number; label: string }>
-  matchCombine: 'and' | 'or'
-  customUnread: boolean
-  customFlagged: boolean
-  customAttach: boolean
-  fullTextLines: string[]
-  fromLines: string[]
+  folderScopeGroups: MetaFolderScopeFolderGroup[]
+  categoryOptions: string[]
+  matchRoot: MetaFolderConditionGroup
+  onMatchRootChange: (root: MetaFolderConditionGroup) => void
   exceptionRows: MetaFolderExcRowState[]
-  onMatchCombine: (v: 'and' | 'or') => void
-  onSetUnread: (v: boolean) => void
-  onSetFlagged: (v: boolean) => void
-  onSetAttach: (v: boolean) => void
-  onChangeFullTextLine: (index: number, value: string) => void
-  onAddFullTextLine: () => void
-  onRemoveFullTextLine: (index: number) => void
-  onClearAllFullTextLines: () => void
-  onChangeFromLine: (index: number, value: string) => void
-  onAddFromLine: () => void
-  onRemoveFromLine: (index: number) => void
-  onClearAllFromLines: () => void
+  exceptionsMatchOp: 'and' | 'or'
+  onSetUseScope: (v: boolean) => void
+  onToggleScopeFolder: (id: number) => void
+  onSetExceptionsMatchOp: (v: 'and' | 'or') => void
   onUpdateExc: (id: string, patch: Partial<MetaFolderExcRowState>) => void
   onRemoveExc: (id: string) => void
   onAddExc: () => void
@@ -174,361 +178,114 @@ export interface MetaFolderRuleFlowProps {
 
 export function MetaFolderRuleFlow(props: MetaFolderRuleFlowProps): JSX.Element {
   const {
-    preset,
     interactive,
     useScope,
     scopeFolderIds,
-    folderOptions,
-    matchCombine,
-    customUnread,
-    customFlagged,
-    customAttach,
-    fullTextLines,
-    fromLines,
+    folderScopeGroups,
+    categoryOptions,
+    matchRoot,
+    onMatchRootChange,
     exceptionRows,
-    onMatchCombine,
-    onSetUnread,
-    onSetFlagged,
-    onSetAttach,
-    onChangeFullTextLine,
-    onAddFullTextLine,
-    onRemoveFullTextLine,
-    onClearAllFullTextLines,
-    onChangeFromLine,
-    onAddFromLine,
-    onRemoveFromLine,
-    onClearAllFromLines,
+    exceptionsMatchOp,
+    onSetUseScope,
+    onToggleScopeFolder,
+    onSetExceptionsMatchOp,
     onUpdateExc,
     onRemoveExc,
     onAddExc
   } = props
 
-  const [addOpen, setAddOpen] = useState(false)
-  const addRef = useRef<HTMLDivElement>(null)
+  const scopeText = scopeSummaryDe(useScope, scopeFolderIds, folderScopeGroups)
+  const totalFolderCount = folderScopeGroups.reduce((n, g) => n + g.folders.length, 0)
 
-  useEffect(() => {
-    if (!addOpen) return
-    function onDoc(e: MouseEvent): void {
-      if (addRef.current && !addRef.current.contains(e.target as Node)) setAddOpen(false)
-    }
-    document.addEventListener('mousedown', onDoc)
-    return (): void => document.removeEventListener('mousedown', onDoc)
-  }, [addOpen])
+  const whatHintDe =
+    'Zwischen Bedingungen auf UND oder ODER klicken, um die Verknuepfung umzustellen. ' +
+    'Mit „Klammer — Untergruppe“ gruppieren, z. B. (Bedingung 1 UND Bedingung 2) ODER (Bedingung 3 ODER Bedingung 4). ' +
+    'Zeilen innerhalb Volltext/Absender sind ODER.'
 
-  const scopeText = scopeSummaryDe(useScope, scopeFolderIds, folderOptions)
-  const joinLabel = matchCombine === 'or' ? 'ODER' : 'UND'
-
-  function renderPresetMain(): JSX.Element {
-    if (preset === 'unread') {
-      return (
-        <div className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background/80 px-2.5 py-1.5 text-[11px] font-medium shadow-sm">
-          <MailOpen className="h-3.5 w-3.5 shrink-0 text-primary" />
-          Nur ungelesen
-        </div>
-      )
+  function renderScopeStep(): JSX.Element {
+    if (!interactive) {
+      return <p className="mt-1 text-xs leading-snug text-muted-foreground">{scopeText}</p>
     }
-    if (preset === 'flagged') {
-      return (
-        <div className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background/80 px-2.5 py-1.5 text-[11px] font-medium shadow-sm">
-          <Star className="h-3.5 w-3.5 shrink-0 text-primary" />
-          Nur markiert
-        </div>
-      )
-    }
-    if (preset === 'attachments') {
-      return (
-        <div className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background/80 px-2.5 py-1.5 text-[11px] font-medium shadow-sm">
-          <Paperclip className="h-3.5 w-3.5 shrink-0 text-primary" />
-          Mit Anhang
-        </div>
-      )
-    }
-    if (preset === 'fulltext') {
-      const lines = fullTextLines.map((l) => l.trim()).filter((l) => l.length >= 2)
-      return (
-        <div className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background/80 px-2.5 py-1.5 text-[11px] font-medium shadow-sm">
-          <Search className="h-3.5 w-3.5 shrink-0 text-primary" />
-          {lines.length === 0
-            ? 'Volltextsuche (Suchbegriff unten eintragen)'
-            : lines.length === 1
-              ? `Volltext: „${lines[0]}“`
-              : `Volltext: ${lines.map((x) => `„${x}“`).join(' oder ')}`}
-        </div>
-      )
-    }
-    return <div className="text-[11px] text-muted-foreground">—</div>
-  }
-
-  function renderCustomMain(): JSX.Element {
-    const chips: JSX.Element[] = []
-    let n = 0
-    const pushJoin = (): void => {
-      if (n > 0) chips.push(<JoinPill key={`j-${n}`} label={joinLabel} />)
-    }
-
-    if (customUnread) {
-      pushJoin()
-      chips.push(
-        <div
-          key="u"
-          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background/90 px-2.5 py-1.5 text-[11px] font-medium shadow-sm"
-        >
-          <MailOpen className="h-3.5 w-3.5 shrink-0 text-primary" />
-          Ungelesen
-          <button
-            type="button"
-            className="rounded p-0.5 text-muted-foreground hover:bg-destructive/15 hover:text-destructive"
-            onClick={(): void => onSetUnread(false)}
-            aria-label="Entfernen"
-          >
-            <X className="h-3 w-3" />
-          </button>
-        </div>
-      )
-      n++
-    }
-    if (customFlagged) {
-      pushJoin()
-      chips.push(
-        <div
-          key="f"
-          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background/90 px-2.5 py-1.5 text-[11px] font-medium shadow-sm"
-        >
-          <Star className="h-3.5 w-3.5 shrink-0 text-primary" />
-          Markiert
-          <button
-            type="button"
-            className="rounded p-0.5 text-muted-foreground hover:bg-destructive/15 hover:text-destructive"
-            onClick={(): void => onSetFlagged(false)}
-            aria-label="Entfernen"
-          >
-            <X className="h-3 w-3" />
-          </button>
-        </div>
-      )
-      n++
-    }
-    if (customAttach) {
-      pushJoin()
-      chips.push(
-        <div
-          key="a"
-          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background/90 px-2.5 py-1.5 text-[11px] font-medium shadow-sm"
-        >
-          <Paperclip className="h-3.5 w-3.5 shrink-0 text-primary" />
-          Mit Anhang
-          <button
-            type="button"
-            className="rounded p-0.5 text-muted-foreground hover:bg-destructive/15 hover:text-destructive"
-            onClick={(): void => onSetAttach(false)}
-            aria-label="Entfernen"
-          >
-            <X className="h-3 w-3" />
-          </button>
-        </div>
-      )
-      n++
-    }
-
-    pushJoin()
-    chips.push(
-      <div
-        key="ft"
-        className="inline-flex min-w-[160px] max-w-full flex-1 flex-col gap-1.5 rounded-lg border border-border bg-background/90 px-2 py-1.5 shadow-sm"
-      >
-        <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-          <Search className="h-3 w-3 shrink-0" />
-          Volltext
-          {fullTextLines.some((l) => l.trim().length > 0) && (
-            <button
-              type="button"
-              className="ml-auto rounded p-0.5 text-muted-foreground hover:bg-destructive/15 hover:text-destructive"
-              onClick={onClearAllFullTextLines}
-              aria-label="Volltext leeren"
-            >
-              <X className="h-3 w-3" />
-            </button>
-          )}
-        </div>
-        <div className="flex flex-col gap-1.5">
-          {fullTextLines.map((line, idx) => (
-            <Fragment key={idx}>
-              {idx > 0 && (
-                <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  oder
-                </span>
-              )}
-              <div className="flex gap-1">
-                <input
-                  type="text"
-                  value={line}
-                  onChange={(e): void => onChangeFullTextLine(idx, e.target.value)}
-                  placeholder={idx === 0 ? 'Suchbegriff…' : 'Alternative…'}
-                  className="min-w-0 flex-1 rounded border border-input bg-background px-1.5 py-1 text-[11px] outline-none focus-visible:ring-1 focus-visible:ring-primary"
-                />
-                {fullTextLines.length > 1 && (
-                  <button
-                    type="button"
-                    className="shrink-0 rounded px-1 text-muted-foreground hover:bg-destructive/15 hover:text-destructive"
-                    onClick={(): void => onRemoveFullTextLine(idx)}
-                    aria-label="Zeile entfernen"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                )}
-              </div>
-            </Fragment>
-          ))}
-        </div>
-        <button
-          type="button"
-          onClick={onAddFullTextLine}
-          className="rounded border border-dashed border-primary/40 py-1 text-[10px] font-medium text-primary hover:bg-primary/10"
-        >
-          + Weitere Volltext-Zeile (ODER)
-        </button>
-      </div>
-    )
-    n += 1
-
-    pushJoin()
-    chips.push(
-      <div
-        key="fr"
-        className="inline-flex min-w-[160px] max-w-full flex-1 flex-col gap-1.5 rounded-lg border border-border bg-background/90 px-2 py-1.5 shadow-sm"
-      >
-        <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-          <UserRound className="h-3 w-3 shrink-0" />
-          Absender enthält
-          {fromLines.some((l) => l.trim().length > 0) && (
-            <button
-              type="button"
-              className="ml-auto rounded p-0.5 text-muted-foreground hover:bg-destructive/15 hover:text-destructive"
-              onClick={onClearAllFromLines}
-              aria-label="Absender leeren"
-            >
-              <X className="h-3 w-3" />
-            </button>
-          )}
-        </div>
-        <div className="flex flex-col gap-1.5">
-          {fromLines.map((line, idx) => (
-            <Fragment key={idx}>
-              {idx > 0 && (
-                <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  oder
-                </span>
-              )}
-              <div className="flex gap-1">
-                <input
-                  type="text"
-                  value={line}
-                  onChange={(e): void => onChangeFromLine(idx, e.target.value)}
-                  placeholder={idx === 0 ? 'E-Mail oder Name…' : 'Alternative…'}
-                  className="min-w-0 flex-1 rounded border border-input bg-background px-1.5 py-1 text-[11px] outline-none focus-visible:ring-1 focus-visible:ring-primary"
-                />
-                {fromLines.length > 1 && (
-                  <button
-                    type="button"
-                    className="shrink-0 rounded px-1 text-muted-foreground hover:bg-destructive/15 hover:text-destructive"
-                    onClick={(): void => onRemoveFromLine(idx)}
-                    aria-label="Zeile entfernen"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                )}
-              </div>
-            </Fragment>
-          ))}
-        </div>
-        <button
-          type="button"
-          onClick={onAddFromLine}
-          className="rounded border border-dashed border-primary/40 py-1 text-[10px] font-medium text-primary hover:bg-primary/10"
-        >
-          + Weitere Absender-Zeile (ODER)
-        </button>
-      </div>
-    )
 
     return (
-      <div className="flex flex-wrap items-center gap-2">
-        {chips}
-        <div className="relative" ref={addRef}>
-          <button
-            type="button"
-            onClick={(): void => setAddOpen((v) => !v)}
-            className="inline-flex items-center gap-1 rounded-lg border border-dashed border-primary/50 bg-primary/5 px-2 py-1.5 text-[11px] font-medium text-primary hover:bg-primary/10"
-          >
-            + Bedingung
-            <ChevronDown className={cn('h-3 w-3 transition', addOpen && 'rotate-180')} />
-          </button>
-          {addOpen && (
-            <div className="chronell-acrylic-popover absolute left-0 top-full z-20 mt-1 min-w-[180px] py-1 text-[11px]">
-              {!customUnread && (
-                <button
-                  type="button"
-                  className="flex w-full items-center gap-2 px-2 py-1.5 text-left hover:bg-secondary"
-                  onClick={(): void => {
-                    onSetUnread(true)
-                    setAddOpen(false)
-                  }}
-                >
-                  <MailOpen className="h-3.5 w-3.5" /> Ungelesen
-                </button>
-              )}
-              {!customFlagged && (
-                <button
-                  type="button"
-                  className="flex w-full items-center gap-2 px-2 py-1.5 text-left hover:bg-secondary"
-                  onClick={(): void => {
-                    onSetFlagged(true)
-                    setAddOpen(false)
-                  }}
-                >
-                  <Star className="h-3.5 w-3.5" /> Markiert
-                </button>
-              )}
-              {!customAttach && (
-                <button
-                  type="button"
-                  className="flex w-full items-center gap-2 px-2 py-1.5 text-left hover:bg-secondary"
-                  onClick={(): void => {
-                    onSetAttach(true)
-                    setAddOpen(false)
-                  }}
-                >
-                  <Paperclip className="h-3.5 w-3.5" /> Mit Anhang
-                </button>
-              )}
-              {customUnread && customFlagged && customAttach && (
-                <div className="px-2 py-1.5 text-muted-foreground">Alle Basis-Bedingungen aktiv</div>
+      <div className="mt-2 space-y-2">
+        {!useScope ? (
+          <>
+            <p className="text-xs leading-snug text-muted-foreground">{scopeText}</p>
+            <button
+              type="button"
+              onClick={(): void => onSetUseScope(true)}
+              className="w-full rounded border border-dashed border-emerald-600/40 py-1.5 text-xs font-medium text-emerald-800 hover:bg-emerald-500/10 dark:text-emerald-200"
+            >
+              + Bestimmte Ordner wählen
+            </button>
+          </>
+        ) : (
+          <>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-medium text-foreground">
+                {scopeFolderIds.length} Ordner ausgewählt
+              </p>
+              <button
+                type="button"
+                onClick={(): void => onSetUseScope(false)}
+                className="shrink-0 text-[10px] font-medium text-muted-foreground underline hover:text-foreground"
+              >
+                Standard (alle)
+              </button>
+            </div>
+            <div className="max-h-36 overflow-y-auto rounded-md border border-input/60 bg-background/70 p-1.5">
+              {totalFolderCount === 0 ? (
+                <p className="py-2 text-center text-xs text-muted-foreground">Keine Ordner geladen.</p>
+              ) : (
+                folderScopeGroups.map((group) => (
+                  <div key={group.accountId} className="mb-2 last:mb-0">
+                    <div className="sticky top-0 z-[1] truncate bg-background/95 px-1 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground backdrop-blur-sm">
+                      {group.accountLabel}
+                    </div>
+                    <div className="space-y-0.5 pl-1">
+                      {group.folders.map((f) => (
+                        <label
+                          key={f.id}
+                          className="flex cursor-pointer items-center gap-2 rounded px-1 py-0.5 hover:bg-secondary/50"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={scopeFolderIds.includes(f.id)}
+                            onChange={(): void => onToggleScopeFolder(f.id)}
+                            className="rounded border-input"
+                          />
+                          <span className="truncate text-xs">{f.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ))
               )}
             </div>
-          )}
-        </div>
+          </>
+        )}
       </div>
     )
   }
-
-  const showExceptionsBlock = interactive || exceptionRows.length > 0
 
   return (
     <div className="rounded-xl bg-gradient-to-b from-muted/30 to-card/80 p-3 shadow-inner">
       <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
         <Layers className="h-3.5 w-3.5" />
-        Regel grafisch
+        Regel aufbauen
       </div>
 
       <div className="flex flex-col">
         <div className="flex gap-2">
           <StepBadge n={1} tone="emerald" />
           <div className="min-w-0 flex-1 rounded-lg border-l-4 border-l-emerald-500 bg-emerald-500/[0.07] px-3 py-2">
-            <div className="flex items-center gap-2 text-[11px] font-semibold text-foreground">
+            <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
               <FolderInput className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
               Wo suchen?
             </div>
-            <p className="mt-1 text-[11px] leading-snug text-muted-foreground">{scopeText}</p>
+            {renderScopeStep()}
           </div>
         </div>
 
@@ -537,142 +294,138 @@ export function MetaFolderRuleFlow(props: MetaFolderRuleFlowProps): JSX.Element 
         <div className="flex gap-2">
           <StepBadge n={2} tone="sky" />
           <div className="min-w-0 flex-1 space-y-2 rounded-lg border-l-4 border-l-sky-500 bg-sky-500/[0.07] px-3 py-2">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2 text-[11px] font-semibold text-foreground">
-                <Filter className="h-3.5 w-3.5 shrink-0 text-sky-600 dark:text-sky-400" />
-                Was soll rein?
-              </div>
-              {preset === 'custom' && (
-                <div className="flex items-center gap-1 rounded-md bg-background/60 px-1 py-0.5 text-[10px]">
-                  <span className="px-1 text-muted-foreground">Hauptfilter</span>
-                  <button
-                    type="button"
-                    className={cn(
-                      'rounded px-1.5 py-0.5 font-semibold',
-                      matchCombine === 'and' ? 'bg-primary text-primary-foreground' : 'hover:bg-secondary'
-                    )}
-                    onClick={(): void => onMatchCombine('and')}
-                  >
-                    UND
-                  </button>
-                  <button
-                    type="button"
-                    className={cn(
-                      'rounded px-1.5 py-0.5 font-semibold',
-                      matchCombine === 'or' ? 'bg-primary text-primary-foreground' : 'hover:bg-secondary'
-                    )}
-                    onClick={(): void => onMatchCombine('or')}
-                  >
-                    ODER
-                  </button>
-                </div>
-              )}
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+              <Filter className="h-3.5 w-3.5 shrink-0 text-sky-600 dark:text-sky-400" />
+              Was?
+              {interactive && <RuleHintIcon text={whatHintDe} />}
             </div>
-            {preset === 'custom' ? renderCustomMain() : renderPresetMain()}
+            {interactive ? (
+              <MetaFolderMatchExpressionEditor
+                root={matchRoot}
+                onChange={onMatchRootChange}
+                categoryOptions={categoryOptions}
+              />
+            ) : matchExpressionHasActiveFilter(matchRoot) ? (
+              <p className="text-xs text-muted-foreground">{matchExpressionSummaryDe(matchRoot)}</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">—</p>
+            )}
           </div>
         </div>
 
-        {showExceptionsBlock && (
-          <>
-            <FlowConnector />
-            <div className="flex gap-2">
-              <StepBadge n={3} tone="rose" />
-              <div className="min-w-0 flex-1 space-y-2 rounded-lg border-l-4 border-l-rose-500 bg-rose-500/[0.06] px-3 py-2">
-                <div className="flex items-center gap-2 text-[11px] font-semibold text-foreground">
-                  <Ban className="h-3.5 w-3.5 shrink-0 text-rose-600 dark:text-rose-400" />
-                  Was soll raus?
-                </div>
-                <p className="text-[10px] leading-snug text-muted-foreground">
-                  Zwischen den Karten gilt <strong>ODER</strong>. Innerhalb einer Karte: <strong>UND</strong>.
-                </p>
-                <div className="space-y-2">
-                  {exceptionRows.map((row, idx) => (
-                    <Fragment key={row.id}>
-                      {idx > 0 && (
-                        <div className="flex items-center gap-2 py-0.5">
-                          <div className="h-px flex-1 bg-rose-500/25" />
-                          <span className="shrink-0 rounded-full bg-rose-500/20 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-rose-700 dark:text-rose-300">
-                            oder
-                          </span>
-                          <div className="h-px flex-1 bg-rose-500/25" />
-                        </div>
-                      )}
-                      <div className="relative rounded-lg border border-rose-500/25 bg-background/70 p-2 shadow-sm">
-                        {interactive && (
-                          <button
-                            type="button"
-                            className="absolute right-1 top-1 rounded p-0.5 text-muted-foreground hover:bg-destructive/15 hover:text-destructive"
-                            onClick={(): void => onRemoveExc(row.id)}
-                            aria-label="Ausnahme entfernen"
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </button>
-                        )}
-                        <div className="flex flex-wrap gap-2 pr-6">
-                          <label className="flex cursor-pointer items-center gap-1">
-                            <input
-                              type="checkbox"
-                              checked={row.unread}
-                              disabled={!interactive}
-                              onChange={(e): void => onUpdateExc(row.id, { unread: e.target.checked })}
-                              className="rounded border-input"
-                            />
-                            <span className="text-[11px]">Ungelesen</span>
-                          </label>
-                          <label className="flex cursor-pointer items-center gap-1">
-                            <input
-                              type="checkbox"
-                              checked={row.flagged}
-                              disabled={!interactive}
-                              onChange={(e): void => onUpdateExc(row.id, { flagged: e.target.checked })}
-                              className="rounded border-input"
-                            />
-                            <span className="text-[11px]">Markiert</span>
-                          </label>
-                          <label className="flex cursor-pointer items-center gap-1">
-                            <input
-                              type="checkbox"
-                              checked={row.attach}
-                              disabled={!interactive}
-                              onChange={(e): void => onUpdateExc(row.id, { attach: e.target.checked })}
-                              className="rounded border-input"
-                            />
-                            <span className="text-[11px]">Anhang</span>
-                          </label>
-                        </div>
-                        <input
-                          type="text"
-                          value={row.textQuery}
-                          disabled={!interactive}
-                          onChange={(e): void => onUpdateExc(row.id, { textQuery: e.target.value })}
-                          placeholder="Volltext in dieser Ausnahme"
-                          className="mt-2 w-full rounded border border-input bg-background px-2 py-1 text-[11px] disabled:opacity-60"
-                        />
-                        <input
-                          type="text"
-                          value={row.from}
-                          disabled={!interactive}
-                          onChange={(e): void => onUpdateExc(row.id, { from: e.target.value })}
-                          placeholder="Absender enthält"
-                          className="mt-1 w-full rounded border border-input bg-background px-2 py-1 text-[11px] disabled:opacity-60"
+        <FlowConnector />
+
+        <div className="flex gap-2">
+          <StepBadge n={3} tone="rose" />
+          <div className="min-w-0 flex-1 space-y-2 rounded-lg border-l-4 border-l-rose-500 bg-rose-500/[0.06] px-3 py-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+                <Ban className="h-3.5 w-3.5 shrink-0 text-rose-600 dark:text-rose-400" />
+                Was nicht?
+              </div>
+              {interactive && exceptionRows.length > 1 && (
+                <LogicToggle
+                  label="Zwischen Karten"
+                  value={exceptionsMatchOp}
+                  onChange={onSetExceptionsMatchOp}
+                />
+              )}
+            </div>
+            <div className="space-y-2">
+              {exceptionRows.map((row, idx) => (
+                <Fragment key={row.id}>
+                  {idx > 0 && (
+                    <div className="flex items-center gap-2 py-0.5">
+                      <div className="h-px flex-1 bg-rose-500/25" />
+                      <span className="shrink-0 rounded-full bg-rose-500/20 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-rose-700 dark:text-rose-300">
+                        {exceptionsMatchOp === 'or' ? 'oder' : 'und'}
+                      </span>
+                      <div className="h-px flex-1 bg-rose-500/25" />
+                    </div>
+                  )}
+                  <div className="relative rounded-lg border border-rose-500/25 bg-background/70 p-2 shadow-sm">
+                    {interactive && (
+                      <button
+                        type="button"
+                        className="absolute right-1 top-1 rounded p-0.5 text-muted-foreground hover:bg-destructive/15 hover:text-destructive"
+                        onClick={(): void => onRemoveExc(row.id)}
+                        aria-label="Ausnahme entfernen"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                    {interactive && (
+                      <div className="mb-2 flex items-center justify-end pr-6">
+                        <LogicToggle
+                          label="In dieser Karte"
+                          value={row.matchOp}
+                          onChange={(v): void => onUpdateExc(row.id, { matchOp: v })}
                         />
                       </div>
-                    </Fragment>
-                  ))}
-                </div>
-                {interactive && (
-                  <button
-                    type="button"
-                    onClick={onAddExc}
-                    className="w-full rounded border border-dashed border-rose-500/40 py-1.5 text-[11px] font-medium text-rose-800/90 hover:bg-rose-500/10 dark:text-rose-200/90"
-                  >
-                    + Ausnahme-Karte
-                  </button>
-                )}
-              </div>
+                    )}
+                    <div className="flex flex-wrap gap-2 pr-6">
+                      <label className="flex cursor-pointer items-center gap-1">
+                        <input
+                          type="checkbox"
+                          checked={row.unread}
+                          disabled={!interactive}
+                          onChange={(e): void => onUpdateExc(row.id, { unread: e.target.checked })}
+                          className="rounded border-input"
+                        />
+                        <span className="text-xs">Ungelesen</span>
+                      </label>
+                      <label className="flex cursor-pointer items-center gap-1">
+                        <input
+                          type="checkbox"
+                          checked={row.flagged}
+                          disabled={!interactive}
+                          onChange={(e): void => onUpdateExc(row.id, { flagged: e.target.checked })}
+                          className="rounded border-input"
+                        />
+                        <span className="text-xs">Markiert</span>
+                      </label>
+                      <label className="flex cursor-pointer items-center gap-1">
+                        <input
+                          type="checkbox"
+                          checked={row.attach}
+                          disabled={!interactive}
+                          onChange={(e): void => onUpdateExc(row.id, { attach: e.target.checked })}
+                          className="rounded border-input"
+                        />
+                        <span className="text-xs">Anhang</span>
+                      </label>
+                    </div>
+                    <input
+                      type="text"
+                      value={row.textQuery}
+                      disabled={!interactive}
+                      onChange={(e): void => onUpdateExc(row.id, { textQuery: e.target.value })}
+                      placeholder="Volltext in dieser Ausnahme"
+                      className="mt-2 w-full rounded border border-input bg-background px-2 py-1 text-xs disabled:opacity-60"
+                    />
+                    <input
+                      type="text"
+                      value={row.from}
+                      disabled={!interactive}
+                      onChange={(e): void => onUpdateExc(row.id, { from: e.target.value })}
+                      placeholder="Absender enthält"
+                      className="mt-1 w-full rounded border border-input bg-background px-2 py-1 text-xs disabled:opacity-60"
+                    />
+                  </div>
+                </Fragment>
+              ))}
             </div>
-          </>
-        )}
+            {interactive && (
+              <button
+                type="button"
+                onClick={onAddExc}
+                className="w-full rounded border border-dashed border-rose-500/40 py-1.5 text-xs font-medium text-rose-800/90 hover:bg-rose-500/10 dark:text-rose-200/90"
+              >
+                + Ausnahme hinzufügen
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   )

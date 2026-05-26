@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 
-import { CheckCircle2, ChevronDown, ChevronRight, Circle } from 'lucide-react'
+import { CheckCircle2, ChevronDown, ChevronRight, Circle, Mail } from 'lucide-react'
 
 import { useTranslation } from 'react-i18next'
 
@@ -45,7 +45,11 @@ import {
 
 import { setCloudTaskDragData } from '@/app/tasks/tasks-cloud-task-dnd'
 
-import { taskItemKey, type TaskItemWithContext } from '@/app/tasks/tasks-types'
+import {
+  isMailTodoListItem,
+  tasksListItemKey,
+  type TasksListItem
+} from '@/app/tasks/tasks-types'
 
 import {
 
@@ -55,6 +59,9 @@ import {
 
 } from '@/app/tasks/TasksInlineCreateRow'
 import { dueDateInputValue } from '@/app/work-items/work-item-datetime'
+import { useTasksSettingsPrefs } from '@/lib/use-tasks-settings-prefs'
+import type { TaskListLayoutOptions } from '@/app/tasks/task-list-arrange'
+import { resolveTaskOverdueRowStyle } from '@/lib/task-row-overdue-style'
 
 function dueDateLabel(dueIso: string | null): string {
   return dueIso ? dueDateInputValue(dueIso) : ''
@@ -64,7 +71,7 @@ function dueDateLabel(dueIso: string | null): string {
 
 export interface TasksGroupedListProps {
 
-  items: TaskItemWithContext[]
+  items: TasksListItem[]
 
   accounts: ConnectedAccount[]
 
@@ -74,17 +81,19 @@ export interface TasksGroupedListProps {
 
   filter: TaskListFilter
 
+  layoutOpts?: TaskListLayoutOptions
+
   showAccountHint: boolean
 
   selectedKey: string | null
 
   checkedKeys: Set<string>
 
-  onSelect: (item: TaskItemWithContext) => void
+  onSelect: (item: TasksListItem) => void
 
-  onTaskClick: (item: TaskItemWithContext, event: MouseEvent) => void
+  onTaskClick: (item: TasksListItem, event: MouseEvent) => void
 
-  onToggleCompleted: (item: TaskItemWithContext) => void
+  onToggleCompleted: (item: TasksListItem) => void
 
   enableDrag?: boolean
 
@@ -128,11 +137,14 @@ export function TasksGroupedList({
 
   isItemExiting,
 
+  layoutOpts,
+
   inlineCreate
 
 }: TasksGroupedListProps): JSX.Element {
 
   const { t, i18n } = useTranslation()
+  const settings = useTasksSettingsPrefs()
 
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
 
@@ -161,6 +173,9 @@ export function TasksGroupedList({
       openLabel: t('tasks.listArrange.statusOpen'),
 
       doneLabel: t('tasks.listArrange.statusDone'),
+      typeMailLabel: t('tasks.listArrange.typeMail'),
+      typeTaskLabel: t('tasks.listArrange.typeTask'),
+      mailSourceLabel: t('tasks.listArrange.mailSource'),
 
       formatCalendarDayGroupLabel: (dayKey: string): string => {
 
@@ -184,9 +199,14 @@ export function TasksGroupedList({
 
   const groups = useMemo(
 
-    () => computeTaskListLayout(items, arrange, chrono, filter, arrangeCtx, timeZone),
+    () =>
+      computeTaskListLayout(items, arrange, chrono, filter, arrangeCtx, timeZone, {
+        overdueMode: settings.overdueMode,
+        noDuePlacement: settings.noDuePlacement,
+        ...layoutOpts
+      }),
 
-    [items, arrange, chrono, filter, arrangeCtx, timeZone]
+    [items, arrange, chrono, filter, arrangeCtx, timeZone, settings.overdueMode, settings.noDuePlacement, layoutOpts]
 
   )
 
@@ -197,21 +217,23 @@ export function TasksGroupedList({
 
   useEffect(() => {
     userToggledCollapseRef.current = new Set()
-    setCollapsed(defaultCollapsedTaskListGroupKeys(arrange, groups))
-  }, [arrange])
+    setCollapsed(defaultCollapsedTaskListGroupKeys(arrange, groups, settings.collapsedGroupsMode))
+  }, [arrange, settings.collapsedGroupsMode])
 
   useEffect(() => {
     setCollapsed((prev) => {
       const next = new Set(prev)
       for (const group of groups) {
-        if (!isTaskListGroupCollapsedByDefault(arrange, group)) continue
+        if (!isTaskListGroupCollapsedByDefault(arrange, group, settings.collapsedGroupsMode)) {
+          continue
+        }
         const key = taskListGroupCollapseKey(arrange, group)
         if (userToggledCollapseRef.current.has(key)) continue
         next.add(key)
       }
       return next
     })
-  }, [groups, arrange])
+  }, [groups, arrange, settings.collapsedGroupsMode])
 
   function toggleGroup(collapseKey: string): void {
     userToggledCollapseRef.current.add(collapseKey)
@@ -284,7 +306,7 @@ export function TasksGroupedList({
 
                 ) : (
 
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  <span className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
 
                     {group.label}
 
@@ -292,7 +314,7 @@ export function TasksGroupedList({
 
                 )}
 
-                <span className="ml-auto text-[10px] tabular-nums text-muted-foreground">
+                <span className="ml-auto text-2xs tabular-nums text-muted-foreground">
 
                   {group.items.length}
 
@@ -308,7 +330,7 @@ export function TasksGroupedList({
 
                 {group.items.map((task) => {
 
-                  const key = taskItemKey(task)
+                  const key = tasksListItemKey(task)
 
                   const active = selectedKey === key
 
@@ -316,7 +338,18 @@ export function TasksGroupedList({
 
                   const acc = accountById.get(task.accountId)
 
-                  const stripe = acc ? resolvedAccountColorCss(acc.color) : undefined
+                  const accountStripe =
+                    settings.showAccountStripe && acc
+                      ? resolvedAccountColorCss(acc.color)
+                      : undefined
+                  const overdueStyle = resolveTaskOverdueRowStyle(
+                    task,
+                    settings,
+                    timeZone,
+                    accountStripe
+                  )
+                  const isMail = isMailTodoListItem(task)
+                  const dragEnabled = enableDrag && settings.listDragEnabled && !isMail
 
                   return (
 
@@ -324,15 +357,17 @@ export function TasksGroupedList({
 
                       key={key}
 
-                      draggable={enableDrag}
+                      draggable={dragEnabled}
 
                       onDragStart={
 
-                        enableDrag
+                        dragEnabled && !isMail
 
                           ? (e): void => {
 
-                              if (e.dataTransfer) setCloudTaskDragData(e.dataTransfer, task)
+                              if (e.dataTransfer && task.source === 'cloud') {
+                                setCloudTaskDragData(e.dataTransfer, task)
+                              }
 
                             }
 
@@ -344,6 +379,8 @@ export function TasksGroupedList({
 
                       onDoubleClick={(): void => onSelect(task)}
 
+                      style={overdueStyle.rowStyle}
+
                       className={cn(
 
                         'relative cursor-default border-b select-none',
@@ -351,9 +388,9 @@ export function TasksGroupedList({
 
                         checked && 'bg-primary/8',
 
-                        active && !checked && 'bg-secondary/30',
+                        active && !checked && !overdueStyle.rowStyle && 'bg-secondary/30',
 
-                        enableDrag && 'cursor-grab active:cursor-grabbing',
+                        dragEnabled && 'cursor-grab active:cursor-grabbing',
 
                         isItemExiting?.(key) && motionListItemExit
 
@@ -361,25 +398,25 @@ export function TasksGroupedList({
 
                     >
 
-                      {acc ? (
+                      {overdueStyle.stripeColor ? (
+
+                        <span
+
+                          className="pointer-events-none absolute left-0 top-1 bottom-1 w-0.5 rounded-full opacity-90"
+
+                          style={{ backgroundColor: overdueStyle.stripeColor }}
+
+                          aria-hidden
+
+                        />
+
+                      ) : acc ? (
 
                         <AccountColorStripe
 
                           color={acc.color}
 
                           className="left-0 top-1 bottom-1 w-0.5 rounded-full opacity-70"
-
-                        />
-
-                      ) : stripe ? (
-
-                        <span
-
-                          className="pointer-events-none absolute left-0 top-1 bottom-1 w-0.5 rounded-full opacity-70"
-
-                          style={{ backgroundColor: stripe }}
-
-                          aria-hidden
 
                         />
 
@@ -391,7 +428,8 @@ export function TasksGroupedList({
 
                           className={cn(
 
-                            'min-w-0 flex-1 py-2 pl-1 pr-1 text-xs',
+                            'min-w-0 flex-1 pl-1 pr-1 text-xs',
+                            settings.compactListRows ? 'py-1' : 'py-2',
 
                             active ? 'font-semibold text-foreground' : 'text-foreground/90',
 
@@ -403,13 +441,17 @@ export function TasksGroupedList({
 
                           <span className="flex items-start gap-1.5 line-clamp-2">
 
-                            <TaskDisplayIcon iconId={task.iconId} iconColor={task.iconColor} />
+                            {isMail ? (
+                              <Mail className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+                            ) : (
+                              <TaskDisplayIcon iconId={task.iconId} iconColor={task.iconColor} />
+                            )}
 
                             <span className="min-w-0 flex-1">{task.title}</span>
 
                           </span>
 
-                          <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-muted-foreground">
+                          <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-2xs text-muted-foreground">
 
                             {task.dueIso ? <span>{dueDateLabel(task.dueIso)}</span> : null}
 
@@ -453,7 +495,10 @@ export function TasksGroupedList({
 
                           onMouseDown={(e): void => e.stopPropagation()}
 
-                          className="shrink-0 self-start py-2 pl-0.5 text-muted-foreground hover:text-foreground"
+                          className={cn(
+                            'shrink-0 self-start pl-0.5 text-muted-foreground hover:text-foreground',
+                            settings.compactListRows ? 'py-1' : 'py-2'
+                          )}
 
                         >
 

@@ -148,7 +148,7 @@ export function NotesPageRow({
         >
           <span className="block truncate">{displayTitle}</span>
           {sectionLabel ? (
-            <span className="block truncate text-[10px] font-normal text-muted-foreground">
+            <span className="block truncate text-2xs font-normal text-muted-foreground">
               {sectionLabel}
             </span>
           ) : null}

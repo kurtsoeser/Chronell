@@ -3,15 +3,9 @@ import type { ZoomShortcutIntent } from '@shared/zoom-shortcut-keys'
 import { applyZoomShortcutIntent } from '@/lib/apply-zoom-shortcut-intent'
 import { parseZoomShortcutIntentFromKeyboardEvent } from '@/lib/zoom-shortcut-keys'
 
-function isEditableTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false
-  return !!target.closest('input, textarea, select, [contenteditable="true"]')
-}
-
 /**
- * Globale Zoom-Tasten:
- * - Strg/Cmd + Plus/Minus/0 → Mail-Vorschau
- * - Strg/Cmd + Umschalt + Plus/Minus/0 → Oberflächengröße (ui-scale)
+ * Strg/Cmd + Plus/Minus/0 — Oberflächengröße (gleicher Store wie Einstellungen).
+ * Im Composer: Schriftgröße des Schreibfelds. Mail-Vorschau: Mausrad/Pinch/Buttons.
  */
 export function useZoomShortcuts(): void {
   useEffect(() => {
@@ -20,20 +14,24 @@ export function useZoomShortcuts(): void {
     }
 
     const offMain = window.mailClient?.events?.onZoomShortcut?.(onIntent)
+    const useMainChannel = typeof window.mailClient?.events?.onZoomShortcut === 'function'
 
     const onKeyDown = (e: KeyboardEvent): void => {
       const intent = parseZoomShortcutIntentFromKeyboardEvent(e)
       if (!intent) return
-      if (isEditableTarget(e.target)) return
-
       e.preventDefault()
       e.stopPropagation()
       onIntent(intent)
     }
 
-    window.addEventListener('keydown', onKeyDown, { capture: true })
+    if (!useMainChannel) {
+      window.addEventListener('keydown', onKeyDown, { capture: true })
+    }
+
     return (): void => {
-      window.removeEventListener('keydown', onKeyDown, { capture: true })
+      if (!useMainChannel) {
+        window.removeEventListener('keydown', onKeyDown, { capture: true })
+      }
       offMain?.()
     }
   }, [])

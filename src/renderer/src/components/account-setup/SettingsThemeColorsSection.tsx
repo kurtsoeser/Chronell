@@ -130,10 +130,10 @@ function ModuleLayoutPreview({
                 boxShadow: outline
               }}
             />
-            <span className="mt-1 block text-[9px] font-semibold text-foreground">
+            <span className="mt-1 block text-3xs font-semibold text-foreground">
               {t(LAYER_LABEL_KEYS[index])}
             </span>
-            <span className="block truncate font-mono text-[8px] text-muted-foreground">
+            <span className="block truncate font-mono text-3xs text-muted-foreground">
               {colors[token]}
             </span>
           </div>
@@ -141,7 +141,7 @@ function ModuleLayoutPreview({
       </div>
 
       <div className="p-3">
-        <p className="mb-1.5 text-[9px] font-medium uppercase tracking-wide text-muted-foreground">
+        <p className="mb-1.5 text-3xs font-medium uppercase tracking-wide text-muted-foreground">
           {t('settings.themeColorsLayoutPreview')}
         </p>
         <div
@@ -261,7 +261,7 @@ function SurfaceColorRow({
   return (
     <div className="flex flex-col gap-2.5 rounded-sm bg-background/60 px-3 py-2.5 sm:flex-row sm:items-center sm:gap-3">
       <div className="flex min-w-0 items-center gap-2 sm:w-[10.5rem] sm:shrink-0">
-        <span className="w-7 shrink-0 font-mono text-[10px] font-semibold tabular-nums text-muted-foreground">
+        <span className="w-7 shrink-0 font-mono text-2xs font-semibold tabular-nums text-muted-foreground">
           {layerTag}
         </span>
         <label htmlFor={id} className="min-w-0 truncate text-xs font-medium text-foreground">
@@ -279,7 +279,7 @@ function SurfaceColorRow({
             onChange={(e): void => onChange(e.target.value)}
           />
           <div className={cn('flex h-9 shrink-0 items-center overflow-hidden rounded-sm border bg-background', settingsControlBorderClass)}>
-            <span className="select-none pl-2 font-mono text-[11px] text-muted-foreground">#</span>
+            <span className="select-none pl-2 font-mono text-xs text-muted-foreground">#</span>
             <input
               type="text"
               inputMode="text"
@@ -303,7 +303,7 @@ function SurfaceColorRow({
                   ;(e.target as HTMLInputElement).blur()
                 }
               }}
-              className="w-[4.75rem] border-0 bg-transparent py-0 pl-0.5 pr-2 font-mono text-[11px] uppercase tabular-nums text-foreground outline-none"
+              className="w-[4.75rem] border-0 bg-transparent py-0 pl-0.5 pr-2 font-mono text-xs uppercase tabular-nums text-foreground outline-none"
             />
           </div>
         </div>
@@ -312,7 +312,7 @@ function SurfaceColorRow({
           onClick={onReset}
           disabled={!customized}
           className={cn(
-            'shrink-0 rounded-sm border px-2.5 py-1.5 text-[11px] font-medium transition-colors',
+            'shrink-0 rounded-sm border px-2.5 py-1.5 text-xs font-medium transition-colors',
             customized
               ? cn(settingsControlBorderClass, 'bg-secondary/40 text-foreground hover:bg-secondary/70')
               : 'cursor-default border-transparent bg-transparent text-muted-foreground/50'
@@ -364,7 +364,7 @@ function ThemeColorTuneGroup({
           onClick={(): void => resetSurfaceColors(theme)}
           disabled={!hasCustom}
           className={cn(
-            'rounded-sm border px-2.5 py-1 text-[11px] font-medium transition-colors',
+            'rounded-sm border px-2.5 py-1 text-xs font-medium transition-colors',
             hasCustom
               ? cn(settingsControlBorderClass, 'bg-secondary/40 text-foreground hover:bg-secondary/70')
               : 'cursor-default border-transparent text-muted-foreground/50'
@@ -431,7 +431,7 @@ function PresetCard({
       <div className="shrink-0 p-2">
         <span
           className={cn(
-            'mb-1.5 inline-block rounded-sm px-1.5 py-px text-[9px] font-semibold uppercase tracking-wide',
+            'mb-1.5 inline-block rounded-sm px-1.5 py-px text-3xs font-semibold uppercase tracking-wide',
             target === 'light'
               ? 'bg-foreground/10 text-foreground'
               : target === 'dark'
@@ -491,7 +491,7 @@ function PaletteVariantCard({
           <span className="min-w-0 flex-1 text-xs font-semibold text-foreground">{label}</span>
           {active && <Check className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />}
         </div>
-        <p className="text-[10px] leading-snug text-muted-foreground">{description}</p>
+        <p className="text-2xs leading-snug text-muted-foreground">{description}</p>
       </div>
     </button>
   )
@@ -526,7 +526,7 @@ function ThemeColorsQuickTab(): JSX.Element {
     <div className="space-y-5">
       <div>
         <p className="text-xs font-semibold text-foreground">{t('settings.themeColorsLivePreview')}</p>
-        <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+        <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
           {t('settings.themeColorsQuickHint')}
         </p>
         <div className="mt-2">
@@ -536,7 +536,7 @@ function ThemeColorsQuickTab(): JSX.Element {
 
       <div>
         <p className="text-xs font-semibold text-foreground">{t('settings.themeColorsLightVariantsHeading')}</p>
-        <p className="mt-0.5 text-[11px] text-muted-foreground">{t('settings.themeColorsLightVariantsHint')}</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">{t('settings.themeColorsLightVariantsHint')}</p>
         <div className="mt-2 grid gap-2 sm:grid-cols-2">
           {LIGHT_VARIANTS.map((variant) => (
             <PaletteVariantCard
@@ -554,7 +554,7 @@ function ThemeColorsQuickTab(): JSX.Element {
 
       <div>
         <p className="text-xs font-semibold text-foreground">{t('settings.themeColorsDarkVariantsHeading')}</p>
-        <p className="mt-0.5 text-[11px] text-muted-foreground">{t('settings.themeColorsDarkVariantsHint')}</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">{t('settings.themeColorsDarkVariantsHint')}</p>
         <div className="mt-2 grid gap-2 sm:grid-cols-2">
           {DARK_VARIANTS.map((variant) => (
             <PaletteVariantCard
@@ -613,7 +613,7 @@ function ThemeColorsPresetsTab(): JSX.Element {
 
   return (
     <div className="space-y-4">
-      <p className="text-[11px] leading-relaxed text-muted-foreground">{t('settings.themeColorPresetsHint')}</p>
+      <p className="text-xs leading-relaxed text-muted-foreground">{t('settings.themeColorPresetsHint')}</p>
 
       <div>
         <p className="mb-2 text-xs font-semibold text-foreground">
@@ -645,7 +645,7 @@ function ThemeColorsPresetsTab(): JSX.Element {
                 <button
                   type="button"
                   onClick={(): void => deleteColorPreset(preset.id)}
-                  className="self-end rounded-sm border border-border px-2 py-0.5 text-[11px] text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                  className="self-end rounded-sm border border-border px-2 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                 >
                   {t('settings.themeColorPresetDelete')}
                 </button>
@@ -653,12 +653,12 @@ function ThemeColorsPresetsTab(): JSX.Element {
             ))}
           </div>
         ) : (
-          <p className="mt-2 text-[11px] text-muted-foreground">{t('settings.themeColorPresetsEmpty')}</p>
+          <p className="mt-2 text-xs text-muted-foreground">{t('settings.themeColorPresetsEmpty')}</p>
         )}
 
         <div className={cn('mt-3 flex flex-wrap items-end gap-2 border-t pt-3', listSubtleBorderClass)}>
           <div className="min-w-[12rem] flex-1">
-            <label htmlFor="mailclient-theme-preset-name" className="mb-1 block text-[11px] font-medium text-foreground">
+            <label htmlFor="mailclient-theme-preset-name" className="mb-1 block text-xs font-medium text-foreground">
               {t('settings.themeColorPresetNameLabel')}
             </label>
             <input
@@ -679,7 +679,7 @@ function ThemeColorsPresetsTab(): JSX.Element {
               placeholder={t('settings.themeColorPresetNamePlaceholder')}
               className="w-full rounded-sm border border-border bg-background px-2.5 py-1.5 text-xs outline-none focus:border-ring"
             />
-            {saveError && <p className="mt-1 text-[11px] text-destructive">{saveError}</p>}
+            {saveError && <p className="mt-1 text-xs text-destructive">{saveError}</p>}
           </div>
           <button
             type="button"
@@ -699,7 +699,7 @@ function ThemeColorsTuneTab(): JSX.Element {
 
   return (
     <div className="space-y-4">
-      <p className="text-[11px] leading-relaxed text-muted-foreground">{t('settings.themeColorsTuneHint')}</p>
+      <p className="text-xs leading-relaxed text-muted-foreground">{t('settings.themeColorsTuneHint')}</p>
       {/* Untereinander: in schmalen Dialog-Spalten verhindert das Ueberlappungen der Farbzeilen */}
       <div className="flex flex-col gap-4">
         <ThemeColorTuneGroup theme="light" title={t('settings.themeColorsLight')} />
@@ -726,7 +726,7 @@ export function SettingsThemeColorsSection(): JSX.Element {
           <span className="text-xs font-semibold text-foreground underline-offset-2 group-open:underline">
             {t('settings.themeColorsHeading')}
           </span>
-          <span className="mt-0.5 block text-[11px] leading-relaxed text-muted-foreground">
+          <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
             {t('settings.themeColorsHint')}
           </span>
         </div>
@@ -750,7 +750,7 @@ export function SettingsThemeColorsSection(): JSX.Element {
               aria-selected={tab === id}
               onClick={(): void => setTab(id)}
               className={cn(
-                'rounded-sm px-3 py-1.5 text-[11px] font-medium transition-colors',
+                'rounded-sm px-3 py-1.5 text-xs font-medium transition-colors',
                 tab === id
                   ? 'bg-secondary/70 text-foreground ring-1 ring-white/[0.06] dark:ring-white/[0.06]'
                   : 'text-muted-foreground hover:bg-secondary/25 hover:text-foreground'

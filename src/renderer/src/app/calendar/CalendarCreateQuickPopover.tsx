@@ -21,6 +21,7 @@ import {
   persistTasksCalendarCreateAccountId,
   readTasksCalendarCreateAccountId
 } from '@/app/tasks/tasks-calendar-create-storage'
+import { ChronellDateField } from '@/components/ChronellDateField'
 import {
   datetimeLocalValueToIso,
   isoToDatetimeLocalValue
@@ -447,7 +448,7 @@ export function CalendarCreateQuickPopover({
               disabled={busy}
               onClick={(): void => setCreateKind('event')}
               className={cn(
-                'rounded px-2 py-0.5 text-[11px] font-medium',
+                'rounded px-2 py-0.5 text-xs font-medium',
                 createKind === 'event'
                   ? 'bg-secondary text-foreground'
                   : 'text-muted-foreground hover:text-foreground'
@@ -460,7 +461,7 @@ export function CalendarCreateQuickPopover({
               disabled={busy}
               onClick={(): void => setCreateKind('task')}
               className={cn(
-                'rounded px-2 py-0.5 text-[11px] font-medium',
+                'rounded px-2 py-0.5 text-xs font-medium',
                 createKind === 'task'
                   ? 'bg-secondary text-foreground'
                   : 'text-muted-foreground hover:text-foreground'
@@ -470,7 +471,7 @@ export function CalendarCreateQuickPopover({
             </button>
           </div>
         ) : (
-          <span className="text-[11px] font-medium text-muted-foreground">
+          <span className="text-xs font-medium text-muted-foreground">
             {createKind === 'task'
               ? t('calendar.eventDialog.taskKindName')
               : t('calendar.eventDialog.eventKindName')}
@@ -512,7 +513,7 @@ export function CalendarCreateQuickPopover({
 
         <div className="space-y-2 rounded-lg border border-border/70 bg-secondary/20 px-2.5 py-2">
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            <div className="flex items-center gap-1.5 text-2xs font-medium uppercase tracking-wide text-muted-foreground">
             <CalendarIcon className="h-3.5 w-3.5" />
             <span>{t('calendar.quickCreate.whenLabel')}</span>
             </div>
@@ -521,7 +522,7 @@ export function CalendarCreateQuickPopover({
             disabled={busy}
             onClick={(): void => toggleAllDay(!isAllDay)}
             className={cn(
-              'text-[11px] font-medium',
+              'text-xs font-medium',
               isAllDay ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
             )}
           >
@@ -531,15 +532,13 @@ export function CalendarCreateQuickPopover({
         {isAllDay ? (
           <div className="grid grid-cols-2 gap-2">
             <label className="block space-y-0.5">
-              <span className="text-[10px] text-muted-foreground">
+              <span className="text-2xs text-muted-foreground">
                 {t('calendar.eventDialog.labelBegin')}
               </span>
-              <input
-                type="date"
+              <ChronellDateField
                 disabled={busy}
                 value={format(rangeStart, 'yyyy-MM-dd')}
-                onChange={(e): void => {
-                  const v = e.target.value
+                onChange={(v): void => {
                   if (!v) return
                   const nextStart = startOfDay(parseISO(v))
                   setRangeStart(nextStart)
@@ -547,19 +546,17 @@ export function CalendarCreateQuickPopover({
                     setRangeEnd(addDays(nextStart, 1))
                   }
                 }}
-                className="w-full rounded-md border border-border bg-background px-2 py-1 text-[12px] tabular-nums"
+                className="tabular-nums"
               />
             </label>
             <label className="block space-y-0.5">
-              <span className="text-[10px] text-muted-foreground">
+              <span className="text-2xs text-muted-foreground">
                 {t('calendar.eventDialog.labelEnd')}
               </span>
-              <input
-                type="date"
+              <ChronellDateField
                 disabled={busy}
                 value={format(addDays(rangeEnd, -1), 'yyyy-MM-dd')}
-                onChange={(e): void => {
-                  const v = e.target.value
+                onChange={(v): void => {
                   if (!v) return
                   const lastDay = startOfDay(parseISO(v))
                   const nextEnd = addDays(lastDay, 1)
@@ -568,14 +565,14 @@ export function CalendarCreateQuickPopover({
                     setRangeStart(lastDay)
                   }
                 }}
-                className="w-full rounded-md border border-border bg-background px-2 py-1 text-[12px] tabular-nums"
+                className="tabular-nums"
               />
             </label>
             </div>
           ) : (
             <div className="space-y-2">
             <label className="block space-y-0.5">
-              <span className="text-[10px] text-muted-foreground">
+              <span className="text-2xs text-muted-foreground">
                 {t('calendar.eventDialog.labelBegin')}
               </span>
               <input
@@ -591,11 +588,11 @@ export function CalendarCreateQuickPopover({
                     setRangeEnd(addMinutes(next, 30))
                   }
                 }}
-                className="w-full rounded-md border border-border bg-background px-2 py-1 text-[12px] tabular-nums"
+                className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm tabular-nums"
               />
             </label>
             <label className="block space-y-0.5">
-              <span className="text-[10px] text-muted-foreground">
+              <span className="text-2xs text-muted-foreground">
                 {t('calendar.eventDialog.labelEnd')}
               </span>
               <input
@@ -607,7 +604,7 @@ export function CalendarCreateQuickPopover({
                   if (!iso) return
                   setRangeEnd(new Date(iso))
                 }}
-                className="w-full rounded-md border border-border bg-background px-2 py-1 text-[12px] tabular-nums"
+                className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm tabular-nums"
               />
             </label>
             </div>
@@ -616,7 +613,7 @@ export function CalendarCreateQuickPopover({
 
         {createKind === 'event' ? (
           <label className="block space-y-1">
-            <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+            <span className="text-2xs uppercase tracking-wide text-muted-foreground">
               {t('calendar.eventDialog.targetCalendarAria')}
             </span>
             <select
@@ -631,7 +628,7 @@ export function CalendarCreateQuickPopover({
                   setGraphCalendarId(parsed.graphCalendarId)
                 }
               }}
-              className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-[12px]"
+              className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
             >
               {calendarsLoading ? (
                 <option value="">{t('calendar.eventDialog.loadingShort')}</option>
@@ -658,12 +655,12 @@ export function CalendarCreateQuickPopover({
         ) : (
           <div>
             <label className="block space-y-1">
-              <span className="text-[10px] text-muted-foreground">{t('tasks.create.account')}</span>
+              <span className="text-2xs text-muted-foreground">{t('tasks.create.account')}</span>
               <select
                 value={taskAccountId}
                 disabled={busy || taskListsLoading}
                 onChange={(e): void => setTaskAccountId(e.target.value)}
-                className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-[12px]"
+                className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
               >
                 {taskAccounts.map((a) => (
                   <option key={a.id} value={a.id}>
@@ -673,12 +670,12 @@ export function CalendarCreateQuickPopover({
               </select>
             </label>
             <label className="block space-y-1">
-              <span className="text-[10px] text-muted-foreground">{t('tasks.create.list')}</span>
+              <span className="text-2xs text-muted-foreground">{t('tasks.create.list')}</span>
               <select
                 value={taskListId}
                 disabled={busy || taskListsLoading || taskLists.length === 0}
                 onChange={(e): void => setTaskListId(e.target.value)}
-                className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-[12px]"
+                className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
               >
                 {taskLists.map((l) => (
                   <option key={l.id} value={l.id}>
@@ -690,7 +687,7 @@ export function CalendarCreateQuickPopover({
           </div>
         )}
 
-        {error ? <p className="text-[11px] text-destructive">{error}</p> : null}
+        {error ? <p className="text-xs text-destructive">{error}</p> : null}
 
         <div className="flex items-center justify-between gap-2 border-t border-border pt-2">
           <button
@@ -707,7 +704,7 @@ export function CalendarCreateQuickPopover({
                 isAllDay
               })
             }
-            className="text-[12px] font-medium text-primary hover:underline disabled:opacity-50"
+            className="text-sm font-medium text-primary hover:underline disabled:opacity-50"
           >
             {t('calendar.quickCreate.detailsLink')}
           </button>
@@ -716,7 +713,7 @@ export function CalendarCreateQuickPopover({
             disabled={!canSave}
             onClick={(): void => void handleSave()}
             className={cn(
-              'inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-[12px] font-medium text-primary-foreground hover:bg-primary/90',
+              'inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90',
               !canSave && 'cursor-not-allowed opacity-50'
             )}
           >

@@ -1,5 +1,7 @@
 /** LocalStorage und Konstanten fuer den Kalender-Shell (ohne React). */
 
+import { readCalendarSettingsPrefs } from '@/lib/calendar-settings-prefs'
+
 export const CAL_MAIL_TODO_OVERLAY_KEY = 'mailclient.calendar.mailTodoOverlay'
 
 export const CAL_CLOUD_TASK_OVERLAY_KEY = 'mailclient.calendar.cloudTaskOverlay'
@@ -38,7 +40,7 @@ export function readRightInboxOpenFromStorage(): boolean {
   } catch {
     // ignore
   }
-  return true
+  return readCalendarSettingsPrefs().defaultRightInboxOpen
 }
 
 export function persistRightInboxOpen(value: boolean): void {
@@ -59,7 +61,7 @@ export function readRightPreviewOpenFromStorage(): boolean {
   } catch {
     // ignore
   }
-  return true
+  return readCalendarSettingsPrefs().defaultRightPreviewOpen
 }
 
 export function persistRightPreviewOpen(value: boolean): void {
@@ -185,9 +187,9 @@ export function readMailTodoOverlayFromStorage(): boolean {
   try {
     const v = window.localStorage.getItem(CAL_MAIL_TODO_OVERLAY_KEY)
     if (v === '0') return false
-    return true
+    return readCalendarSettingsPrefs().defaultMailTodoOverlay
   } catch {
-    return true
+    return readCalendarSettingsPrefs().defaultMailTodoOverlay
   }
 }
 
@@ -203,9 +205,9 @@ export function readCloudTaskOverlayFromStorage(): boolean {
   try {
     const v = window.localStorage.getItem(CAL_CLOUD_TASK_OVERLAY_KEY)
     if (v === '0') return false
-    return true
+    return readCalendarSettingsPrefs().defaultCloudTaskOverlay
   } catch {
-    return true
+    return readCalendarSettingsPrefs().defaultCloudTaskOverlay
   }
 }
 
@@ -221,9 +223,9 @@ export function readUserNoteOverlayFromStorage(): boolean {
   try {
     const v = window.localStorage.getItem(CAL_USER_NOTE_OVERLAY_KEY)
     if (v === '0') return false
-    return true
+    return readCalendarSettingsPrefs().defaultUserNoteOverlay
   } catch {
-    return true
+    return readCalendarSettingsPrefs().defaultUserNoteOverlay
   }
 }
 
@@ -271,7 +273,7 @@ export function readTimeGridSlotMinutesFromStorage(): TimeGridSlotMinutes {
   } catch {
     // ignore
   }
-  return 15
+  return readCalendarSettingsPrefs().defaultTimeGridSlotMinutes
 }
 
 export function persistTimeGridSlotMinutes(min: TimeGridSlotMinutes): void {
@@ -305,7 +307,7 @@ export function readLeftSidebarCollapsedFromStorage(): boolean {
   try {
     return window.localStorage.getItem(CAL_LEFT_SIDEBAR_COLLAPSED_KEY) === '1'
   } catch {
-    return false
+    return readCalendarSettingsPrefs().defaultLeftSidebarCollapsed
   }
 }
 

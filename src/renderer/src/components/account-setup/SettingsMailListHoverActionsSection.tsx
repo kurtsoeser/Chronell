@@ -109,7 +109,7 @@ function SortableHoverActionRow({
       </button>
       <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
       <span className="min-w-0 flex-1 truncate text-xs font-medium text-foreground">{label}</span>
-      <label className="flex shrink-0 items-center gap-1.5 text-[10px] text-muted-foreground">
+      <label className="flex shrink-0 items-center gap-1.5 text-2xs text-muted-foreground">
         <input
           type="checkbox"
           checked={visible}
@@ -236,7 +236,7 @@ export function SettingsMailListHoverActionsSection(): JSX.Element {
         {t('settings.mailListHover.heading')}
       </h3>
       <p className="text-xs leading-relaxed text-muted-foreground">{t('settings.mailListHover.intro')}</p>
-      <p className="text-[10px] leading-relaxed text-muted-foreground">{t('settings.mailListHover.orderHint')}</p>
+      <p className="text-2xs leading-relaxed text-muted-foreground">{t('settings.mailListHover.orderHint')}</p>
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         <SortableContext items={order} strategy={verticalListSortingStrategy}>
@@ -269,7 +269,7 @@ export function SettingsMailListHoverActionsSection(): JSX.Element {
         <button
           type="button"
           onClick={(): void => resetMailListHoverActionPrefs(quickSteps)}
-          className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1 text-[11px] font-medium text-foreground hover:bg-secondary/60"
+          className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1 text-xs font-medium text-foreground hover:bg-secondary/60"
         >
           <RotateCcw className="h-3 w-3" aria-hidden />
           {t('settings.mailListHover.reset')}
@@ -290,14 +290,14 @@ function QuickStepAddButtons({
 }): JSX.Element {
   return (
     <div className="space-y-1.5 border-t border-white/[0.04] dark:border-white/[0.04] pt-2">
-      <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
       <div className="flex flex-wrap gap-1.5">
         {quickSteps.map((q) => (
           <button
             key={q.id}
             type="button"
             onClick={(): void => onAdd(q.id)}
-            className="inline-flex items-center gap-1 rounded-md border border-dashed border-border px-2 py-1 text-[11px] text-muted-foreground hover:border-primary/40 hover:bg-secondary/40 hover:text-foreground"
+            className="inline-flex items-center gap-1 rounded-md border border-dashed border-border px-2 py-1 text-xs text-muted-foreground hover:border-primary/40 hover:bg-secondary/40 hover:text-foreground"
           >
             {(() => {
               const Icon = resolveQuickStepHoverIcon(q)

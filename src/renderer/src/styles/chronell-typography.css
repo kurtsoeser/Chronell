@@ -1,0 +1,55 @@
+/**
+ * Zentrale Typografie-Hilfen. Bevorzugt Tailwind: text-2xs, text-xs, text-sm, text-base, text-md.
+ * FullCalendar: notion-calendar.css (--chronell-text-*).
+ */
+
+@layer components {
+  .chronell-type-section-label {
+    font-size: var(--chronell-text-2xs);
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .chronell-type-mini-cal-title {
+    font-size: var(--chronell-text-base);
+    font-weight: 600;
+  }
+
+  .chronell-type-mini-cal-weekday {
+    font-size: var(--chronell-text-2xs);
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .chronell-type-mini-cal-day {
+    font-size: var(--chronell-text-sm);
+    font-weight: 500;
+  }
+
+  /** Kalender-Shell: Datumsbereich (Woche/Monat) — skaliert mit html/rem. */
+  .chronell-type-calendar-range-title {
+    font-size: var(--chronell-text-base);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.35;
+  }
+
+  .chronell-type-calendar-range-subtitle {
+    font-size: var(--chronell-text-2xs);
+    line-height: 1.3;
+  }
+
+  @media (min-width: 640px) {
+    .chronell-type-calendar-range-subtitle {
+      font-size: var(--chronell-text-xs);
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .chronell-type-calendar-range-title {
+      font-size: var(--chronell-text-lg);
+    }
+  }
+}

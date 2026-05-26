@@ -3,7 +3,7 @@ import { addMonths, format, isSameDay, isToday, isTomorrow, parseISO, startOfMon
 import { de as deFns, enUS as enUSFns } from 'date-fns/locale'
 import type { Locale } from 'date-fns'
 import { useTranslation } from 'react-i18next'
-import { Loader2, SquareArrowOutUpRight } from 'lucide-react'
+import { Loader2, PanelRightClose, SquareArrowOutUpRight } from 'lucide-react'
 import type { MailListItem } from '@shared/types'
 import { cn } from '@/lib/utils'
 import { useMailStore } from '@/stores/mail'
@@ -35,6 +35,8 @@ export type InboxCalendarSidebarProps = {
   hideChrome?: boolean
   /** Eingebettet: als schwebendes Fenster loesen. */
   onRequestUndock?: () => void
+  /** Eingebettet: Pane schließen (ausblenden). */
+  onRequestClose?: () => void
 }
 
 function capitalizeLocale(s: string): string {
@@ -54,7 +56,8 @@ function dataTransferLooksLikeMailDrag(dt: DataTransfer): boolean {
 
 export function InboxCalendarSidebar({
   hideChrome = false,
-  onRequestUndock
+  onRequestUndock,
+  onRequestClose
 }: InboxCalendarSidebarProps = {}): JSX.Element {
   const { t, i18n } = useTranslation()
   const dfLocale: Locale = i18n.language.startsWith('de') ? deFns : enUSFns
@@ -209,6 +212,14 @@ export function InboxCalendarSidebar({
           >
             <SquareArrowOutUpRight className={moduleColumnHeaderIconGlyphClass} />
           </ModuleColumnHeaderIconButton>
+          {onRequestClose ? (
+            <ModuleColumnHeaderIconButton
+              title={t('calendar.posteingangUi.hideColumn')}
+              onClick={onRequestClose}
+            >
+              <PanelRightClose className={moduleColumnHeaderIconGlyphClass} />
+            </ModuleColumnHeaderIconButton>
+          ) : null}
         </div>
       ) : null}
 
@@ -229,18 +240,18 @@ export function InboxCalendarSidebar({
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden border-t border-border">
-        <div className="sticky top-0 z-[1] border-b border-border bg-sidebar/95 px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground backdrop-blur">
+        <div className="chronell-type-section-label sticky top-0 z-[1] border-b border-border bg-sidebar/95 px-2 py-1.5 text-muted-foreground backdrop-blur">
           {t('mail.inboxCal.nextEvents')}
         </div>
         {blockingLoading ? (
-          <div className="flex items-center justify-center gap-2 py-6 text-[11px] text-muted-foreground">
+          <div className="flex items-center justify-center gap-2 py-6 text-xs text-muted-foreground">
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
             {t('mail.inboxCal.loading')}
           </div>
         ) : calError ? (
-          <p className="px-2 py-2 text-[10px] leading-snug text-destructive">{calError}</p>
+          <p className="px-2 py-2 text-2xs leading-snug text-destructive">{calError}</p>
         ) : agenda.length === 0 ? (
-          <p className="px-2 py-3 text-center text-[10px] text-muted-foreground">
+          <p className="px-2 py-3 text-center text-2xs text-muted-foreground">
             {t('mail.inboxCal.noUpcoming')}
           </p>
         ) : (
@@ -274,13 +285,13 @@ export function InboxCalendarSidebar({
               return (
                 <li key={`${row.kind}-${row.kind === 'graph' ? row.ev.id : row.message.id}-${idx}`}>
                   {showDay && (
-                    <div className="px-1.5 pb-0.5 pt-2 text-[11px] font-semibold capitalize text-foreground first:pt-1">
+                    <div className="px-1.5 pb-0.5 pt-2 text-xs font-semibold capitalize text-foreground first:pt-1">
                       {formatDayHeading(startDate)}
                     </div>
                   )}
                   <button
                     type="button"
-                    className="flex w-full items-stretch gap-1.5 rounded-md px-1 py-1 text-left hover:bg-secondary/60"
+                    className="flex w-full items-stretch gap-1 rounded-md px-1 py-1 text-left hover:bg-secondary/60"
                     onClick={(): void => {
                       if (row.kind === 'mail') {
                         void selectMessage(row.message.id)
@@ -296,12 +307,12 @@ export function InboxCalendarSidebar({
                       openMailReadingPopout(row.message.id, { osWindow: e.shiftKey })
                     }}
                   >
-                    <span className="w-9 shrink-0 pt-0.5 text-[10px] tabular-nums text-muted-foreground">
+                    <span className="w-[3.25rem] shrink-0 self-center truncate pt-0.5 text-2xs tabular-nums leading-tight text-muted-foreground">
                       {formatAgendaTime(row)}
                     </span>
                     <span
                       className={cn(
-                        'mt-0.5 h-8 shrink-0 rounded-sm',
+                        'mt-0.5 h-7 shrink-0 self-center rounded-sm',
                         row.kind === 'mail' && 'w-[3px] min-w-[3px] bg-primary',
                         row.kind === 'graph' &&
                           row.ev.joinUrl?.trim() &&
@@ -313,11 +324,11 @@ export function InboxCalendarSidebar({
                       }
                     />
                     <span className="min-w-0 flex-1">
-                      <span className="line-clamp-2 text-[11px] font-medium leading-snug text-foreground">
+                      <span className="line-clamp-2 text-xs font-medium leading-snug text-foreground">
                         {title}
                       </span>
                       {subline && (
-                        <span className="line-clamp-1 text-[10px] text-muted-foreground">{subline}</span>
+                        <span className="line-clamp-1 text-2xs text-muted-foreground">{subline}</span>
                       )}
                     </span>
                   </button>

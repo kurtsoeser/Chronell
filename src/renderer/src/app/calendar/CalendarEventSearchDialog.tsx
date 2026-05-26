@@ -55,7 +55,7 @@ export function CalendarEventSearchDialog({
             }
           }}
         />
-        <p className="text-[11px] leading-snug text-muted-foreground">
+        <p className="text-xs leading-snug text-muted-foreground">
           {t('calendar.shell.eventSearchHint')}
         </p>
         <div className="flex justify-end">

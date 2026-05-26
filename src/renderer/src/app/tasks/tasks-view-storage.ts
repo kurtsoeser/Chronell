@@ -1,8 +1,10 @@
 import type { TasksViewSelection } from '@/app/tasks/tasks-types'
+import { readTasksSettingsPrefs } from '@/lib/tasks-settings-prefs'
 
 const KEY = 'mailclient.tasks.viewSelection.v1'
 
 export function readTasksViewSelection(): TasksViewSelection | null {
+  if (!readTasksSettingsPrefs().rememberLastListSelection) return null
   try {
     const raw = window.localStorage.getItem(KEY)
     if (!raw) return null

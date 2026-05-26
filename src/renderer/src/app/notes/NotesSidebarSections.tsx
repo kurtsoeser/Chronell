@@ -151,7 +151,7 @@ function SectionNavRow({
               {node.section.name}
             </button>
           )}
-          <span className="shrink-0 pr-0.5 text-[10px] tabular-nums text-muted-foreground">{count}</span>
+          <span className="shrink-0 pr-0.5 text-2xs tabular-nums text-muted-foreground">{count}</span>
           <button
             type="button"
             onClick={(): void => onAddSubsection(node.section.id)}
@@ -305,11 +305,11 @@ export function NotesSidebarSections({
       <div className="space-y-2 px-2 py-2">
         <div className="flex items-center justify-between gap-2 px-1">
           {!embedded ? (
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {t('notes.sections.title')}
             </span>
           ) : (
-            <span className="text-[11px] text-muted-foreground">{t('notes.sections.manage')}</span>
+            <span className="text-xs text-muted-foreground">{t('notes.sections.manage')}</span>
           )}
           <button
             type="button"
@@ -317,7 +317,7 @@ export function NotesSidebarSections({
               setAddingSection((v) => !v)
               setAddingSubsectionForId(null)
             }}
-            className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-0.5 text-[10px] hover:bg-secondary"
+            className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-0.5 text-2xs hover:bg-secondary"
           >
             <FolderPlus className="h-3 w-3" />
             {t('notes.sections.add')}
@@ -365,7 +365,7 @@ export function NotesSidebarSections({
           )}
         >
           <span className="flex-1 truncate">{t('notes.sections.allNotes')}</span>
-          <span className="shrink-0 text-[10px] tabular-nums">{notes.length}</span>
+          <span className="shrink-0 text-2xs tabular-nums">{notes.length}</span>
         </button>
 
         <NotesDropZone id={NOTE_DROP_UNGROUPED}>
@@ -378,7 +378,7 @@ export function NotesSidebarSections({
             )}
           >
             <span className="flex-1 truncate">{t('notes.sections.ungrouped')}</span>
-            <span className="shrink-0 text-[10px] tabular-nums">{ungroupedCount}</span>
+            <span className="shrink-0 text-2xs tabular-nums">{ungroupedCount}</span>
           </button>
         </NotesDropZone>
 

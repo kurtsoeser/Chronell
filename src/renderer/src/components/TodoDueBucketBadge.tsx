@@ -27,14 +27,14 @@ export function TodoDueBucketBadge({ kind, compact = false, className }: Props):
   return (
     <span
       className={cn(
-        'inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium',
+        'inline-flex shrink-0 items-center gap-0.5 rounded px-1 py-px text-2xs font-medium leading-tight',
         badgeToneClass(kind),
         className
       )}
       title={title}
     >
-      <Icon className="h-3 w-3 shrink-0" aria-hidden />
-      {!compact && <span className="max-w-[5.5rem] truncate">{shortLabel}</span>}
+      <Icon className="h-2.5 w-2.5 shrink-0" aria-hidden />
+      {!compact && <span className="max-w-[4.25rem] truncate">{shortLabel}</span>}
     </span>
   )
 }

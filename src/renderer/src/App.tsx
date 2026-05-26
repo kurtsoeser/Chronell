@@ -59,6 +59,10 @@ const CreateCloudTaskFromMailDialogHost = lazy(async () => {
   const m = await import('./components/CreateCloudTaskFromMailDialogHost')
   return { default: m.CreateCloudTaskFromMailDialogHost }
 })
+const CalendarIcsImportDialogHost = lazy(async () => {
+  const m = await import('./components/CalendarIcsImportDialogHost')
+  return { default: m.CalendarIcsImportDialogHost }
+})
 const MailCreateContactHost = lazy(async () => {
   const m = await import('./app/layout/MailCreateContactHost')
   return { default: m.MailCreateContactHost }
@@ -325,6 +329,9 @@ export function App(): JSX.Element {
       <ToastStack />
       <Suspense fallback={null}>
         <AppDialogHost />
+      </Suspense>
+      <Suspense fallback={null}>
+        <CalendarIcsImportDialogHost />
       </Suspense>
       {notionPickerOpen ? (
         <Suspense fallback={null}>

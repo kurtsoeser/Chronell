@@ -1,3 +1,5 @@
+import { readNotesSettingsPrefs } from '@/lib/notes-settings-prefs'
+
 export type NotesSidebarListMode = 'accounts' | 'sections'
 
 const LIST_MODE_KEY = 'mailclient.notes.sidebarListMode'
@@ -10,7 +12,7 @@ export function readNotesSidebarListMode(): NotesSidebarListMode {
   } catch {
     /* ignore */
   }
-  return 'sections'
+  return readNotesSettingsPrefs().defaultSidebarListMode
 }
 
 export function persistNotesSidebarListMode(mode: NotesSidebarListMode): void {
@@ -21,22 +23,27 @@ export function persistNotesSidebarListMode(mode: NotesSidebarListMode): void {
   }
 }
 
-export function readNotesAccountSidebarOpen(): Record<string, boolean> {
+export function readNotesAccountSidebarOpen(accountKeys: string[]): Record<string, boolean> {
+  const defaultOpen = !readNotesSettingsPrefs().defaultAccountsCollapsed
+  let stored: Record<string, boolean> = {}
   try {
     const raw = window.localStorage.getItem(ACCOUNT_OPEN_KEY)
-    if (!raw) return {}
-    const parsed = JSON.parse(raw) as unknown
-    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-      const out: Record<string, boolean> = {}
-      for (const [k, v] of Object.entries(parsed)) {
-        if (typeof v === 'boolean') out[k] = v
+    if (raw) {
+      const parsed = JSON.parse(raw) as unknown
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        for (const [k, v] of Object.entries(parsed)) {
+          if (typeof v === 'boolean') stored[k] = v
+        }
       }
-      return out
     }
   } catch {
-    /* ignore */
+    stored = {}
   }
-  return {}
+  const out: Record<string, boolean> = {}
+  for (const key of accountKeys) {
+    out[key] = typeof stored[key] === 'boolean' ? stored[key] : defaultOpen
+  }
+  return out
 }
 
 export function persistNotesAccountSidebarOpen(open: Record<string, boolean>): void {

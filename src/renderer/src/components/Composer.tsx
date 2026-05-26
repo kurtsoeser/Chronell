@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Send,
   Save,
+  Trash2,
   X,
   Minus,
   Paperclip,
@@ -9,6 +10,7 @@ import {
   Loader2,
   ChevronDown,
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { ComposeMessageOptionsButton } from '@/components/ComposeMessageOptionsDialog'
 import { cn } from '@/lib/utils'
 import { ComposeFromField } from '@/components/ComposeFromField'
@@ -18,6 +20,7 @@ import { ComposeMailBodyTile } from '@/components/ComposeMailBodyTile'
 import { composeMailBodyShellClass } from '@/lib/chronell-ui-classes'
 import { ComposeEditorThemeToggle } from '@/components/ComposeEditorThemeToggle'
 import { TipTapBody } from '@/components/TipTapBody'
+import { SignatureFooterEditor } from '@/components/SignatureFooterEditor'
 import { SignatureTemplateControls } from '@/components/SignatureTemplateControls'
 import { ComposeAttachmentsStrip } from '@/components/ComposeAttachmentsStrip'
 import { OneDriveExplorerDialog } from '@/components/OneDriveExplorerDialog'
@@ -81,6 +84,8 @@ function ComposerWindow({
   const focus = useComposeStore((s) => s.focus)
   const send = useComposeStore((s) => s.send)
   const saveRemoteDraft = useComposeStore((s) => s.saveRemoteDraft)
+  const discardDraft = useComposeStore((s) => s.discardDraft)
+  const { t } = useTranslation()
   const addAttachments = useComposeStore((s) => s.addAttachments)
   const removeAttachment = useComposeStore((s) => s.removeAttachment)
   const accounts = useAccountsStore((s) => s.accounts)
@@ -310,12 +315,28 @@ function ComposerWindow({
               : 'Entwurf im Server-Ordner «Entwürfe» speichern'
           }
           className={cn(
-            'flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground hover:bg-secondary hover:text-foreground',
+            'flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground',
             draft.busy && 'pointer-events-none opacity-50'
           )}
         >
           <Save className="h-3.5 w-3.5" />
           <span className="hidden sm:inline">Entwurf</span>
+        </button>
+        <button
+          type="button"
+          onClick={(e): void => {
+            e.stopPropagation()
+            void discardDraft(draft.id)
+          }}
+          disabled={draft.busy}
+          title={t('mail.compose.discardAria')}
+          aria-label={t('mail.compose.discardAria')}
+          className={cn(
+            'rounded p-1 text-muted-foreground hover:bg-destructive/15 hover:text-destructive',
+            draft.busy && 'pointer-events-none opacity-50'
+          )}
+        >
+          <Trash2 className="h-3.5 w-3.5" />
         </button>
         <ComposeMessageOptionsButton
           compact
@@ -355,9 +376,9 @@ function ComposerWindow({
         <button
           type="button"
           onClick={(): void => close(draft.id)}
-          className="rounded p-1 text-muted-foreground hover:bg-destructive/20 hover:text-destructive"
-          aria-label="Schliessen"
-          title="Verwerfen"
+          className="rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
+          aria-label={t('common.close', { defaultValue: 'Schliessen' })}
+          title={t('common.close', { defaultValue: 'Schliessen' })}
         >
           <X className="h-3.5 w-3.5" />
         </button>
@@ -457,9 +478,7 @@ function ComposerWindow({
         </ComposeMailBodyTile>
         <ComposeMailBodyTile className="shrink-0">
           <div className="flex flex-wrap items-start justify-between gap-2 border-b border-[hsl(var(--compose-surface-border)/0.45)] px-3 py-2">
-            <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-              Signatur / Footer
-            </div>
+            <div className="chronell-type-section-label text-muted-foreground">Signatur / Footer</div>
             <SignatureTemplateControls
               accountId={draft.accountId}
               signatureRichHtml={draft.signatureRichHtml}
@@ -469,11 +488,7 @@ function ComposerWindow({
             />
           </div>
           <ComposeEditorThemedPane>
-            <TipTapBody
-              inEditorSurface
-              variant="compact"
-              fillHeight={false}
-              className="border-t-0"
+            <SignatureFooterEditor
               valueHtml={draft.signatureRichHtml}
               onChangeHtml={(v): void => update(draft.id, { signatureRichHtml: v })}
             />
@@ -495,7 +510,7 @@ function ComposerWindow({
           <button
             type="button"
             onClick={(): void => setShowQuoted((v) => !v)}
-            className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-muted-foreground hover:text-foreground"
+            className="chronell-type-section-label flex items-center gap-1 text-muted-foreground hover:text-foreground"
           >
             <ChevronDown
               className={cn('h-3 w-3 transition-transform', !showQuoted && '-rotate-90')}
@@ -504,7 +519,7 @@ function ComposerWindow({
           </button>
           {showQuoted && (
             <div
-              className="prose-sm mt-2 max-h-[320px] overflow-y-auto rounded border border-border/40 bg-background p-2 text-[11px] leading-relaxed text-muted-foreground [&_a]:text-primary"
+              className="prose-sm mt-2 max-h-[320px] overflow-y-auto rounded border border-border/40 bg-background p-2 text-xs leading-relaxed text-muted-foreground [&_a]:text-primary"
               dangerouslySetInnerHTML={{ __html: draft.quotedHtml }}
             />
           )}
@@ -534,7 +549,7 @@ function ComposerWindow({
             <option value="7">7 Tage</option>
             <option value="14">14 Tage</option>
           </select>
-          <span className="text-[10px] text-muted-foreground/80">
+          <span className="text-2xs text-muted-foreground/80">
             Waiting-for auf die urspruengliche Mail
           </span>
         </div>
@@ -598,10 +613,11 @@ function ComposerWindow({
         </button>
         <button
           type="button"
-          onClick={(): void => close(draft.id)}
-          className="rounded-md px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
+          disabled={draft.busy}
+          onClick={(): void => void discardDraft(draft.id)}
+          className="rounded-md px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-50"
         >
-          Verwerfen
+          {t('mail.compose.discardConfirm')}
         </button>
       </div>
       {isMicrosoft ? (

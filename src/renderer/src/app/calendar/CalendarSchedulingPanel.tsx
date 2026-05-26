@@ -212,7 +212,7 @@ export function CalendarSchedulingPanel({
             <Link2 className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
             {t('calendar.scheduling.panelTitle')}
           </h2>
-          <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
+          <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
             {t('calendar.scheduling.panelIntro')}
           </p>
         </div>
@@ -239,16 +239,16 @@ export function CalendarSchedulingPanel({
                 aria-hidden
               />
               <div className="min-w-0 flex-1 space-y-1.5">
-                <p className="text-[11px] font-medium leading-snug text-amber-950 dark:text-amber-100">
+                <p className="text-xs font-medium leading-snug text-amber-950 dark:text-amber-100">
                   {t('calendar.scheduling.noBookWithMeUrlTitle')}
                 </p>
-                <p className="text-[10px] leading-relaxed text-amber-900/90 dark:text-amber-100/80">
+                <p className="text-2xs leading-relaxed text-amber-900/90 dark:text-amber-100/80">
                   {t('calendar.scheduling.noBookWithMeUrl')}
                 </p>
                 <button
                   type="button"
                   onClick={openBookWithMeSettings}
-                  className="text-[10px] font-medium text-primary hover:underline"
+                  className="text-2xs font-medium text-primary hover:underline"
                 >
                   {t('calendar.bookWithMe.openSettings')}
                 </button>
@@ -259,7 +259,7 @@ export function CalendarSchedulingPanel({
 
         {microsoftAccounts.length > 1 ? (
           <div>
-            <label className="mb-1 block text-[10px] font-medium text-muted-foreground">
+            <label className="mb-1 block text-2xs font-medium text-muted-foreground">
               {t('settings.calendarAccountLabel')}
             </label>
             <select
@@ -288,7 +288,7 @@ export function CalendarSchedulingPanel({
 
         <section className="space-y-0 overflow-hidden rounded-lg border border-border bg-muted/15">
           <div className="border-b border-border/60 px-2 py-1.5">
-            <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <span className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
               {t('calendar.scheduling.mailHeading')}
             </span>
           </div>
@@ -339,13 +339,13 @@ export function CalendarSchedulingPanel({
               {t('calendar.scheduling.sendMail')}
             </button>
             {sendError ? (
-              <p className="mt-1.5 text-[10px] text-destructive">{sendError}</p>
+              <p className="mt-1.5 text-2xs text-destructive">{sendError}</p>
             ) : null}
           </div>
         </section>
 
         <div>
-          <label className="mb-1 block text-[10px] font-medium text-muted-foreground">
+          <label className="mb-1 block text-2xs font-medium text-muted-foreground">
             {t('calendar.scheduling.meetingTitle')}
           </label>
           <input
@@ -357,7 +357,7 @@ export function CalendarSchedulingPanel({
         </div>
 
         <div>
-          <label className="mb-1 block text-[10px] font-medium text-muted-foreground">
+          <label className="mb-1 block text-2xs font-medium text-muted-foreground">
             {t('calendar.scheduling.duration')}
           </label>
           <select
@@ -375,21 +375,21 @@ export function CalendarSchedulingPanel({
 
         <div>
           <div className="mb-1 flex items-center justify-between">
-            <span className="text-[10px] font-medium text-muted-foreground">
+            <span className="text-2xs font-medium text-muted-foreground">
               {t('calendar.scheduling.slotsHeading', { count: slots.length })}
             </span>
             {slots.length > 0 ? (
               <button
                 type="button"
                 onClick={clearAll}
-                className="text-[10px] text-muted-foreground hover:text-destructive"
+                className="text-2xs text-muted-foreground hover:text-destructive"
               >
                 {t('calendar.scheduling.clearSlots')}
               </button>
             ) : null}
           </div>
           {slots.length === 0 ? (
-            <p className="rounded-md border border-dashed border-border bg-muted/20 px-2 py-2 text-[11px] text-muted-foreground">
+            <p className="rounded-md border border-dashed border-border bg-muted/20 px-2 py-2 text-xs text-muted-foreground">
               {t('calendar.scheduling.dragHint')}
             </p>
           ) : (
@@ -405,7 +405,7 @@ export function CalendarSchedulingPanel({
                 return (
                   <li
                     key={slot.id}
-                    className="flex items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1.5 text-[11px]"
+                    className="flex items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1.5 text-xs"
                   >
                     <span
                       className="h-8 w-1 shrink-0 rounded-full bg-amber-500/80"
@@ -430,14 +430,14 @@ export function CalendarSchedulingPanel({
 
         <div>
           <div className="mb-1 flex items-center justify-between gap-2">
-            <span className="text-[10px] font-medium text-muted-foreground">
+            <span className="text-2xs font-medium text-muted-foreground">
               {t('calendar.scheduling.inviteHeading')}
             </span>
             <button
               type="button"
               disabled={!invitationText}
               onClick={handleCopyInvite}
-              className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/10 disabled:opacity-40"
+              className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-2xs font-medium text-primary hover:bg-primary/10 disabled:opacity-40"
             >
               <Copy className="h-3 w-3" aria-hidden />
               {copiedInvite ? t('calendar.bookWithMe.copied') : t('calendar.scheduling.copyInvite')}
@@ -450,7 +450,7 @@ export function CalendarSchedulingPanel({
               setMailBody(e.target.value)
             }}
             rows={8}
-            className="w-full resize-y rounded-md border border-border bg-background px-2 py-1.5 text-[11px] leading-relaxed text-foreground"
+            className="w-full resize-y rounded-md border border-border bg-background px-2 py-1.5 text-xs leading-relaxed text-foreground"
           />
         </div>
 
@@ -484,7 +484,7 @@ export function CalendarSchedulingPanel({
           <CalendarClock className="h-3.5 w-3.5" aria-hidden />
           {t('calendar.scheduling.finishInBookings')}
         </button>
-        <p className="text-center text-[10px] text-muted-foreground">{t('calendar.scheduling.finishHint')}</p>
+        <p className="text-center text-2xs text-muted-foreground">{t('calendar.scheduling.finishHint')}</p>
       </div>
     </div>
   )

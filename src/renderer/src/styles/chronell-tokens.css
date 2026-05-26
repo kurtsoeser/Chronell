@@ -11,6 +11,20 @@
     --chronell-font-family:
       'Noto Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 
+    /**
+     * Typografie (rem) — skaliert mit html font-size (ui-scale, 100 % = 11px).
+     * Keine festen px in Komponenten; FullCalendar nutzt --chronell-text-* in notion-calendar.css.
+     */
+    --chronell-text-3xs: 0.5625rem;
+    --chronell-text-2xs: 0.625rem;
+    --chronell-text-xs: 0.6875rem;
+    --chronell-text-sm: 0.75rem;
+    --chronell-text-md: 0.8125rem;
+    --chronell-text-base: 0.875rem;
+    --chronell-text-lg: 1rem;
+    --chronell-text-xl: 1.125rem;
+    --chronell-text-2xl: 1.25rem;
+
     /* Radius – produktiv, leicht abgerundet (nicht „pill“) */
     --radius-xs: 2px;
     --radius-sm: 4px;

@@ -20,6 +20,7 @@ import { RichTextNotesPreview } from '@/components/RichTextNotesPreview'
 import { useThemeStore } from '@/stores/theme'
 import { cn } from '@/lib/utils'
 import { PreviewFoldSection } from '@/components/PreviewFoldSection'
+import { ChronellDatePickerPanel } from '@/components/ChronellDatePickerPanel'
 import { EntityContextBlock } from '@/components/connections/EntityContextBlock'
 
 function formatIsoDate(iso: string | null, locale: Locale): string | null {
@@ -100,7 +101,7 @@ export function CloudTaskItemPreview(props: {
 
   const titleInputRef = useRef<HTMLInputElement>(null)
   const notesEditorRef = useRef<HTMLTextAreaElement>(null)
-  const dueEditorRef = useRef<HTMLInputElement>(null)
+  const dueEditorRef = useRef<HTMLDivElement>(null)
   const plannedEditorRef = useRef<HTMLDivElement>(null)
 
   const dueLabel = useMemo(() => formatIsoDate(task.dueIso, dfLocale), [task.dueIso, dfLocale])
@@ -137,7 +138,6 @@ export function CloudTaskItemPreview(props: {
     }
     if (editingField === 'due') {
       setDueDraft(dueDateInputValue(task.dueIso))
-      dueEditorRef.current?.focus()
     }
     if (editingField === 'planned') {
       setPlannedStartDraft(isoToDatetimeLocalValue(planned?.plannedStartIso))
@@ -283,7 +283,7 @@ export function CloudTaskItemPreview(props: {
   return (
     <div className={cn('flex min-h-0 flex-1 flex-col overflow-y-auto bg-background', className)}>
       <div className="shrink-0 space-y-2 border-b border-border px-4 py-3">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <p className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
           {t('calendar.cloudTaskPreview.sourceLabel')}
         </p>
         <div className="flex items-start gap-2">
@@ -348,14 +348,14 @@ export function CloudTaskItemPreview(props: {
           {saving ? <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" /> : null}
         </div>
         {accountDisplayName ? (
-          <p className="text-[12px] text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             {accountDisplayName}
             {task.listName ? ` · ${task.listName}` : ''}
           </p>
         ) : task.listName ? (
-          <p className="text-[12px] text-muted-foreground">{task.listName}</p>
+          <p className="text-sm text-muted-foreground">{task.listName}</p>
         ) : null}
-        <div className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
+        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
           {task.completed ? (
             <CheckSquare className="h-3.5 w-3.5 shrink-0 text-primary" />
           ) : (
@@ -367,22 +367,21 @@ export function CloudTaskItemPreview(props: {
               : t('calendar.cloudTaskPreview.statusOpen')}
           </span>
         </div>
-        {inlineError ? <p className="text-[11px] text-destructive">{inlineError}</p> : null}
+        {inlineError ? <p className="text-xs text-destructive">{inlineError}</p> : null}
       </div>
-      <div className="space-y-3 px-4 py-3 text-[12px]">
+      <div className="space-y-3 px-4 py-3 text-sm">
         <div>
-          <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+          <p className="mb-0.5 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
             {t('calendar.cloudTaskPreview.dueLabel')}
           </p>
           {editingField === 'due' ? (
-            <input
-              ref={dueEditorRef}
-              type="date"
-              disabled={saving}
-              value={dueDraft}
-              onChange={(e): void => setDueDraft(e.target.value)}
-              className="w-full rounded-md border border-border bg-background px-2 py-1 text-[12px] tabular-nums"
-            />
+            <div ref={dueEditorRef}>
+              <ChronellDatePickerPanel
+                value={dueDraft}
+                disabled={saving}
+                onChange={setDueDraft}
+              />
+            </div>
           ) : (
             <p
               role={editable ? 'button' : undefined}
@@ -404,13 +403,13 @@ export function CloudTaskItemPreview(props: {
           )}
         </div>
         <div>
-          <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+          <p className="mb-0.5 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
             {t('calendar.cloudTaskPreview.plannedLabel')}
           </p>
           {editingField === 'planned' ? (
             <div ref={plannedEditorRef} className="space-y-2">
               <label className="block space-y-0.5">
-                <span className="text-[10px] text-muted-foreground">
+                <span className="text-2xs text-muted-foreground">
                   {t('work.preview.plannedStart')}
                 </span>
                 <input
@@ -418,11 +417,11 @@ export function CloudTaskItemPreview(props: {
                   disabled={saving}
                   value={plannedStartDraft}
                   onChange={(e): void => setPlannedStartDraft(e.target.value)}
-                  className="w-full rounded-md border border-border bg-background px-2 py-1 text-[12px] tabular-nums"
+                  className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm tabular-nums"
                 />
               </label>
               <label className="block space-y-0.5">
-                <span className="text-[10px] text-muted-foreground">
+                <span className="text-2xs text-muted-foreground">
                   {t('work.preview.plannedEnd')}
                 </span>
                 <input
@@ -430,7 +429,7 @@ export function CloudTaskItemPreview(props: {
                   disabled={saving}
                   value={plannedEndDraft}
                   onChange={(e): void => setPlannedEndDraft(e.target.value)}
-                  className="w-full rounded-md border border-border bg-background px-2 py-1 text-[12px] tabular-nums"
+                  className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm tabular-nums"
                 />
               </label>
             </div>
@@ -469,7 +468,7 @@ export function CloudTaskItemPreview(props: {
               disabled={saving}
               onChange={(e): void => setNotesDraft(e.target.value)}
               rows={8}
-              className="min-h-[120px] w-full resize-y rounded-md border border-border bg-background px-2 py-1.5 text-[12px] outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
+              className="min-h-[120px] w-full resize-y rounded-md border border-border bg-background px-2 py-1.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
             />
           ) : task.notes?.trim() || editable ? (
             <div

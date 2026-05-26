@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron'
+import { ipcMain, dialog, BrowserWindow, type OpenDialogOptions } from 'electron'
 import {
   IPC,
   type CalendarEventView,
@@ -17,8 +17,10 @@ import {
   type CalendarAccountSyncStateRow,
   type CalendarListCalendarsInput,
   type CalendarListEventsInput,
-  type CalendarM365GroupCalendarsPage
+  type CalendarM365GroupCalendarsPage,
+  type CalendarParseIcsFileResult
 } from '@shared/types'
+import { parseIcsFileAtPath } from '../ics-import-service'
 import { listAccounts } from '../accounts'
 import {
   afterCalendarEventCreated,
@@ -323,5 +325,35 @@ export function registerCalendarIpc(): void {
   ipcMain.handle(
     IPC.calendar.getAccountSyncStates,
     async (): Promise<CalendarAccountSyncStateRow[]> => listCalendarAccountSyncStates()
+  )
+
+  ipcMain.removeHandler(IPC.calendar.parseIcsFile)
+  ipcMain.handle(
+    IPC.calendar.parseIcsFile,
+    async (_event, filePath: unknown): Promise<CalendarParseIcsFileResult> => {
+      const p = typeof filePath === 'string' ? filePath.trim() : ''
+      if (!p) throw new Error('Dateipfad fehlt.')
+      return parseIcsFileAtPath(p)
+    }
+  )
+
+  ipcMain.removeHandler(IPC.calendar.pickIcsFile)
+  ipcMain.handle(
+    IPC.calendar.pickIcsFile,
+    async (event): Promise<CalendarParseIcsFileResult | { cancelled: true }> => {
+      const win = BrowserWindow.fromWebContents(event.sender)
+      const options: OpenDialogOptions = {
+        title: 'iCalendar-Datei importieren',
+        filters: [{ name: 'iCalendar', extensions: ['ics'] }],
+        properties: ['openFile']
+      }
+      const { canceled, filePaths } = await (win
+        ? dialog.showOpenDialog(win, options)
+        : dialog.showOpenDialog(options))
+      if (canceled || !filePaths?.[0]) {
+        return { cancelled: true }
+      }
+      return parseIcsFileAtPath(filePaths[0])
+    }
   )
 }

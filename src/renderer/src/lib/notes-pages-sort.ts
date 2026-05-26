@@ -1,5 +1,6 @@
 import type { UserNoteListItem } from '@shared/types'
 import { noteTitle } from '@/app/notes/notes-display-helpers'
+import { readNotesSettingsPrefs } from '@/lib/notes-settings-prefs'
 
 export const NOTES_PAGES_SORT_KEYS = [
   'manual',
@@ -16,7 +17,6 @@ export const NOTES_PAGES_SORT_KEYS = [
 export type NotesPagesSortKey = (typeof NOTES_PAGES_SORT_KEYS)[number]
 
 const STORAGE_KEY = 'mailclient.notes.pagesSort.v1'
-const DEFAULT_SORT: NotesPagesSortKey = 'manual'
 
 export function isNotesPagesSortKey(value: string): value is NotesPagesSortKey {
   return (NOTES_PAGES_SORT_KEYS as readonly string[]).includes(value)
@@ -29,7 +29,7 @@ export function readNotesPagesSort(): NotesPagesSortKey {
   } catch {
     /* ignore */
   }
-  return DEFAULT_SORT
+  return readNotesSettingsPrefs().defaultPagesSort
 }
 
 export function persistNotesPagesSort(key: NotesPagesSortKey): void {

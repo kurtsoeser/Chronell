@@ -23,7 +23,7 @@ export function NotesShellViewToggle({
         type="button"
         onClick={(): void => onChange('list')}
         className={cn(
-          'inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-medium transition-colors',
+          'inline-flex items-center gap-1 rounded-md px-2 py-1 text-2xs font-medium transition-colors',
           value === 'list'
             ? 'bg-secondary text-foreground'
             : 'text-muted-foreground hover:bg-secondary/50'
@@ -36,7 +36,7 @@ export function NotesShellViewToggle({
         type="button"
         onClick={(): void => onChange('calendar')}
         className={cn(
-          'inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-medium transition-colors',
+          'inline-flex items-center gap-1 rounded-md px-2 py-1 text-2xs font-medium transition-colors',
           value === 'calendar'
             ? 'bg-secondary text-foreground'
             : 'text-muted-foreground hover:bg-secondary/50'

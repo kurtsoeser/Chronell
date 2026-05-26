@@ -12,6 +12,7 @@ import {
   ScanSearch,
   Star,
   StarOff,
+  Tag,
   Trash2,
   PanelLeftClose
 } from 'lucide-react'
@@ -49,6 +50,12 @@ import {
   reconcileFavoriteFolderOrder,
   type QuickAccessNavId
 } from '@/app/layout/sidebar/sidebar-order-storage'
+import {
+  MAIL_CATEGORY_FAVORITES_CHANGED_EVENT,
+  persistFavoriteCategories,
+  readFavoriteCategories,
+  type FavoriteCategoryRef
+} from '@/lib/mail-category-favorites-storage'
 import {
   SortableSidebarFavoriteRow,
   SortableSidebarNavButton
@@ -96,6 +103,8 @@ export function Sidebar({ onOpenAccountDialog }: Props): JSX.Element {
     syncByAccount,
     metaFolders,
     selectedMetaFolderId,
+    selectedCategoryAccountId,
+    selectedCategoryName,
     listKind,
     todoDueKind,
     todoCounts
@@ -106,6 +115,8 @@ export function Sidebar({ onOpenAccountDialog }: Props): JSX.Element {
       syncByAccount: s.syncByAccount,
       metaFolders: s.metaFolders,
       selectedMetaFolderId: s.selectedMetaFolderId,
+      selectedCategoryAccountId: s.selectedCategoryAccountId,
+      selectedCategoryName: s.selectedCategoryName,
       listKind: s.listKind,
       todoDueKind: s.todoDueKind,
       todoCounts: s.todoCounts
@@ -122,6 +133,7 @@ export function Sidebar({ onOpenAccountDialog }: Props): JSX.Element {
     updateMetaFolder,
     deleteMetaFolder,
     reorderMetaFolders,
+    selectCategory,
     triggerSync,
     createFolder,
     renameFolder,
@@ -141,6 +153,7 @@ export function Sidebar({ onOpenAccountDialog }: Props): JSX.Element {
       updateMetaFolder: s.updateMetaFolder,
       deleteMetaFolder: s.deleteMetaFolder,
       reorderMetaFolders: s.reorderMetaFolders,
+      selectCategory: s.selectCategory,
       triggerSync: s.triggerSync,
       createFolder: s.createFolder,
       renameFolder: s.renameFolder,
@@ -462,6 +475,14 @@ export function Sidebar({ onOpenAccountDialog }: Props): JSX.Element {
 
   const [qaOrder, setQaOrder] = useState<QuickAccessNavId[]>(() => readQuickAccessOrder())
   const [favOrder, setFavOrder] = useState<number[]>(() => readFavoriteFolderOrder())
+  const [favCats, setFavCats] = useState<FavoriteCategoryRef[]>(() => readFavoriteCategories())
+
+  useEffect(() => {
+    const onFav = (): void => setFavCats(readFavoriteCategories())
+    window.addEventListener(MAIL_CATEGORY_FAVORITES_CHANGED_EVENT, onFav as EventListener)
+    return (): void =>
+      window.removeEventListener(MAIL_CATEGORY_FAVORITES_CHANGED_EVENT, onFav as EventListener)
+  }, [])
 
   const favoriteFolderRowsUnordered = useMemo(() => {
     const all: Array<{ folder: MailFolder; account: ConnectedAccount }> = []
@@ -508,6 +529,22 @@ export function Sidebar({ onOpenAccountDialog }: Props): JSX.Element {
     const next = arrayMove(favOrder, oldIndex, newIndex)
     setFavOrder(next)
     persistFavoriteFolderOrder(next)
+  }
+
+  function favCatKey(ref: FavoriteCategoryRef): string {
+    return `${ref.accountId ?? '*'}::${ref.name}`
+  }
+
+  function onFavoriteCategoriesDragEnd(event: DragEndEvent): void {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const keys = favCats.map(favCatKey)
+    const oldIndex = keys.indexOf(String(active.id))
+    const newIndex = keys.indexOf(String(over.id))
+    if (oldIndex < 0 || newIndex < 0) return
+    const next = arrayMove(favCats, oldIndex, newIndex)
+    setFavCats(next)
+    persistFavoriteCategories(next)
   }
 
   function onMetaFoldersDragEnd(event: DragEndEvent): void {
@@ -672,6 +709,46 @@ export function Sidebar({ onOpenAccountDialog }: Props): JSX.Element {
               </DndContext>
             </>
           )}
+
+          {favCats.length > 0 && (
+            <>
+              <li className="list-none px-2 pt-2 pb-0.5">
+                <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground/80">
+                  Kategorien
+                </span>
+              </li>
+              <DndContext
+                sensors={accountDragSensors}
+                collisionDetection={closestCenter}
+                onDragEnd={onFavoriteCategoriesDragEnd}
+              >
+                <SortableContext
+                  items={favCats.map(favCatKey)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {favCats.map((c) => (
+                    <SortableSidebarNavButton
+                      key={favCatKey(c)}
+                      id={favCatKey(c)}
+                      icon={Tag}
+                      iconClass="text-status-todo"
+                      label={c.name}
+                      isSelected={
+                        listKind === 'category' &&
+                        selectedCategoryName === c.name &&
+                        (selectedCategoryAccountId ?? null) === (c.accountId ?? null)
+                      }
+                      onClick={(): void => {
+                        void selectCategory(c.accountId ?? null, c.name)
+                      }}
+                      dragTitle={t('topbar.moduleDragTitle')}
+                      dragAria={t('topbar.moduleDragAria')}
+                    />
+                  ))}
+                </SortableContext>
+              </DndContext>
+            </>
+          )}
         </SidebarCollapsibleSection>
 
         <SidebarCollapsibleSection title={t('sidebar.metaFolders')} defaultOpen>
@@ -710,7 +787,7 @@ export function Sidebar({ onOpenAccountDialog }: Props): JSX.Element {
                 setMetaDialogEdit(null)
                 setMetaDialogOpen(true)
               }}
-              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground"
+              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground"
             >
               <Plus className="h-3.5 w-3.5 shrink-0 opacity-80" />
               {t('sidebar.newMetaFolder')}

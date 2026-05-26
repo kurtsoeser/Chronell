@@ -125,7 +125,7 @@ function TasksShellSidebarAccountSection({
             <span className="block truncate text-xs font-semibold text-foreground">
               {account.displayName || account.email}
             </span>
-            <span className="block truncate text-[10px] text-muted-foreground">{account.email}</span>
+            <span className="block truncate text-2xs text-muted-foreground">{account.email}</span>
           </span>
         </button>
 
@@ -150,14 +150,14 @@ function TasksShellSidebarAccountSection({
             className="left-0 top-1 bottom-1 w-0.5 rounded-full opacity-60"
           />
           {listsError ? (
-            <li className="px-2 py-1.5 text-[10px] leading-snug text-destructive">{listsError}</li>
+            <li className="px-2 py-1.5 text-2xs leading-snug text-destructive">{listsError}</li>
           ) : listsLoading && (!lists || lists.length === 0) ? (
-            <li className="flex items-center gap-2 px-2 py-1.5 text-[10px] text-muted-foreground">
+            <li className="flex items-center gap-2 px-2 py-1.5 text-2xs text-muted-foreground">
               <Loader2 className="h-3 w-3 shrink-0 animate-spin" />
               {t('tasks.shell.listsLoading')}
             </li>
           ) : !lists || lists.length === 0 ? (
-            <li className="px-2 py-1.5 text-[10px] text-muted-foreground">{t('tasks.shell.listsEmpty')}</li>
+            <li className="px-2 py-1.5 text-2xs text-muted-foreground">{t('tasks.shell.listsEmpty')}</li>
           ) : (
             lists.map((L) => {
               const active =
@@ -170,7 +170,7 @@ function TasksShellSidebarAccountSection({
                     type="button"
                     onClick={(): void => onSelectList(L.id)}
                     className={cn(
-                      'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12px] transition-colors',
+                      'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors',
                       active
                         ? 'bg-primary/15 font-medium text-foreground'
                         : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'

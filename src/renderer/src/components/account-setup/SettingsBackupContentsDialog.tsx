@@ -19,7 +19,7 @@ interface Props {
 function CountRow({ label, value }: { label: string; value: number }): JSX.Element | null {
   if (value <= 0) return null
   return (
-    <div className="flex justify-between gap-3 text-[11px]">
+    <div className="flex justify-between gap-3 text-xs">
       <span className="text-muted-foreground">{label}</span>
       <span className="tabular-nums font-medium text-foreground">{value}</span>
     </div>
@@ -58,7 +58,7 @@ export function SettingsBackupContentsDialog({
             <FileJson className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
             <div className="min-w-0">
               <h2 className="text-sm font-semibold text-foreground">{title}</h2>
-              <p className="mt-0.5 text-[10px] text-muted-foreground">
+              <p className="mt-0.5 text-2xs text-muted-foreground">
                 {t('settings.backupContents.meta', {
                   version: summary.formatVersion,
                   app: summary.appVersion,
@@ -79,16 +79,16 @@ export function SettingsBackupContentsDialog({
 
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-3">
           <section className="space-y-1.5">
-            <h3 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <h3 className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
               {t('settings.backupContents.sectionUi')}
             </h3>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               {t('settings.backupContents.localStorageKeys', { count: summary.localStorageKeyCount })}
             </p>
             {summary.localStorageGroups.length > 0 ? (
               <ul className="max-h-28 space-y-0.5 overflow-y-auto rounded-md border border-border/60 bg-background/40 px-2 py-1.5">
                 {summary.localStorageGroups.slice(0, 16).map((g) => (
-                  <li key={g.label} className="flex justify-between gap-2 text-[10px]">
+                  <li key={g.label} className="flex justify-between gap-2 text-2xs">
                     <span className="truncate font-mono text-muted-foreground">{g.label}</span>
                     <span className="shrink-0 tabular-nums">{g.count}</span>
                   </li>
@@ -98,10 +98,10 @@ export function SettingsBackupContentsDialog({
           </section>
 
           <section className="space-y-1.5">
-            <h3 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <h3 className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
               {t('settings.backupContents.sectionConfig')}
             </h3>
-            <ul className="space-y-0.5 font-mono text-[10px] text-muted-foreground">
+            <ul className="space-y-0.5 font-mono text-2xs text-muted-foreground">
               {summary.configHighlights.map((line) => (
                 <li key={line}>{line}</li>
               ))}
@@ -110,7 +110,7 @@ export function SettingsBackupContentsDialog({
 
           {summary.hasDatabaseExtras ? (
             <section className="space-y-1.5">
-              <h3 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <h3 className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
                 {t('settings.backupContents.sectionDatabase')}
               </h3>
               <div className="space-y-0.5 rounded-md border border-border/60 bg-background/40 px-2 py-1.5">
@@ -139,14 +139,14 @@ export function SettingsBackupContentsDialog({
               </div>
             </section>
           ) : (
-            <p className="text-[11px] text-amber-700 dark:text-amber-400">
+            <p className="text-xs text-amber-700 dark:text-amber-400">
               {t('settings.backupContents.noDatabaseExtras')}
             </p>
           )}
 
           {summary.hasSecureExtras ? (
             <section className="space-y-1.5">
-              <h3 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <h3 className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
                 {t('settings.backupContents.sectionSecure')}
               </h3>
               <div className="space-y-0.5 rounded-md border border-border/60 bg-background/40 px-2 py-1.5">
@@ -164,7 +164,7 @@ export function SettingsBackupContentsDialog({
                 />
                 <CountRow label={t('settings.backupContents.notionFavorites')} value={sec.notionFavorites} />
                 {sec.aiConnectionsIncluded ? (
-                  <p className="text-[11px] text-foreground">
+                  <p className="text-xs text-foreground">
                     {t('settings.backupContents.aiIncluded', {
                       dismissed: sec.aiDismissedPairs
                     })}
@@ -173,17 +173,17 @@ export function SettingsBackupContentsDialog({
               </div>
             </section>
           ) : (
-            <p className="text-[11px] text-amber-700 dark:text-amber-400">
+            <p className="text-xs text-amber-700 dark:text-amber-400">
               {t('settings.backupContents.noSecureExtras')}
             </p>
           )}
 
           {summary.warnings.length > 0 ? (
             <section className="space-y-1 rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-2">
-              <h3 className="text-[10px] font-semibold uppercase tracking-wider text-amber-800 dark:text-amber-200">
+              <h3 className="text-2xs font-semibold uppercase tracking-wider text-amber-800 dark:text-amber-200">
                 {t('settings.backupContents.sectionWarnings')}
               </h3>
-              <ul className="list-inside list-disc space-y-0.5 text-[10px] leading-relaxed text-amber-900 dark:text-amber-100">
+              <ul className="list-inside list-disc space-y-0.5 text-2xs leading-relaxed text-amber-900 dark:text-amber-100">
                 {summary.warnings.map((w) => (
                   <li key={w}>{t(`settings.backupContents.warning.${w}`)}</li>
                 ))}

@@ -1,3 +1,5 @@
+import { readTasksSettingsPrefs } from '@/lib/tasks-settings-prefs'
+
 /** Liste + Kalender (Standard) oder Kanban. */
 export type TasksContentViewMode = 'list' | 'kanban'
 
@@ -7,11 +9,11 @@ export function readTasksContentViewMode(): TasksContentViewMode {
   try {
     const raw = window.localStorage.getItem(KEY)
     if (raw === 'kanban') return 'kanban'
-    // früher: separater Kalender-Modus → Liste+Kalender
-    return 'list'
+    if (raw === 'list') return 'list'
   } catch {
-    return 'list'
+    // ignore
   }
+  return readTasksSettingsPrefs().defaultContentViewMode
 }
 
 export function persistTasksContentViewMode(mode: TasksContentViewMode): void {

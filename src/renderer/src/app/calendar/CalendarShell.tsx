@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal, flushSync } from 'react-dom'
 import FullCalendar from '@fullcalendar/react'
 import dayGridPlugin from '@fullcalendar/daygrid'
@@ -35,6 +35,7 @@ import {
 import { useTranslation } from 'react-i18next'
 import { useAccountsStore } from '@/stores/accounts'
 import { useCalendarPendingFocusStore } from '@/stores/calendar-pending-focus'
+import { useCalendarIcsImportStore } from '@/stores/calendar-ics-import'
 import { useMailStore } from '@/stores/mail'
 import { openMailReadingPopout } from '@/lib/open-mail-reading-popout'
 import { useComposeStore } from '@/stores/compose'
@@ -172,6 +173,7 @@ import { CalendarFloatingPanel } from '@/app/calendar/CalendarFloatingPanel'
 import { CalendarDockPanelSlide } from '@/app/calendar/CalendarDockPanelSlide'
 import { useCalendarMailExternalDrop } from '@/lib/use-calendar-mail-external-drop'
 import { useCalendarCloudTaskExternalDrop } from '@/lib/use-calendar-cloud-task-external-drop'
+import { useCalendarIcsDrop } from '@/lib/use-calendar-ics-drop'
 import type { CloudTaskDragPayload } from '@/app/tasks/tasks-cloud-task-dnd'
 import { buildCalendarIncludeCalendars } from '@/lib/build-calendar-include-calendars'
 import { M365_GROUP_CALENDAR_ID_PREFIX } from '@shared/microsoft-m365-group-calendar'
@@ -188,6 +190,7 @@ import {
   SIDEBAR_HIDDEN_CALENDARS_STORAGE_KEY
 } from '@/lib/calendar-visibility-storage'
 import { ModuleNavMiniMonth } from '@/components/ModuleNavMiniMonth'
+import { ChronellDatePickerPanel } from '@/components/ChronellDatePickerPanel'
 import {
   moduleNavColumnScrollBodyClass,
   moduleNavColumnScrollBodyStackClass,
@@ -249,6 +252,13 @@ import {
   readGanttTimelineScale
 } from '@/app/calendar/calendar-gantt-timeline-storage'
 import type { GanttTimelineScale } from '@/app/calendar/calendar-gantt-scale'
+import {
+  persistCalendarActiveFcView,
+  readCalendarActiveFcView
+} from '@/app/calendar/calendar-active-fc-view-storage'
+import { useCalendarSettingsPrefs } from '@/lib/use-calendar-settings-prefs'
+import { useUiScaleStore } from '@/stores/ui-scale'
+import { syncFullCalendarWidth } from '@/app/calendar/sync-full-calendar-width'
 import './notion-calendar.css'
 
 function sameStringSet(a: Set<string>, b: Set<string>): boolean {
@@ -261,6 +271,7 @@ function sameStringSet(a: Set<string>, b: Set<string>): boolean {
 
 export function CalendarShell(): JSX.Element {
   const { t, i18n } = useTranslation()
+  const calSettings = useCalendarSettingsPrefs()
   const calendarFcEventContentRender = useCalendarFcEventContent()
   const fcLocale = useMemo(
     () => (i18n.language.startsWith('de') ? deLocale : enGbLocale),
@@ -324,7 +335,7 @@ export function CalendarShell(): JSX.Element {
   >(() => {})
   const [timelineLoading, setTimelineLoading] = useState(false)
 
-  const [activeViewId, setActiveViewId] = useState<string>('timeGridWeek')
+  const [activeViewId, setActiveViewId] = useState<string>(() => readCalendarActiveFcView())
   const activeViewIdRef = useRef(activeViewId)
   activeViewIdRef.current = activeViewId
   const isGanttTimelineView = activeViewId === GANTT_TIMELINE_VIEW_ID
@@ -346,8 +357,6 @@ export function CalendarShell(): JSX.Element {
   const [calendarEventSearchQuery, setCalendarEventSearchQuery] = useState('')
   const viewMenuRef = useRef<HTMLDivElement>(null)
   const calendarSearchInputRef = useRef<HTMLInputElement>(null)
-  const gotoDateInputRef = useRef<HTMLInputElement>(null)
-
   type EventDialogState =
     | null
     | {
@@ -949,6 +958,7 @@ export function CalendarShell(): JSX.Element {
 
   const calendarDropRootRef = useRef<HTMLDivElement>(null)
   const calendarViewZoomHostRef = useRef<HTMLDivElement>(null)
+  const uiScale = useUiScaleStore((s) => s.scale)
   const [rightInboxOpen, setRightInboxOpen] = useState(readRightInboxOpenFromStorage)
   const [rightPreviewOpen, setRightPreviewOpen] = useState(readRightPreviewOpenFromStorage)
   const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useState(
@@ -1069,23 +1079,11 @@ export function CalendarShell(): JSX.Element {
   }, [leftSidebarCollapsed])
 
   useEffect(() => {
-    if (inboxPlacement !== 'dock') {
-      setInboxDockStripInDom(false)
-      return
-    }
-    if (rightInboxOpen) {
-      setInboxDockStripInDom(true)
-    }
+    setInboxDockStripInDom(rightInboxOpen && inboxPlacement === 'dock')
   }, [rightInboxOpen, inboxPlacement])
 
   useEffect(() => {
-    if (previewPlacement !== 'dock') {
-      setPreviewDockStripInDom(false)
-      return
-    }
-    if (rightPreviewOpen) {
-      setPreviewDockStripInDom(true)
-    }
+    setPreviewDockStripInDom(rightPreviewOpen && previewPlacement === 'dock')
   }, [rightPreviewOpen, previewPlacement])
 
   const inboxFloatWidth = inboxColumnWidth
@@ -1747,6 +1745,8 @@ export function CalendarShell(): JSX.Element {
     enabled: true,
     onSchedulePlanned: scheduleCloudTaskFromExternalDrop
   })
+
+  useCalendarIcsDrop(calendarDropRootRef, { enabled: true })
 
   /** Startseite / extern: Termin vormerken und beim Oeffnen des Kalenders anzeigen + Datum setzen; oder nur Zieldatum (Mini-Monat). */
   useEffect(() => {
@@ -2647,6 +2647,7 @@ export function CalendarShell(): JSX.Element {
       api.gotoDate(lo)
       api.changeView(viewId)
       setActiveViewId(viewId)
+      persistCalendarActiveFcView(viewId)
       setViewMenuOpen(false)
       setDaysSubOpen(false)
       setSettingsSubOpen(false)
@@ -2660,6 +2661,7 @@ export function CalendarShell(): JSX.Element {
       if (viewId === GANTT_TIMELINE_VIEW_ID) {
         setGanttAnchor(visibleStart)
         setActiveViewId(viewId)
+        persistCalendarActiveFcView(viewId)
         setViewMenuOpen(false)
         setDaysSubOpen(false)
         setSettingsSubOpen(false)
@@ -2669,6 +2671,7 @@ export function CalendarShell(): JSX.Element {
       if (!api) return
       api.changeView(viewId)
       setActiveViewId(viewId)
+      persistCalendarActiveFcView(viewId)
       setViewMenuOpen(false)
       setDaysSubOpen(false)
       setSettingsSubOpen(false)
@@ -2681,6 +2684,52 @@ export function CalendarShell(): JSX.Element {
     onViewChange: changeView,
     ladder: MAIN_CALENDAR_VIEW_ZOOM_LADDER
   })
+
+  const refreshCalendarSize = useCallback((): void => {
+    if (isGanttTimelineView) return
+    syncFullCalendarWidth(calendarDropRootRef.current, calendarRef.current?.getApi())
+  }, [isGanttTimelineView])
+
+  useLayoutEffect(() => {
+    const el = calendarDropRootRef.current
+    if (!el || isGanttTimelineView) return
+    refreshCalendarSize()
+    const ro = new ResizeObserver(() => {
+      refreshCalendarSize()
+    })
+    ro.observe(el)
+    const onWindowResize = (): void => refreshCalendarSize()
+    window.addEventListener('resize', onWindowResize)
+    return (): void => {
+      ro.disconnect()
+      window.removeEventListener('resize', onWindowResize)
+    }
+  }, [refreshCalendarSize, isGanttTimelineView])
+
+  useEffect(() => {
+    if (isGanttTimelineView) return
+    refreshCalendarSize()
+    const timers = [0, 50, 150, 350, 500].map((ms) =>
+      window.setTimeout(refreshCalendarSize, ms)
+    )
+    return (): void => {
+      for (const id of timers) window.clearTimeout(id)
+    }
+  }, [
+    refreshCalendarSize,
+    isGanttTimelineView,
+    rightInboxOpen,
+    rightPreviewOpen,
+    inboxPlacement,
+    previewPlacement,
+    leftSidebarCollapsed,
+    moduleNavWidth,
+    inboxColumnWidth,
+    previewPaneWidth,
+    inboxDockShow,
+    previewDockShow,
+    uiScale
+  ])
 
   const handleGanttScaleChange = useCallback((scale: GanttTimelineScale): void => {
     setGanttScale(scale)
@@ -2740,15 +2789,6 @@ export function CalendarShell(): JSX.Element {
     })
     return (): void => window.cancelAnimationFrame(id)
   }, [calendarEventSearchOpen])
-
-  useEffect(() => {
-    if (!gotoDateOpen) return
-    const id = window.requestAnimationFrame(() => {
-      gotoDateInputRef.current?.focus()
-      gotoDateInputRef.current?.select()
-    })
-    return (): void => window.cancelAnimationFrame(id)
-  }, [gotoDateOpen])
 
   useEffect(() => {
     if (!viewMenuOpen) return
@@ -2898,9 +2938,7 @@ export function CalendarShell(): JSX.Element {
 
   return (
     <>
-      <div className="flex h-full min-h-0 flex-1 flex-col">
-        <div className="calendar-shell-workspace flex min-h-0 flex-1 flex-col">
-          <div className={moduleShellClass}>
+      <div className={moduleShellClass}>
             {!leftSidebarCollapsed ? (
                 <>
                 <div style={{ width: moduleNavWidth }} className="flex h-full min-h-0 shrink-0 flex-col">
@@ -2973,10 +3011,10 @@ export function CalendarShell(): JSX.Element {
                 </>
           ) : null}
 
-            <div className={cn(modulePaneStackClass, 'flex-row')}>
+            <div className={cn(modulePaneStackClass, 'w-full flex-row')}>
             <div
               className={cn(
-                'calendar-notion-shell flex h-full min-h-0 min-w-0 flex-1 flex-col text-foreground',
+                'calendar-notion-shell flex h-full min-h-0 min-w-0 w-full flex-1 flex-col text-foreground',
                 `cal-slot-${timeGridSlotMinutes}`,
                 activeViewId === MULTI_MONTH_YEAR_VIEW_ID &&
                   'calendar-notion-shell--multimonth-year',
@@ -3035,6 +3073,9 @@ export function CalendarShell(): JSX.Element {
                   }}
                   leftSidebarCollapsed={leftSidebarCollapsed}
                   onLeftSidebarCollapsedChange={setLeftSidebarCollapsed}
+                  onImportIcsClick={(): void => {
+                    void useCalendarIcsImportStore.getState().openFromPicker()
+                  }}
                 />
               </div>
           <div ref={calendarViewZoomHostRef} className="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -3043,15 +3084,16 @@ export function CalendarShell(): JSX.Element {
             <div
               ref={calendarDropRootRef}
               className={cn(
-                'relative z-0 flex min-h-0 flex-1 flex-col pl-3 pt-2',
+                'relative z-0 flex min-h-0 min-w-0 w-full flex-1 flex-col pl-3 pt-2',
                 isGanttTimelineView && 'hidden'
               )}
             >
               <>
                   <CalendarShellLoadingOverlay visible={loading} />
+              <div className="calendar-fc-host">
               {/* selectLongPressDelay: Touch — kurzes Halten vor Ziehen (sonst oft ~1s). */}
               <FullCalendar
-                key={`${fcTimeZone}-${i18n.language}-${timeGridSlotMinutes}`}
+                key={`${fcTimeZone}-${i18n.language}-${timeGridSlotMinutes}-${calSettings.weekStartsOn}-${calSettings.slotMinTime}-${calSettings.slotMaxTime}-${calSettings.hideWeekends}`}
                 ref={calendarRef}
                 plugins={[
                   dayGridPlugin,
@@ -3063,17 +3105,19 @@ export function CalendarShell(): JSX.Element {
                 ]}
                 locale={fcLocale}
                 height="100%"
+                handleWindowResize
                 timeZone={fcTimeZone}
                 headerToolbar={false}
-                firstDay={1}
+                firstDay={calSettings.weekStartsOn}
+                weekends={!calSettings.hideWeekends}
                 views={{
                   ...multiDayViews,
                   ...multiMonthViews
                 }}
-                initialView="timeGridWeek"
-                slotMinTime="00:00:00"
-                slotMaxTime="24:00:00"
-                scrollTime="07:00:00"
+                initialView={readCalendarActiveFcView()}
+                slotMinTime={calSettings.slotMinTime}
+                slotMaxTime={calSettings.slotMaxTime}
+                scrollTime={calSettings.scrollTime}
                 slotDuration={timeGridSlotDurationIso}
                 slotLabelInterval="01:00:00"
                 nowIndicator
@@ -3124,6 +3168,7 @@ export function CalendarShell(): JSX.Element {
                   api.gotoDate(info.date)
                   api.changeView('dayGridMonth')
                   setActiveViewId('dayGridMonth')
+                  persistCalendarActiveFcView('dayGridMonth')
                 }}
                 select={(sel): void => {
                   if (!canInteractInTimeGrid) return
@@ -3491,6 +3536,9 @@ export function CalendarShell(): JSX.Element {
                   }
                 }}
                 datesSet={(arg): void => {
+                  window.requestAnimationFrame(() => {
+                    syncFullCalendarWidth(calendarDropRootRef.current, arg.view.calendar)
+                  })
                   const datesKey = multiMonthDatesSetKey(arg.view.type, arg.start, arg.end)
                   const rangeUnchanged = datesKey === lastDatesSetKeyRef.current
                   lastDatesSetKeyRef.current = datesKey
@@ -3498,6 +3546,7 @@ export function CalendarShell(): JSX.Element {
 
                   if (arg.view.type !== activeViewIdRef.current) {
                     setActiveViewId(arg.view.type)
+                    persistCalendarActiveFcView(arg.view.type)
                   }
                   setVisibleStart(arg.view.currentStart)
                   setMiniMonth(startOfMonth(arg.view.currentStart))
@@ -3590,6 +3639,7 @@ export function CalendarShell(): JSX.Element {
                   return false
                 }}
               />
+              </div>
                 </>
             </div>
             {isGanttTimelineView ? (
@@ -3620,6 +3670,7 @@ export function CalendarShell(): JSX.Element {
           <CalendarDockPanelSlide
             visible={inboxDockShow}
             panelWidthPx={inboxColumnWidth}
+            onWidthTransitionEnd={refreshCalendarSize}
             onExitTransitionComplete={(): void => {
               if (!rightInboxOpen) setInboxDockStripInDom(false)
             }}
@@ -3683,6 +3734,7 @@ export function CalendarShell(): JSX.Element {
           <CalendarDockPanelSlide
             visible={previewDockShow}
             panelWidthPx={previewPaneWidth}
+            onWidthTransitionEnd={refreshCalendarSize}
             onExitTransitionComplete={(): void => {
               if (!rightPreviewOpen) setPreviewDockStripInDom(false)
             }}
@@ -3695,7 +3747,7 @@ export function CalendarShell(): JSX.Element {
           >
             <div
               style={{ width: previewPaneWidth }}
-              className="flex h-full min-h-0 shrink-0 flex-col overflow-hidden border-l border-border"
+              className="flex h-full min-h-0 shrink-0 flex-col overflow-hidden"
             >
               <CalendarPreviewDockHeader
                 label={previewColumnLabel}
@@ -3734,8 +3786,6 @@ export function CalendarShell(): JSX.Element {
           </CalendarFloatingPanel>
         ) : null}
         </div>
-      </div>
-      </div>
       </div>
 
       {eventContextMenu && (
@@ -3844,25 +3894,21 @@ export function CalendarShell(): JSX.Element {
             <h2 id="cal-goto-date-title" className="mb-3 text-sm font-semibold text-foreground">
               {t('calendar.shell.gotoDateTitle')}
             </h2>
-            <input
-              ref={gotoDateInputRef}
-              type="date"
-              className="mb-3 w-full rounded-md border border-border bg-background px-2 py-2 text-sm text-foreground"
-              value={gotoDateDraft}
-              onChange={(e): void => setGotoDateDraft(e.target.value)}
-              onKeyDown={(e): void => {
-                if (e.key === 'Enter') {
-                  e.preventDefault()
-                  const d = parseISO(gotoDateDraft)
-                  if (!Number.isNaN(d.getTime())) {
-                    const api = calendarRef.current?.getApi()
-                    api?.gotoDate(startOfDay(d))
-                    setMiniMonth(startOfMonth(d))
-                    setGotoDateOpen(false)
-                  }
-                }
-              }}
-            />
+            <div className="mb-3">
+              <ChronellDatePickerPanel
+                value={gotoDateDraft}
+                onChange={setGotoDateDraft}
+                onPick={(ymd): void => {
+                  if (!ymd) return
+                  const d = parseISO(`${ymd}T12:00:00`)
+                  if (Number.isNaN(d.getTime())) return
+                  const api = calendarRef.current?.getApi()
+                  api?.gotoDate(startOfDay(d))
+                  setMiniMonth(startOfMonth(d))
+                  setGotoDateOpen(false)
+                }}
+              />
+            </div>
             <div className="flex justify-end gap-2">
               <button
                 type="button"

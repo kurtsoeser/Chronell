@@ -25,6 +25,8 @@ export interface MailNavPersistSlice {
   selectedFolderAccountId: string | null
   selectedFolderId: number | null
   selectedMetaFolderId: number | null
+  selectedCategoryAccountId?: string | null
+  selectedCategoryName?: string | null
   selectedMessageId: number | null
 }
 
@@ -64,6 +66,8 @@ export function snapshotMailNavForPersist(state: MailNavPersistSlice): void {
     folderAccountId: state.selectedFolderAccountId,
     folderId: state.selectedFolderId,
     metaFolderId: state.listKind === 'meta_folder' ? state.selectedMetaFolderId : null,
+    categoryAccountId: state.listKind === 'category' ? (state.selectedCategoryAccountId ?? null) : null,
+    categoryName: state.listKind === 'category' ? (state.selectedCategoryName ?? null) : null,
     selectedMessageId: state.selectedMessageId
   })
 }

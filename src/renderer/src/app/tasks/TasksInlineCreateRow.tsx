@@ -8,16 +8,20 @@ import {
   resolvePreferredAccountId,
   resolvePreferredListId
 } from '@/app/tasks/tasks-create-defaults'
-import type { TaskItemWithContext, TasksViewSelection } from '@/app/tasks/tasks-types'
+import type { CloudTaskListItem, TasksViewSelection } from '@/app/tasks/tasks-types'
+import { readTasksSettingsPrefs } from '@/lib/tasks-settings-prefs'
+import { defaultDueInputForCreate } from '@/lib/tasks-default-due-on-create'
+import { useTasksSettingsPrefs } from '@/lib/use-tasks-settings-prefs'
 import { cloudTaskAccountOptionLabel } from '@/lib/cloud-task-accounts'
 import { fieldControlClass, listSubtleBorderClass } from '@/lib/chronell-ui-classes'
 import { cn } from '@/lib/utils'
+import { ChronellDateField } from '@/components/ChronellDateField'
 
 export interface TasksInlineCreateRowProps {
   selection: TasksViewSelection | null
   taskAccounts: ConnectedAccount[]
   loadListsForAccount: (accountId: string) => Promise<TaskListRow[]>
-  onCreated: (task: TaskItemWithContext) => void
+  onCreated: (task: CloudTaskListItem) => void
   /** „Alle Aufgaben“ — Konto und Liste in der Zeile wählen. */
   showAccountPicker: boolean
 }
@@ -30,6 +34,7 @@ export function TasksInlineCreateRow({
   showAccountPicker
 }: TasksInlineCreateRowProps): JSX.Element | null {
   const { t } = useTranslation()
+  const settings = useTasksSettingsPrefs()
   const titleRef = useRef<HTMLInputElement>(null)
 
   const [accountId, setAccountId] = useState('')
@@ -113,9 +118,9 @@ export function TasksInlineCreateRow({
       })
       persistTasksCalendarCreateAccountId(accountId)
       const listName = lists.find((l) => l.id === listId)?.name ?? ''
-      onCreated({ ...row, accountId, listName })
+      onCreated({ ...row, accountId, listName, source: 'cloud' })
       setTitle('')
-      setDue('')
+      setDue(defaultDueInputForCreate(readTasksSettingsPrefs().defaultDueOnCreate))
       setNotes('')
       window.setTimeout(() => titleRef.current?.focus(), 0)
     } catch (e) {
@@ -124,6 +129,10 @@ export function TasksInlineCreateRow({
       setBusy(false)
     }
   }, [accountId, canSubmit, due, listId, lists, notes, onCreated, title])
+
+  useEffect(() => {
+    setDue(defaultDueInputForCreate(settings.defaultDueOnCreate))
+  }, [settings.defaultDueOnCreate])
 
   if (taskAccounts.length === 0) return null
 
@@ -179,33 +188,34 @@ export function TasksInlineCreateRow({
               }}
               className={cn(fieldControlClass, 'min-w-[8rem] flex-1 px-1.5 py-1 text-xs')}
             />
-            <input
-              type="date"
+            <ChronellDateField
               value={due}
               disabled={busy}
-              onChange={(e): void => setDue(e.target.value)}
+              onChange={setDue}
               aria-label={t('tasks.create.due')}
               className={cn(fieldControlClass, 'w-[8.5rem] shrink-0 px-1.5 py-1 text-xs')}
             />
-            <input
-              type="text"
-              value={notes}
-              disabled={busy}
-              placeholder={t('tasks.shell.inlineCreateNotes')}
-              onChange={(e): void => setNotes(e.target.value)}
-              onKeyDown={(e): void => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
-                  void submit()
-                }
-              }}
-              className={cn(fieldControlClass, 'min-w-[6rem] flex-[2] px-1.5 py-1 text-xs')}
-            />
+            {settings.inlineCreateShowNotes ? (
+              <input
+                type="text"
+                value={notes}
+                disabled={busy}
+                placeholder={t('tasks.shell.inlineCreateNotes')}
+                onChange={(e): void => setNotes(e.target.value)}
+                onKeyDown={(e): void => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    void submit()
+                  }
+                }}
+                className={cn(fieldControlClass, 'min-w-[6rem] flex-[2] px-1.5 py-1 text-xs')}
+              />
+            ) : null}
             {busy ? (
               <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" aria-hidden />
             ) : null}
           </div>
-          {error ? <p className="text-[10px] text-destructive">{error}</p> : null}
+          {error ? <p className="text-2xs text-destructive">{error}</p> : null}
         </div>
         <span className="w-4 shrink-0" aria-hidden />
       </div>

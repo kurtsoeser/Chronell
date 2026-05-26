@@ -13,7 +13,10 @@ import { TodoDueBucketBadge } from '@/components/TodoDueBucketBadge'
 import { classifyWorkItemBucket } from '@/app/work-items/work-item-bucket'
 import { workItemSourceLabel } from '@/app/work-items/work-item-mapper'
 import type { MegaDayGroup } from '@/app/mega/mega-timeline-arrange'
-import { megaItemTimeLabel } from '@/app/mega/mega-timeline-label'
+import {
+  megaItemTimeDisplay,
+  type MegaItemTimeDisplay
+} from '@/app/mega/mega-timeline-label'
 import type { TaskListArrangeBy } from '@/app/tasks/task-list-arrange'
 import { openMailReadingPopout } from '@/lib/open-mail-reading-popout'
 
@@ -23,6 +26,28 @@ function kindIconComponent(item: WorkItem): LucideIcon {
   /** Cloud-Aufgabe; bei Mail-Verknüpfung ebenfalls Mail-Symbol (inhaltlich aus Postfach). */
   if (item.kind === 'cloud_task' && item.linkedMessageIds.length > 0) return Mail
   return Square
+}
+
+function MegaTimelineTimeCell({ display }: { display: MegaItemTimeDisplay }): JSX.Element {
+  if (display.variant === 'empty') {
+    return <span className="min-w-[2.5rem] shrink-0" aria-hidden />
+  }
+  if (display.variant === 'label') {
+    return (
+      <span className="min-w-[2.5rem] max-w-[3.25rem] shrink-0 self-center text-2xs leading-tight text-muted-foreground">
+        {display.text}
+      </span>
+    )
+  }
+  return (
+    <div
+      className="flex min-w-[2.5rem] shrink-0 flex-col items-start justify-center gap-px self-center text-2xs tabular-nums leading-none text-muted-foreground"
+      aria-label={`${display.start} – ${display.end}`}
+    >
+      <span>{display.start}</span>
+      <span>{display.end}</span>
+    </div>
+  )
 }
 
 function toggleCompletedAriaLabel(
@@ -111,11 +136,11 @@ export function MegaTimelineList({
               {group.todoKind != null ? (
                 <TodoDueBucketBadge kind={group.todoKind} />
               ) : (
-                <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <span className="chronell-type-section-label text-muted-foreground">
                   {group.dayLabel}
                 </span>
               )}
-              <span className="ml-auto text-[10px] tabular-nums text-muted-foreground">
+              <span className="ml-auto text-2xs tabular-nums text-muted-foreground">
                 {group.itemCount}
               </span>
             </button>
@@ -206,24 +231,27 @@ export function MegaTimelineList({
                         />
                       </span>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span
-                          className={cn(
-                            'truncate text-xs font-medium',
-                            item.completed && 'text-muted-foreground line-through'
-                          )}
-                        >
-                          {item.title}
-                        </span>
-                        {showBucketBadge && bucket !== 'done' ? (
-                          <TodoDueBucketBadge kind={bucket} />
-                        ) : null}
-                      </div>
-                      <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-muted-foreground">
-                        <span>{megaItemTimeLabel(item, i18n.language)}</span>
-                        <span className="opacity-60">·</span>
-                        <span className="truncate">{workItemSourceLabel(item, accountById)}</span>
+                    <div className="flex min-w-0 flex-1 gap-2">
+                      <MegaTimelineTimeCell
+                        display={megaItemTimeDisplay(item, i18n.language)}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex min-w-0 items-center gap-1.5">
+                          <span
+                            className={cn(
+                              'min-w-0 truncate text-xs font-medium',
+                              item.completed && 'text-muted-foreground line-through'
+                            )}
+                          >
+                            {item.title}
+                          </span>
+                          {showBucketBadge && bucket !== 'done' ? (
+                            <TodoDueBucketBadge kind={bucket} />
+                          ) : null}
+                        </div>
+                        <p className="truncate text-2xs text-muted-foreground">
+                          {workItemSourceLabel(item, accountById)}
+                        </p>
                       </div>
                     </div>
                     {canToggle ? (

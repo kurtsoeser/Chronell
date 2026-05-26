@@ -1,38 +1,62 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState
+} from 'react'
 import { UserPlus, X } from 'lucide-react'
 import type { ComposeRecipientSuggestion } from '@shared/types'
 import { ComposeContactPickerDialog } from '@/components/ComposeContactPickerDialog'
 import {
   formatRecipientsWithTail,
   normalizeRecipientSuggestionQuery,
-  parseRecipients,
+  parseRecipientEntry,
+  parseRecipientsBulk,
   parseRecipientsWithTail
 } from '@/lib/compose-helpers'
 import { cn } from '@/lib/utils'
 
-export function RecipientTokenField({
-  label,
-  value,
-  onChange,
-  accountId,
-  showToggle,
-  onToggleCcBcc,
-  className,
-  inEditorSurface,
-  inMailTile
-}: {
-  label: string
-  value: string
-  onChange: (v: string) => void
-  accountId: string
-  showToggle?: boolean
-  onToggleCcBcc?: () => void
-  className?: string
-  /** Innerhalb der dunkleren Compose-Flaeche (An/Betreff/Editor). */
-  inEditorSurface?: boolean
-  /** Innerhalb der weissen Mail-Kachel (dezente Trennlinien). */
-  inMailTile?: boolean
-}): JSX.Element {
+export type RecipientTokenFieldHandle = {
+  openContactPicker: () => void
+}
+
+export const RecipientTokenField = forwardRef<
+  RecipientTokenFieldHandle,
+  {
+    label: string
+    value: string
+    onChange: (v: string) => void
+    accountId: string
+    showToggle?: boolean
+    onToggleCcBcc?: () => void
+    className?: string
+    /** Innerhalb der dunkleren Compose-Flaeche (An/Betreff/Editor). */
+    inEditorSurface?: boolean
+    /** Innerhalb der weissen Mail-Kachel (dezente Trennlinien). */
+    inMailTile?: boolean
+    /** Label-Spalte ausblenden (z. B. in Calendar PropertyRow). */
+    hideLabelColumn?: boolean
+    placeholder?: string
+  }
+>(function RecipientTokenField(
+  {
+    label,
+    value,
+    onChange,
+    accountId,
+    showToggle,
+    onToggleCcBcc,
+    className,
+    inEditorSurface,
+    inMailTile,
+    hideLabelColumn,
+    placeholder
+  },
+  ref
+) {
   const { complete, tail } = useMemo(() => parseRecipientsWithTail(value), [value])
   const [suggestions, setSuggestions] = useState<ComposeRecipientSuggestion[]>([])
   const [open, setOpen] = useState(false)
@@ -40,6 +64,10 @@ export function RecipientTokenField({
   const [pickerOpen, setPickerOpen] = useState(false)
   const debRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const inputRef = useRef<HTMLInputElement | null>(null)
+
+  useImperativeHandle(ref, () => ({
+    openContactPicker: (): void => setPickerOpen(true)
+  }))
 
   const fetchSuggest = useCallback(
     async (q: string): Promise<void> => {
@@ -71,12 +99,61 @@ export function RecipientTokenField({
     }
   }, [tail, fetchSuggest])
 
-  const commitTailIfEmail = (): void => {
-    const extra = parseRecipients(tail)
-    if (extra.length === 1 && !tail.includes(',')) {
-      onChange(formatRecipientsWithTail([...complete, extra[0]], ''))
+  const commitTail = (opts?: { pickFirstSuggestion?: boolean }): void => {
+    const trimmed = tail.trim()
+    if (!trimmed) return
+
+    const asRecipient = parseRecipientEntry(trimmed)
+    if (asRecipient) {
+      onChange(formatRecipientsWithTail([...complete, asRecipient], ''))
+      setOpen(false)
+      return
+    }
+
+    if (opts?.pickFirstSuggestion && suggestions.length > 0) {
+      const s = suggestions[0]!
+      const addr = s.email.trim()
+      if (!addr) return
+      onChange(
+        formatRecipientsWithTail(
+          [...complete, { address: addr, name: s.displayName?.trim() || undefined }],
+          ''
+        )
+      )
+      setOpen(false)
+      return
+    }
+
+    const parts = trimmed.split(/[,;]+/)
+    if (parts.length > 1) {
+      const nextComplete = [...complete]
+      let remaining = ''
+      for (let i = 0; i < parts.length; i++) {
+        const part = parts[i]?.trim() ?? ''
+        if (!part) continue
+        const one = parseRecipientEntry(part)
+        if (one) {
+          nextComplete.push(one)
+        } else if (i === parts.length - 1) {
+          remaining = part
+        }
+      }
+      onChange(formatRecipientsWithTail(nextComplete, remaining))
       setOpen(false)
     }
+  }
+
+  const mergeRecipients = (added: { address: string; name?: string }[]): void => {
+    if (added.length === 0) return
+    const seen = new Set(complete.map((r) => r.address.toLowerCase()))
+    const next = [...complete]
+    for (const r of added) {
+      const key = r.address.toLowerCase()
+      if (seen.has(key)) continue
+      seen.add(key)
+      next.push(r)
+    }
+    onChange(formatRecipientsWithTail(next, tail))
   }
 
   const removeAt = (idx: number): void => {
@@ -110,19 +187,21 @@ export function RecipientTokenField({
         className
       )}
     >
-      <div className="mt-1.5 flex w-12 shrink-0 items-center gap-0.5">
-        <span className="text-xs text-muted-foreground">{label}</span>
-        <button
-          type="button"
-          title="Aus Kontakten wählen"
-          aria-label="Aus Kontakten wählen"
-          className="rounded p-0.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
-          onMouseDown={(e): void => e.preventDefault()}
-          onClick={(): void => setPickerOpen(true)}
-        >
-          <UserPlus className="h-3.5 w-3.5" />
-        </button>
-      </div>
+      {!hideLabelColumn ? (
+        <div className="mt-1.5 flex w-12 shrink-0 items-center gap-0.5">
+          <span className="text-xs text-muted-foreground">{label}</span>
+          <button
+            type="button"
+            title="Aus Kontakten wählen"
+            aria-label="Aus Kontakten wählen"
+            className="rounded p-0.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
+            onMouseDown={(e): void => e.preventDefault()}
+            onClick={(): void => setPickerOpen(true)}
+          >
+            <UserPlus className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      ) : null}
       <div className="relative min-w-0 flex-1">
         <div className="flex min-h-[28px] flex-wrap items-center gap-1 rounded border border-transparent bg-transparent px-0 py-0.5 focus-within:border-border/80">
           {complete.map((r, idx) => (
@@ -153,6 +232,7 @@ export function RecipientTokenField({
           <input
             ref={inputRef}
             type="text"
+            aria-label={label || undefined}
             value={tail}
             onChange={(e): void => {
               onChange(formatRecipientsWithTail(complete, e.target.value))
@@ -160,17 +240,47 @@ export function RecipientTokenField({
             }}
             onFocus={(): void => setOpen(true)}
             onBlur={(): void => {
+              commitTail()
               window.setTimeout(() => setOpen(false), 180)
             }}
+            onPaste={(e): void => {
+              const raw = e.clipboardData?.getData('text/plain') ?? ''
+              if (!raw.trim()) return
+              const bulk = parseRecipientsBulk(raw)
+              const isTableOrList = /[\n\r\t,;]/.test(raw) || bulk.length > 1
+              if (!isTableOrList) {
+                const one = parseRecipientEntry(raw.trim())
+                if (one) {
+                  e.preventDefault()
+                  mergeRecipients([one])
+                  setOpen(false)
+                }
+                return
+              }
+              if (bulk.length === 0) return
+              e.preventDefault()
+              mergeRecipients(bulk)
+              setOpen(false)
+            }}
             onKeyDown={(e): void => {
-              if (e.key === 'Enter' || e.key === ',') {
+              if (e.key === 'Enter') {
                 e.preventDefault()
-                commitTailIfEmail()
+                commitTail({ pickFirstSuggestion: true })
+              } else if (e.key === ',' || e.key === ';') {
+                e.preventDefault()
+                commitTail()
               } else if (e.key === 'Backspace' && tail === '' && complete.length > 0) {
                 removeAt(complete.length - 1)
               }
             }}
-            placeholder={complete.length ? '' : 'Tippen für Vorschläge oder + für Kontakte'}
+            placeholder={
+              complete.length
+                ? ''
+                : (placeholder ??
+                  (hideLabelColumn
+                    ? 'Tippen für Vorschläge'
+                    : 'Tippen für Vorschläge oder + für Kontakte'))
+            }
             className="min-w-[120px] flex-1 bg-transparent py-0.5 text-xs text-foreground outline-none placeholder:text-muted-foreground"
           />
         </div>
@@ -234,4 +344,4 @@ export function RecipientTokenField({
       />
     </div>
   )
-}
+})

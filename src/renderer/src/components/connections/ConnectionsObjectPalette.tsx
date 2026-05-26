@@ -106,7 +106,7 @@ export function ConnectionsObjectPalette({
         className="shrink-0 border-b border-border px-2 pb-2 pt-0"
         title={t('connections.palette.hint')}
       >
-        <p className="mb-1.5 text-[10px] font-medium text-muted-foreground">
+        <p className="chronell-type-section-label mb-1.5 text-muted-foreground">
           {t('connections.palette.filterLabel')}
         </p>
         <div
@@ -124,14 +124,14 @@ export function ConnectionsObjectPalette({
                 aria-pressed={filtered}
                 onClick={(): void => toggleKindFilter(kind)}
                 className={cn(
-                  'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors',
+                  'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium transition-colors',
                   filtered
                     ? 'border-primary/60 bg-primary/10 text-foreground'
                     : 'border-border text-muted-foreground hover:bg-secondary/60',
                   allKindsActive && 'opacity-90'
                 )}
               >
-                <Icon className="h-3 w-3 shrink-0 opacity-80" />
+                <Icon className="h-3.5 w-3.5 shrink-0 opacity-80" />
                 {t(`connections.kind.${kind}`)}
               </button>
             )

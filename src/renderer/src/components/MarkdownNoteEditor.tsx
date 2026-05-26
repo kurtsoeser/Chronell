@@ -16,6 +16,8 @@ interface MarkdownNoteEditorProps {
   height: number
   preview?: MarkdownPreviewMode
   layout?: MarkdownNoteEditorLayout
+  /** Initial tab when `layout` is `toggle`. */
+  initialToggleTab?: 'edit' | 'preview'
   disabled?: boolean
   className?: string
 }
@@ -27,6 +29,7 @@ export function MarkdownNoteEditor({
   height,
   preview = 'live',
   layout = 'live',
+  initialToggleTab = 'edit',
   disabled,
   className
 }: MarkdownNoteEditorProps): JSX.Element {
@@ -35,7 +38,9 @@ export function MarkdownNoteEditor({
   const [colorMode, setColorMode] = useState<'light' | 'dark'>(() =>
     document.documentElement.classList.contains('dark') ? 'dark' : 'light'
   )
-  const [togglePreview, setTogglePreview] = useState<Extract<MarkdownPreviewMode, 'edit' | 'preview'>>('edit')
+  const [togglePreview, setTogglePreview] = useState<Extract<MarkdownPreviewMode, 'edit' | 'preview'>>(
+    initialToggleTab
+  )
   const effectivePreview = layout === 'toggle' ? togglePreview : preview
 
   useEffect(() => {

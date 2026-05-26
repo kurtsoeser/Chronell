@@ -22,6 +22,7 @@ import {
   resolveMeetingScheduleChange
 } from '@/app/calendar/calendar-meeting-schedule-change'
 import { openExternalUrl } from '@/lib/open-external'
+import { ChronellDateField } from '@/components/ChronellDateField'
 import {
   previewDetailPanelClass,
   previewSectionDividerClass
@@ -103,10 +104,10 @@ function PreviewDetailRow(props: {
     <div className="flex gap-2.5 py-2.5 first:pt-0 last:pb-0">
       <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
       <div className="min-w-0 flex-1 space-y-0.5">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <p className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
           {props.label}
         </p>
-        <div className="text-[12px] leading-snug text-foreground">{props.children}</div>
+        <div className="text-sm leading-snug text-foreground">{props.children}</div>
       </div>
     </div>
   )
@@ -525,7 +526,7 @@ export function CalendarEventPreview(props: {
       >
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="min-w-0 flex-1 space-y-1">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <p className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
               {ev.source === 'google'
                 ? t('calendar.eventPreview.sourceGoogle')
                 : t('calendar.eventPreview.sourceMicrosoft')}
@@ -594,7 +595,7 @@ export function CalendarEventPreview(props: {
                 className="space-y-2 rounded-lg border border-border/70 bg-secondary/20 px-2.5 py-2"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                  <span className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
                     {t('calendar.quickCreate.whenLabel')}
                   </span>
                   <button
@@ -602,7 +603,7 @@ export function CalendarEventPreview(props: {
                     disabled={inlineSaving}
                     onClick={(): void => toggleAllDay(!isAllDay)}
                     className={cn(
-                      'text-[11px] font-medium',
+                      'text-xs font-medium',
                       isAllDay ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
                     )}
                   >
@@ -612,15 +613,13 @@ export function CalendarEventPreview(props: {
                 {isAllDay ? (
                   <div className="grid grid-cols-2 gap-2">
                     <label className="block space-y-0.5">
-                      <span className="text-[10px] text-muted-foreground">
+                      <span className="text-2xs text-muted-foreground">
                         {t('calendar.eventDialog.labelBegin')}
                       </span>
-                      <input
-                        type="date"
+                      <ChronellDateField
                         disabled={inlineSaving}
                         value={format(rangeStart, 'yyyy-MM-dd')}
-                        onChange={(e): void => {
-                          const v = e.target.value
+                        onChange={(v): void => {
                           if (!v) return
                           const nextStart = startOfDay(parseISO(v))
                           setRangeStart(nextStart)
@@ -628,19 +627,17 @@ export function CalendarEventPreview(props: {
                             setRangeEnd(addDays(nextStart, 1))
                           }
                         }}
-                        className="w-full rounded-md border border-border bg-background px-2 py-1 text-[12px] tabular-nums"
+                        className="tabular-nums"
                       />
                     </label>
                     <label className="block space-y-0.5">
-                      <span className="text-[10px] text-muted-foreground">
+                      <span className="text-2xs text-muted-foreground">
                         {t('calendar.eventDialog.labelEnd')}
                       </span>
-                      <input
-                        type="date"
+                      <ChronellDateField
                         disabled={inlineSaving}
                         value={format(addDays(rangeEnd, -1), 'yyyy-MM-dd')}
-                        onChange={(e): void => {
-                          const v = e.target.value
+                        onChange={(v): void => {
                           if (!v) return
                           const lastDay = startOfDay(parseISO(v))
                           const nextEnd = addDays(lastDay, 1)
@@ -649,14 +646,14 @@ export function CalendarEventPreview(props: {
                             setRangeStart(lastDay)
                           }
                         }}
-                        className="w-full rounded-md border border-border bg-background px-2 py-1 text-[12px] tabular-nums"
+                        className="tabular-nums"
                       />
                     </label>
                   </div>
                 ) : (
                   <div className="space-y-2">
                     <label className="block space-y-0.5">
-                      <span className="text-[10px] text-muted-foreground">
+                      <span className="text-2xs text-muted-foreground">
                         {t('calendar.eventDialog.labelBegin')}
                       </span>
                       <input
@@ -673,11 +670,11 @@ export function CalendarEventPreview(props: {
                             setRangeEnd(new Date(d.getTime() + 30 * 60 * 1000))
                           }
                         }}
-                        className="w-full rounded-md border border-border bg-background px-2 py-1 text-[12px] tabular-nums"
+                        className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm tabular-nums"
                       />
                     </label>
                     <label className="block space-y-0.5">
-                      <span className="text-[10px] text-muted-foreground">
+                      <span className="text-2xs text-muted-foreground">
                         {t('calendar.eventDialog.labelEnd')}
                       </span>
                       <input
@@ -694,7 +691,7 @@ export function CalendarEventPreview(props: {
                             setRangeStart(new Date(d.getTime() - 30 * 60 * 1000))
                           }
                         }}
-                        className="w-full rounded-md border border-border bg-background px-2 py-1 text-[12px] tabular-nums"
+                        className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm tabular-nums"
                       />
                     </label>
                   </div>
@@ -714,18 +711,18 @@ export function CalendarEventPreview(props: {
                     beginInlineEdit('schedule')
                   }
                 }}
-                className={cn('text-[12px] text-muted-foreground', clickableClass, canEdit && '-mx-1 px-1')}
+                className={cn('text-sm text-muted-foreground', clickableClass, canEdit && '-mx-1 px-1')}
               >
                 {rangeLabel}
               </p>
             )}
             {durationLabel ? (
-              <p className="text-[11px] text-muted-foreground">{durationLabel}</p>
+              <p className="text-xs text-muted-foreground">{durationLabel}</p>
             ) : null}
-            <p className="text-[11px] text-muted-foreground">{ev.accountEmail}</p>
-            {inlineError ? <p className="text-[11px] text-destructive">{inlineError}</p> : null}
+            <p className="text-xs text-muted-foreground">{ev.accountEmail}</p>
+            {inlineError ? <p className="text-xs text-destructive">{inlineError}</p> : null}
             {inlineSaving ? (
-              <p className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <p className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Loader2 className="h-3 w-3 animate-spin" />
                 {t('calendar.eventPreview.saving')}
               </p>
@@ -738,7 +735,7 @@ export function CalendarEventPreview(props: {
               title={canEdit ? t('calendar.eventPreview.editTitle') : t('calendar.eventPreview.readOnlyTitle')}
               onClick={onEdit}
               className={cn(
-                'flex h-6 shrink-0 items-center gap-1 rounded-md border border-border px-2 text-[10px] font-medium transition-colors',
+                'flex h-6 shrink-0 items-center gap-1 rounded-md border border-border px-2 text-2xs font-medium transition-colors',
                 'text-foreground hover:bg-secondary',
                 !canEdit && 'cursor-not-allowed opacity-45'
               )}
@@ -753,7 +750,7 @@ export function CalendarEventPreview(props: {
           {ev.joinUrl?.trim() ? (
             <button
               type="button"
-              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1.5 text-[11px] font-medium text-primary-foreground hover:bg-primary/90"
+              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
               onClick={(): void => {
                 setErr(null)
                 void openExternalUrl(ev.joinUrl!.trim()).catch((e) =>
@@ -768,7 +765,7 @@ export function CalendarEventPreview(props: {
           {ev.webLink?.trim() ? (
             <button
               type="button"
-              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-secondary px-2.5 py-1.5 text-[11px] font-medium text-secondary-foreground hover:bg-secondary/80"
+              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-secondary px-2.5 py-1.5 text-xs font-medium text-secondary-foreground hover:bg-secondary/80"
               onClick={(): void => {
                 setErr(null)
                 void openExternalUrl(ev.webLink!.trim()).catch((e) =>
@@ -781,10 +778,10 @@ export function CalendarEventPreview(props: {
             </button>
           ) : null}
         </div>
-        {err ? <p className="text-[11px] text-destructive">{err}</p> : null}
+        {err ? <p className="text-xs text-destructive">{err}</p> : null}
       </div>
 
-      <div className="px-4 py-3 text-[12px]">
+      <div className="px-4 py-3 text-sm">
         {calendarLabel ||
         locationLabel ||
         organizerLabel ||
@@ -802,7 +799,7 @@ export function CalendarEventPreview(props: {
                 <span className="block min-w-0">{locationLabel}</span>
                 <button
                   type="button"
-                  className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
+                  className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
                   onClick={(): void => {
                     setErr(null)
                     void openExternalUrl(locationMapsUrl(locationLabel)).catch((e) =>
@@ -842,7 +839,7 @@ export function CalendarEventPreview(props: {
                   {ev.categories.map((c) => (
                     <span
                       key={c}
-                      className="rounded-md border border-white/[0.06] bg-secondary/[0.06] px-2 py-0.5 text-[11px] text-foreground dark:border-white/[0.06]"
+                      className="rounded-md border border-white/[0.06] bg-secondary/[0.06] px-2 py-0.5 text-xs text-foreground dark:border-white/[0.06]"
                     >
                       {c}
                     </span>
@@ -852,7 +849,7 @@ export function CalendarEventPreview(props: {
             ) : null}
           </div>
         ) : descLoading && ev.graphEventId?.trim() ? (
-          <p className="mb-3 inline-flex items-center gap-2 text-[11px] text-muted-foreground">
+          <p className="mb-3 inline-flex items-center gap-2 text-xs text-muted-foreground">
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
             {t('calendar.eventDialog.loadingEventDetails')}
           </p>
@@ -860,18 +857,18 @@ export function CalendarEventPreview(props: {
 
         {ev.graphEventId?.trim() ? (
           <div className={cn('min-h-0 border-t pt-3', previewSectionDividerClass)}>
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <p className="mb-2 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
               {t('calendar.eventDialog.description')}
             </p>
             {ev.source === 'google' && !ev.graphCalendarId?.trim() ? (
-              <p className="text-[11px] text-muted-foreground">{t('calendar.eventDialog.googleCalendarIdMissing')}</p>
+              <p className="text-xs text-muted-foreground">{t('calendar.eventDialog.googleCalendarIdMissing')}</p>
             ) : descLoading ? (
-              <p className="inline-flex items-center gap-2 text-[11px] text-muted-foreground">
+              <p className="inline-flex items-center gap-2 text-xs text-muted-foreground">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 {t('calendar.eventDialog.loadingEventDetails')}
               </p>
             ) : descErr ? (
-              <p className="text-[11px] text-destructive" role="alert">
+              <p className="text-xs text-destructive" role="alert">
                 {descErr}
               </p>
             ) : (

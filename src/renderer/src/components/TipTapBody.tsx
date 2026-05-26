@@ -1,7 +1,7 @@
 import { useEditor, EditorContent, type Editor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
-import Image from '@tiptap/extension-image'
+import { ComposeImage } from '@/components/tiptap-compose-image'
 import TextAlign from '@tiptap/extension-text-align'
 import { TextStyle } from '@tiptap/extension-text-style'
 import { FontFamily } from '@tiptap/extension-text-style/font-family'
@@ -47,9 +47,7 @@ import { cn } from '@/lib/utils'
 import { hrefForExternalOpen, openExternalUrl } from '@/lib/open-external'
 import { COMPOSE_FONT_FAMILIES } from '@/lib/compose-font-families'
 import { COMPOSE_FONT_SIZES_PT, composeFontSizePtOptionValue } from '@/lib/compose-font-sizes'
-import { parseZoomShortcutIntentFromKeyboardEvent } from '@/lib/zoom-shortcut-keys'
 import {
-  COMPOSE_EDITOR_SCALE_STEP,
   composeEditorScalePercent,
   useComposeEditorScaleStore
 } from '@/stores/compose-editor-scale'
@@ -149,8 +147,6 @@ export function TipTapBody({
   const attachmentInputRef = useRef<HTMLInputElement | null>(null)
   const [colorPickerOpen, setColorPickerOpen] = useState<'text' | 'highlight' | null>(null)
   const composeScale = useComposeEditorScaleStore((s) => s.scale)
-  const stepComposeScale = useComposeEditorScaleStore((s) => s.stepScale)
-  const resetComposeScale = useComposeEditorScaleStore((s) => s.resetScale)
   const composeEditorTheme = useComposeEditorEffectiveTheme()
 
   const editor = useEditor({
@@ -165,11 +161,7 @@ export function TipTapBody({
         }
       }),
       Placeholder.configure({ placeholder: placeholder ?? 'Nachricht schreiben…' }),
-      Image.configure({
-        inline: false,
-        allowBase64: true,
-        HTMLAttributes: { style: 'max-width:100%;height:auto;' }
-      }),
+      ComposeImage,
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       TextStyle,
       FontFamily.configure({ types: ['textStyle'] }),
@@ -219,22 +211,6 @@ export function TipTapBody({
   useEffect(() => {
     if (autoFocus && editor) editor.commands.focus('end')
   }, [autoFocus, editor])
-
-  useEffect(() => {
-    if (!inEditorSurface || !editor) return
-    const onKeyDown = (e: KeyboardEvent): void => {
-      if (!editor.isFocused) return
-      const intent = parseZoomShortcutIntentFromKeyboardEvent(e)
-      if (!intent || intent.scope !== 'preview') return
-      e.preventDefault()
-      e.stopPropagation()
-      if (intent.action === 'in') stepComposeScale(COMPOSE_EDITOR_SCALE_STEP)
-      else if (intent.action === 'out') stepComposeScale(-COMPOSE_EDITOR_SCALE_STEP)
-      else resetComposeScale()
-    }
-    window.addEventListener('keydown', onKeyDown, { capture: true })
-    return (): void => window.removeEventListener('keydown', onKeyDown, { capture: true })
-  }, [editor, inEditorSurface, resetComposeScale, stepComposeScale])
 
   if (!editor) {
     return (
@@ -421,7 +397,7 @@ function Toolbar({
     : 'border-border/50 bg-secondary/30'
 
   const fontSelectClass = cn(
-    'rounded border px-2 py-0.5 text-[10px]',
+    'rounded border px-2 py-0.5 text-2xs',
     inEditorSurface
       ? 'border-[hsl(var(--compose-surface-border)/0.5)] bg-[hsl(0_0%_14%)] text-foreground'
       : cn('bg-background', listSubtleBorderClass)
@@ -563,7 +539,7 @@ function Toolbar({
 
       {variant === 'default' && composeZoomPct != null && composeZoomPct !== 100 && (
         <span
-          className="tabular-nums text-[10px] text-muted-foreground"
+          className="tabular-nums text-2xs text-muted-foreground"
           title="Text-Zoom (Strg + Plus/Minus, Strg + 0 zurücksetzen)"
         >
           {composeZoomPct}%
@@ -809,7 +785,7 @@ function TableMenu({
             onClick={close}
           />
           <div className="absolute left-0 top-7 z-40 min-w-[228px] max-w-[92vw] rounded-md border border-border bg-card p-2 shadow-xl">
-            <div className="mb-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">Einfügen</div>
+            <div className="mb-1.5 text-2xs uppercase tracking-wide text-muted-foreground">Einfügen</div>
             <div className="flex flex-wrap gap-1">
               <TableTinyBtn label="2×2 + Kopf" onClick={(): void => insert(2, 2, true)} />
               <TableTinyBtn label="3×3 + Kopf" onClick={(): void => insert(3, 3, true)} />
@@ -819,7 +795,7 @@ function TableMenu({
             {inTable && (
               <>
                 <hr className="my-2 border-border/60" />
-                <div className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">Struktur</div>
+                <div className="mb-1 text-2xs uppercase tracking-wide text-muted-foreground">Struktur</div>
                 <div className="flex flex-wrap gap-1">
                   {variant === 'default' && (
                     <>
@@ -874,7 +850,7 @@ function TableMenu({
                     }}
                   />
                 </div>
-                <div className="mb-1 mt-2 text-[10px] uppercase tracking-wide text-muted-foreground">
+                <div className="mb-1 mt-2 text-2xs uppercase tracking-wide text-muted-foreground">
                   Tabellen-Stil
                 </div>
                 <div className="flex flex-wrap gap-1">
@@ -886,7 +862,7 @@ function TableMenu({
                         editor.chain().focus().updateAttributes('table', { design: d }).run()
                       }}
                       className={cn(
-                        'rounded border px-2 py-0.5 text-[10px]',
+                        'rounded border px-2 py-0.5 text-2xs',
                         design === d
                           ? 'border-primary bg-primary/15 text-foreground'
                           : 'border-border/60 text-muted-foreground hover:bg-secondary hover:text-foreground'
@@ -896,7 +872,7 @@ function TableMenu({
                     </button>
                   ))}
                 </div>
-                <div className="mb-1 mt-2 text-[10px] uppercase tracking-wide text-muted-foreground">
+                <div className="mb-1 mt-2 text-2xs uppercase tracking-wide text-muted-foreground">
                   Tabelle ausrichten
                 </div>
                 <div className="flex flex-wrap gap-1">
@@ -908,7 +884,7 @@ function TableMenu({
                         editor.chain().focus().updateAttributes('table', { tableAlign: a }).run()
                       }}
                       className={cn(
-                        'rounded border px-2 py-0.5 text-[10px]',
+                        'rounded border px-2 py-0.5 text-2xs',
                         tableAlign === a
                           ? 'border-primary bg-primary/15 text-foreground'
                           : 'border-border/60 text-muted-foreground hover:bg-secondary hover:text-foreground'
@@ -920,7 +896,7 @@ function TableMenu({
                 </div>
                 {variant === 'default' && (
                   <>
-                    <div className="mb-1 mt-2 text-[10px] uppercase tracking-wide text-muted-foreground">
+                    <div className="mb-1 mt-2 text-2xs uppercase tracking-wide text-muted-foreground">
                       Zelltext
                     </div>
                     <div className="mb-1 flex flex-wrap gap-1">
@@ -931,13 +907,13 @@ function TableMenu({
                           onClick={(): void => {
                             editor.chain().focus().setCellAttribute('align', a).run()
                           }}
-                          className="rounded border border-border/60 px-2 py-0.5 text-[10px] text-muted-foreground hover:bg-secondary hover:text-foreground"
+                          className="rounded border border-border/60 px-2 py-0.5 text-2xs text-muted-foreground hover:bg-secondary hover:text-foreground"
                         >
                           {a === 'left' ? '←' : a === 'center' ? '↔' : '→'}
                         </button>
                       ))}
                     </div>
-                    <div className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                    <div className="mb-1 text-2xs uppercase tracking-wide text-muted-foreground">
                       Zellhintergrund
                     </div>
                     <div className="grid grid-cols-5 gap-1">
@@ -956,7 +932,7 @@ function TableMenu({
                     </div>
                     <button
                       type="button"
-                      className="mt-1 w-full rounded px-2 py-1 text-[10px] text-muted-foreground hover:bg-secondary hover:text-foreground"
+                      className="mt-1 w-full rounded px-2 py-1 text-2xs text-muted-foreground hover:bg-secondary hover:text-foreground"
                       onClick={(): void => {
                         editor.chain().focus().setCellAttribute('backgroundColor', null).run()
                       }}
@@ -967,7 +943,7 @@ function TableMenu({
                 )}
                 <button
                   type="button"
-                  className="mt-2 flex w-full items-center justify-center gap-1 rounded border border-destructive/40 px-2 py-1 text-[11px] text-destructive hover:bg-destructive/10"
+                  className="mt-2 flex w-full items-center justify-center gap-1 rounded border border-destructive/40 px-2 py-1 text-xs text-destructive hover:bg-destructive/10"
                   onClick={(): void => {
                     editor.chain().focus().deleteTable().run()
                     close()
@@ -989,7 +965,7 @@ function TableTinyBtn({ label, onClick }: { label: string; onClick: () => void }
     <button
       type="button"
       onClick={onClick}
-      className="rounded border border-border/60 px-2 py-0.5 text-[10px] text-muted-foreground hover:bg-secondary hover:text-foreground"
+      className="rounded border border-border/60 px-2 py-0.5 text-2xs text-muted-foreground hover:bg-secondary hover:text-foreground"
     >
       {label}
     </button>
@@ -1067,7 +1043,7 @@ function ColorPicker({
             onClick={(): void => setOpen(false)}
           />
           <div className="absolute left-0 top-7 z-40 flex w-44 flex-col gap-1 rounded-md border border-border bg-card p-2 shadow-xl">
-            <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+            <span className="text-2xs uppercase tracking-wide text-muted-foreground">
               {label}
             </span>
             <div className="grid grid-cols-5 gap-1">
@@ -1085,7 +1061,7 @@ function ColorPicker({
             <button
               type="button"
               onClick={onReset}
-              className="mt-1 rounded px-2 py-1 text-[11px] text-muted-foreground hover:bg-secondary hover:text-foreground"
+              className="mt-1 rounded px-2 py-1 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground"
             >
               Zurücksetzen
             </button>

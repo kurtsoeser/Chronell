@@ -58,6 +58,8 @@ export interface MiniMonthGridProps {
   inboxDrop?: MiniMonthInboxDropHandlers
   /** Optional: einzelner Klick (Inbox). */
   onDayClick?: (day: Date) => void
+  /** Kompaktere Darstellung (Datums-Popover). */
+  compact?: boolean
 }
 
 /**
@@ -85,7 +87,8 @@ export function MiniMonthGrid({
   selectedRange = null,
   onSelectDayRange,
   inboxDrop,
-  onDayClick
+  onDayClick,
+  compact = false
 }: MiniMonthGridProps): JSX.Element {
   const { t, i18n } = useTranslation()
   const dfLocale = i18n.language.startsWith('de') ? deFns : enUSFns
@@ -119,31 +122,36 @@ export function MiniMonthGrid({
   }
 
   return (
-    <div className="rounded-md border border-border bg-card p-3">
-      <div className="mb-2 flex items-center justify-between gap-2">
+    <div className={cn('rounded-md bg-card', compact ? 'p-1.5' : 'border border-border p-3')}>
+      <div className={cn('flex items-center justify-between gap-2', compact ? 'mb-1' : 'mb-2')}>
         <button
           type="button"
           onClick={onPrevMonth}
-          className="rounded-sm p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
+          className="rounded-sm p-0.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
           aria-label={t('calendar.miniMonth.prevMonthAria')}
         >
-          <ChevronLeft className="h-4 w-4" />
+          <ChevronLeft className={compact ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
         </button>
-        <span className="text-[13px] font-semibold capitalize text-foreground">
+        <span className="chronell-type-mini-cal-title capitalize text-foreground">
           {format(monthAnchor, 'LLLL yyyy', { locale: dfLocale })}
         </span>
         <button
           type="button"
           onClick={onNextMonth}
-          className="rounded-sm p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
+          className="rounded-sm p-0.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
           aria-label={t('calendar.miniMonth.nextMonthAria')}
         >
-          <ChevronRight className="h-4 w-4" />
+          <ChevronRight className={compact ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
         </button>
       </div>
-      <div className="grid grid-cols-7 gap-y-1 text-center text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+      <div
+        className={cn(
+          'chronell-type-mini-cal-weekday grid grid-cols-7 text-center text-muted-foreground',
+          compact ? 'gap-y-0' : 'gap-y-1'
+        )}
+      >
         {weekdayLabels.map((d) => (
-          <div key={d} className="py-1">
+          <div key={d} className={compact ? 'py-0.5' : 'py-1'}>
             {d}
           </div>
         ))}
@@ -217,7 +225,8 @@ export function MiniMonthGrid({
                   : undefined
               }
               className={cn(
-                'mx-auto flex h-8 w-8 items-center justify-center rounded-full text-[12px] font-medium transition-colors',
+                'chronell-type-mini-cal-day mx-auto flex items-center justify-center rounded-full transition-colors',
+                compact ? 'h-6 w-6' : 'h-7 w-7',
                 !inMonth && 'text-muted-foreground/40',
                 inMonth && !isTodayCell && !rangeOrDrop && 'text-foreground hover:bg-secondary',
                 rangeOrDrop && 'bg-primary/25 text-foreground ring-1 ring-primary/35',

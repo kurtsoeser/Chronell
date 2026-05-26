@@ -19,6 +19,33 @@ const SUBMENU_WIDTH_PX = 252
 const SUBMENU_MAX_HEIGHT_PX = 340
 const SUBMENU_GAP_PX = 4
 const SUBMENU_CLOSE_DELAY_MS = 120
+const VIEWPORT_MARGIN_PX = 8
+/** Grobe Zeilenhöhe für erste Position vor useLayoutEffect-Messung. */
+const ROOT_MENU_ROUGH_ROW_PX = 34
+
+function clampToViewport(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  margin = VIEWPORT_MARGIN_PX
+): { left: number; top: number } {
+  const maxLeft = Math.max(margin, window.innerWidth - margin - width)
+  const maxTop = Math.max(margin, window.innerHeight - margin - height)
+  return {
+    left: Math.max(margin, Math.min(x, maxLeft)),
+    top: Math.max(margin, Math.min(y, maxTop))
+  }
+}
+
+function estimateRootMenuHeight(items: ContextMenuItem[]): number {
+  let rows = 0
+  for (const item of items) {
+    if (item.separator) rows += 0.5
+    else rows += 1
+  }
+  return Math.ceil(rows) * ROOT_MENU_ROUGH_ROW_PX + 12
+}
 
 export interface ContextMenuItem {
   id: string
@@ -303,6 +330,16 @@ function ContextMenuRow({
 
 export function ContextMenu({ x, y, items, onClose }: Props): JSX.Element {
   const ref = useRef<HTMLDivElement>(null)
+  const [position, setPosition] = useState(() =>
+    clampToViewport(x, y, 220, estimateRootMenuHeight(items))
+  )
+
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    setPosition(clampToViewport(x, y, rect.width, rect.height))
+  }, [x, y, items])
 
   useEffect(() => {
     function onDown(e: MouseEvent): void {
@@ -323,15 +360,17 @@ export function ContextMenu({ x, y, items, onClose }: Props): JSX.Element {
     }
   }, [onClose])
 
-  const adjustedX = Math.min(x, window.innerWidth - 220)
-  const adjustedY = Math.min(y, window.innerHeight - items.length * 32 - 16)
-
   const menu = (
     <div
       ref={ref}
       data-mailclient-context-menu=""
-      className="chronell-acrylic-popover glass-animate-in fixed min-w-[200px] max-w-[min(280px,calc(100vw-2rem))] overflow-visible py-1 text-popover-foreground"
-      style={{ left: adjustedX, top: adjustedY, zIndex: CONTEXT_MENU_Z }}
+      className="chronell-acrylic-popover glass-animate-in fixed min-w-[200px] max-w-[min(280px,calc(100vw-2rem))] overflow-x-hidden overflow-y-auto py-1 text-popover-foreground"
+      style={{
+        left: position.left,
+        top: position.top,
+        zIndex: CONTEXT_MENU_Z,
+        maxHeight: window.innerHeight - VIEWPORT_MARGIN_PX * 2
+      }}
       role="menu"
     >
       {items.map((item, idx) =>

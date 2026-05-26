@@ -322,7 +322,6 @@ export function CalendarFloatingPanel(props: CalendarFloatingPanelProps): JSX.El
         onPointerDown={onHeaderPointerDown}
       >
         <GripVertical className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-        <span className="min-w-0 flex-1 truncate text-[12px] font-semibold text-foreground">{title}</span>
         <button
           type="button"
           title={t('calendar.floatingPanel.dockTitle')}
@@ -347,6 +346,11 @@ export function CalendarFloatingPanel(props: CalendarFloatingPanelProps): JSX.El
         >
           <PanelRightClose className="h-4 w-4" />
         </button>
+          <span
+            className="min-w-0 flex-1 truncate text-center text-sm font-semibold text-foreground"
+          >
+            {title}
+          </span>
       </div>
       <div
         className="flex min-h-0 flex-1 flex-col overflow-hidden"

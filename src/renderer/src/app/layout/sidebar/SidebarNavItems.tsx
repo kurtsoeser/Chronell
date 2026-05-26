@@ -17,7 +17,7 @@ export function SidebarCollapsibleSection({
       <button
         type="button"
         onClick={(): void => setOpen((v) => !v)}
-        className="mb-1 flex w-full items-center gap-1 rounded px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground hover:bg-secondary/40 hover:text-foreground"
+        className="mb-1 flex w-full items-center gap-1 rounded px-2 py-1 text-2xs font-medium uppercase tracking-wider text-muted-foreground hover:bg-secondary/40 hover:text-foreground"
       >
         {open ? (
           <ChevronDown className="h-3 w-3" />
@@ -69,7 +69,7 @@ export function SidebarNavItem({
         <Icon className={cn('h-3.5 w-3.5 shrink-0', iconClass)} />
         <span className="flex-1 truncate text-left">{label}</span>
         {count !== undefined && count > 0 && (
-          <span className="shrink-0 rounded-full bg-primary/15 px-1.5 text-[10px] font-semibold tabular-nums text-primary">
+          <span className="shrink-0 rounded-full bg-primary/15 px-1.5 text-2xs font-semibold tabular-nums text-primary">
             {count > 999 ? '999+' : count}
           </span>
         )}

@@ -178,7 +178,7 @@ export function LocationAutocompleteInput({
         aria-autocomplete="list"
         placeholder={t('calendar.eventDialog.locationPlaceholder')}
         className={cn(
-          'mt-0.5 w-full rounded-md border border-border bg-secondary/20 px-2 py-1.5 text-[13px] text-foreground outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60',
+          'mt-0.5 w-full rounded-md border border-border bg-secondary/20 px-2 py-1 text-xs text-foreground outline-none ring-offset-background placeholder:text-xs placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60',
           inputClassName
         )}
         onChange={(e): void => {
@@ -248,7 +248,7 @@ export function LocationAutocompleteInput({
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-medium text-foreground">{s.primary}</span>
                   {s.secondary ? (
-                    <span className="block truncate text-[11px] text-muted-foreground">
+                    <span className="block truncate text-2xs text-muted-foreground">
                       {s.secondary}
                     </span>
                   ) : null}
@@ -256,7 +256,7 @@ export function LocationAutocompleteInput({
               </button>
             ))}
           </div>
-          <p className="border-t border-white/[0.04] dark:border-white/[0.04] px-2 py-1 text-[9px] leading-snug text-muted-foreground">
+          <p className="border-t border-white/[0.04] dark:border-white/[0.04] px-2 py-1 text-3xs leading-snug text-muted-foreground">
             {t('calendar.eventDialog.locationAttribution')}
           </p>
         </div>

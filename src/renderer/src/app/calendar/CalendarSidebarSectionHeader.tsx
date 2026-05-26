@@ -143,7 +143,7 @@ export function CalendarSidebarSectionHeader({
           ref={renameInputRef}
           value={draftName}
           onChange={(e): void => setDraftName(e.target.value)}
-          className="min-w-0 flex-1 rounded-md border border-border bg-background px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-foreground"
+          className="min-w-0 flex-1 rounded-md border border-border bg-background px-1.5 py-0.5 text-2xs font-semibold uppercase tracking-wide text-foreground"
           onKeyDown={(e): void => {
             if (e.key === 'Escape') {
               setDraftName(section.name)
@@ -164,7 +164,7 @@ export function CalendarSidebarSectionHeader({
           className="min-w-0 flex-1 rounded-md py-0.5 text-left hover:bg-secondary/40"
           title={section.name}
         >
-          <p className="truncate px-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+          <p className="truncate px-0.5 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
             {section.name}
           </p>
         </button>

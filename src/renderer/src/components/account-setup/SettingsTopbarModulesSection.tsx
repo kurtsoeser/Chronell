@@ -110,7 +110,7 @@ function SortableModuleRow({
       </button>
       <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
       <span className="min-w-0 flex-1 truncate text-xs font-medium text-foreground">{label}</span>
-      <label className="flex shrink-0 items-center gap-1.5 text-[10px] text-muted-foreground">
+      <label className="flex shrink-0 items-center gap-1.5 text-2xs text-muted-foreground">
         <input
           type="checkbox"
           checked={visible}
@@ -201,7 +201,7 @@ export function SettingsTopbarModulesSection(): JSX.Element {
         {t('settings.modulesHeading')}
       </h3>
       <p className="text-xs leading-relaxed text-muted-foreground">{t('settings.modulesHint')}</p>
-      <p className="text-[10px] leading-relaxed text-muted-foreground">{t('settings.modulesOrderHint')}</p>
+      <p className="text-2xs leading-relaxed text-muted-foreground">{t('settings.modulesOrderHint')}</p>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         <SortableContext items={order} strategy={verticalListSortingStrategy}>
           <ul className="space-y-1.5">

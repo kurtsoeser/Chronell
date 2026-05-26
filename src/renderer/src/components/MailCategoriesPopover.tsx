@@ -2,7 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 import type { ConnectedAccount, MailMasterCategory } from '@shared/types'
 import { outlookCategoryDotClass } from '@/lib/outlook-category-colors'
-import { Check, Loader2, X } from 'lucide-react'
+import { Check, Loader2, X, Star, StarOff } from 'lucide-react'
+import {
+  readFavoriteCategories,
+  persistFavoriteCategories,
+  toggleFavoriteCategory,
+  type FavoriteCategoryRef
+} from '@/lib/mail-category-favorites-storage'
 
 interface MailCategoriesPopoverProps {
   open: boolean
@@ -28,6 +34,7 @@ export function MailCategoriesPopover({
   const [distinct, setDistinct] = useState<string[]>([])
   const [freeText, setFreeText] = useState('')
   const [draft, setDraft] = useState<string[]>([])
+  const [favorites, setFavorites] = useState<FavoriteCategoryRef[]>(() => readFavoriteCategories())
 
   const isMicrosoft = account?.provider === 'microsoft'
 
@@ -42,6 +49,11 @@ export function MailCategoriesPopover({
   useEffect(() => {
     if (open) setDraft([...selectedNames])
   }, [open, selectedNames])
+
+  useEffect(() => {
+    if (!open) return
+    setFavorites(readFavoriteCategories())
+  }, [open])
 
   useEffect(() => {
     if (!open || !account) return
@@ -87,6 +99,17 @@ export function MailCategoriesPopover({
   }, [isMicrosoft, masters, distinct, draft])
 
   if (!open || !account) return null
+
+  function isFav(name: string): boolean {
+    const key = `${account.id}::${name.toLowerCase()}`
+    return favorites.some((f) => `${f.accountId ?? '*'}::${f.name.toLowerCase()}` === key)
+  }
+
+  function toggleFav(name: string): void {
+    const next = toggleFavoriteCategory(favorites, { accountId: account.id, name })
+    setFavorites(next)
+    persistFavoriteCategories(next)
+  }
 
   async function applyCategories(next: string[]): Promise<void> {
     setBusy(true)
@@ -171,22 +194,45 @@ export function MailCategoriesPopover({
         <ul className="max-h-56 space-y-0.5 overflow-y-auto pr-0.5">
           {choiceNames.map((name) => {
             const on = draft.includes(name)
+            const fav = isFav(name)
             const dot = outlookCategoryDotClass(colorByName.get(name))
             return (
               <li key={name}>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={(): void => toggleDraftName(name)}
+                <div
                   className={cn(
-                    'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors',
+                    'flex w-full items-center gap-1.5 rounded-md px-1 py-1 text-left transition-colors',
                     on ? 'bg-primary/15 text-foreground' : 'hover:bg-secondary/80'
                   )}
                 >
-                  <span className={cn('h-2.5 w-2.5 shrink-0 rounded-full', dot)} aria-hidden />
-                  <span className="min-w-0 flex-1 truncate">{name}</span>
-                  {on && <Check className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />}
-                </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={(): void => toggleDraftName(name)}
+                    className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-1 py-0.5 text-left"
+                    aria-pressed={on}
+                  >
+                    <span className={cn('h-2.5 w-2.5 shrink-0 rounded-full', dot)} aria-hidden />
+                    <span className="min-w-0 flex-1 truncate">{name}</span>
+                    {on && <Check className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={(): void => toggleFav(name)}
+                    className={cn(
+                      'shrink-0 rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground',
+                      fav && 'text-status-flagged'
+                    )}
+                    aria-label={fav ? 'Aus Favoriten entfernen' : 'Als Favorit anpinnen'}
+                    title={fav ? 'Aus Favoriten entfernen' : 'Als Favorit anpinnen'}
+                  >
+                    {fav ? (
+                      <Star className="h-3.5 w-3.5 fill-status-flagged text-status-flagged" />
+                    ) : (
+                      <StarOff className="h-3.5 w-3.5" />
+                    )}
+                  </button>
+                </div>
               </li>
             )
           })}

@@ -56,7 +56,8 @@ import {
   listSnoozedMessages,
   listWaitingMessages,
   searchMessageParticipantEmails,
-  listRecentParticipantEmailsForCompose
+  listRecentParticipantEmailsForCompose,
+  listMessagesByCategoryTag
 } from '../db/messages-repo'
 import { listMailTemplates } from '../db/templates-repo'
 import { insertScheduledCompose } from '../db/compose-scheduled-repo'
@@ -563,6 +564,22 @@ export function registerMailIpc(): void {
   ipcMain.handle(IPC.mail.listDistinctMessageTags, (_event, accountId: string): string[] => {
     return listDistinctTagsForAccount(accountId)
   })
+
+  ipcMain.handle(
+    IPC.mail.listCategoryMessages,
+    (
+      _event,
+      args: { accountId: string | null; category: string; limit?: number | null }
+    ): MailListItem[] => {
+      return decorateMailList(
+        listMessagesByCategoryTag({
+          accountId: args.accountId ?? null,
+          category: args.category,
+          limit: args.limit ?? 300
+        })
+      )
+    }
+  )
   
   ipcMain.handle(
     IPC.mail.getWorkflowMailFolderState,

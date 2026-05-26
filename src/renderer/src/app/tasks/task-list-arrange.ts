@@ -3,7 +3,8 @@ import { format, parseISO } from 'date-fns'
 import { dateBucketFor } from '@/lib/mail-list-arrange'
 import { groupLabelTodoDueBucketDe, rankOpenTodoBucket } from '@/lib/todo-due-bucket'
 import { classifyTaskItemDueBucket } from '@/app/tasks/task-due-bucket'
-import type { TaskItemWithContext } from '@/app/tasks/tasks-types'
+import { isMailTodoListItem, type TasksListItem } from '@/app/tasks/tasks-types'
+import type { TasksCollapsedGroupsMode, TasksNoDuePlacement, TasksOverdueMode } from '@/lib/tasks-settings-prefs'
 
 export type TaskListArrangeBy =
   | 'calendar_day'
@@ -24,7 +25,7 @@ export interface TaskListGroup {
   key: string
   label: string
   todoKind: TodoDueKindList | null
-  items: TaskItemWithContext[]
+  items: TasksListItem[]
 }
 
 export interface TaskListArrangeContext {
@@ -33,6 +34,9 @@ export interface TaskListArrangeContext {
   noDueLabel: string
   openLabel: string
   doneLabel: string
+  typeMailLabel?: string
+  typeTaskLabel?: string
+  mailSourceLabel?: string
   /** Gruppe „Kalendertag“: Überschrift aus yyyy-MM-dd (Tasks-Liste). */
   formatCalendarDayGroupLabel?: (dayKeyYyyyMmDd: string) => string
 }
@@ -43,8 +47,8 @@ function dueSortKey(dueIso: string | null): string {
 }
 
 export function compareTaskItems(
-  a: TaskItemWithContext,
-  b: TaskItemWithContext,
+  a: TasksListItem,
+  b: TasksListItem,
   chrono: TaskListChronoOrder
 ): number {
   const ad = dueSortKey(a.dueIso)
@@ -58,10 +62,11 @@ export function compareTaskItems(
 }
 
 function filterTasks(
-  items: TaskItemWithContext[],
+  items: TasksListItem[],
   filter: TaskListFilter,
-  timeZone: string
-): TaskItemWithContext[] {
+  timeZone: string,
+  overdueMode: TasksOverdueMode
+): TasksListItem[] {
   return items.filter((item) => {
     switch (filter) {
       case 'all':
@@ -72,7 +77,7 @@ function filterTasks(
         return item.completed
       case 'overdue': {
         if (item.completed) return false
-        const kind = classifyTaskItemDueBucket(item, timeZone)
+        const kind = classifyTaskItemDueBucket(item, timeZone, Date.now(), overdueMode)
         return kind === 'overdue'
       }
       default:
@@ -81,19 +86,46 @@ function filterTasks(
   })
 }
 
+function hideNoDueItems(
+  items: TasksListItem[],
+  arrange: TaskListArrangeBy,
+  noDuePlacement: TasksNoDuePlacement
+): TasksListItem[] {
+  if (noDuePlacement !== 'hide') return items
+  if (arrange !== 'calendar_day' && arrange !== 'due_date') return items
+  return items.filter((item) => Boolean(item.dueIso?.trim()))
+}
+
 function bucketKey(label: string, sortKey: string | number): string {
   return `${typeof sortKey === 'number' ? `n:${sortKey}` : `s:${sortKey}`}\t${label}`
 }
 
 function groupKeyForItem(
-  item: TaskItemWithContext,
+  item: TasksListItem,
   arrange: TaskListArrangeBy,
   ctx: TaskListArrangeContext,
-  timeZone: string
+  timeZone: string,
+  overdueMode: TasksOverdueMode
 ): { key: string; label: string; sortKey: string | number; todoKind: TodoDueKindList | null } {
   switch (arrange) {
+    case 'item_type': {
+      if (isMailTodoListItem(item)) {
+        return {
+          key: 'mail_todo',
+          label: ctx.typeMailLabel ?? ctx.mailSourceLabel ?? 'Mail-ToDo',
+          sortKey: 1,
+          todoKind: null
+        }
+      }
+      return {
+        key: 'cloud_task',
+        label: ctx.typeTaskLabel ?? 'Aufgaben',
+        sortKey: 2,
+        todoKind: null
+      }
+    }
     case 'todo_bucket': {
-      const kind = classifyTaskItemDueBucket(item, timeZone)
+      const kind = classifyTaskItemDueBucket(item, timeZone, Date.now(), overdueMode)
       const label = ctx.todoBucketLabel
         ? ctx.todoBucketLabel(kind)
         : groupLabelTodoDueBucketDe(kind)
@@ -213,15 +245,24 @@ function sortGroups(
   return g
 }
 
+export interface TaskListLayoutOptions {
+  overdueMode?: TasksOverdueMode
+  noDuePlacement?: TasksNoDuePlacement
+}
+
 export function computeTaskListLayout(
-  items: TaskItemWithContext[],
+  items: TasksListItem[],
   arrange: TaskListArrangeBy,
   chrono: TaskListChronoOrder,
   filter: TaskListFilter,
   ctx: TaskListArrangeContext,
-  timeZone: string
+  timeZone: string,
+  opts: TaskListLayoutOptions = {}
 ): TaskListGroup[] {
-  const filtered = filterTasks(items, filter, timeZone)
+  const overdueMode = opts.overdueMode ?? 'start_of_day'
+  const noDuePlacement = opts.noDuePlacement ?? 'group'
+  let filtered = filterTasks(items, filter, timeZone, overdueMode)
+  filtered = hideNoDueItems(filtered, arrange, noDuePlacement)
   if (arrange === 'none') {
     const sorted = [...filtered].sort((a, b) => compareTaskItems(a, b, chrono))
     if (sorted.length === 0) return []
@@ -230,7 +271,13 @@ export function computeTaskListLayout(
 
   const map = new Map<string, TaskListGroup>()
   for (const item of filtered) {
-    const { key, label, sortKey, todoKind } = groupKeyForItem(item, arrange, ctx, timeZone)
+    const { key, label, sortKey, todoKind } = groupKeyForItem(
+      item,
+      arrange,
+      ctx,
+      timeZone,
+      overdueMode
+    )
     const mapKey = bucketKey(label, sortKey)
     const ex = map.get(mapKey)
     if (ex) ex.items.push(item)
@@ -244,7 +291,11 @@ export function computeTaskListLayout(
   return groups.filter((g) => g.items.length > 0)
 }
 
-export function taskListFilterCounts(items: TaskItemWithContext[], timeZone: string): {
+export function taskListFilterCounts(
+  items: TasksListItem[],
+  timeZone: string,
+  overdueMode: TasksOverdueMode = 'start_of_day'
+): {
   all: number
   open: number
   completed: number
@@ -257,7 +308,9 @@ export function taskListFilterCounts(items: TaskItemWithContext[], timeZone: str
     if (item.completed) completed++
     else {
       open++
-      if (classifyTaskItemDueBucket(item, timeZone) === 'overdue') overdue++
+      if (classifyTaskItemDueBucket(item, timeZone, Date.now(), overdueMode) === 'overdue') {
+        overdue++
+      }
     }
   }
   return { all: items.length, open, completed, overdue }
@@ -267,22 +320,28 @@ export function taskListGroupCollapseKey(arrange: TaskListArrangeBy, group: Task
   return `${arrange}:${group.key}`
 }
 
-/** „Erledigt“-Gruppen in der Aufgabenliste standardmäßig eingeklappt. */
+/** Standardmäßig eingeklappte Gruppen (Einstellungen → Aufgaben). */
 export function isTaskListGroupCollapsedByDefault(
   arrange: TaskListArrangeBy,
-  group: Pick<TaskListGroup, 'key' | 'todoKind'>
+  group: Pick<TaskListGroup, 'key' | 'todoKind'>,
+  mode: TasksCollapsedGroupsMode = 'done_only'
 ): boolean {
-  if (arrange === 'none') return false
-  return group.key === 'done' || group.todoKind === 'done'
+  if (arrange === 'none' || mode === 'none') return false
+  if (group.key === 'done' || group.todoKind === 'done') return true
+  if (mode === 'done_and_later') {
+    return group.todoKind === 'later' || group.todoKind === 'this_week'
+  }
+  return false
 }
 
 export function defaultCollapsedTaskListGroupKeys(
   arrange: TaskListArrangeBy,
-  groups: TaskListGroup[]
+  groups: TaskListGroup[],
+  mode: TasksCollapsedGroupsMode = 'done_only'
 ): Set<string> {
   const keys = new Set<string>()
   for (const group of groups) {
-    if (isTaskListGroupCollapsedByDefault(arrange, group)) {
+    if (isTaskListGroupCollapsedByDefault(arrange, group, mode)) {
       keys.add(taskListGroupCollapseKey(arrange, group))
     }
   }
@@ -291,14 +350,17 @@ export function defaultCollapsedTaskListGroupKeys(
 
 /** Visible tasks in list order (respects filter, arrange, and sort). */
 export function flattenVisibleTaskItems(
-  items: TaskItemWithContext[],
+  items: TasksListItem[],
   arrange: TaskListArrangeBy,
   chrono: TaskListChronoOrder,
   filter: TaskListFilter,
   ctx: TaskListArrangeContext,
-  timeZone: string
-): TaskItemWithContext[] {
-  return computeTaskListLayout(items, arrange, chrono, filter, ctx, timeZone).flatMap((g) => g.items)
+  timeZone: string,
+  opts: TaskListLayoutOptions = {}
+): TasksListItem[] {
+  return computeTaskListLayout(items, arrange, chrono, filter, ctx, timeZone, opts).flatMap(
+    (g) => g.items
+  )
 }
 
 export function rangeSelectTaskKeys(

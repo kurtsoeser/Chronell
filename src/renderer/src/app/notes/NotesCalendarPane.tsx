@@ -29,6 +29,9 @@ import {
 import { scheduleRemoveDuplicateFullCalendarEventsById } from '@/app/calendar/calendar-fc-event-source'
 import { MAX_TIME_GRID_SPAN_DAYS } from '@/app/calendar/calendar-shell-view-helpers'
 import { useCalendarFcEventContent } from '@/app/calendar/use-calendar-fc-event-content'
+import { timeGridSlotMinutesToDuration } from '@/app/calendar/calendar-shell-storage'
+import { useNotesSettingsPrefs } from '@/lib/use-notes-settings-prefs'
+import { resolveNotesCalendarDisplayPrefs } from '@/lib/notes-calendar-display'
 import '@/app/calendar/notion-calendar.css'
 
 function assignMergedFullCalendarRef(
@@ -61,6 +64,15 @@ export function NotesCalendarPane({
   className?: string
 }): JSX.Element {
   const { t, i18n } = useTranslation()
+  const notesSettings = useNotesSettingsPrefs()
+  const calDisplay = useMemo(
+    () => resolveNotesCalendarDisplayPrefs(notesSettings),
+    [notesSettings]
+  )
+  const slotDuration = useMemo(
+    () => timeGridSlotMinutesToDuration(calDisplay.defaultTimeGridSlotMinutes),
+    [calDisplay.defaultTimeGridSlotMinutes]
+  )
   const calendarFcEventContentRender = useCalendarFcEventContent()
   const fcLocale = i18n.language.startsWith('de') ? deLocale : enGbLocale
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
@@ -150,7 +162,7 @@ export function NotesCalendarPane({
         </div>
       ) : null}
       <FullCalendar
-        key={`${timeZone}-${fcView}`}
+        key={`${timeZone}-${fcView}-${calDisplay.weekStartsOn}-${calDisplay.slotMinTime}-${calDisplay.slotMaxTime}-${calDisplay.hideWeekends}-${calDisplay.defaultTimeGridSlotMinutes}`}
         ref={(inst): void => {
           assignMergedFullCalendarRef(inst, calendarRef, fullCalendarRef)
         }}
@@ -159,13 +171,14 @@ export function NotesCalendarPane({
         height="100%"
         timeZone={timeZone}
         headerToolbar={false}
-        firstDay={1}
+        firstDay={calDisplay.weekStartsOn}
+        weekends={!calDisplay.hideWeekends}
         views={{ ...multiDayViews }}
         initialView={fcView}
-        slotMinTime="00:00:00"
-        slotMaxTime="24:00:00"
-        scrollTime="07:00:00"
-        slotDuration="00:30:00"
+        slotMinTime={calDisplay.slotMinTime}
+        slotMaxTime={calDisplay.slotMaxTime}
+        scrollTime={calDisplay.scrollTime}
+        slotDuration={slotDuration}
         slotLabelInterval="01:00:00"
         defaultTimedEventDuration="00:30:00"
         nowIndicator

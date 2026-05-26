@@ -9,6 +9,8 @@ export interface CalendarDockStripFrameProps {
   visible: boolean
   panelWidthPx: number
   onExitTransitionComplete?: () => void
+  /** Nach max-width-Transition (oeffnen oder schliessen) — z. B. FullCalendar updateSize. */
+  onWidthTransitionEnd?: () => void
   splitter: ReactNode
   children: ReactNode
   /** Zusaetzliche Klassen auf dem aeusseren max-width-Wrapper (z. B. `self-stretch`). */
@@ -23,6 +25,7 @@ export function CalendarDockStripFrame({
   visible,
   panelWidthPx,
   onExitTransitionComplete,
+  onWidthTransitionEnd,
   splitter,
   children,
   className
@@ -62,18 +65,19 @@ export function CalendarDockStripFrame({
   return (
     <div
       className={cn(
-        'h-full min-h-0 shrink-0 overflow-hidden motion-reduce:transition-none',
+        'h-full min-h-0 min-w-0 overflow-hidden motion-reduce:transition-none',
+        visible ? 'shrink-0' : 'w-0 shrink',
         suppressMaxWidthTransition
           ? 'transition-none'
           : 'transition-[max-width] duration-300 ease-out',
         className
       )}
-      style={{ maxWidth: visible ? innerW : 0 }}
+      style={{ maxWidth: visible ? innerW : 0, width: visible ? undefined : 0 }}
       onTransitionEnd={(e): void => {
         if (e.target !== e.currentTarget) return
         if (e.propertyName !== 'max-width') return
-        if (visible) return
-        onExitTransitionComplete?.()
+        onWidthTransitionEnd?.()
+        if (!visible) onExitTransitionComplete?.()
       }}
     >
       <div

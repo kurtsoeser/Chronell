@@ -29,9 +29,21 @@ export function NotesSidebarAccounts({
 }): JSX.Element {
   const { t } = useTranslation()
   const buckets = useMemo(() => buildNoteAccountBuckets(accounts, notes), [accounts, notes])
+  const accountKeys = useMemo(() => buckets.map((b) => b.accountId), [buckets])
   const [accountOpen, setAccountOpen] = useState<Record<string, boolean>>(() =>
-    readNotesAccountSidebarOpen()
+    readNotesAccountSidebarOpen(accountKeys)
   )
+
+  useEffect(() => {
+    setAccountOpen((prev) => {
+      const merged = readNotesAccountSidebarOpen(accountKeys)
+      const next = { ...merged }
+      for (const key of accountKeys) {
+        if (key in prev) next[key] = prev[key]
+      }
+      return next
+    })
+  }, [accountKeys.join('|')])
 
   useEffect(() => {
     persistNotesAccountSidebarOpen(accountOpen)
@@ -76,7 +88,7 @@ export function NotesSidebarAccounts({
                 />
               ) : null}
               {isLocal ? (
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-muted-foreground">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-2xs font-semibold text-muted-foreground">
                   ···
                 </span>
               ) : (
@@ -92,10 +104,10 @@ export function NotesSidebarAccounts({
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-xs font-semibold text-foreground">{displayName}</span>
                 {email ? (
-                  <span className="block truncate text-[10px] text-muted-foreground">{email}</span>
+                  <span className="block truncate text-2xs text-muted-foreground">{email}</span>
                 ) : null}
               </span>
-              <span className="shrink-0 pr-1 text-[10px] tabular-nums text-muted-foreground">
+              <span className="shrink-0 pr-1 text-2xs tabular-nums text-muted-foreground">
                 {bucket.notes.length}
               </span>
             </button>

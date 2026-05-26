@@ -98,6 +98,9 @@ interface MailState {
   /** Virtuelle Meta-Ordner (Such-/Filteransichten, alle Konten). */
   metaFolders: MetaFolderSummary[]
   selectedMetaFolderId: number | null
+  /** Kategorie-Ansicht (wie Suchordner, aus `message_tags`). */
+  selectedCategoryAccountId: string | null
+  selectedCategoryName: string | null
 
   initialize: () => void
   refreshAccounts: (accounts: ConnectedAccount[]) => Promise<void>
@@ -116,6 +119,11 @@ interface MailState {
   selectWaitingView: (opts?: SelectMailNavOptions) => Promise<void>
   selectUnifiedInbox: (opts?: SelectMailNavOptions) => Promise<void>
   selectMetaFolder: (metaFolderId: number, opts?: SelectMailNavOptions) => Promise<void>
+  selectCategory: (
+    accountId: string | null,
+    categoryName: string,
+    opts?: SelectMailNavOptions
+  ) => Promise<void>
   createMetaFolder: (input: MetaFolderCreateInput) => Promise<MetaFolderSummary>
   updateMetaFolder: (input: MetaFolderUpdateInput) => Promise<MetaFolderSummary>
   deleteMetaFolder: (metaFolderId: number) => Promise<void>
@@ -204,6 +212,8 @@ function persistCurrentMailListViewPrefs(state: {
   selectedFolderAccountId: string | null
   selectedFolderId: number | null
   selectedMetaFolderId: number | null
+  selectedCategoryAccountId?: string | null
+  selectedCategoryName?: string | null
   mailListArrangeBy: MailListArrangeBy
   mailListChronoOrder: MailListChronoOrder
   mailFilter: MailFilter
@@ -254,6 +264,8 @@ export const useMailStore = create<MailState>((set, get) => ({
   todoCounts: { today: 0, tomorrow: 0, this_week: 0, later: 0, overdue: 0, done: 0, waiting: 0 },
   metaFolders: [],
   selectedMetaFolderId: null,
+  selectedCategoryAccountId: null,
+  selectedCategoryName: null,
   selectedMessageId: null,
   selectedMessage: null,
   expandedThreads: new Set<string>(),
@@ -300,6 +312,7 @@ export const useMailStore = create<MailState>((set, get) => ({
           state.selectedFolderAccountId === accountId ||
           state.listKind === 'unified_inbox' ||
           state.listKind === 'meta_folder' ||
+          state.listKind === 'category' ||
           state.listKind === 'todo' ||
           state.listKind === 'snoozed' ||
           state.listKind === 'waiting'
@@ -438,6 +451,25 @@ export const useMailStore = create<MailState>((set, get) => ({
           return
         }
 
+        if (state.listKind === 'category' && state.selectedCategoryName) {
+          try {
+            const messages = await window.mailClient.mail.listCategoryMessages({
+              accountId: state.selectedCategoryAccountId,
+              category: state.selectedCategoryName,
+              limit: 300
+            })
+            set({ messages })
+            if (reloadThreads) void loadCrossFolderThreadsUnified(messages, set)
+            if (state.selectedMessageId) {
+              const fresh = await window.mailClient.mail.getMessage(state.selectedMessageId)
+              if (fresh) set({ selectedMessage: fresh })
+            }
+          } catch (e) {
+            console.error('[mail-store] category on mail:changed', e)
+          }
+          return
+        }
+
         if (state.selectedFolderId && state.selectedFolderAccountId === accountId) {
           const messages = await window.mailClient.mail.listMessages({
             folderId: state.selectedFolderId
@@ -529,6 +561,16 @@ export const useMailStore = create<MailState>((set, get) => ({
               restored = true
             }
             break
+          case 'category': {
+            const name = stored.categoryName?.trim()
+            if (name) {
+              await get().selectCategory(stored.categoryAccountId ?? null, name, {
+                preferredMessageId: pm
+              })
+              restored = true
+            }
+            break
+          }
           default:
             break
         }
@@ -545,6 +587,10 @@ export const useMailStore = create<MailState>((set, get) => ({
     }
     if (state.listKind === 'meta_folder' && state.selectedMetaFolderId != null) {
       await get().selectMetaFolder(state.selectedMetaFolderId)
+      return
+    }
+    if (state.listKind === 'category' && state.selectedCategoryName) {
+      await get().selectCategory(state.selectedCategoryAccountId, state.selectedCategoryName)
       return
     }
     if (state.listKind === 'folder' && !state.selectedFolderId) {
@@ -576,6 +622,8 @@ export const useMailStore = create<MailState>((set, get) => ({
       selectedFolderId: folderId,
       selectedFolderAccountId: accountId,
       selectedMetaFolderId: null,
+      selectedCategoryAccountId: null,
+      selectedCategoryName: null,
       selectedMessageId: null,
       selectedMessage: null,
       expandedThreads: new Set<string>(),
@@ -629,6 +677,8 @@ export const useMailStore = create<MailState>((set, get) => ({
       selectedFolderId: null,
       selectedFolderAccountId: null,
       selectedMetaFolderId: null,
+      selectedCategoryAccountId: null,
+      selectedCategoryName: null,
       selectedMessageId: null,
       selectedMessage: null,
       expandedThreads: new Set<string>(),
@@ -680,6 +730,8 @@ export const useMailStore = create<MailState>((set, get) => ({
       selectedFolderId: null,
       selectedFolderAccountId: null,
       selectedMetaFolderId: null,
+      selectedCategoryAccountId: null,
+      selectedCategoryName: null,
       selectedMessageId: null,
       selectedMessage: null,
       expandedThreads: new Set<string>(),
@@ -728,6 +780,8 @@ export const useMailStore = create<MailState>((set, get) => ({
       selectedFolderId: null,
       selectedFolderAccountId: null,
       selectedMetaFolderId: null,
+      selectedCategoryAccountId: null,
+      selectedCategoryName: null,
       selectedMessageId: null,
       selectedMessage: null,
       expandedThreads: new Set<string>(),
@@ -776,6 +830,8 @@ export const useMailStore = create<MailState>((set, get) => ({
       selectedFolderId: null,
       selectedFolderAccountId: null,
       selectedMetaFolderId: null,
+      selectedCategoryAccountId: null,
+      selectedCategoryName: null,
       selectedMessageId: null,
       selectedMessage: null,
       expandedThreads: new Set<string>(),
@@ -830,6 +886,8 @@ export const useMailStore = create<MailState>((set, get) => ({
       selectedFolderId: null,
       selectedFolderAccountId: null,
       selectedMetaFolderId: metaFolderId,
+      selectedCategoryAccountId: null,
+      selectedCategoryName: null,
       selectedMessageId: null,
       selectedMessage: null,
       expandedThreads: new Set<string>(),
@@ -845,6 +903,69 @@ export const useMailStore = create<MailState>((set, get) => ({
 
     try {
       const messages = await window.mailClient.mail.listMetaFolderMessages(metaFolderId)
+      set({ messages, loading: false })
+
+      void loadCrossFolderThreadsUnified(messages, set)
+
+      const pick = pickInitialMessageId(messages, opts?.preferredMessageId ?? null)
+      if (pick != null) {
+        await get().selectMessage(pick)
+      } else {
+        snapshotMailNavForPersist(get())
+      }
+
+      try {
+        const todoCounts = await window.mailClient.mail.listTodoCounts()
+        set({ todoCounts })
+      } catch (e) {
+        console.warn('[mail-store] listTodoCounts', e)
+      }
+    } catch (e) {
+      set({ loading: false, error: e instanceof Error ? e.message : String(e) })
+    }
+  },
+
+  async selectCategory(
+    accountId: string | null,
+    categoryName: string,
+    opts?: SelectMailNavOptions
+  ): Promise<void> {
+    const name = categoryName.trim()
+    if (!name) return
+    const scope: MailListViewScopeInput = {
+      listKind: 'category',
+      todoDueKind: null,
+      selectedFolderAccountId: null,
+      selectedFolderId: null,
+      selectedMetaFolderId: null
+    }
+    set({
+      listKind: 'category',
+      todoDueKind: null,
+      selectedFolderId: null,
+      selectedFolderAccountId: null,
+      selectedMetaFolderId: null,
+      selectedCategoryAccountId: accountId ?? null,
+      selectedCategoryName: name,
+      selectedMessageId: null,
+      selectedMessage: null,
+      expandedThreads: new Set<string>(),
+      collapsedMailListGroupKeys: new Set<string>(),
+      threadMessages: {},
+      messages: [],
+      loading: true,
+      error: null,
+      ...mailListViewPrefsFields(scope)
+    })
+
+    void window.mailClient.mail.setActiveFolder(null).catch(() => undefined)
+
+    try {
+      const messages = await window.mailClient.mail.listCategoryMessages({
+        accountId: accountId ?? null,
+        category: name,
+        limit: 300
+      })
       set({ messages, loading: false })
 
       void loadCrossFolderThreadsUnified(messages, set)
@@ -1037,6 +1158,12 @@ export const useMailStore = create<MailState>((set, get) => ({
       } else if (st.listKind === 'meta_folder' && st.selectedMetaFolderId != null) {
         const mfId = st.selectedMetaFolderId
         await reloadCrossAccountView(() => window.mailClient.mail.listMetaFolderMessages(mfId))
+      } else if (st.listKind === 'category' && st.selectedCategoryName) {
+        const name = st.selectedCategoryName
+        const acc = st.selectedCategoryAccountId
+        await reloadCrossAccountView(() =>
+          window.mailClient.mail.listCategoryMessages({ accountId: acc, category: name, limit: 300 })
+        )
       }
     } catch (e) {
       set({ error: e instanceof Error ? e.message : String(e) })
@@ -1052,7 +1179,7 @@ export const useMailStore = create<MailState>((set, get) => ({
       set({ selectedMessageId: messageId, selectedMessage: full })
       return
     }
-    if (state.listKind === 'unified_inbox' || state.listKind === 'meta_folder') {
+    if (state.listKind === 'unified_inbox' || state.listKind === 'meta_folder' || state.listKind === 'category') {
       await get().selectMessage(messageId)
       return
     }
@@ -1454,6 +1581,8 @@ export const useMailStore = create<MailState>((set, get) => ({
         selectedFolderId: null,
         selectedFolderAccountId: null,
         selectedMetaFolderId: null,
+        selectedCategoryAccountId: null,
+        selectedCategoryName: null,
         selectedMessageId: null,
         selectedMessage: null,
         messages: []

@@ -4,6 +4,13 @@ import {
   normalizeFtsTokenOrPhraseMatchQuery
 } from '@shared/search-token-query'
 import { getDb } from './index'
+import {
+  legacyCriteriaToMatchExpression,
+  matchExpressionHasActiveFilter,
+  matchLeafHasActiveFilter,
+  type MetaFolderConditionGroup,
+  type MetaFolderConditionLeaf
+} from '@shared/meta-folder-match-expression'
 import type { MailListItem, MetaFolderCriteria, MetaFolderExceptionClause } from '@shared/types'
 import { findFolderByWellKnown } from './folders-repo'
 import { rowToListItem, type MessageRow } from './messages-repo-core'
@@ -73,6 +80,9 @@ export function normalizeMessagesFtsTokenOrPhraseMatchQuery(rawQuery: string): s
 }
 
 export function metaFolderCriteriaHasActiveFilter(criteria: MetaFolderCriteria): boolean {
+  if (criteria.matchExpression) {
+    if (matchExpressionHasActiveFilter(criteria.matchExpression)) return true
+  }
   if (normalizeMessagesFtsMatchQuery(criteria.textQuery ?? '')) return true
   for (const alt of criteria.textQueryOrAlternatives ?? []) {
     if (normalizeMessagesFtsMatchQuery(typeof alt === 'string' ? alt : '')) return true
@@ -88,6 +98,11 @@ export function metaFolderCriteriaHasActiveFilter(criteria: MetaFolderCriteria):
   }
   const scope = criteria.scopeFolderIds?.filter((id) => Number.isFinite(id) && id > 0) ?? []
   if (scope.length > 0) return true
+  const cats = (criteria.categoriesAny ?? [])
+    .filter((x): x is string => typeof x === 'string')
+    .map((x) => x.trim())
+    .filter((x) => x.length > 0)
+  if (cats.length > 0) return true
   return false
 }
 
@@ -148,6 +163,72 @@ function collectMetaFolderAtomSqlFragments(src: MetaFolderAtomSource, params: un
   return parts
 }
 
+function compileMatchLeafSql(leaf: MetaFolderConditionLeaf, params: unknown[]): string | null {
+  if (!matchLeafHasActiveFilter(leaf)) return null
+  switch (leaf.type) {
+    case 'unread':
+      return 'm.is_read = 0'
+    case 'flagged':
+      return 'm.is_flagged = 1'
+    case 'attachments':
+      return 'm.has_attachments = 1'
+    case 'fulltext': {
+      const validLines = (leaf.lines ?? []).map((l) => l.trim()).filter((l) => l.length >= 2)
+      const src: MetaFolderAtomSource = {
+        textQuery: validLines[0],
+        textQueryOrAlternatives: validLines.length > 1 ? validLines.slice(1) : undefined
+      }
+      const fr = collectMetaFolderAtomSqlFragments(src, params)
+      if (fr.length === 0) return null
+      return fr.length === 1 ? fr[0]! : `(${fr.join(' OR ')})`
+    }
+    case 'from': {
+      const validLines = (leaf.lines ?? []).map((l) => l.trim()).filter((l) => l.length >= 2)
+      const src: MetaFolderAtomSource = {
+        fromContains: validLines[0],
+        fromContainsOrAlternatives: validLines.length > 1 ? validLines.slice(1) : undefined
+      }
+      const fr = collectMetaFolderAtomSqlFragments(src, params)
+      if (fr.length === 0) return null
+      return fr.length === 1 ? fr[0]! : `(${fr.join(' OR ')})`
+    }
+    case 'categories': {
+      const cats = Array.from(
+        new Set(
+          (leaf.categoryNames ?? [])
+            .filter((x): x is string => typeof x === 'string')
+            .map((x) => x.trim())
+            .filter((x) => x.length > 0)
+        )
+      )
+      if (cats.length === 0) return null
+      params.push(...cats)
+      return `m.id IN (SELECT DISTINCT message_id FROM message_tags WHERE tag IN (${cats
+        .map(() => '?')
+        .join(',')}))`
+    }
+    default:
+      return null
+  }
+}
+
+function compileMatchGroupSql(group: MetaFolderConditionGroup, params: unknown[]): string | null {
+  const parts: string[] = []
+  for (const child of group.children) {
+    if (child.kind === 'leaf') {
+      const sql = compileMatchLeafSql(child, params)
+      if (sql) parts.push(sql)
+    } else {
+      const sql = compileMatchGroupSql(child, params)
+      if (sql) parts.push(sql)
+    }
+  }
+  if (parts.length === 0) return null
+  if (parts.length === 1) return parts[0]!
+  const joiner = group.op === 'or' ? ' OR ' : ' AND '
+  return `(${parts.join(joiner)})`
+}
+
 /** Oberkante fuer Meta-Ordner-Listen (neueste zuerst); verhindert unbounded SQL-Scans. */
 export const DEFAULT_META_FOLDER_MESSAGE_LIST_LIMIT = 2000
 
@@ -164,6 +245,8 @@ export function listMessagesForMetaCriteria(
   const params: unknown[] = []
 
   const scope = (criteria.scopeFolderIds ?? []).filter((id) => Number.isFinite(id) && id > 0) as number[]
+  const matchRoot =
+    criteria.matchExpression ?? legacyCriteriaToMatchExpression(criteria)
 
   if (scope.length > 0) {
     clauses.push(`m.folder_id IN (${scope.map(() => '?').join(',')})`)
@@ -174,24 +257,8 @@ export function listMessagesForMetaCriteria(
     )
   }
 
-  const atomSrc: MetaFolderAtomSource = {
-    textQuery: criteria.textQuery,
-    textQueryOrAlternatives: criteria.textQueryOrAlternatives,
-    unreadOnly: criteria.unreadOnly,
-    flaggedOnly: criteria.flaggedOnly,
-    hasAttachmentsOnly: criteria.hasAttachmentsOnly,
-    fromContains: criteria.fromContains,
-    fromContainsOrAlternatives: criteria.fromContainsOrAlternatives
-  }
-  const posFrags = collectMetaFolderAtomSqlFragments(atomSrc, params)
-  if (posFrags.length > 0) {
-    const useOr = criteria.matchOp === 'or'
-    if (useOr && posFrags.length > 1) {
-      clauses.push(`(${posFrags.join(' OR ')})`)
-    } else {
-      clauses.push(posFrags.join(' AND '))
-    }
-  }
+  const posSql = compileMatchGroupSql(matchRoot, params)
+  if (posSql) clauses.push(posSql)
 
   const exList = criteria.exceptions?.filter((x) => metaFolderExceptionClauseHasFilter(x)) ?? []
   if (exList.length > 0) {
@@ -199,11 +266,18 @@ export function listMessagesForMetaCriteria(
     for (const ex of exList) {
       const fr = collectMetaFolderAtomSqlFragments(ex, params)
       if (fr.length === 0) continue
-      exSqlParts.push(fr.length === 1 ? fr[0]! : `(${fr.join(' AND ')})`)
+      const op = ex.matchOp === 'or' ? 'or' : 'and'
+      exSqlParts.push(
+        fr.length === 1 ? fr[0]! : op === 'or' ? `(${fr.join(' OR ')})` : `(${fr.join(' AND ')})`
+      )
     }
     if (exSqlParts.length > 0) {
+      const outerOp = criteria.exceptionsMatchOp === 'and' ? 'and' : 'or'
+      const joiner = outerOp === 'and' ? ' AND ' : ' OR '
       clauses.push(
-        exSqlParts.length === 1 ? `NOT (${exSqlParts[0]!})` : `NOT (${exSqlParts.join(' OR ')})`
+        exSqlParts.length === 1
+          ? `NOT (${exSqlParts[0]!})`
+          : `NOT (${exSqlParts.join(joiner)})`
       )
     }
   }
@@ -211,6 +285,48 @@ export function listMessagesForMetaCriteria(
   const where = `WHERE ${clauses.join(' AND ')}`
   const normalizedLimit =
     limit != null && Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : null
+  const limitSql = normalizedLimit != null ? ' LIMIT ?' : ''
+  if (normalizedLimit != null) params.push(normalizedLimit)
+
+  const sql = `${SELECT_LIST_WITH_OPEN_TODO}
+       FROM messages m
+       INNER JOIN folders f ON f.id = m.folder_id
+       ${OPEN_TODO_JOIN_SQL}
+       ${where}
+       ORDER BY m.received_at DESC NULLS LAST, m.id DESC${limitSql}`
+
+  const rows = db.prepare(sql).all(...params) as InboxOpenTodoJoinRow[]
+  return rows.map(mapOpenTodoJoinRow)
+}
+
+/**
+ * Mails mit einer bestimmten Kategorie (lokal: `message_tags.tag`) — optional auf ein Konto begrenzt.
+ * Standard-Scope: wie Meta-Ordner (alle Ordner ausser Papierkorb/Junk).
+ */
+export function listMessagesByCategoryTag(args: {
+  accountId: string | null
+  category: string
+  limit: number | null
+}): MailListItem[] {
+  const category = args.category.trim()
+  if (!category) return []
+  const db = getDb()
+  const clauses: string[] = []
+  const params: unknown[] = []
+
+  clauses.push(
+    `(f.well_known IS NULL OR (f.well_known != 'deleteditems' AND f.well_known != 'junkemail'))`
+  )
+  if (args.accountId) {
+    clauses.push('m.account_id = ?')
+    params.push(args.accountId)
+  }
+  clauses.push(`m.id IN (SELECT message_id FROM message_tags WHERE tag = ?)`)
+  params.push(category)
+
+  const where = `WHERE ${clauses.join(' AND ')}`
+  const normalizedLimit =
+    args.limit != null && Number.isFinite(args.limit) && args.limit > 0 ? Math.floor(args.limit) : null
   const limitSql = normalizedLimit != null ? ' LIMIT ?' : ''
   if (normalizedLimit != null) params.push(normalizedLimit)
 

@@ -38,7 +38,7 @@ export function TasksViewModeSwitcher({
         disabled={disabled}
         onClick={(): void => setMode('list')}
         className={cn(
-          'inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-medium',
+          'inline-flex items-center gap-1 rounded-md px-2 py-1 text-2xs font-medium',
           contentViewMode === 'list'
             ? 'bg-secondary text-foreground'
             : 'text-muted-foreground hover:bg-secondary/50'
@@ -52,7 +52,7 @@ export function TasksViewModeSwitcher({
         disabled={disabled}
         onClick={(): void => setMode('kanban')}
         className={cn(
-          'inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-medium',
+          'inline-flex items-center gap-1 rounded-md px-2 py-1 text-2xs font-medium',
           contentViewMode === 'kanban'
             ? 'bg-secondary text-foreground'
             : 'text-muted-foreground hover:bg-secondary/50'

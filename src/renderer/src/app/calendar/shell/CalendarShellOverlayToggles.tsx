@@ -32,7 +32,7 @@ export function CalendarShellOverlayToggles({
   return (
     <ul className="space-y-0.5">
       <li>
-        <div className="flex w-full items-center gap-1 rounded-md px-1 py-1.5 text-left text-[12px] text-muted-foreground">
+        <div className="flex w-full items-center gap-1 rounded-md px-1 py-1.5 text-left text-sm text-muted-foreground">
           <button
             type="button"
             onClick={(): void => {
@@ -67,7 +67,7 @@ export function CalendarShellOverlayToggles({
         </div>
       </li>
       <li>
-        <div className="flex w-full items-center gap-1 rounded-md px-1 py-1.5 text-left text-[12px] text-muted-foreground">
+        <div className="flex w-full items-center gap-1 rounded-md px-1 py-1.5 text-left text-sm text-muted-foreground">
           <button
             type="button"
             onClick={(): void => {
@@ -104,7 +104,7 @@ export function CalendarShellOverlayToggles({
         </div>
       </li>
       <li>
-        <div className="flex w-full items-center gap-1 rounded-md px-1 py-1.5 text-left text-[12px] text-muted-foreground">
+        <div className="flex w-full items-center gap-1 rounded-md px-1 py-1.5 text-left text-sm text-muted-foreground">
           <button
             type="button"
             onClick={(): void => {

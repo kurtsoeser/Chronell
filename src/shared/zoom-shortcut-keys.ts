@@ -1,4 +1,4 @@
-export type ZoomShortcutScope = 'preview' | 'ui'
+export type ZoomShortcutScope = 'ui' | 'compose'
 export type ZoomShortcutAction = 'in' | 'out' | 'reset'
 
 export interface ZoomShortcutIntent {
@@ -65,7 +65,10 @@ function matchesZoomReset(code: string, key?: string): boolean {
   return key != null && isZoomResetKey(key)
 }
 
-/** Strg/Cmd+Plus/Minus/0 (Vorschau) bzw. Strg/Cmd+Umschalt+… (Oberfläche). */
+/**
+ * Strg/Cmd+Plus/Minus/0 — Oberflächengröße (Einstellung „Größe der Oberfläche“).
+ * Scope wird im Renderer anhand des Fokus gesetzt (Composer vs. Rest der App).
+ */
 export function parseZoomShortcutIntent(input: {
   ctrlKey: boolean
   metaKey: boolean
@@ -77,17 +80,37 @@ export function parseZoomShortcutIntent(input: {
   if (!input.ctrlKey && !input.metaKey) return null
   if (input.altKey) return null
 
-  const scope: ZoomShortcutScope = input.shiftKey ? 'ui' : 'preview'
   const { code, key } = input
 
-  if (matchesZoomIn(code, key)) return { scope, action: 'in' }
-  if (matchesZoomOut(code, key)) return { scope, action: 'out' }
-  if (matchesZoomReset(code, key)) return { scope, action: 'reset' }
+  if (matchesZoomIn(code, key)) return { scope: 'ui', action: 'in' }
+  if (matchesZoomOut(code, key)) return { scope: 'ui', action: 'out' }
+  if (matchesZoomReset(code, key)) return { scope: 'ui', action: 'reset' }
 
   return null
 }
 
-/** Erkennung für Electron before-input-event (Chromium-Zoom unterbinden). */
+/** Alle App-Zoom-Tasten (US + DE-Tastatur) — Chromium-Seitenzoom unterbinden. */
+export function isAppZoomShortcutInput(input: {
+  control: boolean
+  meta: boolean
+  shift?: boolean
+  alt?: boolean
+  key: string
+  code: string
+}): boolean {
+  return (
+    parseZoomShortcutIntent({
+      ctrlKey: input.control,
+      metaKey: input.meta,
+      altKey: input.alt ?? false,
+      shiftKey: input.shift ?? false,
+      code: input.code,
+      key: input.key
+    }) != null
+  )
+}
+
+/** @deprecated Verwende {@link isAppZoomShortcutInput}. */
 export function isChromiumZoomShortcutInput(input: {
   control: boolean
   meta: boolean
@@ -96,13 +119,5 @@ export function isChromiumZoomShortcutInput(input: {
   key: string
   code: string
 }): boolean {
-  if (!input.control && !input.meta) return false
-  // Strg+Umschalt+Plus/Minus/0 steuert ui-scale im Renderer — darf nicht blockiert werden.
-  if (input.shift || input.alt) return false
-  // Nur US-Standard-Positionen (Chromium-Zoom), nicht DE Slash/BracketRight.
-  return (
-    isZoomInEqualCode(input.code) ||
-    isZoomOutMinusCode(input.code) ||
-    isZoomResetCode(input.code)
-  )
+  return isAppZoomShortcutInput(input)
 }

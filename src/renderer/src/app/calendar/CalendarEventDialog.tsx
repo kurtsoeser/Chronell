@@ -1,5 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { flushSync } from 'react-dom'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType } from 'react'
 import {
   addDays,
   addHours,
@@ -22,7 +21,8 @@ import {
   Loader2,
   MapPin,
   MoreHorizontal,
-  Users,
+  Send,
+  UserPlus,
   Video,
   X
 } from 'lucide-react'
@@ -75,7 +75,13 @@ import { appendHtmlToComposeBody, cloudFileLinkHtml } from '@/lib/compose-cloud-
 import { CalendarEventDescriptionPreview } from '@/app/calendar/CalendarEventDescriptionPreview'
 import { CalendarEventIconPicker } from '@/components/CalendarEventIconPicker'
 import { LocationAutocompleteInput } from '@/components/LocationAutocompleteInput'
-import { RecipientTokenField } from '@/components/RecipientTokenField'
+import { ChronellDateField } from '@/components/ChronellDateField'
+import { ChronellDatePickerPanel } from '@/components/ChronellDatePickerPanel'
+import {
+  RecipientTokenField,
+  type RecipientTokenFieldHandle
+} from '@/components/RecipientTokenField'
+import { parseRecipients } from '@/lib/compose-helpers'
 import { calendarEventIconIsExplicit } from '@/lib/calendar-event-icons'
 import { useThemeStore } from '@/stores/theme'
 import { OneDriveExplorerDialog } from '@/components/OneDriveExplorerDialog'
@@ -95,30 +101,14 @@ function isEffectivelyEmptyEditorHtml(html: string): boolean {
   return t.length === 0
 }
 
-/** E-Mail aus einem Token (reine Adresse oder `Name <addr>` / Outlook-Stil). */
-function extractEmailFromAttendeeToken(token: string): string | null {
-  const t = token.trim()
-  if (!t) return null
-  const angle = /<([^>]+@[^>]+)>/i.exec(t)
-  if (angle) {
-    const inner = angle[1].trim().toLowerCase()
-    return inner.includes('@') ? inner : null
-  }
-  const lower = t.toLowerCase()
-  return lower.includes('@') ? lower : null
-}
-
-/** Teilnehmer aus Freitext (Zeilenumbruch, Komma, Semikolon); max. 40 Eintraege. */
-function parseAttendeeEmailsField(raw: string): string[] {
-  const parts = raw.split(/[\n,;]+/)
-  const out: string[] = []
+function attendeeEmailsFromField(raw: string): string[] {
   const seen = new Set<string>()
-  for (const p of parts) {
-    const s = extractEmailFromAttendeeToken(p)
-    if (!s) continue
-    if (seen.has(s)) continue
-    seen.add(s)
-    out.push(s)
+  const out: string[] = []
+  for (const r of parseRecipients(raw)) {
+    const a = r.address.trim().toLowerCase()
+    if (!a || seen.has(a)) continue
+    seen.add(a)
+    out.push(a)
     if (out.length >= 40) break
   }
   return out
@@ -235,7 +225,7 @@ function mergeYmdIntoDatetimeLocal(dtLocal: string, ymd: string): string {
 
 function fieldChipClass(locked: boolean): string {
   return cn(
-    'inline-flex min-h-[30px] max-w-full shrink-0 items-center rounded-md border border-border bg-secondary/35 px-2 py-1 text-[13px] font-medium tabular-nums text-foreground transition-colors',
+    'inline-flex min-h-[30px] max-w-full shrink-0 items-center rounded-md border border-border bg-secondary/35 px-2 py-1 text-base font-medium tabular-nums text-foreground transition-colors',
     'hover:border-border hover:bg-secondary/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/25',
     locked ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
   )
@@ -266,19 +256,36 @@ function PropertyRow({
   icon: Icon,
   label,
   children,
-  onClick
+  onClick,
+  onIconClick,
+  iconActionLabel
 }: {
-  icon: React.ComponentType<{ className?: string }>
+  icon: ComponentType<{ className?: string }>
   label: string
   children: React.ReactNode
   onClick?: () => void
+  onIconClick?: () => void
+  iconActionLabel?: string
 }): JSX.Element {
+  const iconNode = onIconClick ? (
+    <button
+      type="button"
+      title={iconActionLabel}
+      aria-label={iconActionLabel}
+      onClick={onIconClick}
+      className="mt-0.5 shrink-0 rounded p-0.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
+    >
+      <Icon className="h-4 w-4" />
+    </button>
+  ) : (
+    <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+  )
   const inner = (
     <>
-      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+      {iconNode}
       <div className="min-w-0 flex-1">
-        <div className="text-[11px] font-medium text-muted-foreground">{label}</div>
-        <div className="mt-0.5 text-[13px] text-foreground">{children}</div>
+        <div className="text-xs font-medium text-muted-foreground">{label}</div>
+        <div className="mt-0.5 text-xs text-foreground">{children}</div>
       </div>
     </>
   )
@@ -377,6 +384,7 @@ export function CalendarEventDialog({
 
   const [teamsMeeting, setTeamsMeeting] = useState(false)
   const [attendeeInput, setAttendeeInput] = useState('')
+  const attendeeFieldRef = useRef<RecipientTokenFieldHandle>(null)
   const [msEventDetailsLoading, setMsEventDetailsLoading] = useState(false)
   const [msEventDetailsError, setMsEventDetailsError] = useState<string | null>(null)
 
@@ -872,8 +880,6 @@ export function CalendarEventDialog({
   const panelRef = useRef<HTMLElement>(null)
   const schedulePickerRef = useRef<HTMLDivElement>(null)
   const selectedTimeOptionRef = useRef<HTMLButtonElement>(null)
-  /** Nativer Datums-Dialog per showPicker() gleich beim Chip-Klick (Chromium/Electron). */
-  const scheduleDateInputRef = useRef<HTMLInputElement>(null)
 
   const selectedAccount = useMemo(
     () => calendarAccounts.find((a) => a.id === accountId),
@@ -913,7 +919,7 @@ export function CalendarEventDialog({
       .then((d) => {
         if (cancelled) return
         setTeamsMeeting(!!d.isOnlineMeeting && !initialEvent.isAllDay)
-        setAttendeeInput(d.attendeeEmails.join('\n'))
+        setAttendeeInput(d.attendeeEmails.join(', '))
         const raw = d.bodyHtml?.trim() ? d.bodyHtml.trim() : ''
         setDescriptionHtml(raw ? sanitizeComposeHtmlFragment(raw) : '')
       })
@@ -949,42 +955,23 @@ export function CalendarEventDialog({
     if (eventFieldsLocked || !anchorEl) return
     const r = anchorEl.getBoundingClientRect()
     const margin = 8
-    const popW = 208
-    let left = r.left
-    if (left + popW > window.innerWidth - margin) left = window.innerWidth - popW - margin
-    if (left < margin) left = margin
-    const listMax = 260
-    let top = r.bottom + 6
-    if (top + listMax > window.innerHeight - margin) {
-      top = r.top - 6 - listMax
-      if (top < margin) top = margin
-    }
-    const pos = { top, left, width: popW }
     const dateKind =
       kind === 'startDate' ||
       kind === 'endDate' ||
       kind === 'dayStart' ||
       kind === 'dayEnd'
-    if (dateKind) {
-      flushSync(() => {
-        setSchedulePickerPos(pos)
-        setSchedulePicker(kind)
-      })
-      const input = scheduleDateInputRef.current
-      if (input) {
-        input.focus()
-        try {
-          if ('showPicker' in input && typeof input.showPicker === 'function') {
-            input.showPicker()
-          }
-        } catch {
-          // ohne User-Gesture oder nicht unterstützt
-        }
-      }
-    } else {
-      setSchedulePickerPos(pos)
-      setSchedulePicker(kind)
+    const popW = dateKind ? 248 : 208
+    const listMax = dateKind ? 320 : 260
+    let left = r.left
+    if (left + popW > window.innerWidth - margin) left = window.innerWidth - popW - margin
+    if (left < margin) left = margin
+    let top = r.bottom + 6
+    if (top + listMax > window.innerHeight - margin) {
+      top = r.top - 6 - listMax
+      if (top < margin) top = margin
     }
+    setSchedulePickerPos({ top, left, width: popW })
+    setSchedulePicker(kind)
   }
 
   const timePickerYmd =
@@ -1184,7 +1171,7 @@ export function CalendarEventDialog({
       ? null
       : sanitizeComposeHtmlFragment(descriptionHtml.trim())
 
-    const parsedAttendees = parseAttendeeEmailsField(attendeeInput)
+    const parsedAttendees = attendeeEmailsFromField(attendeeInput)
 
     let recurrence: CalendarSaveEventRecurrence | undefined
     if (mode === 'create' && recurFreq !== 'none') {
@@ -1360,7 +1347,13 @@ export function CalendarEventDialog({
         (mode === 'edit' && initialEvent?.calendarCanEdit === false) ||
         (mode === 'edit' && Boolean(initialEvent?.graphEventId) && msEventDetailsLoading))
 
-  const submitLabel = isTaskCreate ? t('tasks.create.submit') : t('calendar.eventDialog.save')
+  const hasInviteAttendees =
+    !isTaskCreate && attendeeEmailsFromField(attendeeInput).length > 0
+  const submitLabel = isTaskCreate
+    ? t('tasks.create.submit')
+    : hasInviteAttendees
+      ? t('calendar.eventDialog.send')
+      : t('calendar.eventDialog.save')
 
   return (
     <ModalRoot
@@ -1383,7 +1376,7 @@ export function CalendarEventDialog({
                   disabled={busy}
                   onClick={(): void => handleCreateKindChange('event')}
                   className={cn(
-                    'rounded-md px-2.5 py-1 text-[12px] font-medium transition-colors',
+                    'rounded-md px-2.5 py-1 text-sm font-medium transition-colors',
                     createKind === 'event'
                       ? 'bg-secondary text-foreground'
                       : 'text-muted-foreground hover:bg-secondary/50 hover:text-foreground'
@@ -1396,7 +1389,7 @@ export function CalendarEventDialog({
                   disabled={busy}
                   onClick={(): void => handleCreateKindChange('task')}
                   className={cn(
-                    'rounded-md px-2.5 py-1 text-[12px] font-medium transition-colors',
+                    'rounded-md px-2.5 py-1 text-sm font-medium transition-colors',
                     createKind === 'task'
                       ? 'bg-secondary text-foreground'
                       : 'text-muted-foreground hover:bg-secondary/50 hover:text-foreground'
@@ -1407,7 +1400,7 @@ export function CalendarEventDialog({
               </div>
             </div>
           ) : (
-            <span className="text-[13px] font-medium text-muted-foreground">
+            <span className="text-base font-medium text-muted-foreground">
               {t('calendar.eventDialog.panelTitle')}
             </span>
           )}
@@ -1473,19 +1466,19 @@ export function CalendarEventDialog({
 
             {mode === 'create' && createKind === 'task' && taskAccounts.length > 0 ? (
               <div className="border-b border-border py-3">
-                <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   {t('calendar.eventDialog.taskDestinationHeadingShort')}
                 </div>
-                <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
+                <p className="mt-1 text-xs leading-snug text-muted-foreground">
                   {t('calendar.eventDialog.taskDestinationHelpBody')}
                 </p>
                 <label className="mt-2 block space-y-1">
-                  <span className="text-[11px] text-muted-foreground">{t('tasks.create.account')}</span>
+                  <span className="text-xs text-muted-foreground">{t('tasks.create.account')}</span>
                   <select
                     value={taskAccountId}
                     disabled={busy || taskListsLoading}
                     onChange={(e): void => setTaskAccountId(e.target.value)}
-                    className="w-full rounded-md border border-border bg-background px-2 py-2 text-[13px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="w-full rounded-md border border-border bg-background px-2 py-2 text-base text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {taskAccounts.map((a) => (
                       <option key={a.id} value={a.id}>
@@ -1495,12 +1488,12 @@ export function CalendarEventDialog({
                   </select>
                 </label>
                 <label className="mt-2 block space-y-1">
-                  <span className="text-[11px] text-muted-foreground">{t('tasks.create.list')}</span>
+                  <span className="text-xs text-muted-foreground">{t('tasks.create.list')}</span>
                   <select
                     value={taskListId}
                     disabled={busy || taskListsLoading || taskLists.length === 0}
                     onChange={(e): void => setTaskListId(e.target.value)}
-                    className="w-full rounded-md border border-border bg-background px-2 py-2 text-[13px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="w-full rounded-md border border-border bg-background px-2 py-2 text-base text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {taskListsLoading ? (
                       <option value="">{t('calendar.eventDialog.loadingShort')}</option>
@@ -1518,10 +1511,10 @@ export function CalendarEventDialog({
 
             {mode === 'create' && createKind === 'event' && calendarAccounts.length > 0 ? (
               <div className="border-b border-border py-3">
-                <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   {t('calendar.eventDialog.destinationHeadingShort')}
                 </div>
-                <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
+                <p className="mt-1 text-xs leading-snug text-muted-foreground">
                   {t('calendar.eventDialog.destinationHelpBody')}
                 </p>
                 <select
@@ -1537,7 +1530,7 @@ export function CalendarEventDialog({
                     }
                   }}
                   aria-label={t('calendar.eventDialog.targetCalendarAria')}
-                  className="mt-2 w-full rounded-md border border-border bg-background px-2 py-2 text-[13px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="mt-2 w-full rounded-md border border-border bg-background px-2 py-2 text-base text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {calendarsLoading ? (
                     <option value="">{t('calendar.eventDialog.submitLoadingCalendars')}</option>
@@ -1571,39 +1564,37 @@ export function CalendarEventDialog({
 
             {mode === 'create' && createKind === 'task' ? (
               <div className="border-b border-border py-3 space-y-3">
-                <div className="mb-1 flex items-center gap-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                <div className="mb-1 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   <CheckSquare className="h-3.5 w-3.5 shrink-0" />
                   {t('tasks.create.planned')}
                 </div>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <label className="block space-y-1 text-[11px]">
+                  <label className="block space-y-1 text-xs">
                     <span className="text-muted-foreground">{t('tasks.create.plannedStart')}</span>
                     <input
                       type="datetime-local"
                       value={taskPlannedStart}
                       onChange={(e): void => setTaskPlannedStart(e.target.value)}
                       disabled={busy}
-                      className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-[13px]"
+                      className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-base"
                     />
                   </label>
-                  <label className="block space-y-1 text-[11px]">
+                  <label className="block space-y-1 text-xs">
                     <span className="text-muted-foreground">{t('tasks.create.plannedEnd')}</span>
                     <input
                       type="datetime-local"
                       value={taskPlannedEnd}
                       onChange={(e): void => setTaskPlannedEnd(e.target.value)}
                       disabled={busy}
-                      className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-[13px]"
+                      className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-base"
                     />
                   </label>
                 </div>
-                <label className="block space-y-1 text-[11px]">
+                <label className="block space-y-1 text-xs">
                   <span className="text-muted-foreground">{t('tasks.create.due')}</span>
-                  <input
-                    type="date"
+                  <ChronellDateField
                     value={taskDue}
-                    onChange={(e): void => {
-                      const v = e.target.value
+                    onChange={(v): void => {
                       setTaskDue(v)
                       if (
                         v &&
@@ -1614,7 +1605,6 @@ export function CalendarEventDialog({
                       }
                     }}
                     disabled={busy}
-                    className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-[13px]"
                   />
                 </label>
                 <CalendarEventRecurrenceSection
@@ -1640,20 +1630,20 @@ export function CalendarEventDialog({
                   setRecurWeekdays={setRecurWeekdays}
                   eventFieldsLocked={busy}
                 />
-                <label className="block space-y-1 text-[11px]">
+                <label className="block space-y-1 text-xs">
                   <span className="text-muted-foreground">{t('tasks.create.notes')}</span>
                   <textarea
                     value={taskNotes}
                     onChange={(e): void => setTaskNotes(e.target.value)}
                     disabled={busy}
                     rows={4}
-                    className="w-full resize-y rounded-md border border-border bg-background px-2 py-1.5 text-[13px]"
+                    className="w-full resize-y rounded-md border border-border bg-background px-2 py-1.5 text-base"
                   />
                 </label>
               </div>
             ) : (
             <div className="border-b border-border py-3">
-              <div className="mb-2 flex items-center gap-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              <div className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 <CalendarIcon className="h-3.5 w-3.5 shrink-0" />
                 {t('calendar.eventDialog.appointmentHeading')}
               </div>
@@ -1682,7 +1672,7 @@ export function CalendarEventDialog({
                     >
                       {timedDisplay.endHm}
                     </button>
-                    <span className="min-w-0 text-[13px] tabular-nums text-muted-foreground">
+                    <span className="min-w-0 text-base tabular-nums text-muted-foreground">
                       · {timedDisplay.duration}
                     </span>
                     <button
@@ -1711,7 +1701,7 @@ export function CalendarEventDialog({
                 </>
               ) : isAllDay && allDayDisplay ? (
                 <>
-                  <p className="text-[12px] font-medium text-muted-foreground">{t('calendar.eventDialog.allDay')}</p>
+                  <p className="text-sm font-medium text-muted-foreground">{t('calendar.eventDialog.allDay')}</p>
                   <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-2">
                     <button
                       type="button"
@@ -1737,10 +1727,10 @@ export function CalendarEventDialog({
                   </div>
                 </>
               ) : (
-                <p className="text-[13px] text-muted-foreground">{t('calendar.eventDialog.summaryDash')}</p>
+                <p className="text-base text-muted-foreground">{t('calendar.eventDialog.summaryDash')}</p>
               )}
 
-              <div className="mt-3 flex flex-col gap-2 text-[12px]">
+              <div className="mt-3 flex flex-col gap-2 text-sm">
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                   <button
                     type="button"
@@ -1788,7 +1778,7 @@ export function CalendarEventDialog({
                 <button
                   type="button"
                   onClick={(): void => setShowAdvancedDateTime((s) => !s)}
-                  className="w-fit text-left text-[11px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                  className="w-fit text-left text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
                 >
                   {showAdvancedDateTime
                     ? t('calendar.eventDialog.advancedDateTimeHide')
@@ -1799,34 +1789,32 @@ export function CalendarEventDialog({
                 <div className="mt-3 space-y-2 rounded-lg border border-border/50 bg-secondary/25 p-3">
                   {isAllDay ? (
                     <div className="grid grid-cols-2 gap-2">
-                      <label className="text-[11px]">
+                      <label className="text-xs">
                         <span className="mb-1 block text-muted-foreground">
                           {t('calendar.eventDialog.labelStartDate')}
                         </span>
-                        <input
-                          type="date"
+                        <ChronellDateField
                           value={dayStart}
-                          onChange={(e): void => setDayStart(e.target.value)}
+                          onChange={setDayStart}
                           disabled={eventFieldsLocked}
-                          className="w-full rounded border border-border bg-background px-2 py-1 text-xs"
+                          className="text-xs"
                         />
                       </label>
-                      <label className="text-[11px]">
+                      <label className="text-xs">
                         <span className="mb-1 block text-muted-foreground">
                           {t('calendar.eventDialog.labelEndExclusive')}
                         </span>
-                        <input
-                          type="date"
+                        <ChronellDateField
                           value={dayEnd}
-                          onChange={(e): void => setDayEnd(e.target.value)}
+                          onChange={setDayEnd}
                           disabled={eventFieldsLocked}
-                          className="w-full rounded border border-border bg-background px-2 py-1 text-xs"
+                          className="text-xs"
                         />
                       </label>
                     </div>
                   ) : (
                     <div className="grid grid-cols-2 gap-2">
-                      <label className="text-[11px]">
+                      <label className="text-xs">
                         <span className="mb-1 block text-muted-foreground">
                           {t('calendar.eventDialog.labelBegin')}
                         </span>
@@ -1838,7 +1826,7 @@ export function CalendarEventDialog({
                           className="w-full rounded border border-border bg-background px-2 py-1 text-xs"
                         />
                       </label>
-                      <label className="text-[11px]">
+                      <label className="text-xs">
                         <span className="mb-1 block text-muted-foreground">
                           {t('calendar.eventDialog.labelEnd')}
                         </span>
@@ -1876,44 +1864,48 @@ export function CalendarEventDialog({
             {(mode !== 'create' || createKind === 'event') &&
             (selectedAccount?.provider === 'google' ? (
               <div className="border-b border-border py-1">
-                <PropertyRow icon={Users} label={t('calendar.eventDialog.attendeesRowLabel')}>
-                  <div className="space-y-1.5">
-                    <div className="mt-1 rounded-md border border-border bg-background px-2 py-1.5">
-                      <RecipientTokenField
-                        label={t('calendar.eventDialog.attendeesRowLabel')}
-                        value={attendeeInput}
-                        onChange={setAttendeeInput}
-                        accountId={accountId}
-                        className="border-0 px-0 py-0"
-                      />
-                    </div>
-                    <p className="text-[10px] leading-snug text-muted-foreground">
-                      {t('calendar.eventDialog.attendeesInviteHint')}
-                    </p>
+                <PropertyRow
+                  icon={UserPlus}
+                  label={t('calendar.eventDialog.attendeesRowLabel')}
+                  onIconClick={(): void => attendeeFieldRef.current?.openContactPicker()}
+                  iconActionLabel={t('calendar.eventDialog.attendeesPickContacts')}
+                >
+                  <div className="mt-1 rounded-md border border-border bg-background px-2 py-1.5">
+                    <RecipientTokenField
+                      ref={attendeeFieldRef}
+                      hideLabelColumn
+                      label={t('calendar.eventDialog.attendeesRowLabel')}
+                      value={attendeeInput}
+                      onChange={setAttendeeInput}
+                      accountId={accountId}
+                      className="border-0 px-0 py-0"
+                    />
                   </div>
                 </PropertyRow>
               </div>
             ) : selectedAccount?.provider === 'microsoft' ? (
               <div className="border-b border-border py-1">
-                <PropertyRow icon={Users} label={t('calendar.eventDialog.attendeesRowLabel')}>
-                  <div className="space-y-1.5">
-                    <div className="mt-1 rounded-md border border-border bg-background px-2 py-1.5">
-                      <RecipientTokenField
-                        label=""
-                        value={attendeeInput}
-                        onChange={setAttendeeInput}
-                        accountId={accountId}
-                        className="border-0 px-0 py-0"
-                      />
-                    </div>
-                    <p className="text-[10px] leading-snug text-muted-foreground">
-                      {t('calendar.eventDialog.attendeesInviteHint')}
-                    </p>
+                <PropertyRow
+                  icon={UserPlus}
+                  label={t('calendar.eventDialog.attendeesRowLabel')}
+                  onIconClick={(): void => attendeeFieldRef.current?.openContactPicker()}
+                  iconActionLabel={t('calendar.eventDialog.attendeesPickContacts')}
+                >
+                  <div className="mt-1 rounded-md border border-border bg-background px-2 py-1.5">
+                    <RecipientTokenField
+                      ref={attendeeFieldRef}
+                      hideLabelColumn
+                      label={t('calendar.eventDialog.attendeesRowLabel')}
+                      value={attendeeInput}
+                      onChange={setAttendeeInput}
+                      accountId={accountId}
+                      className="border-0 px-0 py-0"
+                    />
                   </div>
                 </PropertyRow>
                 <PropertyRow icon={Video} label={t('calendar.eventDialog.teamsMeetingRowLabel')}>
                   <div className="space-y-1.5">
-                    <label className="flex cursor-pointer items-center gap-2 text-[13px]">
+                    <label className="flex cursor-pointer items-center gap-2 text-base">
                       <input
                         type="checkbox"
                         checked={teamsMeeting}
@@ -1924,10 +1916,10 @@ export function CalendarEventDialog({
                       <span>{t('calendar.eventDialog.teamsMeetingToggle')}</span>
                     </label>
                     {isAllDay ? (
-                      <p className="text-[10px] text-muted-foreground">{t('calendar.eventDialog.teamsDisabledAllDay')}</p>
+                      <p className="text-2xs text-muted-foreground">{t('calendar.eventDialog.teamsDisabledAllDay')}</p>
                     ) : null}
                     {msEventDetailsError ? (
-                      <p className="text-[10px] text-destructive" role="status">
+                      <p className="text-2xs text-destructive" role="status">
                         {msEventDetailsError}
                       </p>
                     ) : null}
@@ -1938,10 +1930,10 @@ export function CalendarEventDialog({
 
             {mode === 'edit' && calendarAccounts.length > 0 ? (
               <div className="border-b border-border py-3">
-                <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   {t('calendar.eventDialog.destinationHeadingShort')}
                 </div>
-                <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
+                <p className="mt-1 text-xs leading-snug text-muted-foreground">
                   {t('calendar.eventDialog.destinationMoveHelp')}
                 </p>
                 <select
@@ -1957,7 +1949,7 @@ export function CalendarEventDialog({
                     }
                   }}
                   aria-label={t('calendar.eventDialog.targetCalendarAria')}
-                  className="mt-2 w-full rounded-md border border-border bg-background px-2 py-2 text-[13px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="mt-2 w-full rounded-md border border-border bg-background px-2 py-2 text-base text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {calendarsLoading ? (
                     <option value="">{t('calendar.eventDialog.submitLoadingCalendars')}</option>
@@ -1993,18 +1985,18 @@ export function CalendarEventDialog({
             <div className="border-b border-border py-1">
               <PropertyRow icon={CircleDot} label={t('calendar.eventDialog.categories')}>
                 {selectedAccount?.provider !== 'microsoft' ? (
-                  <span className="text-[11px] text-muted-foreground">
+                  <span className="text-xs text-muted-foreground">
                     {t('calendar.eventDialog.categoriesOutlookOnly')}
                   </span>
                 ) : mastersLoading && categoryChoiceNames.length === 0 ? (
-                  <span className="inline-flex items-center gap-2 text-[11px] text-muted-foreground">
+                  <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     {t('calendar.eventDialog.loadingShort')}
                   </span>
                 ) : (
                   <div className="space-y-2">
                     {categoryChoiceNames.length === 0 ? (
-                      <p className="text-[11px] leading-snug text-muted-foreground">
+                      <p className="text-xs leading-snug text-muted-foreground">
                         {t('calendar.eventDialog.categoriesEmptyOutlook')}
                       </p>
                     ) : (
@@ -2019,7 +2011,7 @@ export function CalendarEventDialog({
                               disabled={busy}
                               onClick={(): void => toggleEventCategory(name)}
                               className={cn(
-                                'inline-flex max-w-full items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors',
+                                'inline-flex max-w-full items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium transition-colors',
                                 on
                                   ? 'border-primary/40 bg-primary/15 text-foreground'
                                   : 'border-border/80 bg-secondary/30 text-muted-foreground hover:bg-secondary/60 hover:text-foreground'
@@ -2033,7 +2025,7 @@ export function CalendarEventDialog({
                         })}
                       </div>
                     )}
-                    <p className="text-[10px] leading-snug text-muted-foreground">
+                    <p className="text-2xs leading-snug text-muted-foreground">
                       {t('calendar.eventDialog.categoriesMasterHint')}
                     </p>
                   </div>
@@ -2049,13 +2041,13 @@ export function CalendarEventDialog({
               <PropertyRow icon={AlignLeft} label={t('calendar.eventDialog.description')}>
                 <div className="mt-1 min-w-0 space-y-2">
                   {mode === 'edit' && Boolean(initialEvent?.graphEventId) && msEventDetailsLoading ? (
-                    <p className="inline-flex items-center gap-2 text-[11px] text-muted-foreground">
+                    <p className="inline-flex items-center gap-2 text-xs text-muted-foreground">
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       {t('calendar.eventDialog.loadingEventDetails')}
                     </p>
                   ) : null}
                   {msEventDetailsError && mode === 'edit' && initialEvent?.graphEventId ? (
-                    <p className="text-[10px] text-destructive" role="alert">
+                    <p className="text-2xs text-destructive" role="alert">
                       {msEventDetailsError}
                     </p>
                   ) : null}
@@ -2094,16 +2086,16 @@ export function CalendarEventDialog({
                         className="min-h-[520px] rounded-md border border-border bg-background !border-t-0"
                       />
                       {draggingFiles ? (
-                        <p className="px-2 pb-2 text-[10px] text-muted-foreground">
+                        <p className="px-2 pb-2 text-2xs text-muted-foreground">
                           {t('calendar.eventDialog.attachmentsDropHint')}
                         </p>
                       ) : null}
                       {attachmentError ? (
-                        <p className="text-[10px] text-destructive">{attachmentError}</p>
+                        <p className="text-2xs text-destructive">{attachmentError}</p>
                       ) : null}
                       {eventAttachments.length > 0 ? (
                         <div className="space-y-1.5">
-                          <p className="text-[10px] font-medium text-muted-foreground">
+                          <p className="text-2xs font-medium text-muted-foreground">
                             {t('calendar.eventDialog.attachments')}
                           </p>
                           <div className="space-y-1">
@@ -2113,8 +2105,8 @@ export function CalendarEventDialog({
                                 className="flex items-center justify-between gap-2 rounded border border-border/70 bg-muted/20 px-2 py-1"
                               >
                                 <div className="min-w-0">
-                                  <p className="truncate text-[11px] text-foreground">{a.name}</p>
-                                  <p className="text-[10px] text-muted-foreground">
+                                  <p className="truncate text-xs text-foreground">{a.name}</p>
+                                  <p className="text-2xs text-muted-foreground">
                                     {formatAttachmentBytes(a.size || 0)}
                                   </p>
                                 </div>
@@ -2123,7 +2115,7 @@ export function CalendarEventDialog({
                                   onClick={(): void =>
                                     setEventAttachments((prev) => prev.filter((_, i) => i !== idx))
                                   }
-                                  className="text-[10px] text-muted-foreground hover:text-foreground"
+                                  className="text-2xs text-muted-foreground hover:text-foreground"
                                 >
                                   {t('common.remove')}
                                 </button>
@@ -2167,7 +2159,7 @@ export function CalendarEventDialog({
                 {initialEvent.webLink && (
                   <button
                     type="button"
-                    className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-[11px] text-muted-foreground hover:bg-secondary hover:text-foreground"
+                    className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground"
                     onClick={(): void => {
                       void openExternalUrl(initialEvent.webLink!).catch(() => undefined)
                     }}
@@ -2179,7 +2171,7 @@ export function CalendarEventDialog({
                 {initialEvent.joinUrl && (
                   <button
                     type="button"
-                    className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-[11px] text-muted-foreground hover:bg-secondary hover:text-foreground"
+                    className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground"
                     onClick={(): void => {
                       void openExternalUrl(initialEvent.joinUrl!).catch(() => undefined)
                     }}
@@ -2192,7 +2184,7 @@ export function CalendarEventDialog({
             )}
 
             {localError && (
-              <p className="py-2 text-[11px] text-destructive" role="alert">
+              <p className="py-2 text-xs text-destructive" role="alert">
                 {localError}
               </p>
             )}
@@ -2202,7 +2194,7 @@ export function CalendarEventDialog({
             <button
               type="button"
               onClick={onClose}
-              className="text-[13px] font-medium text-muted-foreground hover:text-foreground"
+              className="text-base font-medium text-muted-foreground hover:text-foreground"
             >
               {t('calendar.eventDialog.cancel')}
             </button>
@@ -2227,11 +2219,15 @@ export function CalendarEventDialog({
                           : undefined
               }
               className={cn(
-                'inline-flex min-w-[100px] items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-[13px] font-medium text-primary-foreground hover:bg-primary/90',
+                'inline-flex min-w-[100px] items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-base font-medium text-primary-foreground hover:bg-primary/90',
                 submitDisabled && 'cursor-not-allowed opacity-50'
               )}
             >
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {busy ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              ) : hasInviteAttendees ? (
+                <Send className="h-4 w-4" aria-hidden />
+              ) : null}
               {submitLabel}
             </button>
           </footer>
@@ -2243,8 +2239,12 @@ export function CalendarEventDialog({
           ref={schedulePickerRef}
           role="dialog"
           aria-label={t('calendar.eventDialog.schedulePickerAria')}
-          className="chronell-acrylic-popover fixed z-[220] w-[208px] max-w-[calc(100vw-16px)] overflow-hidden text-popover-foreground"
-          style={{ top: schedulePickerPos.top, left: schedulePickerPos.left }}
+          className="chronell-acrylic-popover fixed z-[220] max-w-[calc(100vw-16px)] overflow-hidden text-popover-foreground"
+          style={{
+            top: schedulePickerPos.top,
+            left: schedulePickerPos.left,
+            width: schedulePickerPos.width
+          }}
           onMouseDown={(ev): void => ev.stopPropagation()}
           onClick={(ev): void => ev.stopPropagation()}
         >
@@ -2258,7 +2258,7 @@ export function CalendarEventDialog({
                       type="button"
                       ref={sel ? selectedTimeOptionRef : undefined}
                       className={cn(
-                        'w-full rounded-md px-2.5 py-1.5 text-left text-[13px] tabular-nums transition-colors',
+                        'w-full rounded-md px-2.5 py-1.5 text-left text-base tabular-nums transition-colors',
                         sel
                           ? 'bg-primary/15 font-medium text-foreground'
                           : 'text-foreground hover:bg-secondary/80'
@@ -2285,37 +2285,30 @@ export function CalendarEventDialog({
           )}
 
           {schedulePicker === 'startDate' && timedDisplay ? (
-            <div className="p-2">
-              <input
-                ref={scheduleDateInputRef}
-                type="date"
+            <div className="p-1.5">
+              <ChronellDatePickerPanel
                 value={timedDisplay.startYmd}
                 disabled={eventFieldsLocked}
-                onChange={(ev): void => {
-                  const v = ev.target.value
+                onChange={(v): void => {
                   if (!v) return
                   const nextStart = mergeYmdIntoDatetimeLocal(dtStart, v)
                   setDtStart(nextStart)
                   if (new Date(dtEnd).getTime() <= new Date(nextStart).getTime()) {
                     setDtEnd(dateToDatetimeLocal(addMinutes(new Date(nextStart), 15)))
                   }
-                  closeSchedulePicker()
                 }}
-                className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
+                onPick={closeSchedulePicker}
               />
             </div>
           ) : null}
 
           {schedulePicker === 'endDate' && timedDisplay ? (
-            <div className="p-2">
-              <input
-                ref={scheduleDateInputRef}
-                type="date"
+            <div className="p-1.5">
+              <ChronellDatePickerPanel
                 value={timedDisplay.endYmd}
                 min={timedDisplay.startYmd}
                 disabled={eventFieldsLocked}
-                onChange={(ev): void => {
-                  const v = ev.target.value
+                onChange={(v): void => {
                   if (!v) return
                   const nextEnd = mergeYmdIntoDatetimeLocal(dtEnd, v)
                   if (new Date(nextEnd).getTime() <= new Date(dtStart).getTime()) {
@@ -2323,47 +2316,39 @@ export function CalendarEventDialog({
                   } else {
                     setDtEnd(nextEnd)
                   }
-                  closeSchedulePicker()
                 }}
-                className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
+                onPick={closeSchedulePicker}
               />
             </div>
           ) : null}
 
           {schedulePicker === 'dayStart' ? (
-            <div className="p-2">
-              <input
-                ref={scheduleDateInputRef}
-                type="date"
+            <div className="p-1.5">
+              <ChronellDatePickerPanel
                 value={dayStart}
                 disabled={eventFieldsLocked}
-                onChange={(ev): void => {
-                  const v = ev.target.value
+                onChange={(v): void => {
                   if (!v) return
                   setDayStart(v)
                   if (dayEnd <= v) {
                     setDayEnd(format(addDays(parseISO(`${v}T12:00:00`), 1), 'yyyy-MM-dd'))
                   }
-                  closeSchedulePicker()
                 }}
-                className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
+                onPick={closeSchedulePicker}
               />
             </div>
           ) : null}
 
           {schedulePicker === 'dayEnd' && dayStart && dayEnd ? (
-            <div className="space-y-1.5 p-2">
-              <p className="text-[10px] leading-snug text-muted-foreground">
+            <div className="space-y-1.5 p-1.5">
+              <p className="text-2xs leading-snug text-muted-foreground">
                 {t('calendar.eventDialog.allDayEndLastDayHint')}
               </p>
-              <input
-                ref={scheduleDateInputRef}
-                type="date"
+              <ChronellDatePickerPanel
                 min={dayStart}
                 value={format(addDays(parseISO(`${dayEnd}T12:00:00`), -1), 'yyyy-MM-dd')}
                 disabled={eventFieldsLocked}
-                onChange={(ev): void => {
-                  const v = ev.target.value
+                onChange={(v): void => {
                   if (!v) return
                   const excl = format(addDays(parseISO(`${v}T12:00:00`), 1), 'yyyy-MM-dd')
                   if (excl <= dayStart) {
@@ -2371,9 +2356,8 @@ export function CalendarEventDialog({
                   } else {
                     setDayEnd(excl)
                   }
-                  closeSchedulePicker()
                 }}
-                className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
+                onPick={closeSchedulePicker}
               />
             </div>
           ) : null}

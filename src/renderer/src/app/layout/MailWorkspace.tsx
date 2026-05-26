@@ -52,8 +52,8 @@ export function MailWorkspace(props: { onOpenAccountDialog: () => void }): JSX.E
   const [calendarColWidth, setCalendarColWidth] = useResizableWidth({
     storageKey: 'mailclient.inboxCalendarColumnWidth',
     defaultWidth: 348,
-    minWidth: 288,
-    maxWidth: 560
+    minWidth: 220,
+    maxWidth: 860
   })
 
   const readingPlacement = useMailWorkspaceLayoutStore((s) => s.readingPlacement)
@@ -156,7 +156,12 @@ export function MailWorkspace(props: { onOpenAccountDialog: () => void }): JSX.E
           <>
             <VerticalSplitter onDrag={onDragCalendarCol} ariaLabel={t('mail.workspace.splitterCalendar')} />
             <div style={{ width: calendarColWidth }} className="h-full shrink-0">
-              <InboxCalendarSidebar onRequestUndock={requestCalendarUndock} />
+              <InboxCalendarSidebar
+                onRequestUndock={requestCalendarUndock}
+                onRequestClose={(): void => {
+                  setCalendarOpen(false)
+                }}
+              />
             </div>
           </>
         ) : null}

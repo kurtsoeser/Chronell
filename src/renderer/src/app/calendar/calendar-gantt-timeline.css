@@ -39,7 +39,7 @@
   flex-shrink: 0;
   border-right: 1px solid hsl(var(--border) / 0.5);
   padding: 0.15rem 0.35rem;
-  font-size: 10px;
+  font-size: var(--chronell-text-2xs);
   font-weight: 600;
   color: hsl(var(--muted-foreground));
   text-align: center;
@@ -54,7 +54,7 @@
   gap: 0.05rem;
   border-right: 1px solid hsl(var(--border) / 0.45);
   padding: 0.2rem 0.15rem;
-  font-size: 11px;
+  font-size: var(--chronell-text-xs);
   color: hsl(var(--muted-foreground));
 }
 
@@ -80,7 +80,7 @@
 }
 
 .calendar-gantt-root--hour .calendar-gantt-header-col--hour .calendar-gantt-header-primary {
-  font-size: 11px;
+  font-size: var(--chronell-text-xs);
   font-weight: 600;
   color: hsl(var(--foreground));
   white-space: nowrap;
@@ -103,7 +103,7 @@
   flex-shrink: 0;
   border-right: 1px solid hsl(var(--border) / 0.45);
   padding: 0.2rem 0.25rem;
-  font-size: 11px;
+  font-size: var(--chronell-text-xs);
   font-weight: 600;
   color: hsl(var(--foreground));
   text-align: center;
@@ -123,7 +123,7 @@
 .calendar-gantt-header-col--month .calendar-gantt-header-primary {
   width: 100%;
   text-align: center;
-  font-size: 13px;
+  font-size: var(--chronell-text-md);
 }
 
 .calendar-gantt-header-col--month.calendar-gantt-header-col--today .calendar-gantt-header-primary {
@@ -138,7 +138,7 @@
 }
 
 .calendar-gantt-header-secondary {
-  font-size: 9px;
+  font-size: var(--chronell-text-3xs);
   text-transform: uppercase;
   letter-spacing: 0.02em;
 }
@@ -211,7 +211,7 @@
   left: 0.5rem;
   top: 0.65rem;
   z-index: 12;
-  font-size: 10px;
+  font-size: var(--chronell-text-2xs);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;

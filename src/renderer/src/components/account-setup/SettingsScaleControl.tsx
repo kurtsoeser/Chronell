@@ -34,7 +34,7 @@ export function SettingsScaleControl({
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-end justify-between gap-2">
-        <label htmlFor={id} className="block text-[11px] font-medium text-foreground">
+        <label htmlFor={id} className="block text-xs font-medium text-foreground">
           {label}
         </label>
         <span className="text-xs tabular-nums text-muted-foreground">{percent}%</span>
@@ -59,7 +59,7 @@ export function SettingsScaleControl({
             type="button"
             onClick={(): void => onChange(preset)}
             className={cn(
-              'rounded-md border px-2 py-0.5 text-[11px] tabular-nums transition-colors',
+              'rounded-md border px-2 py-0.5 text-xs tabular-nums transition-colors',
               Math.abs(value - preset) < step / 2
                 ? 'border-primary bg-primary/10 font-medium text-foreground'
                 : 'border-border bg-background text-muted-foreground hover:bg-secondary/60 hover:text-foreground'
@@ -71,7 +71,7 @@ export function SettingsScaleControl({
         <button
           type="button"
           onClick={onReset}
-          className="rounded-md border border-dashed border-border px-2 py-0.5 text-[11px] text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground"
+          className="rounded-md border border-dashed border-border px-2 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground"
         >
           {resetLabel}
         </button>

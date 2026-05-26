@@ -18,6 +18,7 @@ import {
   type ComposeSendResult,
   type ComposeSaveDraftInput,
   type ComposeSaveDraftResult,
+  type ComposeDisposeDraftInput,
   type UndoableActionSummary,
   type ComposeRecipientSuggestion,
   type ComposeListDriveExplorerInput,
@@ -736,6 +737,11 @@ const api = {
       ipcRenderer.invoke(IPC.mail.reorderMetaFolders, orderedIds),
     listMetaFolderMessages: (metaFolderId: number): Promise<MailListItem[]> =>
       ipcRenderer.invoke(IPC.mail.listMetaFolderMessages, metaFolderId),
+    listCategoryMessages: (args: {
+      accountId: string | null
+      category: string
+      limit?: number | null
+    }): Promise<MailListItem[]> => ipcRenderer.invoke(IPC.mail.listCategoryMessages, args),
     getMessage: (id: number): Promise<MailFull | null> =>
       ipcRenderer.invoke(IPC.mail.getMessage, id),
     listThreadMessages: (args: { accountId: string; threadKey: string }): Promise<MailFull[]> =>
@@ -899,6 +905,8 @@ const api = {
       ipcRenderer.invoke(IPC.compose.send, input),
     saveDraft: (input: ComposeSaveDraftInput): Promise<ComposeSaveDraftResult> =>
       ipcRenderer.invoke(IPC.compose.saveDraft, input),
+    disposeDraft: (input: ComposeDisposeDraftInput): Promise<void> =>
+      ipcRenderer.invoke(IPC.compose.disposeDraft, input),
     listSendFromOptions: (accountId: string): Promise<import('@shared/types').ComposeSendFromOption[]> =>
       ipcRenderer.invoke(IPC.compose.listSendFromOptions, { accountId }),
     recipientSuggestions: (args: {
@@ -977,7 +985,21 @@ const api = {
     syncAccount: (accountId: string): Promise<void> =>
       ipcRenderer.invoke(IPC.calendar.syncAccount, accountId),
     getAccountSyncStates: (): Promise<import('@shared/types').CalendarAccountSyncStateRow[]> =>
-      ipcRenderer.invoke(IPC.calendar.getAccountSyncStates)
+      ipcRenderer.invoke(IPC.calendar.getAccountSyncStates),
+    parseIcsFile: (filePath: string): Promise<import('@shared/types').CalendarParseIcsFileResult> =>
+      ipcRenderer.invoke(IPC.calendar.parseIcsFile, filePath),
+    pickIcsFile: (): Promise<
+      import('@shared/types').CalendarParseIcsFileResult | { cancelled: true }
+    > => ipcRenderer.invoke(IPC.calendar.pickIcsFile),
+    onIcsFileOpen: (handler: (payload: { filePath: string }) => void): (() => void) => {
+      const listener = (_e: IpcRendererEvent, payload: { filePath: string }): void => {
+        if (payload?.filePath?.trim()) handler({ filePath: payload.filePath.trim() })
+      }
+      ipcRenderer.on('calendar:ics-file-open', listener)
+      return (): void => {
+        ipcRenderer.off('calendar:ics-file-open', listener)
+      }
+    }
   },
   tasks: {
     listLists: (args: TasksListListsInput): Promise<TaskListRow[]> =>

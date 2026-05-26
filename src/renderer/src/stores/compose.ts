@@ -18,6 +18,8 @@ import { initialSignatureForAccount } from '@/lib/signature-templates'
 import type { ConnectionsCanvasCreateAnchor } from '@/app/connections/connections-canvas-create'
 import { useAccountsStore } from '@/stores/accounts'
 import { useMailStore } from '@/stores/mail'
+import { showAppConfirm } from '@/stores/app-dialog'
+import i18n from '@/i18n'
 
 export type ComposeMode = 'new' | 'reply' | 'replyAll' | 'forward'
 
@@ -135,6 +137,8 @@ interface ComposeState {
   send: (id: string) => Promise<void>
   /** Entwurf in den Server-Ordner «Entwürfe» schreiben (oder aktualisieren). */
   saveRemoteDraft: (id: string) => Promise<void>
+  /** Entwurf verwerfen (nach Rueckfrage; Server-Entwurf wird geloescht). Gibt true zurueck, wenn verworfen. */
+  discardDraft: (id: string) => Promise<boolean>
   /** Ein eingebetteter Entwurf fuer die Startseite (hoechstens einer). */
   ensureDashboardEmbedDraft: (accountId: string) => string
 }
@@ -520,6 +524,45 @@ export const useComposeStore = create<ComposeState>((set, get) => ({
       const msg = e instanceof Error ? e.message : String(e)
       get().update(id, { busy: false, error: msg })
     }
+  },
+
+  async discardDraft(id: string): Promise<boolean> {
+    const draft = get().drafts.find((d) => d.id === id)
+    if (!draft) return false
+
+    const hasRemote =
+      Boolean(draft.savedRemoteDraftId?.trim()) || draft.linkedMessageId != null
+
+    const ok = await showAppConfirm(
+      hasRemote
+        ? i18n.t('mail.compose.discardConfirmRemote')
+        : i18n.t('mail.compose.discardConfirmLocal'),
+      {
+        title: i18n.t('mail.compose.discardTitle'),
+        variant: 'danger',
+        confirmLabel: i18n.t('mail.compose.discardConfirm'),
+        cancelLabel: i18n.t('common.cancel')
+      }
+    )
+    if (!ok) return false
+
+    if (hasRemote) {
+      get().update(id, { busy: true, error: null })
+      try {
+        await window.mailClient.compose.disposeDraft({
+          accountId: draft.accountId,
+          remoteDraftId: draft.savedRemoteDraftId ?? undefined,
+          linkedMessageId: draft.linkedMessageId ?? undefined
+        })
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e)
+        get().update(id, { busy: false, error: msg })
+        return false
+      }
+    }
+
+    get().close(id)
+    return true
   },
 
   async send(id: string): Promise<void> {

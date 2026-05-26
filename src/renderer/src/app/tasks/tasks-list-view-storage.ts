@@ -3,6 +3,7 @@ import type {
   TaskListChronoOrder,
   TaskListFilter
 } from '@/app/tasks/task-list-arrange'
+import { readTasksSettingsPrefs } from '@/lib/tasks-settings-prefs'
 
 const KEY = 'mailclient.tasks.listView.v1'
 
@@ -12,15 +13,20 @@ export interface TasksListViewPrefsV1 {
   filter: TaskListFilter
 }
 
-const DEFAULTS: TasksListViewPrefsV1 = {
-  arrange: 'todo_bucket',
-  chrono: 'newest_on_top',
-  filter: 'all'
+function settingsDefaults(): TasksListViewPrefsV1 {
+  const s = readTasksSettingsPrefs()
+  return {
+    arrange: s.defaultArrange,
+    chrono: s.defaultChrono,
+    filter: s.defaultFilter
+  }
 }
 
 const VALID_ARRANGE = new Set<TaskListArrangeBy>([
+  'calendar_day',
   'todo_bucket',
   'due_date',
+  'item_type',
   'title',
   'account',
   'list',
@@ -33,6 +39,7 @@ const VALID_FILTER = new Set<TaskListFilter>(['all', 'open', 'completed', 'overd
 const VALID_CHRONO = new Set<TaskListChronoOrder>(['newest_on_top', 'oldest_on_top'])
 
 export function readTasksListViewPrefs(): TasksListViewPrefsV1 {
+  const DEFAULTS = settingsDefaults()
   try {
     const raw = window.localStorage.getItem(KEY)
     if (!raw) return { ...DEFAULTS }

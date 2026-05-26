@@ -152,7 +152,7 @@ export function SidebarFolderRow({
             {label}
           </span>
           {hasUnread && (
-            <span className="shrink-0 rounded-full bg-primary/15 px-1.5 text-[10px] font-semibold tabular-nums text-primary">
+            <span className="shrink-0 rounded-full bg-primary/15 px-1.5 text-2xs font-semibold tabular-nums text-primary">
               {folder.unreadCount > 999 ? '999+' : folder.unreadCount}
             </span>
           )}
@@ -273,7 +273,7 @@ export function SidebarFavoriteFolderRow({
         >
           <span className="flex-1 truncate">{label}</span>
           {folder.unreadCount > 0 && (
-            <span className="text-[10px] tabular-nums text-muted-foreground">
+            <span className="text-2xs tabular-nums text-muted-foreground">
               {folder.unreadCount}
             </span>
           )}

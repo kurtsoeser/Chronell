@@ -7,6 +7,7 @@ import type {
   TaskListRow
 } from '@shared/types'
 import { CalendarEventRecurrenceSection } from '@/app/calendar/CalendarEventRecurrenceSection'
+import { ChronellDateField } from '@/components/ChronellDateField'
 import {
   buildTaskSaveRecurrence,
   defaultWeekdayFromDueYmd,
@@ -38,7 +39,7 @@ import { ModalPanel, ModalRoot } from '@/components/motion/Modal'
 export interface CreateCloudTaskDialogProps {
   open: boolean
   onClose: () => void
-  onCreated: (task: TaskItemWithContext) => void
+  onCreated: (task: TaskItemWithContext & { source: 'cloud' }) => void
   taskAccounts: ConnectedAccount[]
   selection: TasksViewSelection | null
   loadListsForAccount: (accountId: string) => Promise<TaskListRow[]>
@@ -213,7 +214,7 @@ export function CreateCloudTaskDialog({
       }
       persistTasksCalendarCreateAccountId(accountId)
       const listName = lists.find((l) => l.id === listId)?.name ?? ''
-      onCreated({ ...row, accountId, listName })
+      onCreated({ ...row, accountId, listName, source: 'cloud' })
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -312,11 +313,9 @@ export function CreateCloudTaskDialog({
 
                 <label className="block space-y-1">
                   <span className="text-xs text-muted-foreground">{t('tasks.create.due')}</span>
-                  <input
-                    type="date"
+                  <ChronellDateField
                     value={due}
-                    onChange={(e): void => {
-                      const v = e.target.value
+                    onChange={(v): void => {
                       setDue(v)
                       if (
                         v &&

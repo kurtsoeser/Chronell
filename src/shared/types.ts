@@ -760,6 +760,25 @@ export interface CalendarSaveEventRecurrence {
   count?: number | null
 }
 
+/** Ein Termin aus einer .ics-Datei (Vorschau fuer Import-Dialog). */
+export interface CalendarIcsImportEventPreview {
+  uid: string | null
+  summary: string
+  startIso: string
+  endIso: string
+  isAllDay: boolean
+  location: string | null
+  bodyHtml: string | null
+  descriptionPlain: string | null
+}
+
+export interface CalendarParseIcsFileResult {
+  filePath: string | null
+  fileName: string | null
+  events: CalendarIcsImportEventPreview[]
+  warnings: string[]
+}
+
 /** Einfacher Termin (ohne Teams) anlegen oder aktualisieren — Microsoft Graph. */
 export interface CalendarSaveEventInput {
   accountId: string
@@ -1328,6 +1347,8 @@ export interface MetaFolderExceptionClause {
   flaggedOnly?: boolean
   hasAttachmentsOnly?: boolean
   fromContains?: string
+  /** Verknuepfung der aktiven Filter innerhalb dieser Ausnahme-Karte. */
+  matchOp?: 'and' | 'or'
 }
 
 /**
@@ -1366,10 +1387,27 @@ export interface MetaFolderCriteria {
    * Wenn leer/weggelassen: alle synchronisierten Ordner ausser Papierkorb und Junk.
    */
   scopeFolderIds?: number[]
-  /** Verknuepfung der Positiv-Filter; Standard `and`. */
+  /**
+   * Kategorie-Filter (Outlook/Graph `categories`, lokal in `message_tags` gespeichert).
+   * Wenn nicht leer: Mail muss **mindestens eine** dieser Kategorien tragen.
+   *
+   * Hinweis: Die Namen sind die sichtbaren Kategorie-Namen (nicht IDs).
+   */
+  categoriesAny?: string[]
+  /** Verknuepfung der Positiv-Filter; Standard `and`. Legacy — bevorzugt `matchExpression`. */
   matchOp?: 'and' | 'or'
+  /**
+   * Positiv-Filter (Schritt „Was?“) als verschachtelter UND/ODER-Baum mit Klammergruppen.
+   * Siehe `MetaFolderConditionGroup` in `meta-folder-match-expression.ts`.
+   */
+  matchExpression?: import('./meta-folder-match-expression').MetaFolderConditionGroup
   /** Ausnahmen (werden mit ODER verknuepft und gesamt negiert). */
   exceptions?: MetaFolderExceptionClause[]
+  /**
+   * ODER/UND zwischen den Ausnahme-Karten (danach gesamtes Ergebnis via NOT negiert).
+   * Fehlt = historisch kompatibel: 'or'
+   */
+  exceptionsMatchOp?: 'and' | 'or'
 }
 
 export interface MetaFolderSummary {
@@ -1965,6 +2003,13 @@ export interface ComposeSaveDraftInput {
 
 export interface ComposeSaveDraftResult {
   remoteDraftId: string
+}
+
+/** Server-Entwurf und lokale Kopie entfernen (Verwerfen). */
+export interface ComposeDisposeDraftInput {
+  accountId: string
+  remoteDraftId?: string | null
+  linkedMessageId?: number | null
 }
 
 /** Vorschlag fuer Empfaenger-Autocomplete (Compose). */

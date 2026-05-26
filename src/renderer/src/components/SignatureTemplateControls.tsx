@@ -148,12 +148,12 @@ export function SignatureTemplateControls({
   }
 
   const selClass = compact
-    ? 'max-w-[min(200px,46vw)] rounded border border-border bg-background px-1 py-0.5 text-[10px]'
-    : 'max-w-[min(260px,52vw)] rounded border border-border bg-background px-2 py-1 text-xs'
+    ? 'max-w-[min(200px,46vw)] rounded border border-border bg-background px-1 py-0.5 text-2xs'
+    : 'max-w-[min(260px,52vw)] rounded border border-border bg-background px-2 py-1 text-2xs'
 
   const btnClass = compact
-    ? 'inline-flex shrink-0 items-center gap-0.5 rounded border border-border bg-background px-1 py-0.5 text-[10px] text-muted-foreground hover:bg-secondary hover:text-foreground'
-    : 'inline-flex shrink-0 items-center gap-1 rounded border border-border bg-background px-2 py-1 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground'
+    ? 'inline-flex shrink-0 items-center gap-0.5 rounded border border-border bg-background px-1 py-0.5 text-2xs text-muted-foreground hover:bg-secondary hover:text-foreground'
+    : 'inline-flex shrink-0 items-center gap-1 rounded border border-border bg-background px-2 py-1 text-2xs text-muted-foreground hover:bg-secondary hover:text-foreground'
 
   const btnPrimaryClass = cn(
     btnClass,
@@ -163,7 +163,7 @@ export function SignatureTemplateControls({
   return (
     <div className={cn('flex flex-col gap-1', compact ? '' : 'gap-1.5')}>
       {activeTemplate && (
-        <p className={cn('text-muted-foreground', compact ? 'text-[9px]' : 'text-[10px]')}>
+        <p className={cn('text-muted-foreground', compact ? 'text-3xs' : 'text-2xs')}>
           Bearbeitest: <span className="font-medium text-foreground">{activeTemplate.name}</span>
         </p>
       )}
@@ -270,8 +270,8 @@ export function SignatureTemplateControls({
       {manageOpen && templates.length > 0 && (
         <ul
           className={cn(
-            'max-h-32 overflow-y-auto rounded-md bg-muted/20 p-1 text-[10px]',
-            compact ? 'text-[10px]' : 'text-xs'
+            'max-h-32 overflow-y-auto rounded-md bg-muted/20 p-1 text-2xs',
+            compact ? 'text-2xs' : 'text-xs'
           )}
         >
           {sorted.map((t) => (

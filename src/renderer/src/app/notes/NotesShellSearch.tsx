@@ -9,18 +9,19 @@ import {
 import { createPortal } from 'react-dom'
 import { ChevronDown, Loader2, Search, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import type { ConnectedAccount, NoteSection, UserNoteListItem, UserNoteKind } from '@shared/types'
+import type { ConnectedAccount, NoteSection, UserNoteListItem } from '@shared/types'
 import { NoteDisplayIcon } from '@/components/NoteDisplayIcon'
 import { noteSearchBreadcrumb, noteSearchResultTitle } from '@/lib/notes-search-breadcrumb'
 import {
   pushNotesSearchRecentId,
   readNotesSearchRecentIds
 } from '@/lib/notes-search-recent'
+import { readNotesSettingsPrefs } from '@/lib/notes-settings-prefs'
+import { noteKindsForFilter } from '@/lib/notes-settings-prefs'
 import { useSearchDropdownPortal } from '@/lib/use-search-dropdown-portal'
 import { cn } from '@/lib/utils'
 
 const SEARCH_DEBOUNCE_MS = 280
-const ALL_KINDS: UserNoteKind[] = ['mail', 'calendar', 'standalone']
 
 export function NotesShellSearch({
   sections,
@@ -91,8 +92,13 @@ export function NotesShellSearch({
     const gen = ++searchGenRef.current
     setLoading(true)
     const timer = window.setTimeout(() => {
+      const prefs = readNotesSettingsPrefs()
       void window.mailClient.notes
-        .search({ query: q, kinds: ALL_KINDS, limit: 30 })
+        .search({
+          query: q,
+          kinds: noteKindsForFilter(prefs.defaultNoteKindsFilter),
+          limit: prefs.searchResultLimit
+        })
         .then((rows) => {
           if (searchGenRef.current !== gen) return
           setResults(rows)
@@ -214,7 +220,7 @@ export function NotesShellSearch({
               className="chronell-acrylic-popover overflow-hidden text-popover-foreground"
               style={panelStyle}
             >
-          <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-1.5 text-[10px] text-muted-foreground">
+          <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-1.5 text-2xs text-muted-foreground">
             <span className="truncate">
               {query.trim().length >= 2
                 ? t('notes.shell.searchResultsScope')
@@ -231,7 +237,7 @@ export function NotesShellSearch({
             ) : null}
 
             {showRecentHeader && query.trim().length < 2 ? (
-              <div className="px-3 pb-1 pt-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+              <div className="px-3 pb-1 pt-1.5 text-2xs font-medium uppercase tracking-wide text-muted-foreground">
                 {t('notes.shell.searchRecent')}
               </div>
             ) : null}
@@ -261,7 +267,7 @@ export function NotesShellSearch({
                     <span className="block truncate font-medium text-foreground">
                       {noteSearchResultTitle(note, t('notes.shell.untitled'))}
                     </span>
-                    <span className="block truncate text-[10px] text-muted-foreground">
+                    <span className="block truncate text-2xs text-muted-foreground">
                       ({noteSearchBreadcrumb(note, sections, accounts, t)})
                     </span>
                   </span>

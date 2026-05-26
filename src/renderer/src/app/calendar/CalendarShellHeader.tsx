@@ -66,6 +66,8 @@ export interface CalendarShellHeaderProps {
   /** Kalender: neuer Termin (Erstellungsdialog). */
   onNewEventClick?: () => void
   newEventDisabled?: boolean
+  /** .ics-Datei importieren (Dateidialog). */
+  onImportIcsClick?: () => void
 }
 
 export function CalendarShellHeader(props: CalendarShellHeaderProps): JSX.Element {
@@ -97,7 +99,8 @@ export function CalendarShellHeader(props: CalendarShellHeaderProps): JSX.Elemen
     leftSidebarCollapsed,
     onLeftSidebarCollapsedChange,
     onNewEventClick,
-    newEventDisabled
+    newEventDisabled,
+    onImportIcsClick
   } = props
 
   const collatorLocale = i18n.language.startsWith('de') ? 'de' : 'en'
@@ -139,7 +142,7 @@ export function CalendarShellHeader(props: CalendarShellHeaderProps): JSX.Elemen
   return (
     <header
       className={cn(
-        'calendar-shell-column-header calendar-shell-header-responsive relative z-50 min-h-0 w-full flex-1 px-2 py-1 sm:px-3 sm:py-1.5 lg:px-4 lg:py-1.5'
+        'calendar-shell-column-header calendar-shell-header-responsive relative z-50 min-h-0 w-full px-2 py-1 sm:px-3 sm:py-1.5 lg:px-4 lg:py-1.5'
       )}
     >
       <div className="calendar-shell-header-area-side flex items-center">
@@ -177,15 +180,10 @@ export function CalendarShellHeader(props: CalendarShellHeaderProps): JSX.Elemen
             <ChevronLeft className={moduleColumnHeaderIconGlyphClass} />
           </button>
           <div className="min-w-0 max-w-full flex-1 text-center sm:max-w-[min(100%,28rem)]">
-            <h1
-              className={cn(
-                'truncate font-semibold tracking-tight text-foreground',
-                'text-[15px] leading-snug sm:text-[16px] lg:text-[18px]'
-              )}
-            >
+            <h1 className="chronell-type-calendar-range-title truncate text-foreground">
               {rangeTitle}
             </h1>
-            <p className="truncate text-[11px] text-muted-foreground sm:text-[12px]">
+            <p className="chronell-type-calendar-range-subtitle truncate text-muted-foreground">
               {t('calendar.header.weekPrefix')}{' '}
               {getWeek(weekAnchor, { weekStartsOn: 1, firstWeekContainsDate: 4 })} ·{' '}
               {format(weekAnchor, 'MMMM yyyy', { locale: dateFnsLocale })}
@@ -229,7 +227,7 @@ export function CalendarShellHeader(props: CalendarShellHeaderProps): JSX.Elemen
               onNewEventClick()
             }}
             className={cn(
-              'flex shrink-0 items-center gap-1 rounded-md bg-primary px-2 py-1 text-[11px] font-medium text-primary-foreground hover:bg-primary/90 sm:gap-1.5 sm:px-2.5 sm:text-xs',
+              'flex shrink-0 items-center gap-1 rounded-md bg-primary px-2 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90 sm:gap-1.5 sm:px-2.5 sm:text-xs',
               newEventDisabled && 'cursor-not-allowed opacity-45'
             )}
           >
@@ -243,7 +241,7 @@ export function CalendarShellHeader(props: CalendarShellHeaderProps): JSX.Elemen
         <button
           type="button"
           onClick={onCalendarToday}
-          className="shrink-0 rounded-md px-2 py-1 text-[11px] font-medium text-foreground hover:bg-secondary/80 sm:text-xs"
+          className="shrink-0 rounded-md px-2 py-1 text-xs font-medium text-foreground hover:bg-secondary/80 sm:text-xs"
         >
           {t('calendar.header.today')}
         </button>
@@ -255,7 +253,7 @@ export function CalendarShellHeader(props: CalendarShellHeaderProps): JSX.Elemen
               e.stopPropagation()
               setViewMenuOpen((o) => !o)
             }}
-            className="flex max-w-[7.5rem] items-center gap-1 rounded-md border border-border bg-secondary py-1 pl-1.5 pr-1 text-[11px] font-medium text-secondary-foreground hover:bg-secondary/80 sm:max-w-none sm:gap-1.5 sm:px-2 sm:text-xs"
+            className="flex max-w-[7.5rem] items-center gap-1 rounded-md border border-border bg-secondary py-1 pl-1.5 pr-1 text-xs font-medium text-secondary-foreground hover:bg-secondary/80 sm:max-w-none sm:gap-1.5 sm:px-2 sm:text-xs"
           >
             <span className="min-w-0 truncate">{viewIdToLabel(activeViewId, t)}</span>
             <ChevronDown className={cn(moduleColumnHeaderIconGlyphClass, 'shrink-0 text-muted-foreground')} />
@@ -311,7 +309,7 @@ export function CalendarShellHeader(props: CalendarShellHeaderProps): JSX.Elemen
               >
                 <button
                   type="button"
-                  className="flex w-full items-center justify-between px-3 py-2 text-left text-[13px] hover:bg-accent"
+                  className="flex w-full items-center justify-between px-3 py-2 text-left text-base hover:bg-accent"
                 >
                   <span>{t('calendar.header.countDays')}</span>
                   <ChevronRight className="h-4 w-4 text-muted-foreground" />
@@ -330,13 +328,13 @@ export function CalendarShellHeader(props: CalendarShellHeaderProps): JSX.Elemen
                           key={n}
                           type="button"
                           className={cn(
-                            'flex w-full items-center justify-between px-3 py-1.5 text-[13px] hover:bg-accent',
+                            'flex w-full items-center justify-between px-3 py-1.5 text-base hover:bg-accent',
                             activeViewId === `timeGrid${n}Day` && 'bg-muted'
                           )}
                           onClick={(): void => changeView(`timeGrid${n}Day`)}
                         >
                           <span>{t('calendar.header.nDaysMenu', { count: n })}</span>
-                          <span className="text-[11px] text-muted-foreground">{n}</span>
+                          <span className="text-xs text-muted-foreground">{n}</span>
                         </button>
                       )
                     )}
@@ -351,7 +349,7 @@ export function CalendarShellHeader(props: CalendarShellHeaderProps): JSX.Elemen
               >
                 <button
                   type="button"
-                  className="flex w-full items-center justify-between px-3 py-2 text-left text-[13px] hover:bg-accent"
+                  className="flex w-full items-center justify-between px-3 py-2 text-left text-base hover:bg-accent"
                 >
                   <span>{t('calendar.header.viewSettings')}</span>
                   <ChevronRight className="h-4 w-4 text-muted-foreground" />
@@ -359,23 +357,37 @@ export function CalendarShellHeader(props: CalendarShellHeaderProps): JSX.Elemen
                 {settingsSubOpen && (
                   <div
                     className={cn(
-                      'chronell-acrylic-popover absolute top-0 z-[110] flex max-h-[min(72vh,520px)] w-[min(92vw,320px)] flex-col px-3 py-2 text-[12px] leading-snug text-muted-foreground',
+                      'chronell-acrylic-popover absolute top-0 z-[110] flex max-h-[min(72vh,520px)] w-[min(92vw,320px)] flex-col px-3 py-2 text-sm leading-snug text-muted-foreground',
                       'right-full -translate-x-1 max-md:left-0 max-md:right-auto max-md:mt-1 max-md:translate-x-0',
                       'md:right-full md:translate-x-1'
                     )}
                   >
                     <p className="shrink-0">{t('calendar.header.viewSettingsBody')}</p>
+                    {onImportIcsClick != null ? (
+                      <button
+                        type="button"
+                        className="mt-2 w-full rounded-md border border-border px-2 py-1.5 text-left text-sm font-medium text-foreground hover:bg-accent"
+                        onClick={(): void => {
+                          setViewMenuOpen(false)
+                          setSettingsSubOpen(false)
+                          onImportIcsClick()
+                        }}
+                        onMouseDown={(ev): void => ev.stopPropagation()}
+                      >
+                        {t('calendar.header.importIcs')}
+                      </button>
+                    ) : null}
                     {timeGridSlotMinutes != null && onTimeGridSlotMinutesChange != null ? (
                       <div className="mt-2 shrink-0 space-y-1">
                         <label
-                          className="block text-[11px] font-semibold text-foreground"
+                          className="block text-xs font-semibold text-foreground"
                           htmlFor="cal-slot-min-select"
                         >
                           {t('calendar.header.slotDurationLabel')}
                         </label>
                         <select
                           id="cal-slot-min-select"
-                          className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-[12px] text-foreground"
+                          className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground"
                           value={timeGridSlotMinutes}
                           onChange={(ev): void => {
                             const n = Number(ev.target.value)
@@ -392,7 +404,7 @@ export function CalendarShellHeader(props: CalendarShellHeaderProps): JSX.Elemen
                             </option>
                           ))}
                         </select>
-                        <p className="text-[10px] leading-snug text-muted-foreground/90">
+                        <p className="text-2xs leading-snug text-muted-foreground/90">
                           {t('calendar.header.slotDurationShortcuts')}
                         </p>
                       </div>
@@ -400,14 +412,14 @@ export function CalendarShellHeader(props: CalendarShellHeaderProps): JSX.Elemen
                     {sidebarHiddenRestoreGroups.length > 0 ? (
                       <>
                         <div className="my-2 h-px shrink-0 bg-border" />
-                        <p className="mb-1.5 shrink-0 text-[11px] font-semibold text-foreground">
+                        <p className="mb-1.5 shrink-0 text-xs font-semibold text-foreground">
                           {t('calendar.header.sidebarHiddenSectionTitle')}
                         </p>
                         <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-0.5">
                           {sidebarHiddenRestoreGroups.map((group) => (
                             <li key={group.items[0]?.accountId ?? group.accountLabel}>
                               <p
-                                className="truncate px-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
+                                className="truncate px-0.5 text-2xs font-semibold uppercase tracking-wide text-muted-foreground"
                                 title={group.accountLabel}
                               >
                                 {group.accountLabel}
@@ -424,7 +436,7 @@ export function CalendarShellHeader(props: CalendarShellHeaderProps): JSX.Elemen
                                     >
                                       <p
                                         className={cn(
-                                          'min-w-0 flex-1 truncate text-[11px] font-medium',
+                                          'min-w-0 flex-1 truncate text-xs font-medium',
                                           e.namePending
                                             ? 'text-muted-foreground italic'
                                             : 'text-foreground'
@@ -435,7 +447,7 @@ export function CalendarShellHeader(props: CalendarShellHeaderProps): JSX.Elemen
                                       </p>
                                       <button
                                         type="button"
-                                        className="shrink-0 rounded-md bg-primary/90 px-2 py-1 text-[10px] font-medium text-primary-foreground hover:bg-primary"
+                                        className="shrink-0 rounded-md bg-primary/90 px-2 py-1 text-2xs font-medium text-primary-foreground hover:bg-primary"
                                         onClick={(ev): void => {
                                           ev.stopPropagation()
                                           onRestoreCalendarToSidebar?.(e.key)
@@ -479,7 +491,7 @@ function ViewMenuRow({
       type="button"
       onClick={onPick}
       className={cn(
-        'flex w-full items-center justify-between px-3 py-2 text-left text-[13px] hover:bg-accent',
+        'flex w-full items-center justify-between px-3 py-2 text-left text-base hover:bg-accent',
         active && 'bg-muted'
       )}
     >
@@ -488,7 +500,7 @@ function ViewMenuRow({
         {!active && <span className="w-3" />}
         {label}
       </span>
-      {hint ? <span className="text-[11px] tabular-nums text-muted-foreground">{hint}</span> : null}
+      {hint ? <span className="text-xs tabular-nums text-muted-foreground">{hint}</span> : null}
     </button>
   )
 }

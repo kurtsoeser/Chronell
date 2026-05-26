@@ -578,7 +578,7 @@ export function Topbar({ onOpenAccountDialog }: Props): JSX.Element {
         onDragEnd={onTopbarModesDragEnd}
       >
         <nav
-          className="flex h-12 min-h-12 min-w-0 flex-1 items-stretch overflow-x-auto overflow-y-hidden overscroll-x-contain py-0 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]"
+          className="flex h-12 min-h-12 min-w-0 flex-1 items-stretch overflow-x-auto overflow-y-hidden overscroll-x-contain py-0 [-webkit-overflow-scrolling:touch]"
           aria-label={t('topbar.modesAria')}
         >
           <SortableContext items={visibleModeOrder} strategy={horizontalListSortingStrategy}>

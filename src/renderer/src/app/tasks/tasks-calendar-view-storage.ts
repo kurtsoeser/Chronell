@@ -1,6 +1,6 @@
-const KEY = 'mailclient.tasks.calendar.fcView.v1'
+import { readTasksSettingsPrefs } from '@/lib/tasks-settings-prefs'
 
-const DEFAULT_VIEW = 'dayGridMonth'
+const KEY = 'mailclient.tasks.calendar.fcView.v1'
 
 const VALID = new Set([
   'dayGridMonth',
@@ -17,7 +17,8 @@ export function readTasksCalendarFcView(): string {
   } catch {
     // ignore
   }
-  return DEFAULT_VIEW
+  const fromSettings = readTasksSettingsPrefs().defaultCalendarFcView
+  return VALID.has(fromSettings) ? fromSettings : 'dayGridMonth'
 }
 
 export function persistTasksCalendarFcView(viewId: string): void {

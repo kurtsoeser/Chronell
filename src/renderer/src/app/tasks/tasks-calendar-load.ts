@@ -8,11 +8,11 @@ import {
 } from '@/app/calendar/cloud-task-calendar'
 import type { TaskListFilter } from '@/app/tasks/task-list-arrange'
 import { classifyTaskItemDueBucket } from '@/app/tasks/task-due-bucket'
-import type { TaskItemWithContext, TasksViewSelection } from '@/app/tasks/tasks-types'
+import type { CloudTaskListItem, TasksViewSelection } from '@/app/tasks/tasks-types'
 
 /** Signatur für Kalender-Layer: verhindert FullCalendar-Redraw bei unveränderten Daten. */
 export function cloudTaskCalendarDisplaySignature(
-  items: TaskItemWithContext[],
+  items: CloudTaskListItem[],
   plannedByTaskKey: ReadonlyMap<string, WorkItemPlannedSchedule>
 ): string {
   const parts = items.map((task) => {
@@ -28,7 +28,7 @@ export function cloudTaskCalendarDisplaySignature(
 export async function loadCloudTasksForAccount(
   accountId: string,
   opts?: { cacheOnly?: boolean }
-): Promise<TaskItemWithContext[]> {
+): Promise<CloudTaskListItem[]> {
   const cacheOnly = opts?.cacheOnly === true
   let lists: TaskListRow[]
   try {
@@ -36,7 +36,7 @@ export async function loadCloudTasksForAccount(
   } catch {
     return []
   }
-  const merged: TaskItemWithContext[] = []
+  const merged: CloudTaskListItem[] = []
   for (const list of lists) {
     try {
       const rows = await window.mailClient.tasks.listTasks({
@@ -47,7 +47,7 @@ export async function loadCloudTasksForAccount(
         cacheOnly
       })
       for (const row of rows) {
-        merged.push({ ...row, accountId, listName: list.name })
+        merged.push({ ...row, accountId, listName: list.name, source: 'cloud' })
       }
     } catch {
       // eine Liste ueberspringen
@@ -60,8 +60,8 @@ export async function loadCloudTasksForAccount(
 export async function loadUnifiedCloudTasks(
   taskAccounts: ConnectedAccount[],
   opts?: { cacheOnly?: boolean }
-): Promise<TaskItemWithContext[]> {
-  const merged: TaskItemWithContext[] = []
+): Promise<CloudTaskListItem[]> {
+  const merged: CloudTaskListItem[] = []
   const cacheOnly = opts?.cacheOnly === true
   for (const acc of taskAccounts) {
     let lists: TaskListRow[]
@@ -80,7 +80,7 @@ export async function loadUnifiedCloudTasks(
           cacheOnly
         })
         for (const row of rows) {
-          merged.push({ ...row, accountId: acc.id, listName: list.name })
+          merged.push({ ...row, accountId: acc.id, listName: list.name, source: 'cloud' })
         }
       } catch {
         // eine Liste ueberspringen
@@ -95,7 +95,7 @@ export async function loadCloudTasksForSelection(
   taskAccounts: ConnectedAccount[],
   listsByAccount: Record<string, TaskListRow[] | undefined>,
   loadListsForAccount: (accountId: string) => Promise<TaskListRow[]>
-): Promise<TaskItemWithContext[]> {
+): Promise<CloudTaskListItem[]> {
   if (!selection) return []
 
   if (selection.kind === 'list') {
@@ -110,11 +110,12 @@ export async function loadCloudTasksForSelection(
     return rows.map((row) => ({
       ...row,
       accountId: selection.accountId,
-      listName
+      listName,
+      source: 'cloud' as const
     }))
   }
 
-  const merged: TaskItemWithContext[] = []
+  const merged: CloudTaskListItem[] = []
   for (const acc of taskAccounts) {
     let lists = listsByAccount[acc.id]
     if (lists === undefined) {
@@ -129,7 +130,7 @@ export async function loadCloudTasksForSelection(
           showHidden: false
         })
         for (const row of rows) {
-          merged.push({ ...row, accountId: acc.id, listName: list.name })
+          merged.push({ ...row, accountId: acc.id, listName: list.name, source: 'cloud' })
         }
       } catch {
         // ein Konto/Liste ueberspringen
@@ -140,14 +141,14 @@ export async function loadCloudTasksForSelection(
 }
 
 export function filterCloudTasksInCalendarRange(
-  items: TaskItemWithContext[],
+  items: CloudTaskListItem[],
   plannedByTaskKey: ReadonlyMap<string, WorkItemPlannedSchedule>,
   rangeStart: Date,
   rangeEnd: Date,
   filter: TaskListFilter = 'all',
   timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone,
   dateMode?: CloudTaskCalendarDateMode
-): TaskItemWithContext[] {
+): CloudTaskListItem[] {
   const startMs = rangeStart.getTime()
   const endMs = rangeEnd.getTime()
   return items.filter((task) => {

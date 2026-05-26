@@ -8,6 +8,11 @@ import type {
   MetaFolderUpdateInput
 } from '@shared/types'
 import {
+  parseMatchExpressionNode,
+  serializeMatchExpression,
+  type MetaFolderConditionGroup
+} from '@shared/meta-folder-match-expression'
+import {
   listMessagesForMetaCriteria,
   metaFolderCriteriaHasActiveFilter,
   metaFolderExceptionClauseHasFilter,
@@ -26,12 +31,14 @@ interface Row {
 function parseExceptionClause(o: unknown): MetaFolderExceptionClause | null {
   if (!o || typeof o !== 'object') return null
   const r = o as Record<string, unknown>
+  const matchOp = r.matchOp === 'or' ? 'or' : r.matchOp === 'and' ? 'and' : undefined
   return {
     textQuery: typeof r.textQuery === 'string' ? r.textQuery : undefined,
     unreadOnly: r.unreadOnly === true,
     flaggedOnly: r.flaggedOnly === true,
     hasAttachmentsOnly: r.hasAttachmentsOnly === true,
-    fromContains: typeof r.fromContains === 'string' ? r.fromContains : undefined
+    fromContains: typeof r.fromContains === 'string' ? r.fromContains : undefined,
+    matchOp
   }
 }
 
@@ -50,6 +57,20 @@ function parseCriteriaJson(json: string): MetaFolderCriteria {
     const exceptionsParsed = Array.isArray(exRaw)
       ? exRaw.map(parseExceptionClause).filter((x): x is MetaFolderExceptionClause => x != null)
       : []
+    const exceptionsMatchOp =
+      o.exceptionsMatchOp === 'or' ? 'or' : o.exceptionsMatchOp === 'and' ? 'and' : undefined
+    const catsRaw = o.categoriesAny
+    const categoriesAny = Array.isArray(catsRaw)
+      ? catsRaw
+          .filter((x): x is string => typeof x === 'string')
+          .map((x) => x.trim())
+          .filter((x) => x.length > 0)
+      : undefined
+    const matchExprRaw = o.matchExpression
+    const matchExpression =
+      matchExprRaw && typeof matchExprRaw === 'object'
+        ? (parseMatchExpressionNode(matchExprRaw) as MetaFolderConditionGroup | null)
+        : null
     return {
       textQuery: typeof o.textQuery === 'string' ? o.textQuery : undefined,
       textQueryOrAlternatives: ((): string[] | undefined => {
@@ -75,8 +96,12 @@ function parseCriteriaJson(json: string): MetaFolderCriteria {
         return alts.length > 0 ? alts : undefined
       })(),
       scopeFolderIds: scopeFolderIds && scopeFolderIds.length > 0 ? scopeFolderIds : undefined,
+      categoriesAny: categoriesAny && categoriesAny.length > 0 ? categoriesAny : undefined,
       matchOp: matchOp === 'or' || matchOp === 'and' ? matchOp : undefined,
-      exceptions: exceptionsParsed.length > 0 ? exceptionsParsed : undefined
+      matchExpression:
+        matchExpression && matchExpression.kind === 'group' ? matchExpression : undefined,
+      exceptions: exceptionsParsed.length > 0 ? exceptionsParsed : undefined,
+      exceptionsMatchOp
     }
   } catch {
     return {}
@@ -90,30 +115,44 @@ function serializeCriteria(c: MetaFolderCriteria): string {
       unreadOnly: ex.unreadOnly === true ? true : undefined,
       flaggedOnly: ex.flaggedOnly === true ? true : undefined,
       hasAttachmentsOnly: ex.hasAttachmentsOnly === true ? true : undefined,
-      fromContains: ex.fromContains?.trim() ? ex.fromContains.trim() : undefined
+      fromContains: ex.fromContains?.trim() ? ex.fromContains.trim() : undefined,
+      matchOp: ex.matchOp === 'or' ? 'or' : ex.matchOp === 'and' ? 'and' : undefined
     }))
   return JSON.stringify({
-    textQuery: c.textQuery?.trim() ? c.textQuery : undefined,
-    textQueryOrAlternatives: ((): string[] | undefined => {
-      const alts = c.textQueryOrAlternatives
-        ?.map((x) => (typeof x === 'string' ? x.trim() : ''))
-        .filter((x) => x.length > 0)
-      return alts && alts.length > 0 ? alts : undefined
-    })(),
-    unreadOnly: c.unreadOnly === true ? true : undefined,
-    flaggedOnly: c.flaggedOnly === true ? true : undefined,
-    hasAttachmentsOnly: c.hasAttachmentsOnly === true ? true : undefined,
-    fromContains: c.fromContains?.trim() ? c.fromContains.trim() : undefined,
-    fromContainsOrAlternatives: ((): string[] | undefined => {
-      const alts = c.fromContainsOrAlternatives
-        ?.map((x) => (typeof x === 'string' ? x.trim() : ''))
-        .filter((x) => x.length > 0)
-      return alts && alts.length > 0 ? alts : undefined
-    })(),
     scopeFolderIds:
       c.scopeFolderIds && c.scopeFolderIds.length > 0 ? c.scopeFolderIds : undefined,
-    matchOp: c.matchOp === 'or' ? 'or' : c.matchOp === 'and' ? 'and' : undefined,
-    exceptions: exceptions && exceptions.length > 0 ? exceptions : undefined
+    ...(c.matchExpression
+      ? { matchExpression: serializeMatchExpression(c.matchExpression) }
+      : {
+          textQuery: c.textQuery?.trim() ? c.textQuery : undefined,
+          textQueryOrAlternatives: ((): string[] | undefined => {
+            const alts = c.textQueryOrAlternatives
+              ?.map((x) => (typeof x === 'string' ? x.trim() : ''))
+              .filter((x) => x.length > 0)
+            return alts && alts.length > 0 ? alts : undefined
+          })(),
+          unreadOnly: c.unreadOnly === true ? true : undefined,
+          flaggedOnly: c.flaggedOnly === true ? true : undefined,
+          hasAttachmentsOnly: c.hasAttachmentsOnly === true ? true : undefined,
+          fromContains: c.fromContains?.trim() ? c.fromContains.trim() : undefined,
+          fromContainsOrAlternatives: ((): string[] | undefined => {
+            const alts = c.fromContainsOrAlternatives
+              ?.map((x) => (typeof x === 'string' ? x.trim() : ''))
+              .filter((x) => x.length > 0)
+            return alts && alts.length > 0 ? alts : undefined
+          })(),
+          categoriesAny: ((): string[] | undefined => {
+            const cats = c.categoriesAny
+              ?.filter((x): x is string => typeof x === 'string')
+              .map((x) => x.trim())
+              .filter((x) => x.length > 0)
+            return cats && cats.length > 0 ? Array.from(new Set(cats)) : undefined
+          })(),
+          matchOp: c.matchOp === 'or' ? 'or' : c.matchOp === 'and' ? 'and' : undefined
+        }),
+    exceptions: exceptions && exceptions.length > 0 ? exceptions : undefined,
+    exceptionsMatchOp:
+      c.exceptionsMatchOp === 'or' ? 'or' : c.exceptionsMatchOp === 'and' ? 'and' : undefined
   })
 }
 
@@ -133,7 +172,7 @@ export function validateMetaFolderInput(name: string, criteria: MetaFolderCriter
   if (n.length < 1) return 'Name fehlt.'
   if (n.length > 120) return 'Name ist zu lang (max. 120 Zeichen).'
   if (!metaFolderCriteriaHasActiveFilter(criteria)) {
-    return 'Mindestens ein Filter ist erforderlich (Volltext, Ungelesen, Markiert, Anhaenge, Absender oder Ordnerauswahl).'
+    return 'Mindestens ein Filter ist erforderlich (Volltext, Ungelesen, Markiert, Anhaenge, Absender, Kategorien oder Ordnerauswahl).'
   }
   if (criteria.exceptions && criteria.exceptions.length > 0) {
     for (const ex of criteria.exceptions) {

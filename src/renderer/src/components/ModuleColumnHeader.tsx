@@ -43,10 +43,10 @@ export const moduleColumnHeaderNavSubToolbarClass =
 export const moduleColumnHeaderTitleClass = 'min-w-0 shrink-0 font-semibold text-foreground'
 
 export const moduleColumnHeaderUppercaseLabelClass =
-  'min-w-0 truncate text-[11px] font-semibold uppercase tracking-wide text-muted-foreground'
+  'chronell-type-section-label min-w-0 truncate text-muted-foreground'
 
 export const moduleColumnHeaderLabelWithIconClass =
-  'flex min-w-0 items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground'
+  'chronell-type-section-label flex min-w-0 items-center gap-1.5 text-muted-foreground'
 
 export const moduleColumnHeaderActionsClass = 'flex shrink-0 items-center gap-0.5'
 
@@ -109,10 +109,8 @@ export function ModuleColumnHeaderStackedTitle(props: {
   const { kicker, title, className } = props
   return (
     <div className={cn('flex min-h-0 min-w-0 flex-1 flex-col justify-center gap-0.5 py-0.5', className)}>
-      <div className="truncate text-[10px] font-semibold uppercase leading-none tracking-wide text-muted-foreground">
-        {kicker}
-      </div>
-      <div className="truncate font-semibold leading-tight text-foreground">{title}</div>
+      <div className="chronell-type-section-label truncate leading-none text-muted-foreground">{kicker}</div>
+      <div className="truncate text-xs font-semibold leading-tight text-foreground">{title}</div>
     </div>
   )
 }

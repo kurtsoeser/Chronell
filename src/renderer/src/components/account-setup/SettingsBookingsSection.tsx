@@ -103,7 +103,7 @@ export function SettingsBookingsSection({
           {t('settings.bookingsAccessHeading')}
         </h3>
         <p className="text-xs leading-relaxed text-muted-foreground">{t('settings.bookingsAccessIntro')}</p>
-        <ul className="list-inside list-disc space-y-0.5 text-[11px] text-muted-foreground">
+        <ul className="list-inside list-disc space-y-0.5 text-xs text-muted-foreground">
           <li>Bookings.Read.All</li>
           <li>BookingsAppointment.ReadWrite.All</li>
         </ul>
@@ -176,7 +176,7 @@ export function SettingsBookingsSection({
         <button
           type="button"
           onClick={openModulesInGeneral}
-          className="text-[11px] font-medium text-primary underline-offset-2 hover:underline"
+          className="text-xs font-medium text-primary underline-offset-2 hover:underline"
         >
           {t('settings.bookingsAllModulesLink')}
         </button>

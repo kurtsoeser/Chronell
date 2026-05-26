@@ -543,14 +543,14 @@ export function CalendarTimelinePane({
     : format(loadedStart, 'd. MMM yyyy', { locale: dfLocale })
 
   const loadLinkClass =
-    'block w-full px-3 py-2 text-center text-[11px] font-medium text-primary hover:underline disabled:cursor-not-allowed disabled:opacity-50'
+    'block w-full px-3 py-2 text-center text-xs font-medium text-primary hover:underline disabled:cursor-not-allowed disabled:opacity-50'
 
   return (
     <>
       {variant === 'dock' ? null : (
         <p
           className={cn(
-            'shrink-0 border-b px-3 py-1.5 text-[10px] text-muted-foreground',
+            'shrink-0 border-b px-3 py-1.5 text-2xs text-muted-foreground',
             listSubtleBorderClass
           )}
         >
@@ -561,7 +561,7 @@ export function CalendarTimelinePane({
       <div
         className={cn(
           'flex shrink-0 flex-wrap items-center gap-2 border-b px-2 py-1.5',
-          listSubtleBorderClass
+          variant === 'dock' ? 'border-border/30' : listSubtleBorderClass
         )}
       >
         <div className="min-w-0 flex-1">
@@ -579,7 +579,7 @@ export function CalendarTimelinePane({
           />
         </div>
         <label
-          className="flex max-w-[11rem] shrink-0 cursor-pointer items-center gap-1 text-[10px] text-muted-foreground"
+          className="flex max-w-[11rem] shrink-0 cursor-pointer items-center gap-1 text-2xs text-muted-foreground"
           title={t('mega.shell.autoDismissEndedTitle')}
         >
           <input
@@ -596,13 +596,13 @@ export function CalendarTimelinePane({
           />
           <span className="truncate">{t('mega.shell.autoDismissEnded')}</span>
         </label>
-        <label className="flex shrink-0 items-center gap-1 text-[10px] text-muted-foreground">
+        <label className="flex shrink-0 items-center gap-1 text-2xs text-muted-foreground">
           <span className="sr-only">{t('mega.shell.windowLabel')}</span>
           <select
             value={windowSize}
             disabled={loading}
             onChange={(e): void => handleWindowSizeChange(e.target.value as TimelineWindowSize)}
-            className="max-w-[7.5rem] rounded border border-border bg-background px-1.5 py-0.5 text-[10px] text-foreground"
+            className="max-w-[7.5rem] rounded border border-border bg-background px-1.5 py-0.5 text-2xs text-foreground"
             aria-label={t('mega.shell.windowLabel')}
           >
             <option value="week">{t('mega.shell.windowWeek')}</option>
@@ -610,12 +610,12 @@ export function CalendarTimelinePane({
             <option value="quarter">{t('mega.shell.windowQuarter')}</option>
           </select>
         </label>
-        <div className="ml-auto shrink-0 text-right text-[10px] text-muted-foreground">
+        <div className="ml-auto shrink-0 text-right text-2xs text-muted-foreground">
           <div>
             {visibleCount}{' '}
             {visibleCount === 1 ? t('mega.shell.item_one') : t('mega.shell.item_other')}
           </div>
-          <div className="text-[9px] opacity-80">{rangeHint}</div>
+          <div className="text-3xs opacity-80">{rangeHint}</div>
         </div>
       </div>
 

@@ -79,7 +79,7 @@ export function NotesPagesSortMenu({
         disabled={disabled}
         onClick={(): void => setOpen((o) => !o)}
         className={cn(
-          'flex w-full min-w-0 items-center gap-1.5 rounded-md border border-border px-2 py-1 text-left text-[11px] font-medium transition-colors',
+          'flex w-full min-w-0 items-center gap-1.5 rounded-md border border-border px-2 py-1 text-left text-xs font-medium transition-colors',
           disabled
             ? 'cursor-not-allowed text-muted-foreground/50'
             : 'text-foreground hover:bg-secondary/60'

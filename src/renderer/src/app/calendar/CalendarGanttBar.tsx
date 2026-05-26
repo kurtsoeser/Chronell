@@ -141,7 +141,7 @@ export function CalendarGanttBar({
     <button
       type="button"
       className={cn(
-        'calendar-gantt-bar group absolute flex min-w-[6px] items-center gap-1 overflow-hidden rounded-md border border-black/10 px-1.5 py-0.5 text-left text-[11px] font-medium shadow-sm transition-shadow',
+        'calendar-gantt-bar group absolute flex min-w-[6px] items-center gap-1 overflow-hidden rounded-md border border-black/10 px-1.5 py-0.5 text-left text-xs font-medium shadow-sm transition-shadow',
         bar.lane === 'allDay' && 'calendar-gantt-bar--all-day',
         selected && 'calendar-gantt-bar--selected z-[2]',
         editable ? 'cursor-grab active:cursor-grabbing' : 'cursor-default opacity-90'

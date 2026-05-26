@@ -58,10 +58,24 @@ import {
   type TasksListViewPrefsV1
 } from '@/app/tasks/tasks-list-view-storage'
 import {
-  taskItemKey,
-  type TaskItemWithContext,
+  isCloudTaskListItem,
+  isMailTodoListItem,
+  tasksListItemKey,
+  type CloudTaskListItem,
+  type MailTodoListItem,
+  type TasksListItem,
   type TasksViewSelection
 } from '@/app/tasks/tasks-types'
+import {
+  loadOpenMailTodosForTasksList,
+  mergeCloudAndMailTaskItems
+} from '@/app/tasks/tasks-mail-todos'
+import { mailListItemToWorkItem } from '@/app/work-items/work-item-mapper'
+import { useTasksSettingsPrefs } from '@/lib/use-tasks-settings-prefs'
+import { runTasksDueReminders } from '@/lib/tasks-due-reminders'
+import { readTasksSettingsPrefs } from '@/lib/tasks-settings-prefs'
+import { APP_PRODUCT_NAME } from '@shared/app-version'
+import { useMailStore } from '@/stores/mail'
 import {
   persistTasksViewSelection,
   readTasksViewSelection
@@ -92,6 +106,9 @@ function pickDefaultListId(rows: TaskListRow[]): string | null {
 }
 
 function initialSelection(accounts: { id: string }[]): TasksViewSelection | null {
+  if (!readTasksSettingsPrefs().rememberLastListSelection) {
+    return accounts.length > 0 ? { kind: 'unified' } : null
+  }
   const stored = readTasksViewSelection()
   if (stored) {
     if (stored.kind === 'unified') return stored
@@ -103,6 +120,8 @@ function initialSelection(accounts: { id: string }[]): TasksViewSelection | null
 
 export function TasksShell(): JSX.Element {
   const { t } = useTranslation()
+  const tasksSettings = useTasksSettingsPrefs()
+  const completeTodoForMessage = useMailStore((s) => s.completeTodoForMessage)
   const pendingTaskKey = useTasksPendingFocusStore((s) =>
     s.pendingTask
       ? `${s.pendingTask.accountId}:${s.pendingTask.listId}:${s.pendingTask.taskId}`
@@ -146,8 +165,9 @@ export function TasksShell(): JSX.Element {
   const [listTasks, setListTasks] = useState<TaskItemRow[]>([])
   const listTasksRef = useRef<TaskItemRow[]>([])
   listTasksRef.current = listTasks
-  const [unifiedTasks, setUnifiedTasks] = useState<TaskItemWithContext[]>([])
-  const unifiedTasksRef = useRef<TaskItemWithContext[]>([])
+  const [unifiedTasks, setUnifiedTasks] = useState<CloudTaskListItem[]>([])
+  const unifiedTasksRef = useRef<CloudTaskListItem[]>([])
+  const [mailTodoItems, setMailTodoItems] = useState<MailTodoListItem[]>([])
   unifiedTasksRef.current = unifiedTasks
   const [tasksLoading, setTasksLoading] = useState(false)
   const [unifiedLoading, setUnifiedLoading] = useState(false)
@@ -156,7 +176,7 @@ export function TasksShell(): JSX.Element {
   const [listViewPrefs, setListViewPrefs] = useState<TasksListViewPrefsV1>(() =>
     readTasksListViewPrefs()
   )
-  const [selected, setSelected] = useState<TaskItemWithContext | null>(null)
+  const [selected, setSelected] = useState<TasksListItem | null>(null)
   const [plannedByTaskKey, setPlannedByTaskKey] = useState<
     Map<string, WorkItemPlannedSchedule>
   >(() => new Map())
@@ -286,7 +306,7 @@ export function TasksShell(): JSX.Element {
       if (!silent) setUnifiedLoading(true)
       setTasksError(null)
       try {
-      const merged: TaskItemWithContext[] = []
+      const merged: CloudTaskListItem[] = []
       for (const acc of taskAccounts) {
         const lists = await loadListsForAccount(acc.id)
         for (const list of lists) {
@@ -302,7 +322,8 @@ export function TasksShell(): JSX.Element {
               merged.push({
                 ...row,
                 accountId: acc.id,
-                listName: list.name
+                listName: list.name,
+                source: 'cloud'
               })
             }
           } catch (e) {
@@ -331,6 +352,21 @@ export function TasksShell(): JSX.Element {
     })
     return off
   }, [isUnified, loadListTasks, loadUnifiedTasks])
+
+  useEffect(() => {
+    const mins = tasksSettings.backgroundSyncIntervalMinutes
+    if (mins <= 0) return
+    const id = window.setInterval(() => {
+      if (isUnified) void loadUnifiedTasks({ silent: true, forceRefresh: true })
+      else void loadListTasks({ silent: true, forceRefresh: true })
+    }, mins * 60_000)
+    return (): void => window.clearInterval(id)
+  }, [
+    isUnified,
+    loadListTasks,
+    loadUnifiedTasks,
+    tasksSettings.backgroundSyncIntervalMinutes
+  ])
 
   const handleSelectUnified = useCallback((): void => {
     setSelection({ kind: 'unified' })
@@ -392,7 +428,31 @@ export function TasksShell(): JSX.Element {
     [setDetailColumnWidth]
   )
 
-  const selectedKey = selected ? taskItemKey(selected) : null
+  const selectedKey = selected ? tasksListItemKey(selected) : null
+
+  const loadMailTodos = useCallback(async (): Promise<void> => {
+    if (!tasksSettings.includeMailTodosInList || !isUnified) {
+      setMailTodoItems([])
+      return
+    }
+    try {
+      const rows = await loadOpenMailTodosForTasksList(t('tasks.listArrange.mailSource'))
+      setMailTodoItems(rows)
+    } catch {
+      setMailTodoItems([])
+    }
+  }, [isUnified, tasksSettings.includeMailTodosInList, t])
+
+  useEffect(() => {
+    void loadMailTodos()
+  }, [loadMailTodos])
+
+  useEffect(() => {
+    const off = window.mailClient.events.onMailChanged(() => {
+      if (tasksSettings.includeMailTodosInList && isUnified) void loadMailTodos()
+    })
+    return off
+  }, [isUnified, loadMailTodos, tasksSettings.includeMailTodosInList])
 
   const headerTitle = useMemo(() => {
     if (isUnified) return t('tasks.shell.unifiedTitle')
@@ -400,17 +460,34 @@ export function TasksShell(): JSX.Element {
     return listsByAccount[accountId]?.find((L) => L.id === listId)?.name ?? null
   }, [isUnified, accountId, listId, listsByAccount, t])
 
-  const listItemsForSingleList: TaskItemWithContext[] = useMemo(() => {
+  const listItemsForSingleList: CloudTaskListItem[] = useMemo(() => {
     if (!accountId || !listId) return []
     const listName = listsByAccount[accountId]?.find((L) => L.id === listId)?.name ?? ''
-    return listTasks.map((row) => ({ ...row, accountId, listName }))
+    return listTasks.map((row) => ({ ...row, accountId, listName, source: 'cloud' as const }))
   }, [accountId, listId, listTasks, listsByAccount])
 
-  const displayItems = isUnified ? unifiedTasks : listItemsForSingleList
+  const displayItems: TasksListItem[] = useMemo(() => {
+    const cloud = isUnified ? unifiedTasks : listItemsForSingleList
+    if (isUnified && tasksSettings.includeMailTodosInList) {
+      return mergeCloudAndMailTaskItems(cloud, mailTodoItems)
+    }
+    return cloud
+  }, [isUnified, unifiedTasks, listItemsForSingleList, mailTodoItems, tasksSettings.includeMailTodosInList])
+
+  useEffect(() => {
+    if (!tasksSettings.dueReminderEnabled) return
+    const id = window.setInterval(() => {
+      void runTasksDueReminders(displayItems, APP_PRODUCT_NAME)
+    }, 60_000)
+    void runTasksDueReminders(displayItems, APP_PRODUCT_NAME)
+    return (): void => window.clearInterval(id)
+  }, [displayItems, tasksSettings.dueReminderEnabled])
 
   useEffect(() => {
     let cancelled = false
-    void loadPlannedScheduleMapForTasks(displayItems).then((map) => {
+    void loadPlannedScheduleMapForTasks(
+      displayItems.filter(isCloudTaskListItem)
+    ).then((map) => {
       if (!cancelled) setPlannedByTaskKey(map)
     })
     return (): void => {
@@ -420,17 +497,31 @@ export function TasksShell(): JSX.Element {
 
   const selectedWorkItem = useMemo(() => {
     if (!selected) return null
+    if (isMailTodoListItem(selected)) return mailListItemToWorkItem(selected.mail)
     return taskItemToWorkItem(selected, { plannedByTaskKey })
   }, [selected, plannedByTaskKey])
 
+  const listLayoutOpts = useMemo(
+    () => ({
+      overdueMode: tasksSettings.overdueMode,
+      noDuePlacement: tasksSettings.noDuePlacement
+    }),
+    [tasksSettings.overdueMode, tasksSettings.noDuePlacement]
+  )
+
   const filterCounts = useMemo(
-    () => taskListFilterCounts(displayItems, Intl.DateTimeFormat().resolvedOptions().timeZone),
-    [displayItems]
+    () =>
+      taskListFilterCounts(
+        displayItems,
+        Intl.DateTimeFormat().resolvedOptions().timeZone,
+        tasksSettings.overdueMode
+      ),
+    [displayItems, tasksSettings.overdueMode]
   )
 
   const visibleTaskCount = useMemo(() => {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
-    return taskListFilterCounts(displayItems, tz)[
+    return taskListFilterCounts(displayItems, tz, tasksSettings.overdueMode)[
       listViewPrefs.filter === 'all'
         ? 'all'
         : listViewPrefs.filter === 'open'
@@ -439,7 +530,7 @@ export function TasksShell(): JSX.Element {
             ? 'completed'
             : 'overdue'
     ]
-  }, [displayItems, listViewPrefs.filter])
+  }, [displayItems, listViewPrefs.filter, tasksSettings.overdueMode])
 
   const taskArrangeCtx = useMemo((): TaskListArrangeContext => {
     const accountById = new Map(taskAccounts.map((a) => [a.id, a] as const))
@@ -463,12 +554,13 @@ export function TasksShell(): JSX.Element {
       listViewPrefs.chrono,
       listViewPrefs.filter,
       taskArrangeCtx,
-      tz
+      tz,
+      listLayoutOpts
     )
-  }, [displayItems, listViewPrefs, taskArrangeCtx])
+  }, [displayItems, listViewPrefs, taskArrangeCtx, listLayoutOpts])
 
   const visibleOrderedKeys = useMemo(
-    () => visibleOrderedItems.map((item) => taskItemKey(item)),
+    () => visibleOrderedItems.map((item) => tasksListItemKey(item)),
     [visibleOrderedItems]
   )
 
@@ -478,8 +570,8 @@ export function TasksShell(): JSX.Element {
   }, [listViewPrefs.filter, listViewPrefs.arrange, listViewPrefs.chrono])
 
   const handleTaskClick = useCallback(
-    (task: TaskItemWithContext, event: MouseEvent): void => {
-      const key = taskItemKey(task)
+    (task: TasksListItem, event: MouseEvent): void => {
+      const key = tasksListItemKey(task)
       const mod = event.ctrlKey || event.metaKey
       const anchor = selectionAnchorRef.current ?? selectedKey
       if (event.shiftKey && anchor) {
@@ -513,21 +605,26 @@ export function TasksShell(): JSX.Element {
   }, [])
 
   const applyTaskRowUpdate = useCallback(
-    (next: TaskItemRow, ctx: Pick<TaskItemWithContext, 'accountId' | 'listName'>): void => {
-      const merged: TaskItemWithContext = { ...next, accountId: ctx.accountId, listName: ctx.listName }
+    (next: TaskItemRow, ctx: Pick<CloudTaskListItem, 'accountId' | 'listName'>): void => {
+      const merged: CloudTaskListItem = {
+        ...next,
+        accountId: ctx.accountId,
+        listName: ctx.listName,
+        source: 'cloud'
+      }
       if (isUnified) {
         setUnifiedTasks((prev) =>
-          prev.map((x) => (taskItemKey(x) === taskItemKey(merged) ? merged : x))
+          prev.map((x) => (tasksListItemKey(x) === tasksListItemKey(merged) ? merged : x))
         )
       } else {
         setListTasks((prev) => prev.map((x) => (x.id === next.id ? next : x)))
       }
-      setSelected((s) => (s && taskItemKey(s) === taskItemKey(merged) ? merged : s))
+      setSelected((s) => (s && tasksListItemKey(s) === tasksListItemKey(merged) ? merged : s))
     },
     [isUnified]
   )
 
-  async function patchTask(item: TaskItemWithContext, patch: { completed?: boolean }): Promise<void> {
+  async function patchTask(item: CloudTaskListItem, patch: { completed?: boolean }): Promise<void> {
     const next = await window.mailClient.tasks.patchTask({
       accountId: item.accountId,
       listId: item.listId,
@@ -538,7 +635,7 @@ export function TasksShell(): JSX.Element {
   }
 
   const patchTaskDisplay = useCallback(
-    async (item: TaskItemWithContext, patch: CloudTaskDisplayPatch): Promise<void> => {
+    async (item: CloudTaskListItem, patch: CloudTaskDisplayPatch): Promise<void> => {
       const next = await window.mailClient.tasks.patchTaskDisplay({
         accountId: item.accountId,
         listId: item.listId,
@@ -550,7 +647,21 @@ export function TasksShell(): JSX.Element {
     [applyTaskRowUpdate]
   )
 
-  async function toggleCompleted(task: TaskItemWithContext): Promise<void> {
+  async function toggleCompleted(task: TasksListItem): Promise<void> {
+    if (isMailTodoListItem(task)) {
+      try {
+        if (!task.completed) {
+          await completeTodoForMessage(task.messageId)
+        } else {
+          // Re-open mail todo: set due today via store
+          await useMailStore.getState().setTodoForMessage(task.messageId, 'today')
+        }
+        void loadMailTodos()
+      } catch {
+        void loadMailTodos()
+      }
+      return
+    }
     try {
       await patchTask(task, { completed: !task.completed })
     } catch {
@@ -561,7 +672,7 @@ export function TasksShell(): JSX.Element {
 
   const saveCloudTask = useCallback(
     async (draft: CloudTaskSaveDraft): Promise<void> => {
-      if (!selected) return
+      if (!selected || !isCloudTaskListItem(selected)) return
       setSaving(true)
       try {
         const taskKey = cloudTaskStableKey(selected.accountId, selected.listId, selected.id)
@@ -583,14 +694,15 @@ export function TasksShell(): JSX.Element {
         } else {
           await window.mailClient.tasks.clearPlannedSchedule({ taskKey })
         }
-        const ctx: TaskItemWithContext = {
+        const ctx: CloudTaskListItem = {
           ...next,
           accountId: selected.accountId,
-          listName: selected.listName
+          listName: selected.listName,
+          source: 'cloud'
         }
         if (isUnified) {
           setUnifiedTasks((prev) =>
-            prev.map((x) => (taskItemKey(x) === taskItemKey(selected) ? ctx : x))
+            prev.map((x) => (tasksListItemKey(x) === tasksListItemKey(selected) ? ctx : x))
           )
         } else {
           setListTasks((prev) => prev.map((x) => (x.id === next.id ? next : x)))
@@ -599,10 +711,10 @@ export function TasksShell(): JSX.Element {
         const planned = await loadPlannedScheduleMapForTasks(
           isUnified
             ? unifiedTasks.map((x) =>
-                taskItemKey(x) === taskItemKey(ctx) ? ctx : x
+                tasksListItemKey(x) === tasksListItemKey(ctx) ? ctx : x
               )
             : listItemsForSingleList.map((x) =>
-                taskItemKey(x) === taskItemKey(ctx) ? ctx : x
+                tasksListItemKey(x) === tasksListItemKey(ctx) ? ctx : x
               )
         )
         setPlannedByTaskKey(planned)
@@ -616,35 +728,36 @@ export function TasksShell(): JSX.Element {
   )
 
   async function deleteTasks(
-    items: TaskItemWithContext[],
+    items: TasksListItem[],
     opts?: { skipConfirm?: boolean }
   ): Promise<void> {
     if (items.length === 0) return
     if (!opts?.skipConfirm) {
       if (!(await confirmDeleteCloudTasks(t, items.length))) return
     }
-    const keys = items.map((item) => taskItemKey(item))
+    const keys = items.map((item) => tasksListItemKey(item))
     markExiting(keys, () => {
       void (async (): Promise<void> => {
         setSaving(true)
         try {
           const deletedKeys = new Set<string>()
           for (const item of items) {
+            if (isMailTodoListItem(item)) continue
             await window.mailClient.tasks.deleteTask({
               accountId: item.accountId,
               listId: item.listId,
               taskId: item.id
             })
-            deletedKeys.add(taskItemKey(item))
+            deletedKeys.add(tasksListItemKey(item))
           }
           setCheckedKeys((prev) => {
             const next = new Set(prev)
             for (const k of deletedKeys) next.delete(k)
             return next
           })
-          setSelected((s) => (s && deletedKeys.has(taskItemKey(s)) ? null : s))
+          setSelected((s) => (s && deletedKeys.has(tasksListItemKey(s)) ? null : s))
           if (isUnified) {
-            setUnifiedTasks((prev) => prev.filter((x) => !deletedKeys.has(taskItemKey(x))))
+            setUnifiedTasks((prev) => prev.filter((x) => !deletedKeys.has(tasksListItemKey(x))))
           } else {
             await loadListTasks()
           }
@@ -663,7 +776,9 @@ export function TasksShell(): JSX.Element {
   }
 
   async function deleteChecked(): Promise<void> {
-    const items = visibleOrderedItems.filter((item) => checkedKeys.has(taskItemKey(item)))
+    const items = visibleOrderedItems.filter(
+      (item) => isCloudTaskListItem(item) && checkedKeys.has(tasksListItemKey(item))
+    )
     await deleteTasks(items)
   }
 
@@ -837,7 +952,12 @@ export function TasksShell(): JSX.Element {
           ''
         const hit = rows.find((t) => t.id === pendingTask.taskId)
         if (!hit) return
-        setSelected({ ...hit, accountId: pendingTask.accountId, listName })
+        setSelected({
+          ...hit,
+          accountId: pendingTask.accountId,
+          listName,
+          source: 'cloud'
+        })
       })
       .catch(() => undefined)
   }, [pendingTaskKey, listsByAccount])
@@ -854,7 +974,7 @@ export function TasksShell(): JSX.Element {
   }, [taskAccounts.length, openCreateTaskDialog])
 
   const handleTaskCreated = useCallback(
-    (task: TaskItemWithContext): void => {
+    (task: CloudTaskListItem): void => {
       closeCreateTaskDialog()
       setSelected(task)
       handleTasksMutated()
@@ -863,9 +983,9 @@ export function TasksShell(): JSX.Element {
   )
 
   const handleInlineTaskCreated = useCallback(
-    (task: TaskItemWithContext): void => {
+    (task: TasksListItem): void => {
       setSelected(task)
-      selectionAnchorRef.current = taskItemKey(task)
+      selectionAnchorRef.current = tasksListItemKey(task)
       handleTasksMutated()
     },
     [handleTasksMutated]
@@ -921,7 +1041,7 @@ export function TasksShell(): JSX.Element {
       onCloudSave={saveCloudTask}
       onCloudDelete={deleteSelectedCloudTask}
       onCloudDisplayChange={
-        selected
+        selected && isCloudTaskListItem(selected)
           ? (patch): Promise<void> => patchTaskDisplay(selected, patch)
           : undefined
       }
@@ -1017,7 +1137,7 @@ export function TasksShell(): JSX.Element {
                     )}
                     style={bulkFlaggedPanelStyle}
                   >
-                    <div className="border-b border-border/80 px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    <div className="border-b border-border/80 px-2 py-1.5 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
                       {t('tasks.shell.bulkDeleteFlaggedSection')}
                     </div>
                     {microsoftTaskAccounts.map((acc) => {
@@ -1061,6 +1181,7 @@ export function TasksShell(): JSX.Element {
                     filter={listViewPrefs.filter}
                     chrono={listViewPrefs.chrono}
                     arrangeCtx={taskArrangeCtx}
+                    layoutOpts={listLayoutOpts}
                     showAccountHint={isUnified}
                     selectedKey={selectedKey}
                     onSelect={setSelected}
@@ -1090,14 +1211,14 @@ export function TasksShell(): JSX.Element {
                         type="button"
                         onClick={selectAllVisible}
                         disabled={displayLoading || visibleOrderedKeys.length === 0}
-                        className="shrink-0 rounded-md border border-border px-2 py-1 text-[10px] font-medium hover:bg-secondary/60 disabled:opacity-50"
+                        className="shrink-0 rounded-md border border-border px-2 py-1 text-2xs font-medium hover:bg-secondary/60 disabled:opacity-50"
                       >
                         {t('tasks.shell.selectAllVisible')}
                       </button>
                       <button
                         type="button"
                         onClick={clearChecked}
-                        className="shrink-0 rounded-md border border-border px-2 py-1 text-[10px] font-medium hover:bg-secondary/60"
+                        className="shrink-0 rounded-md border border-border px-2 py-1 text-2xs font-medium hover:bg-secondary/60"
                       >
                         {t('tasks.shell.clearSelection')}
                       </button>
@@ -1105,12 +1226,12 @@ export function TasksShell(): JSX.Element {
                         type="button"
                         onClick={(): void => void deleteChecked()}
                         disabled={saving}
-                        className="inline-flex shrink-0 items-center gap-1 rounded-md border border-destructive/40 px-2 py-1 text-[10px] font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50"
+                        className="inline-flex shrink-0 items-center gap-1 rounded-md border border-destructive/40 px-2 py-1 text-2xs font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50"
                       >
                         <Trash2 className="h-3 w-3" />
                         {t('tasks.shell.deleteSelected')}
                       </button>
-                      <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">
+                      <span className="ml-auto shrink-0 text-2xs text-muted-foreground">
                         {visibleTaskCount}{' '}
                         {visibleTaskCount === 1
                           ? t('tasks.shell.task_one')
@@ -1138,7 +1259,7 @@ export function TasksShell(): JSX.Element {
                           disabled={!selection || displayLoading}
                         />
                       </div>
-                      <span className="shrink-0 text-[10px] text-muted-foreground">
+                      <span className="shrink-0 text-2xs text-muted-foreground">
                         {visibleTaskCount}{' '}
                         {visibleTaskCount === 1
                           ? t('tasks.shell.task_one')
@@ -1171,7 +1292,8 @@ export function TasksShell(): JSX.Element {
                       onSelect={setSelected}
                       onTaskClick={handleTaskClick}
                       onToggleCompleted={(item): void => void toggleCompleted(item)}
-                      enableDrag
+                      layoutOpts={listLayoutOpts}
+                      enableDrag={tasksSettings.listDragEnabled}
                       isItemExiting={isExiting}
                       inlineCreate={{
                         selection,
@@ -1210,7 +1332,7 @@ export function TasksShell(): JSX.Element {
                     listsByAccount={listsByAccount}
                     loadListsForAccount={loadListsForAccount}
                     selectedKey={selectedKey}
-                    onSelectTask={setSelected}
+                    onSelectTask={(task): void => setSelected(task)}
                     onTasksMutated={handleTasksMutated}
                     fcView={calendarFcView}
                     onFcViewChange={setCalendarFcView}

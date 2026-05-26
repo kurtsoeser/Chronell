@@ -1,3 +1,5 @@
+import { readCalendarSettingsPrefs } from '@/lib/calendar-settings-prefs'
+
 const DISMISSED_KEY = 'mailclient.calendarEventDismissed.v1'
 const FORCE_OPEN_KEY = 'mailclient.calendarEventForceOpen.v1'
 const AUTO_DISMISS_ENDED_KEY = 'mailclient.timelineAutoDismissEndedEvents.v1'
@@ -75,10 +77,10 @@ export function setCalendarEventForceOpen(stableKey: string, forceOpen: boolean)
 export function readTimelineAutoDismissEndedEvents(): boolean {
   try {
     const raw = window.localStorage.getItem(AUTO_DISMISS_ENDED_KEY)
-    if (raw === null) return true
+    if (raw === null) return readCalendarSettingsPrefs().timelineAutoDismissEndedEvents
     return raw === '1'
   } catch {
-    return true
+    return readCalendarSettingsPrefs().timelineAutoDismissEndedEvents
   }
 }
 

@@ -10,6 +10,7 @@ import {
 } from '@dnd-kit/core'
 import {
   Loader2,
+  PanelRightOpen,
   Trash2,
   X
 } from 'lucide-react'
@@ -24,11 +25,11 @@ import {
 } from 'date-fns'
 import { de as deFns, enUS as enUSFns } from 'date-fns/locale'
 import { useTranslation } from 'react-i18next'
+import type { NoteLinksBundle } from '@shared/note-entity-links'
 import type {
   ConnectedAccount,
   NoteSection,
   UserNote,
-  UserNoteKind,
   UserNoteListItem
 } from '@shared/types'
 import type { MiniMonthSelectedRange } from '@/app/calendar/MiniMonthGrid'
@@ -40,7 +41,19 @@ import {
 } from '@/components/module-shell-layout'
 import { NotesCalendarPane } from '@/app/notes/NotesCalendarPane'
 import { NotesCalendarToolbar } from '@/app/notes/NotesCalendarToolbar'
-import { readNotesCalendarFcView } from '@/app/notes/notes-calendar-view-storage'
+import { NotesLinkedPreviewPane } from '@/app/notes/NotesLinkedPreviewPane'
+import { buildNotesPreviewLinkEntries } from '@/app/notes/notes-link-preview-items'
+import {
+  persistNotesLinkedPreviewOpen,
+  persistNotesLinkedPreviewPlacement,
+  readNotesLinkedPreviewOpen,
+  readNotesLinkedPreviewPlacement
+} from '@/app/notes/notes-shell-storage'
+import { readNotesActiveFcView } from '@/app/notes/notes-active-fc-view-storage'
+import {
+  persistNotesActiveShellView,
+  readNotesActiveShellView
+} from '@/app/notes/notes-active-shell-view-storage'
 import { EntityContextBlock } from '@/components/connections/EntityContextBlock'
 import { NotesAttachmentsPanel } from '@/app/notes/NotesAttachmentsPanel'
 import { NotesPagesPane } from '@/app/notes/NotesPagesPane'
@@ -68,7 +81,15 @@ import {
   moduleColumnHeaderTitleClass
 } from '@/components/ModuleColumnHeader'
 import { useResizableWidth, VerticalSplitter } from '@/components/ResizableSplitter'
-import { useModuleNavColumnWidth } from '@/lib/module-nav-column-width'
+import {
+  MODULE_NAV_COLUMN_LEGACY_KEYS,
+  MODULE_NAV_COLUMN_WIDTH_MAX,
+  MODULE_NAV_COLUMN_WIDTH_MIN,
+  useModuleNavColumnWidth
+} from '@/lib/module-nav-column-width'
+import { initialNotesDateRangeFromPrefs } from '@/lib/notes-initial-date-range'
+import { noteKindsForFilter } from '@/lib/notes-settings-prefs'
+import type { NotesEditorPreviewMode } from '@/lib/notes-settings-prefs'
 import {
   defaultNavSelection,
   navSelectionLabel,
@@ -94,10 +115,22 @@ import { useMailStore } from '@/stores/mail'
 import { useNotesPendingFocusStore } from '@/stores/notes-pending-focus'
 import { showAppConfirm } from '@/stores/app-dialog'
 import { useUndoStore } from '@/stores/undo'
-
-const ALL_KINDS: UserNoteKind[] = ['mail', 'calendar', 'standalone']
+import { useNotesSettingsPrefs } from '@/lib/use-notes-settings-prefs'
 
 const NOTES_DETAIL_WIDTH_KEY = 'mailclient.notesShell.detailWidth'
+const NOTES_NAV_WIDTH_KEY = 'mailclient.notesShell.navWidth.v2'
+const NOTES_PREVIEW_DOCK_WIDTH_KEY = 'mailclient.notesShell.previewDockWidth'
+
+function editorPropsFromPreviewMode(mode: NotesEditorPreviewMode, toggleTab: 'edit' | 'preview'): {
+  layout: 'live' | 'toggle'
+  preview: 'live' | 'edit' | 'preview'
+  initialToggleTab: 'edit' | 'preview'
+} {
+  if (mode === 'toggle') {
+    return { layout: 'toggle', preview: 'edit', initialToggleTab: toggleTab }
+  }
+  return { layout: 'live', preview: mode, initialToggleTab: toggleTab }
+}
 type ScheduleDraft = {
   scheduledStartIso: string | null
   scheduledEndIso: string | null
@@ -176,6 +209,7 @@ type UserNoteScheduleFieldsForSave = {
 
 export function NotesShell(): JSX.Element {
   const { t, i18n } = useTranslation()
+  const notesSettings = useNotesSettingsPrefs()
   const accounts = useAccountsStore((s) => s.accounts)
   const selectMessageWithThreadPreview = useMailStore((s) => s.selectMessageWithThreadPreview)
   const clearSelectedMessage = useMailStore((s) => s.clearSelectedMessage)
@@ -184,17 +218,21 @@ export function NotesShell(): JSX.Element {
   const takePendingNoteId = useNotesPendingFocusStore((s) => s.takePendingNoteId)
   const { isExiting: isNoteExiting, markExiting: markNoteExiting } = useExitingIds<number>()
 
+  const initialDateRange = useMemo(() => initialNotesDateRangeFromPrefs(), [])
+
   const [notes, setNotes] = useState<UserNoteListItem[]>([])
   const [loading, setLoading] = useState(false)
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
-  const [miniMonth, setMiniMonth] = useState(() => startOfMonth(new Date()))
+  const [dateFrom, setDateFrom] = useState(initialDateRange.dateFrom)
+  const [dateTo, setDateTo] = useState(initialDateRange.dateTo)
+  const [miniMonth, setMiniMonth] = useState(initialDateRange.miniMonth)
+  const scheduledOnlyFilter =
+    notesSettings.defaultDateFilterMode === 'scheduled_only'
   const [editing, setEditing] = useState<UserNote | null>(null)
   const [editTitle, setEditTitle] = useState('')
   const [editBody, setEditBody] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [shellView, setShellView] = useState<NotesShellView>('list')
+  const [shellView, setShellView] = useState<NotesShellView>(() => readNotesActiveShellView())
   const [sections, setSections] = useState<NoteSection[]>([])
   const [scheduleDraft, setScheduleDraft] = useState<ScheduleDraft | null>(null)
   const [listMode, setListMode] = useState<NotesSidebarListMode>(() => readNotesSidebarListMode())
@@ -208,16 +246,48 @@ export function NotesShell(): JSX.Element {
   )
 
   const notesCalendarRef = useRef<FullCalendar | null>(null)
-  const [calendarFcView, setCalendarFcView] = useState(() => readNotesCalendarFcView())
+  const [calendarFcView, setCalendarFcView] = useState(() => readNotesActiveFcView())
   const [calendarTitle, setCalendarTitle] = useState('')
 
-  const [navWidth, setNavWidth] = useModuleNavColumnWidth()
+  const [globalNavWidth, setGlobalNavWidth] = useModuleNavColumnWidth()
+  const [notesNavWidth, setNotesNavWidth] = useResizableWidth({
+    storageKey: NOTES_NAV_WIDTH_KEY,
+    defaultWidth: notesSettings.defaultNavColumnWidth,
+    minWidth: MODULE_NAV_COLUMN_WIDTH_MIN,
+    maxWidth: MODULE_NAV_COLUMN_WIDTH_MAX,
+    legacyStorageKeys: MODULE_NAV_COLUMN_LEGACY_KEYS
+  })
+  const navWidth = notesSettings.useGlobalModuleNavWidth ? globalNavWidth : notesNavWidth
+  const setNavWidth = notesSettings.useGlobalModuleNavWidth ? setGlobalNavWidth : setNotesNavWidth
+
+  const [linkedPreviewOpen, setLinkedPreviewOpen] = useState(() => readNotesLinkedPreviewOpen())
+  const [linkedPreviewPlacement, setLinkedPreviewPlacement] = useState(() =>
+    readNotesLinkedPreviewPlacement()
+  )
+  const [linkedPreviewKey, setLinkedPreviewKey] = useState<string | null>(null)
+  const [linksBundle, setLinksBundle] = useState<NoteLinksBundle | null>(null)
+  const [previewDockWidth, setPreviewDockWidth] = useResizableWidth({
+    storageKey: NOTES_PREVIEW_DOCK_WIDTH_KEY,
+    defaultWidth: notesSettings.defaultLinkedPreviewDockWidth,
+    minWidth: 260,
+    maxWidth: 720
+  })
+
   const [detailColumnWidth, setDetailColumnWidth] = useResizableWidth({
     storageKey: NOTES_DETAIL_WIDTH_KEY,
-    defaultWidth: 300,
+    defaultWidth: notesSettings.defaultDetailColumnWidth,
     minWidth: 220,
     maxWidth: 480
   })
+
+  const onShellViewChange = useCallback((view: NotesShellView): void => {
+    setShellView(view)
+    persistNotesActiveShellView(view)
+  }, [])
+
+  const onCalendarFcViewChange = useCallback((viewId: string): void => {
+    setCalendarFcView(viewId)
+  }, [])
   const loadSections = useCallback(async (): Promise<void> => {
     try {
       setSections(await window.mailClient.notes.sections.list())
@@ -231,12 +301,12 @@ export function NotesShell(): JSX.Element {
     setError(null)
     try {
       const result = await window.mailClient.notes.list({
-        kinds: ALL_KINDS,
+        kinds: noteKindsForFilter(notesSettings.defaultNoteKindsFilter),
         accountIds: [],
         dateFrom: dateFrom ? startOfDay(parseISO(dateFrom)).toISOString() : null,
         dateTo: dateTo ? endOfDay(parseISO(dateTo)).toISOString() : null,
-        scheduledOnly: false,
-        limit: 500
+        scheduledOnly: scheduledOnlyFilter,
+        limit: notesSettings.notesListFetchLimit
       })
       setNotes(result)
     } catch (e) {
@@ -245,7 +315,7 @@ export function NotesShell(): JSX.Element {
     } finally {
       setLoading(false)
     }
-  }, [dateFrom, dateTo])
+  }, [dateFrom, dateTo, notesSettings.defaultNoteKindsFilter, notesSettings.notesListFetchLimit, scheduledOnlyFilter])
 
   const onNotesChanged = useCallback((): void => {
     void load()
@@ -284,7 +354,47 @@ export function NotesShell(): JSX.Element {
   }, [notes, navSelection, pagesSort, t])
 
   const showSectionLabelsInPages =
-    navSelection.kind === 'sections' && navSelection.scope === 'all'
+    notesSettings.showSectionLabelsInPages ||
+    (navSelection.kind === 'sections' && navSelection.scope === 'all')
+
+  const previewEntries = useMemo(() => {
+    if (!editing || !linksBundle) return []
+    return buildNotesPreviewLinkEntries(editing, linksBundle, t)
+  }, [editing, linksBundle, t])
+
+  const editorUi = useMemo(
+    () =>
+      editorPropsFromPreviewMode(
+        notesSettings.defaultEditorPreviewMode,
+        notesSettings.defaultEditorToggleTab
+      ),
+    [notesSettings.defaultEditorPreviewMode, notesSettings.defaultEditorToggleTab]
+  )
+
+  useEffect(() => {
+    if (!editing) {
+      setLinksBundle(null)
+      setLinkedPreviewKey(null)
+      return
+    }
+    let cancelled = false
+    void window.mailClient.notes.links.list(editing.id).then((bundle) => {
+      if (!cancelled) setLinksBundle(bundle)
+    })
+    return (): void => {
+      cancelled = true
+    }
+  }, [editing?.id])
+
+  useEffect(() => {
+    if (previewEntries.length === 0) {
+      setLinkedPreviewKey(null)
+      return
+    }
+    setLinkedPreviewKey((prev) =>
+      prev && previewEntries.some((e) => e.key === prev) ? prev : (previewEntries[0]?.key ?? null)
+    )
+  }, [previewEntries])
 
   const pagesColumnTitle = useMemo(
     () => navSelectionLabel(navSelection, sections, accounts, t),
@@ -480,13 +590,27 @@ export function NotesShell(): JSX.Element {
         sectionId
       })
       clearSelectedMessage()
-      openEdit(note)
+      if (notesSettings.openNoteAfterCreate) {
+        openEdit(note)
+      } else {
+        await load()
+        await loadSections()
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
       setSaving(false)
     }
-  }, [t, clearSelectedMessage, openEdit, listMode, navSelection])
+  }, [
+    t,
+    clearSelectedMessage,
+    openEdit,
+    listMode,
+    navSelection,
+    notesSettings.openNoteAfterCreate,
+    load,
+    loadSections
+  ])
 
   useEffect(() => {
     const pending = useGlobalCreateNavigateStore.getState().takePendingAfterNavigate()
@@ -505,7 +629,13 @@ export function NotesShell(): JSX.Element {
     return (): void => window.removeEventListener(GLOBAL_CREATE_EVENT, onGlobalCreate as EventListener)
   }, [createStandalone])
 
-  async function saveEditing(): Promise<void> {
+  const isEditingDirty = useMemo(() => {
+    if (!editing) return false
+    if (scheduleDraft) return true
+    return editTitle !== (editing.title ?? '') || editBody !== editing.body
+  }, [editing, editTitle, editBody, scheduleDraft])
+
+  async function saveEditing(opts?: { silent?: boolean }): Promise<void> {
     if (!editing) return
     setSaving(true)
     setError(null)
@@ -567,8 +697,12 @@ export function NotesShell(): JSX.Element {
         throw new Error(t('notes.shell.invalidNote'))
       }
       setEditing({ ...editing, ...saved })
+      setEditTitle(saved.title ?? '')
+      setEditBody(saved.body)
       setScheduleDraft(null)
-      pushToast({ label: t('notes.editor.saved'), variant: 'success' })
+      if (!opts?.silent) {
+        pushToast({ label: t('notes.editor.saved'), variant: 'success' })
+      }
       await load()
       await loadSections()
     } catch (e) {
@@ -577,6 +711,31 @@ export function NotesShell(): JSX.Element {
       setSaving(false)
     }
   }
+
+  const autosaveRef = useRef({ dirty: false, run: async (): Promise<void> => {} })
+  autosaveRef.current = {
+    dirty: isEditingDirty,
+    run: async (): Promise<void> => {
+      if (!isEditingDirty || saving) return
+      await saveEditing({ silent: true })
+    }
+  }
+
+  useEffect(() => {
+    if (notesSettings.autosaveMode !== 'interval' || !editing) return
+    const id = window.setInterval(() => {
+      void autosaveRef.current.run()
+    }, notesSettings.autosaveIntervalSeconds * 1000)
+    return (): void => clearInterval(id)
+  }, [notesSettings.autosaveMode, notesSettings.autosaveIntervalSeconds, editing?.id])
+
+  useEffect(() => {
+    return (): void => {
+      if (notesSettings.autosaveMode !== 'on_leave') return
+      if (!autosaveRef.current.dirty) return
+      void autosaveRef.current.run()
+    }
+  }, [editing?.id, notesSettings.autosaveMode])
 
   async function deleteNote(note: UserNoteListItem): Promise<void> {
     const title = noteTitle(note, t('notes.shell.untitled'))
@@ -704,13 +863,13 @@ export function NotesShell(): JSX.Element {
           footer={
             selectedRange ? (
               <div className="flex items-center justify-between gap-2">
-                <span className="min-w-0 truncate text-[10px] text-foreground">
+                <span className="min-w-0 truncate text-2xs text-foreground">
                   {t('notes.shell.dateRangeActive', { range: dateRangeLabel })}
                 </span>
                 <button
                   type="button"
                   onClick={(): void => clearNotesDateRange(setDateFrom, setDateTo)}
-                  className="shrink-0 text-[10px] font-medium text-primary hover:underline"
+                  className="shrink-0 text-2xs font-medium text-primary hover:underline"
                 >
                   {t('notes.shell.clearDateRange')}
                 </button>
@@ -793,7 +952,26 @@ export function NotesShell(): JSX.Element {
                   accounts={accounts}
                   onOpenNote={openEdit}
                 />
-                <NotesShellViewToggle value={shellView} onChange={setShellView} />
+                <NotesShellViewToggle value={shellView} onChange={onShellViewChange} />
+                {editing && previewEntries.length > 0 ? (
+                  <ModuleColumnHeaderIconButton
+                    type="button"
+                    onClick={(): void => {
+                      const next = !linkedPreviewOpen
+                      setLinkedPreviewOpen(next)
+                      persistNotesLinkedPreviewOpen(next)
+                    }}
+                    aria-label={t('notes.preview.togglePane')}
+                    title={t('notes.preview.togglePaneShort')}
+                  >
+                    <PanelRightOpen
+                      className={cn(
+                        moduleColumnHeaderIconGlyphClass,
+                        linkedPreviewOpen && 'text-primary'
+                      )}
+                    />
+                  </ModuleColumnHeaderIconButton>
+                ) : null}
                 {editing ? (
                   <ModuleColumnHeaderIconButton
                     type="button"
@@ -870,6 +1048,8 @@ export function NotesShell(): JSX.Element {
                           }
                         : editing
                     }
+                    defaultExpanded={notesSettings.scheduleBlockExpandedDefault}
+                    defaultDurationMinutes={notesSettings.defaultScheduleDurationMinutes}
                     disabled={saving}
                     onChange={(value): void => setScheduleDraft(value)}
                   />
@@ -890,7 +1070,7 @@ export function NotesShell(): JSX.Element {
                     anchor={{ kind: 'note', noteId: editing.id }}
                     showObjectNote={false}
                     contentPaddingClass="px-0"
-                    sectionCollapsedDefault
+                    sectionCollapsedDefault={notesSettings.entityContextCollapsedDefault}
                     className="border-t border-border/60"
                   />
 
@@ -922,6 +1102,30 @@ export function NotesShell(): JSX.Element {
               </ContentCrossfade>
             )}
       </main>
+
+      {editing ? (
+        <NotesLinkedPreviewPane
+          open={linkedPreviewOpen}
+          placement={linkedPreviewPlacement}
+          onPlacementChange={(placement): void => {
+            setLinkedPreviewPlacement(placement)
+            persistNotesLinkedPreviewPlacement(placement)
+          }}
+          onClose={(): void => {
+            setLinkedPreviewOpen(false)
+            persistNotesLinkedPreviewOpen(false)
+          }}
+          entries={previewEntries}
+          selectedKey={linkedPreviewKey}
+          onSelectKey={setLinkedPreviewKey}
+          editing={editing}
+          accounts={accounts}
+          dockWidthPx={previewDockWidth}
+          onDockWidthDrag={(delta): void => setPreviewDockWidth((w) => w + delta)}
+          floatDefaultWidth={notesSettings.defaultFloatPreviewWidth}
+          floatDefaultHeight={notesSettings.defaultFloatPreviewHeight}
+        />
+      ) : null}
     </div>
   )
 
@@ -936,14 +1140,14 @@ export function NotesShell(): JSX.Element {
               accounts={accounts}
               onOpenNote={openEdit}
             />
-            <NotesShellViewToggle value={shellView} onChange={setShellView} />
+            <NotesShellViewToggle value={shellView} onChange={onShellViewChange} />
           </div>
         </header>
         <NotesCalendarToolbar
           calendarRef={notesCalendarRef}
           calendarTitle={calendarTitle}
           activeFcView={calendarFcView}
-          onActiveFcViewChange={setCalendarFcView}
+          onActiveFcViewChange={onCalendarFcViewChange}
         />
         <NotesCalendarPane
           onSelectNote={openEdit}

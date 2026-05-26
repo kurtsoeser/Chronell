@@ -218,13 +218,13 @@ export function AccountSetupCloudSyncSection(): JSX.Element {
       <p className="text-xs leading-relaxed text-muted-foreground">{t('settings.cloudSync.intro')}</p>
 
       {!configured && !loading ? (
-        <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-2 text-[11px] text-amber-200">
+        <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-2 text-xs text-amber-200">
           {t('settings.cloudSync.notConfigured')}
         </p>
       ) : null}
 
       {loading ? (
-        <p className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+        <p className="flex items-center gap-1.5 text-2xs text-muted-foreground">
           <Loader2 className="h-3 w-3 animate-spin" />
           {t('common.loading')}
         </p>
@@ -232,7 +232,7 @@ export function AccountSetupCloudSyncSection(): JSX.Element {
         <div className="space-y-3">
           {status.conflictPending ? (
             <div className="space-y-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-2">
-              <p className="text-[11px] text-amber-100">{t('settings.cloudSync.conflictHint')}</p>
+              <p className="text-xs text-amber-100">{t('settings.cloudSync.conflictHint')}</p>
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
@@ -253,17 +253,17 @@ export function AccountSetupCloudSyncSection(): JSX.Element {
               </div>
             </div>
           ) : status.conflictRemoteNewer ? (
-            <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-2 text-[11px] text-amber-100">
+            <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-2 text-xs text-amber-100">
               {t('settings.cloudSync.conflictRemoteOnly')}
             </p>
           ) : null}
           {status.syncing ? (
-            <p className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+            <p className="flex items-center gap-1.5 text-2xs text-muted-foreground">
               <Loader2 className="h-3 w-3 animate-spin" />
               {t('settings.cloudSync.syncing')}
             </p>
           ) : status.autoSyncActive ? (
-            <p className="text-[10px] text-muted-foreground">
+            <p className="text-2xs text-muted-foreground">
               {t('settings.cloudSync.autoSyncOn', {
                 minutes: Math.round(pollIntervalSeconds / 60)
               })}
@@ -274,7 +274,7 @@ export function AccountSetupCloudSyncSection(): JSX.Element {
             <div className="space-y-1">
               <label
                 htmlFor="profile-sync-poll-interval"
-                className="text-[10px] font-medium text-muted-foreground"
+                className="text-2xs font-medium text-muted-foreground"
               >
                 {t('settings.cloudSync.pollIntervalLabel')}
               </label>
@@ -293,7 +293,7 @@ export function AccountSetupCloudSyncSection(): JSX.Element {
                   </option>
                 ))}
               </select>
-              <p className="text-[10px] text-muted-foreground">
+              <p className="text-2xs text-muted-foreground">
                 {t('settings.cloudSync.pollIntervalHint')}
               </p>
             </div>
@@ -328,13 +328,13 @@ export function AccountSetupCloudSyncSection(): JSX.Element {
           </div>
 
           {status.deviceId ? (
-            <p className="text-[10px] text-muted-foreground">
+            <p className="text-2xs text-muted-foreground">
               {t('settings.cloudSync.deviceId', { id: status.deviceId.slice(0, 8) })}
             </p>
           ) : null}
 
           {signedIn && status.session ? (
-            <p className="text-[11px] text-foreground">
+            <p className="text-xs text-foreground">
               {t('settings.cloudSync.signedInAs', {
                 email: status.session.email ?? status.session.userId
               })}
@@ -343,7 +343,7 @@ export function AccountSetupCloudSyncSection(): JSX.Element {
 
           {!signedIn && dataMode === 'cloud' && configured ? (
             <div className="space-y-3 rounded-md bg-background/60 p-3">
-              <p className="text-[11px] text-muted-foreground">{t('settings.cloudSync.loginIntro')}</p>
+              <p className="text-xs text-muted-foreground">{t('settings.cloudSync.loginIntro')}</p>
               <button
                 type="button"
                 disabled={busy}
@@ -362,7 +362,7 @@ export function AccountSetupCloudSyncSection(): JSX.Element {
                 )}
                 {t('settings.cloudSync.signInMicrosoft365')}
               </button>
-              <p className="text-center text-[10px] text-muted-foreground">
+              <p className="text-center text-2xs text-muted-foreground">
                 {t('settings.cloudSync.loginDivider')}
               </p>
               <input
@@ -434,7 +434,7 @@ export function AccountSetupCloudSyncSection(): JSX.Element {
           ) : null}
 
           {status.lastPushedAt || status.lastPulledAt || status.remoteUpdatedAt ? (
-            <ul className="space-y-0.5 text-[10px] text-muted-foreground">
+            <ul className="space-y-0.5 text-2xs text-muted-foreground">
               {status.lastPulledAt ? (
                 <li>
                   {t('settings.cloudSync.lastPull', {
@@ -460,13 +460,13 @@ export function AccountSetupCloudSyncSection(): JSX.Element {
           ) : null}
 
           {status.lastError ? (
-            <p className="text-[10px] text-destructive">{status.lastError}</p>
+            <p className="text-2xs text-destructive">{status.lastError}</p>
           ) : null}
         </div>
       ) : null}
 
-      {error ? <p className="text-[11px] text-destructive">{error}</p> : null}
-      {notice ? <p className="text-[11px] text-emerald-500">{notice}</p> : null}
+      {error ? <p className="text-xs text-destructive">{error}</p> : null}
+      {notice ? <p className="text-xs text-emerald-500">{notice}</p> : null}
     </section>
   )
 }

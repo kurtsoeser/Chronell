@@ -1,5 +1,13 @@
 import { useCallback, useRef, useState } from 'react'
-import { AlertCircle, ChevronDown, Loader2, Save, Send, SquareArrowOutUpRight } from 'lucide-react'
+import {
+  AlertCircle,
+  ChevronDown,
+  Loader2,
+  Save,
+  Send,
+  SquareArrowOutUpRight,
+  Trash2
+} from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { ComposeFromField } from '@/components/ComposeFromField'
 import { ComposeMessageOptionsButton } from '@/components/ComposeMessageOptionsDialog'
@@ -9,6 +17,7 @@ import { ComposeMailBodyTile } from '@/components/ComposeMailBodyTile'
 import { composeMailBodyShellClass } from '@/lib/chronell-ui-classes'
 import { ComposeEditorThemeToggle } from '@/components/ComposeEditorThemeToggle'
 import { TipTapBody } from '@/components/TipTapBody'
+import { SignatureFooterEditor } from '@/components/SignatureFooterEditor'
 import { ComposeAttachmentsStrip } from '@/components/ComposeAttachmentsStrip'
 import { OneDriveExplorerDialog } from '@/components/OneDriveExplorerDialog'
 import { SignatureTemplateControls } from '@/components/SignatureTemplateControls'
@@ -47,6 +56,7 @@ export function ReadingPaneCompose({
   const update = useComposeStore((s) => s.update)
   const send = useComposeStore((s) => s.send)
   const saveRemoteDraft = useComposeStore((s) => s.saveRemoteDraft)
+  const discardDraft = useComposeStore((s) => s.discardDraft)
   const addAttachments = useComposeStore((s) => s.addAttachments)
   const removeAttachment = useComposeStore((s) => s.removeAttachment)
 
@@ -150,6 +160,19 @@ export function ReadingPaneCompose({
           )}
         >
           <Save className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          disabled={draft.busy}
+          title={t('mail.compose.discardAria')}
+          aria-label={t('mail.compose.discardAria')}
+          onClick={(): void => void discardDraft(draft.id)}
+          className={cn(
+            'rounded-md border border-border p-1.5 text-muted-foreground hover:bg-destructive/15 hover:text-destructive',
+            draft.busy && 'pointer-events-none opacity-50'
+          )}
+        >
+          <Trash2 className="h-3.5 w-3.5" />
         </button>
         <ComposeEditorThemeToggle />
         <ComposeMessageOptionsButton
@@ -268,11 +291,7 @@ export function ReadingPaneCompose({
               />
             </div>
             <ComposeEditorThemedPane>
-              <TipTapBody
-                inEditorSurface
-                variant="compact"
-                fillHeight={false}
-                className="border-t-0"
+              <SignatureFooterEditor
                 valueHtml={draft.signatureRichHtml}
                 onChangeHtml={(v): void => update(draft.id, { signatureRichHtml: v })}
               />

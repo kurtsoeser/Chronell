@@ -101,6 +101,8 @@ function DraggableCard({
 export interface DueBucketKanbanBoardProps {
   cards: DueBucketKanbanCardModel[]
   showDoneColumn: boolean
+  /** Spalten ausblenden (z. B. „Erledigt“). */
+  hiddenBuckets?: ReadonlySet<TodoDueKindList>
   selectedId: string | null
   renderCard: (id: string) => ReactNode
   onSelect: (id: string) => void
@@ -111,6 +113,7 @@ export interface DueBucketKanbanBoardProps {
 export function DueBucketKanbanBoard({
   cards,
   showDoneColumn,
+  hiddenBuckets,
   selectedId,
   renderCard,
   onSelect,
@@ -123,8 +126,10 @@ export function DueBucketKanbanBoard({
   const columns = useMemo((): TodoDueKindList[] => {
     const base: TodoDueKindList[] = [...OPEN_TASK_DUE_BUCKETS]
     if (showDoneColumn) base.push('done')
-    return base.sort((a, b) => rankOpenTodoBucket(a) - rankOpenTodoBucket(b))
-  }, [showDoneColumn])
+    return base
+      .filter((b) => !hiddenBuckets?.has(b))
+      .sort((a, b) => rankOpenTodoBucket(a) - rankOpenTodoBucket(b))
+  }, [showDoneColumn, hiddenBuckets])
 
   const byColumn = useMemo(() => {
     const map = new Map<TodoDueKindList, DueBucketKanbanCardModel[]>()

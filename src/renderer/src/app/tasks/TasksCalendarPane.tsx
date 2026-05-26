@@ -53,7 +53,7 @@ import {
 } from '@/app/tasks/tasks-cloud-task-dnd'
 import type { TaskListFilter } from '@/app/tasks/task-list-arrange'
 import type { CalendarCreateRange } from '@/app/tasks/tasks-calendar-create-range'
-import type { TaskItemWithContext, TasksViewSelection } from '@/app/tasks/tasks-types'
+import type { CloudTaskListItem, TasksViewSelection } from '@/app/tasks/tasks-types'
 import { cloudTaskStableKey } from '@shared/work-item-keys'
 import { useCalendarFcEventContent } from '@/app/calendar/use-calendar-fc-event-content'
 import { TASKS_CALENDAR_VIEW_ZOOM_LADDER } from '@/app/calendar/calendar-view-zoom-ladder'
@@ -88,7 +88,7 @@ export interface TasksCalendarPaneProps {
   listsByAccount: Record<string, import('@shared/types').TaskListRow[] | undefined>
   loadListsForAccount: (accountId: string) => Promise<import('@shared/types').TaskListRow[]>
   selectedKey: string | null
-  onSelectTask: (task: TaskItemWithContext) => void
+  onSelectTask: (task: CloudTaskListItem) => void
   onTasksMutated: () => void
   fcView: string
   onFcViewChange?: (viewId: string) => void
@@ -140,10 +140,10 @@ export function TasksCalendarPane({
     ladder: TASKS_CALENDAR_VIEW_ZOOM_LADDER
   })
   const lastRangeRef = useRef<{ start: Date; end: Date }>({ start: new Date(), end: new Date() })
-  const taskByKeyRef = useRef<Map<string, TaskItemWithContext>>(new Map())
+  const taskByKeyRef = useRef<Map<string, CloudTaskListItem>>(new Map())
 
-  const [allItems, setAllItems] = useState<TaskItemWithContext[]>([])
-  const [rangeItems, setRangeItems] = useState<TaskItemWithContext[]>([])
+  const [allItems, setAllItems] = useState<CloudTaskListItem[]>([])
+  const [rangeItems, setRangeItems] = useState<CloudTaskListItem[]>([])
   const [plannedByKey, setPlannedByKey] = useState(() => new Map<string, import('@shared/work-item').WorkItemPlannedSchedule>())
   const [loading, setLoading] = useState(false)
   const allItemsRef = useRef(allItems)
@@ -169,7 +169,7 @@ export function TasksCalendarPane({
     return o
   }, [])
 
-  const reloadAll = useCallback(async (): Promise<TaskItemWithContext[]> => {
+  const reloadAll = useCallback(async (): Promise<CloudTaskListItem[]> => {
     setLoading(true)
     try {
       const items = await loadCloudTasksForSelection(
@@ -181,7 +181,7 @@ export function TasksCalendarPane({
       setAllItems(items)
       const planned = await loadPlannedScheduleMapForTasks(items)
       setPlannedByKey(planned)
-      const map = new Map<string, TaskItemWithContext>()
+      const map = new Map<string, CloudTaskListItem>()
       for (const t of items) {
         map.set(cloudTaskStableKey(t.accountId, t.listId, t.id), t)
       }
@@ -198,7 +198,7 @@ export function TasksCalendarPane({
   }, [selection, taskAccounts, listsByAccount, loadListsForAccount])
 
   const applyRangeFilter = useCallback(
-    (items: TaskItemWithContext[], planned: typeof plannedByKey, start: Date, end: Date) => {
+    (items: CloudTaskListItem[], planned: typeof plannedByKey, start: Date, end: Date) => {
       setRangeItems(
         filterCloudTasksInCalendarRange(items, planned, start, end, listFilter, timeZone, dateMode)
       )
@@ -236,7 +236,7 @@ export function TasksCalendarPane({
     applyRangeFilter(allItems, plannedByKey, start, end)
   }, [dateMode, allItems, plannedByKey, applyRangeFilter])
 
-  const resolveTaskFromEvent = useCallback((taskKey: string): TaskItemWithContext | null => {
+  const resolveTaskFromEvent = useCallback((taskKey: string): CloudTaskListItem | null => {
     return taskByKeyRef.current.get(taskKey) ?? null
   }, [])
 
@@ -276,10 +276,10 @@ export function TasksCalendarPane({
         const api = calendarRef.current?.getApi()
 
         flushSync(() => {
-          setAllItems(optimistic.items)
+          setAllItems(optimistic.items as CloudTaskListItem[])
           setPlannedByKey(optimistic.plannedByKey)
           const { start, end } = lastRangeRef.current
-          applyRangeFilter(optimistic.items, optimistic.plannedByKey, start, end)
+          applyRangeFilter(optimistic.items as CloudTaskListItem[], optimistic.plannedByKey, start, end)
         })
 
         syncFullCalendarCloudTaskEventFromLayer(
@@ -312,7 +312,7 @@ export function TasksCalendarPane({
           mergedItems.push(optimisticTask)
         }
         setPlannedByKey(mergedPlanned)
-        applyRangeFilter(mergedItems, mergedPlanned, start, end)
+        applyRangeFilter(mergedItems as CloudTaskListItem[], mergedPlanned, start, end)
         syncFullCalendarCloudTaskEventFromLayer(
           calendarRef.current?.getApi(),
           optimisticTask,
@@ -497,7 +497,7 @@ export function TasksCalendarPane({
         eventContent={calendarFcEventContentRender}
         eventDidMount={(info): void => {
           if (info.event.extendedProps.calendarKind !== CALENDAR_KIND_CLOUD_TASK) return
-          const task = info.event.extendedProps.cloudTask as TaskItemWithContext | undefined
+          const task = info.event.extendedProps.cloudTask as CloudTaskListItem | undefined
           info.el.classList.toggle('fc-cal-event--completed', task?.completed === true)
           const raw = info.event.extendedProps.accountColor as string | undefined
           const bg = accountColorToCssBackground(raw)
@@ -524,7 +524,7 @@ export function TasksCalendarPane({
         eventClick={(info): void => {
           info.jsEvent.preventDefault()
           if (info.event.extendedProps.calendarKind !== CALENDAR_KIND_CLOUD_TASK) return
-          const task = info.event.extendedProps.cloudTask as TaskItemWithContext | undefined
+          const task = info.event.extendedProps.cloudTask as CloudTaskListItem | undefined
           if (task) onSelectTask(task)
         }}
         eventDrop={(info): void => {

@@ -1,0 +1,72 @@
+/**
+ * Chronell Scrollbars — zentral, app-weit (Electron/Chromium).
+ *
+ * Wichtig: In Chromium überschreiben scrollbar-width / scrollbar-color die
+ * ::-webkit-scrollbar-*-Regeln (MDN). Daher nur WebKit-Styling; kein scrollbar-width: thin.
+ *
+ * Mail-Shadow-Roots: gleiche Maße in lib/sanitize.ts (MAIL_SHADOW_SCROLLBAR_CSS).
+ */
+
+:root {
+  --chronell-scrollbar-size: 2px;
+  --chronell-scrollbar-thumb: hsl(var(--border) / 0.9);
+  --chronell-scrollbar-thumb-hover: hsl(var(--muted-foreground) / 0.5);
+  --chronell-scrollbar-track: transparent;
+}
+
+.dark {
+  --chronell-scrollbar-thumb: hsl(var(--border) / 0.75);
+  --chronell-scrollbar-thumb-hover: hsl(var(--muted-foreground) / 0.55);
+}
+
+*::-webkit-scrollbar {
+  width: var(--chronell-scrollbar-size);
+  height: var(--chronell-scrollbar-size);
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--chronell-scrollbar-track);
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--chronell-scrollbar-thumb);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--chronell-scrollbar-thumb-hover);
+}
+
+*::-webkit-scrollbar-corner {
+  background: var(--chronell-scrollbar-track);
+}
+
+/* FullCalendar-Zeitraster / Ganztägig */
+.fc-scroller::-webkit-scrollbar {
+  width: var(--chronell-scrollbar-size);
+  height: var(--chronell-scrollbar-size);
+}
+
+.fc-scroller::-webkit-scrollbar-track {
+  background: var(--chronell-scrollbar-track);
+}
+
+.fc-scroller::-webkit-scrollbar-thumb {
+  background: var(--chronell-scrollbar-thumb);
+  border-radius: 999px;
+}
+
+.fc-scroller::-webkit-scrollbar-thumb:hover {
+  background: var(--chronell-scrollbar-thumb-hover);
+}
+
+/* Gantt-Timeline */
+.calendar-gantt-scroll::-webkit-scrollbar {
+  width: var(--chronell-scrollbar-size);
+  height: var(--chronell-scrollbar-size);
+}
+
+.calendar-gantt-scroll::-webkit-scrollbar-thumb {
+  background: var(--chronell-scrollbar-thumb);
+  border-radius: 999px;
+}

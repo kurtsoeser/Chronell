@@ -212,7 +212,7 @@ export function AccountSetupBackupSection({
         {t('settings.backupHeading')}
       </h3>
       <p className="text-xs leading-relaxed text-muted-foreground">{t('settings.backupIntro')}</p>
-      <p className="text-[11px] leading-relaxed text-muted-foreground">
+      <p className="text-xs leading-relaxed text-muted-foreground">
         {t('settings.backupAiConnectionsNote')}
       </p>
 
@@ -273,7 +273,7 @@ export function AccountSetupBackupSection({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <p className="text-xs font-medium text-foreground">{t('settings.autoBackup.heading')}</p>
-            <p className="text-[10px] leading-relaxed text-muted-foreground">
+            <p className="text-2xs leading-relaxed text-muted-foreground">
               {t('settings.autoBackup.intro')}
             </p>
           </div>
@@ -294,7 +294,7 @@ export function AccountSetupBackupSection({
             type="button"
             onClick={(): void => void handlePickAutoBackupFolder()}
             disabled={autoDisabled}
-            className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-[11px] font-medium hover:bg-secondary"
+            className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs font-medium hover:bg-secondary"
           >
             <FolderOpen className="h-3 w-3" />
             {t('settings.autoBackup.pickFolder')}
@@ -303,7 +303,7 @@ export function AccountSetupBackupSection({
             type="button"
             onClick={(): void => void handleRunAutoBackupNow()}
             disabled={autoDisabled || !autoBackup?.directory}
-            className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-[11px] font-medium hover:bg-secondary"
+            className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs font-medium hover:bg-secondary"
           >
             {autoBackupBusy ? (
               <Loader2 className="h-3 w-3 animate-spin" />
@@ -315,19 +315,19 @@ export function AccountSetupBackupSection({
         </div>
 
         {autoBackup?.directory ? (
-          <p className="truncate font-mono text-[10px] text-muted-foreground" title={autoBackup.directory}>
+          <p className="truncate font-mono text-2xs text-muted-foreground" title={autoBackup.directory}>
             {t('settings.autoBackup.folderPath', { path: autoBackup.directory })}
           </p>
         ) : null}
         {autoBackup?.lastAt ? (
-          <p className="text-[10px] text-muted-foreground">
+          <p className="text-2xs text-muted-foreground">
             {t('settings.autoBackup.lastRun', {
               when: new Date(autoBackup.lastAt).toLocaleString()
             })}
           </p>
         ) : null}
         {autoBackup?.lastError ? (
-          <p className="text-[10px] text-red-600 dark:text-red-400">{autoBackup.lastError}</p>
+          <p className="text-2xs text-red-600 dark:text-red-400">{autoBackup.lastError}</p>
         ) : null}
       </div>
 

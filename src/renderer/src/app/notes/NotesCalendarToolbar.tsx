@@ -4,7 +4,7 @@ import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { MAX_TIME_GRID_SPAN_DAYS, viewIdToLabel } from '@/app/calendar/calendar-shell-view-helpers'
-import { persistNotesCalendarFcView } from '@/app/notes/notes-calendar-view-storage'
+import { persistNotesActiveFcView } from '@/app/notes/notes-active-fc-view-storage'
 import { moduleColumnHeaderDockBarRowClass } from '@/components/ModuleColumnHeader'
 
 const VIEW_OPTIONS = [
@@ -41,7 +41,7 @@ export function NotesCalendarToolbar({
   }, [viewMenuOpen])
 
   const changeView = (viewId: string): void => {
-    persistNotesCalendarFcView(viewId)
+    persistNotesActiveFcView(viewId)
     onActiveFcViewChange(viewId)
     calendarRef.current?.getApi()?.changeView(viewId)
     setViewMenuOpen(false)
@@ -61,7 +61,7 @@ export function NotesCalendarToolbar({
         <button
           type="button"
           onClick={(): void => calendarRef.current?.getApi()?.today()}
-          className="rounded px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
+          className="rounded px-2 py-0.5 text-2xs font-medium text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
         >
           {t('tasks.shell.calendarToday')}
         </button>
@@ -73,13 +73,15 @@ export function NotesCalendarToolbar({
         >
           <ChevronRight className="h-4 w-4" />
         </button>
-        <span className="min-w-0 truncate font-semibold text-foreground">{calendarTitle}</span>
+        <span className="chronell-type-calendar-range-title min-w-0 truncate text-foreground">
+          {calendarTitle}
+        </span>
       </div>
       <div className="relative shrink-0" ref={viewMenuRef}>
         <button
           type="button"
           onClick={(): void => setViewMenuOpen((o) => !o)}
-          className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[10px] font-medium hover:bg-secondary/60"
+          className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-2xs font-medium hover:bg-secondary/60"
         >
           {viewIdToLabel(activeFcView, t)}
           <ChevronDown className={cn('h-3 w-3', viewMenuOpen && 'rotate-180')} />
