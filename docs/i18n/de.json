@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Chronell — Manage deine Zeit, nicht deine Inbox",
-    "description": "Chronell 0.9.22: Neues Branding, Oberflächen-Zoom, M365-Gruppenkalender — Desktop-Arbeitszentrale für Windows 11 mit Microsoft 365 und Google."
+    "description": "Chronell 0.9.23: ICS-Import, visuelle Meta-Ordner, polierte Aufgaben- und Notizen-Module — Desktop-Arbeitszentrale für Windows 11 mit Microsoft 365 und Google."
   },
   "nav": {
     "method": "Die Methode",
@@ -27,7 +27,7 @@
     "taglineLine2Accent": "Inbox",
     "taglineLine2Suffix": "",
     "positioning": "Chronell ist kein E-Mail-Client. Es ist ein System für deine Zeit.",
-    "subline": "Microsoft 365 und Google in einer Desktop-Arbeitszentrale — neues Chronell-Branding auf chronell.app, Oberflächen-Zoom, Gruppenkalender, Mail-Mehrfachauswahl und Verbindungs-Graph. Für Windows 11.",
+    "subline": "Microsoft 365 und Google in einer Desktop-Arbeitszentrale — ICS-Kalender-Import, visuelle Meta-Ordner, polierte Aufgaben- und Notizen-Module, Mail-Mehrfachauswahl und Verbindungs-Graph. Für Windows 11.",
     "ctaDownload": "Für Windows herunterladen",
     "ctaMethod": "Methode entdecken",
     "mockup": {
@@ -178,8 +178,16 @@
     "eyebrow": "Release-Überblick",
     "title": "Was in den letzten Updates passiert ist",
     "lead": "Vom neuen Fluent-Look über den Verbindungs-Graph bis zum Profil-Sync — Chronell wächst schnell, ohne deine Mails in die Cloud zu legen.",
-    "v0922": {
+    "v0923": {
       "badge": "Aktuell",
+      "date": "Mai 2026",
+      "title": "ICS-Import, Meta-Ordner & Module poliert",
+      "b1": "Kalender: .ics-Dateien per Drag & Drop oder Dialog in Microsoft-365- und Google-Kalender importieren — einzeln oder mehrere Termine auf einmal",
+      "b2": "Meta-Ordner: visueller Regel-Editor mit Ausdrucks-Builder statt nur Text — Regeln schneller verstehen und pflegen",
+      "b3": "Einstellungen: eigene Panels für Kalender, Aufgaben und Notizen; einheitlicher Datums-Picker in Terminen, Tasks und Notizen",
+      "b4": "Aufgaben & Notizen: überarbeitete Shells mit Kanban/Liste und Fälligkeits-Buckets; Typografie, Scrollbars und Zoom-Shortcuts weiter verfeinert"
+    },
+    "v0922": {
       "date": "Mai 2026",
       "title": "Branding, Zoom & Gruppenkalender",
       "b1": "Neues Chronell-Icon und Logo in App, Taskleiste und auf chronell.app — einheitliches Erscheinungsbild",
@@ -244,34 +252,34 @@
   "highlights": {
     "eyebrow": "Neu ausprobieren",
     "title": "Vier Schwerpunkte der aktuellen Beta",
-    "lead": "Version 0.9.22 bringt neues Branding auf chronell.app, zuverlässigen Oberflächen-Zoom und stabilere M365-Gruppenkalender — auf Mail-Mehrfachauswahl, Termin-Serien und Cloud-Sync aufbauend.",
+    "lead": "Version 0.9.23 bringt ICS-Kalender-Import, einen visuellen Meta-Ordner-Editor und deutlich polierte Aufgaben-, Notizen- und Einstellungs-Module — auf Branding, Zoom und Gruppenkalendern aufbauend.",
     "compose": {
-      "title": "Neues Erscheinungsbild",
-      "desc": "Chronell mit frischem Icon und Logo — in der App, in der Taskleiste und auf der Website.",
-      "b1": "Einheitliches Branding von Desktop bis chronell.app",
-      "b2": "Aktualisierte App-Icons für Windows-Build und Installer",
-      "b3": "Homepage mit interaktiver Modul-Demo und verfeinerten Mockups"
+      "title": "ICS-Kalender-Import",
+      "desc": "Termine aus .ics-Dateien direkt in deine verbundenen Kalender — ohne Outlook-Web oder manuelles Copy-Paste.",
+      "b1": "Drag & Drop von .ics auf den Kalender oder Import über den Dialog",
+      "b2": "Einzelne oder mehrere Termine wählen und in M365- oder Google-Kalender anlegen",
+      "b3": "Ideal für Einladungen, Reisepläne und externe Kalender-Exporte"
     },
     "connections": {
-      "title": "Gruppenkalender M365",
-      "desc": "Microsoft-365-Gruppenkalender zuverlässiger laden — auch in komplexen Tenant-Setups.",
-      "b1": "Transitive Mitgliedschaft mit Fallback auf direkte Gruppen",
-      "b2": "Klarere Fehlermeldungen, wenn GroupMember.Read.All fehlt",
-      "b3": "Kalender-Farben und Termine aus Gruppenpostfächern in einer Woche"
+      "title": "Meta-Ordner visuell",
+      "desc": "Virtuelle Postfächer per Regeln — jetzt mit grafischem Ausdrucks-Editor statt nur Text.",
+      "b1": "Regeln als Baum: UND/ODER, Felder, Operatoren auf einen Blick",
+      "b2": "Schneller anlegen, ändern und verstehen — auch bei komplexen Filtern",
+      "b3": "Weiterhin kontenübergreifend und lokal in SQLite"
     },
     "ai": {
-      "title": "Oberflächen-Zoom",
-      "desc": "Die gesamte Oberfläche skalieren — getrennt vom Zoom der Mail-Vorschau.",
-      "b1": "Strg+Umschalt+Plus/Minus/0 auch auf deutscher Tastatur",
-      "b2": "Shortcuts werden im Main-Prozess abgefangen und an den Renderer weitergeleitet",
-      "b3": "Presets und Hinweise in Einstellungen → Tastenkürzel"
+      "title": "Aufgaben & Notizen",
+      "desc": "Die Module für geplante Arbeit und Gedanken — Shell, Listen und Kalenderansicht überarbeitet.",
+      "b1": "Aufgaben: Kanban und gruppierte Liste mit Fälligkeits-Buckets und Mail-ToDos",
+      "b2": "Notizen: verbesserte Seitenleiste, Kalender- und Listenansicht, Verknüpfungen im Kontext",
+      "b3": "Ein Fenster: von der Mail zur Aufgabe, von der Notiz zum Termin"
     },
     "cloudSync": {
-      "title": "Mail-Triage & Serien",
-      "desc": "Aus 0.9.21: Mehrere Mails auf einmal bearbeiten und Termine mit Wiederholung planen.",
-      "b1": "Mail-Mehrfachauswahl: Archivieren, ToDo, Snooze für die gesamte Auswahl",
-      "b2": "Termin-Dialog mit Serien für Kalender und Cloud-Tasks",
-      "b3": "Auto-Backup und Cloud-Sync für dein Profil — ohne Mail-Inhalte in der Cloud"
+      "title": "Einstellungen & UI",
+      "desc": "Kalender-, Aufgaben- und Notizen-Einstellungen in eigenen Panels — plus durchgängiger Datums-Picker.",
+      "b1": "Einstellungen → Kalender / Aufgaben / Notizen mit Modul-spezifischen Optionen",
+      "b2": "Einheitlicher Chronell-Datums-Picker in Terminen, Tasks und Notizen",
+      "b3": "Typografie, Scrollbars und Zoom-Shortcuts weiter verfeinert — aus 0.9.22: Branding & Gruppenkalender"
     }
   },
   "showcase": {
@@ -454,12 +462,12 @@
     "privacy": "Datenschutz"
   },
   "whatsNew": {
-    "label": "Version 0.9.22",
-    "tagline": "Neues Branding · Oberflächen-Zoom · Gruppenkalender · chronell.app"
+    "label": "Version 0.9.23",
+    "tagline": "ICS-Import · Meta-Ordner · Module poliert · Einstellungen"
   },
   "cta": {
     "title": "Bereit für das neue Chronell?",
-    "body": "Lade Version 0.9.22 für Windows 11 — neues Branding, Oberflächen-Zoom, M365-Gruppenkalender, Mail-Mehrfachauswahl, Termine mit Serien und optional Cloud-Sync. Updates ersetzen deine Version ohne Datenverlust.",
+    "body": "Lade Version 0.9.23 für Windows 11 — ICS-Kalender-Import, visuelle Meta-Ordner, polierte Aufgaben- und Notizen-Module, Mail-Mehrfachauswahl, Termine mit Serien und optional Cloud-Sync. Updates ersetzen deine Version ohne Datenverlust.",
     "button": "Jetzt herunterladen"
   }
 }

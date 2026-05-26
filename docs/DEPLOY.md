@@ -28,7 +28,7 @@ Technischer GitHub-Pages-Pfad (leitet nach Domain-Einrichtung auf `chronell.app`
 
 Alle Download-Buttons verweisen auf **GitHub Releases** (`githubDownloadUrl` in `release/latest.json`), z. B.:
 
-`https://github.com/kurtsoeser/Chronell/releases/download/v0.9.22/Chronell-0.9.22-setup.exe`
+`https://github.com/kurtsoeser/Chronell/releases/download/v0.9.23/Chronell-0.9.23-setup.exe`
 
 Die Seite lädt `docs/js/site.js`, das `latest.json` auswertet und den Link setzt. GitHub Pages (`release/latest/Chronell-setup.exe`) ist nur Fallback — mit **Git LFS** im Repo liefert Pages keinen echten Installer.
 

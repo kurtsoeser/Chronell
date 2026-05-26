@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Chronell — Manage your time, not your inbox",
-    "description": "Chronell 0.9.22: New branding, UI zoom, M365 group calendars — desktop work hub for Windows 11 with Microsoft 365 and Google."
+    "description": "Chronell 0.9.23: ICS import, visual meta folders, polished tasks & notes modules — desktop work hub for Windows 11 with Microsoft 365 and Google."
   },
   "nav": {
     "method": "The Method",
@@ -27,7 +27,7 @@
     "taglineLine2Accent": "inbox",
     "taglineLine2Suffix": ".",
     "positioning": "Chronell is not an email client. It's a system to manage your time.",
-    "subline": "Microsoft 365 and Google in one desktop workspace — new Chronell branding on chronell.app, UI zoom, group calendars, mail bulk selection, and connection graph. Built for Windows 11.",
+    "subline": "Microsoft 365 and Google in one desktop workspace — ICS calendar import, visual meta folders, polished tasks and notes modules, mail bulk selection, and connection graph. Built for Windows 11.",
     "ctaDownload": "Download for Windows",
     "ctaMethod": "Discover the method",
     "mockup": {
@@ -178,8 +178,16 @@
     "eyebrow": "Release overview",
     "title": "What shipped in recent updates",
     "lead": "From the new Fluent look to the connection graph and profile sync — Chronell moves fast without putting your mail in the cloud.",
-    "v0922": {
+    "v0923": {
       "badge": "Current",
+      "date": "May 2026",
+      "title": "ICS import, meta folders & module polish",
+      "b1": "Calendar: import .ics files via drag & drop or dialog into Microsoft 365 and Google calendars — one or many events at once",
+      "b2": "Meta folders: visual rule editor with expression builder instead of text only — understand and maintain rules faster",
+      "b3": "Settings: dedicated panels for calendar, tasks, and notes; unified date picker across events, tasks, and notes",
+      "b4": "Tasks & notes: refined shells with kanban/list and due buckets; typography, scrollbars, and zoom shortcuts further polished"
+    },
+    "v0922": {
       "date": "May 2026",
       "title": "Branding, zoom & group calendars",
       "b1": "New Chronell icon and logo in the app, taskbar, and on chronell.app — consistent look everywhere",
@@ -244,34 +252,34 @@
   "highlights": {
     "eyebrow": "Try it now",
     "title": "Four focus areas in the current beta",
-    "lead": "Version 0.9.22 adds new branding on chronell.app, reliable UI zoom, and stabler M365 group calendars — building on mail bulk selection, event recurrence, and cloud sync.",
+    "lead": "Version 0.9.23 adds ICS calendar import, a visual meta-folder editor, and significantly polished tasks, notes, and settings modules — building on branding, zoom, and group calendars.",
     "compose": {
-      "title": "Fresh look",
-      "desc": "Chronell with a new icon and logo — in the app, taskbar, and on the website.",
-      "b1": "Consistent branding from desktop to chronell.app",
-      "b2": "Updated app icons for the Windows build and installer",
-      "b3": "Homepage with interactive module demo and refined mockups"
+      "title": "ICS calendar import",
+      "desc": "Events from .ics files straight into your connected calendars — no Outlook web or manual copy-paste.",
+      "b1": "Drag & drop .ics onto the calendar or import via dialog",
+      "b2": "Pick single or multiple events and create them in M365 or Google calendars",
+      "b3": "Ideal for invites, travel plans, and external calendar exports"
     },
     "connections": {
-      "title": "M365 group calendars",
-      "desc": "Load Microsoft 365 group calendars more reliably — even in complex tenant setups.",
-      "b1": "Transitive membership with fallback to direct groups",
-      "b2": "Clearer errors when GroupMember.Read.All is missing",
-      "b3": "Group mailbox events and colors in one week view"
+      "title": "Visual meta folders",
+      "desc": "Virtual inboxes via rules — now with a graphical expression editor instead of text only.",
+      "b1": "Rules as a tree: AND/OR, fields, operators at a glance",
+      "b2": "Create, edit, and understand faster — even with complex filters",
+      "b3": "Still cross-account and local in SQLite"
     },
     "ai": {
-      "title": "UI zoom",
-      "desc": "Scale the entire interface — separate from mail preview zoom.",
-      "b1": "Ctrl+Shift+Plus/Minus/0 on German keyboards too",
-      "b2": "Shortcuts captured in the main process and forwarded to the renderer",
-      "b3": "Presets and hints in Settings → Keyboard shortcuts"
+      "title": "Tasks & notes",
+      "desc": "Modules for planned work and thoughts — shell, lists, and calendar view refined.",
+      "b1": "Tasks: kanban and grouped list with due buckets and mail to-dos",
+      "b2": "Notes: improved sidebar, calendar and list views, links in context",
+      "b3": "One window: from mail to task, from note to event"
     },
     "cloudSync": {
-      "title": "Mail triage & recurrence",
-      "desc": "From 0.9.21: Process multiple messages at once and plan events with recurrence.",
-      "b1": "Mail bulk selection: archive, to-dos, snooze for the whole selection",
-      "b2": "Event dialog with recurrence for calendar and cloud tasks",
-      "b3": "Auto backup and cloud sync for your profile — no mail content in the cloud"
+      "title": "Settings & UI",
+      "desc": "Calendar, tasks, and notes settings in dedicated panels — plus a consistent date picker.",
+      "b1": "Settings → Calendar / Tasks / Notes with module-specific options",
+      "b2": "Unified Chronell date picker in events, tasks, and notes",
+      "b3": "Typography, scrollbars, and zoom shortcuts further refined — from 0.9.22: branding & group calendars"
     }
   },
   "showcase": {
@@ -454,12 +462,12 @@
     "privacy": "Privacy"
   },
   "whatsNew": {
-    "label": "Version 0.9.22",
-    "tagline": "New branding · UI zoom · group calendars · chronell.app"
+    "label": "Version 0.9.23",
+    "tagline": "ICS import · meta folders · module polish · settings"
   },
   "cta": {
     "title": "Ready for the new Chronell?",
-    "body": "Download version 0.9.22 for Windows 11 — new branding, UI zoom, M365 group calendars, mail bulk selection, events with recurrence, and optional cloud sync. Updates replace your version without losing data.",
+    "body": "Download version 0.9.23 for Windows 11 — ICS calendar import, visual meta folders, polished tasks and notes modules, mail bulk selection, events with recurrence, and optional cloud sync. Updates replace your version without losing data.",
     "button": "Download now"
   }
 }

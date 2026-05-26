@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | **Homepage & Download** | [chronell.app](https://chronell.app/) |
-| **Aktuelle Version** | **0.9.22** (24. Mai 2026) |
+| **Aktuelle Version** | **0.9.23** (26. Mai 2026) |
 | **Windows-Installer** | [GitHub Release](https://github.com/kurtsoeser/Chronell/releases/latest) (primär; auch Installer >100 MB via Git LFS im Repo) |
 | **Technischer Repo-Name** | MailClient · **App-ID:** `at.kurtsoeser.chronell` |
 | **Ausführliches Protokoll** | [`docs/FUNKTIONSPROTOKOLL.md`](docs/FUNKTIONSPROTOKOLL.md) |
@@ -59,6 +59,10 @@ Typische Zielgruppe: Power-User mit Microsoft 365 und/oder Gmail, mehrere Postf�
 
 | Bereich | Was neu ist |
 |--------|-------------|
+| **Kalender (0.9.23)** | ICS-Import: .ics per Drag & Drop oder Dialog in M365-/Google-Kalender — einzeln oder mehrere Termine |
+| **Mail (0.9.23)** | Meta-Ordner mit visuellem Regel-Editor und Ausdrucks-Builder; Kategorie-Favoriten in der Sidebar |
+| **Aufgaben & Notizen (0.9.23)** | Überarbeitete Shells: Kanban/Liste, Fälligkeits-Buckets, Kalenderansichten, Verknüpfungen im Kontext |
+| **Einstellungen (0.9.23)** | Eigene Panels für Kalender, Aufgaben und Notizen; einheitlicher Datums-Picker; Signatur-Fußzeile |
 | **Branding (0.9.22)** | Neues Chronell-Icon und Logo in App, Taskleiste und auf [chronell.app](https://chronell.app/) |
 | **Oberfläche (0.9.22)** | Oberflächen-Zoom (Strg+Umschalt+Plus/Minus/0) zuverlässig auch auf deutscher Tastatur — Weiterleitung über den Main-Prozess |
 | **Kalender (0.9.22)** | M365-Gruppenkalender: transitive Mitgliedschaft mit Fallback; klarere Hinweise bei fehlenden Berechtigungen |

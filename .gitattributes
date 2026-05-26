@@ -1,2 +1,5 @@
 # Installer per Git LFS (>100 MB moeglich). Homepage-Download ueber GitHub Releases.
 docs/release/**/*.exe filter=lfs diff=lfs merge=lfs -text
+
+# Versionsdatei: LF vermeidet CRLF-Warnungen bei git add unter Windows.
+src/shared/app-version.ts text eol=lf
