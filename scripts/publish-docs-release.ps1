@@ -138,8 +138,7 @@ function Publish-GitHubReleaseAsset {
       'release', 'create', $ghTag, $SetupPath,
       '--title', $releaseTitle,
       '--repo', $ghRepo,
-      '--target', $headSha,
-      '--clobber'
+      '--target', $headSha
     )
     if ($notesFileTemp) {
       $createArgs += @('--notes-file', $notesFileTemp)
