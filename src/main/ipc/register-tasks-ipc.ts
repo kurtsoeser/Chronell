@@ -144,7 +144,8 @@ export function registerTasksIpc(): void {
       notes: input.notes ?? null,
       dueIso: input.dueIso ?? null,
       completed: input.completed === true,
-      recurrence: input.recurrence ?? null
+      recurrence: input.recurrence ?? null,
+      categories: input.categories ?? null
     })
     afterTaskCreated(accountId, task)
     return task
@@ -157,7 +158,8 @@ export function registerTasksIpc(): void {
       title: input.title,
       notes: input.notes,
       dueIso: input.dueIso,
-      completed: input.completed
+      completed: input.completed,
+      categories: input.categories
     })
     afterTaskUpdated(accountId, task)
     return getCloudTaskFromCache(accountId, requireListId(input?.listId), requireTaskId(input?.taskId)) ?? task
@@ -188,7 +190,8 @@ export function registerTasksIpc(): void {
       title,
       notes: input.notes ?? null,
       dueIso: input.dueIso ?? null,
-      completed: input.completed === true
+      completed: input.completed === true,
+      categories: input.categories ?? null
     })
     afterTaskUpdated(accountId, task)
     return getCloudTaskFromCache(accountId, listId, taskId) ?? task

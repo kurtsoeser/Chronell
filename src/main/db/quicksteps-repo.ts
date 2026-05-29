@@ -1,34 +1,19 @@
 import { getDb } from './index'
-import type { MailQuickStep, TodoDueKindList, TodoDueKindOpen } from '@shared/types'
-
-const OPEN_TODO_KINDS = new Set<TodoDueKindOpen>(['today', 'tomorrow', 'this_week', 'later'])
-
-function parseTodoDueKind(v: unknown): TodoDueKindOpen | null {
-  if (typeof v !== 'string') return null
-  if (OPEN_TODO_KINDS.has(v as TodoDueKindOpen)) return v as TodoDueKindOpen
-  return null
-}
+import {
+  parseQuickStepActionsJson,
+  serializeQuickStepActions,
+  type MailQuickStepDetail,
+  type QuickStepAction
+} from '@shared/quicksteps'
+import type { MailQuickStep, TodoDueKindList } from '@shared/types'
 
 function inferQuickStepVisualBucket(actionsJson: string, name: string): TodoDueKindList | null {
-  try {
-    const actions = JSON.parse(actionsJson) as unknown
-    if (Array.isArray(actions)) {
-      for (const raw of actions) {
-        if (!raw || typeof raw !== 'object') continue
-        const type = (raw as { type?: unknown }).type
-        if (type === 'addTodo') {
-          const dueKind = parseTodoDueKind((raw as { dueKind?: unknown }).dueKind)
-          if (dueKind) return dueKind
-        }
-      }
-      const types = actions
-        .filter((a): a is { type?: unknown } => !!a && typeof a === 'object')
-        .map((a) => a.type)
-      if (types.includes('markRead') && types.includes('archive')) return 'done'
-    }
-  } catch {
-    // ignore
+  const actions = parseQuickStepActionsJson(actionsJson)
+  for (const a of actions) {
+    if (a.type === 'add_todo') return a.dueKind
   }
+  const types = actions.map((a) => a.type)
+  if (types.includes('mark_read') && types.includes('archive')) return 'done'
   const n = name.toLowerCase()
   if (n.includes('heute')) return 'today'
   if (n.includes('morgen')) return 'tomorrow'
@@ -64,16 +49,112 @@ function rowToListItem(r: QuickStepListRow): MailQuickStep {
 }
 
 export function listMailQuickSteps(): MailQuickStep[] {
+  return listMailQuickStepsInternal(true)
+}
+
+/** Alle QuickSteps inkl. deaktivierte (Einstellungen-Editor). */
+export function listMailQuickStepsAll(): MailQuickStep[] {
+  return listMailQuickStepsInternal(false)
+}
+
+function listMailQuickStepsInternal(enabledOnly: boolean): MailQuickStep[] {
   const db = getDb()
   const rows = db
     .prepare<[], QuickStepListRow>(
       `SELECT id, name, icon, shortcut, actions_json, sort_order, enabled
        FROM quicksteps
-       WHERE enabled = 1
+       ${enabledOnly ? 'WHERE enabled = 1' : ''}
        ORDER BY sort_order ASC, id ASC`
     )
     .all()
   return rows.map(rowToListItem)
+}
+
+export function getMailQuickStepDetail(id: number): MailQuickStepDetail | null {
+  const db = getDb()
+  const r = db
+    .prepare<[number], QuickStepRow>(
+      `SELECT id, name, icon, shortcut, actions_json, sort_order, enabled
+       FROM quicksteps WHERE id = ?`
+    )
+    .get(id)
+  if (!r) return null
+  return {
+    ...rowToListItem(r),
+    enabled: !!r.enabled,
+    actions: parseQuickStepActionsJson(r.actions_json)
+  }
+}
+
+export interface UpsertMailQuickStepInput {
+  id?: number
+  name: string
+  shortcut?: string | null
+  actions: QuickStepAction[]
+  enabled?: boolean
+  sortOrder?: number
+}
+
+export function upsertMailQuickStep(input: UpsertMailQuickStepInput): MailQuickStepDetail {
+  const db = getDb()
+  const name = input.name.trim()
+  if (!name) throw new Error('QuickStep-Name fehlt.')
+  if (input.actions.length === 0) throw new Error('Mindestens eine Aktion erforderlich.')
+
+  const actionsJson = serializeQuickStepActions(input.actions)
+  const enabled = input.enabled !== false ? 1 : 0
+  const now = new Date().toISOString()
+
+  if (input.id != null) {
+    const existing = getQuickStepById(input.id)
+    if (!existing) throw new Error('QuickStep nicht gefunden.')
+    db.prepare(
+      `UPDATE quicksteps
+       SET name = @name, shortcut = @shortcut, actions_json = @actions_json,
+           enabled = @enabled, sort_order = COALESCE(@sort_order, sort_order), updated_at = @updated_at
+       WHERE id = @id`
+    ).run({
+      id: input.id,
+      name,
+      shortcut: input.shortcut ?? null,
+      actions_json: actionsJson,
+      enabled,
+      sort_order: input.sortOrder ?? null,
+      updated_at: now
+    })
+    const detail = getMailQuickStepDetail(input.id)
+    if (!detail) throw new Error('QuickStep nach Speichern nicht lesbar.')
+    return detail
+  }
+
+  const maxSort =
+    db.prepare<[], { m: number | null }>('SELECT MAX(sort_order) AS m FROM quicksteps').get()?.m ?? -1
+  const sortOrder = input.sortOrder ?? maxSort + 1
+
+  const result = db
+    .prepare(
+      `INSERT INTO quicksteps (name, icon, shortcut, actions_json, sort_order, enabled, created_at, updated_at)
+       VALUES (@name, NULL, @shortcut, @actions_json, @sort_order, @enabled, @created_at, @updated_at)`
+    )
+    .run({
+      name,
+      shortcut: input.shortcut ?? null,
+      actions_json: actionsJson,
+      sort_order: sortOrder,
+      enabled,
+      created_at: now,
+      updated_at: now
+    })
+
+  const detail = getMailQuickStepDetail(Number(result.lastInsertRowid))
+  if (!detail) throw new Error('QuickStep nach Anlage nicht lesbar.')
+  return detail
+}
+
+export function deleteMailQuickStep(id: number): void {
+  const db = getDb()
+  const r = db.prepare('DELETE FROM quicksteps WHERE id = ?').run(id)
+  if (r.changes === 0) throw new Error('QuickStep nicht gefunden.')
 }
 
 export interface QuickStepDbRow {

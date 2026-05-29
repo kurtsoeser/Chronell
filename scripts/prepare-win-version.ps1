@@ -154,6 +154,10 @@ function Read-VersionBumpChoice {
 }
 
 # --- main ---
+if ($env:CHRONELL_SKIP_VERSION_PREPARE -eq '1') {
+  exit 0
+}
+
 $repoRoot = Get-RepoRoot
 Set-Location -LiteralPath $repoRoot
 

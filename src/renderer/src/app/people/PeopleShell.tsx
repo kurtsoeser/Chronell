@@ -125,7 +125,7 @@ export function PeopleShell(): JSX.Element {
 
   const accounts = useAccountsStore((s) => s.accounts)
 
-  const profilePhotoDataUrls = useAccountsStore((s) => s.profilePhotoDataUrls)
+  const accountDisplayAvatarDataUrls = useAccountsStore((s) => s.accountDisplayAvatarDataUrls)
 
   const patchAccountColor = useAccountsStore((s) => s.patchAccountColor)
 
@@ -1119,7 +1119,7 @@ export function PeopleShell(): JSX.Element {
               >
                 {renderPeopleGroupHeader(g.letter, g.items.length)}
                 {!collapsed ? (
-                  <div className="grid grid-cols-[repeat(auto-fill,minmax(560px,1fr))] gap-4 p-3">
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4 p-3">
                     {g.items.map((c) => renderContactTile(c))}
                   </div>
                 ) : null}
@@ -1393,7 +1393,7 @@ export function PeopleShell(): JSX.Element {
 
                       account={acc}
 
-                      profilePhotoDataUrl={profilePhotoDataUrls[acc.id]}
+                      profilePhotoDataUrl={accountDisplayAvatarDataUrls[acc.id]}
 
                       contactCount={total}
 

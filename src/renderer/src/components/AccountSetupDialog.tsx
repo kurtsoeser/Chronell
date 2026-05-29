@@ -37,7 +37,9 @@ import {
   writeSidebarHiddenCalendarKeysToStorage
 } from '@/lib/calendar-visibility-storage'
 import { SIDEBAR_DEFAULT_CAL_ID } from '@/app/calendar/calendar-shell-storage'
-import { AccountPropertiesMenu } from '@/components/AccountPropertiesMenu'
+import { SettingsAccountsPanel } from '@/components/account-setup/SettingsAccountsPanel'
+import { SettingsDialogResizeGrip } from '@/components/account-setup/SettingsDialogResizeGrip'
+import { useSettingsDialogSize } from '@/components/account-setup/use-settings-dialog-size'
 import { BookWithMeAccountPanel } from '@/components/BookWithMeAccountPanel'
 import { BulkUnflagServerDialog } from '@/components/BulkUnflagServerDialog'
 import { AccountSetupPanelFallback } from '@/components/account-setup/AccountSetupPanelFallback'
@@ -66,6 +68,9 @@ const SettingsMailListHoverActionsSection = lazy(() =>
     default: m.SettingsMailListHoverActionsSection
   }))
 )
+const SettingsQuickStepsSection = lazy(
+  () => import('@/components/account-setup/SettingsQuickStepsSection')
+)
 const AccountSetupNotesPanel = lazy(
   () => import('@/components/account-setup/AccountSetupNotesPanel')
 )
@@ -80,7 +85,6 @@ const SettingsAiConnectionsSection = lazy(() =>
     default: m.SettingsAiConnectionsSection
   }))
 )
-import { accountColorToCssBackground } from '@/lib/avatar-color'
 import {
   DASHBOARD_GRID_STEP_DEFAULT_PX,
   DASHBOARD_GRID_STEP_MAX_PX,
@@ -126,6 +130,8 @@ import {
 } from '@shared/app-version'
 import { openExternalUrl } from '@/lib/open-external'
 import {
+  Building2,
+  Calendar,
   Cloud,
   Info,
   ExternalLink,
@@ -144,8 +150,14 @@ import {
   RefreshCw,
   PanelLeft,
   HardDrive,
-  FileSearch
+  FileSearch,
+  Settings,
+  StickyNote,
+  Users,
+  UserCircle
 } from 'lucide-react'
+
+const SETTINGS_TAB_ICON_CLASS = 'h-3.5 w-3.5 shrink-0'
 
 type SettingsTab = 'general' | 'accounts' | 'mail' | 'calendar' | 'bookings' | 'contacts' | 'notes' | 'tasks' | 'info'
 
@@ -278,11 +290,16 @@ export function AccountSetupDialog({
     refreshGoogleAccount,
     removeAccount,
     patchAccountColor,
+    patchAccountAvatarKind,
+    patchAccountAvatarIcon,
+    pickAccountCustomAvatar,
     patchAccountCalendarLoadAhead,
     error
   } = useAccountsStore()
   const refreshAccounts = useMailStore((s) => s.refreshAccounts)
   const triggerSync = useMailStore((s) => s.triggerSync)
+  const syncByAccount = useMailStore((s) => s.syncByAccount)
+  const accountDisplayAvatarDataUrls = useAccountsStore((s) => s.accountDisplayAvatarDataUrls)
   const foldersByAccount = useMailStore((s) => s.foldersByAccount)
   const flaggedFilterExcludeDeletedJunk = useMailStore((s) => s.flaggedFilterExcludeDeletedJunk)
   const setFlaggedFilterExcludeDeletedJunk = useMailStore((s) => s.setFlaggedFilterExcludeDeletedJunk)
@@ -304,16 +321,52 @@ export function AccountSetupDialog({
   const settingsTabOptions = useMemo(
     () =>
       [
-        { id: 'general' as const, label: t('settings.tabGeneral') },
-        { id: 'accounts' as const, label: t('settings.tabAccounts') },
-        { id: 'mail' as const, label: t('settings.tabMail') },
-        { id: 'calendar' as const, label: t('settings.tabCalendar') },
-        { id: 'bookings' as const, label: t('settings.tabBookings') },
-        { id: 'contacts' as const, label: t('settings.tabContacts') },
-        { id: 'notes' as const, label: t('settings.tabNotes') },
-        { id: 'tasks' as const, label: t('settings.tabTasks') },
-        { id: 'info' as const, label: t('settings.tabInfo') }
-      ] satisfies Array<{ id: SettingsTab; label: string }>,
+        {
+          id: 'general' as const,
+          label: t('settings.tabGeneral'),
+          icon: <Settings className={SETTINGS_TAB_ICON_CLASS} />
+        },
+        {
+          id: 'accounts' as const,
+          label: t('settings.tabAccounts'),
+          icon: <UserCircle className={SETTINGS_TAB_ICON_CLASS} />
+        },
+        {
+          id: 'mail' as const,
+          label: t('settings.tabMail'),
+          icon: <Inbox className={SETTINGS_TAB_ICON_CLASS} />
+        },
+        {
+          id: 'calendar' as const,
+          label: t('settings.tabCalendar'),
+          icon: <Calendar className={SETTINGS_TAB_ICON_CLASS} />
+        },
+        {
+          id: 'bookings' as const,
+          label: t('settings.tabBookings'),
+          icon: <Building2 className={SETTINGS_TAB_ICON_CLASS} />
+        },
+        {
+          id: 'contacts' as const,
+          label: t('settings.tabContacts'),
+          icon: <Users className={SETTINGS_TAB_ICON_CLASS} />
+        },
+        {
+          id: 'notes' as const,
+          label: t('settings.tabNotes'),
+          icon: <StickyNote className={SETTINGS_TAB_ICON_CLASS} />
+        },
+        {
+          id: 'tasks' as const,
+          label: t('settings.tabTasks'),
+          icon: <ListTodo className={SETTINGS_TAB_ICON_CLASS} />
+        },
+        {
+          id: 'info' as const,
+          label: t('settings.tabInfo'),
+          icon: <Info className={SETTINGS_TAB_ICON_CLASS} />
+        }
+      ] satisfies Array<import('@/components/FilterTabs').FilterTabOption<SettingsTab>>,
     [t]
   )
 
@@ -364,6 +417,7 @@ export function AccountSetupDialog({
   const [tasksCacheClearingAccountId, setTasksCacheClearingAccountId] = useState<string | null>(null)
   const [tasksCacheNotice, setTasksCacheNotice] = useState<string | null>(null)
   const [colorSavingAccountId, setColorSavingAccountId] = useState<string | null>(null)
+  const [avatarSavingAccountId, setAvatarSavingAccountId] = useState<string | null>(null)
   const [aheadSavingAccountId, setAheadSavingAccountId] = useState<string | null>(null)
   const [backupNotice, setBackupNotice] = useState<string | null>(null)
   const [localDataUsage, setLocalDataUsage] = useState<LocalDataUsageReport | null>(null)
@@ -486,7 +540,6 @@ export function AccountSetupDialog({
           { id: 'shortcuts', label: t('settings.shortcutsHeading') },
           { id: 'appearance', label: t('settings.appearanceHeading') },
           { id: 'modules', label: t('settings.modulesHeading') },
-          { id: 'dashboard', label: t('settings.dashboardGridHeading') },
           { id: 'weather', label: t('settings.weatherHeading') },
           { id: 'oauth', label: t('settings.oauthSummary') },
           { id: 'notion', label: t('settings.notionHeading') },
@@ -501,6 +554,7 @@ export function AccountSetupDialog({
           { id: 'sync', label: t('settings.syncWindowHeading') },
           { id: 'display', label: t('settings.mailDisplayHeading') },
           { id: 'listHover', label: t('settings.mailListHoverHeading') },
+          { id: 'quickSteps', label: t('settings.quickSteps.heading') },
           { id: 'sidebarFolders', label: t('settings.mailSidebarFoldersHeading') },
           { id: 'triage', label: t('settings.triageHeading') },
           { id: 'categories', label: t('settings.categoriesHeading') },
@@ -1019,6 +1073,48 @@ export function AccountSetupDialog({
     }
   }
 
+  async function handleAccountAvatarKindChange(
+    accountId: string,
+    kind: import('@shared/account-avatar').AccountAvatarKind
+  ): Promise<void> {
+    setLocalError(null)
+    setAvatarSavingAccountId(accountId)
+    try {
+      await patchAccountAvatarKind(accountId, kind)
+    } catch (e) {
+      setLocalError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setAvatarSavingAccountId(null)
+    }
+  }
+
+  async function handleAccountAvatarIconChange(
+    accountId: string,
+    iconId: import('@shared/account-avatar').AccountAvatarIconId
+  ): Promise<void> {
+    setLocalError(null)
+    setAvatarSavingAccountId(accountId)
+    try {
+      await patchAccountAvatarIcon(accountId, iconId)
+    } catch (e) {
+      setLocalError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setAvatarSavingAccountId(null)
+    }
+  }
+
+  async function handlePickAccountCustomAvatar(accountId: string): Promise<void> {
+    setLocalError(null)
+    setAvatarSavingAccountId(accountId)
+    try {
+      await pickAccountCustomAvatar(accountId)
+    } catch (e) {
+      setLocalError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setAvatarSavingAccountId(null)
+    }
+  }
+
   function calendarAheadSelectValue(acc: ConnectedAccount): string {
     if (acc.calendarLoadAheadDays === null) return 'all'
     if (acc.calendarLoadAheadDays === undefined) return 'def'
@@ -1307,12 +1403,19 @@ export function AccountSetupDialog({
     }
   }
 
+  const {
+    width: settingsDialogWidth,
+    height: settingsDialogHeight,
+    onResizeGripPointerDown
+  } = useSettingsDialogSize(open)
+
   return (
     <>
     <ModalRoot open={open} zIndex={200} onBackdropClick={onClose}>
       <ModalPanel
         aria-labelledby="settings-dialog-title"
-        className="account-setup-dialog flex max-h-[92vh] w-[min(960px,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-xl border border-border bg-card text-foreground shadow-2xl"
+        style={{ width: settingsDialogWidth, height: settingsDialogHeight }}
+        className="account-setup-dialog relative flex max-h-[92vh] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-xl border border-border bg-card text-foreground shadow-2xl"
       >
         <div className="flex items-center justify-between border-b border-white/[0.04] px-5 py-3.5 dark:border-white/[0.04]">
           <h2 id="settings-dialog-title" className="text-sm font-semibold">
@@ -1341,7 +1444,10 @@ export function AccountSetupDialog({
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <div className="flex min-h-0 flex-1 divide-x divide-white/[0.04] dark:divide-white/[0.04]">
             <nav
-              className="flex w-[13rem] shrink-0 flex-col gap-0.5 overflow-y-auto bg-muted/15 py-3 pl-2.5 pr-1.5"
+              className={cn(
+                'flex w-[13rem] shrink-0 flex-col gap-0.5 overflow-y-auto bg-muted/15 py-3 pl-2.5 pr-1.5',
+                activeTab === 'accounts' && 'hidden'
+              )}
               aria-label={t('settings.subNavAria')}
             >
               {settingsSubNavItems.map((item) => (
@@ -1453,6 +1559,42 @@ export function AccountSetupDialog({
                 <SettingsThemeColorsSection />
 
                 <p className="text-2xs leading-relaxed text-muted-foreground mt-1">{t('settings.themeHint')}</p>
+
+                <div className="mt-4 space-y-2 border-t border-border/60 pt-4">
+                  <h4 className="text-xs font-semibold text-foreground">
+                    {t('settings.dashboardGridHeading')}
+                  </h4>
+                  <p className="text-xs leading-relaxed text-muted-foreground">
+                    {t('settings.dashboardGridHint')}
+                  </p>
+                  <label htmlFor="mailclient-dash-grid-step" className="block text-xs font-medium text-foreground">
+                    {t('settings.dashboardGridLabel')}
+                  </label>
+                  <input
+                    id="mailclient-dash-grid-step"
+                    type="number"
+                    min={DASHBOARD_GRID_STEP_MIN_PX}
+                    max={DASHBOARD_GRID_STEP_MAX_PX}
+                    step={1}
+                    value={dashGridStepDraft}
+                    onChange={(e): void => {
+                      setDashGridStepDraft(e.target.value)
+                    }}
+                    onBlur={(): void => {
+                      const n = Number.parseInt(dashGridStepDraft, 10)
+                      writeDashboardAlignStepPx(Number.isFinite(n) ? n : DASHBOARD_GRID_STEP_DEFAULT_PX)
+                      setDashGridStepDraft(String(readDashboardAlignStepPx()))
+                    }}
+                    className="w-full max-w-xs rounded-md border border-border bg-background px-3 py-1.5 text-xs tabular-nums outline-none focus:border-ring"
+                  />
+                  <p className="text-2xs leading-relaxed text-muted-foreground">
+                    {t('settings.dashboardGridRange', {
+                      min: DASHBOARD_GRID_STEP_MIN_PX,
+                      max: DASHBOARD_GRID_STEP_MAX_PX,
+                      def: DASHBOARD_GRID_STEP_DEFAULT_PX
+                    })}
+                  </p>
+                </div>
               </div>
             </section>
             )}
@@ -1461,42 +1603,6 @@ export function AccountSetupDialog({
                 <Suspense fallback={<AccountSetupPanelFallback />}>
                   <SettingsTopbarModulesSection />
                 </Suspense>
-              )}
-
-              {subNavId.general === 'dashboard' && (
-              <section className="space-y-2 rounded-md bg-background/60 p-3">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  {t('settings.dashboardGridHeading')}
-                </h3>
-                <p className="text-xs leading-relaxed text-muted-foreground">{t('settings.dashboardGridHint')}</p>
-                <label htmlFor="mailclient-dash-grid-step" className="block text-xs font-medium text-foreground">
-                  {t('settings.dashboardGridLabel')}
-                </label>
-                <input
-                  id="mailclient-dash-grid-step"
-                  type="number"
-                  min={DASHBOARD_GRID_STEP_MIN_PX}
-                  max={DASHBOARD_GRID_STEP_MAX_PX}
-                  step={1}
-                  value={dashGridStepDraft}
-                  onChange={(e): void => {
-                    setDashGridStepDraft(e.target.value)
-                  }}
-                  onBlur={(): void => {
-                    const n = Number.parseInt(dashGridStepDraft, 10)
-                    writeDashboardAlignStepPx(Number.isFinite(n) ? n : DASHBOARD_GRID_STEP_DEFAULT_PX)
-                    setDashGridStepDraft(String(readDashboardAlignStepPx()))
-                  }}
-                  className="w-full max-w-xs rounded-md border border-border bg-background px-3 py-1.5 text-xs tabular-nums outline-none focus:border-ring"
-                />
-                <p className="text-2xs leading-relaxed text-muted-foreground">
-                  {t('settings.dashboardGridRange', {
-                    min: DASHBOARD_GRID_STEP_MIN_PX,
-                    max: DASHBOARD_GRID_STEP_MAX_PX,
-                    def: DASHBOARD_GRID_STEP_DEFAULT_PX
-                  })}
-                </p>
-              </section>
               )}
 
               {subNavId.general === 'weather' && (
@@ -1707,230 +1813,62 @@ export function AccountSetupDialog({
           )}
 
           {activeTab === 'accounts' && (
-            <div role="tabpanel" aria-label={t('settings.accountsPanelAria')} className="space-y-5">
-              {subNavId.accounts === 'connected' && (
-              <section className="space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    {t('settings.connectedAccounts')}
-                  </h3>
-                  <div className="flex flex-wrap items-center justify-end gap-2">
-                    <button
-                      type="button"
-                      onClick={handleAddMicrosoft}
-                      disabled={busy || !hasClientId || reconnectingAccountId !== null}
-                      className={cn(
-                        'flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
-                        busy || !hasClientId || reconnectingAccountId !== null
-                          ? 'bg-secondary text-muted-foreground'
-                          : 'bg-primary text-primary-foreground hover:bg-primary/90'
-                      )}
-                      title={
-                        !hasClientId ? t('settings.msNoClientTitle') : t('settings.msConnectTitle')
-                      }
-                    >
-                      {busy ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <Plus className="h-3.5 w-3.5" />
-                      )}
-                      Microsoft
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleAddGoogle}
-                      disabled={busy || !googleOAuthReady || reconnectingAccountId !== null}
-                      className={cn(
-                        'flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
-                        busy || !googleOAuthReady || reconnectingAccountId !== null
-                          ? 'bg-secondary text-muted-foreground'
-                          : 'bg-primary text-primary-foreground hover:bg-primary/90'
-                      )}
-                      title={
-                        !googleOAuthReady
-                          ? t('settings.googleConfigureFirstTitle')
-                          : t('settings.googleConnectTitle')
-                      }
-                    >
-                      {busy ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <Plus className="h-3.5 w-3.5" />
-                      )}
-                      Google
-                    </button>
-                  </div>
-                </div>
-                <p className="text-xs leading-relaxed text-muted-foreground">{t('settings.accountsIntro')}</p>
-
-                {mailCacheNotice ? (
-                  <p className="text-2xs text-emerald-600 dark:text-emerald-500">{mailCacheNotice}</p>
-                ) : null}
-                {tasksCacheNotice ? (
-                  <p className="text-2xs text-emerald-600 dark:text-emerald-500">{tasksCacheNotice}</p>
-                ) : null}
-
-                {accounts.length === 0 ? (
-                  <p className="rounded-md border border-dashed border-border bg-background/50 p-4 text-center text-xs text-muted-foreground">
-                    {t('settings.noAccountYet')}
-                  </p>
-                ) : (
-                  <ul className="space-y-1.5">
-                    {accounts.map((acc) => (
-                      <li
-                        key={acc.id}
-                        className={cn(settingsTileClass, 'px-3 py-2')}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={cn(
-                              'flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-2xs font-semibold text-white',
-                              accountColorToCssBackground(acc.color) ? '' : acc.color
-                            )}
-                            style={
-                              accountColorToCssBackground(acc.color)
-                                ? { backgroundColor: accountColorToCssBackground(acc.color)! }
-                                : undefined
-                            }
-                          >
-                            {acc.initials}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="truncate text-xs font-medium text-foreground">
-                              {acc.displayName}
-                            </div>
-                            <div className="truncate text-2xs text-muted-foreground">{acc.email}</div>
-                          </div>
-                          <div className="flex shrink-0 items-center gap-0.5">
-                            {acc.provider === 'microsoft' ? (
-                              <button
-                                type="button"
-                                onClick={(): void => {
-                                  void handleRefreshMicrosoft(acc.id)
-                                }}
-                                disabled={busy || reconnectingAccountId !== null}
-                                className="rounded p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:opacity-40"
-                                title={t('settings.msReconnectTitle')}
-                                aria-label={t('settings.msReconnectAria')}
-                              >
-                                {reconnectingAccountId === acc.id ? (
-                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                ) : (
-                                  <RefreshCw className="h-3.5 w-3.5" />
-                                )}
-                              </button>
-                            ) : acc.provider === 'google' ? (
-                              <button
-                                type="button"
-                                onClick={(): void => {
-                                  void handleRefreshGoogle(acc.id)
-                                }}
-                                disabled={busy || reconnectingAccountId !== null}
-                                className="rounded p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:opacity-40"
-                                title={t('settings.googleReconnectTitle')}
-                                aria-label={t('settings.googleReconnectAria')}
-                              >
-                                {reconnectingAccountId === acc.id ? (
-                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                ) : (
-                                  <RefreshCw className="h-3.5 w-3.5" />
-                                )}
-                              </button>
-                            ) : null}
-                            <button
-                              type="button"
-                              onClick={(): void => {
-                                void handleRemove(acc.id)
-                              }}
-                              disabled={busy || reconnectingAccountId !== null}
-                              className="rounded p-1 text-muted-foreground transition-colors hover:bg-destructive/20 hover:text-destructive disabled:opacity-40"
-                              title={t('settings.removeAccountTitle')}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                        <div className="mt-2.5 border-t border-white/[0.04] dark:border-white/[0.04] pt-2 pl-10 space-y-2">
-                          <AccountPropertiesMenu
-                            provider={acc.provider}
-                            accountId={acc.id}
-                            accountEmail={acc.email}
-                            color={acc.color}
-                            disabled={busy || reconnectingAccountId !== null}
-                            saving={colorSavingAccountId === acc.id}
-                            onColorChange={(next): void => {
-                              void handleAccountColorChange(acc.id, next)
-                            }}
-                          />
-                          {(acc.provider === 'microsoft' || acc.provider === 'google') && (
-                            <div className="flex flex-wrap gap-2">
-                            <button
-                              type="button"
-                              onClick={(): void => {
-                                void handleClearMailCache(acc.id, acc.email)
-                              }}
-                              disabled={
-                                busy ||
-                                reconnectingAccountId !== null ||
-                                mailCacheClearingAccountId !== null ||
-                                tasksCacheClearingAccountId !== null
-                              }
-                              className={cn(
-                                'inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-background px-2.5 text-xs font-medium outline-none transition-colors',
-                                busy ||
-                                  reconnectingAccountId !== null ||
-                                  mailCacheClearingAccountId !== null ||
-                                  tasksCacheClearingAccountId !== null
-                                  ? 'cursor-not-allowed opacity-40'
-                                  : 'hover:bg-secondary/80 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/40'
-                              )}
-                              title={t('settings.clearMailCacheTitle')}
-                            >
-                              {mailCacheClearingAccountId === acc.id ? (
-                                <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden />
-                              ) : (
-                                <Eraser className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
-                              )}
-                              {t('settings.clearMailCacheButton')}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={(): void => {
-                                void handleClearTasksCache(acc.id, acc.email)
-                              }}
-                              disabled={
-                                busy ||
-                                reconnectingAccountId !== null ||
-                                mailCacheClearingAccountId !== null ||
-                                tasksCacheClearingAccountId !== null
-                              }
-                              className={cn(
-                                'inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-background px-2.5 text-xs font-medium outline-none transition-colors',
-                                busy ||
-                                  reconnectingAccountId !== null ||
-                                  mailCacheClearingAccountId !== null ||
-                                  tasksCacheClearingAccountId !== null
-                                  ? 'cursor-not-allowed opacity-40'
-                                  : 'hover:bg-secondary/80 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/40'
-                              )}
-                              title={t('settings.clearTasksCacheTitle')}
-                            >
-                              {tasksCacheClearingAccountId === acc.id ? (
-                                <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden />
-                              ) : (
-                                <ListTodo className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
-                              )}
-                              {t('settings.clearTasksCacheButton')}
-                            </button>
-                            </div>
-                          )}
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </section>
-              )}
+            <div
+              role="tabpanel"
+              aria-label={t('settings.accountsPanelAria')}
+              className="flex min-h-0 flex-1 flex-col overflow-hidden p-4"
+            >
+              <SettingsAccountsPanel
+                accounts={accounts}
+                accountDisplayAvatarDataUrls={accountDisplayAvatarDataUrls}
+                syncByAccount={syncByAccount}
+                busy={busy}
+                hasClientId={hasClientId}
+                googleOAuthReady={googleOAuthReady}
+                reconnectingAccountId={reconnectingAccountId}
+                mailCacheClearingAccountId={mailCacheClearingAccountId}
+                tasksCacheClearingAccountId={tasksCacheClearingAccountId}
+                colorSavingAccountId={colorSavingAccountId}
+                avatarSavingAccountId={avatarSavingAccountId}
+                mailCacheNotice={mailCacheNotice}
+                tasksCacheNotice={tasksCacheNotice}
+                onAddMicrosoft={(): void => {
+                  void handleAddMicrosoft()
+                }}
+                onAddGoogle={(): void => {
+                  void handleAddGoogle()
+                }}
+                onRefreshMicrosoft={(id): void => {
+                  void handleRefreshMicrosoft(id)
+                }}
+                onRefreshGoogle={(id): void => {
+                  void handleRefreshGoogle(id)
+                }}
+                onRemove={(id): void => {
+                  void handleRemove(id)
+                }}
+                onClearMailCache={(id, email): void => {
+                  void handleClearMailCache(id, email)
+                }}
+                onClearTasksCache={(id, email): void => {
+                  void handleClearTasksCache(id, email)
+                }}
+                onColorChange={(id, color): void => {
+                  void handleAccountColorChange(id, color)
+                }}
+                onAvatarKindChange={(id, kind): void => {
+                  void handleAccountAvatarKindChange(id, kind)
+                }}
+                onAvatarIconChange={(id, iconId): void => {
+                  void handleAccountAvatarIconChange(id, iconId)
+                }}
+                onPickCustomAvatar={(id): void => {
+                  void handlePickAccountCustomAvatar(id)
+                }}
+                onSyncAccount={(id): void => {
+                  void triggerSync(id)
+                }}
+              />
             </div>
           )}
 
@@ -2011,6 +1949,12 @@ export function AccountSetupDialog({
               {subNavId.mail === 'listHover' && (
                 <Suspense fallback={null}>
                   <SettingsMailListHoverActionsSection />
+                </Suspense>
+              )}
+
+              {subNavId.mail === 'quickSteps' && (
+                <Suspense fallback={<AccountSetupPanelFallback />}>
+                  <SettingsQuickStepsSection />
                 </Suspense>
               )}
 
@@ -2803,6 +2747,7 @@ export function AccountSetupDialog({
             </div>
           )}
         </div>
+        <SettingsDialogResizeGrip onPointerDown={onResizeGripPointerDown} />
       </ModalPanel>
     </ModalRoot>
     <BulkUnflagServerDialog open={bulkUnflagOpen} onClose={(): void => setBulkUnflagOpen(false)} />

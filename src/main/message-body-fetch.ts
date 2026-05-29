@@ -10,6 +10,8 @@ import { isGraphItemNotFound } from './graph/graph-request-errors'
 import { getGoogleApis } from './google/google-auth-client'
 import { withGraphMailboxSlot } from './graph/graph-mailbox-queue'
 import { withTimeout } from './async-timeout'
+import { shouldUseEwsForMicrosoftMail } from './ews/microsoft-mail-transport'
+import { fetchEwsMessageBody } from './ews/mail-body-ews'
 import type { gmail_v1 } from 'googleapis'
 import type { MailFull } from '@shared/types'
 
@@ -150,7 +152,10 @@ export async function fetchAndStoreMessageBodyIfMissing(
     const fetchBodies =
       account.provider === 'google'
         ? () => fetchGmailMessageBody(account.id, msg.remoteId!)
-        : () => fetchGraphMessageBody(account.id, msg.remoteId!)
+        : async () =>
+            (await shouldUseEwsForMicrosoftMail(account.id))
+              ? fetchEwsMessageBody(account.id, msg.remoteId!)
+              : fetchGraphMessageBody(account.id, msg.remoteId!)
     const bodies = opts?.background
       ? await withTimeout(
           fetchBodies(),

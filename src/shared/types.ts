@@ -1,6 +1,10 @@
+import type { AccountAvatarIconId, AccountAvatarKind } from './account-avatar'
 import type { MailRuleDefinition, MailRuleTrigger } from './mail-rules'
 
 export type Provider = 'microsoft' | 'google'
+
+/** Transport fuer Microsoft-Mail-Aktionen (Sync weiterhin Graph). */
+export type MicrosoftMailTransport = 'graph' | 'ews' | 'auto'
 
 /** Payload fuer das Renderer-Event `mail:changed`. */
 export interface MailChangedPayload {
@@ -36,6 +40,15 @@ export interface ConnectedAccount {
    * Renderer laedt die Data-URL per IPC nach.
    */
   profilePhotoFile?: string | null
+  /**
+   * Avatar-Darstellung: Provider-Foto, Initialen, Icon oder eigenes Bild.
+   * `undefined` = `provider` (bisheriges Verhalten).
+   */
+  avatarKind?: AccountAvatarKind
+  /** Lucide-Icon (kebab-case), wenn `avatarKind === 'icon'`. */
+  avatarIconId?: AccountAvatarIconId | null
+  /** Eigenes Bild unter userData/avatars, wenn `avatarKind === 'custom'`. */
+  customAvatarFile?: string | null
   /**
    * Kalender-API: maximal wie viele Tage ab heute (Mitternacht lokal) in die Zukunft Termine geladen werden.
    * `null` = keine Begrenzung (bis zum Ende des angefragten Ansichtszeitraums).
@@ -83,6 +96,8 @@ export type CalendarIncludeCalendarRef = {
 export interface PatchAccountInput {
   accountId: string
   color?: string
+  avatarKind?: AccountAvatarKind
+  avatarIconId?: AccountAvatarIconId | null
   /**
    * `null` = keine zeitliche Begrenzung nach vorn.
    * `'default'` = Standard-Vorausschau (365 Tage), gespeicherten Wert entfernen.
@@ -128,6 +143,11 @@ export interface AppConfig {
    * Hintergrund-Mail-Poll-Intervall in Sekunden (30–600). Standard: 60.
    */
   mailPollIntervalSeconds?: number
+  /**
+   * Microsoft-Mail-Aktionen: `auto` = EWS wenn OAuth-Scope vorhanden, sonst Graph.
+   * Sync bleibt vorerst Graph; EWS beschleunigt Loeschen/Verschieben/Lesestatus.
+   */
+  microsoftMailTransport?: MicrosoftMailTransport
   /**
    * Mail-Bodies im Hintergrund fuer die Volltextsuche laden. Standard: an.
    */
@@ -424,6 +444,8 @@ export interface SettingsBackupCalendarColorOverrideSnapshot {
 export interface SettingsBackupAccountPreferenceSnapshot {
   accountId: string
   color?: string
+  avatarKind?: AccountAvatarKind
+  avatarIconId?: AccountAvatarIconId | null
   calendarLoadAheadDays?: number | null
   signatureTemplates?: AccountSignatureTemplate[]
   defaultSignatureTemplateId?: string | null
@@ -709,6 +731,14 @@ export interface CalendarM365GroupCalendarsPage {
   hasMore: boolean
 }
 
+/** Argumente fuer `calendar.listEventsForContact` (lokaler Cache). */
+export interface CalendarListEventsForContactInput {
+  emails: string[]
+  startIso: string
+  endIso: string
+  limit?: number
+}
+
 /** Argumente fuer `calendar.listEvents` (IPC `calendar:list-events`). */
 export interface CalendarListEventsInput {
   startIso: string
@@ -800,6 +830,10 @@ export interface CalendarSaveEventInput {
   attachments?: ComposeAttachment[] | null
   /** Serientermin (nur Anlegen; Bearbeiten der Serie ist nicht implementiert). */
   recurrence?: CalendarSaveEventRecurrence | null
+  /** Microsoft 365: Graph `isReminderOn` / `reminderMinutesBeforeStart`. */
+  reminderMinutesBeforeStart?: number | null
+  /** IANA-Zeitzone fuer Start/Ende (nur zeitgebundene Termine). */
+  timeZone?: string | null
 }
 
 export interface CalendarSaveEventResult {
@@ -829,6 +863,11 @@ export interface CalendarGetEventResult {
   bodyHtml: string | null
   location?: string | null
   organizer?: string | null
+  /** Microsoft 365: `isReminderOn` aus Graph. */
+  isReminderOn?: boolean | null
+  reminderMinutesBeforeStart?: number | null
+  /** IANA-Zeitzone von Start/Ende (zeitgebundene Termine). */
+  timeZone?: string | null
 }
 
 /** Termin in anderen Kalender / anderes Konto kopieren oder verschieben. */
@@ -939,6 +978,8 @@ export interface TaskItemRow {
   recurrence?: TaskSaveRecurrence | null
   /** true = nur in der App gespeichert (Google Tasks API ohne Wiederholung). */
   recurrenceLocalOnly?: boolean
+  /** Outlook/Graph `categories` (nur Microsoft To Do). */
+  categories?: string[]
 }
 
 /** Lokales Aufgaben-Icon und Farbe setzen/entfernen. */
@@ -979,6 +1020,8 @@ export interface TasksCreateTaskInput {
   completed?: boolean
   /** Serienaufgabe (MS365: Graph; Google: lokales Metadatum). Erfordert `dueIso`. */
   recurrence?: TaskSaveRecurrence | null
+  /** Outlook-Masterkategorien (nur Microsoft To Do). */
+  categories?: string[] | null
 }
 
 export interface TasksPatchTaskInput {
@@ -990,6 +1033,8 @@ export interface TasksPatchTaskInput {
   /** `null` loescht die Faelligkeit; `undefined` = keine Aenderung. */
   dueIso?: string | null
   completed?: boolean
+  /** Outlook-Masterkategorien (nur Microsoft To Do). */
+  categories?: string[] | null
 }
 
 export interface TasksUpdateTaskInput extends TasksCreateTaskInput {
@@ -1304,6 +1349,33 @@ export interface SearchHit extends MailListItem {
   folderWellKnown: string | null
 }
 
+/** Eintrag im Kontakt-Konversationsverlauf (rechte Seitenleiste). */
+export interface MailCorrespondenceItem extends MailListItem {
+  isFromMe: boolean
+  folderWellKnown: string | null
+}
+
+export interface ListCorrespondenceInput {
+  email: string
+  /** Zusaetzliche Adressen (z. B. People-Aliase). */
+  emails?: string[]
+  /** Ein Konto (Legacy); bevorzugt `accountIds`. */
+  accountId?: string
+  /** Ein oder mehrere Konten. */
+  accountIds?: string[]
+  limit?: number
+  offset?: number
+  /** Papierkorb und Junk auslassen (Standard: true). */
+  excludeDeletedJunk?: boolean
+  /** E-Mails der gewaehlten Konten (fuer «Sie» in Mehrkonto-Ansicht). */
+  accountOwnerEmails?: string[]
+}
+
+export interface ListCorrespondenceResult {
+  items: MailCorrespondenceItem[]
+  total: number
+}
+
 export interface GlobalSearchNoteHit {
   id: number
   kind: UserNoteKind
@@ -1489,6 +1561,14 @@ export interface SyncStatus {
   accountId: string
   state: 'idle' | 'syncing-folders' | 'syncing-messages' | 'error'
   message?: string
+}
+
+/** IPC `mail:get-account-sync-meta` — letzter Mail-Sync-Lauf pro Konto. */
+export interface AccountMailSyncMeta {
+  accountId: string
+  lastSyncFinishedAt: string | null
+  lastSyncError: string | null
+  lastActivityAt: string | null
 }
 
 /** Microsoft Graph `/me/chats` — Teams-Chat (1:1 oder Gruppe). */

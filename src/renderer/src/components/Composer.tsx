@@ -8,7 +8,6 @@ import {
   Paperclip,
   AlertCircle,
   Loader2,
-  ChevronDown,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { ComposeMessageOptionsButton } from '@/components/ComposeMessageOptionsDialog'
@@ -20,6 +19,8 @@ import { ComposeMailBodyTile } from '@/components/ComposeMailBodyTile'
 import { composeMailBodyShellClass } from '@/lib/chronell-ui-classes'
 import { ComposeEditorThemeToggle } from '@/components/ComposeEditorThemeToggle'
 import { TipTapBody } from '@/components/TipTapBody'
+import { ComposeCollapsibleSection } from '@/components/ComposeCollapsibleSection'
+import { ComposeQuotedMailPreview } from '@/components/ComposeQuotedMailPreview'
 import { SignatureFooterEditor } from '@/components/SignatureFooterEditor'
 import { SignatureTemplateControls } from '@/components/SignatureTemplateControls'
 import { ComposeAttachmentsStrip } from '@/components/ComposeAttachmentsStrip'
@@ -90,7 +91,6 @@ function ComposerWindow({
   const removeAttachment = useComposeStore((s) => s.removeAttachment)
   const accounts = useAccountsStore((s) => s.accounts)
 
-  const [showQuoted, setShowQuoted] = useState(false)
   const [templates, setTemplates] = useState<MailTemplate[]>([])
   const [attachmentError, setAttachmentError] = useState<string | null>(null)
   const dragDepthRef = useRef(0)
@@ -476,9 +476,12 @@ function ComposerWindow({
             />
           </ComposeEditorThemedPane>
         </ComposeMailBodyTile>
-        <ComposeMailBodyTile className="shrink-0">
-          <div className="flex flex-wrap items-start justify-between gap-2 border-b border-[hsl(var(--compose-surface-border)/0.45)] px-3 py-2">
-            <div className="chronell-type-section-label text-muted-foreground">Signatur / Footer</div>
+        <ComposeCollapsibleSection
+          className="shrink-0"
+          framed
+          label={t('mail.composeTile.signature', { defaultValue: 'Signatur' })}
+          collapsedDefault
+          headerAside={
             <SignatureTemplateControls
               accountId={draft.accountId}
               signatureRichHtml={draft.signatureRichHtml}
@@ -486,14 +489,26 @@ function ComposerWindow({
               onSignatureHtmlChange={(html): void => update(draft.id, { signatureRichHtml: html })}
               onActiveTemplateIdChange={(id): void => update(draft.id, { signatureTemplateId: id })}
             />
-          </div>
+          }
+        >
           <ComposeEditorThemedPane>
             <SignatureFooterEditor
               valueHtml={draft.signatureRichHtml}
               onChangeHtml={(v): void => update(draft.id, { signatureRichHtml: v })}
             />
           </ComposeEditorThemedPane>
-        </ComposeMailBodyTile>
+        </ComposeCollapsibleSection>
+        {draft.quotedHtml ? (
+          <ComposeCollapsibleSection
+            className="shrink-0"
+            label={t('mail.composeTile.originalMail', { defaultValue: 'Original-Mail' })}
+            framed
+          >
+            <div className="p-2 pt-0">
+              <ComposeQuotedMailPreview quotedHtml={draft.quotedHtml} />
+            </div>
+          </ComposeCollapsibleSection>
+        ) : null}
       </div>
       </ComposeEditorSurface>
 
@@ -504,27 +519,6 @@ function ComposerWindow({
         onRemoveLocal={(id): void => removeAttachment(draft.id, id)}
         onRemoveCloud={removeCloudAttachment}
       />
-
-      {draft.quotedHtml && (
-        <div className="border-t border-border/60 bg-background/40 px-4 py-2">
-          <button
-            type="button"
-            onClick={(): void => setShowQuoted((v) => !v)}
-            className="chronell-type-section-label flex items-center gap-1 text-muted-foreground hover:text-foreground"
-          >
-            <ChevronDown
-              className={cn('h-3 w-3 transition-transform', !showQuoted && '-rotate-90')}
-            />
-            Original-Mail {showQuoted ? 'ausblenden' : 'anzeigen'}
-          </button>
-          {showQuoted && (
-            <div
-              className="prose-sm mt-2 max-h-[320px] overflow-y-auto rounded border border-border/40 bg-background p-2 text-xs leading-relaxed text-muted-foreground [&_a]:text-primary"
-              dangerouslySetInnerHTML={{ __html: draft.quotedHtml }}
-            />
-          )}
-        </div>
-      )}
 
       {draft.replyToMessageId != null && (
         <div className="flex flex-wrap items-center gap-3 border-t border-border/40 px-4 py-2 text-xs text-muted-foreground">

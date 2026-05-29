@@ -286,7 +286,18 @@ export function persistTimeGridSlotMinutes(min: TimeGridSlotMinutes): void {
 
 /** ISO-Dauer `HH:MM:SS` fuer FullCalendar. */
 export function timeGridSlotMinutesToDuration(min: TimeGridSlotMinutes): string {
-  return `00:${String(min).padStart(2, '0')}:00`
+  const hours = Math.floor(min / 60)
+  const minutes = min % 60
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`
+}
+
+/** FullCalendar-Raster: Anzeige und Drag/Resize-Snap gleich halten. */
+export function timeGridFcSnapOptions(min: TimeGridSlotMinutes): {
+  slotDuration: string
+  snapDuration: string
+} {
+  const duration = timeGridSlotMinutesToDuration(min)
+  return { slotDuration: duration, snapDuration: duration }
 }
 
 export function stepTimeGridSlotMinutes(

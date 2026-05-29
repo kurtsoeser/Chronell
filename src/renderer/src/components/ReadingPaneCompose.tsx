@@ -1,13 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
-import {
-  AlertCircle,
-  ChevronDown,
-  Loader2,
-  Save,
-  Send,
-  SquareArrowOutUpRight,
-  Trash2
-} from 'lucide-react'
+import { AlertCircle, Loader2, Save, Send, SquareArrowOutUpRight, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { ComposeFromField } from '@/components/ComposeFromField'
 import { ComposeMessageOptionsButton } from '@/components/ComposeMessageOptionsDialog'
@@ -17,6 +9,8 @@ import { ComposeMailBodyTile } from '@/components/ComposeMailBodyTile'
 import { composeMailBodyShellClass } from '@/lib/chronell-ui-classes'
 import { ComposeEditorThemeToggle } from '@/components/ComposeEditorThemeToggle'
 import { TipTapBody } from '@/components/TipTapBody'
+import { ComposeCollapsibleSection } from '@/components/ComposeCollapsibleSection'
+import { ComposeQuotedMailPreview } from '@/components/ComposeQuotedMailPreview'
 import { SignatureFooterEditor } from '@/components/SignatureFooterEditor'
 import { ComposeAttachmentsStrip } from '@/components/ComposeAttachmentsStrip'
 import { OneDriveExplorerDialog } from '@/components/OneDriveExplorerDialog'
@@ -61,7 +55,6 @@ export function ReadingPaneCompose({
   const removeAttachment = useComposeStore((s) => s.removeAttachment)
 
   const [attachmentError, setAttachmentError] = useState<string | null>(null)
-  const [showQuoted, setShowQuoted] = useState(false)
 
   useComposeAutoSave(draft.id, true)
 
@@ -276,11 +269,12 @@ export function ReadingPaneCompose({
               />
             </ComposeEditorThemedPane>
           </ComposeMailBodyTile>
-          <ComposeMailBodyTile className="shrink-0">
-            <div className="flex flex-wrap items-center justify-between gap-1 border-b border-[hsl(var(--compose-surface-border)/0.45)] px-3 py-1">
-              <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                {t('mail.composeTile.signature', { defaultValue: 'Signatur' })}
-              </span>
+          <ComposeCollapsibleSection
+            className="shrink-0"
+            framed
+            label={t('mail.composeTile.signature', { defaultValue: 'Signatur' })}
+            collapsedDefault
+            headerAside={
               <SignatureTemplateControls
                 compact
                 accountId={draft.accountId}
@@ -289,39 +283,28 @@ export function ReadingPaneCompose({
                 onSignatureHtmlChange={(html): void => update(draft.id, { signatureRichHtml: html })}
                 onActiveTemplateIdChange={(id): void => update(draft.id, { signatureTemplateId: id })}
               />
-            </div>
+            }
+          >
             <ComposeEditorThemedPane>
               <SignatureFooterEditor
                 valueHtml={draft.signatureRichHtml}
                 onChangeHtml={(v): void => update(draft.id, { signatureRichHtml: v })}
               />
             </ComposeEditorThemedPane>
-          </ComposeMailBodyTile>
+          </ComposeCollapsibleSection>
+          {draft.quotedHtml ? (
+            <ComposeCollapsibleSection
+              className="shrink-0"
+              label={t('mail.composeTile.originalMail', { defaultValue: 'Original-Mail' })}
+              framed
+            >
+              <div className="p-2 pt-0">
+                <ComposeQuotedMailPreview quotedHtml={draft.quotedHtml} />
+              </div>
+            </ComposeCollapsibleSection>
+          ) : null}
         </div>
       </ComposeEditorSurface>
-
-      {draft.quotedHtml && (
-        <div className="shrink-0 border-t border-border/60 bg-background/40 px-3 py-2">
-          <button
-            type="button"
-            onClick={(): void => setShowQuoted((v) => !v)}
-            className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-muted-foreground hover:text-foreground"
-          >
-            <ChevronDown
-              className={cn('h-3 w-3 transition-transform', !showQuoted && '-rotate-90')}
-            />
-            {showQuoted
-              ? t('mail.readingPane.hideOriginalMail')
-              : t('mail.readingPane.showOriginalMail')}
-          </button>
-          {showQuoted && (
-            <div
-              className="prose-sm mt-2 max-h-[280px] overflow-y-auto rounded border border-border/40 bg-background p-2 text-[11px] leading-relaxed text-muted-foreground [&_a]:text-primary"
-              dangerouslySetInnerHTML={{ __html: draft.quotedHtml }}
-            />
-          )}
-        </div>
-      )}
 
       {draft.replyToMessageId != null && draft.mode !== 'forward' && (
         <div className="flex shrink-0 flex-wrap items-center gap-3 border-t border-border/40 px-3 py-2 text-xs text-muted-foreground">

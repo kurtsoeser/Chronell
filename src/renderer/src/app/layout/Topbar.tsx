@@ -25,7 +25,8 @@ import {
   UserPlus,
   Filter,
   Link2,
-  Building2
+  Building2,
+  Files
 } from 'lucide-react'
 import {
   DndContext,
@@ -87,6 +88,9 @@ import {
   type GlobalCreateKind
 } from '@/lib/global-create'
 import { requestOpenAccountSettings } from '@/lib/open-account-settings'
+import { useFramelessTitlebar } from '@/lib/use-frameless-titlebar'
+import { AppBrandMark } from '@/components/AppBrandMark'
+import { WindowTitlebarControls } from '@/app/layout/WindowTitlebarControls'
 
 interface Props {
   onOpenAccountDialog: () => void
@@ -408,6 +412,7 @@ export function Topbar({ onOpenAccountDialog }: Props): JSX.Element {
         { id: 'work' as const, label: t('topbar.modeWork'), icon: ListChecks },
         { id: 'people' as const, label: t('topbar.modePeople'), icon: Users },
         { id: 'notes' as const, label: t('topbar.modeNotes'), icon: StickyNote },
+        { id: 'files' as const, label: t('topbar.modeFiles'), icon: Files },
         { id: 'connections' as const, label: t('topbar.modeConnections'), icon: Link2 },
         { id: 'chat' as const, label: t('topbar.modeChat'), icon: MessageCircle }
       ] satisfies Array<{
@@ -419,6 +424,7 @@ export function Topbar({ onOpenAccountDialog }: Props): JSX.Element {
   )
 
   const [refreshing, setRefreshing] = useState(false)
+  const framelessTitlebar = useFramelessTitlebar()
   const mode = useAppModeStore((s) => s.mode)
   const setAppMode = useAppModeStore((s) => s.setMode)
   const accounts = useAccountsStore((s) => s.accounts)
@@ -547,6 +553,13 @@ export function Topbar({ onOpenAccountDialog }: Props): JSX.Element {
   const setReadingPlacementMw = useMailWorkspaceLayoutStore((s) => s.setReadingPlacement)
   const setCalendarPlacementMw = useMailWorkspaceLayoutStore((s) => s.setCalendarPlacement)
 
+  function onTitlebarDoubleClick(e: React.MouseEvent<HTMLElement>): void {
+    if (!framelessTitlebar) return
+    const target = e.target as HTMLElement
+    if (target.closest('button, input, a, textarea, select, [contenteditable="true"], nav')) return
+    void window.mailClient.app.windowToggleMaximize()
+  }
+
   async function handleRefresh(): Promise<void> {
     if (!online) return
     if (refreshing) return
@@ -561,7 +574,23 @@ export function Topbar({ onOpenAccountDialog }: Props): JSX.Element {
   }
 
   return (
-    <header className="glass-topbar flex h-12 min-w-0 shrink-0 select-none items-center gap-2 px-2 sm:gap-3 sm:px-3">
+    <header
+      onDoubleClick={onTitlebarDoubleClick}
+      className={cn(
+        'glass-topbar electron-window-titlebar flex h-12 min-w-0 shrink-0 select-none items-center gap-2 px-2 sm:gap-3 sm:px-3',
+        framelessTitlebar && 'pr-0'
+      )}
+    >
+      {framelessTitlebar ? (
+        <>
+          <AppBrandMark
+            className="mr-1 max-w-[8.5rem] shrink-0 pl-0.5 sm:max-w-[10rem]"
+            iconClassName="h-5 w-5"
+            nameClassName="text-xs font-semibold sm:text-sm"
+          />
+          <span className="mr-0.5 h-5 w-px shrink-0 bg-border" aria-hidden />
+        </>
+      ) : null}
       {!online && (
         <span
           className="flex shrink-0 items-center gap-1 rounded-md border border-amber-500/35 bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-800 dark:text-amber-300/95"
@@ -684,6 +713,8 @@ export function Topbar({ onOpenAccountDialog }: Props): JSX.Element {
         >
           <Settings className="h-4 w-4" />
         </button>
+
+        <WindowTitlebarControls />
       </div>
     </header>
   )

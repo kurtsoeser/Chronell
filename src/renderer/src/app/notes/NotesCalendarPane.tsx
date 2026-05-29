@@ -29,7 +29,7 @@ import {
 import { scheduleRemoveDuplicateFullCalendarEventsById } from '@/app/calendar/calendar-fc-event-source'
 import { MAX_TIME_GRID_SPAN_DAYS } from '@/app/calendar/calendar-shell-view-helpers'
 import { useCalendarFcEventContent } from '@/app/calendar/use-calendar-fc-event-content'
-import { timeGridSlotMinutesToDuration } from '@/app/calendar/calendar-shell-storage'
+import { timeGridFcSnapOptions } from '@/app/calendar/calendar-shell-storage'
 import { useNotesSettingsPrefs } from '@/lib/use-notes-settings-prefs'
 import { resolveNotesCalendarDisplayPrefs } from '@/lib/notes-calendar-display'
 import '@/app/calendar/notion-calendar.css'
@@ -69,8 +69,8 @@ export function NotesCalendarPane({
     () => resolveNotesCalendarDisplayPrefs(notesSettings),
     [notesSettings]
   )
-  const slotDuration = useMemo(
-    () => timeGridSlotMinutesToDuration(calDisplay.defaultTimeGridSlotMinutes),
+  const timeGridFcSlotOpts = useMemo(
+    () => timeGridFcSnapOptions(calDisplay.defaultTimeGridSlotMinutes),
     [calDisplay.defaultTimeGridSlotMinutes]
   )
   const calendarFcEventContentRender = useCalendarFcEventContent()
@@ -89,12 +89,26 @@ export function NotesCalendarPane({
   )
 
   const multiDayViews = useMemo(() => {
-    const o: Record<string, { type: 'timeGrid'; duration: { days: number }; buttonText: string }> = {}
+    const o: Record<
+      string,
+      {
+        type: 'timeGrid'
+        duration: { days: number }
+        buttonText: string
+        slotDuration: string
+        snapDuration: string
+      }
+    > = {}
     for (let n = 2; n <= MAX_TIME_GRID_SPAN_DAYS; n++) {
-      o[`timeGrid${n}Day`] = { type: 'timeGrid', duration: { days: n }, buttonText: `${n} Tage` }
+      o[`timeGrid${n}Day`] = {
+        type: 'timeGrid',
+        duration: { days: n },
+        buttonText: `${n} Tage`,
+        ...timeGridFcSlotOpts
+      }
     }
     return o
-  }, [])
+  }, [timeGridFcSlotOpts])
 
   const loadRange = useCallback(async (start: Date, end: Date): Promise<void> => {
     lastRangeRef.current = { start, end }
@@ -173,12 +187,13 @@ export function NotesCalendarPane({
         headerToolbar={false}
         firstDay={calDisplay.weekStartsOn}
         weekends={!calDisplay.hideWeekends}
-        views={{ ...multiDayViews }}
+        views={{ timeGrid: timeGridFcSlotOpts, ...multiDayViews }}
         initialView={fcView}
         slotMinTime={calDisplay.slotMinTime}
         slotMaxTime={calDisplay.slotMaxTime}
         scrollTime={calDisplay.scrollTime}
-        slotDuration={slotDuration}
+        slotDuration={timeGridFcSlotOpts.slotDuration}
+        snapDuration={timeGridFcSlotOpts.snapDuration}
         slotLabelInterval="01:00:00"
         defaultTimedEventDuration="00:30:00"
         nowIndicator

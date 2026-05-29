@@ -45,7 +45,9 @@ export function MenuRow({
       )}
     >
       <span className="flex w-4 shrink-0 justify-center">
-        {selected && !disabled ? <Check className="h-3.5 w-3.5 text-primary" /> : null}
+        {selected && !disabled ? (
+          <Check className="h-3.5 w-3.5 text-accent-foreground opacity-90" />
+        ) : null}
       </span>
       <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
         <span className="min-w-0 leading-snug">{children}</span>

@@ -128,7 +128,7 @@ export function TasksShell(): JSX.Element {
       : null
   )
   const accounts = useAccountsStore((s) => s.accounts)
-  const profilePhotoDataUrls = useAccountsStore((s) => s.profilePhotoDataUrls)
+  const accountDisplayAvatarDataUrls = useAccountsStore((s) => s.accountDisplayAvatarDataUrls)
   const patchAccountColor = useAccountsStore((s) => s.patchAccountColor)
   const taskAccounts = useMemo(
     () => accounts.filter((a) => a.provider === 'microsoft' || a.provider === 'google'),
@@ -1055,7 +1055,7 @@ export function TasksShell(): JSX.Element {
       <div style={{ width: sidebarWidth }} className="h-full shrink-0">
         <TasksShellSidebar
           taskAccounts={taskAccounts}
-          profilePhotoDataUrls={profilePhotoDataUrls}
+          profilePhotoDataUrls={accountDisplayAvatarDataUrls}
           listsByAccount={listsByAccount}
           listsLoadingByAccount={listsLoadingByAccount}
           listsErrorByAccount={listsErrorByAccount}

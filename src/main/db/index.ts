@@ -3,6 +3,7 @@ import Database, { type Database as DbType } from 'better-sqlite3'
 import { mkdirSync, unlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { MIGRATIONS } from './schema'
+import { scheduleMessageParticipantsBackfillIfNeeded } from './message-participants-repo'
 import { migrateLegacyLinksToEntityLinks } from './entity-links-migrate'
 import { purgeOrphanedEntityLinks } from './entity-links-repo'
 
@@ -103,6 +104,7 @@ export function getDb(): DbType {
     runMigrations(db)
     migrateLegacyLinksToEntityLinks(db)
     purgeOrphanedEntityLinks()
+    scheduleMessageParticipantsBackfillIfNeeded()
   } catch (e) {
     dbInstance = null
     try {

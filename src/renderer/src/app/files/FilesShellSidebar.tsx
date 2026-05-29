@@ -1,0 +1,182 @@
+import { useTranslation } from 'react-i18next'
+import type { FilesShellSourceId } from '@shared/files'
+import type { ComposeDriveExplorerNavCrumb, ComposeDriveExplorerScope, ConnectedAccount } from '@shared/types'
+import { FilesCloudFavorites } from '@/app/files/FilesCloudFavorites'
+import { AccountAvatarBadge } from '@/components/AccountAvatarBadge'
+import { cn } from '@/lib/utils'
+import { moduleNavColumnScrollClass } from '@/components/module-shell-layout'
+
+interface Props {
+  source: FilesShellSourceId
+  onSourceChange: (source: FilesShellSourceId) => void
+  accounts: ConnectedAccount[]
+  /** Mail: Mehrfachauswahl (null = alle). */
+  selectedMailAccountIds: string[] | null
+  onChangeMailAccountIds: (ids: string[] | null) => void
+  /** Cloud: genau ein Microsoft-Konto. */
+  cloudAccountId: string | null
+  onChangeCloudAccountId: (id: string) => void
+  cloudScope: ComposeDriveExplorerScope
+  cloudCrumbs: ComposeDriveExplorerNavCrumb[]
+  onApplyCloudPath: (scope: ComposeDriveExplorerScope, crumbs: ComposeDriveExplorerNavCrumb[]) => void
+  indexPending: number
+}
+
+export function FilesShellSidebar({
+  source,
+  onSourceChange,
+  accounts,
+  selectedMailAccountIds,
+  onChangeMailAccountIds,
+  cloudAccountId,
+  onChangeCloudAccountId,
+  cloudScope,
+  cloudCrumbs,
+  onApplyCloudPath,
+  indexPending
+}: Props): JSX.Element {
+  const { t } = useTranslation()
+
+  const microsoftAccounts = accounts.filter((a) => a.provider === 'microsoft')
+  const mailAllSelected =
+    selectedMailAccountIds == null || selectedMailAccountIds.length === 0
+
+  function toggleMailAccount(accountId: string): void {
+    if (mailAllSelected) {
+      onChangeMailAccountIds([accountId])
+      return
+    }
+    const set = new Set(selectedMailAccountIds ?? [])
+    if (set.has(accountId)) {
+      set.delete(accountId)
+      onChangeMailAccountIds(set.size > 0 ? [...set] : null)
+    } else {
+      set.add(accountId)
+      onChangeMailAccountIds([...set])
+    }
+  }
+
+  return (
+    <div className={cn(moduleNavColumnScrollClass, 'flex flex-col gap-3 p-3')}>
+      <div>
+        <h2 className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {t('files.sidebar.source')}
+        </h2>
+        <div className="mt-1.5 space-y-0.5">
+          <button
+            type="button"
+            onClick={(): void => onSourceChange('mail')}
+            className={cn(
+              'flex w-full rounded-md px-2 py-1.5 text-left text-sm transition-colors',
+              source === 'mail'
+                ? 'bg-secondary font-medium text-foreground'
+                : 'text-muted-foreground hover:bg-secondary/50'
+            )}
+          >
+            {t('files.sidebar.fromMail')}
+          </button>
+          <button
+            type="button"
+            onClick={(): void => onSourceChange('cloud')}
+            className={cn(
+              'flex w-full rounded-md px-2 py-1.5 text-left text-sm transition-colors',
+              source === 'cloud'
+                ? 'bg-secondary font-medium text-foreground'
+                : 'text-muted-foreground hover:bg-secondary/50'
+            )}
+          >
+            {t('files.sidebar.fromCloud')}
+          </button>
+        </div>
+        <p className="mt-1.5 px-1 text-[11px] text-muted-foreground">
+          {source === 'mail' ? t('files.sidebar.fromMailHint') : t('files.sidebar.fromCloudHint')}
+        </p>
+      </div>
+
+      <div>
+        <h3 className="mb-1.5 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {t('files.sidebar.accounts')}
+        </h3>
+        {source === 'mail' ? (
+          <>
+            <button
+              type="button"
+              onClick={(): void => onChangeMailAccountIds(null)}
+              className={cn(
+                'flex w-full items-center rounded-md px-2 py-1.5 text-left text-sm transition-colors',
+                mailAllSelected
+                  ? 'bg-secondary text-foreground'
+                  : 'text-muted-foreground hover:bg-secondary/50'
+              )}
+            >
+              {t('files.sidebar.allAccounts')}
+            </button>
+            <ul className="mt-1 space-y-0.5">
+              {accounts.map((acc) => {
+                const active =
+                  !mailAllSelected && (selectedMailAccountIds?.includes(acc.id) ?? false)
+                return (
+                  <li key={acc.id}>
+                    <button
+                      type="button"
+                      onClick={(): void => toggleMailAccount(acc.id)}
+                      className={cn(
+                        'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors',
+                        active
+                          ? 'bg-secondary text-foreground'
+                          : 'text-muted-foreground hover:bg-secondary/50'
+                      )}
+                    >
+                      <AccountAvatarBadge account={acc} className="h-5 w-5 shrink-0 text-[10px]" />
+                      <span className="min-w-0 truncate">{acc.displayName || acc.email}</span>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          </>
+        ) : microsoftAccounts.length === 0 ? (
+          <p className="px-1 text-[11px] text-muted-foreground">{t('files.cloud.noMicrosoftAccount')}</p>
+        ) : (
+          <ul className="space-y-0.5">
+            {microsoftAccounts.map((acc) => {
+              const active = cloudAccountId === acc.id
+              return (
+                <li key={acc.id}>
+                  <button
+                    type="button"
+                    onClick={(): void => onChangeCloudAccountId(acc.id)}
+                    className={cn(
+                      'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors',
+                      active
+                        ? 'bg-secondary text-foreground'
+                        : 'text-muted-foreground hover:bg-secondary/50'
+                    )}
+                  >
+                    <AccountAvatarBadge account={acc} className="h-5 w-5 shrink-0 text-[10px]" />
+                    <span className="min-w-0 truncate">{acc.displayName || acc.email}</span>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </div>
+
+      {source === 'cloud' && cloudAccountId ? (
+        <FilesCloudFavorites
+          accountId={cloudAccountId}
+          scope={cloudScope}
+          crumbs={cloudCrumbs}
+          onApply={onApplyCloudPath}
+        />
+      ) : null}
+
+      {source === 'mail' && indexPending > 0 ? (
+        <p className="px-1 text-[11px] text-muted-foreground">
+          {t('files.sidebar.indexPending', { count: indexPending })}
+        </p>
+      ) : null}
+    </div>
+  )
+}

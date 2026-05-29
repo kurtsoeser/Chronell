@@ -1,5 +1,6 @@
 import type { TaskItemRow, TaskListRow } from '@shared/types'
 import { listAccounts } from './accounts'
+import { warnProviderAuthOnce } from './auth/auth-errors'
 import {
   deleteCloudTask,
   getTaskListSyncState,
@@ -118,7 +119,7 @@ async function refreshListsInBackground(accountId: string): Promise<void> {
       const after = taskListsCacheSignature(listTaskListsFromCache(accountId))
       if (before !== after) broadcastTasksChanged(accountId)
     } catch (e) {
-      console.warn('[tasks-cache] Hintergrund-Sync der Aufgabenlisten fehlgeschlagen:', accountId, e)
+      warnProviderAuthOnce('tasks-cache', accountId, e)
     }
   })().finally(() => {
     if (inflightLists.get(key) === run) inflightLists.delete(key)
@@ -151,7 +152,7 @@ async function refreshTasksInBackground(
       )
       if (before !== after) broadcastTasksChanged(accountId)
     } catch (e) {
-      console.warn('[tasks-cache] Hintergrund-Sync der Aufgaben fehlgeschlagen:', accountId, listId, e)
+      warnProviderAuthOnce('tasks-cache', accountId, e)
     }
   })().finally(() => {
     if (inflightTasks.get(key) === run) inflightTasks.delete(key)
@@ -190,7 +191,7 @@ export async function listTaskListsCached(
   try {
     return await fetchListsFromCloudAndPersist(accountId)
   } catch (e) {
-    console.warn('[tasks-cache] Aufgabenlisten konnten nicht aus der Cloud geladen werden:', accountId, e)
+    warnProviderAuthOnce('tasks-cache', accountId, e)
     return cached
   }
 }
@@ -239,7 +240,7 @@ export async function listTasksCached(
   try {
     return await fetchTasksFromCloudAndPersist(accountId, listId, opts)
   } catch (e) {
-    console.warn('[tasks-cache] Aufgaben konnten nicht aus der Cloud geladen werden:', accountId, listId, e)
+    warnProviderAuthOnce('tasks-cache', accountId, e)
     return cached
   }
 }
@@ -254,7 +255,7 @@ export async function syncTasksForAccount(accountId: string): Promise<void> {
         showHidden: false
       })
     } catch (e) {
-      console.warn('[tasks-cache] Liste konnte nicht synchronisiert werden:', accountId, list.id, e)
+      warnProviderAuthOnce('tasks-cache', accountId, e)
     }
   }
   broadcastTasksChanged(accountId)
@@ -268,7 +269,7 @@ export async function syncAllTasksAccounts(): Promise<void> {
     try {
       await syncTasksForAccount(acc.id)
     } catch (e) {
-      console.warn('[tasks-cache] Sync fehlgeschlagen:', acc.id, e)
+      warnProviderAuthOnce('tasks-cache', acc.id, e)
     }
   }
 }

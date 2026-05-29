@@ -17,6 +17,7 @@ import {
   type CalendarAccountSyncStateRow,
   type CalendarListCalendarsInput,
   type CalendarListEventsInput,
+  type CalendarListEventsForContactInput,
   type CalendarM365GroupCalendarsPage,
   type CalendarParseIcsFileResult
 } from '@shared/types'
@@ -62,6 +63,7 @@ import {
   isCalendarColorMenuPreset,
   isCalendarExtendedColorPreset
 } from '@shared/graph-calendar-colors'
+import { listCalendarEventsForContactEmails } from '../db/calendar-events-repo'
 
 export function registerCalendarIpc(): void {
   ipcMain.removeHandler(IPC.calendar.listEvents)
@@ -73,6 +75,18 @@ export function registerCalendarIpc(): void {
         focus: args.focusCalendar ?? undefined,
         includeCalendars: Array.isArray(include) ? include : undefined,
         forceRefresh: args.forceRefresh === true
+      })
+    }
+  )
+  ipcMain.removeHandler(IPC.calendar.listEventsForContact)
+  ipcMain.handle(
+    IPC.calendar.listEventsForContact,
+    async (_event, args: CalendarListEventsForContactInput): Promise<CalendarEventView[]> => {
+      return listCalendarEventsForContactEmails({
+        emails: args.emails ?? [],
+        startIso: args.startIso,
+        endIso: args.endIso,
+        limit: args.limit
       })
     }
   )

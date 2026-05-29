@@ -47,6 +47,10 @@ export function avatarFileNameForAccount(accountId: string): string {
   return `${accountId.replace(/[^a-zA-Z0-9]+/g, '_')}.jpg`
 }
 
+export function customAvatarFileNameForAccount(accountId: string): string {
+  return `${accountId.replace(/[^a-zA-Z0-9]+/g, '_')}_custom.jpg`
+}
+
 export function avatarsDirectory(): string {
   return join(app.getPath('userData'), 'avatars')
 }
@@ -85,6 +89,47 @@ export async function deleteAccountProfilePhoto(
   if (profilePhotoFile !== expected) return
   try {
     await unlink(join(avatarsDirectory(), profilePhotoFile))
+  } catch {
+    // Datei existiert nicht mehr – ignorieren
+  }
+}
+
+export async function saveAccountCustomAvatar(
+  accountId: string,
+  imageBytes: Buffer
+): Promise<string> {
+  const dir = avatarsDirectory()
+  await mkdir(dir, { recursive: true })
+  const fileName = customAvatarFileNameForAccount(accountId)
+  await writeFile(join(dir, fileName), imageBytes)
+  return fileName
+}
+
+export async function readAccountCustomAvatarDataUrl(
+  accountId: string,
+  customAvatarFile: string
+): Promise<string | null> {
+  const expected = customAvatarFileNameForAccount(accountId)
+  if (customAvatarFile !== expected) return null
+  const fullPath = join(avatarsDirectory(), customAvatarFile)
+  try {
+    const buf = await readFile(fullPath)
+    const mime = imageMimeFromMagic(buf)
+    return `data:${mime};base64,${buf.toString('base64')}`
+  } catch {
+    return null
+  }
+}
+
+export async function deleteAccountCustomAvatar(
+  customAvatarFile: string | null | undefined,
+  accountId: string
+): Promise<void> {
+  if (!customAvatarFile) return
+  const expected = customAvatarFileNameForAccount(accountId)
+  if (customAvatarFile !== expected) return
+  try {
+    await unlink(join(avatarsDirectory(), customAvatarFile))
   } catch {
     // Datei existiert nicht mehr – ignorieren
   }

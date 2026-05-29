@@ -18,6 +18,7 @@ import {
   SETTINGS_BACKUP_FORMAT_VERSION,
   SETTINGS_BACKUP_SUPPORTED_FORMAT_VERSIONS
 } from '@shared/types'
+import { isAccountAvatarIconId } from '@shared/account-avatar'
 import {
   accountPreferencesForBackup,
   listAccounts,
@@ -406,6 +407,20 @@ function parseAccountPreferencesBackup(raw: unknown[]): SettingsBackupAccountPre
     const pref: SettingsBackupAccountPreferenceSnapshot = { accountId: row.accountId.trim() }
     if (typeof row.color === 'string' && row.color.trim()) {
       pref.color = row.color.trim()
+    }
+    if (typeof row.avatarKind === 'string' && row.avatarKind.trim()) {
+      const k = row.avatarKind.trim()
+      if (k === 'provider' || k === 'initials' || k === 'icon' || k === 'custom') {
+        pref.avatarKind = k
+      }
+    }
+    if ('avatarIconId' in row) {
+      if (row.avatarIconId == null) {
+        pref.avatarIconId = null
+      } else if (typeof row.avatarIconId === 'string') {
+        const iconId = row.avatarIconId.trim()
+        pref.avatarIconId = isAccountAvatarIconId(iconId) ? iconId : null
+      }
     }
     if ('calendarLoadAheadDays' in row) {
       pref.calendarLoadAheadDays =

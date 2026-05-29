@@ -110,8 +110,8 @@ export function PeopleContactTile({
         ) : null}
       </div>
 
-      <div className="flex min-h-[8rem] gap-3 p-4">
-        <div className="flex w-[6.75rem] shrink-0 flex-col items-center gap-2 pt-0.5">
+      <div className="flex min-h-[7rem] gap-2 p-3">
+        <div className="flex w-[4.5rem] shrink-0 flex-col items-center gap-1.5 pt-0.5">
           <PeopleContactListAvatar
             contact={contact}
             displayName={label}
@@ -119,14 +119,14 @@ export function PeopleContactTile({
             variant="tile"
           />
           <div className="w-full min-w-0 text-center">
-            <p className="text-base font-semibold leading-snug text-foreground">{label}</p>
+            <p className="text-sm font-semibold leading-snug text-foreground">{label}</p>
             {nameParts && nameParts !== label ? (
               <p className="mt-0.5 text-xs leading-snug text-muted-foreground">{nameParts}</p>
             ) : null}
           </div>
         </div>
 
-        <dl className="grid min-w-0 flex-1 grid-cols-1 content-start gap-2.5 border-l border-border/70 pl-3">
+        <dl className="grid min-w-0 flex-1 grid-cols-1 content-start gap-2 border-l border-border/70 pl-2">
           <TileDetailRow label={t('people.shell.email')}>
             {contact.primaryEmail || extraEmails.length > 0 ? (
               <ul className="min-w-0 space-y-0.5">

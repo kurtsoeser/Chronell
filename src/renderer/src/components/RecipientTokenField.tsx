@@ -69,6 +69,30 @@ export const RecipientTokenField = forwardRef<
     openContactPicker: (): void => setPickerOpen(true)
   }))
 
+  const dedupedSuggestions = useMemo(() => {
+    const rank: Record<string, number> = {
+      'people-local': 0,
+      'graph-people': 1,
+      'graph-directory': 2,
+      'graph-group': 3,
+      'mail-history': 4
+    }
+    const byEmail = new Map<string, ComposeRecipientSuggestion>()
+    for (const s of suggestions) {
+      const key = s.email.trim().toLowerCase()
+      if (!key) continue
+      const existing = byEmail.get(key)
+      if (!existing) {
+        byEmail.set(key, s)
+        continue
+      }
+      const rNew = rank[s.source] ?? 99
+      const rOld = rank[existing.source] ?? 99
+      if (rNew < rOld) byEmail.set(key, s)
+    }
+    return Array.from(byEmail.values())
+  }, [suggestions])
+
   const fetchSuggest = useCallback(
     async (q: string): Promise<void> => {
       const t = normalizeRecipientSuggestionQuery(q)
@@ -110,8 +134,8 @@ export const RecipientTokenField = forwardRef<
       return
     }
 
-    if (opts?.pickFirstSuggestion && suggestions.length > 0) {
-      const s = suggestions[0]!
+    if (opts?.pickFirstSuggestion && dedupedSuggestions.length > 0) {
+      const s = dedupedSuggestions[0]!
       const addr = s.email.trim()
       if (!addr) return
       onChange(
@@ -269,6 +293,12 @@ export const RecipientTokenField = forwardRef<
               } else if (e.key === ',' || e.key === ';') {
                 e.preventDefault()
                 commitTail()
+              } else if (e.key === ' ') {
+                const trimmed = tail.trim()
+                if (trimmed.length > 0 && (trimmed.includes('@') || parseRecipientEntry(trimmed))) {
+                  e.preventDefault()
+                  commitTail()
+                }
               } else if (e.key === 'Backspace' && tail === '' && complete.length > 0) {
                 removeAt(complete.length - 1)
               }
@@ -284,14 +314,14 @@ export const RecipientTokenField = forwardRef<
             className="min-w-[120px] flex-1 bg-transparent py-0.5 text-xs text-foreground outline-none placeholder:text-muted-foreground"
           />
         </div>
-        {open && (suggestions.length > 0 || loadingSuggest) && (
+        {open && (dedupedSuggestions.length > 0 || loadingSuggest) && (
           <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-48 overflow-y-auto rounded-md border border-border bg-card py-1 shadow-lg">
-            {loadingSuggest && suggestions.length === 0 && (
+            {loadingSuggest && dedupedSuggestions.length === 0 && (
               <div className="px-3 py-2 text-[11px] text-muted-foreground">Vorschläge werden geladen…</div>
             )}
-            {suggestions.map((s, i) => (
+            {dedupedSuggestions.map((s) => (
               <button
-                key={`${s.email}-${s.source}-${i}`}
+                key={`${s.email}-${s.source}`}
                 type="button"
                 className="flex w-full flex-col items-start gap-0.5 px-3 py-1.5 text-left text-[11px] hover:bg-secondary"
                 onMouseDown={(ev): void => {

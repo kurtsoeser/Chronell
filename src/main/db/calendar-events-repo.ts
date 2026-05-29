@@ -216,6 +216,55 @@ export function listCalendarEventsInRange(
   return rows.map(rowToView)
 }
 
+/** Termine mit Kontakt als Teilnehmer oder Organisator (lokaler Cache, inkl. `calendar_event_details`). */
+export function listCalendarEventsForContactEmails(args: {
+  emails: string[]
+  startIso: string
+  endIso: string
+  limit?: number
+}): CalendarEventView[] {
+  const norms = [
+    ...new Set(
+      args.emails
+        .map((e) => e.trim().toLowerCase())
+        .filter((e) => e.length > 0 && e.includes('@'))
+    )
+  ]
+  if (norms.length === 0) return []
+
+  const limit = Math.min(Math.max(args.limit ?? 5, 1), 20)
+  const params: Record<string, string | number> = {
+    startIso: args.startIso,
+    endIso: args.endIso,
+    limit
+  }
+  const matchParts: string[] = []
+  norms.forEach((norm, i) => {
+    const key = `em${i}`
+    params[key] = `%${norm}%`
+    matchParts.push(
+      `(lower(COALESCE(d.attendee_emails_json, '')) LIKE @${key} OR lower(COALESCE(e.organizer, '')) LIKE @${key})`
+    )
+  })
+
+  const rows = getDb()
+    .prepare(
+      `SELECT DISTINCT e.id, e.account_id, e.source, e.graph_event_id, e.graph_calendar_id,
+              e.account_email, e.account_color_class, e.title, e.start_iso, e.end_iso, e.is_all_day,
+              e.location, e.web_link, e.join_url, e.organizer, e.categories_json, e.display_color_hex,
+              e.calendar_can_edit, e.icon_id
+       FROM calendar_events e
+       LEFT JOIN calendar_event_details d
+         ON d.account_id = e.account_id AND d.graph_event_id = e.graph_event_id
+       WHERE e.start_iso < @endIso AND e.end_iso > @startIso
+         AND (${matchParts.join(' OR ')})
+       ORDER BY e.start_iso ASC
+       LIMIT @limit`
+    )
+    .all(params) as CalendarEventDbRow[]
+  return rows.map(rowToView)
+}
+
 /** Entfernt Termine im Fenster, die beim letzten Abruf nicht mehr geliefert wurden. */
 export function pruneCalendarEventsInRange(
   accountId: string,

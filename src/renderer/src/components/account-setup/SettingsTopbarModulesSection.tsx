@@ -26,7 +26,8 @@ import {
   Link2,
   MessageCircle,
   StickyNote,
-  Users
+  Users,
+  Files
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { AppShellMode } from '@/stores/app-mode'
@@ -55,6 +56,7 @@ const MODULE_DEFS: Array<{
   { id: 'work', labelKey: 'topbar.modeWork', icon: ListChecks },
   { id: 'people', labelKey: 'topbar.modePeople', icon: Users },
   { id: 'notes', labelKey: 'topbar.modeNotes', icon: StickyNote },
+  { id: 'files', labelKey: 'topbar.modeFiles', icon: Files },
   { id: 'connections', labelKey: 'topbar.modeConnections', icon: Link2 },
   { id: 'chat', labelKey: 'topbar.modeChat', icon: MessageCircle }
 ]

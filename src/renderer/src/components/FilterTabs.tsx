@@ -1,9 +1,12 @@
+import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 
 export interface FilterTabOption<T extends string> {
   id: T
   label: string
   count?: number
+  /** Optionales Icon links vom Label (z. B. Lucide mit `className="h-3.5 w-3.5"`). */
+  icon?: ReactNode
 }
 
 interface Props<T extends string> {
@@ -12,6 +15,8 @@ interface Props<T extends string> {
   onChange: (id: T) => void
   className?: string
   ariaLabel?: string
+  /** Kompaktere Tabs für schmale Seitenleisten (z. B. Kontakt-Panel). */
+  size?: 'default' | 'compact'
 }
 
 /**
@@ -24,8 +29,10 @@ export function FilterTabs<T extends string>({
   options,
   onChange,
   className,
-  ariaLabel
+  ariaLabel,
+  size = 'default'
 }: Props<T>): JSX.Element {
+  const compact = size === 'compact'
   return (
     <div
       role="tablist"
@@ -42,13 +49,25 @@ export function FilterTabs<T extends string>({
             aria-selected={active}
             onClick={(): void => onChange(opt.id)}
             className={cn(
-              'group relative inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors',
+              'group relative inline-flex items-center rounded-md font-medium transition-colors',
+              compact ? 'h-7 gap-1 px-2 text-2xs' : 'h-8 gap-1.5 px-2.5 text-xs',
               active
                 ? 'bg-secondary text-foreground'
                 : 'text-muted-foreground hover:bg-secondary/50 hover:text-foreground'
             )}
           >
-            <span>{opt.label}</span>
+            {opt.icon ? (
+              <span
+                className={cn(
+                  'flex shrink-0',
+                  active ? 'text-foreground' : 'text-muted-foreground group-hover:text-foreground'
+                )}
+                aria-hidden
+              >
+                {opt.icon}
+              </span>
+            ) : null}
+            <span className="truncate">{opt.label}</span>
             {opt.count !== undefined && opt.count > 0 && (
               <span
                 className={cn(

@@ -1,6 +1,7 @@
 import {
   calendarZonedPartsFromDateOnly,
   calendarZonedPartsFromUtcIso,
+  formatUtcIsoAsLocalDateTime,
   utcIsoFromWallDateTime
 } from '@shared/calendar-datetime'
 import type { calendar_v3 } from 'googleapis'
@@ -16,6 +17,31 @@ import { withGoogleUsageLimitRetry } from './google-api-usage-retry'
 const SIMPLE_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i
 const MAX_GOOGLE_EVENT_ATTENDEES = 40
 const GOOGLE_CAL_DESCRIPTION_MAX = 8192
+
+function resolveGoogleEventTimeZone(
+  inputTimeZone: string | null | undefined,
+  configTimeZone: string | null | undefined
+): string {
+  const fromInput = inputTimeZone?.trim()
+  if (fromInput) return fromInput
+  return resolveCalendarTimeZone(configTimeZone)
+}
+
+function googleTimedStartEndFields(
+  startIso: string,
+  endIso: string,
+  timeZone: string
+): Pick<calendar_v3.Schema$Event, 'start' | 'end'> {
+  const startLocal = formatUtcIsoAsLocalDateTime(startIso, timeZone)
+  const endLocal = formatUtcIsoAsLocalDateTime(endIso, timeZone)
+  if (!startLocal || !endLocal) {
+    throw new Error('Ungueltige Start- oder Endzeit.')
+  }
+  return {
+    start: { dateTime: startLocal, timeZone },
+    end: { dateTime: endLocal, timeZone }
+  }
+}
 
 /** Google `attendees` (dedupliziert, max. 40). */
 export function buildGoogleAttendees(
@@ -265,11 +291,12 @@ export async function googleCreateEvent(
     bodyHtml?: string | null
     recurrence?: CalendarSaveEventRecurrence | null
     attendeeEmails?: string[] | null
+    timeZone?: string | null
   }
 ): Promise<{ id: string; webLink: string | null }> {
   const { calendar } = await getGoogleApis(accountId)
   const config = await loadConfig()
-  const tz = resolveCalendarTimeZone(config.calendarTimeZone)
+  const tz = resolveGoogleEventTimeZone(input.timeZone, config.calendarTimeZone)
   const calId = calendarId?.trim() || 'primary'
 
   const body: calendar_v3.Schema$Event = {
@@ -285,8 +312,7 @@ export async function googleCreateEvent(
     body.start = { date: input.startIso.slice(0, 10) }
     body.end = { date: input.endIso.slice(0, 10) }
   } else {
-    body.start = { dateTime: input.startIso, timeZone: tz }
-    body.end = { dateTime: input.endIso, timeZone: tz }
+    Object.assign(body, googleTimedStartEndFields(input.startIso, input.endIso, tz))
   }
 
   if (input.recurrence) {
@@ -324,11 +350,12 @@ export async function googleUpdateEvent(
     location?: string | null
     bodyHtml?: string | null
     attendeeEmails?: string[] | null
+    timeZone?: string | null
   }
 ): Promise<void> {
   const { calendar } = await getGoogleApis(accountId)
   const config = await loadConfig()
-  const tz = resolveCalendarTimeZone(config.calendarTimeZone)
+  const tz = resolveGoogleEventTimeZone(input.timeZone, config.calendarTimeZone)
 
   const descPatch = googleCalendarDescriptionFromEditorHtml(input.bodyHtml ?? null)
   const body: calendar_v3.Schema$Event = {
@@ -341,8 +368,7 @@ export async function googleUpdateEvent(
     body.start = { date: input.startIso.slice(0, 10) }
     body.end = { date: input.endIso.slice(0, 10) }
   } else {
-    body.start = { dateTime: input.startIso, timeZone: tz }
-    body.end = { dateTime: input.endIso, timeZone: tz }
+    Object.assign(body, googleTimedStartEndFields(input.startIso, input.endIso, tz))
   }
 
   let sendUpdates: 'all' | undefined
@@ -374,8 +400,7 @@ export async function googlePatchEventTimes(
     body.start = { date: input.startIso.slice(0, 10) }
     body.end = { date: input.endIso.slice(0, 10) }
   } else {
-    body.start = { dateTime: input.startIso, timeZone: tz }
-    body.end = { dateTime: input.endIso, timeZone: tz }
+    Object.assign(body, googleTimedStartEndFields(input.startIso, input.endIso, tz))
   }
   await calendar.events.patch({
     calendarId,
@@ -406,7 +431,7 @@ export async function googleGetCalendarEventDetail(
       calendarId,
       eventId,
       fields:
-        'summary,description,location,hangoutLink,conferenceData,attendees(email),organizer(email,displayName)'
+        'summary,description,location,hangoutLink,conferenceData,attendees(email),organizer(email,displayName),start(timeZone,dateTime,date),end(timeZone,dateTime,date)'
     })
   )
   const ev = res.data
@@ -436,6 +461,12 @@ export async function googleGetCalendarEventDetail(
     isOnlineMeeting,
     bodyHtml: normalizeGoogleEventDescriptionHtml(ev.description ?? null),
     location: ev.location?.trim() || null,
-    organizer
+    organizer,
+    isReminderOn: false,
+    reminderMinutesBeforeStart: null,
+    timeZone:
+      ev.start?.date && ev.end?.date
+        ? null
+        : ev.start?.timeZone?.trim() || null
   }
 }

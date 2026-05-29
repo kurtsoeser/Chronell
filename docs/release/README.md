@@ -31,6 +31,28 @@ npm run build:win:local
 
 LFS einrichten (falls noch nicht geschehen): `.\scripts\ensure-git-lfs.ps1`
 
+## Nach einem Coding-Tag (Publish-Day)
+
+Alles in einem Durchlauf: Release-Notizen, Funktionsprotokoll, Homepage, QA, Build, Git-Push, GitHub Release:
+
+```powershell
+npm run publish:day
+```
+
+Release-Notizen werden **automatisch aus Git** erzeugt (`scripts/generate-release-notes.ps1`) — geänderte Dateien seit `v{package.json}` plus Working Tree. Optional nur ansehen: `-ReviewNotes`, manuell: `-ManualNotes`.
+
+Vorschau: `npm run release:notes`
+
+**Nur testen ohne Änderungen:**
+
+```powershell
+npm run publish:day:dry
+```
+
+**Nur lokal bauen** (ohne Push): `npm run publish:day -- -LocalOnly`
+
+Flags: `-SkipChecks`, `-NoBump`, `-Bump minor`, `-NotesFile docs/releases/0.9.25.md`
+
 ## Manuell nachziehen
 
 ```powershell

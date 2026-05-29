@@ -39,6 +39,7 @@ import { useAccountsStore } from '@/stores/accounts'
 import { threadGroupingKey } from '@/lib/thread-group'
 import { dedupeMailListThreadMessagesById } from '@/lib/mail-list-ui'
 import { runMailQuickStep } from '@/lib/run-mail-quickstep'
+import { QUICKSTEPS_CHANGED_EVENT } from '@/lib/quicksteps-changed'
 import { useComposeStore } from '@/stores/compose'
 import { resolveMailViewerDarkSurfaceHex, useThemeStore } from '@/stores/theme'
 import {
@@ -300,14 +301,19 @@ export function ReadingPane({
   ])
 
   useEffect(() => {
-    if (!isMailClientRuntimeComplete()) {
-      setQuickSteps([])
-      return
+    function reload(): void {
+      if (!isMailClientRuntimeComplete()) {
+        setQuickSteps([])
+        return
+      }
+      void window.mailClient.mail
+        .listQuickSteps()
+        .then(setQuickSteps)
+        .catch(() => setQuickSteps([]))
     }
-    void window.mailClient.mail
-      .listQuickSteps()
-      .then(setQuickSteps)
-      .catch(() => setQuickSteps([]))
+    reload()
+    window.addEventListener(QUICKSTEPS_CHANGED_EVENT, reload)
+    return (): void => window.removeEventListener(QUICKSTEPS_CHANGED_EVENT, reload)
   }, [])
 
   const messageAccount =

@@ -1,27 +1,33 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentType
+} from 'react'
 import {
   addDays,
   addHours,
-  addMinutes,
   addMonths,
   format,
   parseISO,
   set
 } from 'date-fns'
-import { de as deFns, enUS as enUSFns } from 'date-fns/locale'
-import type { Locale } from 'date-fns'
 import { useTranslation } from 'react-i18next'
 import {
   AlignLeft,
+  Bell,
   Calendar as CalendarIcon,
   CheckSquare,
-  CircleDot,
   ExternalLink,
+  Globe,
   LayoutPanelLeft,
   Loader2,
   MapPin,
-  MoreHorizontal,
+  Repeat2,
   Send,
+  SquareArrowOutUpRight,
   UserPlus,
   Video,
   X
@@ -38,10 +44,25 @@ import type {
   MailMasterCategory,
   TaskListRow
 } from '@shared/types'
+import { CALENDAR_TIMEZONE_UI_OPTIONS } from '@shared/microsoft-timezones'
 import { dueIsoFromClientInput } from '@shared/calendar-datetime'
 import { cloudTaskStableKey } from '@shared/work-item-keys'
 import { applyCloudTaskPersistTarget } from '@/app/calendar/apply-cloud-task-persist'
 import { CalendarEventRecurrenceSection } from '@/app/calendar/CalendarEventRecurrenceSection'
+import { CalendarEventDialogDayPicker } from '@/app/calendar/CalendarEventDialogDayPicker'
+import { CalendarEventCategoryPopover } from '@/app/calendar/CalendarEventCategoryPopover'
+import { CalendarFloatingPanel } from '@/app/calendar/CalendarFloatingPanel'
+import {
+  CAL_EVENT_DIALOG_DEFAULT_DOCK_W,
+  CAL_EVENT_DIALOG_DAY_COLUMN_WIDTH_KEY,
+  CAL_EVENT_DIALOG_DEFAULT_DAY_COLUMN_W,
+  CAL_EVENT_DIALOG_FLOAT_SIZE_KEY,
+  persistCalendarEventDialogModalSize,
+  persistCalendarEventDialogPlacement,
+  readCalendarEventDialogModalSize,
+  readCalendarEventDialogPlacement,
+  type CalendarEventDialogPlacement
+} from '@/app/calendar/calendar-event-dialog-storage'
 import {
   buildTaskSaveRecurrence,
   defaultWeekdayFromDueYmd,
@@ -63,10 +84,13 @@ import {
 import { cloudTaskAccountOptionLabel } from '@/lib/cloud-task-accounts'
 import { formatAttachmentBytes } from '@/lib/attachment-files'
 import { cn } from '@/lib/utils'
+import {
+  eventDialogPanelSelectClass,
+  eventDialogSectionHeadingClass
+} from '@/lib/chronell-ui-classes'
 import { ModalPanel, ModalRoot } from '@/components/motion/Modal'
 import { openExternalUrl } from '@/lib/open-external'
 import { useAccountsStore } from '@/stores/accounts'
-import { outlookCategoryDotClass } from '@/lib/outlook-category-colors'
 import { resolvedAccountColorCss } from '@/lib/avatar-color'
 import { EntityContextBlock } from '@/components/connections/EntityContextBlock'
 import { TipTapBody } from '@/components/TipTapBody'
@@ -76,25 +100,39 @@ import { CalendarEventDescriptionPreview } from '@/app/calendar/CalendarEventDes
 import { CalendarEventIconPicker } from '@/components/CalendarEventIconPicker'
 import { LocationAutocompleteInput } from '@/components/LocationAutocompleteInput'
 import { ChronellDateField } from '@/components/ChronellDateField'
-import { ChronellDatePickerPanel } from '@/components/ChronellDatePickerPanel'
+import { useResizableWidth, VerticalSplitter } from '@/components/ResizableSplitter'
 import {
   RecipientTokenField,
   type RecipientTokenFieldHandle
 } from '@/components/RecipientTokenField'
-import { parseRecipients } from '@/lib/compose-helpers'
+import { formatRecipientsWithTail, parseRecipients } from '@/lib/compose-helpers'
 import { calendarEventIconIsExplicit } from '@/lib/calendar-event-icons'
 import { useThemeStore } from '@/stores/theme'
 import { OneDriveExplorerDialog } from '@/components/OneDriveExplorerDialog'
-
-function dateToDatetimeLocal(d: Date): string {
-  return format(d, "yyyy-MM-dd'T'HH:mm")
-}
-
-function datetimeLocalToIso(s: string, invalidMsg: string): string {
-  const d = new Date(s)
-  if (Number.isNaN(d.getTime())) throw new Error(invalidMsg)
-  return d.toISOString()
-}
+import {
+  CAL_EVENT_REMINDER_DEFAULT_MINUTES,
+  calendarEventReminderKey,
+  readCalendarEventReminder,
+  writeCalendarEventReminder
+} from '@/lib/calendar-event-reminders'
+import {
+  formatOutlookReminderMinutes,
+  OUTLOOK_REMINDER_MINUTES_OPTIONS
+} from '@/lib/calendar-event-reminder-options'
+import {
+  addMinutesInEventZone,
+  convertEventDatetimeLocalBetweenZones,
+  eventDatetimeLocalToMs,
+  eventDatetimeLocalToUtcIso,
+  formatEventDatetimeLocal,
+  mergeTimeIntoEventEnd,
+  mergeTimeIntoEventStart,
+  mergeYmdIntoEventDatetimeLocal,
+  normalizeEventTimeZoneHint,
+  parseEventDatetimeLocal,
+  resolveDefaultEventTimeZone,
+  utcIsoToEventDatetimeLocal
+} from '@/lib/calendar-event-timezone'
 
 function isEffectivelyEmptyEditorHtml(html: string): boolean {
   const t = html.replace(/<[^>]+>/gi, '').replace(/\u00a0/g, ' ').trim()
@@ -174,8 +212,6 @@ function formatDurationMs(
   return tr('calendar.eventDialog.durationMin', { minutes: m })
 }
 
-type SchedulePickerKind = 'startTime' | 'endTime' | 'startDate' | 'endDate' | 'dayStart' | 'dayEnd'
-
 function quarterHourTimesForYmd(ymd: string): string[] {
   const base = parseISO(`${ymd}T12:00:00`)
   const out: string[] = []
@@ -189,46 +225,51 @@ function quarterHourTimesForYmd(ymd: string): string[] {
   return out
 }
 
-function mergeTimeIntoStart(dtStart: string, hhmm: string): string {
-  const d = new Date(dtStart)
-  if (Number.isNaN(d.getTime())) return dtStart
-  const [hh, mm] = hhmm.split(':').map(Number)
-  d.setHours(hh, mm, 0, 0)
-  return dateToDatetimeLocal(d)
+function timeSelectOptions(ymd: string, currentHm: string): string[] {
+  const base = quarterHourTimesForYmd(ymd)
+  if (currentHm && !base.includes(currentHm)) {
+    return [...base, currentHm].sort()
+  }
+  return base
 }
 
-function mergeTimeIntoEnd(dtStart: string, dtEnd: string, hhmm: string): string {
-  const d = new Date(dtEnd)
-  if (Number.isNaN(d.getTime())) return dtEnd
+function taskDatetimeLocalToMs(dtLocal: string): number {
+  const iso = datetimeLocalValueToIso(dtLocal)
+  if (!iso) return Number.NaN
+  const ms = Date.parse(iso)
+  return Number.isNaN(ms) ? Number.NaN : ms
+}
+
+function addMinutesToTaskDatetimeLocal(dtLocal: string, minutes: number): string {
+  const ms = taskDatetimeLocalToMs(dtLocal)
+  if (Number.isNaN(ms)) return dtLocal
+  return isoToDatetimeLocalValue(new Date(ms + minutes * 60_000).toISOString())
+}
+
+function mergeTimeIntoTaskEnd(
+  taskPlannedStart: string,
+  taskPlannedEnd: string,
+  hhmm: string
+): string {
+  const p = parseEventDatetimeLocal(taskPlannedEnd)
+  if (!p) return taskPlannedEnd
   const [hh, mm] = hhmm.split(':').map(Number)
-  d.setHours(hh, mm, 0, 0)
-  const next = dateToDatetimeLocal(d)
-  const s = new Date(dtStart)
-  const e = new Date(next)
-  if (Number.isNaN(s.getTime())) return next
-  if (e.getTime() <= s.getTime()) {
-    return dateToDatetimeLocal(addMinutes(s, 15))
-  }
+  if (!Number.isFinite(hh) || !Number.isFinite(mm)) return taskPlannedEnd
+  const next = formatEventDatetimeLocal(p.ymd, hh, mm)
+  const startMs = taskDatetimeLocalToMs(taskPlannedStart)
+  const endMs = taskDatetimeLocalToMs(next)
+  if (Number.isNaN(startMs) || Number.isNaN(endMs)) return next
+  if (endMs <= startMs) return addMinutesToTaskDatetimeLocal(taskPlannedStart, 15)
   return next
 }
 
-/** Kalendertag (`yyyy-MM-dd`) in einen `datetime-local`-String einsetzen, Uhrzeit bleibt erhalten. */
-function mergeYmdIntoDatetimeLocal(dtLocal: string, ymd: string): string {
-  const d = new Date(dtLocal)
-  if (Number.isNaN(d.getTime())) return dtLocal
-  const parts = ymd.split('-').map(Number)
-  if (parts.length !== 3 || parts.some((n) => !Number.isFinite(n))) return dtLocal
-  const [y, m, day] = parts
-  d.setFullYear(y, m - 1, day)
-  return dateToDatetimeLocal(d)
-}
-
-function fieldChipClass(locked: boolean): string {
-  return cn(
-    'inline-flex min-h-[30px] max-w-full shrink-0 items-center rounded-md border border-border bg-secondary/35 px-2 py-1 text-base font-medium tabular-nums text-foreground transition-colors',
-    'hover:border-border hover:bg-secondary/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/25',
-    locked ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
-  )
+function graphReminderPayload(
+  provider: string | undefined,
+  enabled: boolean,
+  minutesBefore: number
+): { reminderMinutesBeforeStart?: number | null } {
+  if (provider !== 'microsoft') return {}
+  return { reminderMinutesBeforeStart: enabled ? minutesBefore : null }
 }
 
 export interface CalendarEventDialogProps {
@@ -284,7 +325,7 @@ function PropertyRow({
     <>
       {iconNode}
       <div className="min-w-0 flex-1">
-        <div className="text-xs font-medium text-muted-foreground">{label}</div>
+        <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
         <div className="mt-0.5 text-xs text-foreground">{children}</div>
       </div>
     </>
@@ -322,7 +363,6 @@ export function CalendarEventDialog({
   onSaved
 }: CalendarEventDialogProps): JSX.Element | null {
   const { t, i18n } = useTranslation()
-  const dfLocale: Locale = i18n.language.startsWith('de') ? deFns : enUSFns
   const collatorLocale = i18n.language.startsWith('de') ? 'de' : 'en'
 
   /** Konten mit Kalender-Anbindung (Microsoft 365 + Google). */
@@ -340,8 +380,10 @@ export function CalendarEventDialog({
     [calendarAccounts]
   )
   const calendarTzConfig = useAccountsStore((s) => s.config?.calendarTimeZone)
-  const tzDisplay =
-    calendarTzConfig?.trim() || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+  const defaultEventTimeZone = useMemo(
+    () => resolveDefaultEventTimeZone(calendarTzConfig),
+    [calendarTzConfig]
+  )
 
   const viewerTheme = useThemeStore((s) => s.effective)
 
@@ -355,19 +397,27 @@ export function CalendarEventDialog({
   const [dayEnd, setDayEnd] = useState('')
   const [dtStart, setDtStart] = useState('')
   const [dtEnd, setDtEnd] = useState('')
+  const [eventTimeZone, setEventTimeZone] = useState(defaultEventTimeZone)
   const [busy, setBusy] = useState(false)
   const [localError, setLocalError] = useState<string | null>(null)
   const [driveOpen, setDriveOpen] = useState(false)
   const [eventAttachments, setEventAttachments] = useState<ComposeAttachment[]>([])
   const [attachmentError, setAttachmentError] = useState<string | null>(null)
   const [draggingFiles, setDraggingFiles] = useState(false)
-  const [showAdvancedDateTime, setShowAdvancedDateTime] = useState(false)
-  const [schedulePicker, setSchedulePicker] = useState<SchedulePickerKind | null>(null)
-  const [schedulePickerPos, setSchedulePickerPos] = useState<{
-    top: number
-    left: number
-    width: number
-  } | null>(null)
+  const [placement, setPlacement] = useState<CalendarEventDialogPlacement>(readCalendarEventDialogPlacement)
+  const [modalSize, setModalSize] = useState(readCalendarEventDialogModalSize)
+  const [dockWidth, setDockWidth] = useResizableWidth({
+    storageKey: 'mailclient.calendar.eventDialog.dockWidth',
+    defaultWidth: CAL_EVENT_DIALOG_DEFAULT_DOCK_W,
+    minWidth: 360,
+    maxWidth: 900
+  })
+  const [dayColumnWidth, setDayColumnWidth] = useResizableWidth({
+    storageKey: CAL_EVENT_DIALOG_DAY_COLUMN_WIDTH_KEY,
+    defaultWidth: CAL_EVENT_DIALOG_DEFAULT_DAY_COLUMN_W,
+    minWidth: 200,
+    maxWidth: 420
+  })
   /** Pro Konto die Kalender von Graph (Anlegen: ein gemeinsames Auswahlfeld). */
   const [calendarsByAccount, setCalendarsByAccount] = useState<
     { account: ConnectedAccount; calendars: CalendarGraphCalendarRow[] }[]
@@ -381,6 +431,11 @@ export function CalendarEventDialog({
   const [masterCategories, setMasterCategories] = useState<MailMasterCategory[]>([])
   const [mastersLoading, setMastersLoading] = useState(false)
   const [eventCategories, setEventCategories] = useState<string[]>([])
+
+  const [reminderEnabled, setReminderEnabled] = useState(false)
+  const [reminderMinutesBefore, setReminderMinutesBefore] = useState<number>(
+    CAL_EVENT_REMINDER_DEFAULT_MINUTES
+  )
 
   const [teamsMeeting, setTeamsMeeting] = useState(false)
   const [attendeeInput, setAttendeeInput] = useState('')
@@ -515,14 +570,14 @@ export function CalendarEventDialog({
 
     setLocalError(null)
     setBusy(false)
-    setShowAdvancedDateTime(false)
-    setSchedulePicker(null)
-    setSchedulePickerPos(null)
     setDescriptionHtml('')
     setEventAttachments([])
     setAttachmentError(null)
     setCreateKind(initialCreateKind ?? 'event')
     setTaskNotes('')
+    setReminderEnabled(false)
+    setReminderMinutesBefore(CAL_EVENT_REMINDER_DEFAULT_MINUTES)
+    setEventTimeZone(defaultEventTimeZone)
 
     if (mode === 'edit' && initialEvent) {
       setAccountId(initialEvent.accountId)
@@ -539,8 +594,8 @@ export function CalendarEventDialog({
         setDtStart('')
         setDtEnd('')
       } else {
-        setDtStart(dateToDatetimeLocal(parseISO(initialEvent.startIso)))
-        setDtEnd(dateToDatetimeLocal(parseISO(initialEvent.endIso)))
+        setDtStart(utcIsoToEventDatetimeLocal(initialEvent.startIso, defaultEventTimeZone))
+        setDtEnd(utcIsoToEventDatetimeLocal(initialEvent.endIso, defaultEventTimeZone))
         setDayStart('')
         setDayEnd('')
       }
@@ -555,6 +610,18 @@ export function CalendarEventDialog({
       const calId = initialEvent.graphCalendarId?.trim() ?? ''
       setGraphCalendarId(calId)
       setDestinationSelectValue(calendarDestinationKey(initialEvent.accountId, calId))
+      if (initialEvent.graphEventId?.trim()) {
+        const stored = readCalendarEventReminder(
+          calendarEventReminderKey(initialEvent.accountId, initialEvent.graphEventId.trim())
+        )
+        if (stored?.enabled === true) {
+          setReminderEnabled(true)
+          setReminderMinutesBefore(stored.minutesBefore)
+        } else {
+          setReminderEnabled(false)
+          setReminderMinutesBefore(CAL_EVENT_REMINDER_DEFAULT_MINUTES)
+        }
+      }
       return
     }
 
@@ -577,8 +644,8 @@ export function CalendarEventDialog({
           setDtStart('')
           setDtEnd('')
         } else {
-          setDtStart(dateToDatetimeLocal(initialRange.start))
-          setDtEnd(dateToDatetimeLocal(initialRange.end))
+          setDtStart(utcIsoToEventDatetimeLocal(initialRange.start.toISOString(), defaultEventTimeZone))
+          setDtEnd(utcIsoToEventDatetimeLocal(initialRange.end.toISOString(), defaultEventTimeZone))
           setDayStart('')
           setDayEnd('')
         }
@@ -588,8 +655,8 @@ export function CalendarEventDialog({
         start.setMinutes(0, 0, 0)
         start.setHours(start.getHours() + 1)
         const end = addHours(start, 1)
-        setDtStart(dateToDatetimeLocal(start))
-        setDtEnd(dateToDatetimeLocal(end))
+        setDtStart(utcIsoToEventDatetimeLocal(start.toISOString(), defaultEventTimeZone))
+        setDtEnd(utcIsoToEventDatetimeLocal(end.toISOString(), defaultEventTimeZone))
         setDayStart('')
         setDayEnd('')
       }
@@ -640,7 +707,8 @@ export function CalendarEventDialog({
     initialTaskListId,
     defaultAccountId,
     calendarAccountIdsKey,
-    taskAccounts
+    taskAccounts,
+    defaultEventTimeZone
   ])
 
   useEffect(() => {
@@ -760,75 +828,31 @@ export function CalendarEventDialog({
 
   const timedDisplay = useMemo(() => {
     if (isAllDay || !dtStart || !dtEnd) return null
-    const s = new Date(dtStart)
-    const e = new Date(dtEnd)
-    if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime())) return null
-    const ms = e.getTime() - s.getTime()
-    const sameDay = format(s, 'yyyy-MM-dd') === format(e, 'yyyy-MM-dd')
-    const sameYear = format(s, 'yyyy') === format(e, 'yyyy')
-    const startDateChip =
-      sameDay || sameYear
-        ? format(s, 'EEE d. MMM', { locale: dfLocale })
-        : format(s, 'EEE d. MMM yyyy', { locale: dfLocale })
-    const endDateChip = sameDay
-      ? startDateChip
-      : format(e, 'EEE d. MMM yyyy', { locale: dfLocale })
+    const sp = parseEventDatetimeLocal(dtStart)
+    const ep = parseEventDatetimeLocal(dtEnd)
+    if (!sp || !ep) return null
+    const startMs = eventDatetimeLocalToMs(dtStart, eventTimeZone)
+    const endMs = eventDatetimeLocalToMs(dtEnd, eventTimeZone)
+    if (Number.isNaN(startMs) || Number.isNaN(endMs)) return null
+    const ms = endMs - startMs
     return {
-      startHm: format(s, 'HH:mm'),
-      endHm: format(e, 'HH:mm'),
+      startHm: `${String(sp.hour).padStart(2, '0')}:${String(sp.minute).padStart(2, '0')}`,
+      endHm: `${String(ep.hour).padStart(2, '0')}:${String(ep.minute).padStart(2, '0')}`,
       duration: formatDurationMs(ms, t),
-      startDateChip,
-      endDateChip,
-      startYmd: format(s, 'yyyy-MM-dd'),
-      endYmd: format(e, 'yyyy-MM-dd')
+      startYmd: sp.ymd,
+      endYmd: ep.ymd
     }
-  }, [isAllDay, dtStart, dtEnd, dfLocale, t])
+  }, [isAllDay, dtStart, dtEnd, eventTimeZone, t])
 
-  const allDayDisplay = useMemo(() => {
-    if (!isAllDay || !dayStart || !dayEnd) return null
-    try {
-      const s = parseISO(`${dayStart}T12:00:00`)
-      const endExcl = parseISO(`${dayEnd}T12:00:00`)
-      const lastIncl = addDays(endExcl, -1)
-      const same = format(s, 'yyyy-MM-dd') === format(lastIncl, 'yyyy-MM-dd')
-      return {
-        startChip: format(s, 'EEE d. MMM', { locale: dfLocale }),
-        endChip: format(lastIncl, 'EEE d. MMM yyyy', { locale: dfLocale }),
-        singleDay: same
-      }
-    } catch {
-      return null
-    }
-  }, [isAllDay, dayStart, dayEnd, dfLocale])
+  const startTimeOptions = useMemo(() => {
+    if (!timedDisplay) return []
+    return timeSelectOptions(timedDisplay.startYmd, timedDisplay.startHm)
+  }, [timedDisplay])
 
-  useEffect(() => {
-    if (!schedulePicker) return
-    function onDocMouseDown(e: MouseEvent): void {
-      const el = schedulePickerRef.current
-      if (!el || el.contains(e.target as Node)) return
-      setSchedulePicker(null)
-      setSchedulePickerPos(null)
-    }
-    function onKeyDown(e: KeyboardEvent): void {
-      if (e.key === 'Escape') {
-        setSchedulePicker(null)
-        setSchedulePickerPos(null)
-      }
-    }
-    document.addEventListener('mousedown', onDocMouseDown)
-    document.addEventListener('keydown', onKeyDown)
-    return (): void => {
-      document.removeEventListener('mousedown', onDocMouseDown)
-      document.removeEventListener('keydown', onKeyDown)
-    }
-  }, [schedulePicker])
-
-  useLayoutEffect(() => {
-    if (schedulePicker !== 'startTime' && schedulePicker !== 'endTime') return
-    const btn = selectedTimeOptionRef.current
-    if (!btn) return
-    btn.scrollIntoView({ block: 'nearest' })
-  }, [schedulePicker, dtStart, dtEnd])
+  const endTimeOptions = useMemo(() => {
+    if (!timedDisplay) return []
+    return timeSelectOptions(timedDisplay.endYmd, timedDisplay.endHm)
+  }, [timedDisplay])
 
   /** Formularfelder gesperrt (Busy oder Kalender nur lesbar). */
   const eventFieldsLocked = useMemo(
@@ -836,11 +860,78 @@ export function CalendarEventDialog({
     [busy, mode, initialEvent?.calendarCanEdit]
   )
 
-  /** Outlook-Masterkategorien nur fuer Microsoft-Konten laden. */
-  const useOutlookCategories = mode === 'edit' && initialEvent?.source === 'microsoft'
+  const isTaskCreate = mode === 'create' && createKind === 'task'
+
+  const taskTimedDisplay = useMemo(() => {
+    if (!isTaskCreate || !taskPlannedStart || !taskPlannedEnd) return null
+    const sp = parseEventDatetimeLocal(taskPlannedStart)
+    const ep = parseEventDatetimeLocal(taskPlannedEnd)
+    if (!sp || !ep) return null
+    const startMs = taskDatetimeLocalToMs(taskPlannedStart)
+    const endMs = taskDatetimeLocalToMs(taskPlannedEnd)
+    if (Number.isNaN(startMs) || Number.isNaN(endMs)) return null
+    return {
+      startHm: `${String(sp.hour).padStart(2, '0')}:${String(sp.minute).padStart(2, '0')}`,
+      endHm: `${String(ep.hour).padStart(2, '0')}:${String(ep.minute).padStart(2, '0')}`,
+      duration: formatDurationMs(endMs - startMs, t),
+      startYmd: sp.ymd,
+      endYmd: ep.ymd
+    }
+  }, [isTaskCreate, taskPlannedStart, taskPlannedEnd, t])
+
+  const taskStartTimeOptions = useMemo(() => {
+    if (!taskTimedDisplay) return []
+    return timeSelectOptions(taskTimedDisplay.startYmd, taskTimedDisplay.startHm)
+  }, [taskTimedDisplay])
+
+  const taskEndTimeOptions = useMemo(() => {
+    if (!taskTimedDisplay) return []
+    return timeSelectOptions(taskTimedDisplay.endYmd, taskTimedDisplay.endHm)
+  }, [taskTimedDisplay])
+
+  const showEventDayColumn = mode === 'create' || mode === 'edit'
+
+  const handleDayPickerTimedRangeChange = useCallback((startLocal: string, endLocal: string): void => {
+    setDtStart(startLocal)
+    setDtEnd(endLocal)
+  }, [])
+
+  const handleTaskDayPickerTimedRangeChange = useCallback((startLocal: string, endLocal: string): void => {
+    setTaskPlannedStart(startLocal)
+    setTaskPlannedEnd(endLocal)
+    const sp = parseEventDatetimeLocal(startLocal)
+    if (sp) setTaskDue(sp.ymd)
+  }, [])
+
+  const handleDayPickerAllDayRangeChange = useCallback(
+    (nextDayStart: string, nextDayEndExcl: string): void => {
+      setDayStart(nextDayStart)
+      setDayEnd(nextDayEndExcl)
+    },
+    []
+  )
+
+  const selectedAccount = useMemo(
+    () => calendarAccounts.find((a) => a.id === accountId),
+    [calendarAccounts, accountId]
+  )
+  const selectedTaskAccount = useMemo(
+    () => taskAccounts.find((a) => a.id === taskAccountId),
+    [taskAccounts, taskAccountId]
+  )
+  const cloudLinkAccount = selectedAccount?.provider === 'microsoft' ? selectedAccount : null
+
+  /** Outlook-Masterkategorien fuer Microsoft-Termine und -Aufgaben. */
+  const useOutlookCategories =
+    (isTaskCreate && selectedTaskAccount?.provider === 'microsoft') ||
+    (!isTaskCreate &&
+      (selectedAccount?.provider === 'microsoft' ||
+        (mode === 'edit' && initialEvent?.source === 'microsoft')))
+
+  const categoryAccountId = isTaskCreate ? taskAccountId : accountId
 
   useEffect(() => {
-    if (!open || !useOutlookCategories || !accountId) {
+    if (!open || !useOutlookCategories || !categoryAccountId) {
       setMasterCategories([])
       setMastersLoading(false)
       return
@@ -848,7 +939,7 @@ export function CalendarEventDialog({
     let cancelled = false
     setMastersLoading(true)
     void window.mailClient.mail
-      .listMasterCategories(accountId)
+      .listMasterCategories(categoryAccountId)
       .then((rows) => {
         if (!cancelled) setMasterCategories(rows)
       })
@@ -861,7 +952,12 @@ export function CalendarEventDialog({
     return (): void => {
       cancelled = true
     }
-  }, [open, useOutlookCategories, accountId])
+  }, [open, useOutlookCategories, categoryAccountId])
+
+  useEffect(() => {
+    if (!isTaskCreate || selectedTaskAccount?.provider === 'microsoft') return
+    setEventCategories([])
+  }, [isTaskCreate, selectedTaskAccount?.provider])
 
   const categoryColorByName = useMemo(() => {
     const m = new Map<string, string>()
@@ -878,14 +974,23 @@ export function CalendarEventDialog({
   }, [masterCategories, eventCategories, collatorLocale])
 
   const panelRef = useRef<HTMLElement>(null)
-  const schedulePickerRef = useRef<HTMLDivElement>(null)
-  const selectedTimeOptionRef = useRef<HTMLButtonElement>(null)
+  const modalResizeDragRef = useRef<{
+    startX: number
+    startY: number
+    startW: number
+    startH: number
+  } | null>(null)
+  const modalSizeRef = useRef(modalSize)
+  modalSizeRef.current = modalSize
 
-  const selectedAccount = useMemo(
-    () => calendarAccounts.find((a) => a.id === accountId),
-    [calendarAccounts, accountId]
-  )
-  const cloudLinkAccount = selectedAccount?.provider === 'microsoft' ? selectedAccount : null
+  const setPlacementPersisted = useCallback((next: CalendarEventDialogPlacement): void => {
+    setPlacement(next)
+    persistCalendarEventDialogPlacement(next)
+  }, [])
+
+  useEffect(() => {
+    if (open) setPlacement(readCalendarEventDialogPlacement())
+  }, [open])
 
   useEffect(() => {
     if (isAllDay) setTeamsMeeting(false)
@@ -919,7 +1024,26 @@ export function CalendarEventDialog({
       .then((d) => {
         if (cancelled) return
         setTeamsMeeting(!!d.isOnlineMeeting && !initialEvent.isAllDay)
-        setAttendeeInput(d.attendeeEmails.join(', '))
+        setAttendeeInput(
+          formatRecipientsWithTail(
+            d.attendeeEmails.map((email) => ({ address: email })),
+            ''
+          )
+        )
+        if (initialEvent.source === 'microsoft') {
+          setReminderEnabled(!!d.isReminderOn)
+          setReminderMinutesBefore(
+            typeof d.reminderMinutesBeforeStart === 'number'
+              ? d.reminderMinutesBeforeStart
+              : CAL_EVENT_REMINDER_DEFAULT_MINUTES
+          )
+        }
+        const loadedTimeZone = normalizeEventTimeZoneHint(d.timeZone)
+        if (!initialEvent.isAllDay && loadedTimeZone) {
+          setEventTimeZone(loadedTimeZone)
+          setDtStart(utcIsoToEventDatetimeLocal(initialEvent.startIso, loadedTimeZone))
+          setDtEnd(utcIsoToEventDatetimeLocal(initialEvent.endIso, loadedTimeZone))
+        }
         const raw = d.bodyHtml?.trim() ? d.bodyHtml.trim() : ''
         setDescriptionHtml(raw ? sanitizeComposeHtmlFragment(raw) : '')
       })
@@ -937,6 +1061,43 @@ export function CalendarEventDialog({
     }
   }, [open, mode, initialEvent])
 
+  const eventTimeZoneOptions = useMemo(() => {
+    const opts = [...CALENDAR_TIMEZONE_UI_OPTIONS]
+    const seen = new Set(opts.map((o) => o.iana))
+    for (const tz of [eventTimeZone, defaultEventTimeZone]) {
+      if (tz && !seen.has(tz)) {
+        opts.push({ iana: tz, label: tz })
+        seen.add(tz)
+      }
+    }
+    return opts
+  }, [eventTimeZone, defaultEventTimeZone])
+
+  const handleEventTimeZoneChange = useCallback(
+    (nextTz: string): void => {
+      if (!nextTz || nextTz === eventTimeZone) return
+      if (!isAllDay) {
+        if (dtStart) {
+          setDtStart(convertEventDatetimeLocalBetweenZones(dtStart, eventTimeZone, nextTz))
+        }
+        if (dtEnd) {
+          setDtEnd(convertEventDatetimeLocalBetweenZones(dtEnd, eventTimeZone, nextTz))
+        }
+      }
+      setEventTimeZone(nextTz)
+    },
+    [dtEnd, dtStart, eventTimeZone, isAllDay]
+  )
+
+  const handleTeamsMeetingChange = useCallback((checked: boolean): void => {
+    setTeamsMeeting(checked)
+    if (checked) {
+      setLocation('online')
+    } else if (location.trim().toLowerCase() === 'online') {
+      setLocation('')
+    }
+  }, [location])
+
   const msTeamsUiLocked = useMemo(
     () =>
       eventFieldsLocked ||
@@ -944,56 +1105,59 @@ export function CalendarEventDialog({
     [eventFieldsLocked, mode, initialEvent?.source, msEventDetailsLoading]
   )
 
-  if (!open) return null
+  const onModalResizeMove = useCallback((e: PointerEvent): void => {
+    const d = modalResizeDragRef.current
+    if (!d) return
+    const vw = window.innerWidth
+    const vh = window.innerHeight
+    const margin = 24
+    const maxW = Math.min(1200, vw - margin)
+    const maxH = Math.min(vh - margin, vh - margin)
+    const w = Math.min(maxW, Math.max(640, d.startW + (e.clientX - d.startX)))
+    const h = Math.min(maxH, Math.max(480, d.startH + (e.clientY - d.startY)))
+    setModalSize({ w, h })
+  }, [])
 
-  function closeSchedulePicker(): void {
-    setSchedulePicker(null)
-    setSchedulePickerPos(null)
-  }
+  const endModalResize = useCallback((): void => {
+    modalResizeDragRef.current = null
+    window.removeEventListener('pointermove', onModalResizeMove)
+    window.removeEventListener('pointerup', endModalResize)
+    window.removeEventListener('pointercancel', endModalResize)
+    persistCalendarEventDialogModalSize(modalSizeRef.current.w, modalSizeRef.current.h)
+  }, [onModalResizeMove])
 
-  function openSchedulePicker(kind: SchedulePickerKind, anchorEl: HTMLElement | null): void {
-    if (eventFieldsLocked || !anchorEl) return
-    const r = anchorEl.getBoundingClientRect()
-    const margin = 8
-    const dateKind =
-      kind === 'startDate' ||
-      kind === 'endDate' ||
-      kind === 'dayStart' ||
-      kind === 'dayEnd'
-    const popW = dateKind ? 248 : 208
-    const listMax = dateKind ? 320 : 260
-    let left = r.left
-    if (left + popW > window.innerWidth - margin) left = window.innerWidth - popW - margin
-    if (left < margin) left = margin
-    let top = r.bottom + 6
-    if (top + listMax > window.innerHeight - margin) {
-      top = r.top - 6 - listMax
-      if (top < margin) top = margin
+  const onModalResizePointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>): void => {
+      if (e.button !== 0) return
+      e.preventDefault()
+      e.stopPropagation()
+      modalResizeDragRef.current = {
+        startX: e.clientX,
+        startY: e.clientY,
+        startW: modalSizeRef.current.w,
+        startH: modalSizeRef.current.h
+      }
+      window.addEventListener('pointermove', onModalResizeMove)
+      window.addEventListener('pointerup', endModalResize)
+      window.addEventListener('pointercancel', endModalResize)
+    },
+    [onModalResizeMove, endModalResize]
+  )
+
+  useEffect(() => {
+    return (): void => {
+      window.removeEventListener('pointermove', onModalResizeMove)
+      window.removeEventListener('pointerup', endModalResize)
+      window.removeEventListener('pointercancel', endModalResize)
     }
-    setSchedulePickerPos({ top, left, width: popW })
-    setSchedulePicker(kind)
-  }
+  }, [onModalResizeMove, endModalResize])
 
-  const timePickerYmd =
-    schedulePicker === 'startTime'
-      ? (dtStart.length >= 10 ? dtStart.slice(0, 10) : format(new Date(), 'yyyy-MM-dd'))
-      : schedulePicker === 'endTime'
-        ? (dtEnd.length >= 10 ? dtEnd.slice(0, 10) : dtStart.slice(0, 10) || format(new Date(), 'yyyy-MM-dd'))
-        : ''
-  const timePickerOptions =
-    schedulePicker === 'startTime' || schedulePicker === 'endTime'
-      ? quarterHourTimesForYmd(timePickerYmd)
-      : []
-  const timePickerCurrentHm =
-    schedulePicker === 'startTime'
-      ? dtStart
-        ? format(new Date(dtStart), 'HH:mm')
-        : ''
-      : schedulePicker === 'endTime'
-        ? dtEnd
-          ? format(new Date(dtEnd), 'HH:mm')
-          : ''
-        : ''
+  const floatDefaultPos = useMemo(() => {
+    const w = Math.min(modalSize.w, window.innerWidth - 24)
+    return { x: Math.max(12, window.innerWidth - w - 16), y: 48 }
+  }, [modalSize.w])
+
+  if (!open) return null
 
   function toggleEventCategory(name: string): void {
     const trimmed = name.trim()
@@ -1088,7 +1252,10 @@ export function CalendarEventDialog({
           notes: taskNotes.trim() || null,
           dueIso,
           completed: false,
-          ...(taskRecurrence ? { recurrence: taskRecurrence } : {})
+          ...(taskRecurrence ? { recurrence: taskRecurrence } : {}),
+          ...(selectedTaskAccount?.provider === 'microsoft' && eventCategories.length > 0
+            ? { categories: eventCategories }
+            : {})
         })
         if (plannedStartIso && plannedEndIso) {
           const taskKey = cloudTaskStableKey(taskAccountId, taskListId, row.id)
@@ -1155,8 +1322,8 @@ export function CalendarEventDialog({
         endIso = dayEnd
       } else {
         const invalid = t('calendar.eventDialog.invalidDate')
-        startIso = datetimeLocalToIso(dtStart, invalid)
-        endIso = datetimeLocalToIso(dtEnd, invalid)
+        startIso = eventDatetimeLocalToUtcIso(dtStart, eventTimeZone, invalid)
+        endIso = eventDatetimeLocalToUtcIso(dtEnd, eventTimeZone, invalid)
         if (new Date(endIso) <= new Date(startIso)) {
           setLocalError(t('calendar.eventDialog.endAfterStart'))
           return
@@ -1232,8 +1399,17 @@ export function CalendarEventDialog({
           ...(selectedAccount?.provider === 'microsoft' && eventAttachments.length > 0
             ? { attachments: eventAttachments }
             : {}),
-          ...(recurrence ? { recurrence } : {})
+          ...(recurrence ? { recurrence } : {}),
+          ...graphReminderPayload(selectedAccount?.provider, reminderEnabled, reminderMinutesBefore),
+          ...(!isAllDay ? { timeZone: eventTimeZone } : {})
         })
+        const createdId = created.id?.trim()
+        if (createdId) {
+          writeCalendarEventReminder(
+            calendarEventReminderKey(accountId, createdId),
+            reminderEnabled ? { enabled: true, minutesBefore: reminderMinutesBefore } : { enabled: false }
+          )
+        }
         if (calendarEventIconIsExplicit(eventIconId) && created.id?.trim()) {
           await window.mailClient.calendar.patchEventIcon({
             accountId,
@@ -1241,7 +1417,7 @@ export function CalendarEventDialog({
             iconId: eventIconId
           })
         }
-        const graphEventId = created.id?.trim()
+        const graphEventId = createdId
         if (graphEventId) {
           onEntityCreated?.({
             ref: { kind: 'calendar_event', accountId, graphEventId },
@@ -1285,7 +1461,9 @@ export function CalendarEventDialog({
           ,
           ...(initialEvent.source === 'microsoft' && eventAttachments.length > 0
             ? { attachments: eventAttachments }
-            : {})
+            : {}),
+          ...graphReminderPayload(initialEvent.source, reminderEnabled, reminderMinutesBefore),
+          ...(!isAllDay ? { timeZone: eventTimeZone } : {})
         }
 
         if (destinationChanged && parsedDest) {
@@ -1314,6 +1492,10 @@ export function CalendarEventDialog({
             ...payloadOverride
           })
         }
+        writeCalendarEventReminder(
+          calendarEventReminderKey(initialEvent.accountId, gid),
+          reminderEnabled ? { enabled: true, minutesBefore: reminderMinutesBefore } : { enabled: false }
+        )
         const prevIcon = initialEvent.icon?.trim() || null
         const nextIcon = eventIconId?.trim() || null
         if ((prevIcon ?? '') !== (nextIcon ?? '')) {
@@ -1333,7 +1515,6 @@ export function CalendarEventDialog({
     }
   }
 
-  const isTaskCreate = mode === 'create' && createKind === 'task'
   const submitDisabled =
     busy ||
     (isTaskCreate
@@ -1355,130 +1536,92 @@ export function CalendarEventDialog({
       ? t('calendar.eventDialog.send')
       : t('calendar.eventDialog.save')
 
-  return (
-    <ModalRoot
-      open={open}
-      zIndex={100}
-      centerClassName="justify-end bg-black/45 backdrop-blur-[2px]"
-      onBackdropClick={onClose}
-    >
-      <ModalPanel
-        variant="drawer-right"
-        className="calendar-event-panel flex h-[100dvh] max-h-[100dvh] w-full max-w-[630px] flex-col overflow-hidden border-l border-border bg-card text-foreground shadow-2xl"
-      >
-        <header className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-4 py-3">
-          {mode === 'create' && taskAccounts.length > 0 ? (
-            <div>
-              <span className="sr-only">{t('calendar.eventDialog.kindLabel')}</span>
-              <div className="flex items-center gap-0.5 rounded-md border border-border p-0.5">
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={(): void => handleCreateKindChange('event')}
-                  className={cn(
-                    'rounded-md px-2.5 py-1 text-sm font-medium transition-colors',
-                    createKind === 'event'
-                      ? 'bg-secondary text-foreground'
-                      : 'text-muted-foreground hover:bg-secondary/50 hover:text-foreground'
-                  )}
-                >
-                  {t('calendar.eventDialog.eventKindName')}
-                </button>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={(): void => handleCreateKindChange('task')}
-                  className={cn(
-                    'rounded-md px-2.5 py-1 text-sm font-medium transition-colors',
-                    createKind === 'task'
-                      ? 'bg-secondary text-foreground'
-                      : 'text-muted-foreground hover:bg-secondary/50 hover:text-foreground'
-                  )}
-                >
-                  {t('calendar.eventDialog.taskKindName')}
-                </button>
-              </div>
-            </div>
-          ) : (
-            <span className="text-base font-medium text-muted-foreground">
-              {t('calendar.eventDialog.panelTitle')}
-            </span>
-          )}
-          <div className="flex items-center gap-0.5">
-            <button
-              type="button"
-              className="rounded-md p-1.5 text-muted-foreground opacity-50"
-              tabIndex={-1}
-              aria-hidden
-            >
-              <MoreHorizontal className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              className="rounded-md p-1.5 text-muted-foreground opacity-50"
-              tabIndex={-1}
-              aria-hidden
-            >
-              <LayoutPanelLeft className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
-              aria-label={t('calendar.eventDialog.closeAria')}
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        </header>
+  const isMicrosoftEventAccount =
+    selectedAccount?.provider === 'microsoft' ||
+    initialEvent?.source === 'microsoft'
 
-        <form
-          className="flex min-h-0 flex-1 flex-col"
-          onSubmit={(ev): void => void handleSubmit(ev)}
-        >
-          <div className="min-h-0 flex-1 space-y-0 overflow-y-auto px-4 py-3">
-            <div className="flex items-start gap-2 border-b border-border pb-3">
-              {mode === 'create' && createKind === 'task' ? (
-                <CheckSquare className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
-              ) : (
-                <CalendarEventIconPicker
-                  layout="compact"
-                  iconId={eventIconId}
-                  title={subject}
-                  disabled={eventFieldsLocked}
-                  onIconChange={setEventIconId}
-                />
-              )}
-              <input
-                type="text"
-                value={subject}
-                onChange={(e): void => setSubject(e.target.value)}
-                disabled={eventFieldsLocked}
-                placeholder={
-                  mode === 'create' && createKind === 'task'
-                    ? t('calendar.eventDialog.taskTitlePlaceholder')
-                    : t('calendar.eventDialog.titlePlaceholder')
-                }
-                aria-label={t('calendar.eventDialog.titleAria')}
-                className="min-w-0 flex-1 rounded-md border border-border/60 bg-secondary/20 px-2.5 py-2 text-[17px] font-semibold leading-snug text-foreground outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60"
-              />
-            </div>
+  const panelShellClass =
+    'calendar-event-panel flex min-h-0 flex-1 flex-col overflow-hidden bg-card text-foreground'
+
+  const headerDockButton = (
+    <button
+      type="button"
+      title={
+        placement === 'dock'
+          ? t('calendar.eventDialog.undockTitle')
+          : t('calendar.eventDialog.dockTitle')
+      }
+      aria-label={
+        placement === 'dock'
+          ? t('calendar.eventDialog.undockTitle')
+          : t('calendar.eventDialog.dockTitle')
+      }
+      onClick={(): void => {
+        if (placement === 'dock') setPlacementPersisted('float')
+        else setPlacementPersisted('dock')
+      }}
+      className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
+    >
+      {placement === 'dock' ? (
+        <SquareArrowOutUpRight className="h-4 w-4" />
+      ) : (
+        <LayoutPanelLeft className="h-4 w-4" />
+      )}
+    </button>
+  )
+
+  const panelInner = (
+    <div ref={panelRef as React.RefObject<HTMLDivElement>} className={panelShellClass}>
+        <header className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-4 py-3">
+          <div className="flex min-w-0 items-center gap-2">
+            {mode === 'create' && taskAccounts.length > 0 ? (
+              <div className="flex items-center gap-2">
+                <span className="sr-only">{t('calendar.eventDialog.kindLabel')}</span>
+                <div className="flex items-center gap-0.5 rounded-md border border-border p-0.5">
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={(): void => handleCreateKindChange('event')}
+                    className={cn(
+                      'rounded-md px-2.5 py-1 text-sm font-medium transition-colors',
+                      createKind === 'event'
+                        ? 'bg-secondary text-foreground'
+                        : 'text-muted-foreground hover:bg-secondary/50 hover:text-foreground'
+                    )}
+                  >
+                    {t('calendar.eventDialog.eventKindName')}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={(): void => handleCreateKindChange('task')}
+                    className={cn(
+                      'rounded-md px-2.5 py-1 text-sm font-medium transition-colors',
+                      createKind === 'task'
+                        ? 'bg-secondary text-foreground'
+                        : 'text-muted-foreground hover:bg-secondary/50 hover:text-foreground'
+                    )}
+                  >
+                    {t('calendar.eventDialog.taskKindName')}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <span className="text-base font-medium text-muted-foreground">
+                {t('calendar.eventDialog.panelTitle')}
+              </span>
+            )}
 
             {mode === 'create' && createKind === 'task' && taskAccounts.length > 0 ? (
-              <div className="border-b border-border py-3">
-                <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  {t('calendar.eventDialog.taskDestinationHeadingShort')}
-                </div>
-                <p className="mt-1 text-xs leading-snug text-muted-foreground">
-                  {t('calendar.eventDialog.taskDestinationHelpBody')}
-                </p>
-                <label className="mt-2 block space-y-1">
-                  <span className="text-xs text-muted-foreground">{t('tasks.create.account')}</span>
+              <div className="flex min-w-0 items-center gap-2">
+                <label className="min-w-0">
+                  <span className="sr-only">{t('tasks.create.account')}</span>
                   <select
                     value={taskAccountId}
                     disabled={busy || taskListsLoading}
                     onChange={(e): void => setTaskAccountId(e.target.value)}
-                    className="w-full rounded-md border border-border bg-background px-2 py-2 text-base text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60"
+                    aria-label={t('tasks.create.account')}
+                    className="h-9 max-w-[min(280px,32vw)] truncate rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {taskAccounts.map((a) => (
                       <option key={a.id} value={a.id}>
@@ -1487,13 +1630,14 @@ export function CalendarEventDialog({
                     ))}
                   </select>
                 </label>
-                <label className="mt-2 block space-y-1">
-                  <span className="text-xs text-muted-foreground">{t('tasks.create.list')}</span>
+                <label className="min-w-0">
+                  <span className="sr-only">{t('tasks.create.list')}</span>
                   <select
                     value={taskListId}
                     disabled={busy || taskListsLoading || taskLists.length === 0}
                     onChange={(e): void => setTaskListId(e.target.value)}
-                    className="w-full rounded-md border border-border bg-background px-2 py-2 text-base text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60"
+                    aria-label={t('tasks.create.list')}
+                    className="h-9 max-w-[min(220px,28vw)] truncate rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {taskListsLoading ? (
                       <option value="">{t('calendar.eventDialog.loadingShort')}</option>
@@ -1507,19 +1651,12 @@ export function CalendarEventDialog({
                   </select>
                 </label>
               </div>
-            ) : null}
-
-            {mode === 'create' && createKind === 'event' && calendarAccounts.length > 0 ? (
-              <div className="border-b border-border py-3">
-                <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  {t('calendar.eventDialog.destinationHeadingShort')}
-                </div>
-                <p className="mt-1 text-xs leading-snug text-muted-foreground">
-                  {t('calendar.eventDialog.destinationHelpBody')}
-                </p>
+            ) : mode === 'create' && createKind === 'event' && calendarAccounts.length > 0 ? (
+              <label className="min-w-0">
+                <span className="sr-only">{t('calendar.eventDialog.targetCalendarAria')}</span>
                 <select
                   value={destinationSelectValue}
-                  disabled={false || calendarsLoading}
+                  disabled={calendarsLoading}
                   onChange={(e): void => {
                     const v = e.target.value
                     setDestinationSelectValue(v)
@@ -1530,21 +1667,21 @@ export function CalendarEventDialog({
                     }
                   }}
                   aria-label={t('calendar.eventDialog.targetCalendarAria')}
-                  className="mt-2 w-full rounded-md border border-border bg-background px-2 py-2 text-base text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="h-9 max-w-[min(420px,45vw)] truncate rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {calendarsLoading ? (
                     <option value="">{t('calendar.eventDialog.submitLoadingCalendars')}</option>
                   ) : (
-                    calendarsByAccount.map(({ account, calendars }) => {
+                    calendarsByAccount.flatMap(({ account, calendars }) => {
                       const accLabel = destinationAccountOptgroupLabel(account)
-                      return (
-                        <optgroup key={account.id} label={accLabel}>
-                          {calendars.length === 0 ? (
-                            <option value={calendarDestinationKey(account.id, '')}>
-                              {t('calendar.eventDialog.primaryCalendarStandard')}
-                            </option>
-                          ) : (
-                            calendars.map((c) => (
+                      const opts =
+                        calendars.length === 0
+                          ? [
+                              <option key={`${account.id}:primary`} value={calendarDestinationKey(account.id, '')}>
+                                {t('calendar.eventDialog.primaryCalendarStandard')}
+                              </option>
+                            ]
+                          : calendars.map((c) => (
                               <option
                                 key={`${account.id}:${c.id}`}
                                 value={calendarDestinationKey(account.id, c.id)}
@@ -1553,313 +1690,502 @@ export function CalendarEventDialog({
                                 {c.isDefaultCalendar ? t('calendar.eventDialog.standardCalendarSuffix') : ''}
                               </option>
                             ))
-                          )}
-                        </optgroup>
-                      )
+                      return [<optgroup key={account.id} label={accLabel}>{opts}</optgroup>]
                     })
                   )}
                 </select>
-              </div>
+              </label>
             ) : null}
+          </div>
+          <div className="flex items-center gap-0.5">
+            {headerDockButton}
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
+              aria-label={t('calendar.eventDialog.closeAria')}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </header>
 
-            {mode === 'create' && createKind === 'task' ? (
-              <div className="border-b border-border py-3 space-y-3">
-                <div className="mb-1 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  <CheckSquare className="h-3.5 w-3.5 shrink-0" />
-                  {t('tasks.create.planned')}
-                </div>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <label className="block space-y-1 text-xs">
-                    <span className="text-muted-foreground">{t('tasks.create.plannedStart')}</span>
-                    <input
-                      type="datetime-local"
-                      value={taskPlannedStart}
-                      onChange={(e): void => setTaskPlannedStart(e.target.value)}
-                      disabled={busy}
-                      className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-base"
-                    />
-                  </label>
-                  <label className="block space-y-1 text-xs">
-                    <span className="text-muted-foreground">{t('tasks.create.plannedEnd')}</span>
-                    <input
-                      type="datetime-local"
-                      value={taskPlannedEnd}
-                      onChange={(e): void => setTaskPlannedEnd(e.target.value)}
-                      disabled={busy}
-                      className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-base"
-                    />
-                  </label>
-                </div>
-                <label className="block space-y-1 text-xs">
-                  <span className="text-muted-foreground">{t('tasks.create.due')}</span>
-                  <ChronellDateField
-                    value={taskDue}
-                    onChange={(v): void => {
-                      setTaskDue(v)
-                      if (
-                        v &&
-                        recurWeekdays.length === 0 &&
-                        (recurFreq === 'weekly' || recurFreq === 'biweekly')
-                      ) {
-                        setRecurWeekdays(defaultWeekdayFromDueYmd(v))
-                      }
-                    }}
-                    disabled={busy}
-                  />
-                </label>
-                <CalendarEventRecurrenceSection
-                  i18nPrefix="tasks.create"
-                  recurFreq={recurFreq}
-                  setRecurFreq={(v): void => {
-                    setRecurFreq(v)
-                    if (
-                      (v === 'weekly' || v === 'biweekly') &&
-                      recurWeekdays.length === 0 &&
-                      taskDue.trim()
-                    ) {
-                      setRecurWeekdays(defaultWeekdayFromDueYmd(taskDue.trim()))
-                    }
-                  }}
-                  recurEnd={recurEnd}
-                  setRecurEnd={setRecurEnd}
-                  recurUntilDate={recurUntilDate}
-                  setRecurUntilDate={setRecurUntilDate}
-                  recurCount={recurCount}
-                  setRecurCount={setRecurCount}
-                  recurWeekdays={recurWeekdays}
-                  setRecurWeekdays={setRecurWeekdays}
-                  eventFieldsLocked={busy}
-                />
-                <label className="block space-y-1 text-xs">
-                  <span className="text-muted-foreground">{t('tasks.create.notes')}</span>
-                  <textarea
-                    value={taskNotes}
-                    onChange={(e): void => setTaskNotes(e.target.value)}
-                    disabled={busy}
-                    rows={4}
-                    className="w-full resize-y rounded-md border border-border bg-background px-2 py-1.5 text-base"
-                  />
-                </label>
-              </div>
-            ) : (
-            <div className="border-b border-border py-3">
-              <div className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                <CalendarIcon className="h-3.5 w-3.5 shrink-0" />
-                {t('calendar.eventDialog.appointmentHeading')}
-              </div>
-
-              {!isAllDay && timedDisplay ? (
-                <>
-                  <div className="grid w-fit max-w-full grid-cols-[auto_auto_auto_1fr] items-center gap-x-2 gap-y-1.5 text-[14px]">
-                    <button
-                      type="button"
-                      disabled={eventFieldsLocked}
-                      aria-label={t('calendar.eventDialog.editStartTimeAria')}
-                      onClick={(ev): void => openSchedulePicker('startTime', ev.currentTarget)}
-                      className={fieldChipClass(eventFieldsLocked)}
-                    >
-                      {timedDisplay.startHm}
-                    </button>
-                    <span className="text-muted-foreground" aria-hidden>
-                      →
-                    </span>
-                    <button
-                      type="button"
-                      disabled={eventFieldsLocked}
-                      aria-label={t('calendar.eventDialog.editEndTimeAria')}
-                      onClick={(ev): void => openSchedulePicker('endTime', ev.currentTarget)}
-                      className={fieldChipClass(eventFieldsLocked)}
-                    >
-                      {timedDisplay.endHm}
-                    </button>
-                    <span className="min-w-0 text-base tabular-nums text-muted-foreground">
-                      · {timedDisplay.duration}
-                    </span>
-                    <button
-                      type="button"
-                      disabled={eventFieldsLocked}
-                      aria-label={t('calendar.eventDialog.editStartDateAria')}
-                      onClick={(ev): void => openSchedulePicker('startDate', ev.currentTarget)}
-                      className={fieldChipClass(eventFieldsLocked)}
-                    >
-                      {timedDisplay.startDateChip}
-                    </button>
-                    <span className="select-none text-transparent" aria-hidden>
-                      →
-                    </span>
-                    <button
-                      type="button"
-                      disabled={eventFieldsLocked}
-                      aria-label={t('calendar.eventDialog.editEndDateAria')}
-                      onClick={(ev): void => openSchedulePicker('endDate', ev.currentTarget)}
-                      className={fieldChipClass(eventFieldsLocked)}
-                    >
-                      {timedDisplay.endDateChip}
-                    </button>
-                    <span aria-hidden className="min-w-0" />
-                  </div>
-                </>
-              ) : isAllDay && allDayDisplay ? (
-                <>
-                  <p className="text-sm font-medium text-muted-foreground">{t('calendar.eventDialog.allDay')}</p>
-                  <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-2">
-                    <button
-                      type="button"
-                      disabled={eventFieldsLocked}
-                      aria-label={t('calendar.eventDialog.editAllDayStartAria')}
-                      onClick={(ev): void => openSchedulePicker('dayStart', ev.currentTarget)}
-                      className={fieldChipClass(eventFieldsLocked)}
-                    >
-                      {allDayDisplay.startChip}
-                    </button>
-                    <span className="text-muted-foreground" aria-hidden>
-                      →
-                    </span>
-                    <button
-                      type="button"
-                      disabled={eventFieldsLocked}
-                      aria-label={t('calendar.eventDialog.editAllDayEndAria')}
-                      onClick={(ev): void => openSchedulePicker('dayEnd', ev.currentTarget)}
-                      className={fieldChipClass(eventFieldsLocked)}
-                    >
-                      {allDayDisplay.endChip}
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <p className="text-base text-muted-foreground">{t('calendar.eventDialog.summaryDash')}</p>
-              )}
-
-              <div className="mt-3 flex flex-col gap-2 text-sm">
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                  <button
-                    type="button"
+        <form
+          className={cn('flex min-h-0 flex-1', showEventDayColumn && 'flex-row')}
+          onSubmit={(ev): void => void handleSubmit(ev)}
+        >
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 space-y-0 overflow-y-auto px-4 py-3">
+            <div className="border-b border-border pb-3">
+              <div className="flex items-stretch gap-2">
+                {mode === 'create' && createKind === 'task' ? (
+                  <CheckSquare className="my-auto h-4 w-4 shrink-0 text-muted-foreground" />
+                ) : (
+                  <CalendarEventIconPicker
+                    layout="compact"
+                    iconId={eventIconId}
+                    title={subject}
                     disabled={eventFieldsLocked}
-                    onClick={(): void => {
-                      setSchedulePicker(null)
-                      setSchedulePickerPos(null)
-                      setIsAllDay((prev) => {
-                        if (!prev) {
-                          if (dtStart && dtEnd) {
-                            const s = new Date(dtStart)
-                            const e = new Date(dtEnd)
-                            if (!Number.isNaN(s.getTime()) && !Number.isNaN(e.getTime())) {
-                              const startDay = format(s, 'yyyy-MM-dd')
-                              const endDay = format(e, 'yyyy-MM-dd')
-                              const lastInclusive = endDay >= startDay ? endDay : startDay
-                              setDayStart(startDay)
-                              setDayEnd(
-                                format(addDays(parseISO(`${lastInclusive}T12:00:00`), 1), 'yyyy-MM-dd')
-                              )
-                            }
-                          }
-                          return true
-                        }
-                        if (dayStart) {
-                          const base = parseISO(`${dayStart}T09:00:00`)
-                          setDtStart(dateToDatetimeLocal(base))
-                          setDtEnd(dateToDatetimeLocal(addHours(base, 1)))
-                        }
-                        return false
-                      })
-                    }}
-                    className={cn(
-                      'font-medium transition-colors',
-                      isAllDay ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
-                    )}
-                  >
-                    {t('calendar.eventDialog.allDay')}
-                  </button>
-                  <span className="text-muted-foreground" title={t('calendar.eventDialog.timezoneTitle')}>
-                    {t('calendar.eventDialog.timezonePrefix')}{' '}
-                    <span className="text-foreground/90">{tzDisplay}</span>
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={(): void => setShowAdvancedDateTime((s) => !s)}
-                  className="w-fit text-left text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-                >
-                  {showAdvancedDateTime
-                    ? t('calendar.eventDialog.advancedDateTimeHide')
-                    : t('calendar.eventDialog.advancedDateTime')}
-                </button>
+                    onIconChange={setEventIconId}
+                    compactButtonClassName="h-[44px] w-[44px]"
+                  />
+                )}
+                <input
+                  type="text"
+                  value={subject}
+                  onChange={(e): void => setSubject(e.target.value)}
+                  disabled={eventFieldsLocked}
+                  placeholder={
+                    mode === 'create' && createKind === 'task'
+                      ? t('calendar.eventDialog.taskTitlePlaceholder')
+                      : t('calendar.eventDialog.titlePlaceholder')
+                  }
+                  aria-label={t('calendar.eventDialog.titleAria')}
+                  className="min-w-0 flex-1 rounded-md border border-border/60 bg-secondary/20 px-2.5 py-2 text-[17px] font-semibold leading-snug text-foreground outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60"
+                />
               </div>
-              {showAdvancedDateTime && (
-                <div className="mt-3 space-y-2 rounded-lg border border-border/50 bg-secondary/25 p-3">
-                  {isAllDay ? (
-                    <div className="grid grid-cols-2 gap-2">
-                      <label className="text-xs">
-                        <span className="mb-1 block text-muted-foreground">
-                          {t('calendar.eventDialog.labelStartDate')}
-                        </span>
-                        <ChronellDateField
-                          value={dayStart}
-                          onChange={setDayStart}
-                          disabled={eventFieldsLocked}
-                          className="text-xs"
-                        />
-                      </label>
-                      <label className="text-xs">
-                        <span className="mb-1 block text-muted-foreground">
-                          {t('calendar.eventDialog.labelEndExclusive')}
-                        </span>
-                        <ChronellDateField
-                          value={dayEnd}
-                          onChange={setDayEnd}
-                          disabled={eventFieldsLocked}
-                          className="text-xs"
-                        />
-                      </label>
-                    </div>
+              {useOutlookCategories ? (
+                <div className="mt-2 pl-[52px]">
+                  <CalendarEventCategoryPopover
+                    categoryNames={categoryChoiceNames}
+                    selected={eventCategories}
+                    categoryColorByName={categoryColorByName}
+                    mastersLoading={mastersLoading}
+                    disabled={busy}
+                    onToggle={toggleEventCategory}
+                  />
+                </div>
+              ) : null}
+            </div>
+
+            {/* Zielkalender / Aufgabenliste ist im Header (Create). */}
+
+            <div className="border-b border-border py-3">
+              <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-5">
+                <div className="min-w-0 lg:col-span-2">
+                  <div className={eventDialogSectionHeadingClass}>
+                    <CalendarIcon className="h-3.5 w-3.5 shrink-0" />
+                    {isTaskCreate
+                      ? t('tasks.create.planned')
+                      : t('calendar.eventDialog.appointmentHeading')}
+                  </div>
+                  <div className="space-y-2">
+                    {isTaskCreate && taskTimedDisplay ? (
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className="w-12 shrink-0 text-right text-xs text-muted-foreground">
+                            {t('calendar.eventDialog.labelBegin')}:
+                          </span>
+                          <div className="grid min-w-0 flex-1 grid-cols-2 gap-2">
+                            <ChronellDateField
+                              disabled={busy}
+                              value={taskTimedDisplay.startYmd}
+                              onChange={(v): void => {
+                                if (!v) return
+                                const nextStart = mergeYmdIntoEventDatetimeLocal(taskPlannedStart, v)
+                                setTaskPlannedStart(nextStart)
+                                setTaskDue(v)
+                                if (taskDatetimeLocalToMs(taskPlannedEnd) <= taskDatetimeLocalToMs(nextStart)) {
+                                  setTaskPlannedEnd(addMinutesToTaskDatetimeLocal(nextStart, 15))
+                                }
+                              }}
+                              className={cn(eventDialogPanelSelectClass, 'min-w-0 tabular-nums')}
+                            />
+                            <select
+                              disabled={busy}
+                              value={taskTimedDisplay.startHm}
+                              aria-label={t('tasks.create.plannedStart')}
+                              className={cn(eventDialogPanelSelectClass, 'min-w-0 tabular-nums')}
+                              onChange={(e): void => {
+                                const nextStart = mergeTimeIntoEventStart(taskPlannedStart, e.target.value)
+                                setTaskPlannedStart(nextStart)
+                                if (taskDatetimeLocalToMs(taskPlannedEnd) <= taskDatetimeLocalToMs(nextStart)) {
+                                  setTaskPlannedEnd(addMinutesToTaskDatetimeLocal(nextStart, 15))
+                                }
+                              }}
+                            >
+                              {taskStartTimeOptions.map((hm) => (
+                                <option key={`task-start-${hm}`} value={hm}>
+                                  {hm}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="w-12 shrink-0 text-right text-xs text-muted-foreground">
+                            {t('calendar.eventDialog.labelEnd')}:
+                          </span>
+                          <div className="grid min-w-0 flex-1 grid-cols-2 gap-2">
+                            <ChronellDateField
+                              disabled={busy}
+                              value={taskTimedDisplay.endYmd}
+                              min={taskTimedDisplay.startYmd}
+                              onChange={(v): void => {
+                                if (!v) return
+                                const nextEnd = mergeYmdIntoEventDatetimeLocal(taskPlannedEnd, v)
+                                if (taskDatetimeLocalToMs(nextEnd) <= taskDatetimeLocalToMs(taskPlannedStart)) {
+                                  setTaskPlannedEnd(addMinutesToTaskDatetimeLocal(taskPlannedStart, 15))
+                                } else {
+                                  setTaskPlannedEnd(nextEnd)
+                                }
+                              }}
+                              className={cn(eventDialogPanelSelectClass, 'min-w-0 tabular-nums')}
+                            />
+                            <select
+                              disabled={busy}
+                              value={taskTimedDisplay.endHm}
+                              aria-label={t('tasks.create.plannedEnd')}
+                              className={cn(eventDialogPanelSelectClass, 'min-w-0 tabular-nums')}
+                              onChange={(e): void => {
+                                setTaskPlannedEnd(
+                                  mergeTimeIntoTaskEnd(taskPlannedStart, taskPlannedEnd, e.target.value)
+                                )
+                              }}
+                            >
+                              {taskEndTimeOptions.map((hm) => (
+                                <option key={`task-end-${hm}`} value={hm}>
+                                  {hm}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        <p className="pl-14 text-xs tabular-nums text-muted-foreground">
+                          {taskTimedDisplay.duration}
+                        </p>
+                      </div>
+                    ) : isTaskCreate ? (
+                      <p className="text-xs text-muted-foreground">{t('calendar.eventDialog.summaryDash')}</p>
+                    ) : !isAllDay && timedDisplay ? (
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className="w-12 shrink-0 text-right text-xs text-muted-foreground">
+                            {t('calendar.eventDialog.labelBegin')}:
+                          </span>
+                          <div className="grid min-w-0 flex-1 grid-cols-2 gap-2">
+                            <ChronellDateField
+                              disabled={eventFieldsLocked}
+                              value={timedDisplay.startYmd}
+                              onChange={(v): void => {
+                                if (!v) return
+                                const nextStart = mergeYmdIntoEventDatetimeLocal(dtStart, v)
+                                setDtStart(nextStart)
+                                if (
+                                  eventDatetimeLocalToMs(dtEnd, eventTimeZone) <=
+                                  eventDatetimeLocalToMs(nextStart, eventTimeZone)
+                                ) {
+                                  setDtEnd(addMinutesInEventZone(nextStart, 15, eventTimeZone))
+                                }
+                              }}
+                              className={cn(eventDialogPanelSelectClass, 'min-w-0 tabular-nums')}
+                            />
+                            <select
+                              disabled={eventFieldsLocked}
+                              value={timedDisplay.startHm}
+                              aria-label={t('calendar.eventDialog.editStartTimeAria')}
+                              className={cn(eventDialogPanelSelectClass, 'min-w-0 tabular-nums')}
+                              onChange={(e): void => {
+                                const hm = e.target.value
+                                const nextStart = mergeTimeIntoEventStart(dtStart, hm)
+                                setDtStart(nextStart)
+                                if (
+                                  eventDatetimeLocalToMs(dtEnd, eventTimeZone) <=
+                                  eventDatetimeLocalToMs(nextStart, eventTimeZone)
+                                ) {
+                                  setDtEnd(addMinutesInEventZone(nextStart, 15, eventTimeZone))
+                                }
+                              }}
+                            >
+                              {startTimeOptions.map((hm) => (
+                                <option key={`start-${hm}`} value={hm}>
+                                  {hm}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="w-12 shrink-0 text-right text-xs text-muted-foreground">
+                            {t('calendar.eventDialog.labelEnd')}:
+                          </span>
+                          <div className="grid min-w-0 flex-1 grid-cols-2 gap-2">
+                            <ChronellDateField
+                              disabled={eventFieldsLocked}
+                              value={timedDisplay.endYmd}
+                              min={timedDisplay.startYmd}
+                              onChange={(v): void => {
+                                if (!v) return
+                                const nextEnd = mergeYmdIntoEventDatetimeLocal(dtEnd, v)
+                                if (
+                                  eventDatetimeLocalToMs(nextEnd, eventTimeZone) <=
+                                  eventDatetimeLocalToMs(dtStart, eventTimeZone)
+                                ) {
+                                  setDtEnd(addMinutesInEventZone(dtStart, 15, eventTimeZone))
+                                } else {
+                                  setDtEnd(nextEnd)
+                                }
+                              }}
+                              className={cn(eventDialogPanelSelectClass, 'min-w-0 tabular-nums')}
+                            />
+                            <select
+                              disabled={eventFieldsLocked}
+                              value={timedDisplay.endHm}
+                              aria-label={t('calendar.eventDialog.editEndTimeAria')}
+                              className={cn(eventDialogPanelSelectClass, 'min-w-0 tabular-nums')}
+                              onChange={(e): void => {
+                                setDtEnd(mergeTimeIntoEventEnd(dtStart, dtEnd, e.target.value, eventTimeZone))
+                              }}
+                            >
+                              {endTimeOptions.map((hm) => (
+                                <option key={`end-${hm}`} value={hm}>
+                                  {hm}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        <p className="pl-14 text-xs tabular-nums text-muted-foreground">
+                          {timedDisplay.duration}
+                        </p>
+                      </div>
+                    ) : isAllDay && dayStart && dayEnd ? (
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className="w-12 shrink-0 text-right text-xs text-muted-foreground">
+                            {t('calendar.eventDialog.labelBegin')}:
+                          </span>
+                          <ChronellDateField
+                            disabled={eventFieldsLocked}
+                            value={dayStart}
+                            onChange={(v): void => {
+                              if (!v) return
+                              setDayStart(v)
+                              if (dayEnd <= v) {
+                                setDayEnd(format(addDays(parseISO(`${v}T12:00:00`), 1), 'yyyy-MM-dd'))
+                              }
+                            }}
+                            className={cn(eventDialogPanelSelectClass, 'min-w-0 flex-1 tabular-nums')}
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="w-12 shrink-0 text-right text-xs text-muted-foreground">
+                            {t('calendar.eventDialog.labelEnd')}:
+                          </span>
+                          <ChronellDateField
+                            disabled={eventFieldsLocked}
+                            min={dayStart}
+                            value={format(addDays(parseISO(`${dayEnd}T12:00:00`), -1), 'yyyy-MM-dd')}
+                            onChange={(v): void => {
+                              if (!v) return
+                              const excl = format(addDays(parseISO(`${v}T12:00:00`), 1), 'yyyy-MM-dd')
+                              if (excl <= dayStart) {
+                                setDayEnd(format(addDays(parseISO(`${dayStart}T12:00:00`), 1), 'yyyy-MM-dd'))
+                              } else {
+                                setDayEnd(excl)
+                              }
+                            }}
+                            className={cn(eventDialogPanelSelectClass, 'min-w-0 flex-1 tabular-nums')}
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">{t('calendar.eventDialog.summaryDash')}</p>
+                    )}
+                    {!isTaskCreate ? (
+                    <label
+                      className={cn(
+                        'flex cursor-pointer items-center gap-2 text-xs font-medium',
+                        eventFieldsLocked && 'cursor-not-allowed opacity-50'
+                      )}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isAllDay}
+                        disabled={eventFieldsLocked}
+                        onChange={(e): void => {
+                          const nextAllDay = e.target.checked
+                          if (nextAllDay) {
+                            if (dtStart && dtEnd) {
+                              const sp = parseEventDatetimeLocal(dtStart)
+                              const ep = parseEventDatetimeLocal(dtEnd)
+                              if (sp && ep) {
+                                const startDay = sp.ymd
+                                const endDay = ep.ymd
+                                const lastInclusive = endDay >= startDay ? endDay : startDay
+                                setDayStart(startDay)
+                                setDayEnd(
+                                  format(addDays(parseISO(`${lastInclusive}T12:00:00`), 1), 'yyyy-MM-dd')
+                                )
+                              }
+                            }
+                            setIsAllDay(true)
+                          } else {
+                            if (dayStart) {
+                              setDtStart(`${dayStart}T09:00`)
+                              setDtEnd(addMinutesInEventZone(`${dayStart}T09:00`, 60, eventTimeZone))
+                            }
+                            setIsAllDay(false)
+                          }
+                        }}
+                        className="rounded border-border"
+                      />
+                      <span className={cn(isAllDay ? 'text-foreground' : 'text-muted-foreground')}>
+                        {t('calendar.eventDialog.allDay')}
+                      </span>
+                    </label>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="min-w-0">
+                  {isTaskCreate ? (
+                    <>
+                      <div className={eventDialogSectionHeadingClass}>
+                        <Globe className="h-3.5 w-3.5 shrink-0" />
+                        {t('tasks.create.due')}
+                      </div>
+                      <ChronellDateField
+                        disabled={busy}
+                        value={taskDue}
+                        onChange={(v): void => {
+                          setTaskDue(v)
+                          if (
+                            v &&
+                            recurWeekdays.length === 0 &&
+                            (recurFreq === 'weekly' || recurFreq === 'biweekly')
+                          ) {
+                            setRecurWeekdays(defaultWeekdayFromDueYmd(v))
+                          }
+                        }}
+                        className={cn(eventDialogPanelSelectClass, 'tabular-nums')}
+                      />
+                    </>
                   ) : (
-                    <div className="grid grid-cols-2 gap-2">
-                      <label className="text-xs">
-                        <span className="mb-1 block text-muted-foreground">
-                          {t('calendar.eventDialog.labelBegin')}
-                        </span>
-                        <input
-                          type="datetime-local"
-                          value={dtStart}
-                          onChange={(e): void => setDtStart(e.target.value)}
-                          disabled={eventFieldsLocked}
-                          className="w-full rounded border border-border bg-background px-2 py-1 text-xs"
-                        />
-                      </label>
-                      <label className="text-xs">
-                        <span className="mb-1 block text-muted-foreground">
-                          {t('calendar.eventDialog.labelEnd')}
-                        </span>
-                        <input
-                          type="datetime-local"
-                          value={dtEnd}
-                          onChange={(e): void => setDtEnd(e.target.value)}
-                          disabled={eventFieldsLocked}
-                          className="w-full rounded border border-border bg-background px-2 py-1 text-xs"
-                        />
-                      </label>
-                    </div>
+                    <>
+                  <div className={eventDialogSectionHeadingClass}>
+                    <Globe className="h-3.5 w-3.5 shrink-0" />
+                    {t('calendar.eventDialog.timezoneHeading')}
+                  </div>
+                  <select
+                    value={eventTimeZone}
+                    disabled={eventFieldsLocked || isAllDay}
+                    onChange={(e): void => handleEventTimeZoneChange(e.target.value)}
+                    aria-label={t('calendar.eventDialog.timezoneSelectAria')}
+                    title={t('calendar.eventDialog.timezoneTitle')}
+                    className={eventDialogPanelSelectClass}
+                  >
+                    {eventTimeZoneOptions.map((opt) => (
+                      <option key={opt.iana} value={opt.iana}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                    </>
                   )}
                 </div>
-              )}
-            </div>
-            )}
 
-            {mode === 'create' && createKind === 'event' ? (
-              <CalendarEventRecurrenceSection
-                recurFreq={recurFreq}
-                setRecurFreq={setRecurFreq}
-                recurEnd={recurEnd}
-                setRecurEnd={setRecurEnd}
-                recurUntilDate={recurUntilDate}
-                setRecurUntilDate={setRecurUntilDate}
-                recurCount={recurCount}
-                setRecurCount={setRecurCount}
-                recurWeekdays={recurWeekdays}
-                setRecurWeekdays={setRecurWeekdays}
-                eventFieldsLocked={eventFieldsLocked}
-              />
-            ) : null}
+                {isTaskCreate ? (
+                  <div className="min-w-0">
+                    <CalendarEventRecurrenceSection
+                      i18nPrefix="tasks.create"
+                      recurFreq={recurFreq}
+                      setRecurFreq={(v): void => {
+                        setRecurFreq(v)
+                        if (
+                          (v === 'weekly' || v === 'biweekly') &&
+                          recurWeekdays.length === 0 &&
+                          taskDue.trim()
+                        ) {
+                          setRecurWeekdays(defaultWeekdayFromDueYmd(taskDue.trim()))
+                        }
+                      }}
+                      recurEnd={recurEnd}
+                      setRecurEnd={setRecurEnd}
+                      recurUntilDate={recurUntilDate}
+                      setRecurUntilDate={setRecurUntilDate}
+                      recurCount={recurCount}
+                      setRecurCount={setRecurCount}
+                      recurWeekdays={recurWeekdays}
+                      setRecurWeekdays={setRecurWeekdays}
+                      eventFieldsLocked={busy}
+                      embedded
+                    />
+                  </div>
+                ) : mode === 'create' && createKind === 'event' ? (
+                  <div className="min-w-0">
+                    <CalendarEventRecurrenceSection
+                      recurFreq={recurFreq}
+                      setRecurFreq={setRecurFreq}
+                      recurEnd={recurEnd}
+                      setRecurEnd={setRecurEnd}
+                      recurUntilDate={recurUntilDate}
+                      setRecurUntilDate={setRecurUntilDate}
+                      recurCount={recurCount}
+                      setRecurCount={setRecurCount}
+                      recurWeekdays={recurWeekdays}
+                      setRecurWeekdays={setRecurWeekdays}
+                      eventFieldsLocked={eventFieldsLocked}
+                      embedded
+                    />
+                  </div>
+                ) : (
+                  <div className="min-w-0">
+                    <div className={eventDialogSectionHeadingClass}>
+                      <Repeat2 className="h-3.5 w-3.5 shrink-0" />
+                      {t('calendar.eventDialog.recurrenceHeading')}
+                    </div>
+                    <p className="text-xs text-muted-foreground">{t('calendar.eventDialog.summaryDash')}</p>
+                  </div>
+                )}
+
+                <div className="min-w-0">
+                  <div className={eventDialogSectionHeadingClass}>
+                    <Bell className="h-3.5 w-3.5 shrink-0" />
+                    {t('calendar.eventDialog.reminderHeading')}
+                  </div>
+                  {isTaskCreate ? (
+                    <p className={cn(eventDialogPanelSelectClass, 'flex items-center text-muted-foreground')}>
+                      {t('calendar.eventDialog.summaryDash')}
+                    </p>
+                  ) : (
+                    <>
+                  <select
+                    aria-label={t('calendar.eventDialog.reminderHeading')}
+                    value={reminderEnabled ? String(reminderMinutesBefore) : 'none'}
+                    disabled={eventFieldsLocked || (isAllDay && !isMicrosoftEventAccount)}
+                    onChange={(e): void => {
+                      const v = e.target.value
+                      if (v === 'none') {
+                        setReminderEnabled(false)
+                        return
+                      }
+                      setReminderEnabled(true)
+                      setReminderMinutesBefore(Math.max(0, Math.round(Number(v) || 0)))
+                    }}
+                    className={eventDialogPanelSelectClass}
+                  >
+                    <option value="none">{t('calendar.eventDialog.reminderNone')}</option>
+                    {OUTLOOK_REMINDER_MINUTES_OPTIONS.map((m) => (
+                      <option key={m} value={String(m)}>
+                        {formatOutlookReminderMinutes(m, t)}
+                      </option>
+                    ))}
+                  </select>
+                  {isMicrosoftEventAccount && reminderEnabled ? (
+                    <p className="mt-2 text-2xs text-muted-foreground">
+                      {t('calendar.eventDialog.reminderDesktopHint')}
+                    </p>
+                  ) : null}
+                  {isAllDay && !isMicrosoftEventAccount ? (
+                    <p className="mt-2 text-2xs text-muted-foreground">{t('calendar.eventDialog.reminderDisabledAllDay')}</p>
+                  ) : null}
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
 
             {(mode !== 'create' || createKind === 'event') &&
             (selectedAccount?.provider === 'google' ? (
@@ -1901,28 +2227,6 @@ export function CalendarEventDialog({
                       accountId={accountId}
                       className="border-0 px-0 py-0"
                     />
-                  </div>
-                </PropertyRow>
-                <PropertyRow icon={Video} label={t('calendar.eventDialog.teamsMeetingRowLabel')}>
-                  <div className="space-y-1.5">
-                    <label className="flex cursor-pointer items-center gap-2 text-base">
-                      <input
-                        type="checkbox"
-                        checked={teamsMeeting}
-                        disabled={isAllDay || msTeamsUiLocked}
-                        onChange={(e): void => setTeamsMeeting(e.target.checked)}
-                        className="rounded border-border"
-                      />
-                      <span>{t('calendar.eventDialog.teamsMeetingToggle')}</span>
-                    </label>
-                    {isAllDay ? (
-                      <p className="text-2xs text-muted-foreground">{t('calendar.eventDialog.teamsDisabledAllDay')}</p>
-                    ) : null}
-                    {msEventDetailsError ? (
-                      <p className="text-2xs text-destructive" role="status">
-                        {msEventDetailsError}
-                      </p>
-                    ) : null}
                   </div>
                 </PropertyRow>
               </div>
@@ -1983,61 +2287,47 @@ export function CalendarEventDialog({
 
             {(mode !== 'create' || createKind === 'event') ? (
             <div className="border-b border-border py-1">
-              <PropertyRow icon={CircleDot} label={t('calendar.eventDialog.categories')}>
-                {selectedAccount?.provider !== 'microsoft' ? (
-                  <span className="text-xs text-muted-foreground">
-                    {t('calendar.eventDialog.categoriesOutlookOnly')}
-                  </span>
-                ) : mastersLoading && categoryChoiceNames.length === 0 ? (
-                  <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    {t('calendar.eventDialog.loadingShort')}
-                  </span>
-                ) : (
-                  <div className="space-y-2">
-                    {categoryChoiceNames.length === 0 ? (
-                      <p className="text-xs leading-snug text-muted-foreground">
-                        {t('calendar.eventDialog.categoriesEmptyOutlook')}
-                      </p>
-                    ) : (
-                      <div className="flex max-h-36 flex-wrap gap-1.5 overflow-y-auto pr-0.5">
-                        {categoryChoiceNames.map((name) => {
-                          const on = eventCategories.includes(name)
-                          const dotClass = outlookCategoryDotClass(categoryColorByName.get(name))
-                          return (
-                            <button
-                              key={name}
-                              type="button"
-                              disabled={busy}
-                              onClick={(): void => toggleEventCategory(name)}
-                              className={cn(
-                                'inline-flex max-w-full items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium transition-colors',
-                                on
-                                  ? 'border-primary/40 bg-primary/15 text-foreground'
-                                  : 'border-border/80 bg-secondary/30 text-muted-foreground hover:bg-secondary/60 hover:text-foreground'
-                              )}
-                              title={name}
-                            >
-                              <span className={cn('h-2 w-2 shrink-0 rounded-full', dotClass)} aria-hidden />
-                              <span className="truncate">{name}</span>
-                            </button>
-                          )
-                        })}
-                      </div>
-                    )}
-                    <p className="text-2xs leading-snug text-muted-foreground">
-                      {t('calendar.eventDialog.categoriesMasterHint')}
-                    </p>
-                  </div>
+              <div
+                className={cn(
+                  'grid grid-cols-1 gap-x-6 gap-y-3',
+                  isMicrosoftEventAccount && 'md:grid-cols-2'
                 )}
-              </PropertyRow>
-              <PropertyRow icon={MapPin} label={t('calendar.eventDialog.locationRowLabel')}>
-                <LocationAutocompleteInput
-                  value={location}
-                  onChange={setLocation}
-                  disabled={eventFieldsLocked}
-                />
-              </PropertyRow>
+              >
+                <PropertyRow icon={MapPin} label={t('calendar.eventDialog.locationRowLabel')}>
+                  <LocationAutocompleteInput
+                    value={location}
+                    onChange={setLocation}
+                    disabled={eventFieldsLocked}
+                    inputClassName={eventDialogPanelSelectClass}
+                  />
+                </PropertyRow>
+                {isMicrosoftEventAccount ? (
+                  <PropertyRow icon={Video} label={t('calendar.eventDialog.teamsMeetingRowLabel')}>
+                    <div className="space-y-1.5">
+                      <label className="flex h-9 cursor-pointer items-center gap-2.5 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={teamsMeeting}
+                          disabled={isAllDay || msTeamsUiLocked || eventFieldsLocked}
+                          onChange={(e): void => handleTeamsMeetingChange(e.target.checked)}
+                          className="h-4 w-4 shrink-0 rounded border-border"
+                        />
+                        <span className="leading-snug">{t('calendar.eventDialog.teamsMeetingToggle')}</span>
+                      </label>
+                      {isAllDay ? (
+                        <p className="text-2xs text-muted-foreground">
+                          {t('calendar.eventDialog.teamsDisabledAllDay')}
+                        </p>
+                      ) : null}
+                      {msEventDetailsError ? (
+                        <p className="text-2xs text-destructive" role="status">
+                          {msEventDetailsError}
+                        </p>
+                      ) : null}
+                    </div>
+                  </PropertyRow>
+                ) : null}
+              </div>
               <PropertyRow icon={AlignLeft} label={t('calendar.eventDialog.description')}>
                 <div className="mt-1 min-w-0 space-y-2">
                   {mode === 'edit' && Boolean(initialEvent?.graphEventId) && msEventDetailsLoading ? (
@@ -2082,8 +2372,8 @@ export function CalendarEventDialog({
                         }
                         attachmentCount={eventAttachments.length}
                         onCloudAttach={cloudLinkAccount ? (): void => setDriveOpen(true) : undefined}
-                        editorMinHeightClass="min-h-[440px]"
-                        className="min-h-[520px] rounded-md border border-border bg-background !border-t-0"
+                        editorMinHeightClass="min-h-[220px]"
+                        className="min-h-[260px] rounded-md border border-border bg-background !border-t-0"
                       />
                       {draggingFiles ? (
                         <p className="px-2 pb-2 text-2xs text-muted-foreground">
@@ -2127,6 +2417,23 @@ export function CalendarEventDialog({
                     </div>
                   )}
                 </div>
+              </PropertyRow>
+            </div>
+            ) : null}
+
+            {isTaskCreate ? (
+            <div className="border-b border-border py-1">
+              <PropertyRow icon={AlignLeft} label={t('tasks.create.notes')}>
+                <textarea
+                  value={taskNotes}
+                  onChange={(e): void => setTaskNotes(e.target.value)}
+                  disabled={busy}
+                  rows={6}
+                  className={cn(
+                    eventDialogPanelSelectClass,
+                    'mt-1 min-h-[220px] resize-y py-2'
+                  )}
+                />
               </PropertyRow>
             </div>
             ) : null}
@@ -2231,152 +2538,138 @@ export function CalendarEventDialog({
               {submitLabel}
             </button>
           </footer>
+          </div>
+
+          {showEventDayColumn ? (
+            <>
+              <VerticalSplitter
+                ariaLabel={t('calendar.eventDialog.dayColumnResizeAria')}
+                onDrag={(delta): void => setDayColumnWidth((w) => w - delta)}
+              />
+              <aside
+                className="flex min-h-0 shrink-0 flex-col border-l border-border bg-card"
+                style={{ width: dayColumnWidth }}
+              >
+                <CalendarEventDialogDayPicker
+                  accountId={isTaskCreate ? taskAccountId : accountId}
+                  accounts={isTaskCreate ? taskAccounts : calendarAccounts}
+                  eventTimeZone={isTaskCreate ? taskTimeZone : eventTimeZone}
+                  isAllDay={isTaskCreate ? false : isAllDay}
+                  disabled={isTaskCreate ? busy : eventFieldsLocked}
+                  editingEventId={mode === 'edit' ? initialEvent?.id : null}
+                  dtStart={isTaskCreate ? taskPlannedStart : dtStart}
+                  dtEnd={isTaskCreate ? taskPlannedEnd : dtEnd}
+                  dayStart={dayStart}
+                  dayEnd={dayEnd}
+                  onTimedRangeChange={
+                    isTaskCreate
+                      ? handleTaskDayPickerTimedRangeChange
+                      : handleDayPickerTimedRangeChange
+                  }
+                  onAllDayRangeChange={handleDayPickerAllDayRangeChange}
+                />
+              </aside>
+            </>
+          ) : null}
         </form>
-      </ModalPanel>
+    </div>
+  )
 
-      {schedulePicker && schedulePickerPos ? (
-        <div
-          ref={schedulePickerRef}
-          role="dialog"
-          aria-label={t('calendar.eventDialog.schedulePickerAria')}
-          className="chronell-acrylic-popover fixed z-[220] max-w-[calc(100vw-16px)] overflow-hidden text-popover-foreground"
-          style={{
-            top: schedulePickerPos.top,
-            left: schedulePickerPos.left,
-            width: schedulePickerPos.width
-          }}
-          onMouseDown={(ev): void => ev.stopPropagation()}
-          onClick={(ev): void => ev.stopPropagation()}
-        >
-          {(schedulePicker === 'startTime' || schedulePicker === 'endTime') && (
-            <ul className="max-h-60 overflow-y-auto py-1">
-              {timePickerOptions.map((hm) => {
-                const sel = hm === timePickerCurrentHm
-                return (
-                  <li key={`${schedulePicker}-${hm}`}>
-                    <button
-                      type="button"
-                      ref={sel ? selectedTimeOptionRef : undefined}
-                      className={cn(
-                        'w-full rounded-md px-2.5 py-1.5 text-left text-base tabular-nums transition-colors',
-                        sel
-                          ? 'bg-primary/15 font-medium text-foreground'
-                          : 'text-foreground hover:bg-secondary/80'
-                      )}
-                      onClick={(): void => {
-                        if (schedulePicker === 'startTime') {
-                          const nextStart = mergeTimeIntoStart(dtStart, hm)
-                          setDtStart(nextStart)
-                          if (new Date(dtEnd).getTime() <= new Date(nextStart).getTime()) {
-                            setDtEnd(dateToDatetimeLocal(addMinutes(new Date(nextStart), 15)))
-                          }
-                        } else {
-                          setDtEnd(mergeTimeIntoEnd(dtStart, dtEnd, hm))
-                        }
-                        closeSchedulePicker()
-                      }}
-                    >
-                      {hm}
-                    </button>
-                  </li>
-                )
-              })}
-            </ul>
-          )}
+  const drivePortal = cloudLinkAccount ? (
+    <OneDriveExplorerDialog
+      open={driveOpen}
+      accountId={cloudLinkAccount.id}
+      configureSharingLink={false}
+      onClose={(): void => setDriveOpen(false)}
+      onPickFile={(file): void => {
+        setDescriptionHtml((prev) =>
+          appendHtmlToComposeBody(prev, cloudFileLinkHtml(file.name, file.webUrl))
+        )
+      }}
+    />
+  ) : null
 
-          {schedulePicker === 'startDate' && timedDisplay ? (
-            <div className="p-1.5">
-              <ChronellDatePickerPanel
-                value={timedDisplay.startYmd}
-                disabled={eventFieldsLocked}
-                onChange={(v): void => {
-                  if (!v) return
-                  const nextStart = mergeYmdIntoDatetimeLocal(dtStart, v)
-                  setDtStart(nextStart)
-                  if (new Date(dtEnd).getTime() <= new Date(nextStart).getTime()) {
-                    setDtEnd(dateToDatetimeLocal(addMinutes(new Date(nextStart), 15)))
-                  }
-                }}
-                onPick={closeSchedulePicker}
-              />
-            </div>
-          ) : null}
+  if (!open) return null
 
-          {schedulePicker === 'endDate' && timedDisplay ? (
-            <div className="p-1.5">
-              <ChronellDatePickerPanel
-                value={timedDisplay.endYmd}
-                min={timedDisplay.startYmd}
-                disabled={eventFieldsLocked}
-                onChange={(v): void => {
-                  if (!v) return
-                  const nextEnd = mergeYmdIntoDatetimeLocal(dtEnd, v)
-                  if (new Date(nextEnd).getTime() <= new Date(dtStart).getTime()) {
-                    setDtEnd(dateToDatetimeLocal(addMinutes(new Date(dtStart), 15)))
-                  } else {
-                    setDtEnd(nextEnd)
-                  }
-                }}
-                onPick={closeSchedulePicker}
-              />
-            </div>
-          ) : null}
-
-          {schedulePicker === 'dayStart' ? (
-            <div className="p-1.5">
-              <ChronellDatePickerPanel
-                value={dayStart}
-                disabled={eventFieldsLocked}
-                onChange={(v): void => {
-                  if (!v) return
-                  setDayStart(v)
-                  if (dayEnd <= v) {
-                    setDayEnd(format(addDays(parseISO(`${v}T12:00:00`), 1), 'yyyy-MM-dd'))
-                  }
-                }}
-                onPick={closeSchedulePicker}
-              />
-            </div>
-          ) : null}
-
-          {schedulePicker === 'dayEnd' && dayStart && dayEnd ? (
-            <div className="space-y-1.5 p-1.5">
-              <p className="text-2xs leading-snug text-muted-foreground">
-                {t('calendar.eventDialog.allDayEndLastDayHint')}
-              </p>
-              <ChronellDatePickerPanel
-                min={dayStart}
-                value={format(addDays(parseISO(`${dayEnd}T12:00:00`), -1), 'yyyy-MM-dd')}
-                disabled={eventFieldsLocked}
-                onChange={(v): void => {
-                  if (!v) return
-                  const excl = format(addDays(parseISO(`${v}T12:00:00`), 1), 'yyyy-MM-dd')
-                  if (excl <= dayStart) {
-                    setDayEnd(format(addDays(parseISO(`${dayStart}T12:00:00`), 1), 'yyyy-MM-dd'))
-                  } else {
-                    setDayEnd(excl)
-                  }
-                }}
-                onPick={closeSchedulePicker}
-              />
-            </div>
-          ) : null}
+  if (placement === 'dock') {
+    return (
+      <>
+        <div className="fixed inset-0 z-[95] flex justify-end bg-black/25" onClick={onClose} role="presentation" />
+        <div className="fixed inset-y-0 right-0 z-[100] flex">
+          <VerticalSplitter
+            ariaLabel={t('calendar.eventDialog.modalResizeAria')}
+            onDrag={(delta): void => setDockWidth((w) => w - delta)}
+          />
+          <aside
+            className="flex h-full min-h-0 flex-col border-l border-border bg-card shadow-2xl"
+            style={{ width: dockWidth }}
+            onClick={(e): void => e.stopPropagation()}
+          >
+            {panelInner}
+          </aside>
         </div>
-      ) : null}
+        {drivePortal}
+      </>
+    )
+  }
 
-      {cloudLinkAccount ? (
-        <OneDriveExplorerDialog
-          open={driveOpen}
-          accountId={cloudLinkAccount.id}
-          configureSharingLink={false}
-          onClose={(): void => setDriveOpen(false)}
-          onPickFile={(file): void => {
-            setDescriptionHtml((prev) =>
-              appendHtmlToComposeBody(prev, cloudFileLinkHtml(file.name, file.webUrl))
-            )
+  if (placement === 'float') {
+    return (
+      <>
+        <CalendarFloatingPanel
+          open
+          title={t('calendar.eventDialog.dockPanelTitle')}
+          widthPx={modalSize.w}
+          initialHeightPx={modalSize.h}
+          minHeightPx={480}
+          minResizeWidthPx={640}
+          maxResizeWidthPx={1200}
+          maxResizeHeightPx={Math.min(1000, window.innerHeight - 24)}
+          persistSizeKey={CAL_EVENT_DIALOG_FLOAT_SIZE_KEY}
+          defaultPosition={floatDefaultPos}
+          zIndex={100}
+          hideHeaderActions
+          onClose={onClose}
+          onDock={(): void => setPlacementPersisted('dock')}
+        >
+          {panelInner}
+        </CalendarFloatingPanel>
+        {drivePortal}
+      </>
+    )
+  }
+
+  return (
+    <ModalRoot
+      open={open}
+      zIndex={100}
+      centerClassName="justify-center bg-black/45 backdrop-blur-[2px] p-3 sm:p-6"
+      onBackdropClick={onClose}
+    >
+      <ModalPanel
+        variant="center"
+        className="!max-h-none !max-w-none overflow-visible border-0 bg-transparent p-0 shadow-none"
+      >
+        <div
+          className="calendar-event-panel relative flex flex-col overflow-hidden rounded-xl border border-border bg-card text-foreground shadow-2xl"
+          style={{
+            width: modalSize.w,
+            height: modalSize.h,
+            maxWidth: 'calc(100vw - 24px)',
+            maxHeight: 'calc(100dvh - 24px)'
           }}
-        />
-      ) : null}
+        >
+          {panelInner}
+          <div
+            role="separator"
+            aria-label={t('calendar.eventDialog.modalResizeAria')}
+            title={t('calendar.eventDialog.modalResizeAria')}
+            onPointerDown={onModalResizePointerDown}
+            className="absolute bottom-0 right-0 z-[2] h-5 w-5 cursor-se-resize rounded-br-[10px] border-l border-t border-border/70 bg-muted/60 hover:bg-muted"
+          />
+        </div>
+      </ModalPanel>
+      {drivePortal}
     </ModalRoot>
   )
 }

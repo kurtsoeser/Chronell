@@ -155,7 +155,7 @@ export async function indexEntityEmbeddingsBatch(
     }
     done += chunk.length
     onProgress?.(done, total)
-    broadcastEntityEmbeddingProgress({ done, total })
+    broadcastEntityEmbeddingProgress({ done, total, phase: 'auto' })
   }
 
   invalidateEmbeddingVectorCache()

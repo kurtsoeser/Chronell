@@ -43,6 +43,8 @@ describe('readLastMailNav / writeLastMailNav', () => {
       folderAccountId: null,
       folderId: null,
       metaFolderId: null,
+      categoryAccountId: null,
+      categoryName: null,
       selectedMessageId: 42
     }
     writeLastMailNav(entry)

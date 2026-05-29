@@ -263,9 +263,36 @@
   box-shadow: 0 1px 0 hsl(0 0% 0% / 0.35);
 }
 
-.calendar-notion-shell .fc-timegrid-event-harness-inset .fc-v-event,
-.calendar-notion-shell .fc-timegrid-event.fc-v-event {
-  box-shadow: none;
+/* Parallele Termine: Spalten leicht trennen (Tages-/Wochenraster) */
+.calendar-notion-shell .fc-timegrid-event-harness-inset .fc-timegrid-event {
+  margin-left: 2px !important;
+  margin-right: 2px !important;
+}
+
+.calendar-notion-shell .fc-timegrid-event-harness-inset .fc-v-event {
+  box-shadow:
+    0 0 0 1px hsl(0 0% 100% / 0.42),
+    0 1px 2px hsl(0 0% 0% / 0.16);
+  outline: 1px solid hsl(0 0% 0% / 0.14);
+  outline-offset: -1px;
+}
+
+.dark .calendar-notion-shell .fc-timegrid-event-harness-inset .fc-v-event {
+  box-shadow:
+    0 0 0 1px hsl(0 0% 100% / 0.16),
+    0 1px 2px hsl(0 0% 0% / 0.4);
+  outline-color: hsl(0 0% 100% / 0.2);
+}
+
+.calendar-notion-shell .fc-timegrid-event-harness:not(.fc-timegrid-event-harness-inset) .fc-v-event {
+  box-shadow: 0 1px 0 hsl(0 0% 0% / 0.12);
+}
+
+.dark
+  .calendar-notion-shell
+  .fc-timegrid-event-harness:not(.fc-timegrid-event-harness-inset)
+  .fc-v-event {
+  box-shadow: 0 1px 0 hsl(0 0% 0% / 0.35);
 }
 
 .calendar-notion-shell .fc-event-main {
@@ -499,8 +526,10 @@
   border: 1px solid var(--chronell-border-strong);
   border-radius: 12px;
   background: var(--chronell-acrylic-bg);
-  -webkit-backdrop-filter: blur(var(--chronell-acrylic-blur)) saturate(135%);
-  backdrop-filter: blur(var(--chronell-acrylic-blur)) saturate(135%);
+  -webkit-backdrop-filter: blur(var(--chronell-acrylic-blur))
+    saturate(var(--chronell-acrylic-saturate, 1.1));
+  backdrop-filter: blur(var(--chronell-acrylic-blur))
+    saturate(var(--chronell-acrylic-saturate, 1.1));
   box-shadow:
     0 32px 80px rgba(0, 0, 0, 0.42),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);

@@ -53,7 +53,7 @@ describe('sidebarIsProtectedWellKnownFolder', () => {
 })
 
 describe('sidebarInitialCollapsedRemoteIds', () => {
-  it('klappt nur nicht-Wurzel-Ordner mit Kindern ein', () => {
+  it('klappt alle Ordner mit Kindern ein', () => {
     const root = folder({ id: 1, remoteId: 'r1', name: 'Root' })
     const sub = folder({ id: 2, remoteId: 'r2', name: 'Sub', parentRemoteId: 'r1' })
     const leaf = folder({ id: 3, remoteId: 'r3', name: 'Leaf', parentRemoteId: 'r2' })
@@ -66,6 +66,6 @@ describe('sidebarInitialCollapsedRemoteIds', () => {
     const collapsed = sidebarInitialCollapsedRemoteIds(tree)
     expect(collapsed.has('r2')).toBe(true)
     expect(collapsed.has('r4')).toBe(false)
-    expect(collapsed.has('r1')).toBe(false)
+    expect(collapsed.has('r1')).toBe(true)
   })
 })

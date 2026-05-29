@@ -54,6 +54,132 @@
     "appendFailed": "Senden fehlgeschlagen:\n\n{{message}}",
     "connectFirst": "Bitte zuerst unter Einstellungen → Allgemein → Notion verbinden."
   },
+  "files": {
+    "title": "Dateien",
+    "summary": "{{shown}} von {{total}}",
+    "loading": "Dateien werden geladen …",
+    "refresh": "Aktualisieren",
+    "viewModeAria": "Ansicht",
+    "viewTable": "Tabellenansicht",
+    "viewTiles": "Kachelansicht",
+    "searchPlaceholder": "Dateiname oder Betreff …",
+    "contactFilterBanner": "Anhänge mit {{email}}",
+    "contactFilterClear": "Filter entfernen",
+    "categoriesAria": "Dateityp",
+    "categories": {
+      "all": "Alle",
+      "images": "Bilder",
+      "media": "Medien",
+      "documents": "Dokumente",
+      "archive": "Archiv"
+    },
+    "sidebar": {
+      "source": "Quelle",
+      "fromMail": "Aus E-Mails",
+      "fromCloud": "OneDrive / SharePoint",
+      "fromMailHint": "Anhänge aus dem lokalen Mail-Index.",
+      "fromCloudHint": "Dateien und Ordner direkt in der Cloud durchsuchen.",
+      "accounts": "Konten",
+      "allAccounts": "Alle Konten",
+      "indexPending": "Index wird aufgebaut … noch {{count}} Mails"
+    },
+    "table": {
+      "empty": "Keine Dateien gefunden. Der Hintergrund-Index kann noch laufen.",
+      "emptyFiltered": "Keine Treffer für die aktuelle Filterung.",
+      "emptyIndexing": "Noch keine Dateien im Index. Der Hintergrund-Index läuft …",
+      "name": "Name",
+      "subject": "Betreff",
+      "date": "Datum",
+      "size": "Größe",
+      "type": "Elementtyp",
+      "account": "Konto",
+      "actions": "Aktionen",
+      "elementEmail": "E-Mail",
+      "openHint": "Doppelklick zum Öffnen",
+      "resizeColumn": "Spaltenbreite anpassen"
+    },
+    "grouping": {
+      "label": "Gruppieren nach",
+      "noSender": "(Ohne Absender)",
+      "noExtension": "(Ohne Endung)",
+      "unknownDate": "Unbekanntes Datum",
+      "letterOther": "Sonstige",
+      "sizeUnknown": "Unbekannte Größe",
+      "sizeTiny": "Klein (< 100 KB)",
+      "sizeSmall": "100 KB – 1 MB",
+      "sizeMedium": "1 – 10 MB",
+      "sizeLarge": "Groß (> 10 MB)",
+      "by": {
+        "date": "Datum",
+        "fileType": "Dateityp",
+        "size": "Größe",
+        "nameLetter": "Name (Anfangsbuchstabe)",
+        "from": "Von (Absender)",
+        "account": "Konto",
+        "extension": "Dateiendung",
+        "subjectLetter": "Betreff (Anfangsbuchstabe)"
+      }
+    },
+    "fileType": {
+      "pdf": "PDF",
+      "image": "Bild",
+      "audio": "Audio",
+      "video": "Video",
+      "spreadsheet": "Tabelle",
+      "presentation": "Präsentation",
+      "document": "Dokument",
+      "archive": "Archiv",
+      "code": "Code",
+      "text": "Text",
+      "generic": "Sonstige"
+    },
+    "actions": {
+      "open": "Öffnen",
+      "saveAs": "Speichern unter …",
+      "saveToCloud": "In OneDrive / SharePoint speichern …",
+      "saveToCloudShort": "In Cloud",
+      "openSource": "Quellelement öffnen"
+    },
+    "cloud": {
+      "dialogTitle": "OneDrive / SharePoint",
+      "dialogTitlePickFolder": "Speicherort wählen",
+      "pickFolderHint": "Ordner öffnen per Klick, dann „Hier speichern“. SharePoint: Website → Bibliothek → Ordner.",
+      "pickFolderInvalid": "Bitte einen Ordner oder eine Dokumentbibliothek wählen (nicht „Zuletzt“).",
+      "saveHere": "Hier speichern",
+      "uploading": "Wird in die Cloud hochgeladen …",
+      "uploadSuccess": "„{{name}}“ wurde gespeichert. Link in der Zwischenablage.",
+      "microsoftOnly": "Nur Microsoft-365-Konten können in OneDrive oder SharePoint speichern.",
+      "scopesAria": "Cloud-Bereich",
+      "scopes": {
+        "myfiles": "Meine Dateien",
+        "shared": "Geteilt",
+        "sharepoint": "SharePoint",
+        "recent": "Zuletzt"
+      },
+      "columnLocation": "Speicherort",
+      "tableEmpty": "Keine Einträge in diesem Ordner.",
+      "emptyRecent": "Keine kürzlich verwendeten Dateien.",
+      "goParent": "Eine Ebene nach oben (Alt+Rücktaste)",
+      "favorites": "Favoriten",
+      "addFavorite": "Aktuellen Ordner merken",
+      "favoriteSaved": "Ordner ist gemerkt",
+      "favoritesEmpty": "Noch keine Favoriten.",
+      "loading": "Cloud wird geladen …",
+      "retry": "Erneut versuchen",
+      "summaryBrowsing": "Cloud-Durchsicht",
+      "searchPlaceholder": "Dateiname filtern …",
+      "noMicrosoftAccount": "Kein Microsoft-365-Konto verbunden.",
+      "typeFolder": "Ordner",
+      "typeFile": "Datei",
+      "copyLink": "Link kopieren",
+      "openInBrowser": "Im Browser öffnen",
+      "openFolder": "Ordner öffnen",
+      "noWebUrl": "Für diese Datei ist kein Web-Link verfügbar.",
+      "savedLocal": "„{{name}}“ wurde lokal gespeichert.",
+      "linkCopied": "Link in die Zwischenablage kopiert.",
+      "linkCopyFailed": "Link konnte nicht kopiert werden."
+    }
+  },
   "notes": {
     "contextNew": "Notiz…",
     "kind": {
@@ -867,6 +993,7 @@
     "modeMega": "Zeitliste",
     "modePeople": "Kontakte",
     "modeNotes": "Notizen",
+    "modeFiles": "Dateien",
     "modeConnections": "Verbindungen",
     "modeChat": "Chat",
     "moduleDragAria": "Modul in der Leiste verschieben",
@@ -904,6 +1031,15 @@
     },
     "settingsAria": "Einstellungen / Konten",
     "settingsTitle": "Einstellungen",
+    "windowControlsAria": "Fenster",
+    "windowMinimizeAria": "Minimieren",
+    "windowMinimizeTitle": "Minimieren",
+    "windowMaximizeAria": "Maximieren",
+    "windowMaximizeTitle": "Maximieren",
+    "windowRestoreAria": "Verkleinern",
+    "windowRestoreTitle": "Verkleinern",
+    "windowCloseAria": "Schließen",
+    "windowCloseTitle": "Schließen",
     "themeToggleAria": "Theme umschalten",
     "themeTitleSystem": "Darstellung: System ({{effective}})",
     "themeTitleExplicit": "Darstellung: {{mode}}",
@@ -944,14 +1080,81 @@
   },
   "firstRun": {
     "title": "Willkommen bei Chronell",
+    "wizardTitle": "Willkommen bei Chronell",
     "subtitle": "Ersteinrichtung — nur einmal",
-    "skipTitle": "Überspringen",
-    "skipAria": "Ersteinrichtung überspringen",
-    "welcomeP1": "MailClient synchronisiert E-Mail und Kalender lokal auf deinem Rechner. Beim Verbinden eines Kontos öffnet sich der Browser — du meldest dich bei Microsoft oder Google an und siehst dort genau, welche Berechtigungen die App anfragt.",
+    "skipTitle": "Schließen",
+    "skipAria": "Ersteinrichtung schließen",
+    "learnMore": "Mehr erfahren",
+    "recommended": "Empfohlen",
+    "cancel": "Abbrechen",
+    "finish": "Fertigstellen",
+    "welcomeP1": "Chronell synchronisiert E-Mail, Kalender und Aufgaben lokal auf deinem Rechner. Beim Verbinden eines Kontos öffnet sich der Browser — du meldest dich bei Microsoft oder Google an und siehst dort genau, welche Berechtigungen die App anfragt.",
     "welcomeShield": "Die technische App-Registrierung (Azure / Google Cloud) erledigt der Anbieter der Software. Du musst kein Organisations-Admin sein — außer deine IT verbietet die Nutzerzustimmung (dann braucht es einmalig einen Admin, siehe Hilfe).",
     "privacy": "Datenschutz",
     "help": "Hilfe",
     "advancedOAuth": "Eigene OAuth-App (fortgeschritten)",
+    "themeMode": {
+      "system": "System",
+      "light": "Hell",
+      "dark": "Dunkel"
+    },
+    "paletteFluent": "Standard",
+    "paletteWarm": "Warm",
+    "paletteCool": "Kühl",
+    "paletteNord": "Nord",
+    "paletteGraphite": "Graphit",
+    "paletteDefault": "Klassisch",
+    "paletteMidnight": "Mitternacht",
+    "layoutDock": "Lesebereich rechts",
+    "layoutDockDesc": "Die Nachrichtenliste und der Lesebereich teilen sich das Fenster — der Lesebereich liegt rechts neben der Liste.",
+    "layoutFloat": "Separates Lesefenster",
+    "layoutFloatDesc": "Die ausgewählte Nachricht öffnet sich in einem eigenen Fenster — praktisch auf großen Monitoren.",
+    "layoutHidden": "Nur Nachrichtenliste",
+    "layoutHiddenDesc": "Nur die Liste anzeigen; eine Nachricht per Doppelklick oder Aktion im separaten Fenster öffnen.",
+    "layoutIllustration": {
+      "dock": "Layout mit Lesebereich rechts",
+      "float": "Layout mit separatem Lesefenster",
+      "hidden": "Layout nur mit Nachrichtenliste"
+    },
+    "accountSkip": "Später einrichten",
+    "accountSkipDesc": "Ohne Konto starten und die Verbindung jederzeit unter Einstellungen hinzufügen.",
+    "accountMicrosoft": "Microsoft 365",
+    "accountMicrosoftDesc": "Outlook, Exchange und Microsoft-Kalender verbinden.",
+    "accountGoogle": "Google",
+    "accountGoogleDesc": "Gmail und Google Kalender verbinden.",
+    "launchOnLogin": "Mit Windows starten",
+    "launchOnLoginDesc": "Chronell beim Anmelden automatisch im Hintergrund starten.",
+    "steps": {
+      "welcome": {
+        "heading": "Einrichtung starten",
+        "description": "Dieser Assistent hilft dir, Chronell einzurichten. Du kannst die Auswahl später jederzeit in den Einstellungen ändern.",
+        "pathHeading": "Wie möchtest du einrichten?",
+        "pathCustom": "Schritt für Schritt",
+        "pathCustomDesc": "Design, Layout und Konto nacheinander festlegen.",
+        "pathStandard": "Schnellstart",
+        "pathStandardDesc": "Standardwerte verwenden und direkt ein Konto verbinden."
+      },
+      "theme": {
+        "heading": "Design auswählen",
+        "description": "Wähle Erscheinungsbild und Akzentfarbe. Du kannst das Design jederzeit ändern.",
+        "modeLabel": "Farbschema",
+        "accentLabel": "Akzentfarbe",
+        "variantLight": "Hell-Variante",
+        "variantDark": "Dunkel-Variante"
+      },
+      "layout": {
+        "heading": "Mail-Layout",
+        "description": "Lege fest, wie Nachrichtenliste und Lesebereich angezeigt werden."
+      },
+      "account": {
+        "heading": "Konto verbinden",
+        "description": "Verbinde ein E-Mail-Konto oder überspringe diesen Schritt."
+      },
+      "finish": {
+        "heading": "Fast fertig!",
+        "description": "Wenn du startklar bist, öffne Chronell mit «Zur App»."
+      }
+    },
     "msHeading": "Microsoft 365 / Outlook",
     "msIntro": "Die App fragt delegierte Rechte für dein angemeldetes Konto an, unter anderem:",
     "msLi1": "E-Mail lesen, senden und Ordner verwalten",
@@ -1017,7 +1220,10 @@
     "mailContextHideFromSidebar": "Aus Seitenleiste entfernen …",
     "syncFolder": "Ordner synchronisieren",
     "syncFolderOffline": "Ordner-Sync ist nur online möglich.",
-    "syncFolderDone": "Ordner „{{name}}“ wurde vom Server aktualisiert."
+    "syncFolderDone": "Ordner „{{name}}“ wurde vom Server aktualisiert.",
+    "moreFolders": "Mehr…",
+    "showMore": "Mehr anzeigen",
+    "showLess": "Weniger anzeigen"
   },
   "settings": {
     "title": "Einstellungen",
@@ -1292,7 +1498,9 @@
     "accentLabel": "Akzentfarbe",
     "themeHint": "Theme-Modus und Akzentfarbe auch über das Sonne/Mond-Symbol in der Topbar. Dunkel-Varianten und Presets findest du unter „Oberflächenfarben“. Eigene L0–L3-Farben überschreiben Varianten und Presets. Die Breite der ersten Spalte (Navigation) ist in allen Modulen gemeinsam — einmal ziehen, überall gültig.",
     "themeColorsHeading": "Oberflächenfarben",
-    "themeColorsHint": "Dunkel-Varianten, Design-Presets und manuelle Ebenen (L0–L3) — in drei Registerkarten.",
+    "themeColorsHint": "Varianten, Presets und Feinabstimmung — jeweils in eigenen Registerkarten, kompakt mit Hell/Dunkel-Untertabs.",
+    "themeColorsSchemaTabsAria": "Farbschema Hell oder Dunkel",
+    "themeColorsPreviewOtherMode": "Hinweis: Die App zeigt gerade den anderen Modus (Hell/Dunkel) — die Vorschau oben bezieht sich auf den gewählten Untertab.",
     "themeColorsTabQuick": "Schnellstart",
     "themeColorsTabPresets": "Design-Presets",
     "themeColorsTabTune": "Feinabstimmung",
@@ -1642,6 +1850,8 @@
     "localData.category.noteAttachments": "Notiz-Anhänge",
     "localData.category.localStorage": "Oberflächen-Speicher (Chromium)",
     "localData.category.other": "Sonstiges",
+    "dialogResizeAria": "Fenstergroesse aendern",
+    "dialogResizeTitle": "Ziehen, um Breite und Hoehe anzupassen",
     "accountsPanelAria": "Konten",
     "connectedAccounts": "Verbundene Konten",
     "msConnectTitle": "Microsoft-Konto verbinden",
@@ -1649,6 +1859,143 @@
     "googleConnectTitle": "Google-Konto verbinden",
     "googleConfigureFirstTitle": "Erst Google Client-ID konfigurieren (Allgemein oder Build-Standard)",
     "accountsIntro": "Konten verbinden oder entfernen. «Erneut anmelden» öffnet die Anmeldung für dasselbe Konto (z. B. neue API-Berechtigungen). OAuth-Technik nur unter «Allgemein» → «Eigene OAuth-App», falls nötig.",
+    "accountPermissions": {
+      "title": "Warum fragt Chronell so viele Berechtigungen?",
+      "summaryClosed": "Erklärung zu Microsoft- und Google-Berechtigungen beim Verbinden",
+      "intro": "Beim Verbinden eines Kontos zeigt Microsoft oder Google eine lange Liste — das wirkt oft beängstigend. Chronell ist ein vollständiger Mail- und Produktivitäts-Client: Jede Berechtigung gehört zu einer Funktion, die du in der App nutzen kannst (Posteingang, Kalender, Aufgaben, Kontakte, Teams, Anhänge aus der Cloud). Es werden keine Daten an Dritte verkauft.",
+      "privacyNote": "Anmelde-Tokens und synchronisierte Inhalte bleiben auf deinem Rechner. Chronell nutzt die Berechtigungen nur, um mit deinem Konto bei Microsoft bzw. Google zu arbeiten — nicht für Werbung oder Profilbildung.",
+      "unverifiedNote": "Hinweis «nicht überprüft»: Normal bei Desktop-Apps, die nicht im Microsoft Store veröffentlicht sind. Du siehst trotzdem exakt, was freigegeben wird, und kannst das Konto jederzeit unter «Konten» trennen.",
+      "microsoftHeading": "Microsoft / Microsoft 365",
+      "googleHeading": "Google (Gmail)",
+      "microsoft": {
+        "groups": {
+          "signIn": { "title": "Anmeldung" },
+          "mail": { "title": "E-Mail" },
+          "calendar": { "title": "Kalender" },
+          "tasks": { "title": "Aufgaben" },
+          "contacts": { "title": "Kontakte & Empfänger" },
+          "teams": { "title": "Teams & Besprechungen" },
+          "files": { "title": "Dateien & Anhänge" },
+          "bookings": { "title": "Bookings" },
+          "ews": { "title": "Exchange (EWS, optional)" }
+        },
+        "items": {
+          "offline": {
+            "label": "Zugriff auf Daten beibehalten (offline_access)",
+            "purpose": "Damit Chronell im Hintergrund synchronisieren kann, ohne dass du dich bei jedem Start neu anmelden musst."
+          },
+          "userRead": {
+            "label": "Anmelden und Profil lesen",
+            "purpose": "Dein Name, deine E-Mail-Adresse und dein Profilbild für die Kontenliste und die Oberfläche."
+          },
+          "mailReadWrite": {
+            "label": "Lese- und Schreibzugriff auf Ihre E-Mail",
+            "purpose": "Posteingang und Ordner synchronisieren, Mails lesen, verschieben, löschen, als gelesen markieren und Regeln/QuickSteps ausführen."
+          },
+          "mailSend": {
+            "label": "E-Mail in Ihrem Namen senden",
+            "purpose": "Neue Mails und Antworten senden — nur wenn du «Senden» drückst."
+          },
+          "mailboxSettings": {
+            "label": "Postfacheinstellungen lesen und schreiben",
+            "purpose": "Outlook-Kategorien (Masterkategorien), Signatur-Vorlagen und vergleichbare Postfach-Optionen in Chronell."
+          },
+          "calendars": {
+            "label": "Vollzugriff auf Ihre Kalender",
+            "purpose": "Termine anzeigen, anlegen, bearbeiten und löschen — inkl. Erinnerungen und Kalender in der App."
+          },
+          "calendarsShared": {
+            "label": "Kalender lesen, auf die Sie Zugriff haben",
+            "purpose": "Geteilte und delegierte Kalender anderer Personen, die du in Outlook sehen darfst."
+          },
+          "groups": {
+            "label": "Gruppenmitgliedschaften & Gruppenkalender",
+            "purpose": "Microsoft-365-Gruppen und deren Teamkalender in der Kalender-Ansicht."
+          },
+          "tasks": {
+            "label": "Aufgaben und Projekte erstellen, lesen, aktualisieren und löschen",
+            "purpose": "Microsoft To Do / Planner-Aufgabenlisten in Chronell synchronisieren und bearbeiten."
+          },
+          "contacts": {
+            "label": "Vollzugriff auf Ihre Kontakte",
+            "purpose": "Outlook-Kontakte im Modul «Kontakte» anzeigen und pflegen."
+          },
+          "people": {
+            "label": "Relevante Kontakte lesen",
+            "purpose": "Empfänger-Vorschläge beim Schreiben einer E-Mail (häufig genutzte Adressen)."
+          },
+          "directory": {
+            "label": "Basisprofile aller Benutzer lesen",
+            "purpose": "Kolleginnen und Kollegen im Unternehmen beim «An»-Feld vorschlagen (Organisations-Adressbuch)."
+          },
+          "chat": {
+            "label": "Chat-Nachrichten lesen/schreiben & Chats erstellen",
+            "purpose": "Microsoft-Teams-Chats in Chronell anzeigen und Nachrichten senden (wenn du diese Funktion nutzt)."
+          },
+          "meetings": {
+            "label": "Onlinebesprechungen lesen und erstellen",
+            "purpose": "Teams-Meeting-Links in Kalenderterminen einfügen oder bearbeiten."
+          },
+          "onedrive": {
+            "label": "Vollzugriff auf Dateien, auf die Sie Zugriff haben",
+            "purpose": "OneDrive-Dateien als Anhang einfügen oder Freigabe-Links beim Verfassen einer Mail nutzen."
+          },
+          "sharepoint": {
+            "label": "Elemente in allen Websitesammlungen bearbeiten oder löschen",
+            "purpose": "SharePoint- und Teams-Dateien für Cloud-Anhänge und Freigabe im Composer."
+          },
+          "bookings": {
+            "label": "Bookings-Informationen & Termine",
+            "purpose": "Unternehmens-Bookings-Seiten und Termine für die Bookings-Integration in Chronell."
+          },
+          "ews": {
+            "label": "Exchange Web Services (separater Dialog möglich)",
+            "purpose": "Optionaler zweiter Schritt für manche Postfächer: schnellerer Mail-Sync über Exchange statt nur Graph — nur wenn du es in den Einstellungen nutzt."
+          }
+        }
+      },
+      "google": {
+        "groups": {
+          "signIn": { "title": "Anmeldung" },
+          "mail": { "title": "Gmail" },
+          "calendar": { "title": "Google Kalender" },
+          "tasks": { "title": "Google Tasks" },
+          "contacts": { "title": "Kontakte" }
+        },
+        "items": {
+          "profile": {
+            "label": "Profil und Anmeldung (openid, E-Mail)",
+            "purpose": "Konto erkennen, Name und Profilbild in der App anzeigen."
+          },
+          "gmail": {
+            "label": "Gmail lesen, senden und verwalten",
+            "purpose": "Posteingang synchronisieren, Mails senden, verschieben, löschen und Ordner verwalten — wie in einem Mail-Programm üblich."
+          },
+          "calendar": {
+            "label": "Google Kalender",
+            "purpose": "Termine in Chronell anzeigen und bearbeiten."
+          },
+          "tasks": {
+            "label": "Google Tasks",
+            "purpose": "Aufgabenlisten synchronisieren und Aufgaben in der App pflegen."
+          },
+          "contacts": {
+            "label": "Google Kontakte (People API)",
+            "purpose": "Kontakte im Modul «Kontakte» und Empfänger-Vorschläge beim Verfassen von Mails."
+          }
+        }
+      }
+    },
+    "accountsListAria": "Kontenliste",
+    "accountServicesMicrosoft": "E-Mail, Kalender, Kontakte, Aufgaben",
+    "accountServicesGoogle": "E-Mail, Kalender, Kontakte, Aufgaben",
+    "accountSyncHeading": "Synchronisation",
+    "accountSyncNever": "Noch nie synchronisiert",
+    "accountSyncInProgress": "Synchronisiert …",
+    "accountSyncNowTitle": "Jetzt synchronisieren",
+    "accountSyncError": "Sync-Fehler",
+    "accountLastSyncLine": "Zuletzt synchronisiert: {{time}}",
+    "accountLastSyncError": "Letzter Fehler: {{message}}",
     "noAccountYet": "Noch kein Konto verbunden.",
     "msReconnectTitle": "Microsoft erneut anmelden (Token und Berechtigungen)",
     "msReconnectAria": "Microsoft-Konto erneut anmelden",
@@ -1669,6 +2016,21 @@
     "accountOnlineMicrosoft": "Microsoft-Konto online",
     "accountOnlineGoogle": "Google-Konto online",
     "accountOnlineTitle": "Kontoseite des Anbieters im Standardbrowser öffnen (Passwort, Sicherheit, Abo)",
+    "accountColorHeading": "Kontofarbe",
+    "accountColorHint": "Farbstreifen in der Seitenleiste und in Listen — wähle eine Vorgabe oder eine eigene Farbe.",
+    "accountColorCustom": "Eigene Farbe",
+    "accountAvatarHeading": "Konto-Avatar",
+    "accountAvatarHint": "Profilbild vom Anbieter, Initialen, Symbol oder eigenes Bild.",
+    "accountAvatarKindAria": "Avatar-Darstellung",
+    "accountAvatarIconAria": "Symbol wählen",
+    "accountAvatarPickImage": "Bild auswählen…",
+    "accountAvatarProviderNote": "Profilfoto vom Anbieter nur bei «Profilbild».",
+    "accountAvatarKind": {
+      "provider": "Profilbild",
+      "initials": "Initialen",
+      "icon": "Symbol",
+      "custom": "Eigenes Bild"
+    },
     "mailPanelAria": "Mail",
     "syncWindowHeading": "Sync-Zeitraum",
     "syncWindowIntro": "Begrenzt, wie weit zurück neue Mails synchronisiert werden. Spart Speicher und Bandbreite bei großen Postfächern. Bereits geladene ältere Mails bleiben erhalten.",
@@ -1699,6 +2061,61 @@
         "markRead": "Als gelesen markieren",
         "markUnread": "Als ungelesen markieren",
         "todo": "ToDo heute"
+      }
+    },
+    "quickSteps": {
+      "heading": "QuickSteps",
+      "intro": "Eigene Aktionsketten für die Mailliste (wie Outlook Quick Steps). Aktionen laufen nacheinander — logisch mit UND verknüpft.",
+      "new": "Neuer QuickStep",
+      "empty": "Noch keine QuickSteps. Legen Sie einen an oder nutzen Sie die Standard-Schritte aus der Ersteinrichtung.",
+      "editorNewTitle": "QuickStep erstellen",
+      "editorEditTitle": "QuickStep bearbeiten",
+      "editorHint": "Fügen Sie Aktionen hinzu, die beim Ausführen des QuickSteps nacheinander auf die gewählte Mail angewendet werden.",
+      "ms365Note": "Hinweis: Diese QuickSteps werden lokal in MailClient gespeichert. Microsoft Graph bietet keine API für Outlook-QuickSteps — sie erscheinen nicht automatisch in Outlook im Web oder in der Desktop-App. Eine Sicherung/Übernahme erfolgt über Einstellungen → Sicherung.",
+      "nameLabel": "Name",
+      "namePlaceholder": "Mein QuickStep",
+      "enabledLabel": "Aktiv (in Auswahllisten und Mouse-over-Leiste)",
+      "actionsHeading": "Aktionen",
+      "actionsAndHint": "Alle aufgeführten Aktionen werden der Reihe nach ausgeführt.",
+      "noActions": "Noch keine Aktionen — wählen Sie unten eine Aktion aus.",
+      "selectAction": "Aktion auswählen…",
+      "addAction": "Hinzufügen",
+      "pickFolder": "Ordner wählen…",
+      "folderSelected": "Ordner #{{id}}",
+      "tagPlaceholder": "Kategorie / Tag",
+      "deleteTitle": "QuickStep löschen",
+      "deleteConfirm": "QuickStep „{{name}}“ wirklich löschen?",
+      "errors": {
+        "name_required": "Bitte einen Namen eingeben.",
+        "actions_required": "Mindestens eine Aktion hinzufügen.",
+        "action_incomplete": "Eine Aktion ist unvollständig (z. B. Ordner oder Tag fehlt)."
+      },
+      "categories": {
+        "filing": "Ablage",
+        "status": "Status ändern",
+        "categories": "Kategorien & ToDo",
+        "snooze": "Schlummern"
+      },
+      "actionTypes": {
+        "move_to_folder": "In Ordner verschieben",
+        "archive": "Archivieren",
+        "delete": "In Papierkorb verschieben",
+        "mark_read": "Als gelesen markieren",
+        "mark_unread": "Als ungelesen markieren",
+        "add_tag": "Kategorie setzen",
+        "mark_flagged": "Kennzeichnen (Stern)",
+        "clear_flagged": "Kennzeichnung entfernen",
+        "add_todo": "ToDo zuweisen",
+        "snooze": "Schlummern"
+      },
+      "snoozePresets": {
+        "in-1-hour": "In 1 Stunde",
+        "in-3-hours": "In 3 Stunden",
+        "this-evening": "Heute Abend",
+        "tomorrow-morning": "Morgen früh",
+        "tomorrow-evening": "Morgen Abend",
+        "next-monday": "Nächsten Montag",
+        "next-week": "Nächste Woche"
       }
     },
     "autoImagesTitle": "Externe Bilder automatisch laden",
@@ -2190,6 +2607,96 @@
       "floatReadingTitle": "Mail-Vorschau",
       "floatCalendarTitle": "Termine"
     },
+    "rightSidebar": {
+      "title": "Seitenleiste",
+      "titleDashboard": "Dashboard",
+      "titleAgenda": "Nächste Termine",
+      "titleDay": "Tagesansicht",
+      "titleContact": "Kontakt",
+      "titleTasks": "Aufgaben",
+      "titleNotes": "Notizen",
+      "addTile": "Kachel hinzufügen",
+      "addTileAria": "Kachel hinzufügen oder entfernen",
+      "tilesPanelTitle": "Kacheln",
+      "tilesPanelHint": "Einspaltig — dieselben Kacheln wie auf Start. Am Griff oben verschieben.",
+      "hideTileTitle": "Kachel ausblenden",
+      "hideTileAria": "Kachel ausblenden",
+      "dragTileTitle": "Kachel verschieben",
+      "dragTileAria": "Kachel per Ziehen nach oben oder unten sortieren",
+      "undockTitle": "Schwebend öffnen",
+      "hideTitle": "Ausblenden",
+      "tabs": {
+        "dashboard": "Dashboard",
+        "agenda": "Termine",
+        "day": "Tag",
+        "contact": "Kontakt",
+        "tasks": "Aufgaben",
+        "notes": "Notizen"
+      },
+      "dayPrev": "Vorheriger Tag",
+      "dayNext": "Nächster Tag",
+      "dayToday": "Heute",
+      "dayEmpty": "Keine Termine oder geplanten Aufgaben an diesem Tag.",
+      "tasksLoading": "Lade Aufgaben …",
+      "contactTitle": "Kontaktdetails",
+      "contactLoading": "Kontakt wird geladen …",
+      "contactNotFound": "Kein Kontakt zu dieser Mail gefunden.",
+      "contactNoSelection": "Wähle eine Mail aus, um Kontaktdetails zu sehen.",
+      "contactNoCorrespondent": "Für diese Mail konnte kein Gesprächspartner ermittelt werden.",
+      "contactTabHistory": "Verlauf",
+      "contactTabAttachments": "Anhänge",
+      "contactTabDetails": "Details",
+      "contactAttachmentsLoading": "Anhänge werden geladen …",
+      "contactAttachmentsEmpty": "Keine indizierten Anhänge mit diesem Kontakt. Nach dem Mail-Sync können Anhänge hier erscheinen.",
+      "contactAttachmentsCount": "{{shown}} von {{total}} Anhängen",
+      "contactAttachmentsOpenFile": "Datei öffnen",
+      "contactAttachmentsOpenMail": "Zugehörige Mail öffnen",
+      "contactAttachmentsOpenFiles": "Alle im Modul Dateien",
+      "contactTabsAria": "Kontaktbereiche",
+      "contactHistoryYou": "Sie",
+      "contactHistoryLoading": "Verlauf wird geladen …",
+      "contactHistoryEmpty": "Noch keine Mails mit dieser Adresse in diesem Konto.",
+      "contactHistoryLoadMore": "Weitere {{count}} laden",
+      "contactHistoryCount": "{{shown}} von {{total}} Mails",
+      "contactSettingsTitle": "Verlauf-Optionen",
+      "contactSettingsCurrentAccount": "Nur aktuelles Konto",
+      "contactSettingsAllAccounts": "Alle Konten",
+      "contactSettingsIncludeTrash": "Papierkorb & Junk einbeziehen",
+      "contactSettingsAliases": "Alle E-Mail-Adressen des Kontakts",
+      "contactHistoryLoadingMore": "Lade …",
+      "contactPreviewAria": "Mail-Vorschau",
+      "contactPreviewFrom": "Von",
+      "contactPreviewTo": "An",
+      "contactPreviewAttachments": "{{count}} Anhang/Anhänge",
+      "contactPreviewAttachmentsMore": "+ {{count}} weitere",
+      "contactPreviewLoadingAttachments": "Anhänge werden geladen …",
+      "contactPreviewLoadingBody": "Nachricht wird geladen …",
+      "contactPreviewReply": "Antworten",
+      "contactPreviewOpen": "Im Lesefenster öffnen",
+      "contactPreviewArchive": "Archivieren",
+      "contactPreviewDelete": "Löschen",
+      "contactPreviewMarkRead": "Als gelesen markieren",
+      "contactPreviewMarkUnread": "Als ungelesen markieren",
+      "contactBucketUnknown": "Unbekanntes Datum",
+      "contactBucketToday": "Heute",
+      "contactBucketYesterday": "Gestern",
+      "contactBucketLastWeek": "Letzte Woche",
+      "contactBucketThisMonth": "Diesen Monat",
+      "contactBucketOlder": "Ältere",
+      "contactUnreadBadge": "{{count}} ungelesen im Verlauf",
+      "contactRelatedCalendar": "Termine mit Kontakt",
+      "contactRelatedLoading": "Termine werden geladen …",
+      "contactRelatedOpenCalendar": "Kalender öffnen",
+      "openContact": "Kontakt öffnen",
+      "notesNoSelection": "Wähle eine Mail aus, um Notizen zu sehen.",
+      "tasksTitle": "Aufgaben",
+      "tasksCounts": "{{count}} fällig (heute/überfällig)",
+      "openTasks": "Aufgaben öffnen",
+      "openNotes": "Notizen öffnen",
+      "quickComposePlaceholder": "Kurz notieren …",
+      "openNoteInModule": "Im Notizen-Modul bearbeiten",
+      "tasksNoSelection": "Wähle eine Mail aus, um verknüpfte Aufgaben/Kontext zu sehen."
+    },
     "inboxCal": {
       "undockTitle": "Als Fenster lösen (abdocken)",
       "chromeTitle": "Termine",
@@ -2249,6 +2756,8 @@
       "subject": "Betreff",
       "placeholderEmail": "name@beispiel.de",
       "noSubjectPlaceholder": "(Kein Betreff)",
+      "signature": "Signatur",
+      "originalMail": "Original-Mail",
       "removeAttachmentAria": "Anhang entfernen",
       "send": "Senden",
       "saveDraft": "Entwurf speichern",
@@ -2417,8 +2926,9 @@
       "loadError": "Wetterdaten konnten nicht geladen werden.",
       "attribution": "Wetterdaten: Open-Meteo",
       "codes": {
-        "clear": "Klar",
+        "clear": "Sonnig",
         "partly": "Teils bewölkt",
+        "cloudy": "Bewölkt",
         "fog": "Nebel",
         "drizzle": "Nieselregen",
         "rain": "Regen",
@@ -2874,7 +3384,8 @@
       "durationUnderMinute": "Unter 1 Minute",
       "durationMinutesOnly": "{{minutes}} Min.",
       "durationHoursOnly": "{{hours}} Std.",
-      "durationHoursMinutes": "{{hours}} Std. {{minutes}} Min."
+      "durationHoursMinutes": "{{hours}} Std. {{minutes}} Min.",
+      "contextSplitterAria": "Höhe von Notiz und Kontext anpassen"
     },
     "floatingPanel": {
       "dockTitle": "In die Leiste andocken",
@@ -2970,9 +3481,41 @@
       "titleAria": "Titel",
       "whenHeading": "Wann",
       "allDay": "Ganztägig",
-      "timezoneTitle": "Kalender-Zeitzone in den Einstellungen",
+      "timezoneTitle": "Zeitzone für Start- und Endzeit",
+      "timezoneHeading": "Zeitzone",
       "timezonePrefix": "Zeitzone:",
+      "timezoneSelectAria": "Zeitzone auswählen",
       "appointmentHeading": "Termin",
+      "dayColumnDragHint": "Zeit per Ziehen wählen",
+      "dayColumnViewHint": "Tagesübersicht",
+      "dayColumnLoading": "Termine werden geladen…",
+      "dayColumnNoAccount": "Kalenderkonto wählen",
+      "dayColumnResizeAria": "Tagesvorschau verbreitern oder verschmälern",
+      "reminderHeading": "Erinnerung",
+      "reminderEnabled": "Erinnerung",
+      "reminderNone": "Keine",
+      "reminderMinutesLabel": "Erinnern",
+      "reminderAtStart": "Zum Terminbeginn",
+      "reminderMinutesBefore": "{{minutes}} Min vorher",
+      "reminderOneHour": "1 Stunde vorher",
+      "reminderTwoHours": "2 Stunden vorher",
+      "reminderFourHours": "4 Stunden vorher",
+      "reminderEightHours": "8 Stunden vorher",
+      "reminderTwelveHours": "12 Stunden vorher",
+      "reminderOneDay": "1 Tag vorher",
+      "reminderTwoDays": "2 Tage vorher",
+      "reminderOneWeek": "1 Woche vorher",
+      "reminderHoursBefore": "{{hours}} Stunden vorher",
+      "reminderDesktopHint": "Zusätzlich Desktop-Benachrichtigung in Chronell, wenn der Termin fällig wird.",
+      "reminderDisabledAllDay": "Für Ganztägig-Termine aktuell deaktiviert.",
+      "categoriesPickerAria": "Kategorien wählen",
+      "categoriesAdd": "Kategorien hinzufügen",
+      "categoriesAddShort": "Hinzufügen",
+      "categoryRemoveAria": "Kategorie {{name}} entfernen",
+      "dockPanelTitle": "Termin bearbeiten",
+      "dockTitle": "Als Spalte rechts andocken",
+      "undockTitle": "Als schwebendes Fenster lösen",
+      "modalResizeAria": "Dialoggröße ändern",
       "editStartTimeAria": "Startzeit wählen",
       "editEndTimeAria": "Endzeit wählen",
       "editDateAria": "Datum wählen",

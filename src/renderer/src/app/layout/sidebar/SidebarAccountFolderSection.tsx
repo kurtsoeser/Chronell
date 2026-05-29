@@ -8,6 +8,7 @@ import {
   RefreshCw
 } from 'lucide-react'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { buildFolderTree, flattenTree } from '@/lib/folder-tree'
 import { sidebarInitialCollapsedRemoteIds } from '@/lib/sidebar-well-known'
@@ -17,7 +18,7 @@ import {
   readMailSidebarAccountExpanded,
   readMailSidebarCollapsedFolderRemoteIds
 } from '@/app/layout/sidebar/mail-sidebar-tree-storage'
-import { Avatar } from '@/components/Avatar'
+import { AccountAvatarBadge } from '@/components/AccountAvatarBadge'
 import { AccountColorStripe } from '@/components/AccountColorStripe'
 import type { ConnectedAccount, MailFolder } from '@shared/types'
 import type { SidebarInlineEditState } from '@/app/layout/sidebar/sidebar-types'
@@ -59,6 +60,7 @@ export function SidebarAccountFolderSection({
   onToggleFolderQuickAccess: (folder: MailFolder) => void
   onMailDropToFolder?: (folder: MailFolder, e: React.DragEvent) => void
 }): JSX.Element {
+  const { t } = useTranslation()
   const isSyncing = Boolean(sync && sync.state.startsWith('syncing'))
   const isError = sync?.state === 'error'
   const isSyncedOk = sync?.state === 'idle'
@@ -66,6 +68,7 @@ export function SidebarAccountFolderSection({
   const tree = useMemo(() => buildFolderTree(folders), [folders])
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(() => new Set())
   const [accountOpen, setAccountOpen] = useState(() => readMailSidebarAccountExpanded(account.id))
+  const [showMore, setShowMore] = useState(false)
   const folderHydrationKeyRef = useRef<string>('')
   const collapsedPersistReadyRef = useRef(false)
 
@@ -97,6 +100,7 @@ export function SidebarAccountFolderSection({
 
   useEffect(() => {
     setAccountOpen(readMailSidebarAccountExpanded(account.id))
+    setShowMore(false)
   }, [account.id])
 
   useEffect(() => {
@@ -108,7 +112,17 @@ export function SidebarAccountFolderSection({
     persistMailSidebarCollapsedFolderRemoteIds(account.id, collapsedFolders)
   }, [account.id, collapsedFolders, folders.length])
 
-  const visible = useMemo(() => flattenTree(tree, collapsedFolders), [tree, collapsedFolders])
+  const { visiblePrimary, visibleExtra, hasExtraRoots } = useMemo(() => {
+    const MAX_ROOTS = 6
+    const roots = tree
+    const primaryRoots = roots.slice(0, MAX_ROOTS)
+    const extraRoots = roots.slice(MAX_ROOTS)
+    return {
+      visiblePrimary: flattenTree(primaryRoots, collapsedFolders),
+      visibleExtra: showMore ? flattenTree(extraRoots, collapsedFolders) : [],
+      hasExtraRoots: extraRoots.length > 0
+    }
+  }, [tree, collapsedFolders, showMore])
 
   function toggleFolder(remoteId: string): void {
     setCollapsedFolders((prev) => {
@@ -150,12 +164,8 @@ export function SidebarAccountFolderSection({
           className="flex min-w-0 flex-1 items-center gap-2 text-left"
           title={account.email}
         >
-          <Avatar
-            name={account.displayName}
-            email={account.email}
-            bgClass={account.color}
-            accountColor={account.color}
-            initials={account.initials}
+          <AccountAvatarBadge
+            account={account}
             imageSrc={profilePhotoDataUrl}
             size="sm"
           />
@@ -229,10 +239,47 @@ export function SidebarAccountFolderSection({
             color={account.color}
             className="left-0 top-1 bottom-1 w-0.5 rounded-full opacity-60"
           />
-          {visible.length === 0 && !isSyncing && !inlineEdit && (
+          {visiblePrimary.length === 0 && !isSyncing && !inlineEdit && (
             <li className="px-2 py-1 text-2xs text-muted-foreground/60">Noch keine Ordner</li>
           )}
-          {visible.map((node) => (
+          {visiblePrimary.map((node) => (
+            <SidebarFolderRow
+              key={node.folder.id}
+              node={node}
+              isSelected={node.folder.id === selectedFolderId}
+              isCollapsed={collapsedFolders.has(node.folder.remoteId)}
+              isRenaming={inlineEdit?.mode === 'rename' && inlineEdit.folderId === node.folder.id}
+              renamingInitialValue={inlineEdit?.initialValue ?? ''}
+              onSelect={(): void => onSelect(node.folder.id)}
+              onToggle={(): void => toggleFolder(node.folder.remoteId)}
+              onContext={(e): void => onContextFolder(e, node.folder)}
+              onRenameSubmit={onInlineSubmit}
+              onRenameCancel={onInlineCancel}
+              onToggleQuickAccess={(): void => onToggleFolderQuickAccess(node.folder)}
+              onMailDropToFolder={onMailDropToFolder}
+            />
+          ))}
+
+          {hasExtraRoots && (
+            <li>
+              <button
+                type="button"
+                onClick={(): void => setShowMore((v) => !v)}
+                className={cn(
+                  'flex w-full items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors',
+                  'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'
+                )}
+                aria-label={showMore ? t('sidebar.showLess') : t('sidebar.showMore')}
+              >
+                <span className="flex h-5 w-4 shrink-0 items-center justify-center text-muted-foreground/70">
+                  {showMore ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                </span>
+                <span className="flex-1 text-left">{t('sidebar.moreFolders')}</span>
+              </button>
+            </li>
+          )}
+
+          {visibleExtra.map((node) => (
             <SidebarFolderRow
               key={node.folder.id}
               node={node}
@@ -264,7 +311,9 @@ export function SidebarAccountFolderSection({
           {inlineEdit?.mode === 'create' &&
             inlineEdit.parentFolderId != null &&
             (() => {
-              const parentNode = visible.find((n) => n.folder.id === inlineEdit.parentFolderId)
+              const parentNode = [...visiblePrimary, ...visibleExtra].find(
+                (n) => n.folder.id === inlineEdit.parentFolderId
+              )
               if (!parentNode) return null
               return (
                 <li>

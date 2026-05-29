@@ -23,9 +23,21 @@ const RootShell = resolveRootShell()
 
 document.title = APP_PRODUCT_NAME
 
+interface ReactRootContainer extends HTMLElement {
+  __reactRoot?: ReturnType<typeof ReactDOM.createRoot>
+}
+
+function getOrCreateReactRoot(container: ReactRootContainer): ReturnType<typeof ReactDOM.createRoot> {
+  if (!container.__reactRoot) {
+    container.__reactRoot = ReactDOM.createRoot(container)
+  }
+  return container.__reactRoot
+}
+
 void initI18n().then(() => {
   void import('./stores/locale')
-  ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
+  const container = document.getElementById('root') as ReactRootContainer
+  getOrCreateReactRoot(container).render(
     <React.StrictMode>
       <RootShell />
     </React.StrictMode>

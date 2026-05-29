@@ -15,6 +15,13 @@ import {
   OneDriveShareLinkSettingsPanel,
   type DriveShareLinkPickSource
 } from '@/components/OneDriveShareLinkSettingsPanel'
+import type { FilesDriveUploadDestinationPick } from '@shared/files'
+import {
+  buildFilesDriveUploadDestination,
+  canSaveToCurrentExplorerPath
+} from '@/lib/drive-explorer-destination'
+import { driveExplorerCrumbsMatch } from '@/lib/drive-explorer-favorites-nav'
+import { buildDriveExplorerListParams } from '@/lib/drive-explorer-list-params'
 
 type Crumb = ComposeDriveExplorerNavCrumb
 
@@ -26,43 +33,17 @@ function isWellFormedFavorite(f: unknown): f is ComposeDriveExplorerFavorite {
   return Array.isArray(o.crumbs)
 }
 
-function crumbsMatchNav(
-  scopeA: ComposeDriveExplorerScope,
-  crumbsA: ComposeDriveExplorerNavCrumb[] | null | undefined,
-  scopeB: ComposeDriveExplorerScope,
-  crumbsB: Crumb[]
-): boolean {
-  if (scopeA !== scopeB) return false
-  if (!Array.isArray(crumbsA) || !Array.isArray(crumbsB)) return false
-  if (crumbsA.length !== crumbsB.length) return false
-  return crumbsA.every((c, i) => {
-    const d = crumbsB[i]!
-    if (
-      c.name !== d.name ||
-      (c.driveId ?? null) !== (d.driveId ?? null) ||
-      (c.siteId ?? null) !== (d.siteId ?? null)
-    ) {
-      return false
-    }
-    if (c.id === d.id) return true
-    if (scopeA !== 'sharepoint') return false
-    const cd = (c.driveId ?? '').trim()
-    const dd = (d.driveId ?? '').trim()
-    if (!cd || cd !== dd) return false
-    const cLibRoot =
-      c.id == null || String(c.id).trim() === '' || String(c.id).trim() === cd
-    const dLibRoot =
-      d.id == null || String(d.id).trim() === '' || String(d.id).trim() === dd
-    return cLibRoot && dLibRoot
-  })
-}
+export type OneDriveExplorerMode = 'pickFile' | 'pickFolder'
 
 interface Props {
   open: boolean
   accountId: string
   onClose: () => void
   /** Nur Dateien mit gültigem `webUrl` (ReferenceAttachment). */
-  onPickFile: (file: { name: string; webUrl: string }) => void
+  onPickFile?: (file: { name: string; webUrl: string }) => void
+  /** Zielordner für Upload (Modul „Dateien“). */
+  onPickFolder?: (dest: FilesDriveUploadDestinationPick) => void
+  explorerMode?: OneDriveExplorerMode
   /** Optional: Link in den Mail-Text einfügen (zweite Aktion nach Dateiauswahl). */
   onInsertLinkInBody?: (file: { name: string; webUrl: string }) => void
   /** Freigabe-Link per Graph `createLink` konfigurieren (Mail-Composer). */
@@ -76,10 +57,14 @@ export function OneDriveExplorerDialog({
   accountId,
   onClose,
   onPickFile,
+  onPickFolder,
+  explorerMode = 'pickFile',
   onInsertLinkInBody,
   configureSharingLink = true
 }: Props): JSX.Element | null {
   const { t } = useTranslation()
+  const isPickFolder = explorerMode === 'pickFolder'
+  const effectiveConfigureSharing = configureSharingLink && !isPickFolder
   const [scope, setScope] = useState<ComposeDriveExplorerScope>('myfiles')
   const [crumbs, setCrumbs] = useState<Crumb[]>([])
   const [entries, setEntries] = useState<ComposeDriveExplorerEntry[]>([])
@@ -126,62 +111,20 @@ export function OneDriveExplorerDialog({
       (f) =>
         Array.isArray(f.cachedEntries) &&
         f.cachedEntries.length > 0 &&
-        crumbsMatchNav(f.scope, f.crumbs, scope, crumbs)
+        driveExplorerCrumbsMatch(f.scope, f.crumbs, scope, crumbs)
     )
     if (seedFav?.cachedEntries?.length) {
       setEntries(seedFav.cachedEntries)
     }
     try {
-      let folderId: string | null | undefined
-      let folderDriveId: string | null | undefined
-      let siteId: string | null | undefined
-
-      if (scope === 'sharepoint') {
-        if (crumbs.length === 0) {
-          siteId = null
-          folderId = undefined
-          folderDriveId = undefined
-        } else {
-          const siteIdx = crumbs.findIndex((c) => Boolean(c.siteId))
-          if (siteIdx === -1) {
-            siteId = null
-            folderId = undefined
-            folderDriveId = undefined
-          } else {
-            const siteCrumb = crumbs[siteIdx]!
-            const tail = crumbs.slice(siteIdx + 1)
-            if (tail.length === 0) {
-              siteId = siteCrumb.siteId ?? null
-              folderId = null
-              folderDriveId = null
-            } else {
-              const last = tail[tail.length - 1]!
-              siteId = siteCrumb.siteId ?? null
-              folderDriveId = last.driveId ?? null
-              folderId = last.id
-            }
-          }
-        }
-      } else {
-        const last = crumbs[crumbs.length - 1]
-        folderId = last?.id ?? undefined
-        folderDriveId = last?.driveId ?? undefined
-      }
-
-      const list = await window.mailClient.compose.listDriveExplorer({
-        accountId,
-        scope,
-        ...(scope === 'recent'
-          ? {}
-          : {
-              folderId: folderId ?? null,
-              folderDriveId: folderDriveId ?? null
-            }),
-        ...(scope === 'sharepoint' ? { siteId: siteId ?? null } : {})
-      })
+      const list = await window.mailClient.compose.listDriveExplorer(
+        buildDriveExplorerListParams(accountId, scope, crumbs)
+      )
       setEntries(list)
 
-      const hit = favoritesRef.current.find((f) => crumbsMatchNav(f.scope, f.crumbs, scope, crumbs))
+      const hit = favoritesRef.current.find((f) =>
+        driveExplorerCrumbsMatch(f.scope, f.crumbs, scope, crumbs)
+      )
       if (hit) {
         void window.mailClient.compose
           .updateDriveExplorerFavoriteCache({ accountId, id: hit.id, entries: list })
@@ -270,6 +213,10 @@ export function OneDriveExplorerDialog({
   }
 
   const tryPickFile = (row: ComposeDriveExplorerEntry): void => {
+    if (isPickFolder) {
+      if (row.isFolder) openFolder(row)
+      return
+    }
     if (row.isFolder) {
       openFolder(row)
       return
@@ -277,7 +224,7 @@ export function OneDriveExplorerDialog({
     const url = row.webUrl?.trim()
     if (!url) return
 
-    if (configureSharingLink) {
+    if (effectiveConfigureSharing) {
       setPendingFile({
         id: row.id,
         name: row.name,
@@ -294,11 +241,28 @@ export function OneDriveExplorerDialog({
       setDialogStep('choose-action')
       return
     }
-    onPickFile(file)
+    onPickFile?.(file)
     onClose()
   }
 
-  const dualPickMode = Boolean(onInsertLinkInBody)
+  const pickCurrentFolder = (): void => {
+    if (!onPickFolder) return
+    if (!canSaveToCurrentExplorerPath(scope, crumbs)) {
+      setFavoriteHint(
+        t('files.cloud.pickFolderInvalid', {
+          defaultValue: 'Bitte einen Ordner oder eine Dokumentbibliothek wählen (nicht „Zuletzt“).'
+        })
+      )
+      return
+    }
+    const dest = buildFilesDriveUploadDestination(accountId, scope, crumbs)
+    onPickFolder(dest)
+    onClose()
+  }
+
+  const canSaveHere = isPickFolder && canSaveToCurrentExplorerPath(scope, crumbs)
+
+  const dualPickMode = Boolean(onInsertLinkInBody) && !isPickFolder
 
   const finishWithPick = (file: { name: string; webUrl: string }): void => {
     setResolvedPick(null)
@@ -313,11 +277,12 @@ export function OneDriveExplorerDialog({
       setDialogStep('choose-action')
       return
     }
-    onPickFile(file)
+    onPickFile?.(file)
     finishWithPick(file)
   }
 
-  const currentPathFavorite = favorites.find((f) => crumbsMatchNav(f.scope, f.crumbs, scope, crumbs)) ?? null
+  const currentPathFavorite =
+    favorites.find((f) => driveExplorerCrumbsMatch(f.scope, f.crumbs, scope, crumbs)) ?? null
 
   const refreshFavorites = useCallback(async (): Promise<void> => {
     try {
@@ -441,12 +406,20 @@ export function OneDriveExplorerDialog({
         onClick={(e): void => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
-        aria-label="OneDrive und geteilte Dateien"
+        aria-label={
+          isPickFolder
+            ? t('files.cloud.dialogTitlePickFolder', { defaultValue: 'Speicherort wählen' })
+            : t('files.cloud.dialogTitle', { defaultValue: 'OneDrive und geteilte Dateien' })
+        }
       >
         <div className={cn('flex shrink-0 items-center justify-between border-b px-4 py-3', listSubtleBorderClass)}>
           <div className="flex items-center gap-2">
             <Cloud className="h-4 w-4 text-sky-500" />
-            <span className="text-sm font-semibold">OneDrive / SharePoint</span>
+            <span className="text-sm font-semibold">
+              {isPickFolder
+                ? t('files.cloud.dialogTitlePickFolder', { defaultValue: 'Speicherort wählen' })
+                : t('files.cloud.dialogTitle', { defaultValue: 'OneDrive / SharePoint' })}
+            </span>
           </div>
           <button
             type="button"
@@ -490,7 +463,7 @@ export function OneDriveExplorerDialog({
                   type="button"
                   className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
                   onClick={(): void => {
-                    onPickFile(resolvedPick)
+                    onPickFile?.(resolvedPick)
                     finishWithPick(resolvedPick)
                   }}
                 >
@@ -539,7 +512,7 @@ export function OneDriveExplorerDialog({
                 </p>
               ) : (
                 favorites.map((f, index) => {
-                  const active = crumbsMatchNav(f.scope, f.crumbs, scope, crumbs)
+                  const active = driveExplorerCrumbsMatch(f.scope, f.crumbs, scope, crumbs)
                   const editing = editingFavoriteId === f.id
                   return (
                     <div
@@ -804,24 +777,45 @@ export function OneDriveExplorerDialog({
 
             <div
               className={cn(
-                'shrink-0 border-t bg-secondary/15 px-3 py-2 text-[10px] text-muted-foreground',
+                'shrink-0 border-t bg-secondary/15 px-3 py-2',
                 listSubtleBorderClass
               )}
             >
-              {configureSharingLink
-                ? t('mail.composeTile.cloudExplorerHintShare', {
-                    defaultValue:
-                      'Datei wählen, Freigabe-Link konfigurieren, dann als Anhang oder Link in den Mail-Text.'
-                  })
-                : dualPickMode
-                  ? t('mail.composeTile.cloudExplorerHintDual', {
+              {isPickFolder ? (
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-[10px] text-muted-foreground">
+                    {t('files.cloud.pickFolderHint', {
                       defaultValue:
-                        'Ordner öffnen per Klick. Datei wählen, dann als Cloud-Anhang oder Link in den Mail-Text.'
-                    })
-                  : t('mail.composeTile.cloudExplorerHint', {
-                      defaultValue:
-                        'Ordner per Klick öffnen, Datei per Klick als Cloud-Anhang. Favoriten lokal; SharePoint: Website, Bibliothek, Ordner.'
+                        'Ordner öffnen per Klick, dann „Hier speichern“. SharePoint: Website → Bibliothek → Ordner.'
                     })}
+                  </p>
+                  <button
+                    type="button"
+                    disabled={!canSaveHere}
+                    className="shrink-0 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-40"
+                    onClick={pickCurrentFolder}
+                  >
+                    {t('files.cloud.saveHere', { defaultValue: 'Hier speichern' })}
+                  </button>
+                </div>
+              ) : (
+                <p className="text-[10px] text-muted-foreground">
+                  {effectiveConfigureSharing
+                    ? t('mail.composeTile.cloudExplorerHintShare', {
+                        defaultValue:
+                          'Datei wählen, Freigabe-Link konfigurieren, dann als Anhang oder Link in den Mail-Text.'
+                      })
+                    : dualPickMode
+                      ? t('mail.composeTile.cloudExplorerHintDual', {
+                          defaultValue:
+                            'Ordner öffnen per Klick. Datei wählen, dann als Cloud-Anhang oder Link in den Mail-Text.'
+                        })
+                      : t('mail.composeTile.cloudExplorerHint', {
+                          defaultValue:
+                            'Ordner per Klick öffnen, Datei per Klick als Cloud-Anhang. Favoriten lokal; SharePoint: Website, Bibliothek, Ordner.'
+                        })}
+                </p>
+              )}
             </div>
           </div>
         </div>

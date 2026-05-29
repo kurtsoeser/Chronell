@@ -58,6 +58,8 @@ export function accountPreferencesForBackup(
   return accounts.map((a) => ({
     accountId: a.id,
     color: a.color,
+    avatarKind: a.avatarKind,
+    avatarIconId: a.avatarIconId ?? null,
     calendarLoadAheadDays: a.calendarLoadAheadDays ?? null,
     signatureTemplates: a.signatureTemplates,
     defaultSignatureTemplateId: a.defaultSignatureTemplateId ?? null,
@@ -85,6 +87,12 @@ export async function mergeAccountPreferencesFromBackup(
     const merged: ConnectedAccount = { ...acc }
     if (typeof p.color === 'string' && p.color.trim()) {
       merged.color = p.color.trim()
+    }
+    if ('avatarKind' in p && p.avatarKind) {
+      merged.avatarKind = p.avatarKind
+    }
+    if ('avatarIconId' in p) {
+      merged.avatarIconId = p.avatarIconId ?? null
     }
     if ('calendarLoadAheadDays' in p) {
       if (p.calendarLoadAheadDays == null) {

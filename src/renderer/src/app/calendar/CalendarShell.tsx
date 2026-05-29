@@ -135,6 +135,7 @@ import { cn } from '@/lib/utils'
 import { openExternalUrl } from '@/lib/open-external'
 import { buildAccountColorAndNewContextItems } from '@/lib/account-sidebar-context-menu'
 import { CalendarEventDialog } from '@/app/calendar/CalendarEventDialog'
+import { runCalendarEventReminders } from '@/lib/calendar-event-reminders-runner'
 import {
   CalendarCreateQuickPopover,
   type CalendarCreateQuickDraft
@@ -235,7 +236,7 @@ import {
   persistLeftSidebarCollapsed,
   SIDEBAR_DEFAULT_CAL_ID,
   stepTimeGridSlotMinutes,
-  timeGridSlotMinutesToDuration,
+  timeGridFcSnapOptions,
   type TimeGridSlotMinutes
 } from '@/app/calendar/calendar-shell-storage'
 import {
@@ -287,7 +288,7 @@ export function CalendarShell(): JSX.Element {
   const accounts = useAccountsStore((s) => s.accounts)
   const calendarSyncByAccount = useCalendarSyncStore((s) => s.syncByAccount)
   const triggerCalendarAccountSync = useCalendarSyncStore((s) => s.triggerSync)
-  const profilePhotoDataUrls = useAccountsStore((s) => s.profilePhotoDataUrls)
+  const accountDisplayAvatarDataUrls = useAccountsStore((s) => s.accountDisplayAvatarDataUrls)
   const patchAccountColor = useAccountsStore((s) => s.patchAccountColor)
   const calendarTimeZoneConfig = useAccountsStore((s) => s.config?.calendarTimeZone)
   const selectedMessageId = useMailStore((s) => s.selectedMessageId)
@@ -324,6 +325,7 @@ export function CalendarShell(): JSX.Element {
   const [graphCalendarSourceRev, setGraphCalendarSourceRev] = useState(0)
   const eventsRef = useRef<CalendarEventView[]>([])
   eventsRef.current = events
+  const reminderFiredCacheRef = useRef<Map<string, number>>(new Map())
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   /** Erzwingt Reload der rechten ToDo-Spalte nach Kalender-Zug (mail:changed allein reicht nicht zuverlässig). */
@@ -334,6 +336,24 @@ export function CalendarShell(): JSX.Element {
     (opts?: { silent?: boolean; forceRefresh?: boolean }) => void
   >(() => {})
   const [timelineLoading, setTimelineLoading] = useState(false)
+
+  useEffect(() => {
+    if (eventsRef.current.length === 0) return
+    const productName = 'MailClient'
+    let cancelled = false
+    const tick = (): void => {
+      if (cancelled) return
+      void runCalendarEventReminders(eventsRef.current, productName, reminderFiredCacheRef.current).catch(
+        () => undefined
+      )
+    }
+    tick()
+    const id = window.setInterval(tick, 30_000)
+    return (): void => {
+      cancelled = true
+      window.clearInterval(id)
+    }
+  }, [events.length])
 
   const [activeViewId, setActiveViewId] = useState<string>(() => readCalendarActiveFcView())
   const activeViewIdRef = useRef(activeViewId)
@@ -899,18 +919,32 @@ export function CalendarShell(): JSX.Element {
     }
   }, [eventDialog])
 
+  const timeGridFcSlotOpts = useMemo(
+    () => timeGridFcSnapOptions(timeGridSlotMinutes),
+    [timeGridSlotMinutes]
+  )
+
   const multiDayViews = useMemo(() => {
-    const o: Record<string, { type: 'timeGrid'; duration: { days: number }; buttonText: string }> =
-      {}
+    const o: Record<
+      string,
+      {
+        type: 'timeGrid'
+        duration: { days: number }
+        buttonText: string
+        slotDuration: string
+        snapDuration: string
+      }
+    > = {}
     for (let n = 2; n <= MAX_TIME_GRID_SPAN_DAYS; n++) {
       o[`timeGrid${n}Day`] = {
         type: 'timeGrid',
         duration: { days: n },
-        buttonText: t('calendar.views.nDays', { count: n })
+        buttonText: t('calendar.views.nDays', { count: n }),
+        ...timeGridFcSlotOpts
       }
     }
     return o
-  }, [t])
+  }, [t, timeGridFcSlotOpts])
 
   const dayGridMonthView = useMemo(
     () => ({
@@ -959,11 +993,6 @@ export function CalendarShell(): JSX.Element {
   const fcTimeZone = useMemo(
     () => (calendarTimeZoneConfig?.trim() ? calendarTimeZoneConfig.trim() : 'local'),
     [calendarTimeZoneConfig]
-  )
-
-  const timeGridSlotDurationIso = useMemo(
-    () => timeGridSlotMinutesToDuration(timeGridSlotMinutes),
-    [timeGridSlotMinutes]
   )
 
   const calendarDropRootRef = useRef<HTMLDivElement>(null)
@@ -2988,7 +3017,7 @@ export function CalendarShell(): JSX.Element {
                             items: buildCalendarFolderColorMenuItems(accountId, cal)
                           })
                         }}
-                        profilePhotoDataUrls={profilePhotoDataUrls}
+                        profilePhotoDataUrls={accountDisplayAvatarDataUrls}
                         setAccountSidebarOpen={setAccountSidebarOpen}
                         isAccountSidebarOpen={isAccountSidebarOpen}
                         accountGroupCalSidebarOpen={accountGroupCalSidebarOpen}
@@ -3121,6 +3150,7 @@ export function CalendarShell(): JSX.Element {
                 firstDay={calSettings.weekStartsOn}
                 weekends={!calSettings.hideWeekends}
                 views={{
+                  timeGrid: timeGridFcSlotOpts,
                   ...multiDayViews,
                   ...dayGridMonthView,
                   ...multiMonthViews
@@ -3129,7 +3159,8 @@ export function CalendarShell(): JSX.Element {
                 slotMinTime={calSettings.slotMinTime}
                 slotMaxTime={calSettings.slotMaxTime}
                 scrollTime={calSettings.scrollTime}
-                slotDuration={timeGridSlotDurationIso}
+                slotDuration={timeGridFcSlotOpts.slotDuration}
+                snapDuration={timeGridFcSlotOpts.snapDuration}
                 slotLabelInterval="01:00:00"
                 nowIndicator
                 editable={

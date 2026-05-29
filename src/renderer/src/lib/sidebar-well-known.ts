@@ -52,12 +52,12 @@ export function sidebarIsProtectedWellKnownFolder(
   return !!wellKnown && SIDEBAR_PROTECTED_WELL_KNOWN_FOLDER_KEYS.has(wellKnown)
 }
 
-/** Ordner mit Tiefe >= 1 und Kindern starten eingeklappt (per remoteId). */
+/** Ordner mit Kindern starten eingeklappt (per remoteId). */
 export function sidebarInitialCollapsedRemoteIds(tree: FolderNode[]): Set<string> {
   const collapsed = new Set<string>()
   const walk = (nodes: FolderNode[]): void => {
     for (const node of nodes) {
-      if (node.depth >= 1 && node.children.length > 0) {
+      if (node.children.length > 0) {
         collapsed.add(node.folder.remoteId)
       }
       walk(node.children)

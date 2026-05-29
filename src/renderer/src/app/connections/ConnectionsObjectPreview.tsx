@@ -310,7 +310,9 @@ export function ConnectionsObjectPreview({
       )
     }
     return (
-      <ConnectionsNotePreview note={linkedNote} onNoteChange={setLinkedNote} />
+      <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+        <ConnectionsNotePreview note={linkedNote} onNoteChange={setLinkedNote} />
+      </div>
     )
   }
 

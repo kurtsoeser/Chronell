@@ -2,6 +2,11 @@ import { Repeat2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { ChronellDateField } from '@/components/ChronellDateField'
 import type { CalendarRecurrenceFrequency, CalendarRecurrenceRangeEndMode } from '@shared/types'
+import { cn } from '@/lib/utils'
+import {
+  eventDialogPanelSelectClass,
+  eventDialogSectionHeadingClass
+} from '@/lib/chronell-ui-classes'
 
 type RecurrenceUiFrequency = 'none' | CalendarRecurrenceFrequency
 
@@ -25,6 +30,8 @@ interface Props {
     >
   ) => void
   eventFieldsLocked: boolean
+  /** Ohne eigenen Abschnittsrahmen (z. B. Spalte im Termin-Grid). */
+  embedded?: boolean
 }
 
 export function CalendarEventRecurrenceSection({
@@ -39,7 +46,8 @@ export function CalendarEventRecurrenceSection({
   setRecurCount,
   recurWeekdays,
   setRecurWeekdays,
-  eventFieldsLocked
+  eventFieldsLocked,
+  embedded = false
 }: Props): JSX.Element {
   const { t } = useTranslation()
   const tk = (key: string): string => t(`${i18nPrefix}.${key}`)
@@ -57,16 +65,14 @@ export function CalendarEventRecurrenceSection({
   ]
 
   return (
-    <div className="border-b border-border py-3">
-      <div className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        <Repeat2 className="h-3.5 w-3.5" />
+    <div className={cn(!embedded && 'border-b border-border py-3')}>
+      <div className={eventDialogSectionHeadingClass}>
+        <Repeat2 className="h-3.5 w-3.5 shrink-0" />
         {tk('recurrenceHeading')}
       </div>
-      <label className="block text-xs text-muted-foreground" htmlFor="cal-recur-freq">
-        {tk('recurrenceFreqLabel')}
-      </label>
       <select
         id="cal-recur-freq"
+        aria-label={tk('recurrenceFreqLabel')}
         value={recurFreq}
         disabled={eventFieldsLocked}
         onChange={(e): void => {
@@ -82,7 +88,7 @@ export function CalendarEventRecurrenceSection({
             setRecurFreq(v)
           }
         }}
-        className="mt-1 w-full rounded-md border border-border bg-background px-2 py-2 text-base text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60"
+        className={eventDialogPanelSelectClass}
       >
         <option value="none">{tk('recurrenceFreqNone')}</option>
         <option value="daily">{tk('recurrenceFreqDaily')}</option>
@@ -130,7 +136,7 @@ export function CalendarEventRecurrenceSection({
               const v = e.target.value
               if (v === 'never' || v === 'until' || v === 'count') setRecurEnd(v)
             }}
-            className="w-full rounded-md border border-border bg-background px-2 py-2 text-base text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60"
+            className={eventDialogPanelSelectClass}
           >
             <option value="never">{tk('recurrenceEndNever')}</option>
             <option value="until">{tk('recurrenceEndUntil')}</option>

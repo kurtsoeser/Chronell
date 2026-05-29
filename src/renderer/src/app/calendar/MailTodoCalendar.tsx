@@ -41,7 +41,7 @@ import {
 } from './mail-todo-calendar'
 import { useCalendarFcEventContent } from '@/app/calendar/use-calendar-fc-event-content'
 import { useCalendarSettingsPrefs } from '@/lib/use-calendar-settings-prefs'
-import { timeGridSlotMinutesToDuration } from '@/app/calendar/calendar-shell-storage'
+import { timeGridFcSnapOptions } from '@/app/calendar/calendar-shell-storage'
 import './notion-calendar.css'
 
 /** Standard-Laenge fuer neue Zeitbloecke (Ganztag -> Zeitleiste, fehlendes Ende, Posteingang auf Tag). */
@@ -164,8 +164,8 @@ export function MailTodoCalendar({
   className
 }: MailTodoCalendarProps): JSX.Element {
   const calSettings = useCalendarSettingsPrefs()
-  const slotDuration = useMemo(
-    () => timeGridSlotMinutesToDuration(calSettings.defaultTimeGridSlotMinutes),
+  const timeGridFcSlotOpts = useMemo(
+    () => timeGridFcSnapOptions(calSettings.defaultTimeGridSlotMinutes),
     [calSettings.defaultTimeGridSlotMinutes]
   )
   const calendarFcEventContentRender = useCalendarFcEventContent()
@@ -190,16 +190,26 @@ export function MailTodoCalendar({
   )
 
   const multiDayViews = useMemo(() => {
-    const o: Record<string, { type: 'timeGrid'; duration: { days: number }; buttonText: string }> = {}
+    const o: Record<
+      string,
+      {
+        type: 'timeGrid'
+        duration: { days: number }
+        buttonText: string
+        slotDuration: string
+        snapDuration: string
+      }
+    > = {}
     for (let n = 2; n <= MAX_TIME_GRID_SPAN_DAYS; n++) {
       o[`timeGrid${n}Day`] = {
         type: 'timeGrid',
         duration: { days: n },
-        buttonText: `${n} Tage`
+        buttonText: `${n} Tage`,
+        ...timeGridFcSlotOpts
       }
     }
     return o
-  }, [])
+  }, [timeGridFcSlotOpts])
 
   const loadRange = useCallback(async (start: Date, end: Date): Promise<void> => {
     lastRangeRef.current = { start, end }
@@ -390,12 +400,13 @@ export function MailTodoCalendar({
         headerToolbar={false}
         firstDay={calSettings.weekStartsOn}
         weekends={!calSettings.hideWeekends}
-        views={{ ...multiDayViews }}
+        views={{ timeGrid: timeGridFcSlotOpts, ...multiDayViews }}
         initialView={resolvedFcView}
         slotMinTime={calSettings.slotMinTime}
         slotMaxTime={calSettings.slotMaxTime}
         scrollTime={calSettings.scrollTime}
-        slotDuration={slotDuration}
+        slotDuration={timeGridFcSlotOpts.slotDuration}
+        snapDuration={timeGridFcSlotOpts.snapDuration}
         slotLabelInterval="01:00:00"
         defaultTimedEventDuration="00:30:00"
         nowIndicator

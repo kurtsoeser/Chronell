@@ -3,7 +3,7 @@ import { ChevronDown, ChevronRight, Layers, ListTodo, Loader2, RefreshCw } from 
 import { useTranslation } from 'react-i18next'
 import type { ConnectedAccount, TaskListRow } from '@shared/types'
 import { cn } from '@/lib/utils'
-import { Avatar } from '@/components/Avatar'
+import { AccountAvatarBadge } from '@/components/AccountAvatarBadge'
 import { AccountColorStripe } from '@/components/AccountColorStripe'
 import { ModuleNavMiniMonth } from '@/components/ModuleNavMiniMonth'
 import {
@@ -112,12 +112,8 @@ function TasksShellSidebarAccountSection({
           className="flex min-w-0 flex-1 items-center gap-2 text-left"
           title={account.email}
         >
-          <Avatar
-            name={account.displayName}
-            email={account.email}
-            bgClass={account.color}
-            accountColor={account.color}
-            initials={account.initials}
+          <AccountAvatarBadge
+            account={account}
             imageSrc={profilePhotoDataUrl}
             size="sm"
           />

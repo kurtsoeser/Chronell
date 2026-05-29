@@ -48,6 +48,14 @@ describe('formatRecipientsWithTail / parseRecipientsWithTail', () => {
       { address: 'b@b.c' }
     ])
   })
+
+  it('formatiert fertige Empfaenger mit Komma fuer Token-Chips', () => {
+    const stored = formatRecipientsWithTail([{ address: 'r.gaul@bhak-eisenstadt.at' }], '')
+    expect(stored).toBe('r.gaul@bhak-eisenstadt.at,')
+    const { complete, tail } = parseRecipientsWithTail(stored)
+    expect(complete).toEqual([{ address: 'r.gaul@bhak-eisenstadt.at' }])
+    expect(tail).toBe('')
+  })
 })
 
 describe('parseRecipientsBulk', () => {

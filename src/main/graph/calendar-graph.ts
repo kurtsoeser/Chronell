@@ -51,6 +51,8 @@ interface GraphEvent {
   categories?: string[] | null
   attendees?: GraphAttendee[] | null
   body?: { contentType?: string | null; content?: string | null } | null
+  isReminderOn?: boolean | null
+  reminderMinutesBeforeStart?: number | null
   /** Nur mit `$expand=calendar(...)` in calendarView. */
   calendar?: { id?: string | null; color?: string | null; hexColor?: string | null } | null
 }
@@ -440,7 +442,7 @@ async function fetchM365GroupCalendarRowsForSlice(
       return null
     }
   })
-  return part.filter((r): r is CalendarGraphCalendarRow => r != null)
+  return part.filter((r) => r != null) as CalendarGraphCalendarRow[]
 }
 
 /**
@@ -552,6 +554,10 @@ type GraphEventWriteFields = {
   teamsMeeting?: boolean | null
   /** Serientermin (nur POST). */
   recurrence?: CalendarSaveEventRecurrence | null
+  /** Microsoft: Erinnerung (`isReminderOn` / `reminderMinutesBeforeStart`). */
+  reminderMinutesBeforeStart?: number | null
+  /** IANA-Zeitzone fuer Start/Ende (timed events). */
+  timeZone?: string | null
 }
 
 const MAX_GRAPH_EVENT_ATTENDEES = 40
@@ -601,6 +607,23 @@ export interface GraphCalendarEventDetail {
   bodyHtml: string | null
   location: string | null
   organizer: string | null
+  isReminderOn: boolean
+  reminderMinutesBeforeStart: number | null
+  /** IANA-Zeitzone von Start/Ende (timed events). */
+  timeZone: string | null
+}
+
+function applyGraphReminderToPayload(
+  payload: Record<string, unknown>,
+  reminderMinutesBeforeStart: number | null | undefined
+): void {
+  if (reminderMinutesBeforeStart === undefined) return
+  if (reminderMinutesBeforeStart === null) {
+    payload.isReminderOn = false
+    return
+  }
+  payload.isReminderOn = true
+  payload.reminderMinutesBeforeStart = Math.max(0, Math.min(10_080, Math.round(reminderMinutesBeforeStart)))
 }
 
 function escapeHtmlPlain(s: string): string {
@@ -643,7 +666,9 @@ async function graphEventDateFields(input: GraphEventWriteFields): Promise<{
   }
   const appCfg = await loadConfig()
   const iana =
-    appCfg.calendarTimeZone?.trim() || Intl.DateTimeFormat().resolvedOptions().timeZone
+    input.timeZone?.trim() ||
+    appCfg.calendarTimeZone?.trim() ||
+    Intl.DateTimeFormat().resolvedOptions().timeZone
   const graphWindowsTz = ianaToWindowsTimeZone(iana)
   const startLocal = formatUtcIsoAsLocalDateTime(input.startIso, iana)
   const endLocal = formatUtcIsoAsLocalDateTime(input.endIso, iana)
@@ -723,7 +748,7 @@ export async function graphGetCalendarEvent(
   const client = await getClientFor(accountId)
   const path = graphEventInstancePath(graphEventId, graphCalendarId)
   const sel = encodeURIComponent(
-    'id,subject,body,attendees,isOnlineMeeting,onlineMeeting,onlineMeetingProvider,start,end,isAllDay,location,organizer'
+    'id,subject,body,attendees,isOnlineMeeting,onlineMeeting,onlineMeetingProvider,start,end,isAllDay,location,organizer,isReminderOn,reminderMinutesBeforeStart'
   )
   const ev = (await client.api(`${path}?$select=${sel}`).get()) as GraphEvent
   const emails: string[] = []
@@ -738,6 +763,10 @@ export async function graphGetCalendarEvent(
     ev.organizer?.emailAddress?.address?.trim() ||
     ev.organizer?.emailAddress?.name?.trim() ||
     null
+  const reminderMinutes =
+    typeof ev.reminderMinutesBeforeStart === 'number' && Number.isFinite(ev.reminderMinutesBeforeStart)
+      ? Math.max(0, Math.round(ev.reminderMinutesBeforeStart))
+      : null
   return {
     subject: ev.subject ?? null,
     attendeeEmails: emails.slice(0, MAX_GRAPH_EVENT_ATTENDEES),
@@ -745,7 +774,12 @@ export async function graphGetCalendarEvent(
     isOnlineMeeting: !!ev.isOnlineMeeting,
     bodyHtml: normalizeGraphEventBodyHtml(ev.body ?? null),
     location: ev.location?.displayName?.trim() || null,
-    organizer
+    organizer,
+    isReminderOn: !!ev.isReminderOn,
+    reminderMinutesBeforeStart: reminderMinutes,
+    timeZone: ev.isAllDay
+      ? null
+      : graphWindowsZoneToIana(ev.start?.timeZone) || null
   }
 }
 
@@ -773,10 +807,13 @@ export async function graphCreateSimpleCalendarEvent(
     payload.onlineMeetingProvider = 'teamsForBusiness'
   }
   applyGraphMeetingInviteToPayload(payload, input.attendeeEmails)
+  applyGraphReminderToPayload(payload, input.reminderMinutesBeforeStart)
   if (input.recurrence) {
     const appCfg = await loadConfig()
     const iana =
-      appCfg.calendarTimeZone?.trim() || Intl.DateTimeFormat().resolvedOptions().timeZone
+      input.timeZone?.trim() ||
+      appCfg.calendarTimeZone?.trim() ||
+      Intl.DateTimeFormat().resolvedOptions().timeZone
     const graphWindowsTz = ianaToWindowsTimeZone(iana)
     const startLocal = input.isAllDay
       ? calendarZonedPartsFromDateOnly(input.startIso.trim().slice(0, 10), iana)
@@ -826,6 +863,7 @@ export async function graphUpdateCalendarEvent(
       payload.responseRequested = true
     }
   }
+  applyGraphReminderToPayload(payload, input.reminderMinutesBeforeStart)
   if (typeof input.teamsMeeting === 'boolean' && !core.isAllDay) {
     if (input.teamsMeeting) {
       payload.isOnlineMeeting = true

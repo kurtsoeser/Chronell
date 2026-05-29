@@ -76,3 +76,40 @@ export const settingsControlBorderClass =
  */
 export const fieldControlClass =
   'chronell-field-control min-w-0 outline-none disabled:cursor-not-allowed'
+
+/** Termin-Dialog: einheitliche Selects (Zeitzone, Wiederholung, Erinnerung). */
+export const eventDialogPanelSelectClass =
+  `${fieldControlClass} h-9 w-full px-2.5 text-sm disabled:opacity-60`
+
+/** Termin-Dialog: Abschnittsüberschrift (TERMIN, WIEDERHOLUNG, …). */
+export const eventDialogSectionHeadingClass =
+  'mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground'
+
+/** Dashboard-Kachel: Titel, Untertitel, Inhaltsbereich (siehe chronell-typography.css). */
+export const chronellDashboardTileTitleClass = 'chronell-type-dashboard-tile-title text-foreground'
+
+export const chronellDashboardTileSubtitleClass =
+  'chronell-type-dashboard-tile-subtitle text-muted-foreground'
+
+export const chronellDashboardTileBodyClass = 'chronell-dashboard-tile-body min-h-0 min-w-0'
+
+export const chronellDashboardTileBodyCompactClass =
+  'chronell-dashboard-tile-body chronell-dashboard-tile-body--compact min-h-0 min-w-0'
+
+export const chronellDashboardTileGroupLabelClass =
+  'chronell-type-dashboard-tile-group-label text-foreground'
+
+export const chronellDashboardTileListPrimaryClass =
+  'chronell-type-dashboard-tile-list-primary text-foreground'
+
+export const chronellDashboardTileListMetaClass =
+  'chronell-type-dashboard-tile-list-meta text-muted-foreground'
+
+export const chronellDashboardTileCaptionClass =
+  'chronell-type-dashboard-tile-caption text-muted-foreground'
+
+export const chronellDashboardTileWeatherTempClass =
+  'chronell-type-dashboard-tile-weather-temp text-foreground'
+
+/** Mail-Rechtsleiste: Kontakt-Verlauf / Anhänge (kompakte Typografie). */
+export const chronellMailContactPanelClass = 'chronell-mail-contact-panel min-h-0 min-w-0'

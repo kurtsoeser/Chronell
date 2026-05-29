@@ -230,15 +230,8 @@ function persistCurrentMailListViewPrefs(state: {
   })
 }
 
-function unifiedInboxListOptions(state: {
-  mailFilter: MailFilter
-  mailListArrangeBy: MailListArrangeBy
-}): { includeOpenTodo: boolean } {
-  return {
-    includeOpenTodo:
-      state.mailFilter === 'with_todo' || state.mailListArrangeBy === 'todo_bucket'
-  }
-}
+/** Optionen für `listUnifiedInbox` — offene ToDos immer mitladen (QuickSteps, Badges). */
+const UNIFIED_INBOX_LIST_OPTIONS = { includeOpenTodo: true as const }
 
 function pollFolderIdsTouchInbox(
   folderIds: number[],
@@ -420,7 +413,7 @@ export const useMailStore = create<MailState>((set, get) => ({
           try {
             const messages = await window.mailClient.mail.listUnifiedInbox(
               300,
-              unifiedInboxListOptions(state)
+              UNIFIED_INBOX_LIST_OPTIONS
             )
             set({ messages })
             if (reloadThreads) void loadCrossFolderThreadsUnified(messages, set)
@@ -848,7 +841,7 @@ export const useMailStore = create<MailState>((set, get) => ({
     try {
       const messages = await window.mailClient.mail.listUnifiedInbox(
         300,
-        unifiedInboxListOptions(get())
+        UNIFIED_INBOX_LIST_OPTIONS
       )
       set({ messages, loading: false })
 
@@ -1153,7 +1146,7 @@ export const useMailStore = create<MailState>((set, get) => ({
     try {
       if (st.listKind === 'unified_inbox') {
         await reloadCrossAccountView(() =>
-          window.mailClient.mail.listUnifiedInbox(300, unifiedInboxListOptions(st))
+          window.mailClient.mail.listUnifiedInbox(300, UNIFIED_INBOX_LIST_OPTIONS)
         )
       } else if (st.listKind === 'meta_folder' && st.selectedMetaFolderId != null) {
         const mfId = st.selectedMetaFolderId

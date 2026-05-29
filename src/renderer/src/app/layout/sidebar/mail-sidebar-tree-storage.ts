@@ -58,10 +58,10 @@ export function writeMailSidebarTreeState(next: MailSidebarTreeStateV1): void {
   }
 }
 
-/** `true` = Konto aufgeklappt (Standard, wenn kein Eintrag). */
+/** `true` = Konto aufgeklappt (Standard: zugeklappt, wenn kein Eintrag). */
 export function readMailSidebarAccountExpanded(accountId: string): boolean {
   const { accountOpen } = readMailSidebarTreeState()
-  return accountOpen[accountId] !== false
+  return accountOpen[accountId] === true
 }
 
 export function persistMailSidebarAccountExpanded(accountId: string, expanded: boolean): void {
@@ -90,3 +90,4 @@ export function persistMailSidebarCollapsedFolderRemoteIds(
   }
   writeMailSidebarTreeState({ ...cur, collapsedFolderRemoteIdsByAccount })
 }
+

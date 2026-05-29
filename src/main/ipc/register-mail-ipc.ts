@@ -26,6 +26,9 @@ import {
   type MailQuickStep,
   type MailMasterCategory,
   type SearchHit,
+  type MailCorrespondenceItem,
+  type ListCorrespondenceInput,
+  type ListCorrespondenceResult,
   type WorkflowMailFolderUiState,
   type EnsureWorkflowMailFoldersResult,
   type MailBulkUnflagInput,
@@ -41,6 +44,7 @@ import {
   gmailDownloadAttachmentBytes,
   gmailFetchInlineImages
 } from '../google/gmail-attachments'
+import { listAccountMailSyncMeta } from '../db/account-mail-sync-meta-repo'
 import { runInitialSync, runFolderSync } from '../sync-runner'
 import { clearMailAccountLocalCacheAndResync } from '../mail-cache-reset'
 import { runBulkUnflagFlaggedMessages } from '../mail-bulk-unflag-service'
@@ -57,12 +61,21 @@ import {
   listWaitingMessages,
   searchMessageParticipantEmails,
   listRecentParticipantEmailsForCompose,
-  listMessagesByCategoryTag
+  listMessagesByCategoryTag,
+  listCorrespondenceMessages,
+  countCorrespondenceMessages
 } from '../db/messages-repo'
 import { listMailTemplates } from '../db/templates-repo'
 import { insertScheduledCompose } from '../db/compose-scheduled-repo'
 import { searchPeopleContactsForCompose, listBootstrapPeopleContactsForCompose } from '../db/people-repo'
-import { listMailQuickSteps } from '../db/quicksteps-repo'
+import {
+  deleteMailQuickStep,
+  getMailQuickStepDetail,
+  listMailQuickSteps,
+  listMailQuickStepsAll,
+  upsertMailQuickStep
+} from '../db/quicksteps-repo'
+import type { MailQuickStepDetail, SaveMailQuickStepInput } from '@shared/quicksteps'
 import {
   ensureMicrosoftWorkflowMailFolders,
   ensureGoogleWorkflowMailFolders,
@@ -124,6 +137,12 @@ import {
   listAttachmentsMeta,
   downloadAttachmentBytes
 } from '../graph/attachments'
+import {
+  fetchEwsInlineImages,
+  listEwsAttachmentsMeta,
+  downloadEwsAttachmentBytes
+} from '../ews/attachments-ews'
+import { shouldUseEwsForMicrosoftMail } from '../ews/microsoft-mail-transport'
 import { isGraphItemNotFound } from '../graph/graph-request-errors'
 import { performOneClickUnsubscribe } from '../mail-unsubscribe'
 import {
@@ -167,6 +186,9 @@ export function registerMailIpc(): void {
         if (acc?.provider === 'google') {
           return await gmailFetchInlineImages(msg.accountId, msg.remoteId)
         }
+        if (await shouldUseEwsForMicrosoftMail(msg.accountId)) {
+          return await fetchEwsInlineImages(msg.accountId, msg.remoteId)
+        }
         return await graphFetchInlineImages(msg.accountId, msg.remoteId)
       } catch (e) {
         if (!isGraphItemNotFound(e)) {
@@ -183,21 +205,11 @@ export function registerMailIpc(): void {
       _event,
       args: { messageId: number }
     ): Promise<AttachmentMeta[]> => {
-      const msg = getMessageById(args.messageId)
-      if (!msg) return []
-      try {
-        const accounts = await listAccounts()
-        const acc = accounts.find((a) => a.id === msg.accountId)
-        if (acc?.provider === 'google') {
-          return await gmailListAttachmentsMeta(msg.accountId, msg.remoteId)
-        }
-        return await listAttachmentsMeta(msg.accountId, msg.remoteId)
-      } catch (e) {
-        if (!isGraphItemNotFound(e)) {
-          console.warn('[ipc] listAttachments fehlgeschlagen:', e)
-        }
-        return []
-      }
+      const { fetchMailAttachmentsMeta } = await import('../mail-attachment-fetch')
+      const { scheduleIndexMessageAttachmentsIfNeeded } = await import('./register-files-ipc')
+      const meta = await fetchMailAttachmentsMeta(args.messageId)
+      scheduleIndexMessageAttachmentsIfNeeded(args.messageId)
+      return meta
     }
   )
   
@@ -215,7 +227,9 @@ export function registerMailIpc(): void {
         const file =
           acc?.provider === 'google'
             ? await gmailDownloadAttachmentBytes(msg.accountId, msg.remoteId, args.attachmentId)
-            : await downloadAttachmentBytes(msg.accountId, msg.remoteId, args.attachmentId)
+            : (await shouldUseEwsForMicrosoftMail(msg.accountId))
+              ? await downloadEwsAttachmentBytes(msg.accountId, args.attachmentId)
+              : await downloadAttachmentBytes(msg.accountId, msg.remoteId, args.attachmentId)
         const safeName = sanitizeFileName(file.name)
         const target = await writeAttachmentCacheFile(
           args.attachmentId,
@@ -268,7 +282,9 @@ export function registerMailIpc(): void {
         const file =
           acc?.provider === 'google'
             ? await gmailDownloadAttachmentBytes(msg.accountId, msg.remoteId, args.attachmentId)
-            : await downloadAttachmentBytes(msg.accountId, msg.remoteId, args.attachmentId)
+            : (await shouldUseEwsForMicrosoftMail(msg.accountId))
+              ? await downloadEwsAttachmentBytes(msg.accountId, args.attachmentId)
+              : await downloadAttachmentBytes(msg.accountId, msg.remoteId, args.attachmentId)
         await fs.writeFile(result.filePath, file.bytes)
         return { ok: true, path: result.filePath }
       } catch (e) {
@@ -282,6 +298,8 @@ export function registerMailIpc(): void {
     assertAppOnline()
     return runInitialSync(accountId)
   })
+
+  ipcMain.handle(IPC.mail.getAccountSyncMeta, () => listAccountMailSyncMeta())
 
   ipcMain.handle(IPC.mail.clearLocalMailCache, async (_event, accountId: string) => {
     return clearMailAccountLocalCacheAndResync(accountId)
@@ -443,7 +461,23 @@ export function registerMailIpc(): void {
   ipcMain.handle(IPC.mail.listTemplates, (): MailTemplate[] => listMailTemplates())
   
   ipcMain.handle(IPC.mail.listQuickSteps, (): MailQuickStep[] => listMailQuickSteps())
-  
+
+  ipcMain.handle(IPC.mail.listQuickStepsAll, (): MailQuickStep[] => listMailQuickStepsAll())
+
+  ipcMain.handle(
+    IPC.mail.getQuickStep,
+    (_event, id: number): MailQuickStepDetail | null => getMailQuickStepDetail(id)
+  )
+
+  ipcMain.handle(
+    IPC.mail.saveQuickStep,
+    (_event, input: SaveMailQuickStepInput): MailQuickStepDetail => upsertMailQuickStep(input)
+  )
+
+  ipcMain.handle(IPC.mail.deleteQuickStep, (_event, id: number): void => {
+    deleteMailQuickStep(id)
+  })
+
   ipcMain.handle(
     IPC.mail.runQuickStep,
     async (_event, args: { quickStepId: number; messageId: number }): Promise<void> => {
@@ -578,6 +612,34 @@ export function registerMailIpc(): void {
           limit: args.limit ?? 300
         })
       )
+    }
+  )
+
+  ipcMain.handle(
+    IPC.mail.listCorrespondence,
+    async (_event, args: ListCorrespondenceInput): Promise<ListCorrespondenceResult> => {
+      const accounts = await listAccounts()
+      const accountIds =
+        args.accountIds && args.accountIds.length > 0
+          ? args.accountIds
+          : args.accountId?.trim()
+            ? [args.accountId.trim()]
+            : []
+      const idSet = new Set(accountIds)
+      const accountOwnerEmails = accounts
+        .filter((a) => idSet.has(a.id))
+        .map((a) => a.email)
+      const query: ListCorrespondenceInput = {
+        ...args,
+        accountIds,
+        accountOwnerEmails
+      }
+      const rows = listCorrespondenceMessages(query)
+      const total = countCorrespondenceMessages(query)
+      return {
+        items: decorateMailListLike(rows) as MailCorrespondenceItem[],
+        total
+      }
     }
   )
   

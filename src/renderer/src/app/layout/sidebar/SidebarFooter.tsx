@@ -1,5 +1,5 @@
 import { Plus } from 'lucide-react'
-import { Avatar } from '@/components/Avatar'
+import { AccountAvatarBadge } from '@/components/AccountAvatarBadge'
 import { StatusDot } from '@/components/StatusDot'
 import { useTranslation } from 'react-i18next'
 import type { ConnectedAccount, SyncStatus } from '@shared/types'
@@ -62,12 +62,8 @@ export function SidebarFooter({
                 className="relative isolate inline-flex rounded-full ring-1 ring-sidebar"
                 style={{ zIndex: index + 1 }}
               >
-                <Avatar
-                  name={acc.displayName}
-                  email={acc.email}
-                  bgClass={acc.color}
-                  accountColor={acc.color}
-                  initials={acc.initials}
+                <AccountAvatarBadge
+                  account={acc}
                   imageSrc={profilePhotoDataUrls[acc.id]}
                   size="sm"
                   title={tip}

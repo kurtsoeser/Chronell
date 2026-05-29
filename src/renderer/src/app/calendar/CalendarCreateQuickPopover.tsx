@@ -517,17 +517,18 @@ export function CalendarCreateQuickPopover({
             <CalendarIcon className="h-3.5 w-3.5" />
             <span>{t('calendar.quickCreate.whenLabel')}</span>
             </div>
-            <button
-            type="button"
-            disabled={busy}
-            onClick={(): void => toggleAllDay(!isAllDay)}
-            className={cn(
-              'text-xs font-medium',
-              isAllDay ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
-            )}
-          >
-            {t('calendar.eventDialog.allDay')}
-          </button>
+            <label className="flex cursor-pointer items-center gap-1.5 text-xs font-medium">
+              <input
+                type="checkbox"
+                className="h-3.5 w-3.5 rounded border-border"
+                checked={isAllDay}
+                disabled={busy}
+                onChange={(e): void => toggleAllDay(e.target.checked)}
+              />
+              <span className={cn(isAllDay ? 'text-foreground' : 'text-muted-foreground')}>
+                {t('calendar.eventDialog.allDay')}
+              </span>
+            </label>
         </div>
         {isAllDay ? (
           <div className="grid grid-cols-2 gap-2">

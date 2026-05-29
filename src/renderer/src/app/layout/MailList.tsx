@@ -100,6 +100,7 @@ import {
 } from 'lucide-react'
 import { resolveQuickStepHoverIcon } from '@/lib/mail-quickstep-hover-icon'
 import { runMailQuickStep } from '@/lib/run-mail-quickstep'
+import { QUICKSTEPS_CHANGED_EVENT } from '@/lib/quicksteps-changed'
 import { useContainerWidth } from '@/hooks/useContainerWidth'
 import { MailListTableColumnsDialog } from '@/components/MailListTableColumnsDialog'
 import {
@@ -277,13 +278,20 @@ export function MailList(): JSX.Element {
     [hoverPrefs]
   )
 
-  useEffect(() => {
+  const reloadQuickSteps = useCallback((): void => {
     if (!isMailClientRuntimeComplete()) return
     void window.mailClient.mail
       .listQuickSteps()
       .then(setQuickSteps)
       .catch(() => setQuickSteps([]))
   }, [])
+
+  useEffect(() => {
+    reloadQuickSteps()
+    const onChanged = (): void => reloadQuickSteps()
+    window.addEventListener(QUICKSTEPS_CHANGED_EVENT, onChanged)
+    return (): void => window.removeEventListener(QUICKSTEPS_CHANGED_EVENT, onChanged)
+  }, [reloadQuickSteps])
 
   const [contextMenu, setContextMenu] = useState<MailContextState | null>(null)
   const [moveFolderPicker, setMoveFolderPicker] = useState<{
@@ -1404,7 +1412,7 @@ const ThreadHeadRow = memo(function ThreadHeadRow({
             />
             <span
               className={cn(
-                'min-w-0 flex-1 truncate text-sm',
+                'min-w-0 flex-1 truncate text-xs',
                 isUnread ? 'font-semibold text-foreground' : 'font-semibold text-foreground/95'
               )}
             >
@@ -1418,7 +1426,7 @@ const ThreadHeadRow = memo(function ThreadHeadRow({
             ) : null}
             {hasMultiple && (
               <span
-                className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-muted px-1.5 py-px text-[10px] font-medium text-muted-foreground"
+                className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-muted px-1.5 py-px text-2xs font-medium text-muted-foreground"
                 title={t('mail.list.messagesInThread', { count: thread.messageCount })}
               >
                 <MessagesSquare className="h-2.5 w-2.5" />
@@ -1436,14 +1444,14 @@ const ThreadHeadRow = memo(function ThreadHeadRow({
             )}
             {latest.snoozedUntil ? (
               <span
-                className="inline-flex shrink-0 items-center gap-1 rounded-md bg-status-unread/15 px-1.5 py-0.5 text-[10px] font-medium text-status-unread transition-opacity group-hover/row:opacity-0"
+                className="inline-flex shrink-0 items-center gap-1 rounded-md bg-status-unread/15 px-1.5 py-0.5 text-2xs font-medium text-status-unread transition-opacity group-hover/row:opacity-0"
                 title={t('mail.list.snoozeUntilTitle', { when: formatSnoozeWake(latest.snoozedUntil) })}
               >
                 <Clock className="h-2.5 w-2.5" />
                 <span className="tabular-nums">{formatSnoozeWake(latest.snoozedUntil)}</span>
               </span>
             ) : (
-              <span className="shrink-0 text-[10px] text-muted-foreground tabular-nums transition-opacity group-hover/row:opacity-0">
+              <span className="shrink-0 text-2xs text-muted-foreground tabular-nums transition-opacity group-hover/row:opacity-0">
                 {date}
               </span>
             )}
@@ -1467,7 +1475,7 @@ const ThreadHeadRow = memo(function ThreadHeadRow({
               </span>
               {hasMultiple && (
                 <span
-                  className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-muted px-1.5 py-px text-[10px] font-medium text-muted-foreground"
+                  className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-muted px-1.5 py-px text-2xs font-medium text-muted-foreground"
                   title={t('mail.list.messagesInThread', { count: thread.messageCount })}
                 >
                   <MessagesSquare className="h-2.5 w-2.5" />
@@ -1485,14 +1493,14 @@ const ThreadHeadRow = memo(function ThreadHeadRow({
               )}
               {latest.snoozedUntil ? (
                 <span
-                  className="inline-flex shrink-0 items-center gap-1 rounded-md bg-status-unread/15 px-1.5 py-0.5 text-[10px] font-medium text-status-unread transition-opacity group-hover/row:opacity-0"
+                  className="inline-flex shrink-0 items-center gap-1 rounded-md bg-status-unread/15 px-1.5 py-0.5 text-2xs font-medium text-status-unread transition-opacity group-hover/row:opacity-0"
                   title={t('mail.list.snoozeUntilTitle', { when: formatSnoozeWake(latest.snoozedUntil) })}
                 >
                   <Clock className="h-2.5 w-2.5" />
                   <span className="tabular-nums">{formatSnoozeWake(latest.snoozedUntil)}</span>
                 </span>
               ) : (
-                <span className="shrink-0 text-[10px] text-muted-foreground tabular-nums transition-opacity group-hover/row:opacity-0">
+                <span className="shrink-0 text-2xs text-muted-foreground tabular-nums transition-opacity group-hover/row:opacity-0">
                   {date}
                 </span>
               )}
@@ -1515,7 +1523,7 @@ const ThreadHeadRow = memo(function ThreadHeadRow({
             </div>
             <MailCategoryBadges categories={latest.categories} />
             {latest.snippet && (
-              <div className="line-clamp-1 text-[11px] text-muted-foreground/85">
+              <div className="line-clamp-1 text-2xs text-muted-foreground/85">
                 {latest.snippet}
               </div>
             )}
@@ -1691,11 +1699,11 @@ const ThreadSubRow = memo(function ThreadSubRow({
           ))
         ) : sentLike ? (
           <>
-            <div className="flex w-full items-center justify-between gap-2 text-[10px] italic text-muted-foreground">
+            <div className="flex w-full items-center justify-between gap-2 text-2xs italic text-muted-foreground">
               <span className="min-w-0 truncate">{primaryLabel}</span>
               <span className="shrink-0 text-right tabular-nums">{folderLabel}</span>
             </div>
-            <div className="flex w-full items-start justify-between gap-2 text-[11px]">
+            <div className="flex w-full items-start justify-between gap-2 text-xs">
               <div className="flex min-w-0 flex-1 items-center gap-1.5">
                 <StatusDot
                   variant={!message.isRead ? 'unread' : 'read'}
@@ -1719,7 +1727,7 @@ const ThreadSubRow = memo(function ThreadSubRow({
                   <TodoDueBucketBadge kind={subTodoKind} compact className="shrink-0" />
                 )}
                 <MailCategoryDots categories={message.categories} />
-                <span className="text-[10px] text-muted-foreground tabular-nums transition-opacity group-hover/subrow:opacity-0">
+                <span className="text-2xs text-muted-foreground tabular-nums transition-opacity group-hover/subrow:opacity-0">
                   {dateStr}
                 </span>
               </div>
@@ -1735,7 +1743,7 @@ const ThreadSubRow = memo(function ThreadSubRow({
               />
               <span
                 className={cn(
-                  'min-w-0 flex-1 truncate text-[11px]',
+                  'min-w-0 flex-1 truncate text-xs',
                   message.isRead ? 'text-foreground/90' : 'font-semibold text-foreground'
                 )}
               >
@@ -1750,7 +1758,7 @@ const ThreadSubRow = memo(function ThreadSubRow({
                 <TodoDueBucketBadge kind={subTodoKind} compact className="shrink-0" />
               )}
               <MailCategoryDots categories={message.categories} />
-              <span className="text-[10px] text-muted-foreground tabular-nums transition-opacity group-hover/subrow:opacity-0">
+              <span className="text-2xs text-muted-foreground tabular-nums transition-opacity group-hover/subrow:opacity-0">
                 {dateStr}
               </span>
             </div>

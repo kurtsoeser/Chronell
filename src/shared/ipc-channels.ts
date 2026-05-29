@@ -7,11 +7,25 @@ export const IPC = {
     setLaunchOnLogin: 'app:set-launch-on-login',
     showTestNotification: 'app:show-test-notification',
     openExternal: 'app:open-external',
-    globalSearch: 'app:global-search'
+    globalSearch: 'app:global-search',
+    windowMinimize: 'app:window-minimize',
+    windowToggleMaximize: 'app:window-toggle-maximize',
+    windowClose: 'app:window-close',
+    windowIsMaximized: 'app:window-is-maximized'
   },
   mailBodyIndex: {
     getStatus: 'mail-body-index:get-status',
     setSettings: 'mail-body-index:set-settings'
+  },
+  files: {
+    listMail: 'files:list-mail',
+    getMailIndexStatus: 'files:get-mail-index-status',
+    openMailAttachment: 'files:open-mail-attachment',
+    saveMailAttachmentAs: 'files:save-mail-attachment-as',
+    saveMailToDrive: 'files:save-mail-to-drive',
+    listCloud: 'files:list-cloud',
+    saveCloudItemAs: 'files:save-cloud-item-as',
+    openCloudItemExternal: 'files:open-cloud-item-external'
   },
   config: {
     get: 'config:get',
@@ -36,6 +50,8 @@ export const IPC = {
     listAccounts: 'auth:list-accounts',
     remove: 'auth:remove',
     getProfilePhotoDataUrl: 'auth:get-profile-photo-data-url',
+    getAccountDisplayAvatarDataUrl: 'auth:get-account-display-avatar-data-url',
+    pickAccountCustomAvatar: 'auth:pick-account-custom-avatar',
     reorderAccounts: 'auth:reorder-accounts',
     patchAccount: 'auth:patch-account'
   },
@@ -153,6 +169,7 @@ export const IPC = {
     search: 'mail:search',
     getMessage: 'mail:get-message',
     syncAccount: 'mail:sync-account',
+    getAccountSyncMeta: 'mail:get-account-sync-meta',
     clearLocalMailCache: 'mail:clear-local-mail-cache',
     syncFolder: 'mail:sync-folder',
     bulkUnflagFlaggedMessages: 'mail:bulk-unflag-flagged-messages',
@@ -177,6 +194,10 @@ export const IPC = {
     removeMailTodoRecordsForMessage: 'mail:remove-mail-todo-records-for-message',
     listTemplates: 'mail:list-templates',
     listQuickSteps: 'mail:list-quick-steps',
+    listQuickStepsAll: 'mail:list-quick-steps-all',
+    getQuickStep: 'mail:get-quick-step',
+    saveQuickStep: 'mail:save-quick-step',
+    deleteQuickStep: 'mail:delete-quick-step',
     runQuickStep: 'mail:run-quick-step',
     listWaitingMessages: 'mail:list-waiting-messages',
     setWaitingForMessage: 'mail:set-waiting-for-message',
@@ -201,7 +222,9 @@ export const IPC = {
     reorderMetaFolders: 'mail:reorder-meta-folders',
     listMetaFolderMessages: 'mail:list-meta-folder-messages',
     /** Mails nach Kategorie (message_tags.tag), optional pro Konto. */
-    listCategoryMessages: 'mail:list-category-messages'
+    listCategoryMessages: 'mail:list-category-messages',
+    /** Konversationsverlauf mit einer E-Mail-Adresse (Kontaktdetails). */
+    listCorrespondence: 'mail:list-correspondence'
   },
   folder: {
     create: 'folder:create',
@@ -227,6 +250,7 @@ export const IPC = {
   },
   calendar: {
     listEvents: 'calendar:list-events',
+    listEventsForContact: 'calendar:list-events-for-contact',
     listCalendars: 'calendar:list-calendars',
     listMicrosoft365GroupCalendars: 'calendar:list-ms365-group-calendars',
     patchCalendarColor: 'calendar:patch-calendar-color',

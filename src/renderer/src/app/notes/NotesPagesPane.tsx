@@ -35,7 +35,8 @@ export function NotesPagesPane({
   creating = false,
   pagesSort,
   onPagesSortChange,
-  showSectionLabels = false
+  showSectionLabels = false,
+  headerTrailing
 }: {
   title: string
   notes: UserNoteListItem[]
@@ -57,6 +58,7 @@ export function NotesPagesPane({
   pagesSort: NotesPagesSortKey
   onPagesSortChange: (key: NotesPagesSortKey) => void
   showSectionLabels?: boolean
+  headerTrailing?: React.ReactNode
 }): JSX.Element {
   const { t } = useTranslation()
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; note: UserNoteListItem } | null>(
@@ -89,6 +91,7 @@ export function NotesPagesPane({
     <div className="flex h-full min-h-0 flex-col bg-card">
       <header className={moduleColumnHeaderShellBarClass}>
         <div className={cn(moduleColumnHeaderTitleClass, 'min-w-0 truncate')}>{title}</div>
+        {headerTrailing}
         <ModuleColumnHeaderIconButton
           type="button"
           onClick={onCreateNote}

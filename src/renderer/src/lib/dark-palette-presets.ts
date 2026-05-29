@@ -5,7 +5,7 @@ export const DARK_PALETTE_SURFACES: Record<
   DarkPalette,
   Record<ThemeSurfaceToken, string>
 > = {
-  /** Fluent Graphite – leichter Violett-Stich */
+  /** Fluent Graphite – neutrale Popover/Glass-Tokens (Flaechen-Hex leicht kuehl) */
   default: {
     background: '#090a0d',
     sidebar: '#14151b',
@@ -38,16 +38,16 @@ export const DARK_PALETTE_SURFACES: Record<
 /** Zusaetzliche CSS-Variablen (HSL-Tripel oder Hex) pro Variante. */
 export const DARK_PALETTE_EXTRA_CSS_VARS: Record<DarkPalette, Record<string, string>> = {
   default: {
-    '--popover': '230 9% 13%',
-    '--secondary': '230 11% 19%',
-    '--accent': '230 10% 21%',
-    '--border': '230 12% 24%',
-    '--input': '230 12% 28%',
-    '--glass-surface': '230 9% 13% / 0.72',
-    '--glass-surface-muted': '230 11% 19% / 0.58',
+    '--popover': '0 0% 13%',
+    '--secondary': '0 0% 17%',
+    '--accent': '0 0% 19%',
+    '--border': '0 0% 24%',
+    '--input': '0 0% 28%',
+    '--glass-surface': '0 0% 13% / 0.72',
+    '--glass-surface-muted': '0 0% 17% / 0.58',
     '--glass-border': '0 0% 100% / 0.08',
-    '--dashboard-glass-tint': '230 14% 7% / 0.42',
-    '--chronell-accent-orbit': '#5a5de6'
+    '--dashboard-glass-tint': '0 0% 7% / 0.42',
+    '--chronell-accent-orbit': '#8b8f9a'
   },
   midnight: {
     '--popover': '222 38% 11%',

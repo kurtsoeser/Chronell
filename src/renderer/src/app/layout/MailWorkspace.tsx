@@ -7,7 +7,7 @@ import { useModuleNavColumnWidth } from '@/lib/module-nav-column-width'
 import { Sidebar } from '@/app/layout/Sidebar'
 import { MailList } from '@/app/layout/MailList'
 import { ReadingPane } from '@/app/layout/ReadingPane'
-import { InboxCalendarSidebar } from '@/app/layout/InboxCalendarSidebar'
+import { MailRightSidebar } from '@/app/layout/MailRightSidebar'
 import { CalendarFloatingPanel } from '@/app/calendar/CalendarFloatingPanel'
 import { useMailWorkspaceLayoutStore } from '@/stores/mail-workspace-layout'
 import { useMailPendingFocusStore } from '@/stores/mail-pending-focus'
@@ -156,7 +156,7 @@ export function MailWorkspace(props: { onOpenAccountDialog: () => void }): JSX.E
           <>
             <VerticalSplitter onDrag={onDragCalendarCol} ariaLabel={t('mail.workspace.splitterCalendar')} />
             <div style={{ width: calendarColWidth }} className="h-full shrink-0">
-              <InboxCalendarSidebar
+              <MailRightSidebar
                 onRequestUndock={requestCalendarUndock}
                 onRequestClose={(): void => {
                   setCalendarOpen(false)
@@ -208,7 +208,7 @@ export function MailWorkspace(props: { onOpenAccountDialog: () => void }): JSX.E
             setCalendarPlacement('dock')
           }}
         >
-          <InboxCalendarSidebar hideChrome />
+          <MailRightSidebar hideChrome />
         </CalendarFloatingPanel>
       ) : null}
 

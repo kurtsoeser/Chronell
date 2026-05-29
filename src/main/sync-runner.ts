@@ -4,7 +4,7 @@ import {
   syncAccountInitial,
   syncMessagesInFolder,
   pollMessagesInFolder
-} from './graph/mail-sync'
+} from './microsoft-mail-sync-dispatch'
 import {
   syncGoogleAccountInitial,
   syncGoogleMessagesInFolder,
@@ -17,6 +17,16 @@ import { runInboxRulesForNewMessages } from './rule-runner'
 import { broadcastMailChanged } from './ipc/ipc-broadcasts'
 import { queueEntityEmbeddingsAfterMailSync } from './ai/entity-embeddings-queue'
 import { queueMailBodyIndexAfterSync } from './mail-body-index-queue'
+import { queueMailAttachmentIndexAfterSync } from './mail-attachment-index-queue'
+import {
+  touchAccountMailSyncError,
+  touchAccountMailSyncFinished
+} from './db/account-mail-sync-meta-repo'
+import {
+  isProviderAuthUnavailable,
+  providerAuthUnavailableUserMessage,
+  warnProviderAuthOnce
+} from './auth/auth-errors'
 
 export type SyncState = 'idle' | 'syncing-folders' | 'syncing-messages' | 'error'
 
@@ -46,14 +56,25 @@ export async function runInitialSync(
     } else {
       result = await syncAccountInitial(accountId)
     }
+    touchAccountMailSyncFinished(accountId)
     broadcast({ accountId, state: 'idle' })
     broadcastMailChanged(accountId)
     queueEntityEmbeddingsAfterMailSync(accountId)
     queueMailBodyIndexAfterSync(accountId)
+    queueMailAttachmentIndexAfterSync(accountId)
     return { folders: result.folders, inboxMessages: result.inboxMessages }
   } catch (e) {
-    const message = e instanceof Error ? e.message : String(e)
-    console.error('[sync] initial sync failed:', e)
+    const message = isProviderAuthUnavailable(e)
+      ? providerAuthUnavailableUserMessage(e)
+      : e instanceof Error
+        ? e.message
+        : String(e)
+    if (isProviderAuthUnavailable(e)) {
+      warnProviderAuthOnce('sync', accountId, e)
+    } else {
+      console.error('[sync] initial sync failed:', e)
+    }
+    touchAccountMailSyncError(accountId, message)
     broadcast({ accountId, state: 'error', message })
     throw e
   }
@@ -72,14 +93,25 @@ export async function runFolderSync(folderId: number, limit = 50): Promise<numbe
       acc?.provider === 'google'
         ? await syncGoogleMessagesInFolder(folder.accountId, folder.remoteId, limit)
         : await syncMessagesInFolder(folder.accountId, folder.remoteId, limit)
+    touchAccountMailSyncFinished(folder.accountId)
     broadcast({ accountId: folder.accountId, state: 'idle' })
     broadcastMailChanged(folder.accountId)
     queueEntityEmbeddingsAfterMailSync(folder.accountId)
     queueMailBodyIndexAfterSync(folder.accountId)
+    queueMailAttachmentIndexAfterSync(folder.accountId)
     return count
   } catch (e) {
-    const message = e instanceof Error ? e.message : String(e)
-    console.error(`[sync] folder sync failed (id=${folderId}):`, e)
+    const message = isProviderAuthUnavailable(e)
+      ? providerAuthUnavailableUserMessage(e)
+      : e instanceof Error
+        ? e.message
+        : String(e)
+    if (isProviderAuthUnavailable(e)) {
+      warnProviderAuthOnce('sync', folder.accountId, e)
+    } else {
+      console.error(`[sync] folder sync failed (id=${folderId}):`, e)
+    }
+    touchAccountMailSyncError(folder.accountId, message)
     broadcast({ accountId: folder.accountId, state: 'error', message })
     throw e
   }
@@ -106,6 +138,7 @@ export async function runFolderPoll(folderId: number): Promise<number> {
       broadcastMailChanged(folder.accountId, { kind: 'poll', folderIds: [folder.id] })
       queueEntityEmbeddingsAfterMailSync(folder.accountId)
       queueMailBodyIndexAfterSync(folder.accountId)
+      queueMailAttachmentIndexAfterSync(folder.accountId)
       if (folder.wellKnown === 'inbox' && remoteIds.length > 0) {
         const idMap = listMessageIdsByRemoteIds(folder.accountId, remoteIds)
         const ids = [...idMap.values()]
@@ -116,10 +149,20 @@ export async function runFolderPoll(folderId: number): Promise<number> {
         }
       }
     }
+    touchAccountMailSyncFinished(folder.accountId)
     return added
   } catch (e) {
-    const message = e instanceof Error ? e.message : String(e)
-    console.error(`[sync] folder poll failed (id=${folderId}):`, e)
+    const message = isProviderAuthUnavailable(e)
+      ? providerAuthUnavailableUserMessage(e)
+      : e instanceof Error
+        ? e.message
+        : String(e)
+    if (isProviderAuthUnavailable(e)) {
+      warnProviderAuthOnce('sync', folder.accountId, e)
+    } else {
+      console.error(`[sync] folder poll failed (id=${folderId}):`, e)
+    }
+    touchAccountMailSyncError(folder.accountId, message)
     broadcast({ accountId: folder.accountId, state: 'error', message })
     throw e
   }
@@ -129,9 +172,19 @@ export async function runFolderPoll(folderId: number): Promise<number> {
  * Pollt fuer alle Konten: Posteingang, Gesendet, Entwuerfe, alle als Favorit markierten Ordner,
  * plus den aktuell ausgewaehlten Folder (extraFolderIds vom Renderer).
  */
+function accountIdsForFolderIds(folderIds: number[]): string[] {
+  const ids = new Set<string>()
+  for (const fid of folderIds) {
+    const folder = findFolderById(fid)
+    if (folder) ids.add(folder.accountId)
+  }
+  return [...ids]
+}
+
 async function runFolderPollsWithConcurrency(
   folderIds: number[],
-  concurrency = 3
+  concurrency = 3,
+  erroredAccounts?: Set<string>
 ): Promise<void> {
   let index = 0
   const workers = Array.from({ length: Math.min(concurrency, folderIds.length) }, async () => {
@@ -141,7 +194,17 @@ async function runFolderPollsWithConcurrency(
         await runFolderPoll(fid)
         await yieldToMainThread()
       } catch (e) {
-        console.warn('[sync] poll folder failed', fid, e)
+        const folder = findFolderById(fid)
+        if (folder) {
+          if (isProviderAuthUnavailable(e)) {
+            warnProviderAuthOnce('sync', folder.accountId, e)
+          } else {
+            console.warn('[sync] poll folder failed', fid, e)
+          }
+          erroredAccounts?.add(folder.accountId)
+        } else {
+          console.warn('[sync] poll folder failed', fid, e)
+        }
       }
     }
   })
@@ -182,5 +245,22 @@ export async function runBackgroundPoll(extraFolderIds: number[] = []): Promise<
     toPoll.push(fid)
   }
 
-  await runFolderPollsWithConcurrency(toPoll, 3)
+  const accountIds = accountIdsForFolderIds(toPoll)
+  const erroredAccounts = new Set<string>()
+
+  if (accountIds.length > 0) {
+    for (const accountId of accountIds) {
+      broadcast({ accountId, state: 'syncing-messages' })
+    }
+  }
+
+  try {
+    await runFolderPollsWithConcurrency(toPoll, 3, erroredAccounts)
+  } finally {
+    for (const accountId of accountIds) {
+      if (!erroredAccounts.has(accountId)) {
+        broadcast({ accountId, state: 'idle' })
+      }
+    }
+  }
 }

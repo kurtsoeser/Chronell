@@ -316,7 +316,11 @@ const api = {
     globalSearch: (args: {
       query: string
       limitPerKind?: number
-    }): Promise<GlobalSearchResult> => ipcRenderer.invoke(IPC.app.globalSearch, args)
+    }): Promise<GlobalSearchResult> => ipcRenderer.invoke(IPC.app.globalSearch, args),
+    windowMinimize: (): Promise<void> => ipcRenderer.invoke(IPC.app.windowMinimize),
+    windowToggleMaximize: (): Promise<void> => ipcRenderer.invoke(IPC.app.windowToggleMaximize),
+    windowClose: (): Promise<void> => ipcRenderer.invoke(IPC.app.windowClose),
+    windowIsMaximized: (): Promise<boolean> => ipcRenderer.invoke(IPC.app.windowIsMaximized)
   },
   mailBodyIndex: {
     getStatus: (): Promise<import('@shared/mail-body-index').MailBodyIndexStatus> =>
@@ -326,6 +330,39 @@ const api = {
       speed?: import('@shared/mail-body-index').MailBodyIndexSpeed
     }): Promise<import('@shared/mail-body-index').MailBodyIndexStatus> =>
       ipcRenderer.invoke(IPC.mailBodyIndex.setSettings, patch)
+  },
+  files: {
+    listMail: (
+      query: import('@shared/files').FilesListMailQuery
+    ): Promise<import('@shared/files').FilesListMailResult> =>
+      ipcRenderer.invoke(IPC.files.listMail, query),
+    getMailIndexStatus: (): Promise<import('@shared/files').FilesMailIndexStatus> =>
+      ipcRenderer.invoke(IPC.files.getMailIndexStatus),
+    openMailAttachment: (args: {
+      fileId: number
+    }): Promise<{ ok: boolean; error?: string }> =>
+      ipcRenderer.invoke(IPC.files.openMailAttachment, args),
+    saveMailAttachmentAs: (args: {
+      fileId: number
+      suggestedName?: string
+    }): Promise<{ ok: boolean; path?: string; error?: string; cancelled?: boolean }> =>
+      ipcRenderer.invoke(IPC.files.saveMailAttachmentAs, args),
+    saveMailToDrive: (
+      args: import('@shared/files').FilesSaveMailToDriveInput
+    ): Promise<import('@shared/files').FilesSaveMailToDriveResult> =>
+      ipcRenderer.invoke(IPC.files.saveMailToDrive, args),
+    listCloud: (
+      input: import('@shared/files').FilesListCloudInput
+    ): Promise<import('@shared/types').ComposeDriveExplorerEntry[]> =>
+      ipcRenderer.invoke(IPC.files.listCloud, input),
+    saveCloudItemAs: (
+      args: import('@shared/files').FilesSaveCloudItemInput
+    ): Promise<import('@shared/files').FilesSaveCloudItemResult> =>
+      ipcRenderer.invoke(IPC.files.saveCloudItemAs, args),
+    openCloudItemExternal: (args: {
+      webUrl: string
+    }): Promise<import('@shared/files').FilesOpenCloudItemResult> =>
+      ipcRenderer.invoke(IPC.files.openCloudItemExternal, args)
   },
   config: {
     get: (): Promise<AppConfig> => ipcRenderer.invoke(IPC.config.get),
@@ -481,6 +518,12 @@ const api = {
       ipcRenderer.invoke(IPC.auth.reorderAccounts, accountIds),
     getProfilePhotoDataUrl: (accountId: string): Promise<string | null> =>
       ipcRenderer.invoke(IPC.auth.getProfilePhotoDataUrl, accountId),
+    getAccountDisplayAvatarDataUrl: (accountId: string): Promise<string | null> =>
+      ipcRenderer.invoke(IPC.auth.getAccountDisplayAvatarDataUrl, accountId),
+    pickAccountCustomAvatar: (
+      accountId: string
+    ): Promise<ConnectedAccount | { cancelled: true }> =>
+      ipcRenderer.invoke(IPC.auth.pickAccountCustomAvatar, accountId),
     patchAccount: (args: PatchAccountInput): Promise<ConnectedAccount> =>
       ipcRenderer.invoke(IPC.auth.patchAccount, args)
   },
@@ -742,6 +785,10 @@ const api = {
       category: string
       limit?: number | null
     }): Promise<MailListItem[]> => ipcRenderer.invoke(IPC.mail.listCategoryMessages, args),
+    listCorrespondence: (
+      args: import('@shared/types').ListCorrespondenceInput
+    ): Promise<import('@shared/types').ListCorrespondenceResult> =>
+      ipcRenderer.invoke(IPC.mail.listCorrespondence, args),
     getMessage: (id: number): Promise<MailFull | null> =>
       ipcRenderer.invoke(IPC.mail.getMessage, id),
     listThreadMessages: (args: { accountId: string; threadKey: string }): Promise<MailFull[]> =>
@@ -780,6 +827,8 @@ const api = {
       ipcRenderer.invoke(IPC.mail.search, { query, limit }),
     syncAccount: (accountId: string): Promise<{ folders: number; inboxMessages: number }> =>
       ipcRenderer.invoke(IPC.mail.syncAccount, accountId),
+    getAccountSyncMeta: (): Promise<import('@shared/types').AccountMailSyncMeta[]> =>
+      ipcRenderer.invoke(IPC.mail.getAccountSyncMeta),
     clearLocalMailCache: (accountId: string): Promise<ClearLocalMailCacheResult> =>
       ipcRenderer.invoke(IPC.mail.clearLocalMailCache, accountId),
     bulkUnflagFlaggedMessages: (input: MailBulkUnflagInput): Promise<MailBulkUnflagResult> =>
@@ -825,6 +874,14 @@ const api = {
     listTodoCounts: (): Promise<TodoCountsAll> => ipcRenderer.invoke(IPC.mail.listTodoCounts),
     listTemplates: (): Promise<MailTemplate[]> => ipcRenderer.invoke(IPC.mail.listTemplates),
     listQuickSteps: (): Promise<MailQuickStep[]> => ipcRenderer.invoke(IPC.mail.listQuickSteps),
+    listQuickStepsAll: (): Promise<MailQuickStep[]> => ipcRenderer.invoke(IPC.mail.listQuickStepsAll),
+    getQuickStep: (id: number): Promise<import('@shared/quicksteps').MailQuickStepDetail | null> =>
+      ipcRenderer.invoke(IPC.mail.getQuickStep, id),
+    saveQuickStep: (
+      input: import('@shared/quicksteps').SaveMailQuickStepInput
+    ): Promise<import('@shared/quicksteps').MailQuickStepDetail> =>
+      ipcRenderer.invoke(IPC.mail.saveQuickStep, input),
+    deleteQuickStep: (id: number): Promise<void> => ipcRenderer.invoke(IPC.mail.deleteQuickStep, id),
     runQuickStep: (args: { quickStepId: number; messageId: number }): Promise<void> =>
       ipcRenderer.invoke(IPC.mail.runQuickStep, args),
     setTodoForMessage: (args: {
@@ -938,6 +995,10 @@ const api = {
   calendar: {
     listEvents: (args: CalendarListEventsInput): Promise<CalendarEventView[]> =>
       ipcRenderer.invoke(IPC.calendar.listEvents, args),
+    listEventsForContact: (
+      args: import('@shared/types').CalendarListEventsForContactInput
+    ): Promise<CalendarEventView[]> =>
+      ipcRenderer.invoke(IPC.calendar.listEventsForContact, args),
     listCalendars: (args: CalendarListCalendarsInput): Promise<CalendarGraphCalendarRow[]> =>
       ipcRenderer.invoke(IPC.calendar.listCalendars, args),
     listMicrosoft365GroupCalendars: (args: {
@@ -1144,6 +1205,13 @@ const api = {
       ipcRenderer.on('app:connectivity', listener)
       return (): void => {
         ipcRenderer.off('app:connectivity', listener)
+      }
+    },
+    onWindowMaximizedChanged: (handler: (maximized: boolean) => void): (() => void) => {
+      const listener = (_e: IpcRendererEvent, maximized: boolean): void => handler(Boolean(maximized))
+      ipcRenderer.on('app:window-maximized-changed', listener)
+      return (): void => {
+        ipcRenderer.off('app:window-maximized-changed', listener)
       }
     },
     onMailChanged: (handler: (payload: MailChangedPayload) => void): (() => void) => {

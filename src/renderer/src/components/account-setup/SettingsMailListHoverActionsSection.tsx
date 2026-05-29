@@ -30,6 +30,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import { resolveQuickStepHoverIcon } from '@/lib/mail-quickstep-hover-icon'
+import { QUICKSTEPS_CHANGED_EVENT } from '@/lib/quicksteps-changed'
 import { useTranslation } from 'react-i18next'
 import type { MailQuickStep } from '@shared/types'
 import { cn } from '@/lib/utils'
@@ -130,13 +131,19 @@ export function SettingsMailListHoverActionsSection(): JSX.Element {
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
 
-  useEffect(() => {
+  const loadQuickSteps = useCallback((): void => {
     if (!isMailClientRuntimeComplete()) return
     void window.mailClient.mail
       .listQuickSteps()
       .then(setQuickSteps)
       .catch(() => setQuickSteps([]))
   }, [])
+
+  useEffect(() => {
+    loadQuickSteps()
+    window.addEventListener(QUICKSTEPS_CHANGED_EVENT, loadQuickSteps)
+    return (): void => window.removeEventListener(QUICKSTEPS_CHANGED_EVENT, loadQuickSteps)
+  }, [loadQuickSteps])
 
   useEffect(() => {
     const prefs = readMailListHoverActionPrefs(quickSteps)

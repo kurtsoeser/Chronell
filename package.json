@@ -1,7 +1,7 @@
 {
   "name": "mailclient",
   "productName": "Chronell",
-  "version": "0.9.24",
+  "version": "0.9.25",
   "description": "Schlanker, lokaler Mail-Workflow-Client fuer Windows 11 mit Multi-Account-Support fuer Microsoft 365 und Gmail",
   "main": "out/main/index.js",
   "author": "Kurt Soeser",
@@ -27,6 +27,9 @@
     "generate:calendar-icons": "node scripts/generate-calendar-icon-catalog.mjs",
     "sync-branding": "node scripts/sync-branding-assets.mjs",
     "publish:docs-release": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/publish-docs-release.ps1",
+    "publish:day": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/publish-day.ps1",
+    "publish:day:dry": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/publish-day.ps1 -DryRun -NoPrompt",
+    "release:notes": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/generate-release-notes.ps1",
     "generate:homepage-screenshots": "node scripts/generate-homepage-screenshots.mjs",
     "test": "vitest run",
     "test:watch": "vitest",

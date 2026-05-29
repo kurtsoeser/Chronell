@@ -2,11 +2,8 @@ import { getMessageById, setMessageReadLocal, setMessageFlaggedLocal } from '../
 import { adjustFolderUnread, findFolderByWellKnown } from '../db/folders-repo'
 import { removeMessageTag } from '../db/message-tags-repo'
 import type { MailActionRecord } from '../db/message-actions-repo'
-import {
-  setMessageRead as graphSetRead,
-  setMessageFlagged as graphSetFlagged,
-  moveMessage as graphMoveMessage
-} from '../graph/mail-actions'
+import { setMessageFlagged as graphSetFlagged } from '../graph/mail-actions'
+import { microsoftMoveMessage, microsoftSetMessageRead } from '../ews/microsoft-mail-actions-facade'
 import { runFolderSync } from '../sync-runner'
 import { unsnoozeMessage } from '../snooze'
 import { undoAddTodo, undoChangeTodo, undoCompleteTodo } from '../todos-service'
@@ -26,7 +23,7 @@ export async function applyUndo(action: MailActionRecord): Promise<string> {
         adjustFolderUnread(msg.folderId, action.payload.previousIsRead ? -1 : 1)
       }
       broadcastMailChanged(msg.accountId)
-      await graphSetRead(msg.accountId, msg.remoteId, action.payload.previousIsRead)
+      await microsoftSetMessageRead(msg.accountId, msg.remoteId, action.payload.previousIsRead)
       return action.payload.previousIsRead
         ? 'Als gelesen wiederhergestellt'
         : 'Als ungelesen wiederhergestellt'
@@ -50,7 +47,7 @@ export async function applyUndo(action: MailActionRecord): Promise<string> {
       if (!accountId || !remoteId || !targetRemoteId) {
         throw new Error('Aktion enthaelt keine Ziel-Ordner-Information.')
       }
-      await graphMoveMessage(accountId, remoteId, targetRemoteId)
+      await microsoftMoveMessage(accountId, remoteId, targetRemoteId)
       if (action.payload.previousFolderId != null) {
         void runFolderSync(action.payload.previousFolderId).catch(() => undefined)
       }
@@ -140,7 +137,7 @@ export async function applyUndo(action: MailActionRecord): Promise<string> {
       if (!accountId || !remoteId || !targetRemoteId) {
         throw new Error('Aktion enthaelt keine Ziel-Ordner-Information.')
       }
-      await graphMoveMessage(accountId, remoteId, targetRemoteId)
+      await microsoftMoveMessage(accountId, remoteId, targetRemoteId)
       if (action.payload.previousFolderId != null) {
         void runFolderSync(action.payload.previousFolderId).catch(() => undefined)
       }

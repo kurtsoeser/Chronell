@@ -13,6 +13,7 @@ import {
 } from './db/calendar-folders-repo'
 import { listMicrosoft365GroupCalendars, listMicrosoftCalendars } from './calendar-service'
 import { isAppOnline } from './network-status'
+import { warnProviderAuthOnce } from './auth/auth-errors'
 import { runGraphMailboxRequest } from './graph/graph-account-request'
 
 export const CALENDAR_FOLDERS_CACHE_STALE_MS = 120_000
@@ -98,7 +99,7 @@ export async function syncAllCalendarFoldersAccounts(): Promise<void> {
     try {
       await syncCalendarFoldersForAccount(acc.id)
     } catch (e) {
-      console.warn('[calendar-folders-cache] Sync fehlgeschlagen:', acc.id, e)
+      warnProviderAuthOnce('calendar-folders-cache', acc.id, e)
     }
   }
 }
@@ -117,7 +118,7 @@ export async function listCalendarsCached(
 
   if (!force && cached.length > 0 && !fresh && isAppOnline()) {
     void fetchStandardFoldersFromCloudDeduped(accountId).catch((e) =>
-      console.warn('[calendar-folders-cache] Hintergrund-Refresh:', accountId, e)
+      warnProviderAuthOnce('calendar-folders-cache', accountId, e)
     )
     return cached
   }
@@ -149,7 +150,7 @@ export async function listM365GroupCalendarsCached(
 
   if (!force && cachedPage.calendars.length > 0 && !fresh && isAppOnline()) {
     void syncM365GroupFoldersForAccount(accountId).catch((e) =>
-      console.warn('[calendar-folders-cache] Gruppen-Hintergrund-Refresh:', accountId, e)
+      warnProviderAuthOnce('calendar-folders-cache', accountId, e)
     )
     return cachedPage
   }

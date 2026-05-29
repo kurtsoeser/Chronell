@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { GripVertical, PanelRightClose, Pin } from 'lucide-react'
+import { GripVertical, LayoutPanelLeft, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 
@@ -52,6 +52,8 @@ interface CalendarFloatingPanelProps {
   defaultPosition: { x: number; y: number }
   onClose: () => void
   onDock: () => void
+  /** Wenn true: nur Ziehen + Titel (Aktionen liegen im Kind-Header). */
+  hideHeaderActions?: boolean
   children: React.ReactNode
   zIndex?: number
 }
@@ -82,6 +84,7 @@ export function CalendarFloatingPanel(props: CalendarFloatingPanelProps): JSX.El
     defaultPosition,
     onClose,
     onDock,
+    hideHeaderActions = false,
     children,
     zIndex = 90
   } = props
@@ -322,35 +325,39 @@ export function CalendarFloatingPanel(props: CalendarFloatingPanelProps): JSX.El
         onPointerDown={onHeaderPointerDown}
       >
         <GripVertical className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-        <button
-          type="button"
-          title={t('calendar.floatingPanel.dockTitle')}
-          onClick={(e): void => {
-            e.stopPropagation()
-            onDock()
-          }}
-          onPointerDown={(e): void => e.stopPropagation()}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground"
-        >
-          <Pin className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
-          title={t('calendar.floatingPanel.closeTitle')}
-          onClick={(e): void => {
-            e.stopPropagation()
-            onClose()
-          }}
-          onPointerDown={(e): void => e.stopPropagation()}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground"
-        >
-          <PanelRightClose className="h-4 w-4" />
-        </button>
-          <span
-            className="min-w-0 flex-1 truncate text-center text-sm font-semibold text-foreground"
-          >
-            {title}
-          </span>
+        <span className="min-w-0 flex-1 truncate text-center text-sm font-semibold text-foreground">
+          {title}
+        </span>
+        {!hideHeaderActions ? (
+          <div className="flex shrink-0 items-center gap-0.5">
+            <button
+              type="button"
+              title={t('calendar.floatingPanel.dockTitle')}
+              aria-label={t('calendar.floatingPanel.dockTitle')}
+              onClick={(e): void => {
+                e.stopPropagation()
+                onDock()
+              }}
+              onPointerDown={(e): void => e.stopPropagation()}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground"
+            >
+              <LayoutPanelLeft className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              title={t('calendar.floatingPanel.closeTitle')}
+              aria-label={t('calendar.floatingPanel.closeTitle')}
+              onClick={(e): void => {
+                e.stopPropagation()
+                onClose()
+              }}
+              onPointerDown={(e): void => e.stopPropagation()}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        ) : null}
       </div>
       <div
         className="flex min-h-0 flex-1 flex-col overflow-hidden"

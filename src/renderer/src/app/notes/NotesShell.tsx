@@ -997,106 +997,114 @@ export function NotesShell(): JSX.Element {
                 {t('notes.shell.selectNoteHint')}
               </div>
             ) : (
-              <ContentCrossfade contentKey={editing.id} className="flex min-h-0 flex-1">
-                <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                    <NoteDisplayIcon note={editing} className="h-4 w-4" />
-                    <span>{noteKindLabel(editing, t)}</span>
-                    {editing.scheduledStartIso ? (
-                      <span className="text-primary">
-                        {formatNoteDate(editing.scheduledStartIso, i18n.language)}
-                      </span>
-                    ) : null}
-                    <span>{formatNoteDate(editing.updatedAt, i18n.language)}</span>
-                  </div>
+              <ContentCrossfade contentKey={editing.id} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+                  <div className="flex shrink-0 flex-col gap-3 overflow-y-auto p-4 pb-2">
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      <NoteDisplayIcon note={editing} className="h-4 w-4" />
+                      <span>{noteKindLabel(editing, t)}</span>
+                      {editing.scheduledStartIso ? (
+                        <span className="text-primary">
+                          {formatNoteDate(editing.scheduledStartIso, i18n.language)}
+                        </span>
+                      ) : null}
+                      <span>{formatNoteDate(editing.updatedAt, i18n.language)}</span>
+                    </div>
 
-                  <div className="flex items-start gap-2">
-                    <CalendarEventIconPicker
-                      layout="compact"
-                      openOn="doubleClick"
-                      iconId={editing.iconId}
-                      iconColorHex={resolveEntityIconColor(editing.iconColor)}
-                      title={editTitle.trim() || noteTitle(editing, t('notes.shell.untitled'))}
-                      disabled={saving}
-                      triggerIcon={<NoteDisplayIcon note={editing} className="h-4 w-4" />}
-                      onIconChange={(iconId): void => void patchNoteDisplay({ iconId: iconId ?? null })}
-                      footer={
-                        <IconColorPickerFooter
-                          iconColor={editing.iconColor}
-                          onIconColorChange={(iconColor): void =>
-                            void patchNoteDisplay({ iconColor })
-                          }
-                        />
+                    <div className="flex items-start gap-2">
+                      <CalendarEventIconPicker
+                        layout="compact"
+                        openOn="doubleClick"
+                        iconId={editing.iconId}
+                        iconColorHex={resolveEntityIconColor(editing.iconColor)}
+                        title={editTitle.trim() || noteTitle(editing, t('notes.shell.untitled'))}
+                        disabled={saving}
+                        triggerIcon={<NoteDisplayIcon note={editing} className="h-4 w-4" />}
+                        onIconChange={(iconId): void => void patchNoteDisplay({ iconId: iconId ?? null })}
+                        footer={
+                          <IconColorPickerFooter
+                            iconColor={editing.iconColor}
+                            onIconColorChange={(iconColor): void =>
+                              void patchNoteDisplay({ iconColor })
+                            }
+                          />
+                        }
+                      />
+                      <input
+                        type="text"
+                        value={editTitle}
+                        onChange={(e): void => setEditTitle(e.target.value)}
+                        placeholder={t('notes.shell.titlePlaceholder')}
+                        className="min-w-0 flex-1 rounded-md border border-border bg-background px-3 py-2 text-base font-semibold outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+                      />
+                    </div>
+
+                    <NotesNoteScheduleBlock
+                      note={
+                        scheduleDraft && !scheduleDraft.clearSchedule
+                          ? {
+                              scheduledStartIso: scheduleDraft.scheduledStartIso,
+                              scheduledEndIso: scheduleDraft.scheduledEndIso,
+                              scheduledAllDay: scheduleDraft.scheduledAllDay
+                            }
+                          : editing
                       }
+                      defaultExpanded={notesSettings.scheduleBlockExpandedDefault}
+                      defaultDurationMinutes={notesSettings.defaultScheduleDurationMinutes}
+                      disabled={saving}
+                      onChange={(value): void => setScheduleDraft(value)}
                     />
-                    <input
-                      type="text"
-                      value={editTitle}
-                      onChange={(e): void => setEditTitle(e.target.value)}
-                      placeholder={t('notes.shell.titlePlaceholder')}
-                      className="min-w-0 flex-1 rounded-md border border-border bg-background px-3 py-2 text-base font-semibold outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+
+                    <NotesAttachmentsPanel noteId={editing.id} />
+                  </div>
+
+                  <div className="flex min-h-0 min-w-0 flex-1 flex-col px-4">
+                    <MarkdownNoteEditor
+                      value={editBody}
+                      onChange={setEditBody}
+                      placeholder={t('notes.editor.placeholder')}
+                      fillHeight
+                      minHeight={200}
+                      className="min-h-0 flex-1"
+                      {...editorUi}
                     />
                   </div>
 
-                  <NotesNoteScheduleBlock
-                    note={
-                      scheduleDraft && !scheduleDraft.clearSchedule
-                        ? {
-                            scheduledStartIso: scheduleDraft.scheduledStartIso,
-                            scheduledEndIso: scheduleDraft.scheduledEndIso,
-                            scheduledAllDay: scheduleDraft.scheduledAllDay
-                          }
-                        : editing
-                    }
-                    defaultExpanded={notesSettings.scheduleBlockExpandedDefault}
-                    defaultDurationMinutes={notesSettings.defaultScheduleDurationMinutes}
-                    disabled={saving}
-                    onChange={(value): void => setScheduleDraft(value)}
-                  />
+                  <div className="flex shrink-0 flex-col gap-1 px-4 pb-2">
+                    <div className="text-xs text-muted-foreground">{t('notes.editor.markdownHint')}</div>
 
-                  <NotesAttachmentsPanel noteId={editing.id} />
+                    <EntityContextBlock
+                      anchor={{ kind: 'note', noteId: editing.id }}
+                      showObjectNote={false}
+                      contentPaddingClass="px-0"
+                      sectionCollapsedDefault={notesSettings.entityContextCollapsedDefault}
+                      className="border-t border-border/60"
+                    />
 
-                  <MarkdownNoteEditor
-                    value={editBody}
-                    onChange={setEditBody}
-                    placeholder={t('notes.editor.placeholder')}
-                    height={420}
-                    className="min-h-0 flex-1"
-                  />
-
-                  <div className="-mt-1 text-xs text-muted-foreground">{t('notes.editor.markdownHint')}</div>
-
-                  <EntityContextBlock
-                    anchor={{ kind: 'note', noteId: editing.id }}
-                    showObjectNote={false}
-                    contentPaddingClass="px-0"
-                    sectionCollapsedDefault={notesSettings.entityContextCollapsedDefault}
-                    className="border-t border-border/60"
-                  />
-
-                  <footer className="flex justify-between gap-3 pb-2">
-                    <button
-                      type="button"
-                      onClick={(): void => void deleteNote(editing as UserNoteListItem)}
-                      disabled={saving}
-                      className="inline-flex items-center gap-1.5 rounded-md border border-destructive/40 px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      {t('common.delete')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(): void => void saveEditing()}
-                      disabled={saving}
-                      className={cn(
-                        moduleColumnHeaderOutlineSmClass,
-                        'min-w-28 justify-center px-4 py-2 text-sm font-semibold'
-                      )}
-                    >
-                      {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                      {t('common.save')}
-                    </button>
-                  </footer>
+                    <footer className="flex justify-between gap-3 pt-1">
+                      <button
+                        type="button"
+                        onClick={(): void => void deleteNote(editing as UserNoteListItem)}
+                        disabled={saving}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-destructive/40 px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        {t('common.delete')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(): void => void saveEditing()}
+                        disabled={saving}
+                        className={cn(
+                          moduleColumnHeaderOutlineSmClass,
+                          'min-w-28 justify-center px-4 py-2 text-sm font-semibold'
+                        )}
+                      >
+                        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                        {t('common.save')}
+                      </button>
+                    </footer>
+                  </div>
                 </div>
 
               </ContentCrossfade>

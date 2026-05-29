@@ -1,4 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import {
+  CALENDAR_PREVIEW_NOTE_PANE_HEIGHT_DEFAULT,
+  CALENDAR_PREVIEW_NOTE_PANE_HEIGHT_KEY,
+  CALENDAR_PREVIEW_NOTE_PANE_HEIGHT_MIN,
+  calendarPreviewNotePaneHeightMax
+} from '@/app/calendar/calendar-preview-storage'
+import {
+  HorizontalSplitter,
+  useResizableHeight
+} from '@/components/ResizableSplitter'
 import { addDays, differenceInMinutes, format, parseISO, startOfDay } from 'date-fns'
 import { de as deFns, enUS as enUSFns } from 'date-fns/locale'
 import type { Locale } from 'date-fns'
@@ -193,6 +203,26 @@ export function CalendarEventPreview(props: {
   }, [ev.accountId, ev.graphCalendarId, ev.graphEventId, ev.source, ev.startIso, ev.title])
 
   const canEdit = ev.calendarCanEdit !== false && Boolean(ev.graphEventId)
+  const showResizableNotePane = Boolean(ev.graphEventId?.trim()) && !hideEntityContext
+  const notePaneHeightMax = calendarPreviewNotePaneHeightMax()
+  const [notePaneHeight, setNotePaneHeight] = useResizableHeight({
+    storageKey: CALENDAR_PREVIEW_NOTE_PANE_HEIGHT_KEY,
+    defaultHeight: CALENDAR_PREVIEW_NOTE_PANE_HEIGHT_DEFAULT,
+    minHeight: CALENDAR_PREVIEW_NOTE_PANE_HEIGHT_MIN,
+    maxHeight: notePaneHeightMax
+  })
+
+  useEffect(() => {
+    if (!showResizableNotePane) return
+    const clamp = (): void => {
+      const max = calendarPreviewNotePaneHeightMax()
+      setNotePaneHeight((h) =>
+        Math.min(max, Math.max(CALENDAR_PREVIEW_NOTE_PANE_HEIGHT_MIN, h))
+      )
+    }
+    window.addEventListener('resize', clamp)
+    return (): void => window.removeEventListener('resize', clamp)
+  }, [showResizableNotePane, setNotePaneHeight])
 
   useEffect(() => {
     setEditingField(null)
@@ -516,8 +546,31 @@ export function CalendarEventPreview(props: {
     [beginInlineEdit, canEdit, inlineEditActivateOn, t]
   )
 
+  const entityContextBlock =
+    showResizableNotePane && noteTarget ? (
+      <EntityContextBlock
+        anchor={{
+          kind: 'calendar_event',
+          accountId: ev.accountId,
+          graphEventId: ev.graphEventId!
+        }}
+        noteTarget={noteTarget}
+        noteEditorFillHeight
+        contentPaddingClass="px-4"
+        sectionCollapsedDefault
+        className={cn('min-h-0 flex-1', previewSectionDividerClass)}
+      />
+    ) : null
+
   return (
-    <div className={cn('flex min-h-0 flex-1 flex-col overflow-y-auto bg-background', className)}>
+    <div
+      className={cn(
+        'flex min-h-0 flex-1 flex-col bg-background',
+        showResizableNotePane ? 'overflow-hidden' : 'overflow-y-auto',
+        className
+      )}
+    >
+      <div className={cn(showResizableNotePane && 'min-h-0 flex-1 overflow-y-auto')}>
       <div
         className={cn(
           'shrink-0 space-y-2 border-b px-4 py-3',
@@ -598,17 +651,18 @@ export function CalendarEventPreview(props: {
                   <span className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
                     {t('calendar.quickCreate.whenLabel')}
                   </span>
-                  <button
-                    type="button"
-                    disabled={inlineSaving}
-                    onClick={(): void => toggleAllDay(!isAllDay)}
-                    className={cn(
-                      'text-xs font-medium',
-                      isAllDay ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
-                    )}
-                  >
-                    {t('calendar.eventDialog.allDay')}
-                  </button>
+                  <label className="flex cursor-pointer items-center gap-1.5 text-xs font-medium">
+                    <input
+                      type="checkbox"
+                      className="h-3.5 w-3.5 rounded border-border"
+                      checked={isAllDay}
+                      disabled={inlineSaving}
+                      onChange={(e): void => toggleAllDay(e.target.checked)}
+                    />
+                    <span className={cn(isAllDay ? 'text-foreground' : 'text-muted-foreground')}>
+                      {t('calendar.eventDialog.allDay')}
+                    </span>
+                  </label>
                 </div>
                 {isAllDay ? (
                   <div className="grid grid-cols-2 gap-2">
@@ -881,7 +935,7 @@ export function CalendarEventPreview(props: {
           </div>
         ) : null}
 
-        {ev.graphEventId?.trim() && !hideEntityContext ? (
+        {ev.graphEventId?.trim() && hideEntityContext ? (
           <EntityContextBlock
             anchor={{
               kind: 'calendar_event',
@@ -895,6 +949,31 @@ export function CalendarEventPreview(props: {
           />
         ) : null}
       </div>
+      </div>
+
+      {showResizableNotePane ? (
+        <>
+          <HorizontalSplitter
+            variant="subtle"
+            ariaLabel={t('calendar.eventPreview.contextSplitterAria')}
+            onDrag={(deltaY): void => {
+              setNotePaneHeight((h) => {
+                const max = calendarPreviewNotePaneHeightMax()
+                return Math.min(
+                  max,
+                  Math.max(CALENDAR_PREVIEW_NOTE_PANE_HEIGHT_MIN, h - deltaY)
+                )
+              })
+            }}
+          />
+          <div
+            className="flex min-h-0 shrink-0 flex-col overflow-hidden border-t border-border/40 bg-secondary/[0.02]"
+            style={{ height: Math.min(notePaneHeight, notePaneHeightMax) }}
+          >
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{entityContextBlock}</div>
+          </div>
+        </>
+      ) : null}
     </div>
   )
 }

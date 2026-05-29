@@ -6,8 +6,8 @@ Dieses Dokument beschreibt den **aktuellen Funktionsumfang** der Desktop-App. Es
 |------|------|
 | **Produktname (UI)** | Chronell |
 | **Technischer Name / Installer** | MailClient |
-| **Version** | **0.9.23** |
-| **Stand** | **26. Mai 2026** |
+| **Version** | **0.9.26** |
+| **Stand** | **29. Mai 2026** |
 | **App-ID** | `at.kurtsoeser.chronell` |
 | **Zielplattform** | Windows 11 (primär) |
 | **Autor** | Kurt Soeser |
@@ -483,6 +483,22 @@ Marker-Datei nach Migration: `%APPDATA%\Chronell\.chronell-migrated-from-mailcli
 
 ## 20. Versionshistorie
 
+### 0.9.26 - 29. Mai 2026
+
+- **Mail:** Mail-Arbeitsbereich: Sidebar, Anhaenge, EWS und Aktionen (Microsoft-Mail per EWS (zusaetzlicher Transport); Korrespondenz-Historie pro Kontakt)
+- **Dateien:** Neues Dateien-Modul: Cloud-Dateien, Mail-Anhaenge und Index-Sync (Mail-Anhaenge lokal indexieren; OneDrive- und SharePoint-Upload)
+- **Kalender:** Kalender und Termine: Dialog, Vorschau, Kategorien und Shell (Termin-Kategorien; ueberarbeiteter Termin-Dialog)
+- **Homepage:** Release-Texte, Homepage-Timeline und Download auf 0.9.26
+
+
+### 0.9.25 - 29. Mai 2026
+
+- **Mail:** Mail-Arbeitsbereich: Sidebar, Anhaenge, EWS und Aktionen (Microsoft-Mail per EWS (zusaetzlicher Transport); Korrespondenz-Historie pro Kontakt)
+- **Dateien:** Neues Dateien-Modul: Cloud-Dateien, Mail-Anhaenge und Index-Sync (Mail-Anhaenge lokal indexieren; OneDrive- und SharePoint-Upload)
+- **Kalender:** Kalender und Termine: Dialog, Vorschau, Kategorien und Shell (Termin-Kategorien; ueberarbeiteter Termin-Dialog)
+- **Homepage:** Release-Texte, Homepage-Timeline und Download auf 0.9.25
+
+
 ### 0.9.23 — 26. Mai 2026
 
 - **Kalender:** ICS-Import per Drag & Drop und Dialog (`.ics` → M365/Google, einzeln oder mehrfach)
@@ -556,4 +572,4 @@ Marker-Datei nach Migration: `%APPDATA%\Chronell\.chronell-migrated-from-mailcli
 
 ---
 
-*Letzte Aktualisierung dieses Dokuments: 26. Mai 2026 · Version 0.9.23*
+*Letzte Aktualisierung dieses Dokuments: 29. Mai 2026 Â· Version 0.9.26*

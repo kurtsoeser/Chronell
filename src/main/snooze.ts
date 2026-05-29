@@ -15,7 +15,7 @@ import {
   setFolderWellKnownLocal
 } from './db/folders-repo'
 import { createFolder as graphCreateFolder } from './graph/folder-actions'
-import { moveMessage as graphMoveMessage } from './graph/mail-actions'
+import { microsoftMoveMessage } from './ews/microsoft-mail-actions-facade'
 import { recordAction } from './db/message-actions-repo'
 
 /**
@@ -95,7 +95,7 @@ export async function snoozeMessage(input: SnoozeInput): Promise<void> {
   const snoozedFolder = findFolderById(snoozedFolderId)
   if (!snoozedFolder) throw new Error('Snoozed-Ordner konnte nicht angelegt werden.')
 
-  const newRemoteId = await graphMoveMessage(
+  const newRemoteId = await microsoftMoveMessage(
     msg.accountId,
     msg.remoteId,
     snoozedFolder.remoteId
@@ -177,7 +177,11 @@ async function wakeMessageInternal(
     return
   }
 
-  const newRemoteId = await graphMoveMessage(msg.accountId, msg.remoteId, targetFolder.remoteId)
+  const newRemoteId = await microsoftMoveMessage(
+    msg.accountId,
+    msg.remoteId,
+    targetFolder.remoteId
+  )
 
   const prevFolderId = msg.folderId
   updateMessageFolderLocal(msg.id, targetFolder.id, newRemoteId)

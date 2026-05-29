@@ -1,4 +1,5 @@
 import DOMPurify from 'dompurify'
+import { stripUnresolvedCidUrls } from '@/lib/sanitize'
 
 const SANITIZE: DOMPurify.Config = {
   ALLOWED_TAGS: [
@@ -69,4 +70,9 @@ export function sanitizeComposeHtmlFragment(html: string): string {
   const trimmed = html.trim()
   if (!trimmed) return ''
   return DOMPurify.sanitize(trimmed, SANITIZE as import('dompurify').Config)
+}
+
+/** HTML fuer TipTap-Compose: bereinigen und unaufloesbare cid:-Bilder neutralisieren. */
+export function prepareComposeEditorHtml(html: string): string {
+  return stripUnresolvedCidUrls(sanitizeComposeHtmlFragment(html))
 }

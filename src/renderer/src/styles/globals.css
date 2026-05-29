@@ -39,7 +39,7 @@
     --glass-blur: 20px;
     --glass-saturation: 1.35;
     --glass-surface: 0 0% 100% / 0.78;
-    --glass-surface-muted: 220 20% 98% / 0.65;
+    --glass-surface-muted: 0 0% 99% / 0.65;
     --glass-border: 220 27% 92% / 0.85;
     --glass-highlight: 0 0% 100% / 0.4;
     --glass-shadow: 0 8px 32px hsl(224 25% 14% / 0.08);
@@ -72,8 +72,8 @@
     --status-flagged: 45 93% 58%;
     --status-done: 142 65% 55%;
 
-    --glass-surface: 262 8% 14% / 0.72;
-    --glass-surface-muted: 262 7% 12% / 0.58;
+    --glass-surface: 0 0% 14% / 0.72;
+    --glass-surface-muted: 0 0% 12% / 0.58;
     --glass-border: 0 0% 100% / 0.08;
     --glass-highlight: 0 0% 100% / 0.1;
     --glass-shadow: 0 12px 40px hsl(0 0% 0% / 0.38);
@@ -327,6 +327,22 @@
 }
 
 @layer components {
+  /**
+   * Windows frameless: Topbar als Drag-Zone zum Verschieben; interaktive Elemente mit no-drag.
+   */
+  .electron-window-titlebar {
+    -webkit-app-region: drag;
+  }
+
+  .electron-window-titlebar button,
+  .electron-window-titlebar a,
+  .electron-window-titlebar input,
+  .electron-window-titlebar textarea,
+  .electron-window-titlebar select,
+  .electron-window-titlebar [contenteditable='true'] {
+    -webkit-app-region: no-drag;
+  }
+
   /** Compose-Chrome (An/Cc/Betreff): App-Hintergrund; Mail-Text in {@link compose-mail-body-tile}. */
   .compose-editor-surface {
     display: flex;
@@ -461,8 +477,35 @@
     border-color: hsl(var(--border));
   }
 
+  /**
+   * @uiw/react-md-editor: transparente Textarea über Syntax-Highlight-Layer.
+   * font-size/line-height müssen auf .w-md-editor-text und allen Kindern identisch sein,
+   * sonst überlagern sich Zeilen beim Scrollen (v. a. in fillHeight-Sidebars).
+   */
+  .markdown-note-editor .w-md-editor-text {
+    font-size: 0.875rem !important;
+    line-height: 1.5 !important;
+  }
+
   .markdown-note-editor .w-md-editor-text-input,
-  .markdown-note-editor .w-md-editor-text-pre > code,
+  .markdown-note-editor .w-md-editor-text-pre,
+  .markdown-note-editor .w-md-editor-text-pre > code {
+    color: hsl(var(--foreground));
+    font-size: inherit !important;
+    line-height: inherit !important;
+    font-family: inherit !important;
+  }
+
+  .markdown-note-editor .w-md-editor-text-pre > code {
+    padding: 0 !important;
+  }
+
+  .markdown-note-editor .w-md-editor-text-pre .token.title,
+  .markdown-note-editor .w-md-editor-text-pre .token.title.important {
+    line-height: inherit !important;
+    font-size: inherit !important;
+  }
+
   .markdown-note-editor .wmde-markdown {
     color: hsl(var(--foreground));
     font-size: 0.875rem;
@@ -471,6 +514,18 @@
 
   .markdown-note-editor .w-md-editor-text-input::placeholder {
     color: hsl(var(--muted-foreground));
+  }
+
+  .markdown-note-editor--fill-height {
+    display: flex;
+    min-height: 0;
+    flex: 1;
+    flex-direction: column;
+  }
+
+  .markdown-note-editor--fill-height .markdown-note-editor__body {
+    min-height: 0;
+    flex: 1;
   }
 
   /** TipTap Composer: skalierbare Bilder (Ziehpunkte an Ecken) */
@@ -698,4 +753,58 @@
     ) {
     border-color: hsl(var(--input) / var(--input-opacity, 0.45)) !important;
   }
+}
+
+/* Kontakt-Verlauf: Hover-Vorschau (rechte Seitenleiste) */
+.contact-history-preview-body {
+  font-size: var(--chronell-text-xs);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.contact-history-preview-body .contact-history-preview-plain,
+.contact-history-preview-plain {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.contact-history-preview-body p {
+  margin: 0.35em 0;
+}
+
+.contact-history-preview-body p:first-child {
+  margin-top: 0;
+}
+
+.contact-history-preview-body p:last-child {
+  margin-bottom: 0;
+}
+
+.contact-history-preview-body blockquote {
+  margin: 0.35em 0;
+  padding-left: 0.65em;
+  border-left: 2px solid hsl(var(--border));
+  color: hsl(var(--muted-foreground));
+}
+
+.contact-history-preview-body a {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.contact-history-preview-body img {
+  max-width: 100%;
+  height: auto;
+}
+
+.contact-history-preview-body table {
+  max-width: 100%;
+  font-size: var(--chronell-text-2xs);
+}
+
+.contact-history-preview-body ul,
+.contact-history-preview-body ol {
+  margin: 0.35em 0;
+  padding-left: 1.25em;
 }

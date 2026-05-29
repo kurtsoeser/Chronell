@@ -11,12 +11,14 @@ export function MailDestinationFolderDialog({
   open,
   folders,
   onClose,
-  onPick
+  onPick,
+  zIndex = 95
 }: {
   open: boolean
   folders: MailFolder[]
   onClose: () => void
   onPick: (folderId: number) => void | Promise<void>
+  zIndex?: number
 }): JSX.Element | null {
   const { t } = useTranslation()
   const [busy, setBusy] = useState(false)
@@ -43,7 +45,7 @@ export function MailDestinationFolderDialog({
   }
 
   return (
-    <ModalRoot open={open} zIndex={95} centerClassName="items-center justify-center" onBackdropClick={onClose}>
+    <ModalRoot open={open} zIndex={zIndex} centerClassName="items-center justify-center" onBackdropClick={onClose}>
       <ModalPanel className="w-[440px] max-w-[92vw] rounded-xl border border-border bg-card text-foreground shadow-2xl">
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <h2 className="text-sm font-semibold">{t('mail.move.browseTitle')}</h2>

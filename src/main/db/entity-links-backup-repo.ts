@@ -1,3 +1,5 @@
+import type { EntityRefKind } from '@shared/entity-ref'
+import { isEntityRefKind } from '@shared/entity-ref'
 import type { SettingsBackupFullEntityLinkSnapshot } from '@shared/types'
 import {
   addEntityLink,
@@ -5,6 +7,13 @@ import {
   rowSideToRef,
   type EntityLinkRow
 } from './entity-links-repo'
+
+function snapshotKind(kind: string): EntityRefKind {
+  if (!isEntityRefKind(kind)) {
+    throw new Error(`Ungueltige Entity-Kind im Backup: ${kind}`)
+  }
+  return kind
+}
 import { getDb } from './index'
 
 function rowToSnapshot(row: EntityLinkRow): SettingsBackupFullEntityLinkSnapshot {
@@ -44,7 +53,7 @@ function snapshotToRefs(snap: SettingsBackupFullEntityLinkSnapshot): {
     id: 0,
     ref_a_key: snap.refAKey,
     ref_b_key: snap.refBKey,
-    a_kind: snap.aKind,
+    a_kind: snapshotKind(snap.aKind),
     a_note_id: snap.aNoteId ?? null,
     a_mail_message_id: snap.aMailMessageId ?? null,
     a_mail_todo_id: snap.aMailTodoId ?? null,
@@ -54,7 +63,7 @@ function snapshotToRefs(snap: SettingsBackupFullEntityLinkSnapshot): {
     a_task_list_id: snap.aTaskListId ?? null,
     a_task_id: snap.aTaskId ?? null,
     a_people_contact_id: snap.aPeopleContactId ?? null,
-    b_kind: snap.bKind,
+    b_kind: snapshotKind(snap.bKind),
     b_note_id: snap.bNoteId ?? null,
     b_mail_message_id: snap.bMailMessageId ?? null,
     b_mail_todo_id: snap.bMailTodoId ?? null,
@@ -64,9 +73,9 @@ function snapshotToRefs(snap: SettingsBackupFullEntityLinkSnapshot): {
     b_task_list_id: snap.bTaskListId ?? null,
     b_task_id: snap.bTaskId ?? null,
     b_people_contact_id: snap.bPeopleContactId ?? null,
-    link_kind: snap.linkKind,
+    link_kind: snap.linkKind ?? null,
     created_at: snap.createdAt
-  } satisfies EntityLinkRow
+  } as EntityLinkRow
   return { a: rowSideToRef(row, 'a'), b: rowSideToRef(row, 'b') }
 }
 

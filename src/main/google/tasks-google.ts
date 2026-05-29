@@ -1,7 +1,16 @@
 import type { tasks_v1 } from 'googleapis'
-import type { TaskItemRow, TaskListRow } from '@shared/types'
+import type { TaskItemRow, TaskListRow, TaskSaveRecurrence } from '@shared/types'
+import { googleAuthUnavailableUserMessage, isGoogleAuthUnavailable } from '../auth/auth-errors'
 import { getGoogleApis } from './google-auth-client'
 import { dueIsoToGoogleTasksDue } from './tasks-google-due'
+
+type GoogleTaskWriteInput = {
+  title: string
+  notes?: string | null
+  dueIso?: string | null
+  completed?: boolean
+  recurrence?: TaskSaveRecurrence | null
+}
 
 interface GoogleTasksApiErrLike {
   message?: string
@@ -9,6 +18,9 @@ interface GoogleTasksApiErrLike {
 }
 
 function formatGoogleTasksError(err: unknown): Error {
+  if (isGoogleAuthUnavailable(err)) {
+    return new Error(googleAuthUnavailableUserMessage())
+  }
   if (err && typeof err === 'object') {
     const e = err as GoogleTasksApiErrLike
     const sub = e.errors?.[0]
@@ -101,7 +113,7 @@ export async function googleListTasksInList(
 export async function googleInsertTask(
   accountId: string,
   listId: string,
-  input: { title: string; notes?: string | null; dueIso?: string | null; completed?: boolean }
+  input: GoogleTaskWriteInput
 ): Promise<TaskItemRow> {
   const { tasks } = await getGoogleApis(accountId)
   const body: tasks_v1.Schema$Task = {

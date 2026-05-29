@@ -1,5 +1,6 @@
 /**
  * Zentrale Typografie-Hilfen. Bevorzugt Tailwind: text-2xs, text-xs, text-sm, text-base, text-md.
+ * Dashboard-Kacheln: chronell-type-dashboard-tile-* / chronell-dashboard-tile-body.
  * FullCalendar: notion-calendar.css (--chronell-text-*).
  */
 
@@ -51,5 +52,191 @@
     .chronell-type-calendar-range-title {
       font-size: var(--chronell-text-lg);
     }
+  }
+
+  /** Dashboard-Kacheln (Start + schmale Spalten) — nutzt --chronell-text-* */
+  .chronell-type-dashboard-tile-title {
+    font-size: var(--chronell-text-xs);
+    font-weight: 600;
+    line-height: 1.25;
+  }
+
+  .chronell-type-dashboard-tile-subtitle {
+    font-size: var(--chronell-text-2xs);
+    line-height: 1.25;
+  }
+
+  .chronell-type-dashboard-tile-group-label {
+    font-size: var(--chronell-text-xs);
+    font-weight: 600;
+    line-height: 1.25;
+  }
+
+  .chronell-type-dashboard-tile-list-primary {
+    font-size: var(--chronell-text-xs);
+    font-weight: 500;
+    line-height: 1.3;
+  }
+
+  .chronell-type-dashboard-tile-list-meta {
+    font-size: var(--chronell-text-2xs);
+    line-height: 1.25;
+  }
+
+  .chronell-type-dashboard-tile-caption {
+    font-size: var(--chronell-text-2xs);
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    line-height: 1.2;
+  }
+
+  .chronell-type-dashboard-tile-weather-temp {
+    font-size: var(--chronell-text-lg);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .chronell-dashboard-tile-body--compact .chronell-type-dashboard-tile-weather-temp {
+    font-size: var(--chronell-text-md);
+  }
+
+  /** Kachel-Inhalt: Basisgröße; Kind-Utilities werden eine Stufe mitgeskaliert. */
+  .chronell-dashboard-tile-body {
+    font-size: var(--chronell-text-xs);
+    line-height: 1.35;
+  }
+
+  .chronell-dashboard-tile-body--compact {
+    font-size: var(--chronell-text-2xs);
+    line-height: 1.3;
+  }
+
+  .chronell-dashboard-tile-body :where(.text-sm),
+  .chronell-dashboard-tile-body--compact :where(.text-sm) {
+    font-size: var(--chronell-text-xs);
+    line-height: 1.25;
+  }
+
+  .chronell-dashboard-tile-body :where(.text-xs) {
+    font-size: var(--chronell-text-xs);
+    line-height: 1.3;
+  }
+
+  .chronell-dashboard-tile-body--compact :where(.text-xs) {
+    font-size: var(--chronell-text-2xs);
+    line-height: 1.28;
+  }
+
+  .chronell-dashboard-tile-body :where(.text-2xs),
+  .chronell-dashboard-tile-body--compact :where(.text-2xs) {
+    font-size: var(--chronell-text-2xs);
+    line-height: 1.2;
+  }
+
+  .chronell-dashboard-tile-body--compact :where(.text-2xs) {
+    font-size: var(--chronell-text-3xs);
+    line-height: 1.15;
+  }
+
+  .chronell-dashboard-tile-body :where(.text-base) {
+    font-size: var(--chronell-text-sm);
+  }
+
+  .chronell-dashboard-tile-body--compact :where(.text-base) {
+    font-size: var(--chronell-text-xs);
+  }
+
+  .chronell-dashboard-tile-body :where(.text-lg),
+  .chronell-dashboard-tile-body :where(.text-xl) {
+    font-size: var(--chronell-text-base);
+    line-height: 1.2;
+  }
+
+  .chronell-dashboard-tile-body--compact :where(.text-3xl) {
+    font-size: var(--chronell-text-xl);
+    line-height: 1.1;
+  }
+
+  .chronell-dashboard-tile-body--compact :where(.text-lg),
+  .chronell-dashboard-tile-body--compact :where(.text-xl) {
+    font-size: var(--chronell-text-sm);
+  }
+
+  /** Mini-Kalender in schmaler Mail-Spalte */
+  [data-mail-sidebar-tile] .chronell-type-mini-cal-title {
+    font-size: var(--chronell-text-sm);
+  }
+
+  [data-mail-sidebar-tile] .chronell-type-mini-cal-day {
+    font-size: var(--chronell-text-xs);
+  }
+
+  [data-mail-sidebar-tile] .chronell-type-section-label {
+    font-size: var(--chronell-text-3xs);
+    letter-spacing: 0.06em;
+  }
+
+  /** Alte feste px-Klassen in Kachel-Inhalten (Tailwind-Arbitrary) */
+  .chronell-dashboard-tile-body :where([class*='text-[11px]']) {
+    font-size: var(--chronell-text-xs);
+    line-height: 1.25;
+  }
+
+  .chronell-dashboard-tile-body :where([class*='text-[10px]']) {
+    font-size: var(--chronell-text-2xs);
+    line-height: 1.2;
+  }
+
+  .chronell-dashboard-tile-body :where([class*='text-[9px]']) {
+    font-size: var(--chronell-text-3xs);
+    line-height: 1.15;
+  }
+
+  .chronell-dashboard-tile-body--compact :where([class*='text-[11px]']) {
+    font-size: var(--chronell-text-2xs);
+  }
+
+  .chronell-dashboard-tile-body--compact :where([class*='text-[10px]']),
+  .chronell-dashboard-tile-body--compact :where([class*='text-[9px]']) {
+    font-size: var(--chronell-text-3xs);
+  }
+
+  /** Mail-Rechtsleiste: Kontaktdetails (Verlauf, Anhänge, Termine). */
+  .chronell-mail-contact-panel {
+    font-size: var(--chronell-text-2xs);
+    line-height: 1.28;
+  }
+
+  .chronell-mail-contact-panel :where(.text-xs) {
+    font-size: var(--chronell-text-2xs);
+    line-height: 1.28;
+  }
+
+  .chronell-mail-contact-panel :where(.text-2xs) {
+    font-size: var(--chronell-text-2xs);
+    line-height: 1.25;
+  }
+
+  .chronell-mail-contact-panel :where(.text-3xs) {
+    font-size: var(--chronell-text-3xs);
+    line-height: 1.2;
+  }
+
+  .chronell-mail-contact-panel :where([class*='text-[11px]']) {
+    font-size: var(--chronell-text-2xs);
+    line-height: 1.25;
+  }
+
+  .chronell-mail-contact-panel :where([class*='text-[10px]']) {
+    font-size: var(--chronell-text-3xs);
+    line-height: 1.2;
+  }
+
+  .chronell-mail-contact-panel :where([class*='text-[9px]']) {
+    font-size: var(--chronell-text-3xs);
+    line-height: 1.15;
   }
 }

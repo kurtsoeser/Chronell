@@ -4,6 +4,7 @@ import {
   type UpsertMessageInput,
   type MessageFollowUpSyncSnapshot
 } from './db/messages-repo'
+import { syncParticipantsAfterUpsert } from './db/message-participants-repo'
 import { deleteTodosByMessageId } from './db/todos-repo'
 import { broadcastMailChanged } from './ipc/ipc-broadcasts'
 import { completeOpenTodoFromGraphFlagIfNeeded } from './todos-service'
@@ -25,6 +26,7 @@ export function upsertMailMessagesReconcilingTodos(accountId: string, rows: Upse
   const remoteIds = rows.map((r) => r.remoteId)
   const prev = getMessageFlagSnapshotsByRemoteIds(accountId, remoteIds)
   upsertMessages(rows)
+  syncParticipantsAfterUpsert(accountId, remoteIds)
   let notify = false
   for (const row of rows) {
     const snap = prev.get(row.remoteId)

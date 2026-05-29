@@ -84,6 +84,10 @@ const NotesShell = lazy(async () => {
   const m = await import('./app/notes/NotesShell')
   return { default: m.NotesShell }
 })
+const FilesShell = lazy(async () => {
+  const m = await import('./app/files/FilesShell')
+  return { default: m.FilesShell }
+})
 const ChatShell = lazy(async () => {
   const m = await import('./app/chat/ChatShell')
   return { default: m.ChatShell }
@@ -126,7 +130,12 @@ function AppShellFallback(): JSX.Element {
 }
 
 function TopbarFallback(): JSX.Element {
-  return <div className="h-12 shrink-0 border-b border-border bg-card" aria-hidden />
+  return (
+    <div
+      className="electron-window-titlebar h-12 shrink-0 border-b border-border bg-card"
+      aria-hidden
+    />
+  )
 }
 
 export function App(): JSX.Element {
@@ -162,10 +171,7 @@ export function App(): JSX.Element {
     workflowMailTriageAccounts.length > 0
 
   const showFirstRunWizard =
-    !accountsLoading &&
-    config != null &&
-    accounts.length === 0 &&
-    config.firstRunSetupCompleted === false
+    !accountsLoading && config != null && config.firstRunSetupCompleted === false
 
   function openAccountSettings(
     tab: OpenAccountSettingsTab = 'general',
@@ -268,6 +274,7 @@ export function App(): JSX.Element {
           {mode === 'work' && <WorkShell />}
           {mode === 'people' && <PeopleShell />}
           {mode === 'notes' && <NotesShell />}
+          {mode === 'files' && <FilesShell />}
           {mode === 'connections' && <ConnectionsShell />}
           {mode === 'chat' && (
             <ChatShell onOpenAccountDialog={(): void => openAccountSettings('general')} />

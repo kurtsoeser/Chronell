@@ -1,4 +1,6 @@
-import { ipcMain } from 'electron'
+import { BrowserWindow, dialog, ipcMain, type OpenDialogOptions } from 'electron'
+import { readFile } from 'node:fs/promises'
+import { isAccountAvatarIconId, normalizeAccountAvatarKind } from '@shared/account-avatar'
 import { normalizeBookWithMeUrl } from '@shared/book-with-me'
 import { IPC, type AccountSignatureTemplate, type ConnectedAccount } from '@shared/types'
 import { normalizeStoredAccountColor } from '@shared/account-colors'
@@ -20,6 +22,7 @@ import { revokeGoogleAccountTokens } from '../google/google-token-revoke'
 import { clearGoogleSyncMetaForAccount } from '../google/google-sync-meta-store'
 import { getMe } from '../graph/client'
 import { runInitialSync } from '../sync-runner'
+import { warnProviderAuthOnce } from '../auth/auth-errors'
 import {
   initials,
   listAccounts,
@@ -32,7 +35,10 @@ import {
   saveAccountProfilePhoto,
   fetchMicrosoftProfilePhoto,
   deleteAccountProfilePhoto,
-  readAccountProfilePhotoDataUrl
+  readAccountProfilePhotoDataUrl,
+  saveAccountCustomAvatar,
+  deleteAccountCustomAvatar,
+  readAccountCustomAvatarDataUrl
 } from '../account-photo'
 import { broadcastAccountsChanged } from './ipc-broadcasts'
 import {
@@ -99,6 +105,68 @@ export function registerAuthIpc(): void {
     return readAccountProfilePhotoDataUrl(acc.id, acc.profilePhotoFile)
   })
 
+  ipcMain.handle(
+    IPC.auth.getAccountDisplayAvatarDataUrl,
+    async (_event, accountId: string): Promise<string | null> => {
+      const accounts = await listAccounts()
+      const acc = accounts.find((a) => a.id === accountId)
+      if (!acc) return null
+      const kind = acc.avatarKind ?? 'provider'
+      if (kind === 'initials' || kind === 'icon') return null
+      if (kind === 'custom' && acc.customAvatarFile) {
+        return readAccountCustomAvatarDataUrl(acc.id, acc.customAvatarFile)
+      }
+      if (acc.profilePhotoFile) {
+        return readAccountProfilePhotoDataUrl(acc.id, acc.profilePhotoFile)
+      }
+      return null
+    }
+  )
+
+  ipcMain.handle(
+    IPC.auth.pickAccountCustomAvatar,
+    async (event, accountIdRaw: unknown): Promise<ConnectedAccount | { cancelled: true }> => {
+      const accountId = typeof accountIdRaw === 'string' ? accountIdRaw.trim() : ''
+      if (!accountId) throw new Error('Keine Konto-ID.')
+      const current = await listAccounts()
+      const prev = current.find((a) => a.id === accountId)
+      if (!prev) throw new Error('Konto nicht gefunden.')
+
+      const win = BrowserWindow.fromWebContents(event.sender)
+      const options: OpenDialogOptions = {
+        title: 'Kontobild waehlen',
+        filters: [{ name: 'Bilder', extensions: ['png', 'jpg', 'jpeg', 'webp'] }],
+        properties: ['openFile']
+      }
+      const { canceled, filePaths } = await (win
+        ? dialog.showOpenDialog(win, options)
+        : dialog.showOpenDialog(options))
+      if (canceled || !filePaths?.[0]) {
+        return { cancelled: true }
+      }
+
+      const buf = await readFile(filePaths[0])
+      if (buf.length === 0 || buf.length > 5 * 1024 * 1024) {
+        throw new Error('Bild zu gross (max. 5 MB).')
+      }
+
+      await deleteAccountCustomAvatar(prev.customAvatarFile, prev.id)
+      const fileName = await saveAccountCustomAvatar(prev.id, buf)
+      const account: ConnectedAccount = {
+        ...prev,
+        avatarKind: 'custom',
+        customAvatarFile: fileName,
+        avatarIconId: null
+      }
+      await upsertAccount(account)
+      const next = await listAccounts()
+      broadcastAccountsChanged(next)
+      void markProfileDataDirty()
+      scheduleProfileSyncDebounced()
+      return account
+    }
+  )
+
   ipcMain.handle(IPC.auth.addMicrosoft, async (): Promise<ConnectedAccount> => {
     const config = await loadConfig()
     if (!config.microsoftClientId) {
@@ -141,7 +209,7 @@ export function registerAuthIpc(): void {
     const next = await upsertAccount(account)
     broadcastAccountsChanged(next)
 
-    void runInitialSync(account.id)
+    void runInitialSync(account.id).catch((e) => warnProviderAuthOnce('startup', account.id, e))
     return account
   })
 
@@ -206,7 +274,7 @@ export function registerAuthIpc(): void {
     const next = await upsertAccount(account)
     broadcastAccountsChanged(next)
 
-    void runInitialSync(account.id)
+    void runInitialSync(account.id).catch((e) => warnProviderAuthOnce('startup', account.id, e))
     return account
   })
 
@@ -281,7 +349,7 @@ export function registerAuthIpc(): void {
     const next = await upsertAccount(account)
     broadcastAccountsChanged(next)
 
-    void runInitialSync(account.id)
+    void runInitialSync(account.id).catch((e) => warnProviderAuthOnce('startup', account.id, e))
     return account
   })
 
@@ -349,7 +417,7 @@ export function registerAuthIpc(): void {
     const next = await upsertAccount(account)
     broadcastAccountsChanged(next)
 
-    void runInitialSync(account.id)
+    void runInitialSync(account.id).catch((e) => warnProviderAuthOnce('startup', account.id, e))
     return account
   })
 
@@ -380,6 +448,7 @@ export function registerAuthIpc(): void {
       }
 
       await deleteAccountProfilePhoto(target.profilePhotoFile, target.id)
+      await deleteAccountCustomAvatar(target.customAvatarFile, target.id)
 
       try {
         deletePeopleDataForAccount(id)
@@ -442,6 +511,8 @@ export function registerAuthIpc(): void {
       const body = payload as {
         accountId?: string
         color?: string
+        avatarKind?: string
+        avatarIconId?: string | null
         calendarLoadAheadDays?: number | null | 'default'
         signatureTemplates?: unknown
         defaultSignatureTemplateId?: string | null
@@ -453,14 +524,25 @@ export function registerAuthIpc(): void {
         throw new Error('Keine Konto-ID.')
       }
       const hasColor = typeof body.color === 'string' && body.color.trim().length > 0
+      const hasAvatarKind = 'avatarKind' in body
+      const hasAvatarIcon = 'avatarIconId' in body
       const hasAhead = 'calendarLoadAheadDays' in body
       const hasSig = 'signatureTemplates' in body
       const hasDef = 'defaultSignatureTemplateId' in body
       const hasBookWithMe = 'bookWithMeUrl' in body
       const hasSharedMailboxes = 'sharedMailboxSendAs' in body
-      if (!hasColor && !hasAhead && !hasSig && !hasDef && !hasBookWithMe && !hasSharedMailboxes) {
+      if (
+        !hasColor &&
+        !hasAvatarKind &&
+        !hasAvatarIcon &&
+        !hasAhead &&
+        !hasSig &&
+        !hasDef &&
+        !hasBookWithMe &&
+        !hasSharedMailboxes
+      ) {
         throw new Error(
-          'Keine Aenderungen (Farbe, Kalender, Signaturvorlagen, Book with me, freigegebene Postfaecher).'
+          'Keine Aenderungen (Farbe, Avatar, Kalender, Signaturvorlagen, Book with me, freigegebene Postfaecher).'
         )
       }
       const current = await listAccounts()
@@ -476,6 +558,40 @@ export function registerAuthIpc(): void {
           throw new Error('Ungueltige Kontofarbe (Preset oder #rrggbb).')
         }
         account.color = normalized
+      }
+      if (hasAvatarKind) {
+        const kind = normalizeAccountAvatarKind(body.avatarKind)
+        if (!kind) {
+          throw new Error('Ungueltiger Avatar-Typ.')
+        }
+        if (kind === 'provider') {
+          delete account.avatarKind
+          account.avatarIconId = null
+        } else {
+          account.avatarKind = kind
+          if (kind !== 'icon') {
+            account.avatarIconId = null
+          }
+          if (kind !== 'custom') {
+            void deleteAccountCustomAvatar(account.customAvatarFile, account.id)
+            account.customAvatarFile = null
+          }
+        }
+      }
+      if (hasAvatarIcon) {
+        const rawIcon = body.avatarIconId
+        if (rawIcon === null) {
+          account.avatarIconId = null
+        } else if (typeof rawIcon === 'string') {
+          const iconId = rawIcon.trim()
+          if (!isAccountAvatarIconId(iconId)) {
+            throw new Error('Ungueltiges Konto-Icon.')
+          }
+          account.avatarIconId = iconId
+          account.avatarKind = 'icon'
+        } else {
+          throw new Error('Ungueltiges Konto-Icon.')
+        }
       }
       if (hasAhead) {
         const raw = body.calendarLoadAheadDays

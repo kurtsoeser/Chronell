@@ -87,6 +87,8 @@ interface GraphTodoTask {
 
   recurrence?: unknown
 
+  categories?: string[] | null
+
 }
 
 
@@ -181,6 +183,18 @@ function bodyNotes(body: GraphItemBody | null | undefined): string | null {
 
 }
 
+export function normalizeGraphTodoCategories(c: string[] | null | undefined): string[] | undefined {
+  if (c === undefined) return undefined
+  if (c === null) return []
+  const u = Array.from(new Set(c.map((x) => x.trim()).filter((x) => x.length > 0)))
+  return u.slice(0, 25)
+}
+
+function parseGraphTodoCategories(raw: string[] | null | undefined): string[] | undefined {
+  const normalized = normalizeGraphTodoCategories(raw ?? [])
+  return normalized && normalized.length > 0 ? normalized : undefined
+}
+
 
 
 function rowFromGraphTask(listId: string, t: GraphTodoTask): TaskItemRow | null {
@@ -190,6 +204,7 @@ function rowFromGraphTask(listId: string, t: GraphTodoTask): TaskItemRow | null 
   const completed = t.status === 'completed'
 
   const recurrence = parseGraphTodoRecurrence(t.recurrence)
+  const categories = parseGraphTodoCategories(t.categories)
 
   return {
 
@@ -205,7 +220,9 @@ function rowFromGraphTask(listId: string, t: GraphTodoTask): TaskItemRow | null 
 
     notes: bodyNotes(t.body ?? undefined),
 
-    ...(recurrence ? { recurrence, recurrenceLocalOnly: false } : {})
+    ...(recurrence ? { recurrence, recurrenceLocalOnly: false } : {}),
+
+    ...(categories ? { categories } : {})
 
   }
 
@@ -409,6 +426,7 @@ export async function graphCreateTodoTask(
     dueIso?: string | null
     completed?: boolean
     recurrence?: TaskSaveRecurrence | null
+    categories?: string[] | null
   }
 
 ): Promise<TaskItemRow> {
@@ -453,6 +471,9 @@ export async function graphCreateTodoTask(
 
   }
 
+  const cats = normalizeGraphTodoCategories(input.categories)
+  if (cats !== undefined) body.categories = cats
+
   const created = (await client.api(`/me/todo/lists/${encList}/tasks`).post(body)) as GraphTodoTask
 
   const taskId = created.id
@@ -482,6 +503,8 @@ export async function graphPatchTodoTask(
     dueIso?: string | null
 
     completed?: boolean
+
+    categories?: string[] | null
 
   }
 
@@ -537,6 +560,10 @@ export async function graphPatchTodoTask(
 
   }
 
+  if (patch.categories !== undefined) {
+    body.categories = normalizeGraphTodoCategories(patch.categories) ?? []
+  }
+
   await client.api(`/me/todo/lists/${encList}/tasks/${encTask}`).patch(body)
 
   return rowAfterGraphTaskWrite(accountId, listId, taskId, patch.dueIso)
@@ -553,7 +580,7 @@ export async function graphUpdateTodoTask(
 
   taskId: string,
 
-  input: { title: string; notes?: string | null; dueIso?: string | null; completed?: boolean }
+  input: { title: string; notes?: string | null; dueIso?: string | null; completed?: boolean; categories?: string[] | null }
 
 ): Promise<TaskItemRow> {
 
@@ -565,7 +592,9 @@ export async function graphUpdateTodoTask(
 
     dueIso: input.dueIso ?? null,
 
-    completed: input.completed ?? false
+    completed: input.completed ?? false,
+
+    categories: input.categories
 
   })
 

@@ -33,7 +33,7 @@ import { resolveCalendarDisplayHex } from '@shared/graph-calendar-colors'
 import { CalendarFolderColorSwatch } from '@/components/CalendarFolderColorSwatch'
 import { cn } from '@/lib/utils'
 import { resolvedAccountColorCss } from '@/lib/avatar-color'
-import { Avatar } from '@/components/Avatar'
+import { AccountAvatarBadge } from '@/components/AccountAvatarBadge'
 import { AccountSyncStatusButton } from '@/components/AccountSyncStatusButton'
 import type { SyncStatus } from '@shared/types'
 import { AccountColorStripe } from '@/components/AccountColorStripe'
@@ -449,12 +449,8 @@ export function CalendarShellSidebarCalendars({
                 className="flex min-w-0 flex-1 items-center gap-2 text-left"
                 title={a.email}
               >
-                <Avatar
-                  name={a.displayName}
-                  email={a.email}
-                  bgClass={a.color}
-                  accountColor={a.color}
-                  initials={a.initials}
+                <AccountAvatarBadge
+                  account={a}
                   imageSrc={profilePhotoDataUrls[a.id]}
                   size="sm"
                 />

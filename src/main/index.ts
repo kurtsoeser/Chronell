@@ -5,6 +5,7 @@ import { registerIpcHandlers } from './ipc'
 import { getDb, getDbPath, closeDb } from './db'
 import { listAccounts } from './accounts'
 import { runInitialSync } from './sync-runner'
+import { warnProviderAuthOnce } from './auth/auth-errors'
 import { startCalendarSync, stopCalendarSync } from './calendar-sync-runner'
 import { startMailPolling, stopMailPolling } from './mail-poll-runner'
 import { loadConfig } from './config'
@@ -25,10 +26,16 @@ import {
 import { APP_ID, APP_PRODUCT_NAME } from '@shared/app-version'
 import { attachChromiumZoomShortcutGuard } from './zoom-shortcut-guard'
 import { resolveAppWindowIcon } from './app-icon'
+import { mainWindowTitleBarOptions } from './window-titlebar'
+import { attachWindowMaximizedEvents } from './window-state-events'
 import {
   startMailBodyIndexRunner,
   stopMailBodyIndexRunner
 } from './mail-body-index-runner-bridge'
+import {
+  startMailAttachmentIndexRunner,
+  stopMailAttachmentIndexRunner
+} from './mail-attachment-index-queue'
 import { readStoredSession } from './sync-profile/supabase-session'
 import {
   startProfileSyncRunner,
@@ -162,6 +169,7 @@ function createMainWindow(): void {
     backgroundColor: '#0e0e12',
     title: APP_PRODUCT_NAME,
     ...(icon ? { icon } : {}),
+    ...mainWindowTitleBarOptions(),
     webPreferences: {
       preload: join(__dirname, '../preload/index.mjs'),
       sandbox: false,
@@ -174,6 +182,7 @@ function createMainWindow(): void {
   })
 
   attachChromiumZoomShortcutGuard(mainWindow.webContents)
+  attachWindowMaximizedEvents(mainWindow)
 
   mainWindow.on('ready-to-show', () => {
     if (mainWindow) applyWindowIcon(mainWindow)
@@ -246,9 +255,7 @@ app.whenReady().then(async () => {
   const accounts = await listAccounts()
   if (isAppOnline()) {
     for (const account of accounts) {
-      void runInitialSync(account.id).catch((e) =>
-        console.error('[startup] sync failed for', account.id, e)
-      )
+      void runInitialSync(account.id).catch((e) => warnProviderAuthOnce('startup', account.id, e))
     }
   } else {
     console.warn('[startup] offline — Initial-Sync wird uebersprungen.')
@@ -257,6 +264,7 @@ app.whenReady().then(async () => {
   startMailPolling()
   startCalendarSync()
   startMailBodyIndexRunner()
+  startMailAttachmentIndexRunner()
 
   const cfg = await loadConfig()
   if (cfg.profileDataMode === 'cloud') {
@@ -280,6 +288,7 @@ app.on('before-quit', () => {
   stopCalendarSync()
   stopConnectivityMonitoring()
   stopMailBodyIndexRunner()
+  stopMailAttachmentIndexRunner()
   stopProfileSyncRunner()
 })
 
@@ -288,6 +297,7 @@ app.on('window-all-closed', () => {
   stopCalendarSync()
   stopConnectivityMonitoring()
   stopMailBodyIndexRunner()
+  stopMailAttachmentIndexRunner()
   stopProfileSyncRunner()
   closeDb()
   if (process.platform !== 'darwin') {

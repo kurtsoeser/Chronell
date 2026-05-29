@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { UserNote } from '@shared/types'
 import { formatNoteDate, noteTitle } from '@/app/notes/notes-display-helpers'
 import { NoteDisplayIcon } from '@/components/NoteDisplayIcon'
 import { CalendarEventIconPicker } from '@/components/CalendarEventIconPicker'
 import { IconColorPickerFooter } from '@/components/IconColorPickerFooter'
+import { MarkdownNoteEditor } from '@/components/MarkdownNoteEditor'
 import { resolveEntityIconColor } from '@shared/entity-icon-color'
-import { RichTextNotesPreview } from '@/components/RichTextNotesPreview'
-import { useThemeStore } from '@/stores/theme'
 import { cn } from '@/lib/utils'
+
+const AUTOSAVE_MS = 800
 
 async function persistNote(
   note: UserNote,
@@ -52,8 +54,6 @@ async function persistNote(
   throw new Error(invalidNoteMessage)
 }
 
-type PreviewEditField = 'title' | 'body'
-
 export function ConnectionsNotePreview({
   note,
   onNoteChange
@@ -62,52 +62,32 @@ export function ConnectionsNotePreview({
   onNoteChange: (note: UserNote) => void
 }): JSX.Element {
   const { t, i18n } = useTranslation()
-  const viewerTheme = useThemeStore((s) => s.effective)
   const untitled = t('notes.shell.untitled')
   const displayTitle = noteTitle(note, untitled)
 
-  const [editingField, setEditingField] = useState<PreviewEditField | null>(null)
   const [titleDraft, setTitleDraft] = useState(displayTitle)
   const [bodyDraft, setBodyDraft] = useState(note.body)
   const [saving, setSaving] = useState(false)
   const [inlineError, setInlineError] = useState<string | null>(null)
 
-  const titleInputRef = useRef<HTMLInputElement>(null)
-  const bodyEditorRef = useRef<HTMLTextAreaElement>(null)
+  const savedSnapshotRef = useRef({ title: displayTitle, body: note.body, noteId: note.id })
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    setEditingField(null)
-    setInlineError(null)
+    savedSnapshotRef.current = { title: displayTitle, body: note.body, noteId: note.id }
     setTitleDraft(displayTitle)
     setBodyDraft(note.body)
+    setInlineError(null)
   }, [displayTitle, note.body, note.id])
 
-  useEffect(() => {
-    if (editingField === 'title') {
-      setTitleDraft(note.title?.trim() ?? displayTitle)
-      titleInputRef.current?.focus()
-      titleInputRef.current?.select()
+  const flushSave = useCallback(async (): Promise<void> => {
+    if (autosaveTimerRef.current != null) {
+      clearTimeout(autosaveTimerRef.current)
+      autosaveTimerRef.current = null
     }
-    if (editingField === 'body') {
-      setBodyDraft(note.body)
-      bodyEditorRef.current?.focus()
-    }
-  }, [displayTitle, editingField, note.body, note.title])
-
-  const cancelInlineEdit = useCallback((): void => {
-    setEditingField(null)
-    setInlineError(null)
-    setTitleDraft(displayTitle)
-    setBodyDraft(note.body)
-  }, [displayTitle, note.body])
-
-  const commitInlineEdit = useCallback(async (): Promise<void> => {
-    if (!editingField) return
     const nextTitle = titleDraft.trim() || untitled
-    const nextBody = bodyDraft
-    const titleChanged = editingField === 'title' && nextTitle !== displayTitle
-    const bodyChanged = editingField === 'body' && nextBody !== note.body
-    setEditingField(null)
+    const titleChanged = nextTitle !== savedSnapshotRef.current.title
+    const bodyChanged = bodyDraft !== savedSnapshotRef.current.body
     if (!titleChanged && !bodyChanged) return
     setSaving(true)
     setInlineError(null)
@@ -116,49 +96,44 @@ export function ConnectionsNotePreview({
         note,
         {
           ...(titleChanged ? { title: nextTitle } : {}),
-          ...(bodyChanged ? { body: nextBody } : {})
+          ...(bodyChanged ? { body: bodyDraft } : {})
         },
         t('notes.shell.invalidNote')
       )
+      savedSnapshotRef.current = {
+        title: noteTitle(saved, untitled),
+        body: saved.body,
+        noteId: saved.id
+      }
       onNoteChange(saved)
     } catch (e) {
       setInlineError(e instanceof Error ? e.message : String(e))
-      cancelInlineEdit()
     } finally {
       setSaving(false)
     }
-  }, [
-    bodyDraft,
-    cancelInlineEdit,
-    displayTitle,
-    editingField,
-    note,
-    onNoteChange,
-    t,
-    titleDraft,
-    untitled
-  ])
+  }, [bodyDraft, note, onNoteChange, t, titleDraft, untitled])
+
+  const scheduleAutosave = useCallback((): void => {
+    if (autosaveTimerRef.current != null) clearTimeout(autosaveTimerRef.current)
+    autosaveTimerRef.current = setTimeout(() => {
+      autosaveTimerRef.current = null
+      void flushSave()
+    }, AUTOSAVE_MS)
+  }, [flushSave])
 
   useEffect(() => {
-    if (!editingField) return
-    function onDocMouseDown(e: globalThis.MouseEvent): void {
-      const target = e.target as Node
-      if (editingField === 'title' && titleInputRef.current?.contains(target)) return
-      if (editingField === 'body' && bodyEditorRef.current?.contains(target)) return
-      void commitInlineEdit()
-    }
-    function onKeyDown(e: KeyboardEvent): void {
-      if (e.key !== 'Escape') return
-      e.preventDefault()
-      cancelInlineEdit()
-    }
-    document.addEventListener('mousedown', onDocMouseDown)
-    document.addEventListener('keydown', onKeyDown, true)
+    const nextTitle = titleDraft.trim() || untitled
+    const dirty =
+      nextTitle !== savedSnapshotRef.current.title || bodyDraft !== savedSnapshotRef.current.body
+    if (!dirty) return
+    scheduleAutosave()
     return (): void => {
-      document.removeEventListener('mousedown', onDocMouseDown)
-      document.removeEventListener('keydown', onKeyDown, true)
+      if (autosaveTimerRef.current != null) {
+        clearTimeout(autosaveTimerRef.current)
+        autosaveTimerRef.current = null
+      }
     }
-  }, [cancelInlineEdit, commitInlineEdit, editingField])
+  }, [bodyDraft, scheduleAutosave, titleDraft, untitled])
 
   const patchDisplay = useCallback(
     async (patch: { iconId?: string | null; iconColor?: string | null }): Promise<void> => {
@@ -175,103 +150,71 @@ export function ConnectionsNotePreview({
     [note.id, onNoteChange]
   )
 
-  const beginInlineEdit = useCallback(
-    (field: PreviewEditField): void => {
-      if (saving) return
-      setEditingField(field)
-    },
-    [saving]
-  )
-
-  const doubleClickActivate = useCallback(
-    (field: PreviewEditField) => ({
-      onDoubleClick: (e: { preventDefault: () => void; stopPropagation: () => void }): void => {
-        e.preventDefault()
-        e.stopPropagation()
-        beginInlineEdit(field)
-      }
-    }),
-    [beginInlineEdit]
-  )
-
-  const clickableClass =
-    'cursor-pointer rounded-sm transition-colors hover:bg-secondary/60'
-
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
-      <div className="flex items-start gap-2">
-        <CalendarEventIconPicker
-          layout="compact"
-          openOn="doubleClick"
-          iconId={note.iconId}
-          iconColorHex={resolveEntityIconColor(note.iconColor)}
-          title={displayTitle}
-          disabled={saving}
-          compactButtonClassName="mt-0.5 h-7 w-7 shrink-0 border-0 bg-transparent shadow-none hover:bg-secondary/60"
-          triggerIcon={<NoteDisplayIcon note={note} className="h-4 w-4" />}
-          onIconChange={(iconId): void => void patchDisplay({ iconId: iconId ?? null })}
-          footer={
-            <IconColorPickerFooter
-              iconColor={note.iconColor}
-              onIconColorChange={(iconColor): void => void patchDisplay({ iconColor })}
-            />
-          }
-        />
-        <div className="min-w-0 flex-1">
-          {editingField === 'title' ? (
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="flex shrink-0 flex-col gap-2 border-b border-border/40 p-4 pb-3">
+        <div className="flex items-start gap-2">
+          <CalendarEventIconPicker
+            layout="compact"
+            openOn="doubleClick"
+            iconId={note.iconId}
+            iconColorHex={resolveEntityIconColor(note.iconColor)}
+            title={titleDraft.trim() || displayTitle}
+            disabled={saving}
+            compactButtonClassName="mt-0.5 h-7 w-7 shrink-0 border-0 bg-transparent shadow-none hover:bg-secondary/60"
+            triggerIcon={<NoteDisplayIcon note={note} className="h-4 w-4" />}
+            onIconChange={(iconId): void => void patchDisplay({ iconId: iconId ?? null })}
+            footer={
+              <IconColorPickerFooter
+                iconColor={note.iconColor}
+                onIconColorChange={(iconColor): void => void patchDisplay({ iconColor })}
+              />
+            }
+          />
+          <div className="min-w-0 flex-1">
             <input
-              ref={titleInputRef}
               type="text"
               value={titleDraft}
               disabled={saving}
               onChange={(e): void => setTitleDraft(e.target.value)}
-              onKeyDown={(e): void => {
-                if (e.key === 'Enter') {
-                  e.preventDefault()
-                  void commitInlineEdit()
-                }
-              }}
-              className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
+              onBlur={(): void => void flushSave()}
+              className="w-full rounded-md border border-transparent bg-transparent px-1 py-0.5 text-sm font-semibold text-foreground outline-none hover:border-border/60 focus:border-border focus:bg-background focus:ring-2 focus:ring-ring/30"
             />
-          ) : (
-            <div
-              title={t('notes.sections.renameDoubleClick')}
-              className={cn('text-sm font-semibold text-foreground', clickableClass, '-mx-1 px-1')}
-              {...doubleClickActivate('title')}
-            >
-              {displayTitle}
+            <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+              <span>
+                {t(`notes.kind.${note.kind}`)}
+                {' · '}
+                {formatNoteDate(note.updatedAt, i18n.language)}
+              </span>
+              {saving ? (
+                <span className="inline-flex items-center gap-1 text-primary">
+                  <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
+                  {t('notes.editor.saving')}
+                </span>
+              ) : null}
             </div>
-          )}
-          <div className="mt-0.5 text-[11px] text-muted-foreground">
-            {t(`notes.kind.${note.kind}`)}
-            {' · '}
-            {formatNoteDate(note.updatedAt, i18n.language)}
           </div>
         </div>
+        {inlineError ? <p className="text-[11px] text-destructive">{inlineError}</p> : null}
       </div>
-      {inlineError ? <p className="text-[11px] text-destructive">{inlineError}</p> : null}
-      {editingField === 'body' ? (
-        <textarea
-          ref={bodyEditorRef}
+
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col px-4 py-3">
+        <MarkdownNoteEditor
           value={bodyDraft}
+          onChange={setBodyDraft}
+          placeholder={t('notes.editor.placeholder')}
+          fillHeight
+          minHeight={160}
+          layout="live"
+          preview="live"
           disabled={saving}
-          onChange={(e): void => setBodyDraft(e.target.value)}
-          rows={12}
-          className="min-h-[160px] w-full resize-y rounded-md border border-border bg-background px-3 py-2 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
+          className="min-h-0 flex-1"
         />
-      ) : (
-        <div
-          title={t('connections.preview.editNoteBodyDoubleClick')}
-          className={cn('min-h-[80px] rounded-md', clickableClass, '-mx-1 px-1 py-1')}
-          {...doubleClickActivate('body')}
-        >
-          {note.body.trim() ? (
-            <RichTextNotesPreview notes={note.body} viewerTheme={viewerTheme} />
-          ) : (
-            <p className="text-xs text-muted-foreground">{t('notes.shell.emptyBody')}</p>
-          )}
-        </div>
-      )}
+      </div>
+
+      <p className={cn('shrink-0 px-4 pb-2 text-[11px] text-muted-foreground')}>
+        {t('notes.editor.markdownHint')}
+      </p>
     </div>
   )
 }

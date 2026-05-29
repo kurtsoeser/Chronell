@@ -68,6 +68,7 @@ export async function createTaskForAccount(
     dueIso?: string | null
     completed?: boolean
     recurrence?: TaskSaveRecurrence | null
+    categories?: string[] | null
   }
 ): Promise<TaskItemRow> {
   const acc = await resolveConnectedAccount(accountId)
@@ -75,7 +76,13 @@ export async function createTaskForAccount(
     throw new Error('Wiederholende Aufgabe: Faelligkeitsdatum ist erforderlich.')
   }
   if (acc.provider === 'google') {
-    const row = await googleInsertTask(accountId, listId, input)
+    const row = await googleInsertTask(accountId, listId, {
+      title: input.title,
+      notes: input.notes,
+      dueIso: input.dueIso,
+      completed: input.completed,
+      recurrence: input.recurrence
+    })
     if (input.recurrence) {
       return {
         ...row,
@@ -97,11 +104,17 @@ export async function patchTaskForAccount(
     notes?: string | null
     dueIso?: string | null
     completed?: boolean
+    categories?: string[] | null
   }
 ): Promise<TaskItemRow> {
   const acc = await resolveConnectedAccount(accountId)
   if (acc.provider === 'google') {
-    return googlePatchTask(accountId, listId, taskId, patch)
+    return googlePatchTask(accountId, listId, taskId, {
+      title: patch.title,
+      notes: patch.notes,
+      dueIso: patch.dueIso,
+      completed: patch.completed
+    })
   }
   return graphPatchTodoTask(accountId, listId, taskId, patch)
 }
@@ -110,11 +123,16 @@ export async function updateTaskForAccount(
   accountId: string,
   listId: string,
   taskId: string,
-  input: { title: string; notes?: string | null; dueIso?: string | null; completed?: boolean }
+  input: { title: string; notes?: string | null; dueIso?: string | null; completed?: boolean; categories?: string[] | null }
 ): Promise<TaskItemRow> {
   const acc = await resolveConnectedAccount(accountId)
   if (acc.provider === 'google') {
-    return googleUpdateTask(accountId, listId, taskId, input)
+    return googleUpdateTask(accountId, listId, taskId, {
+      title: input.title,
+      notes: input.notes,
+      dueIso: input.dueIso,
+      completed: input.completed
+    })
   }
   return graphUpdateTodoTask(accountId, listId, taskId, input)
 }

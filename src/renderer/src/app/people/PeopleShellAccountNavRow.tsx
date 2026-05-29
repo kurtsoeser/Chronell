@@ -4,7 +4,7 @@ import { AlertCircle, ChevronRight, GripVertical, Loader2, RefreshCw } from 'luc
 import { useTranslation } from 'react-i18next'
 import type { MouseEvent } from 'react'
 import type { ConnectedAccount } from '@shared/types'
-import { Avatar } from '@/components/Avatar'
+import { AccountAvatarBadge } from '@/components/AccountAvatarBadge'
 import { cn } from '@/lib/utils'
 
 export function PeopleShellSortableAccountNavRow({
@@ -92,12 +92,8 @@ export function PeopleShellSortableAccountNavRow({
           className="flex min-w-0 flex-1 items-center gap-2 text-left"
           title={account.email}
         >
-          <Avatar
-            name={account.displayName}
-            email={account.email}
-            bgClass={account.color}
-            accountColor={account.color}
-            initials={account.initials}
+          <AccountAvatarBadge
+            account={account}
             imageSrc={profilePhotoDataUrl}
             size="sm"
           />

@@ -1,16 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Check, ChevronDown } from 'lucide-react'
+import { Check, Layers, Palette, SlidersHorizontal, Sparkles } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import { FilterTabs } from '@/components/FilterTabs'
 import { DARK_PALETTE_SURFACES } from '@/lib/dark-palette-presets'
 import { LIGHT_PALETTE_SURFACES } from '@/lib/light-palette-presets'
 import { BUILTIN_THEME_COLOR_PRESETS } from '@/lib/theme-color-presets-builtin'
 import { normalizeHex } from '@/lib/theme-color-utils'
-import {
-  listSubtleBorderClass,
-  settingsControlBorderClass,
-  settingsSectionClass
-} from '@/lib/chronell-ui-classes'
+import { listSubtleBorderClass, settingsControlBorderClass } from '@/lib/chronell-ui-classes'
 import { cn } from '@/lib/utils'
 import {
   SURFACE_TOKEN_LIST,
@@ -26,6 +23,9 @@ import {
 } from '@/stores/theme'
 
 type ColorsTab = 'quick' | 'presets' | 'tune'
+type SchemaTab = 'light' | 'dark'
+
+const TAB_ICON_CLASS = 'h-3.5 w-3.5 shrink-0'
 
 const LIGHT_VARIANTS: Array<{
   id: LightPalette
@@ -104,11 +104,14 @@ function previewPaneOutline(schema: EffectiveTheme): string {
 function ModuleLayoutPreview({
   colors,
   schema,
-  tall = false
+  tall = false,
+  showLegend = false
 }: {
   colors: Record<ThemeSurfaceToken, string>
   schema: EffectiveTheme
   tall?: boolean
+  /** L0–L3-Legende mit Hex-Werten (nur in Feinabstimmung). */
+  showLegend?: boolean
 }): JSX.Element {
   const { t } = useTranslation()
   const bg = surfaceSwatchColor(colors, 'background')
@@ -118,32 +121,7 @@ function ModuleLayoutPreview({
   const outline = previewPaneOutline(schema)
   const listLine = schema === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)'
 
-  return (
-    <div className={cn('overflow-hidden rounded-lg border bg-card shadow-sm', listSubtleBorderClass)}>
-      <div className={cn('grid grid-cols-4 gap-2 border-b bg-background/60 px-3 py-2', listSubtleBorderClass)}>
-        {SURFACE_TOKEN_LIST.map((token, index) => (
-          <div key={token} className="min-w-0 text-center" title={colors[token]}>
-            <div
-              className={cn('mx-auto h-5 w-full max-w-[4.5rem] rounded-sm border', listSubtleBorderClass)}
-              style={{
-                backgroundColor: surfaceSwatchColor(colors, token),
-                boxShadow: outline
-              }}
-            />
-            <span className="mt-1 block text-3xs font-semibold text-foreground">
-              {t(LAYER_LABEL_KEYS[index])}
-            </span>
-            <span className="block truncate font-mono text-3xs text-muted-foreground">
-              {colors[token]}
-            </span>
-          </div>
-        ))}
-      </div>
-
-      <div className="p-3">
-        <p className="mb-1.5 text-3xs font-medium uppercase tracking-wide text-muted-foreground">
-          {t('settings.themeColorsLayoutPreview')}
-        </p>
+  const mockup = (
         <div
           className="overflow-hidden rounded-md"
           style={{ backgroundColor: bg, boxShadow: outline }}
@@ -207,21 +185,67 @@ function ModuleLayoutPreview({
             </div>
           </div>
         </div>
+  )
+
+  if (!showLegend) {
+    return (
+      <div className={cn('overflow-hidden rounded-md border bg-card/80 p-2 shadow-sm', listSubtleBorderClass)}>
+        {mockup}
+      </div>
+    )
+  }
+
+  return (
+    <div className={cn('overflow-hidden rounded-lg border bg-card shadow-sm', listSubtleBorderClass)}>
+      <div className={cn('grid grid-cols-4 gap-2 border-b bg-background/60 px-3 py-2', listSubtleBorderClass)}>
+        {SURFACE_TOKEN_LIST.map((token, index) => (
+          <div key={token} className="min-w-0 text-center" title={colors[token]}>
+            <div
+              className={cn('mx-auto h-5 w-full max-w-[4.5rem] rounded-sm border', listSubtleBorderClass)}
+              style={{
+                backgroundColor: surfaceSwatchColor(colors, token),
+                boxShadow: outline
+              }}
+            />
+            <span className="mt-1 block text-3xs font-semibold text-foreground">
+              {t(LAYER_LABEL_KEYS[index])}
+            </span>
+            <span className="block truncate font-mono text-3xs text-muted-foreground">
+              {colors[token]}
+            </span>
+          </div>
+        ))}
+      </div>
+      <div className="p-3">
+        <p className="mb-1.5 text-3xs font-medium uppercase tracking-wide text-muted-foreground">
+          {t('settings.themeColorsLayoutPreview')}
+        </p>
+        {mockup}
       </div>
     </div>
   )
 }
 
-function MiniSurfacePreview({
-  colors,
-  schema = 'dark',
-  compact = false
+function SchemaSubTabs({
+  value,
+  onChange
 }: {
-  colors: Record<ThemeSurfaceToken, string>
-  schema?: EffectiveTheme
-  compact?: boolean
+  value: SchemaTab
+  onChange: (id: SchemaTab) => void
 }): JSX.Element {
-  return <ModuleLayoutPreview colors={colors} schema={schema} tall={!compact} />
+  const { t } = useTranslation()
+  return (
+    <FilterTabs<SchemaTab>
+      value={value}
+      onChange={onChange}
+      ariaLabel={t('settings.themeColorsSchemaTabsAria')}
+      className="rounded-md bg-background/60 p-0.5"
+      options={[
+        { id: 'light', label: t('settings.themeColorsLight') },
+        { id: 'dark', label: t('settings.themeColorsDark') }
+      ]}
+    />
+  )
 }
 
 function SurfaceColorRow({
@@ -356,15 +380,18 @@ function ThemeColorTuneGroup({
   const hasCustom = SURFACE_TOKEN_LIST.some((token) => overrides[token] != null)
 
   return (
-    <div className={cn('space-y-3 p-3.5', settingsSectionClass)}>
-      <div className={cn('flex flex-wrap items-center justify-between gap-2 border-b pb-2.5', listSubtleBorderClass)}>
-        <p className="text-sm font-semibold text-foreground">{title}</p>
+    <div className={cn('space-y-2.5 rounded-md border bg-background/50 p-2.5', listSubtleBorderClass)}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <SurfaceLayerStrip colors={resolved} size="md" />
+          <span className="text-xs font-medium text-foreground">{title}</span>
+        </div>
         <button
           type="button"
           onClick={(): void => resetSurfaceColors(theme)}
           disabled={!hasCustom}
           className={cn(
-            'rounded-sm border px-2.5 py-1 text-xs font-medium transition-colors',
+            'shrink-0 rounded-sm border px-2 py-0.5 text-2xs font-medium transition-colors',
             hasCustom
               ? cn(settingsControlBorderClass, 'bg-secondary/40 text-foreground hover:bg-secondary/70')
               : 'cursor-default border-transparent text-muted-foreground/50'
@@ -373,8 +400,7 @@ function ThemeColorTuneGroup({
           {t('settings.themeColorsResetMode')}
         </button>
       </div>
-      <MiniSurfacePreview colors={resolved} schema={theme} compact />
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         {SURFACE_TOKEN_LIST.map((token, index) => (
           <SurfaceColorRow
             key={token}
@@ -428,10 +454,11 @@ function PresetCard({
       )}
       title={t('settings.themeColorPresetApplyNamed', { name: preset.name })}
     >
-      <div className="shrink-0 p-2">
+      <div className="flex shrink-0 items-center gap-2 p-2">
+        <SurfaceLayerStrip colors={previewColors} size="sm" />
         <span
           className={cn(
-            'mb-1.5 inline-block rounded-sm px-1.5 py-px text-3xs font-semibold uppercase tracking-wide',
+            'rounded-sm px-1.5 py-px text-3xs font-semibold uppercase tracking-wide',
             target === 'light'
               ? 'bg-foreground/10 text-foreground'
               : target === 'dark'
@@ -441,11 +468,6 @@ function PresetCard({
         >
           {schemaLabel}
         </span>
-        <MiniSurfacePreview
-          colors={previewColors}
-          schema={target === 'light' ? 'light' : 'dark'}
-          compact
-        />
       </div>
       <div className={cn('flex shrink-0 items-center gap-2 border-t px-2.5 py-2', listSubtleBorderClass)}>
         <span className="min-w-0 flex-1 truncate text-xs font-medium text-foreground">
@@ -457,16 +479,14 @@ function PresetCard({
   )
 }
 
-function PaletteVariantCard({
+function CompactVariantCard({
   colors,
-  schema,
   label,
   description,
   active,
   onSelect
 }: {
   colors: Record<ThemeSurfaceToken, string>
-  schema: EffectiveTheme
   label: string
   description: string
   active: boolean
@@ -477,28 +497,29 @@ function PaletteVariantCard({
       type="button"
       onClick={onSelect}
       className={cn(
-        'flex flex-col overflow-hidden rounded-md border text-left transition-colors',
+        'flex w-full items-start gap-2.5 rounded-md border px-2.5 py-2 text-left transition-colors',
         active
           ? 'border-primary/60 bg-primary/10 ring-1 ring-primary/35'
           : 'bg-background/60 hover:bg-background/80'
       )}
     >
-      <div className="p-2">
-        <ModuleLayoutPreview colors={colors} schema={schema} tall />
-      </div>
-      <div className={cn('space-y-0.5 border-t px-2.5 py-2', listSubtleBorderClass)}>
-        <div className="flex items-center gap-2">
-          <span className="min-w-0 flex-1 text-xs font-semibold text-foreground">{label}</span>
-          {active && <Check className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />}
-        </div>
-        <p className="text-2xs leading-snug text-muted-foreground">{description}</p>
-      </div>
+      <SurfaceLayerStrip colors={colors} size="md" />
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-1.5">
+          <span className="truncate text-xs font-semibold text-foreground">{label}</span>
+          {active ? <Check className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden /> : null}
+        </span>
+        <span className="mt-0.5 line-clamp-2 block text-2xs leading-snug text-muted-foreground">
+          {description}
+        </span>
+      </span>
     </button>
   )
 }
 
 function ThemeColorsQuickTab(): JSX.Element {
   const { t } = useTranslation()
+  const [schemaTab, setSchemaTab] = useState<SchemaTab>('light')
   const effective = useThemeStore((s) => s.effective)
   const darkPalette = useThemeStore((s) => s.darkPalette)
   const lightPalette = useThemeStore((s) => s.lightPalette)
@@ -514,7 +535,7 @@ function ThemeColorsQuickTab(): JSX.Element {
     () => resolveSurfaceHex('dark', customColors.dark, darkPalette, lightPalette),
     [customColors.dark, darkPalette, lightPalette]
   )
-  const resolvedActive = effective === 'dark' ? resolvedDark : resolvedLight
+  const previewSchema = schemaTab
 
   const isDarkVariantActive = (id: DarkPalette): boolean =>
     darkPalette === id && matchesSurfaceSet(resolvedDark, DARK_PALETTE_SURFACES[id])
@@ -522,53 +543,60 @@ function ThemeColorsQuickTab(): JSX.Element {
   const isLightVariantActive = (id: LightPalette): boolean =>
     lightPalette === id && matchesSurfaceSet(resolvedLight, LIGHT_PALETTE_SURFACES[id])
 
+  const variants = schemaTab === 'light' ? LIGHT_VARIANTS : DARK_VARIANTS
+
   return (
-    <div className="space-y-5">
-      <div>
-        <p className="text-xs font-semibold text-foreground">{t('settings.themeColorsLivePreview')}</p>
-        <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-          {t('settings.themeColorsQuickHint')}
+    <div className="space-y-3">
+      <p className="text-xs leading-relaxed text-muted-foreground">{t('settings.themeColorsQuickHint')}</p>
+
+      <div className="max-w-md">
+        <p className="mb-1 text-2xs font-medium uppercase tracking-wide text-muted-foreground">
+          {t('settings.themeColorsLivePreview')}
         </p>
-        <div className="mt-2">
-          <ModuleLayoutPreview colors={resolvedActive} schema={effective} tall />
-        </div>
+        <ModuleLayoutPreview
+          colors={previewSchema === 'light' ? resolvedLight : resolvedDark}
+          schema={previewSchema}
+        />
       </div>
 
-      <div>
-        <p className="text-xs font-semibold text-foreground">{t('settings.themeColorsLightVariantsHeading')}</p>
-        <p className="mt-0.5 text-xs text-muted-foreground">{t('settings.themeColorsLightVariantsHint')}</p>
-        <div className="mt-2 grid gap-2 sm:grid-cols-2">
-          {LIGHT_VARIANTS.map((variant) => (
-            <PaletteVariantCard
-              key={variant.id}
-              colors={LIGHT_PALETTE_SURFACES[variant.id]}
-              schema="light"
-              label={t(variant.labelKey)}
-              description={t(variant.descKey)}
-              active={isLightVariantActive(variant.id)}
-              onSelect={(): void => applyLightPaletteVariant(variant.id)}
-            />
-          ))}
-        </div>
+      <SchemaSubTabs value={schemaTab} onChange={setSchemaTab} />
+
+      <p className="text-2xs text-muted-foreground">
+        {schemaTab === 'light'
+          ? t('settings.themeColorsLightVariantsHint')
+          : t('settings.themeColorsDarkVariantsHint')}
+      </p>
+
+      <div className="grid gap-1.5 sm:grid-cols-2">
+        {variants.map((variant) => (
+          <CompactVariantCard
+            key={variant.id}
+            colors={
+              schemaTab === 'light'
+                ? LIGHT_PALETTE_SURFACES[variant.id as LightPalette]
+                : DARK_PALETTE_SURFACES[variant.id as DarkPalette]
+            }
+            label={t(variant.labelKey)}
+            description={t(variant.descKey)}
+            active={
+              schemaTab === 'light'
+                ? isLightVariantActive(variant.id as LightPalette)
+                : isDarkVariantActive(variant.id as DarkPalette)
+            }
+            onSelect={(): void => {
+              if (schemaTab === 'light') {
+                applyLightPaletteVariant(variant.id as LightPalette)
+              } else {
+                applyDarkPaletteVariant(variant.id as DarkPalette)
+              }
+            }}
+          />
+        ))}
       </div>
 
-      <div>
-        <p className="text-xs font-semibold text-foreground">{t('settings.themeColorsDarkVariantsHeading')}</p>
-        <p className="mt-0.5 text-xs text-muted-foreground">{t('settings.themeColorsDarkVariantsHint')}</p>
-        <div className="mt-2 grid gap-2 sm:grid-cols-2">
-          {DARK_VARIANTS.map((variant) => (
-            <PaletteVariantCard
-              key={variant.id}
-              colors={DARK_PALETTE_SURFACES[variant.id]}
-              schema="dark"
-              label={t(variant.labelKey)}
-              description={t(variant.descKey)}
-              active={isDarkVariantActive(variant.id)}
-              onSelect={(): void => applyDarkPaletteVariant(variant.id)}
-            />
-          ))}
-        </div>
-      </div>
+      {effective !== schemaTab ? (
+        <p className="text-2xs text-muted-foreground">{t('settings.themeColorsPreviewOtherMode')}</p>
+      ) : null}
     </div>
   )
 }
@@ -619,7 +647,7 @@ function ThemeColorsPresetsTab(): JSX.Element {
         <p className="mb-2 text-xs font-semibold text-foreground">
           {t('settings.themeColorPresetsBuiltinHeading', { count: BUILTIN_THEME_COLOR_PRESETS.length })}
         </p>
-        <div className="grid max-h-[min(52vh,28rem)] gap-2 overflow-y-auto pr-0.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid max-h-[min(36vh,20rem)] grid-cols-2 gap-1.5 overflow-y-auto pr-0.5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
           {BUILTIN_THEME_COLOR_PRESETS.map((preset) => (
             <PresetCard
               key={preset.id}
@@ -634,7 +662,7 @@ function ThemeColorsPresetsTab(): JSX.Element {
       <div className="rounded-sm bg-background/60 p-3">
         <p className="text-xs font-semibold text-foreground">{t('settings.themeColorPresetsCustomHeading')}</p>
         {colorPresets.length > 0 ? (
-          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+          <div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
             {colorPresets.map((preset) => (
               <div key={preset.id} className="flex flex-col gap-1.5">
                 <PresetCard
@@ -696,15 +724,19 @@ function ThemeColorsPresetsTab(): JSX.Element {
 
 function ThemeColorsTuneTab(): JSX.Element {
   const { t } = useTranslation()
+  const [schemaTab, setSchemaTab] = useState<SchemaTab>('light')
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <p className="text-xs leading-relaxed text-muted-foreground">{t('settings.themeColorsTuneHint')}</p>
-      {/* Untereinander: in schmalen Dialog-Spalten verhindert das Ueberlappungen der Farbzeilen */}
-      <div className="flex flex-col gap-4">
-        <ThemeColorTuneGroup theme="light" title={t('settings.themeColorsLight')} />
-        <ThemeColorTuneGroup theme="dark" title={t('settings.themeColorsDark')} />
-      </div>
+      <SchemaSubTabs value={schemaTab} onChange={setSchemaTab} />
+      <ThemeColorTuneGroup
+        key={schemaTab}
+        theme={schemaTab}
+        title={
+          schemaTab === 'light' ? t('settings.themeColorsLight') : t('settings.themeColorsDark')
+        }
+      />
     </div>
   )
 }
@@ -713,58 +745,51 @@ export function SettingsThemeColorsSection(): JSX.Element {
   const { t } = useTranslation()
   const [tab, setTab] = useState<ColorsTab>('quick')
 
-  const tabs: Array<{ id: ColorsTab; label: string }> = [
-    { id: 'quick', label: t('settings.themeColorsTabQuick') },
-    { id: 'presets', label: t('settings.themeColorsTabPresets') },
-    { id: 'tune', label: t('settings.themeColorsTabTune') }
-  ]
+  const tabs = useMemo(
+    () =>
+      [
+        {
+          id: 'quick' as const,
+          label: t('settings.themeColorsTabQuick'),
+          icon: <Sparkles className={TAB_ICON_CLASS} />
+        },
+        {
+          id: 'presets' as const,
+          label: t('settings.themeColorsTabPresets'),
+          icon: <Palette className={TAB_ICON_CLASS} />
+        },
+        {
+          id: 'tune' as const,
+          label: t('settings.themeColorsTabTune'),
+          icon: <SlidersHorizontal className={TAB_ICON_CLASS} />
+        }
+      ] satisfies Array<import('@/components/FilterTabs').FilterTabOption<ColorsTab>>,
+    [t]
+  )
 
   return (
-    <details className="group mt-4 rounded-sm bg-background/60" open>
-      <summary className="flex cursor-pointer list-none items-start justify-between gap-2 px-3 py-2.5 marker:content-none [&::-webkit-details-marker]:hidden">
-        <div className="min-w-0 flex-1">
-          <span className="text-xs font-semibold text-foreground underline-offset-2 group-open:underline">
-            {t('settings.themeColorsHeading')}
-          </span>
-          <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
-            {t('settings.themeColorsHint')}
-          </span>
+    <div className={cn('mt-4 space-y-2.5 rounded-md border bg-background/40 p-3', listSubtleBorderClass)}>
+      <div className="flex items-start gap-2">
+        <Layers className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+        <div className="min-w-0">
+          <h4 className="text-xs font-semibold text-foreground">{t('settings.themeColorsHeading')}</h4>
+          <p className="mt-0.5 text-2xs leading-relaxed text-muted-foreground">{t('settings.themeColorsHint')}</p>
         </div>
-        <ChevronDown
-          className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180"
-          aria-hidden
-        />
-      </summary>
+      </div>
 
-      <div className={cn('border-t px-3 py-3', listSubtleBorderClass)}>
-        <div
-          className="mb-3 flex flex-wrap gap-1 rounded-sm bg-background/60 p-1"
-          role="tablist"
-          aria-label={t('settings.themeColorsHeading')}
-        >
-          {tabs.map(({ id, label }) => (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              aria-selected={tab === id}
-              onClick={(): void => setTab(id)}
-              className={cn(
-                'rounded-sm px-3 py-1.5 text-xs font-medium transition-colors',
-                tab === id
-                  ? 'bg-secondary/70 text-foreground ring-1 ring-white/[0.06] dark:ring-white/[0.06]'
-                  : 'text-muted-foreground hover:bg-secondary/25 hover:text-foreground'
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+      <FilterTabs<ColorsTab>
+        value={tab}
+        onChange={setTab}
+        options={tabs}
+        ariaLabel={t('settings.themeColorsHeading')}
+        className="flex-wrap rounded-md bg-background/60 p-0.5"
+      />
 
+      <div className="min-h-0">
         {tab === 'quick' && <ThemeColorsQuickTab />}
         {tab === 'presets' && <ThemeColorsPresetsTab />}
         {tab === 'tune' && <ThemeColorsTuneTab />}
       </div>
-    </details>
+    </div>
   )
 }

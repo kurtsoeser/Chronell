@@ -96,7 +96,7 @@ export function Sidebar({ onOpenAccountDialog }: Props): JSX.Element {
   const { t } = useTranslation()
   const accounts = useAccountsStore((s) => s.accounts)
   const patchAccountColor = useAccountsStore((s) => s.patchAccountColor)
-  const profilePhotoDataUrls = useAccountsStore((s) => s.profilePhotoDataUrls)
+  const accountDisplayAvatarDataUrls = useAccountsStore((s) => s.accountDisplayAvatarDataUrls)
   const {
     foldersByAccount,
     selectedFolderId,
@@ -806,7 +806,7 @@ export function Sidebar({ onOpenAccountDialog }: Props): JSX.Element {
                 key={account.id}
                 account={account}
                 showDragHandle={accounts.length > 1}
-                profilePhotoDataUrl={profilePhotoDataUrls[account.id]}
+                profilePhotoDataUrl={accountDisplayAvatarDataUrls[account.id]}
                 folders={foldersForSidebar[account.id] ?? []}
                 sync={syncByAccount[account.id]}
                 selectedFolderId={selectedFolderId}
@@ -850,7 +850,7 @@ export function Sidebar({ onOpenAccountDialog }: Props): JSX.Element {
 
       <SidebarFooter
         accounts={accounts}
-        profilePhotoDataUrls={profilePhotoDataUrls}
+        profilePhotoDataUrls={accountDisplayAvatarDataUrls}
         syncByAccount={syncByAccount}
         onOpenAccountDialog={onOpenAccountDialog}
       />

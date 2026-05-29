@@ -100,6 +100,8 @@ interface Props {
   className?: string
   /** Horizontales Padding des Inhalts bei `variant="section"` (Standard: px-6). */
   contentPaddingClass?: string
+  /** Editor nutzt verfügbare Höhe im Container (z. B. Kalender-Vorschau). */
+  fillHeight?: boolean
   /** Ausrichtung des Pop-ups relativ zum Button (nur `variant="button"`). */
   anchorAlign?: 'left' | 'right'
 }
@@ -215,6 +217,7 @@ export function ObjectNoteEditor({
   layout = 'live',
   className,
   contentPaddingClass = 'px-6',
+  fillHeight = false,
   anchorAlign = 'left'
 }: Props): JSX.Element {
   const { t, i18n } = useTranslation()
@@ -502,6 +505,7 @@ export function ObjectNoteEditor({
       className={cn(
         'rounded-lg border border-border bg-card shadow-lg',
         isPopupVariant && 'relative flex flex-col overflow-hidden',
+        variant === 'section' && fillHeight && 'flex min-h-0 flex-1 flex-col',
         variant === 'section'
           ? 'rounded-none border-0 bg-transparent shadow-none'
           : variant === 'panel'
@@ -546,22 +550,30 @@ export function ObjectNoteEditor({
         )}
       >
       {note?.id ? <NotesAttachmentsPanel noteId={note.id} className="mb-2 shrink-0" /> : null}
-      <div className="min-h-0 flex-1 overflow-hidden">
-      <MarkdownNoteEditorLazy
-        value={body}
-        onChange={(nextBody): void => {
-          setBody(nextBody)
-          setDirty(true)
-        }}
-        disabled={loading}
-        height={isPopupVariant ? markdownHeight : 180}
-        layout={layout}
-        preview={isPopupVariant ? 'edit' : 'live'}
-        placeholder={t('notes.editor.placeholder')}
-      />
+      <div
+        className={cn(
+          'min-h-0 overflow-hidden',
+          fillHeight ? 'flex flex-1 flex-col' : 'flex-1'
+        )}
+      >
+        <MarkdownNoteEditorLazy
+          value={body}
+          onChange={(nextBody): void => {
+            setBody(nextBody)
+            setDirty(true)
+          }}
+          disabled={loading}
+          fillHeight={fillHeight}
+          minHeight={fillHeight ? 120 : undefined}
+          height={fillHeight ? undefined : isPopupVariant ? markdownHeight : 180}
+          layout={layout}
+          preview={isPopupVariant ? 'edit' : 'live'}
+          placeholder={t('notes.editor.placeholder')}
+          className={fillHeight ? 'min-h-0 flex-1' : undefined}
+        />
       </div>
-      {error ? <div className="mt-1.5 text-[11px] text-destructive">{error}</div> : null}
-      <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+      {error ? <div className="mt-1.5 shrink-0 text-[11px] text-destructive">{error}</div> : null}
+      <div className="mt-2 flex shrink-0 items-center justify-between gap-2 text-[11px] text-muted-foreground">
         <span>
           {loading
             ? t('common.loading')
@@ -611,10 +623,21 @@ export function ObjectNoteEditor({
         expanded={sectionExpanded}
         onToggle={(): void => setSectionExpanded((v) => !v)}
         iconClassName={hasContent ? 'fill-amber-300 text-amber-500' : undefined}
-        className={cn('border-t-0', className)}
-        contentClassName="!px-0"
+        className={cn(
+          'border-t-0',
+          fillHeight && 'flex min-h-0 flex-1 flex-col',
+          className
+        )}
+        contentClassName={cn('!px-0', fillHeight && 'flex min-h-0 flex-1 flex-col overflow-hidden')}
       >
-        <div className={contentPaddingClass}>{editor}</div>
+        <div
+          className={cn(
+            contentPaddingClass,
+            fillHeight && 'flex min-h-0 flex-1 flex-col'
+          )}
+        >
+          {editor}
+        </div>
       </PreviewFoldSection>
     )
   }

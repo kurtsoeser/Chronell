@@ -1,11 +1,13 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { AlertCircle, Loader2, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type {
   CalendarRecurrenceRangeEndMode,
   ConnectedAccount,
+  MailMasterCategory,
   TaskListRow
 } from '@shared/types'
+import { CalendarEventCategoryPopover } from '@/app/calendar/CalendarEventCategoryPopover'
 import { CalendarEventRecurrenceSection } from '@/app/calendar/CalendarEventRecurrenceSection'
 import { ChronellDateField } from '@/components/ChronellDateField'
 import {
@@ -80,6 +82,14 @@ export function CreateCloudTaskDialog({
   const [recurWeekdays, setRecurWeekdays] = useState<
     Array<'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday'>
   >([])
+  const [taskCategories, setTaskCategories] = useState<string[]>([])
+  const [masterCategories, setMasterCategories] = useState<MailMasterCategory[]>([])
+  const [mastersLoading, setMastersLoading] = useState(false)
+
+  const collatorLocale = useMemo(
+    () => (typeof navigator !== 'undefined' ? navigator.language : 'de'),
+    []
+  )
 
   useEffect(() => {
     if (!open) return
@@ -96,6 +106,7 @@ export function CreateCloudTaskDialog({
     setRecurUntilDate('')
     setRecurCount('10')
     setRecurWeekdays([])
+    setTaskCategories([])
     if (initialRange) {
       const sched = scheduleFromCalendarCreateRange(initialRange, timeZone)
       setDue(sched.dueDate)
@@ -137,6 +148,63 @@ export function CreateCloudTaskDialog({
     }
   }, [open, accountId, loadListsForAccount, selection])
 
+  const selectedAccount = taskAccounts.find((a) => a.id === accountId)
+  const useOutlookCategories = selectedAccount?.provider === 'microsoft'
+
+  useEffect(() => {
+    if (!open || !useOutlookCategories || !accountId) {
+      setMasterCategories([])
+      setMastersLoading(false)
+      return
+    }
+    let cancelled = false
+    setMastersLoading(true)
+    void window.mailClient.mail
+      .listMasterCategories(accountId)
+      .then((rows) => {
+        if (!cancelled) setMasterCategories(rows)
+      })
+      .catch(() => {
+        if (!cancelled) setMasterCategories([])
+      })
+      .finally(() => {
+        if (!cancelled) setMastersLoading(false)
+      })
+    return (): void => {
+      cancelled = true
+    }
+  }, [open, useOutlookCategories, accountId])
+
+  useEffect(() => {
+    if (selectedAccount?.provider === 'microsoft') return
+    setTaskCategories([])
+  }, [selectedAccount?.provider])
+
+  const categoryColorByName = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const c of masterCategories) {
+      m.set(c.displayName, c.color)
+    }
+    return m
+  }, [masterCategories])
+
+  const categoryChoiceNames = useMemo(() => {
+    const fromMasters = masterCategories.map((c) => c.displayName)
+    const extra = taskCategories.filter((n) => !fromMasters.includes(n))
+    return [...new Set([...fromMasters, ...extra])].sort((a, b) => a.localeCompare(b, collatorLocale))
+  }, [masterCategories, taskCategories, collatorLocale])
+
+  function toggleTaskCategory(name: string): void {
+    const trimmed = name.trim()
+    if (!trimmed) return
+    setTaskCategories((prev) => {
+      const next = new Set(prev)
+      if (next.has(trimmed)) next.delete(trimmed)
+      else next.add(trimmed)
+      return Array.from(next).sort((a, b) => a.localeCompare(b, collatorLocale))
+    })
+  }
+
   if (!open) return null
 
   const noTaskAccounts = taskAccounts.length === 0
@@ -147,8 +215,6 @@ export function CreateCloudTaskDialog({
     title.trim().length > 0 &&
     !busy &&
     !listsLoading
-
-  const selectedAccount = taskAccounts.find((a) => a.id === accountId)
 
   async function handleSubmit(): Promise<void> {
     if (!canSubmit) return
@@ -197,7 +263,8 @@ export function CreateCloudTaskDialog({
         notes: notes.trim() || null,
         dueIso,
         completed: false,
-        ...(recurrence ? { recurrence } : {})
+        ...(recurrence ? { recurrence } : {}),
+        ...(useOutlookCategories && taskCategories.length > 0 ? { categories: taskCategories } : {})
       })
       if (plannedStartIso && plannedEndIso) {
         const taskKey = cloudTaskStableKey(accountId, listId, row.id)
@@ -289,6 +356,17 @@ export function CreateCloudTaskDialog({
                     className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm"
                   />
                 </label>
+
+                {useOutlookCategories ? (
+                  <CalendarEventCategoryPopover
+                    categoryNames={categoryChoiceNames}
+                    selected={taskCategories}
+                    categoryColorByName={categoryColorByName}
+                    mastersLoading={mastersLoading}
+                    disabled={busy}
+                    onToggle={toggleTaskCategory}
+                  />
+                ) : null}
 
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <label className="block space-y-1">

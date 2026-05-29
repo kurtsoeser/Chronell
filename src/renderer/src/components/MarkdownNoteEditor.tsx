@@ -13,7 +13,12 @@ interface MarkdownNoteEditorProps {
   value: string
   onChange: (value: string) => void
   placeholder: string
-  height: number
+  /** Feste Höhe in px; ignoriert wenn `fillHeight` gesetzt ist. */
+  height?: number
+  /** Editor füllt den verfügbaren Platz im Flex-Container (Höhe per ResizeObserver). */
+  fillHeight?: boolean
+  /** Mindesthöhe bei `fillHeight` (Standard 160). */
+  minHeight?: number
   preview?: MarkdownPreviewMode
   layout?: MarkdownNoteEditorLayout
   /** Initial tab when `layout` is `toggle`. */
@@ -22,11 +27,16 @@ interface MarkdownNoteEditorProps {
   className?: string
 }
 
+const DEFAULT_EDITOR_HEIGHT = 280
+const DEFAULT_FILL_MIN_HEIGHT = 160
+
 export function MarkdownNoteEditor({
   value,
   onChange,
   placeholder,
-  height,
+  height = DEFAULT_EDITOR_HEIGHT,
+  fillHeight = false,
+  minHeight = DEFAULT_FILL_MIN_HEIGHT,
   preview = 'live',
   layout = 'live',
   initialToggleTab = 'edit',
@@ -35,6 +45,10 @@ export function MarkdownNoteEditor({
 }: MarkdownNoteEditorProps): JSX.Element {
   const { t } = useTranslation()
   const rootRef = useRef<HTMLDivElement>(null)
+  const bodyRef = useRef<HTMLDivElement>(null)
+  const [fillMeasuredHeight, setFillMeasuredHeight] = useState(() =>
+    Math.max(minHeight, height)
+  )
   const [colorMode, setColorMode] = useState<'light' | 'dark'>(() =>
     document.documentElement.classList.contains('dark') ? 'dark' : 'light'
   )
@@ -50,6 +64,20 @@ export function MarkdownNoteEditor({
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
     return () => observer.disconnect()
   }, [])
+
+  useEffect(() => {
+    if (!fillHeight) return
+    const el = bodyRef.current
+    if (!el) return
+    const measure = (): void => {
+      const h = Math.floor(el.getBoundingClientRect().height)
+      if (h > 0) setFillMeasuredHeight(Math.max(minHeight, h))
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return (): void => ro.disconnect()
+  }, [fillHeight, minHeight])
 
   useEffect(() => {
     const root = rootRef.current
@@ -76,10 +104,20 @@ export function MarkdownNoteEditor({
     }
   }, [])
 
+  const editorHeight = fillHeight ? fillMeasuredHeight : height
+
   return (
-    <div ref={rootRef} className={cn('markdown-note-editor', className)} data-color-mode={colorMode}>
+    <div
+      ref={rootRef}
+      className={cn(
+        'markdown-note-editor',
+        fillHeight && 'markdown-note-editor--fill-height',
+        className
+      )}
+      data-color-mode={colorMode}
+    >
       {layout === 'toggle' ? (
-        <div className="mb-2 flex justify-end">
+        <div className="mb-2 flex shrink-0 justify-end">
           <div
             className="inline-flex rounded-md border border-border bg-secondary/40 p-0.5 text-[11px] font-medium"
             role="tablist"
@@ -116,18 +154,23 @@ export function MarkdownNoteEditor({
           </div>
         </div>
       ) : null}
-      <MDEditor
-        value={value}
-        onChange={(nextValue): void => onChange(nextValue ?? '')}
-        height={height}
-        preview={effectivePreview}
-        visibleDragbar={false}
-        textareaProps={{
-          placeholder,
-          disabled,
-          spellCheck: true
-        }}
-      />
+      <div
+        ref={fillHeight ? bodyRef : undefined}
+        className={cn(fillHeight && 'markdown-note-editor__body min-h-0 flex-1')}
+      >
+        <MDEditor
+          value={value}
+          onChange={(nextValue): void => onChange(nextValue ?? '')}
+          height={editorHeight}
+          preview={effectivePreview}
+          visibleDragbar={false}
+          textareaProps={{
+            placeholder,
+            disabled,
+            spellCheck: true
+          }}
+        />
+      </div>
     </div>
   )
 }

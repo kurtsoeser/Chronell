@@ -13,7 +13,9 @@ interface MarkdownNoteEditorLazyProps {
   value: string
   onChange: (value: string) => void
   placeholder: string
-  height: number
+  height?: number
+  fillHeight?: boolean
+  minHeight?: number
   preview?: MarkdownPreviewMode
   layout?: MarkdownNoteEditorLayout
   disabled?: boolean
@@ -26,7 +28,7 @@ export function MarkdownNoteEditorLazy(props: MarkdownNoteEditorLazyProps): JSX.
       fallback={
         <div
           className="flex items-center justify-center rounded-md border border-border bg-muted/20 text-muted-foreground"
-          style={{ height: props.height }}
+          style={{ height: props.fillHeight ? props.minHeight ?? 160 : props.height ?? 280 }}
         >
           <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
         </div>

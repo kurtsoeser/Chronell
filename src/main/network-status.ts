@@ -2,6 +2,7 @@ import { net, BrowserWindow } from 'electron'
 import { OFFLINE_APP_ERROR, type AppConnectivityState } from '@shared/types'
 import { runInitialSync } from './sync-runner'
 import { listAccounts } from './accounts'
+import { warnProviderAuthOnce } from './auth/auth-errors'
 
 const POLL_MS = 3000
 
@@ -34,9 +35,7 @@ function runCatchUpSyncAfterReconnect(): void {
     try {
       const accounts = await listAccounts()
       for (const a of accounts) {
-        void runInitialSync(a.id).catch((e) =>
-          console.warn('[connectivity] Catch-up-Sync fehlgeschlagen:', a.id, e)
-        )
+        void runInitialSync(a.id).catch((e) => warnProviderAuthOnce('connectivity', a.id, e))
       }
     } catch (e) {
       console.warn('[connectivity] Catch-up-Sync:', e)

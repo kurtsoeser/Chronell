@@ -379,7 +379,8 @@ export async function createSimpleCalendarEventForAccount(
       location: input.location,
       bodyHtml: input.bodyHtml,
       recurrence: input.recurrence ?? null,
-      attendeeEmails: input.attendeeEmails
+      attendeeEmails: input.attendeeEmails,
+      timeZone: input.timeZone ?? null
     })
     return { id: r.id, webLink: r.webLink }
   }
@@ -394,7 +395,9 @@ export async function createSimpleCalendarEventForAccount(
     categories: input.categories,
     attendeeEmails: input.attendeeEmails,
     teamsMeeting: input.teamsMeeting,
-    recurrence: input.recurrence ?? null
+    recurrence: input.recurrence ?? null,
+    reminderMinutesBeforeStart: input.reminderMinutesBeforeStart ?? null,
+    timeZone: input.timeZone ?? null
   })
   if (input.attachments?.length) {
     await graphAddEventFileAttachments(input.accountId, r.id, input.attachments, input.graphCalendarId ?? null)
@@ -417,7 +420,8 @@ export async function updateCalendarEventForAccount(input: CalendarUpdateEventIn
       isAllDay: input.isAllDay,
       location: input.location,
       bodyHtml: input.bodyHtml,
-      attendeeEmails: input.attendeeEmails
+      attendeeEmails: input.attendeeEmails,
+      timeZone: input.timeZone ?? null
     })
     return
   }
@@ -432,7 +436,9 @@ export async function updateCalendarEventForAccount(input: CalendarUpdateEventIn
     graphCalendarId: rest.graphCalendarId ?? null,
     categories: rest.categories,
     attendeeEmails: rest.attendeeEmails,
-    teamsMeeting: rest.teamsMeeting
+    teamsMeeting: rest.teamsMeeting,
+    reminderMinutesBeforeStart: rest.reminderMinutesBeforeStart ?? null,
+    timeZone: rest.timeZone ?? null
   })
   if (input.attachments?.length) {
     await graphAddEventFileAttachments(accountId, graphEventId, input.attachments, input.graphCalendarId ?? null)

@@ -46,6 +46,7 @@ import {
 import { setCloudTaskDragData } from '@/app/tasks/tasks-cloud-task-dnd'
 
 import {
+  isCloudTaskListItem,
   isMailTodoListItem,
   tasksListItemKey,
   type TasksListItem
@@ -62,6 +63,7 @@ import { dueDateInputValue } from '@/app/work-items/work-item-datetime'
 import { useTasksSettingsPrefs } from '@/lib/use-tasks-settings-prefs'
 import type { TaskListLayoutOptions } from '@/app/tasks/task-list-arrange'
 import { resolveTaskOverdueRowStyle } from '@/lib/task-row-overdue-style'
+import { TaskCategoryBadges } from '@/components/TaskCategoryBadges'
 
 function dueDateLabel(dueIso: string | null): string {
   return dueIso ? dueDateInputValue(dueIso) : ''
@@ -149,6 +151,37 @@ export function TasksGroupedList({
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
 
   const accountById = useMemo(() => new Map(accounts.map((a) => [a.id, a] as const)), [accounts])
+
+  const [categoryColorByAccountId, setCategoryColorByAccountId] = useState<
+    Map<string, Map<string, string>>
+  >(() => new Map())
+
+  useEffect(() => {
+    const msAccounts = accounts.filter((a) => a.provider === 'microsoft')
+    if (msAccounts.length === 0) {
+      setCategoryColorByAccountId(new Map())
+      return
+    }
+    let cancelled = false
+    void Promise.all(
+      msAccounts.map(async (acc) => {
+        try {
+          const masters = await window.mailClient.mail.listMasterCategories(acc.id)
+          const colorByName = new Map<string, string>()
+          for (const m of masters) colorByName.set(m.displayName, m.color)
+          return [acc.id, colorByName] as const
+        } catch {
+          return [acc.id, new Map<string, string>()] as const
+        }
+      })
+    ).then((entries) => {
+      if (cancelled) return
+      setCategoryColorByAccountId(new Map(entries))
+    })
+    return (): void => {
+      cancelled = true
+    }
+  }, [accounts])
 
   const dfLocale = i18n.language.startsWith('de') ? de : enUS
 
@@ -349,6 +382,9 @@ export function TasksGroupedList({
                     accountStripe
                   )
                   const isMail = isMailTodoListItem(task)
+                  const taskCategories =
+                    !isMail && isCloudTaskListItem(task) ? task.categories : undefined
+                  const taskCategoryColors = categoryColorByAccountId.get(task.accountId)
                   const dragEnabled = enableDrag && settings.listDragEnabled && !isMail
 
                   return (
@@ -450,6 +486,15 @@ export function TasksGroupedList({
                             <span className="min-w-0 flex-1">{task.title}</span>
 
                           </span>
+
+                          {taskCategories?.length ? (
+                            <TaskCategoryBadges
+                              categories={taskCategories}
+                              categoryColorByName={taskCategoryColors}
+                              compact={settings.compactListRows}
+                              className="mt-0.5"
+                            />
+                          ) : null}
 
                           <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-2xs text-muted-foreground">
 

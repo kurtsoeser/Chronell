@@ -6,6 +6,11 @@ import type { LucideIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { cn } from '@/lib/utils'
+import {
+  chronellDashboardTileBodyClass,
+  chronellDashboardTileSubtitleClass,
+  chronellDashboardTileTitleClass
+} from '@/lib/chronell-ui-classes'
 
 export interface DashboardTileCardContent {
   title: string
@@ -76,7 +81,7 @@ export function DashboardTileCard(props: {
               const TileIcon = tile.icon
               return (
                 <TileIcon
-                  className="h-8 w-8 shrink-0 text-primary/85"
+                  className="h-6 w-6 shrink-0 text-primary/85"
                   strokeWidth={1.35}
                   aria-hidden
                 />
@@ -91,16 +96,16 @@ export function DashboardTileCard(props: {
             onPointerDown={(e): void => e.stopPropagation()}
             onClick={(): void => tile.onOpenFull?.()}
           >
-            <div className="truncate text-xs font-semibold text-foreground">{tile.title}</div>
+            <div className={cn(chronellDashboardTileTitleClass, 'truncate')}>{tile.title}</div>
             {tile.subtitle ? (
-              <div className="truncate text-[10px] text-muted-foreground">{tile.subtitle}</div>
+              <div className={cn(chronellDashboardTileSubtitleClass, 'truncate')}>{tile.subtitle}</div>
             ) : null}
           </button>
         ) : (
           <div className="min-w-0 flex-1 self-center">
-            <div className="truncate text-xs font-semibold text-foreground">{tile.title}</div>
+            <div className={cn(chronellDashboardTileTitleClass, 'truncate')}>{tile.title}</div>
             {tile.subtitle ? (
-              <div className="truncate text-[10px] text-muted-foreground">{tile.subtitle}</div>
+              <div className={cn(chronellDashboardTileSubtitleClass, 'truncate')}>{tile.subtitle}</div>
             ) : null}
           </div>
         )}
@@ -138,7 +143,7 @@ export function DashboardTileCard(props: {
       </div>
 
       <div
-        className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+        className={cn(chronellDashboardTileBodyClass, 'relative flex flex-1 flex-col overflow-hidden')}
         role="presentation"
         onClick={onBodyAreaClick}
       >

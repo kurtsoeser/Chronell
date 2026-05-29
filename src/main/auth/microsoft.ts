@@ -1,6 +1,4 @@
 import {
-  PublicClientApplication,
-  type Configuration,
   type AuthenticationResult,
   InteractionRequiredAuthError,
   type AccountInfo
@@ -8,9 +6,11 @@ import {
 import { shell } from 'electron'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { randomBytes, createHash } from 'node:crypto'
-import { invalidateMsalCacheMemory, msalCachePlugin } from './msal-cache'
+import { invalidateMsalCacheMemory } from './msal-cache'
 import { awaitMicrosoftSilentGate, runMicrosoftInteractiveLogin } from './msal-silent-gate'
 import { withMicrosoftTokenLock } from './msal-token-lock'
+import { warmMicrosoftEwsTokenAfterLogin } from './microsoft-ews'
+import { getPca } from './microsoft-pca'
 
 export const MICROSOFT_SCOPES = [
   'offline_access',
@@ -48,36 +48,16 @@ export const MICROSOFT_SCOPES = [
   'BookingsAppointment.ReadWrite.All'
 ] as const
 
+/**
+ * EWS-Scope gehoert NICHT in MICROSOFT_SCOPES: Azure erlaubt kein Mischen von
+ * Graph- und Exchange-Online-Ressourcen in einem Token-Request (AADSTS70011).
+ * EWS-Token wird separat in microsoft-ews.ts angefordert.
+ */
+
 const LOOPBACK_PORT_RANGE = { start: 47813, end: 47830 } as const
 
 /** Max. Wartezeit auf den OAuth-Redirect; sonst haengt der Renderer-Spinner (IPC) ohne Ende. */
 const OAUTH_LOOPBACK_TIMEOUT_MS = 15 * 60 * 1000
-
-let pcaCache: { clientId: string; pca: PublicClientApplication } | null = null
-
-function getPca(clientId: string): PublicClientApplication {
-  if (pcaCache && pcaCache.clientId === clientId) {
-    return pcaCache.pca
-  }
-  const config: Configuration = {
-    auth: {
-      clientId,
-      authority: 'https://login.microsoftonline.com/common'
-    },
-    cache: {
-      cachePlugin: msalCachePlugin
-    },
-    system: {
-      loggerOptions: {
-        loggerCallback: (): void => {},
-        piiLoggingEnabled: false
-      }
-    }
-  }
-  const pca = new PublicClientApplication(config)
-  pcaCache = { clientId, pca }
-  return pca
-}
 
 function base64UrlEncode(input: Buffer): string {
   return input.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
@@ -195,6 +175,15 @@ export async function loginMicrosoft(
   clientId: string,
   options?: LoginMicrosoftOptions
 ): Promise<AuthenticationResult> {
+  return loginMicrosoftWithScopes(clientId, [...MICROSOFT_SCOPES], options)
+}
+
+/** Interaktiver Login mit beliebigen Scopes (z. B. nur EWS, getrennt von Graph). */
+export async function loginMicrosoftWithScopes(
+  clientId: string,
+  scopes: readonly string[],
+  options?: LoginMicrosoftOptions
+): Promise<AuthenticationResult> {
   return runMicrosoftInteractiveLogin(async () => {
     const pca = getPca(clientId)
     const { verifier, challenge } = generatePkce()
@@ -203,7 +192,7 @@ export async function loginMicrosoft(
     const loopback = await startLoopbackServer(state)
 
     const authUrl = await pca.getAuthCodeUrl({
-      scopes: [...MICROSOFT_SCOPES],
+      scopes: [...scopes],
       redirectUri: loopback.redirectUri,
       codeChallenge: challenge,
       codeChallengeMethod: 'S256',
@@ -248,7 +237,7 @@ export async function loginMicrosoft(
     const tokenResponse = await withMicrosoftTokenLock(clientId, () =>
       pca.acquireTokenByCode({
         code,
-        scopes: [...MICROSOFT_SCOPES],
+        scopes: [...scopes],
         redirectUri: loopback.redirectUri,
         codeVerifier: verifier
       })
@@ -258,6 +247,11 @@ export async function loginMicrosoft(
       throw new Error('Kein Token vom Identitaetsanbieter erhalten.')
     }
     invalidateMsalCacheMemory()
+    const ewsOnly =
+      scopes.length === 1 && scopes[0] === 'https://outlook.office365.com/EWS.AccessAsUser.All'
+    if (!ewsOnly) {
+      await warmMicrosoftEwsTokenAfterLogin(clientId, tokenResponse)
+    }
     return tokenResponse
   })
 }
@@ -322,6 +316,12 @@ export async function removeMsalAccount(clientId: string, homeAccountId: string)
   })
 }
 
+function isMicrosoftTokenConsentRequired(e: unknown): boolean {
+  if (e instanceof InteractionRequiredAuthError) return true
+  const msg = e instanceof Error ? e.message : String(e)
+  return /invalid_scope|AADSTS70011/i.test(msg)
+}
+
 async function acquireTokenSilentOnce(
   clientId: string,
   homeAccountId: string
@@ -352,9 +352,10 @@ export async function acquireTokenSilent(
   try {
     return await acquireTokenSilentOnce(clientId, homeAccountId)
   } catch (e) {
-    if (!(e instanceof InteractionRequiredAuthError)) {
+    if (!isMicrosoftTokenConsentRequired(e)) {
       throw e
     }
+    const authErr = e as InteractionRequiredAuthError
     const pca = getPca(clientId)
     const cache = pca.getTokenCache()
     const account = await cache.getAccountByHomeId(homeAccountId)
@@ -366,10 +367,10 @@ export async function acquireTokenSilent(
     const inCooldown = Date.now() - lastAttempt < CONSENT_COOLDOWN_MS
     console.warn(
       '[auth] InteractionRequired —',
-      e.errorCode ?? 'unknown',
-      e.subError ?? '',
-      e.correlationId ?? '',
-      e.message,
+      authErr.errorCode ?? 'unknown',
+      authErr.subError ?? '',
+      authErr.correlationId ?? '',
+      authErr.message,
       inCooldown ? '(Consent-Cooldown aktiv, kein neues Browserfenster)' : ''
     )
     if (inCooldown) {

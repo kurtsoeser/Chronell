@@ -14,7 +14,11 @@ param(
   [switch] $NoOpen,
   [switch] $IndexOnly,
   [switch] $SkipGitHubRelease,
-  [switch] $PushGit
+  [switch] $PushGit,
+  [switch] $IncludeAll,
+  [string] $ReleaseNotes,
+  [string] $ReleaseNotesFile,
+  [string] $CommitSubject
 )
 
 Set-StrictMode -Version Latest
@@ -66,11 +70,29 @@ function Get-DocsReleaseVersions {
   return $dirs | Sort-Object { [version]$_.Name } -Descending
 }
 
+function Get-ReleaseNotesText {
+  param(
+    [string] $Notes,
+    [string] $NotesFile,
+    [string] $Version
+  )
+
+  if ($NotesFile -and (Test-Path -LiteralPath $NotesFile)) {
+    return (Get-Content -LiteralPath $NotesFile -Raw -Encoding UTF8).Trim()
+  }
+  if ($Notes) {
+    return $Notes.Trim()
+  }
+  return "Windows-11-Beta-Installer fuer Chronell $Version."
+}
+
 function Publish-GitHubReleaseAsset {
   param(
     [string] $Version,
     [string] $SetupPath,
     [string] $VersionedAssetName,
+    [string] $ReleaseNotes,
+    [string] $ReleaseNotesFile,
     [switch] $Strict
   )
 
@@ -97,7 +119,12 @@ function Publish-GitHubReleaseAsset {
   }
 
   $releaseTitle = "Chronell $Version"
-  $releaseNotes = "Windows-11-Beta-Installer fuer Chronell $Version."
+  $releaseNotesText = Get-ReleaseNotesText -Notes $ReleaseNotes -NotesFile $ReleaseNotesFile -Version $Version
+  $notesFileTemp = $null
+  if ($releaseNotesText.Length -gt 200) {
+    $notesFileTemp = [System.IO.Path]::GetTempFileName() + '.md'
+    [System.IO.File]::WriteAllText($notesFileTemp, $releaseNotesText, [System.Text.UTF8Encoding]::new($false))
+  }
 
   $viewResult = Invoke-GhCli -GhArgs @('release', 'view', $ghTag, '--repo', $ghRepo)
   $uploaded = $false
@@ -107,14 +134,19 @@ function Publish-GitHubReleaseAsset {
   } else {
     $shortSha = $headSha.Substring(0, 7)
     Write-Host "  Erstelle Release $ghTag (Commit $shortSha) ..." -ForegroundColor DarkGray
-    $createResult = Invoke-GhCli -GhArgs @(
+    $createArgs = @(
       'release', 'create', $ghTag, $SetupPath,
       '--title', $releaseTitle,
-      '--notes', $releaseNotes,
       '--repo', $ghRepo,
       '--target', $headSha,
       '--clobber'
     )
+    if ($notesFileTemp) {
+      $createArgs += @('--notes-file', $notesFileTemp)
+    } else {
+      $createArgs += @('--notes', $releaseNotesText)
+    }
+    $createResult = Invoke-GhCli -GhArgs $createArgs
     if ($createResult.ExitCode -eq 0) {
       Write-Host '  Release angelegt und Installer hochgeladen.' -ForegroundColor Green
       $uploaded = $true
@@ -147,6 +179,23 @@ function Publish-GitHubReleaseAsset {
   if ($uploaded) {
     Write-Host "  GitHub Releases: $ghDownloadUrl" -ForegroundColor Green
     Write-Host '  Homepage-Download verweist auf diese URL (site.js + latest.json).' -ForegroundColor DarkGray
+  }
+
+  if ($viewResult.ExitCode -eq 0 -or $uploaded) {
+    $editArgs = @('release', 'edit', $ghTag, '--repo', $ghRepo, '--title', $releaseTitle)
+    if ($notesFileTemp) {
+      $editArgs += @('--notes-file', $notesFileTemp)
+    } else {
+      $editArgs += @('--notes', $releaseNotesText)
+    }
+    $editResult = Invoke-GhCli -GhArgs $editArgs
+    if ($editResult.ExitCode -ne 0) {
+      Write-CliFailure -Result $editResult -Context 'gh release edit (Notizen) fehlgeschlagen.'
+    }
+  }
+
+  if ($notesFileTemp -and (Test-Path -LiteralPath $notesFileTemp)) {
+    Remove-Item -LiteralPath $notesFileTemp -Force -ErrorAction SilentlyContinue
   }
 }
 
@@ -272,7 +321,10 @@ if (-not $IndexOnly) {
 }
 
 if ($autoRelease) {
-  & (Join-Path $PSScriptRoot 'push-release-to-github.ps1') -Version $Version
+  $pushArgs = @{ Version = $Version }
+  if ($IncludeAll) { $pushArgs['IncludeAll'] = $true }
+  if ($CommitSubject) { $pushArgs['CommitSubject'] = $CommitSubject }
+  & (Join-Path $PSScriptRoot 'push-release-to-github.ps1') @pushArgs
   if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
   }
@@ -281,5 +333,6 @@ if ($autoRelease) {
 }
 
 if (-not $IndexOnly -and -not $SkipGitHubRelease -and $setupForRelease) {
-  Publish-GitHubReleaseAsset -Version $Version -SetupPath $setupForRelease -VersionedAssetName $versionedName -Strict:$autoRelease
+  Publish-GitHubReleaseAsset -Version $Version -SetupPath $setupForRelease -VersionedAssetName $versionedName `
+    -ReleaseNotes $ReleaseNotes -ReleaseNotesFile $ReleaseNotesFile -Strict:$autoRelease
 }

@@ -1,4 +1,5 @@
 import type { AiPromptTier } from '@shared/ai-prompt-tier'
+import type { EntityRefKind } from '@shared/entity-ref'
 import type {
   AiLinkCustomDomainProfile,
   EntityLinkAiBuiltinDomainId,

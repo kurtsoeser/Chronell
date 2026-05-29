@@ -13,13 +13,15 @@ import {
 } from './db/folders-repo'
 import { recordAction } from './db/message-actions-repo'
 import {
-  setMessageRead as graphSetRead,
   setMessageFlagged as graphSetFlagged,
-  moveMessage as graphMoveMessage,
   setMessageCategories as graphSetMessageCategories,
-  deleteMessageRemote as graphDeleteMessageRemote,
   deleteAllRemoteMessagesInWellKnownFolder
 } from './graph/mail-actions'
+import {
+  microsoftDeleteMessageRemote,
+  microsoftMoveMessage,
+  microsoftSetMessageRead
+} from './ews/microsoft-mail-actions-facade'
 import {
   gmailSetMessageRead,
   gmailSetMessageFlagged,
@@ -73,7 +75,7 @@ export async function applySetReadForMessage(
     if (acc?.provider === 'google') {
       await gmailSetMessageRead(msg.accountId, msg.remoteId, isRead)
     } else {
-      await graphSetRead(msg.accountId, msg.remoteId, isRead)
+      await microsoftSetMessageRead(msg.accountId, msg.remoteId, isRead)
     }
     recordAction({
       messageId,
@@ -200,25 +202,34 @@ export async function applyMoveMessageToWellKnownAlias(
   const accounts = await listAccounts()
   const acc = accounts.find((a) => a.id === msg.accountId)
 
-  /** Zuerst Server: sonst ist lokal weg/Push erfolgt, Graph aber fehlgeschlagen → OWA und App auseinander. */
-  let newRemoteId: string | undefined
-  if (acc?.provider === 'google') {
-    if (destinationAlias === 'deleteditems') {
-      newRemoteId = await gmailTrashMessage(msg.accountId, msg.remoteId)
-    } else {
-      newRemoteId = await gmailArchiveMessage(msg.accountId, msg.remoteId)
-    }
-  } else {
-    const destFolder = findFolderByWellKnown(msg.accountId, destinationAlias)
-    const destId = destFolder?.remoteId ?? destinationAlias
-    newRemoteId = await graphMoveMessage(msg.accountId, msg.remoteId, destId)
-  }
-
+  // Optimistisch: zuerst lokal entfernen, dann remote verschieben.
   deleteMessageLocal(messageId)
   if (msg.folderId != null && !msg.isRead) {
     adjustFolderUnread(msg.folderId, -1)
   }
   broadcastMailChanged(msg.accountId)
+
+  let newRemoteId: string | undefined
+  try {
+    if (acc?.provider === 'google') {
+      if (destinationAlias === 'deleteditems') {
+        newRemoteId = await gmailTrashMessage(msg.accountId, msg.remoteId)
+      } else {
+        newRemoteId = await gmailArchiveMessage(msg.accountId, msg.remoteId)
+      }
+    } else {
+      const destFolder = findFolderByWellKnown(msg.accountId, destinationAlias)
+      const destId = destFolder?.remoteId ?? destinationAlias
+      newRemoteId = await microsoftMoveMessage(msg.accountId, msg.remoteId, destId, {
+        distinguishedFolder: destinationAlias
+      })
+    }
+  } catch (e) {
+    if (previousFolder) {
+      void runFolderSync(previousFolder.id).catch(() => undefined)
+    }
+    throw e
+  }
 
   if (targetFolder) {
     void runFolderSync(targetFolder.id).catch((e) =>
@@ -320,17 +331,22 @@ export async function applyMoveMessageToFolder(
 
   const source = opts?.source ?? 'ui'
 
-  const newRemoteId = await graphMoveMessage(
-    msg.accountId,
-    msg.remoteId,
-    targetFolder.remoteId
-  )
-
+  // Optimistisch: zuerst lokal entfernen, dann remote verschieben.
   deleteMessageLocal(messageId)
   if (msg.folderId != null && !msg.isRead) {
     adjustFolderUnread(msg.folderId, -1)
   }
   broadcastMailChanged(msg.accountId)
+
+  let newRemoteId: string | undefined
+  try {
+    newRemoteId = await microsoftMoveMessage(msg.accountId, msg.remoteId, targetFolder.remoteId)
+  } catch (e) {
+    if (msg.folderId != null) {
+      void runFolderSync(msg.folderId).catch(() => undefined)
+    }
+    throw e
+  }
 
   void runFolderSync(targetFolder.id).catch((e) =>
     console.warn('[message-graph-actions] Sync Ziel-Ordner fehlgeschlagen:', e)
@@ -411,33 +427,31 @@ export async function applyPermanentDeleteMessage(messageId: number): Promise<vo
   const accounts = await listAccounts()
   const acc = accounts.find((a) => a.id === accountId)
 
-  try {
-    if (acc?.provider === 'google') {
-      await gmailDeleteMessageForever(accountId, remoteId)
-    } else {
-      await graphDeleteMessageRemote(accountId, remoteId)
-    }
-  } catch (e) {
-    if (acc?.provider === 'google' && isGoogleInsufficientScopeError(e)) {
-      throw new Error(googleGmailFullScopeRequiredMessage())
-    }
-    if (isGraphItemNotFound(e)) {
-      deleteMessageLocal(messageId)
-      if (wasUnread) {
-        adjustFolderUnread(folderId, -1)
-      }
-      broadcastMailChanged(accountId)
-      void runFolderSync(folderId).catch(() => undefined)
-      return
-    }
-    throw e
-  }
-
+  // Optimistisch: zuerst lokal entfernen, dann remote loeschen.
   deleteMessageLocal(messageId)
   if (wasUnread) {
     adjustFolderUnread(folderId, -1)
   }
   broadcastMailChanged(accountId)
+
+  try {
+    if (acc?.provider === 'google') {
+      await gmailDeleteMessageForever(accountId, remoteId)
+    } else {
+      await microsoftDeleteMessageRemote(accountId, remoteId, { permanent: true })
+    }
+  } catch (e) {
+    if (acc?.provider === 'google' && isGoogleInsufficientScopeError(e)) {
+      void runFolderSync(folderId).catch(() => undefined)
+      throw new Error(googleGmailFullScopeRequiredMessage())
+    }
+    if (isGraphItemNotFound(e)) {
+      void runFolderSync(folderId).catch(() => undefined)
+      return
+    }
+    void runFolderSync(folderId).catch(() => undefined)
+    throw e
+  }
 
   void runFolderSync(folderId).catch((err) =>
     console.warn('[message-graph-actions] Sync Papierkorb nach endgueltigem Loeschen:', err)

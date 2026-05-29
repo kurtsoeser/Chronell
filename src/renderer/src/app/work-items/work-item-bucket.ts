@@ -27,7 +27,6 @@ export function classifyWorkItemBucket(
   nowMs = Date.now()
 ): TodoDueKindList {
   if (item.kind === 'calendar_event') {
-    if (isCalendarEventEffectivelyDone(item, nowMs)) return 'done'
     const startIso = item.planned.plannedStartIso ?? item.event.startIso
     const dueAt = normalizeDueAtIso(startIso, timeZone)
     if (dueAt) return classifyDueAtIso(dueAt, timeZone, nowMs)

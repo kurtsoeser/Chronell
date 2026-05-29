@@ -1336,5 +1336,73 @@ export const MIGRATIONS: Migration[] = [
       ALTER TABLE cloud_tasks ADD COLUMN recurrence_json TEXT NULL;
       ALTER TABLE cloud_tasks ADD COLUMN recurrence_local_only INTEGER NOT NULL DEFAULT 0;
     `
+  },
+  {
+    version: 45,
+    description: 'Mail-Sync: letzter erfolgreicher Lauf pro Konto',
+    sql: `
+      CREATE TABLE IF NOT EXISTS account_mail_sync_meta (
+        account_id        TEXT PRIMARY KEY,
+        last_finished_at  TEXT,
+        last_error        TEXT
+      );
+    `
+  },
+  {
+    version: 46,
+    description: 'Dateien-Modul: Mail-Anhang-Index (Metadaten + Index-Zeitstempel)',
+    sql: `
+      ALTER TABLE messages ADD COLUMN attachments_indexed_at TEXT NULL;
+
+      ALTER TABLE attachments ADD COLUMN account_id TEXT NULL;
+      ALTER TABLE attachments ADD COLUMN received_at TEXT NULL;
+      ALTER TABLE attachments ADD COLUMN subject TEXT NULL;
+      ALTER TABLE attachments ADD COLUMN from_addr TEXT NULL;
+
+      CREATE INDEX IF NOT EXISTS idx_messages_attachments_index_pending
+        ON messages(has_attachments, attachments_indexed_at, received_at DESC)
+        WHERE has_attachments = 1;
+
+      CREATE INDEX IF NOT EXISTS idx_attachments_received
+        ON attachments(received_at DESC);
+
+      CREATE INDEX IF NOT EXISTS idx_attachments_name
+        ON attachments(name COLLATE NOCASE);
+
+      CREATE INDEX IF NOT EXISTS idx_attachments_account
+        ON attachments(account_id);
+
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_attachments_message_remote
+        ON attachments(message_id, remote_id)
+        WHERE remote_id IS NOT NULL;
+    `
+  },
+  {
+    version: 47,
+    description: 'Kontakt-Verlauf: Teilnehmer-Index (message_participants)',
+    sql: `
+      CREATE TABLE IF NOT EXISTS message_participants (
+        message_id  INTEGER NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+        account_id  TEXT NOT NULL,
+        email       TEXT NOT NULL,
+        PRIMARY KEY (message_id, email)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_message_participants_lookup
+        ON message_participants(account_id, email, message_id);
+
+      CREATE INDEX IF NOT EXISTS idx_message_participants_message
+        ON message_participants(message_id);
+
+      CREATE INDEX IF NOT EXISTS idx_messages_account_received
+        ON messages(account_id, received_at DESC, id DESC);
+    `
+  },
+  {
+    version: 48,
+    description: 'Cloud-Aufgaben: Outlook-Kategorien (Microsoft To Do)',
+    sql: `
+      ALTER TABLE cloud_tasks ADD COLUMN categories_json TEXT NULL;
+    `
   }
 ]

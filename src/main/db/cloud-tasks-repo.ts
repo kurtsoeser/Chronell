@@ -11,6 +11,25 @@ interface TaskListDbRow {
   provider: string
 }
 
+function serializeTaskCategories(categories: string[] | null | undefined): string | null {
+  if (!categories?.length) return null
+  const trimmed = categories.map((c) => c.trim()).filter((c) => c.length > 0)
+  if (trimmed.length === 0) return null
+  return JSON.stringify(trimmed)
+}
+
+function deserializeTaskCategories(raw: string | null | undefined): string[] | undefined {
+  if (!raw?.trim()) return undefined
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    if (!Array.isArray(parsed)) return undefined
+    const out = parsed.filter((c): c is string => typeof c === 'string' && c.trim().length > 0)
+    return out.length > 0 ? out : undefined
+  } catch {
+    return undefined
+  }
+}
+
 interface CloudTaskDbRow {
   account_id: string
   list_id: string
@@ -23,6 +42,7 @@ interface CloudTaskDbRow {
   icon_color: string | null
   recurrence_json: string | null
   recurrence_local_only: number
+  categories_json: string | null
 }
 
 function rowToTaskList(r: TaskListDbRow): TaskListRow {
@@ -36,6 +56,7 @@ function rowToTaskList(r: TaskListDbRow): TaskListRow {
 
 function rowToTaskItem(r: CloudTaskDbRow): TaskItemRow {
   const recurrence = deserializeTaskRecurrence(r.recurrence_json)
+  const categories = deserializeTaskCategories(r.categories_json)
   return {
     id: r.task_id,
     listId: r.list_id,
@@ -45,11 +66,12 @@ function rowToTaskItem(r: CloudTaskDbRow): TaskItemRow {
     notes: r.notes,
     iconId: r.icon_id?.trim() ? r.icon_id.trim() : null,
     iconColor: r.icon_color?.trim() ? r.icon_color.trim() : null,
-    ...(recurrence ? { recurrence, recurrenceLocalOnly: r.recurrence_local_only === 1 } : {})
+    ...(recurrence ? { recurrence, recurrenceLocalOnly: r.recurrence_local_only === 1 } : {}),
+    ...(categories ? { categories } : {})
   }
 }
 
-const CLOUD_TASK_SELECT = `account_id, list_id, task_id, title, completed, due_iso, notes, icon_id, icon_color, recurrence_json, recurrence_local_only`
+const CLOUD_TASK_SELECT = `account_id, list_id, task_id, title, completed, due_iso, notes, icon_id, icon_color, recurrence_json, recurrence_local_only, categories_json`
 
 const UPSERT_LIST = `
   INSERT INTO task_lists (account_id, list_id, name, is_default, provider, synced_at)
@@ -64,10 +86,10 @@ const UPSERT_LIST = `
 const UPSERT_TASK = `
   INSERT INTO cloud_tasks (
     account_id, list_id, task_id, title, completed, due_iso, notes,
-    recurrence_json, recurrence_local_only, synced_at
+    recurrence_json, recurrence_local_only, categories_json, synced_at
   ) VALUES (
     @account_id, @list_id, @task_id, @title, @completed, @due_iso, @notes,
-    @recurrence_json, @recurrence_local_only, datetime('now')
+    @recurrence_json, @recurrence_local_only, @categories_json, datetime('now')
   )
   ON CONFLICT(account_id, list_id, task_id) DO UPDATE SET
     title = excluded.title,
@@ -79,6 +101,7 @@ const UPSERT_TASK = `
       WHEN excluded.recurrence_json IS NOT NULL THEN excluded.recurrence_local_only
       ELSE cloud_tasks.recurrence_local_only
     END,
+    categories_json = excluded.categories_json,
     synced_at = datetime('now')
 `
 
@@ -155,7 +178,8 @@ export function upsertCloudTasks(accountId: string, tasks: TaskItemRow[]): void 
         due_iso: task.dueIso,
         notes: task.notes,
         recurrence_json: serializeTaskRecurrence(task.recurrence),
-        recurrence_local_only: task.recurrenceLocalOnly === true ? 1 : 0
+        recurrence_local_only: task.recurrenceLocalOnly === true ? 1 : 0,
+        categories_json: serializeTaskCategories(task.categories)
       })
     }
   })

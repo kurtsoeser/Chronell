@@ -12,7 +12,11 @@
 [CmdletBinding()]
 param(
   [Parameter(Mandatory)]
-  [string] $Version
+  [string] $Version,
+
+  [switch] $IncludeAll,
+
+  [string] $CommitSubject
 )
 
 $ErrorActionPreference = 'Stop'
@@ -40,9 +44,14 @@ if ($branchResult.ExitCode -ne 0 -or -not $branch) {
   exit 0
 }
 
-$addResult = Invoke-GitCli -GitArgs @(
-  'add', '.gitattributes', 'docs/release', 'package.json', 'src/shared/app-version.ts', 'docs/index.html'
-)
+if ($IncludeAll) {
+  $addResult = Invoke-GitCli -GitArgs @('add', '-A')
+} else {
+  $addResult = Invoke-GitCli -GitArgs @(
+    'add', '.gitattributes', 'docs/release', 'package.json', 'src/shared/app-version.ts', 'docs/index.html',
+    'docs/FUNKTIONSPROTOKOLL.md', 'docs/i18n', 'docs/releases'
+  )
+}
 if ($addResult.ExitCode -ne 0) {
   Write-CliFailure -Result $addResult -Context 'git add fehlgeschlagen.'
   exit $addResult.ExitCode
@@ -53,7 +62,13 @@ $porcelain = ($statusResult.Output | Out-String).Trim()
 if (-not $porcelain) {
   Write-Host 'Keine Aenderungen zum Pushen - bereits aktuell.' -ForegroundColor DarkGray
 } else {
-  $msg = ('Release {0}: Installer, Manifeste und Homepage' -f $Version)
+  if ($CommitSubject) {
+    $subject = $CommitSubject.Trim()
+    if ($subject.Length -gt 72) { $subject = $subject.Substring(0, 69) + '...' }
+    $msg = ('Release {0}: {1}' -f $Version, $subject)
+  } else {
+    $msg = ('Release {0}: Installer, Manifeste und Homepage' -f $Version)
+  }
   $commitResult = Invoke-GitCli -GitArgs @('commit', '-m', $msg)
   if ($commitResult.ExitCode -ne 0) {
     Write-CliFailure -Result $commitResult -Context 'git commit fehlgeschlagen.'

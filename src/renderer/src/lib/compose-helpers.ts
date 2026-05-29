@@ -69,7 +69,12 @@ export function parseRecipientsWithTail(input: string): {
 
 export function formatRecipientsWithTail(complete: ParsedRecipient[], tail: string): string {
   const base = formatRecipientsForInput(complete)
-  if (!tail) return base
+  if (!tail) {
+    if (!base) return ''
+    // Trailing delimiter so parseRecipientsWithTail keeps committed addresses in
+    // `complete` (chips) instead of leaving the last one in `tail` (input only).
+    return `${base},`
+  }
   if (!base) return tail
   return `${base}, ${tail}`
 }

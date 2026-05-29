@@ -30,7 +30,8 @@ export function EntityContextBlock({
   showObjectNote = true,
   className,
   sectionCollapsedDefault = true,
-  contentPaddingClass = 'px-6'
+  contentPaddingClass = 'px-6',
+  noteEditorFillHeight = false
 }: {
   anchor: ChronellEntityRef
   noteTarget?: ObjectNoteTarget | null
@@ -39,6 +40,8 @@ export function EntityContextBlock({
   className?: string
   sectionCollapsedDefault?: boolean
   contentPaddingClass?: string
+  /** Notiz-Editor füllt verfügbare Höhe (z. B. Kalender-Vorschau). */
+  noteEditorFillHeight?: boolean
 }): JSX.Element {
   const { t } = useTranslation()
   const anchorKey = useMemo(() => entityRefKey(anchor), [anchor])
@@ -146,14 +149,22 @@ export function EntityContextBlock({
   )
 
   return (
-    <div className={cn('flex min-h-0 flex-col', className)}>
+    <div
+      className={cn(
+        'flex min-h-0 flex-col',
+        noteEditorFillHeight && 'min-h-0 flex-1 overflow-hidden',
+        className
+      )}
+    >
       {showNote ? (
         <ObjectNoteEditor
           target={noteTarget}
           variant="section"
           sectionCollapsedDefault
           layout="toggle"
+          fillHeight={noteEditorFillHeight}
           contentPaddingClass={contentPaddingClass}
+          className={noteEditorFillHeight ? 'min-h-0 flex-1 overflow-hidden' : undefined}
         />
       ) : null}
 
@@ -164,8 +175,11 @@ export function EntityContextBlock({
         onToggle={toggleExpanded}
         summary={summaryNode}
         trailing={kontextTrailing}
-        className={showNote ? undefined : 'border-t-0'}
-        contentClassName="min-h-0 space-y-3 !px-0"
+        className={cn(showNote ? 'min-h-0 shrink-0' : 'border-t-0')}
+        contentClassName={cn(
+          'min-h-0 space-y-3 !px-0',
+          noteEditorFillHeight && 'max-h-52 overflow-y-auto'
+        )}
       >
         <div className={contentPaddingClass}>
           <EntityContextMiniGraph

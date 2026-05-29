@@ -29,6 +29,11 @@ import {
   moduleColumnHeaderIconGlyphClass,
   moduleColumnHeaderUppercaseLabelClass
 } from '@/components/ModuleColumnHeader'
+import {
+  chronellDashboardTileGroupLabelClass,
+  chronellDashboardTileListMetaClass,
+  chronellDashboardTileListPrimaryClass
+} from '@/lib/chronell-ui-classes'
 
 export type InboxCalendarSidebarProps = {
   /** Kein eigener Titel-/Abdock-Balken (schwebendes Fenster bringt die Leiste mit). */
@@ -244,7 +249,7 @@ export function InboxCalendarSidebar({
           {t('mail.inboxCal.nextEvents')}
         </div>
         {blockingLoading ? (
-          <div className="flex items-center justify-center gap-2 py-6 text-xs text-muted-foreground">
+          <div className="flex items-center justify-center gap-2 py-6 text-2xs text-muted-foreground">
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
             {t('mail.inboxCal.loading')}
           </div>
@@ -285,7 +290,12 @@ export function InboxCalendarSidebar({
               return (
                 <li key={`${row.kind}-${row.kind === 'graph' ? row.ev.id : row.message.id}-${idx}`}>
                   {showDay && (
-                    <div className="px-1.5 pb-0.5 pt-2 text-xs font-semibold capitalize text-foreground first:pt-1">
+                    <div
+                      className={cn(
+                        chronellDashboardTileGroupLabelClass,
+                        'px-1.5 pb-0.5 pt-2 capitalize first:pt-1'
+                      )}
+                    >
                       {formatDayHeading(startDate)}
                     </div>
                   )}
@@ -324,11 +334,13 @@ export function InboxCalendarSidebar({
                       }
                     />
                     <span className="min-w-0 flex-1">
-                      <span className="line-clamp-2 text-xs font-medium leading-snug text-foreground">
+                      <span className={cn(chronellDashboardTileListPrimaryClass, 'line-clamp-2')}>
                         {title}
                       </span>
                       {subline && (
-                        <span className="line-clamp-1 text-2xs text-muted-foreground">{subline}</span>
+                        <span className={cn(chronellDashboardTileListMetaClass, 'line-clamp-1')}>
+                          {subline}
+                        </span>
                       )}
                     </span>
                   </button>

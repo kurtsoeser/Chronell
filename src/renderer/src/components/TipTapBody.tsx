@@ -9,7 +9,9 @@ import { FontSize } from '@tiptap/extension-text-style/font-size'
 import Color from '@tiptap/extension-color'
 import Highlight from '@tiptap/extension-highlight'
 import { TableRow } from '@tiptap/extension-table/row'
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { prepareComposeEditorHtml } from '@/lib/sanitize-compose-html'
+import { safeTiptapGetHtml } from '@/lib/tiptap-editor-html'
 import { MailTable, MailTableCell, MailTableHeader, type MailTableDesign } from '@/components/tiptap-mail-table'
 import { showAppPrompt } from '@/stores/app-dialog'
 import {
@@ -148,9 +150,13 @@ export function TipTapBody({
   const [colorPickerOpen, setColorPickerOpen] = useState<'text' | 'highlight' | null>(null)
   const composeScale = useComposeEditorScaleStore((s) => s.scale)
   const composeEditorTheme = useComposeEditorEffectiveTheme()
+  const preparedValueHtml = useMemo(
+    () => prepareComposeEditorHtml(valueHtml) || '<p></p>',
+    [valueHtml]
+  )
 
-  const editor = useEditor({
-    extensions: [
+  const extensions = useMemo(
+    () => [
       StarterKit.configure({
         codeBlock: false,
         heading: { levels: [1, 2, 3] },
@@ -173,7 +179,12 @@ export function TipTapBody({
       MailTableHeader,
       MailTableCell
     ],
-    content: valueHtml || '<p></p>',
+    [placeholder]
+  )
+
+  const editor = useEditor({
+    extensions,
+    content: preparedValueHtml,
     editorProps: {
       attributes: {
         class: cn(
@@ -196,17 +207,19 @@ export function TipTapBody({
       }
     },
     onUpdate({ editor: ed }): void {
-      onChangeHtml(ed.getHTML())
+      const html = safeTiptapGetHtml(ed)
+      if (html !== null) onChangeHtml(html)
     }
   })
 
   useEffect(() => {
-    if (!editor) return
-    const cur = editor.getHTML()
-    if (valueHtml !== cur && (valueHtml || '<p></p>') !== cur) {
-      editor.commands.setContent(valueHtml || '<p></p>', { emitUpdate: false })
+    if (!editor || editor.isDestroyed) return
+    const cur = safeTiptapGetHtml(editor)
+    if (cur === null) return
+    if (preparedValueHtml !== cur) {
+      editor.commands.setContent(preparedValueHtml, { emitUpdate: false })
     }
-  }, [editor, valueHtml])
+  }, [editor, preparedValueHtml])
 
   useEffect(() => {
     if (autoFocus && editor) editor.commands.focus('end')
