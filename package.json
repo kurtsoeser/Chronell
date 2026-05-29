@@ -1,7 +1,7 @@
 {
   "name": "mailclient",
   "productName": "Chronell",
-  "version": "0.9.23",
+  "version": "0.9.24",
   "description": "Schlanker, lokaler Mail-Workflow-Client fuer Windows 11 mit Multi-Account-Support fuer Microsoft 365 und Gmail",
   "main": "out/main/index.js",
   "author": "Kurt Soeser",
@@ -60,6 +60,7 @@
     "@fullcalendar/timegrid": "^6.1.20",
     "@microsoft/microsoft-graph-client": "^3.0.7",
     "@supabase/supabase-js": "^2.106.1",
+    "@tanstack/react-virtual": "^3.13.26",
     "@tiptap/extension-color": "^3.23.2",
     "@tiptap/extension-highlight": "^3.23.2",
     "@tiptap/extension-image": "^3.23.2",
