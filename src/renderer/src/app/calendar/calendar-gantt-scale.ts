@@ -244,7 +244,7 @@ export function buildGanttHeaderColumns(
     while (t.getTime() < rangeEnd.getTime()) {
       const end = addDays(t, stepDays)
       const isToday = startOfDay(t).getTime() === todayStart
-      const weekNum = getISOWeek(t, WEEK_OPTS)
+      const weekNum = getISOWeek(t)
       cols.push({
         key: t.toISOString(),
         start: t,

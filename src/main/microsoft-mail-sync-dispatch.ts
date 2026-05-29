@@ -1,5 +1,7 @@
 import { shouldUseEwsForMicrosoftMail } from './ews/microsoft-mail-transport'
-import { findFolderByWellKnown } from './db/folders-repo'
+import { findFolderByRemoteId, findFolderByWellKnown } from './db/folders-repo'
+import { countMessagesInFolder } from './db/messages-repo'
+import { upsertFolderSyncState } from './db/sync-state-repo'
 import {
   pollMessagesInFolderEws,
   primeEwsSyncStateForAllFolders,
@@ -18,20 +20,69 @@ async function useEwsMailSync(accountId: string): Promise<boolean> {
   return shouldUseEwsForMicrosoftMail(accountId)
 }
 
+function clearEwsSyncStateForFolder(accountId: string, folderId: number): void {
+  upsertFolderSyncState({
+    accountId,
+    folderId,
+    deltaToken: null,
+    lastSyncedAt: null
+  })
+}
+
+/** EWS kann „erfolgreich“ mit 0 Mails zurueckkehren — dann Graph erzwingen. */
+async function graphFallbackIfFolderStillEmpty(
+  accountId: string,
+  folderRemoteId: string,
+  topCount: number
+): Promise<number> {
+  const folder = findFolderByRemoteId(accountId, folderRemoteId)
+  if (!folder) return 0
+
+  const localCount = countMessagesInFolder(folder.id)
+  const serverTotal = folder.totalCount ?? 0
+
+  if (localCount > 0 || serverTotal === 0) {
+    console.log(
+      `[mail-sync] ${folder.wellKnown ?? folder.name}: ${localCount} Mails lokal` +
+        (serverTotal > 0 ? ` (Server: ${serverTotal})` : '')
+    )
+    return localCount
+  }
+
+  console.warn(
+    `[mail-sync] EWS ohne Mails fuer "${folder.name}" — Graph-Fallback (Server meldet ${serverTotal} Eintraege)`
+  )
+  clearEwsSyncStateForFolder(accountId, folder.id)
+  const graphCount = await syncMessagesInFolderGraph(accountId, folderRemoteId, topCount)
+  const afterLocal = countMessagesInFolder(folder.id)
+  console.log(
+    `[mail-sync] Graph-Fallback "${folder.name}": ${graphCount} von API, ${afterLocal} lokal gespeichert`
+  )
+  return afterLocal
+}
+
 export async function syncMessagesInFolder(
   accountId: string,
   folderRemoteId: string,
   topCount = 50
 ): Promise<number> {
   if (!(await useEwsMailSync(accountId))) {
-    return syncMessagesInFolderGraph(accountId, folderRemoteId, topCount)
+    const n = await syncMessagesInFolderGraph(accountId, folderRemoteId, topCount)
+    const folder = findFolderByRemoteId(accountId, folderRemoteId)
+    console.log(
+      `[mail-sync] Graph ${folder?.wellKnown ?? folder?.name ?? folderRemoteId}: ${n} Mails`
+    )
+    return n
   }
   try {
-    return await syncMessagesInFolderEws(accountId, folderRemoteId, topCount)
+    await syncMessagesInFolderEws(accountId, folderRemoteId, topCount)
   } catch (e) {
     console.warn('[mail-sync] EWS folder sync failed, Graph fallback:', e)
+    const folder = findFolderByRemoteId(accountId, folderRemoteId)
+    if (folder) clearEwsSyncStateForFolder(accountId, folder.id)
     return syncMessagesInFolderGraph(accountId, folderRemoteId, topCount)
   }
+  return graphFallbackIfFolderStillEmpty(accountId, folderRemoteId, topCount)
 }
 
 export async function pollMessagesInFolder(
@@ -43,7 +94,17 @@ export async function pollMessagesInFolder(
     return pollMessagesInFolderGraph(accountId, folderRemoteId, maxPages)
   }
   try {
-    return await pollMessagesInFolderEws(accountId, folderRemoteId, maxPages)
+    const result = await pollMessagesInFolderEws(accountId, folderRemoteId, maxPages)
+    const folder = findFolderByRemoteId(accountId, folderRemoteId)
+    const localCount = folder ? countMessagesInFolder(folder.id) : 0
+    const serverTotal = folder?.totalCount ?? 0
+    if (localCount === 0 && serverTotal > 0 && result.added === 0) {
+      console.warn('[mail-sync] EWS poll leer, Graph-Fallback:', folderRemoteId)
+      if (folder) clearEwsSyncStateForFolder(accountId, folder.id)
+      const n = await syncMessagesInFolderGraph(accountId, folderRemoteId, 100)
+      return { added: n, from: null, to: null, remoteIds: [] }
+    }
+    return result
   } catch (e) {
     console.warn('[mail-sync] EWS poll failed, Graph fallback:', e)
     return pollMessagesInFolderGraph(accountId, folderRemoteId, maxPages)
@@ -66,39 +127,31 @@ export async function syncAccountInitial(accountId: string): Promise<{
   const inbox = findFolderByWellKnown(accountId, 'inbox')
   let inboxMessages = 0
   if (inbox) {
-    try {
-      inboxMessages = await syncMessagesInFolderEws(accountId, inbox.remoteId, 50)
-    } catch (e) {
-      console.warn('[mail-sync] EWS Inbox failed, Graph fallback:', e)
-      inboxMessages = await syncMessagesInFolderGraph(accountId, inbox.remoteId, 50)
-    }
+    inboxMessages = await syncMessagesInFolder(accountId, inbox.remoteId, 50)
   }
 
   const sent = findFolderByWellKnown(accountId, 'sentitems')
   let sentMessages = 0
   if (sent) {
-    try {
-      sentMessages = await syncMessagesInFolderEws(accountId, sent.remoteId, 50)
-    } catch (e) {
-      console.warn('[mail-sync] EWS Sent-Ordner, Graph fallback:', e)
-      sentMessages = await syncMessagesInFolderGraph(accountId, sent.remoteId, 50)
-    }
+    sentMessages = await syncMessagesInFolder(accountId, sent.remoteId, 50)
   }
 
   const drafts = findFolderByWellKnown(accountId, 'drafts')
   let draftMessages = 0
   if (drafts) {
-    try {
-      draftMessages = await syncMessagesInFolderEws(accountId, drafts.remoteId, 50)
-    } catch (e) {
-      console.warn('[mail-sync] EWS Entwuerfe, Graph fallback:', e)
-      draftMessages = await syncMessagesInFolderGraph(accountId, drafts.remoteId, 50)
-    }
+    draftMessages = await syncMessagesInFolder(accountId, drafts.remoteId, 50)
   }
 
-  void primeEwsSyncStateForAllFolders(accountId).catch((e) =>
-    console.warn('[mail-sync] EWS prime all folders:', e)
-  )
+  const importedTotal = inboxMessages + sentMessages + draftMessages
+  if (importedTotal > 0) {
+    void primeEwsSyncStateForAllFolders(accountId).catch((e) =>
+      console.warn('[mail-sync] EWS prime all folders:', e)
+    )
+  } else {
+    console.warn(
+      '[mail-sync] EWS-Initialsync: 0 Mails importiert — Sync-State wird nicht vorab gesetzt (Graph-Fallback moeglich)'
+    )
+  }
 
   return { folders, inboxMessages, sentMessages, draftMessages }
 }

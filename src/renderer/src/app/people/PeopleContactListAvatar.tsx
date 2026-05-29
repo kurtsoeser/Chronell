@@ -3,6 +3,8 @@ import type { PeopleContactView } from '@shared/types'
 import { Avatar } from '@/components/Avatar'
 import { cn } from '@/lib/utils'
 import { bgToRingClass } from '@/lib/avatar-color'
+import { isContactPhotoAvatarEnabled, isGravatarEnabled } from '@shared/avatar-preferences'
+import { useAccountsStore } from '@/stores/accounts'
 import { useContactPhotoDataUrl } from '@/app/people/useContactPhotoDataUrl'
 
 interface PeopleContactListAvatarProps {
@@ -38,11 +40,15 @@ export function PeopleContactListAvatar({
     return (): void => io.disconnect()
   }, [])
 
+  const config = useAccountsStore((s) => s.config)
+  const contactPhotoEnabled = isContactPhotoAvatarEnabled(config)
+  const gravatarEnabled = isGravatarEnabled(config)
+
   const hasLocal = Boolean(contact.photoLocalPath?.trim())
   const localUrl = useContactPhotoDataUrl(
     contact.id,
     contact.photoLocalPath,
-    loadLocalPhoto && hasLocal,
+    loadLocalPhoto && hasLocal && contactPhotoEnabled,
     contact.updatedLocal ?? null
   )
 
@@ -55,8 +61,8 @@ export function PeopleContactListAvatar({
       <Avatar
         name={displayName}
         email={contact.primaryEmail}
-        imageSrc={localUrl}
-        useGravatar={!hasLocal}
+        imageSrc={contactPhotoEnabled ? localUrl : null}
+        useGravatar={!hasLocal && gravatarEnabled}
         accountColor={accountColor ?? null}
         size={isTile ? 'xl' : 'md'}
         className={cn(

@@ -2,9 +2,23 @@ import type { ConnectedAccount, TaskListRow } from '@shared/types'
 import { readTasksCalendarCreateAccountId } from '@/app/tasks/tasks-calendar-create-storage'
 import type { TasksViewSelection } from '@/app/tasks/tasks-types'
 
-export function pickDefaultListId(rows: TaskListRow[]): string | null {
+function isFlaggedEmailsTaskList(row: TaskListRow): boolean {
+  if (row.wellKnownListName === 'flaggedEmails') return true
+  return /gekennzeichnete?\s*e-?mail|flagged\s*e-?mail/i.test(row.name)
+}
+
+/** Standardliste für neue Aufgaben (Microsoft „Aufgaben“ / Google `@default`), nie „Gekennzeichnete E-Mail“. */
+export function pickCreateTaskListId(rows: TaskListRow[]): string | null {
   if (rows.length === 0) return null
-  return rows.find((r) => r.isDefault)?.id ?? rows[0]!.id
+  const def = rows.find((r) => r.isDefault && !isFlaggedEmailsTaskList(r))
+  if (def) return def.id
+  const regular = rows.filter((r) => !isFlaggedEmailsTaskList(r))
+  if (regular.length > 0) return regular[0]!.id
+  return rows[0]!.id
+}
+
+export function pickDefaultListId(rows: TaskListRow[]): string | null {
+  return pickCreateTaskListId(rows)
 }
 
 export function resolvePreferredAccountId(

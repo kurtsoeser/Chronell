@@ -9,6 +9,20 @@ const ACCOUNTS_KEY = 'accounts'
 
 const PRESET_LIST = ACCOUNT_COLOR_PRESET_CLASSES as unknown as string[]
 
+/** Verhindert parallele Read-Modify-Write-Races auf `accounts` (z. B. Signatur + Profilfoto). */
+let accountsWriteChain: Promise<unknown> = Promise.resolve()
+
+function runSerializedAccountsWrite<T>(fn: () => Promise<T>): Promise<T> {
+  const next = accountsWriteChain.then(fn, fn)
+  accountsWriteChain = next.catch(() => undefined)
+  return next
+}
+
+async function writeAccountsList(accounts: ConnectedAccount[]): Promise<ConnectedAccount[]> {
+  await writeJsonSecure(ACCOUNTS_KEY, accounts)
+  return accounts
+}
+
 export function pickAccountColor(existing: ConnectedAccount[]): string {
   const used = new Set(existing.map((a) => a.color))
   const free = PRESET_LIST.find((c) => !used.has(c))
@@ -30,22 +44,24 @@ export async function listAccounts(): Promise<ConnectedAccount[]> {
 }
 
 export async function upsertAccount(account: ConnectedAccount): Promise<ConnectedAccount[]> {
-  const current = await listAccounts()
-  const idx = current.findIndex((a) => a.id === account.id)
-  if (idx >= 0) {
-    current[idx] = account
-  } else {
-    current.push(account)
-  }
-  await writeJsonSecure(ACCOUNTS_KEY, current)
-  return current
+  return runSerializedAccountsWrite(async () => {
+    const current = await listAccounts()
+    const idx = current.findIndex((a) => a.id === account.id)
+    if (idx >= 0) {
+      current[idx] = { ...current[idx]!, ...account }
+    } else {
+      current.push(account)
+    }
+    return writeAccountsList(current)
+  })
 }
 
 export async function removeAccount(id: string): Promise<ConnectedAccount[]> {
-  const current = await listAccounts()
-  const next = current.filter((a) => a.id !== id)
-  await writeJsonSecure(ACCOUNTS_KEY, next)
-  return next
+  return runSerializedAccountsWrite(async () => {
+    const current = await listAccounts()
+    const next = current.filter((a) => a.id !== id)
+    return writeAccountsList(next)
+  })
 }
 
 /**
@@ -76,77 +92,79 @@ export async function mergeAccountPreferencesFromBackup(
   prefs: SettingsBackupAccountPreferenceSnapshot[],
   accountOrder?: string[]
 ): Promise<ConnectedAccount[]> {
-  const current = await listAccounts()
-  if (current.length === 0 || prefs.length === 0) {
-    return current
-  }
-  const prefById = new Map(prefs.map((p) => [p.accountId, p] as const))
-  let next = current.map((acc) => {
-    const p = prefById.get(acc.id)
-    if (!p) return acc
-    const merged: ConnectedAccount = { ...acc }
-    if (typeof p.color === 'string' && p.color.trim()) {
-      merged.color = p.color.trim()
+  return runSerializedAccountsWrite(async () => {
+    const current = await listAccounts()
+    if (current.length === 0 || prefs.length === 0) {
+      return current
     }
-    if ('avatarKind' in p && p.avatarKind) {
-      merged.avatarKind = p.avatarKind
-    }
-    if ('avatarIconId' in p) {
-      merged.avatarIconId = p.avatarIconId ?? null
-    }
-    if ('calendarLoadAheadDays' in p) {
-      if (p.calendarLoadAheadDays == null) {
-        delete merged.calendarLoadAheadDays
-      } else if (Number.isFinite(p.calendarLoadAheadDays)) {
-        merged.calendarLoadAheadDays = Math.floor(p.calendarLoadAheadDays)
+    const prefById = new Map(prefs.map((p) => [p.accountId, p] as const))
+    let next = current.map((acc) => {
+      const p = prefById.get(acc.id)
+      if (!p) return acc
+      const merged: ConnectedAccount = { ...acc }
+      if (typeof p.color === 'string' && p.color.trim()) {
+        merged.color = p.color.trim()
+      }
+      if ('avatarKind' in p && p.avatarKind) {
+        merged.avatarKind = p.avatarKind
+      }
+      if ('avatarIconId' in p) {
+        merged.avatarIconId = p.avatarIconId ?? null
+      }
+      if ('calendarLoadAheadDays' in p) {
+        if (p.calendarLoadAheadDays == null) {
+          delete merged.calendarLoadAheadDays
+        } else if (Number.isFinite(p.calendarLoadAheadDays)) {
+          merged.calendarLoadAheadDays = Math.floor(p.calendarLoadAheadDays)
+        }
+      }
+      if (Array.isArray(p.signatureTemplates)) {
+        merged.signatureTemplates = p.signatureTemplates
+      }
+      if ('defaultSignatureTemplateId' in p) {
+        merged.defaultSignatureTemplateId = p.defaultSignatureTemplateId ?? null
+      }
+      if ('bookWithMeUrl' in p) {
+        merged.bookWithMeUrl = p.bookWithMeUrl ?? null
+      }
+      if (Array.isArray(p.sharedMailboxSendAs)) {
+        merged.sharedMailboxSendAs = p.sharedMailboxSendAs
+      }
+      return merged
+    })
+    if (accountOrder && accountOrder.length === next.length) {
+      const idSet = new Set(next.map((a) => a.id))
+      const orderOk =
+        accountOrder.every((id) => idSet.has(id)) &&
+        new Set(accountOrder).size === accountOrder.length
+      if (orderOk) {
+        const byId = new Map(next.map((a) => [a.id, a] as const))
+        next = accountOrder.map((id) => byId.get(id)!)
       }
     }
-    if (Array.isArray(p.signatureTemplates)) {
-      merged.signatureTemplates = p.signatureTemplates
-    }
-    if ('defaultSignatureTemplateId' in p) {
-      merged.defaultSignatureTemplateId = p.defaultSignatureTemplateId ?? null
-    }
-    if ('bookWithMeUrl' in p) {
-      merged.bookWithMeUrl = p.bookWithMeUrl ?? null
-    }
-    if (Array.isArray(p.sharedMailboxSendAs)) {
-      merged.sharedMailboxSendAs = p.sharedMailboxSendAs
-    }
-    return merged
+    return writeAccountsList(next)
   })
-  if (accountOrder && accountOrder.length === next.length) {
-    const idSet = new Set(next.map((a) => a.id))
-    const orderOk =
-      accountOrder.every((id) => idSet.has(id)) &&
-      new Set(accountOrder).size === accountOrder.length
-    if (orderOk) {
-      const byId = new Map(next.map((a) => [a.id, a] as const))
-      next = accountOrder.map((id) => byId.get(id)!)
-    }
-  }
-  await writeJsonSecure(ACCOUNTS_KEY, next)
-  return next
 }
 
 export async function reorderAccounts(accountIds: string[]): Promise<ConnectedAccount[]> {
-  const current = await listAccounts()
-  if (accountIds.length !== current.length) {
-    throw new Error('Ungueltige Konten-Reihenfolge (Anzahl stimmt nicht).')
-  }
-  const idSet = new Set(current.map((a) => a.id))
-  const seen = new Set<string>()
-  for (const id of accountIds) {
-    if (!idSet.has(id)) {
-      throw new Error('Ungueltige Konten-Reihenfolge (unbekannte Konto-ID).')
+  return runSerializedAccountsWrite(async () => {
+    const current = await listAccounts()
+    if (accountIds.length !== current.length) {
+      throw new Error('Ungueltige Konten-Reihenfolge (Anzahl stimmt nicht).')
     }
-    if (seen.has(id)) {
-      throw new Error('Ungueltige Konten-Reihenfolge (doppelte ID).')
+    const idSet = new Set(current.map((a) => a.id))
+    const seen = new Set<string>()
+    for (const id of accountIds) {
+      if (!idSet.has(id)) {
+        throw new Error('Ungueltige Konten-Reihenfolge (unbekannte Konto-ID).')
+      }
+      if (seen.has(id)) {
+        throw new Error('Ungueltige Konten-Reihenfolge (doppelte ID).')
+      }
+      seen.add(id)
     }
-    seen.add(id)
-  }
-  const byId = new Map(current.map((a) => [a.id, a] as const))
-  const next = accountIds.map((id) => byId.get(id)!)
-  await writeJsonSecure(ACCOUNTS_KEY, next)
-  return next
+    const byId = new Map(current.map((a) => [a.id, a] as const))
+    const next = accountIds.map((id) => byId.get(id)!)
+    return writeAccountsList(next)
+  })
 }

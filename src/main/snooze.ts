@@ -1,4 +1,3 @@
-import { BrowserWindow } from 'electron'
 import { getDb } from './db/index'
 import {
   clearMessageSnooze,
@@ -17,6 +16,7 @@ import {
 import { createFolder as graphCreateFolder } from './graph/folder-actions'
 import { microsoftMoveMessage } from './ews/microsoft-mail-actions-facade'
 import { recordAction } from './db/message-actions-repo'
+import { broadcastMailChanged } from './ipc/ipc-broadcasts'
 
 /**
  * Name unseres eigenen Snoozed-Ordners im Mailprovider. Erscheint
@@ -27,12 +27,6 @@ const SNOOZED_FOLDER_NAME = 'MailClient – Snoozed'
 function truncate(text: string, max: number): string {
   if (text.length <= max) return text
   return text.slice(0, max - 1) + '...'
-}
-
-function broadcastMailChanged(accountId: string): void {
-  for (const win of BrowserWindow.getAllWindows()) {
-    win.webContents.send('mail:changed', { accountId })
-  }
 }
 
 /**

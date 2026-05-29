@@ -12,6 +12,7 @@ interface Props {
   accounts: ConnectedAccount[]
   /** z. B. aktives Nav-Konto */
   preferredAccountId: string | null
+  initialDraft?: CreateContactFromMailDraft | null
   onCreated: (contact: PeopleContactView) => void | Promise<void>
 }
 

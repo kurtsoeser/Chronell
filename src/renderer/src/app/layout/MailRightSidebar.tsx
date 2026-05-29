@@ -75,8 +75,19 @@ export function MailRightSidebar({
   const { t } = useTranslation()
 
   const [activeTab, setActiveTab] = useState<MailRightSidebarTab>(() => readActiveTab())
+  const [mountedTabs, setMountedTabs] = useState<Set<MailRightSidebarTab>>(
+    () => new Set([readActiveTab()])
+  )
   useEffect(() => {
     writeActiveTab(activeTab)
+  }, [activeTab])
+  useEffect(() => {
+    setMountedTabs((prev) => {
+      if (prev.has(activeTab)) return prev
+      const next = new Set(prev)
+      next.add(activeTab)
+      return next
+    })
   }, [activeTab])
 
   const tabs = useMemo(
@@ -174,8 +185,21 @@ export function MailRightSidebar({
         </div>
       ) : null}
 
-      <div className={cn('min-h-0 flex-1 overflow-hidden', hideChrome ? 'pt-2' : '')}>
-        {active.content}
+      <div className={cn('relative min-h-0 flex-1 overflow-hidden', hideChrome ? 'pt-2' : '')}>
+        {tabs.map((tab) =>
+          mountedTabs.has(tab.id) ? (
+            <div
+              key={tab.id}
+              className={cn(
+                'h-full min-h-0 overflow-hidden',
+                tab.id !== activeTab && 'pointer-events-none invisible absolute inset-0'
+              )}
+              aria-hidden={tab.id !== activeTab}
+            >
+              {tab.content}
+            </div>
+          ) : null
+        )}
       </div>
 
       <div className="shrink-0 border-t border-border bg-sidebar/95 px-1 py-1.5 backdrop-blur">

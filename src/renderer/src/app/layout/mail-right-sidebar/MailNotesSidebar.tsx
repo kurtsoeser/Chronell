@@ -245,7 +245,7 @@ export function MailNotesSidebar(): JSX.Element {
 
   const deleteNote = useCallback(async (note: UserNoteListItem): Promise<void> => {
     try {
-      await window.mailClient.notes.deleteById(note.id)
+      await window.mailClient.notes.delete(note.id)
       setNotes((prev) => prev.filter((n) => n.id !== note.id))
       setActiveNoteId((id) => (id === note.id ? null : id))
       setComposeNote((current) => (current?.id === note.id ? null : current))
@@ -258,16 +258,23 @@ export function MailNotesSidebar(): JSX.Element {
 
   const copyNote = useCallback(async (note: UserNoteListItem): Promise<void> => {
     try {
-      await window.mailClient.notes.copyStandalone({ noteId: note.id })
+      const full = (await window.mailClient.notes.getById(note.id)) ?? note
+      await window.mailClient.notes.createStandalone({
+        title: full.title?.trim()
+          ? `${full.title.trim()}${t('calendar.context.duplicateSuffix')}`
+          : t('notes.shell.newStandaloneTitle'),
+        body: full.body,
+        sectionId: full.sectionId ?? note.sectionId ?? null
+      })
       void load()
     } catch {
       // ignore
     }
-  }, [load])
+  }, [load, t])
 
   const moveNote = useCallback(async (note: UserNoteListItem, sectionId: number | null): Promise<void> => {
     try {
-      await window.mailClient.notes.moveStandalone({ noteId: note.id, sectionId })
+      await window.mailClient.notes.moveToSection({ noteId: note.id, sectionId })
       void load()
       void loadSections()
     } catch {

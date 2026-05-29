@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { addDays, format, isToday, parseISO, startOfDay } from 'date-fns'
 import { de as deFns, enUS as enUSFns } from 'date-fns/locale'
 import type { Locale } from 'date-fns'
@@ -10,8 +11,18 @@ import interactionPlugin from '@fullcalendar/interaction'
 import luxonPlugin from '@fullcalendar/luxon'
 import deLocale from '@fullcalendar/core/locales/de'
 import enGbLocale from '@fullcalendar/core/locales/en-gb'
-import type { EventClickArg, EventInput } from '@fullcalendar/core'
-import type { CalendarEventView, MailListItem } from '@shared/types'
+import type { DateSelectArg, EventClickArg, EventInput } from '@fullcalendar/core'
+import type { CalendarEventView, MailListItem, TaskListRow } from '@shared/types'
+import {
+  CalendarCreateQuickPopover,
+  type CalendarCreateQuickDraft
+} from '@/app/calendar/CalendarCreateQuickPopover'
+import { CalendarEventDialog } from '@/app/calendar/CalendarEventDialog'
+import {
+  QUICK_CREATE_PLACEHOLDER_EVENT_ID,
+  quickCreateRangeToFcPlaceholder
+} from '@/app/calendar/calendar-quick-create-placeholder'
+import type { CalendarCreateRange } from '@/app/tasks/tasks-calendar-create-range'
 import { useAccountsStore } from '@/stores/accounts'
 import { useAppModeStore } from '@/stores/app-mode'
 import { useCalendarPendingFocusStore } from '@/stores/calendar-pending-focus'
@@ -75,6 +86,7 @@ export function MailCalendarDaySidebar(): JSX.Element {
     () => accounts.filter((a) => a.provider === 'microsoft' || a.provider === 'google'),
     [accounts]
   )
+  const taskAccounts = calendarLinkedAccounts
   const calendarsByAccount = useCalendarListByAccount(calendarLinkedAccounts)
   const calendarLinkedAccountIds = useMemo(
     () => calendarLinkedAccounts.map((a) => a.id),
@@ -104,6 +116,30 @@ export function MailCalendarDaySidebar(): JSX.Element {
 
   const [day, setDay] = useState(() => readDay())
   useEffect(() => writeDay(day), [day])
+
+  const [quickCreate, setQuickCreate] = useState<{
+    anchor: { x: number; y: number }
+    range: CalendarCreateRange
+  } | null>(null)
+  const [eventDialog, setEventDialog] = useState<{
+    range: CalendarCreateRange
+    draft: CalendarCreateQuickDraft
+  } | null>(null)
+
+  const dismissQuickCreate = useCallback((): void => {
+    calendarRef.current?.getApi()?.unselect()
+    setQuickCreate(null)
+  }, [])
+
+  const handleQuickCreateRangeChange = useCallback((range: CalendarCreateRange): void => {
+    setQuickCreate((prev) => (prev ? { ...prev, range } : null))
+  }, [])
+
+  const loadTaskListsForAccount = useCallback(
+    async (accountId: string): Promise<TaskListRow[]> =>
+      window.mailClient.tasks.listLists({ accountId }),
+    []
+  )
 
   const [mailTodosLoading, setMailTodosLoading] = useState(false)
   const [mailTodosErr, setMailTodosErr] = useState<string | null>(null)
@@ -244,7 +280,32 @@ export function MailCalendarDaySidebar(): JSX.Element {
     [mailTodos, accountColorById]
   )
 
-  const fcEvents = useMemo(() => [...graphFcEvents, ...mailTodoFcEvents], [graphFcEvents, mailTodoFcEvents])
+  const quickCreatePlaceholderEvents = useMemo((): EventInput[] => {
+    if (!quickCreate) return []
+    return [quickCreateRangeToFcPlaceholder(quickCreate.range)]
+  }, [quickCreate])
+
+  const fcEvents = useMemo(
+    () => [...graphFcEvents, ...mailTodoFcEvents, ...quickCreatePlaceholderEvents],
+    [graphFcEvents, mailTodoFcEvents, quickCreatePlaceholderEvents]
+  )
+
+  const canInteractInTimeGrid = calendarLinkedAccounts.length > 0 || taskAccounts.length > 0
+
+  const reloadDayData = useCallback((): void => {
+    void ensureEventRangeInCache()
+    void window.mailClient.mail
+      .listTodoMessagesInRange({
+        accountId: null,
+        rangeStartIso: dayStart.toISOString(),
+        rangeEndIso: dayEndExcl.toISOString(),
+        limit: 250
+      })
+      .then(setMailTodos)
+      .catch(() => {
+        // keep existing list
+      })
+  }, [ensureEventRangeInCache, dayStart, dayEndExcl])
 
   const timeGridFcSlotOpts = useMemo(
     () => timeGridFcSnapOptions(calSettings.defaultTimeGridSlotMinutes),
@@ -253,8 +314,25 @@ export function MailCalendarDaySidebar(): JSX.Element {
 
   const fcLocale = i18n.language.startsWith('de') ? deLocale : enGbLocale
 
+  const onSelect = useCallback(
+    (sel: DateSelectArg): void => {
+      if (!canInteractInTimeGrid) return
+      const js = sel.jsEvent as MouseEvent | undefined
+      setQuickCreate({
+        anchor: {
+          x: js?.clientX ?? window.innerWidth / 2,
+          y: js?.clientY ?? window.innerHeight / 2
+        },
+        range: { start: sel.start, end: sel.end, allDay: sel.allDay }
+      })
+      queueMicrotask(() => calendarRef.current?.getApi()?.unselect())
+    },
+    [canInteractInTimeGrid]
+  )
+
   const onEventClick = useCallback(
     (info: EventClickArg): void => {
+      if (info.event.id === QUICK_CREATE_PLACEHOLDER_EVENT_ID) return
       info.jsEvent.preventDefault()
       const kind = info.event.extendedProps?.calendarKind as string | undefined
       if (kind === CALENDAR_KIND_MAIL_TODO) {
@@ -307,21 +385,13 @@ export function MailCalendarDaySidebar(): JSX.Element {
           <p className="px-3 py-2 text-2xs leading-snug text-destructive">{mailTodosErr}</p>
         ) : null}
 
-        {inFlight && previewRangeEvents.length === 0 ? (
-          <div className="flex items-center justify-center gap-2 py-6 text-xs text-muted-foreground">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            {t('mail.inboxCal.loading')}
-          </div>
-        ) : mailTodosLoading && previewRangeEvents.length === 0 ? (
-          <div className="flex items-center justify-center gap-2 py-6 text-xs text-muted-foreground">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            {t('mail.rightSidebar.tasksLoading')}
-          </div>
-        ) : fcEvents.length === 0 ? (
-          <p className="px-3 py-4 text-center text-2xs text-muted-foreground">
-            {t('mail.rightSidebar.dayEmpty')}
-          </p>
-        ) : (
+        <div className="relative flex h-full min-h-0 flex-col">
+          {(inFlight && previewRangeEvents.length === 0) || mailTodosLoading ? (
+            <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-center justify-center gap-2 bg-background/70 py-2 text-xs text-muted-foreground">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              {inFlight ? t('mail.inboxCal.loading') : t('mail.rightSidebar.tasksLoading')}
+            </div>
+          ) : null}
           <div
             ref={calendarHostRef}
             className="calendar-notion-shell calendar-notion-shell--mail-day h-full min-h-0 flex-1"
@@ -346,10 +416,20 @@ export function MailCalendarDaySidebar(): JSX.Element {
               slotLabelInterval="01:00:00"
               nowIndicator
               editable={false}
-              selectable={false}
+              selectable={canInteractInTimeGrid}
+              selectMirror={false}
+              selectLongPressDelay={380}
+              selectAllow={(): boolean => canInteractInTimeGrid}
+              select={onSelect}
               events={fcEvents}
               eventContent={calendarFcEventContentRender}
               eventDidMount={(info): void => {
+                if (
+                  info.event.id === QUICK_CREATE_PLACEHOLDER_EVENT_ID ||
+                  info.el.classList.contains('fc-event-mirror')
+                ) {
+                  return
+                }
                 const kind = info.event.extendedProps.calendarKind as string | undefined
                 if (kind === CALENDAR_KIND_MAIL_TODO) {
                   const raw = info.event.extendedProps.accountColor as string | undefined
@@ -380,8 +460,47 @@ export function MailCalendarDaySidebar(): JSX.Element {
               eventClick={onEventClick}
             />
           </div>
-        )}
+        </div>
       </div>
+
+      {quickCreate
+        ? createPortal(
+            <CalendarCreateQuickPopover
+              anchor={quickCreate.anchor}
+              range={quickCreate.range}
+              calendarAccounts={calendarLinkedAccounts}
+              taskAccounts={taskAccounts}
+              defaultAccountId={calendarLinkedAccounts[0]?.id ?? taskAccounts[0]?.id}
+              loadListsForAccount={loadTaskListsForAccount}
+              onRangeChange={handleQuickCreateRangeChange}
+              onClose={dismissQuickCreate}
+              onSaved={reloadDayData}
+              onOpenDetails={(draft): void => {
+                dismissQuickCreate()
+                setEventDialog({ range: draft.range, draft })
+              }}
+            />,
+            document.body
+          )
+        : null}
+
+      <CalendarEventDialog
+        open={eventDialog != null}
+        mode="create"
+        accounts={calendarLinkedAccounts}
+        defaultAccountId={eventDialog?.draft.accountId ?? calendarLinkedAccounts[0]?.id}
+        initialRange={eventDialog?.range ?? undefined}
+        createPrefill={
+          eventDialog ? { subject: eventDialog.draft.subject, location: '' } : undefined
+        }
+        initialCreateKind={eventDialog?.draft.createKind}
+        initialGraphCalendarId={eventDialog?.draft.graphCalendarId || undefined}
+        initialTaskListId={eventDialog?.draft.taskListId || undefined}
+        taskAccounts={taskAccounts}
+        loadListsForAccount={loadTaskListsForAccount}
+        onClose={(): void => setEventDialog(null)}
+        onSaved={reloadDayData}
+      />
     </div>
   )
 }

@@ -59,35 +59,48 @@ export async function loadCloudTasksForAccount(
 /** Alle Cloud-Aufgaben verbundener Konten (Hauptkalender-Layer). */
 export async function loadUnifiedCloudTasks(
   taskAccounts: ConnectedAccount[],
-  opts?: { cacheOnly?: boolean }
+  opts?: { cacheOnly?: boolean; forceRefresh?: boolean }
 ): Promise<CloudTaskListItem[]> {
-  const merged: CloudTaskListItem[] = []
   const cacheOnly = opts?.cacheOnly === true
-  for (const acc of taskAccounts) {
-    let lists: TaskListRow[]
-    try {
-      lists = await window.mailClient.tasks.listLists({ accountId: acc.id, cacheOnly })
-    } catch {
-      continue
-    }
-    for (const list of lists) {
+  const forceRefresh = opts?.forceRefresh === true
+  const perAccount = await Promise.all(
+    taskAccounts.map(async (acc): Promise<CloudTaskListItem[]> => {
+      let lists: TaskListRow[]
       try {
-        const rows = await window.mailClient.tasks.listTasks({
+        lists = await window.mailClient.tasks.listLists({
           accountId: acc.id,
-          listId: list.id,
-          showCompleted: true,
-          showHidden: false,
-          cacheOnly
+          cacheOnly,
+          forceRefresh: forceRefresh && !cacheOnly
         })
-        for (const row of rows) {
-          merged.push({ ...row, accountId: acc.id, listName: list.name, source: 'cloud' })
-        }
       } catch {
-        // eine Liste ueberspringen
+        return []
       }
-    }
-  }
-  return merged
+      const perList = await Promise.all(
+        lists.map(async (list): Promise<CloudTaskListItem[]> => {
+          try {
+            const rows = await window.mailClient.tasks.listTasks({
+              accountId: acc.id,
+              listId: list.id,
+              showCompleted: true,
+              showHidden: false,
+              cacheOnly,
+              forceRefresh: forceRefresh && !cacheOnly
+            })
+            return rows.map((row) => ({
+              ...row,
+              accountId: acc.id,
+              listName: list.name,
+              source: 'cloud' as const
+            }))
+          } catch {
+            return []
+          }
+        })
+      )
+      return perList.flat()
+    })
+  )
+  return perAccount.flat()
 }
 
 export async function loadCloudTasksForSelection(

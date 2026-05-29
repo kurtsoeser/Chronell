@@ -161,9 +161,15 @@ export interface AppConfig {
   autoLoadImages: boolean
   /**
    * Gravatar-Avatare fuer Absender/Kontakte (externe Anfragen an gravatar.com).
-   * Standard: aus — Initialen, lokale Kontaktfotos und Konto-Profilbilder bleiben aktiv.
+   * Standard: aus — siehe Einstellungen → Kontakte → Avatare.
    */
   gravatarEnabled?: boolean
+  /** Kontaktfotos aus dem Adressbuch als Avatar. Standard: an. */
+  contactPhotoAvatarEnabled?: boolean
+  /** Domain-Favicons (Firmenlogos) fuer Mail-Absender. Standard: an (extern). */
+  senderDomainAvatarEnabled?: boolean
+  /** Konto-Profilbild, wenn Absender = verbundenes Konto. Standard: an. */
+  accountProfileAvatarEnabled?: boolean
   /** Windows: App beim Anmelden starten. */
   launchOnLogin?: boolean
   /**
@@ -932,12 +938,81 @@ export interface CalendarSuggestionFromMail {
   attendeeEmails: string[]
 }
 
+export type MeetingInvitationResponseKind = 'accept' | 'decline' | 'tentative' | 'propose'
+
+export type MeetingAttendeePartStat =
+  | 'accepted'
+  | 'declined'
+  | 'tentative'
+  | 'needs-action'
+  | 'delegated'
+  | 'unknown'
+
+export interface MeetingInvitationAttendeeView {
+  email: string
+  name: string | null
+  partStat: MeetingAttendeePartStat
+}
+
+export interface MeetingInvitationView {
+  uid: string | null
+  method: string | null
+  sequence: number
+  status: string | null
+  summary: string
+  startIso: string | null
+  endIso: string | null
+  isAllDay: boolean
+  location: string | null
+  descriptionPlain: string | null
+  bodyHtml: string | null
+  organizer: { email: string; name: string | null } | null
+  attendees: MeetingInvitationAttendeeView[]
+  joinUrl: string | null
+  selfPartStat: MeetingAttendeePartStat | null
+  isCancelled: boolean
+  canRespond: boolean
+  respondUnsupportedReason: string | null
+  /** Microsoft Graph: Organisator erlaubt alternative Zeiten (Standard: true). */
+  allowNewTimeProposals: boolean
+  /** Vom angemeldeten Konto vorgeschlagene Alternative (falls bereits gesendet). */
+  selfProposedStartIso: string | null
+  selfProposedEndIso: string | null
+}
+
+export interface CalendarParseMeetingFromMessageResult {
+  invitation: MeetingInvitationView | null
+  warnings: string[]
+}
+
+export interface CalendarRespondToMeetingInput {
+  accountId: string
+  messageId: number
+  response: MeetingInvitationResponseKind
+  comment?: string | null
+  /** Nur bei `response: 'propose'` — alternative Start-/Endzeit (UTC-ISO). */
+  proposedStartIso?: string | null
+  proposedEndIso?: string | null
+  /** Microsoft Graph: Antwort an Organisator senden (Standard: true). */
+  sendResponse?: boolean
+}
+
+export interface CalendarRespondToMeetingResult {
+  ok: boolean
+  error?: string
+  selfPartStat?: MeetingAttendeePartStat
+  selfProposedStartIso?: string | null
+  selfProposedEndIso?: string | null
+}
+
 /** Cloud-Aufgabenliste (Microsoft To Do oder Google Tasks). */
 export interface TaskListRow {
   id: string
   name: string
   /** Microsoft: `wellKnownListName === defaultList`; Google: `@default`. */
   isDefault?: boolean
+  /** Microsoft Graph `wellKnownListName` (z. B. `defaultList`, `flaggedEmails`). */
+  wellKnownListName?: string | null
   provider: 'microsoft' | 'google'
 }
 

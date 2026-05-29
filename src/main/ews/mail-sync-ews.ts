@@ -9,6 +9,7 @@ import {
 import {
   clearWaitingForReplyOnThreads,
   deleteMessagesByAccountRemoteIds,
+  countMessagesInFolder,
   listMessageIdsByRemoteIds,
   setMessageReadLocal,
   type UpsertMessageInput
@@ -346,6 +347,16 @@ export async function syncMessagesInFolderEws(
   if (!folder) throw new Error(`Ordner ${folderRemoteId} nicht in DB gefunden.`)
 
   migrateFolderSyncStateToEwsIfNeeded(accountId, folder.id)
+
+  const localBefore = countMessagesInFolder(folder.id)
+  if (localBefore === 0) {
+    upsertFolderSyncState({
+      accountId,
+      folderId: folder.id,
+      deltaToken: null,
+      lastSyncedAt: null
+    })
+  }
 
   const result = await runEwsSyncFolderItemsCycle({
     accountId,

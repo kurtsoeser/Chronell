@@ -1,8 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Avatar } from '@/components/Avatar'
-import { combineSenderAvatarImageSrc, profilePhotoSrcForEmail } from '@/lib/contact-avatar'
-import { useSenderContactPhoto } from '@/lib/use-sender-contact-photo'
+import { useSenderAvatarSources } from '@/lib/use-sender-avatar-sources'
 import {
   mailConversationMessageTileClass,
   mailConversationStackClass
@@ -44,9 +43,10 @@ function MailConversationCollapsed({
     : ''
   const from = message.fromName?.trim() || message.fromAddr?.trim() || t('common.unknown')
   const folderLabel = conversationFolderLabel(folder, t)
-  const accountPhoto = profilePhotoSrcForEmail(accounts, profilePhotoDataUrls, message.fromAddr)
-  const contactPhoto = useSenderContactPhoto(message.fromAddr, message.accountId)
-  const photo = combineSenderAvatarImageSrc(accountPhoto, contactPhoto)
+  const { imageSrc: photo, useGravatar, useDomainAvatar } = useSenderAvatarSources(
+    message.fromAddr,
+    message.accountId
+  )
 
   return (
     <div
@@ -59,7 +59,8 @@ function MailConversationCollapsed({
           email={message.fromAddr}
           accountColor={account?.color}
           imageSrc={photo}
-          useGravatar={Boolean(message.fromAddr?.trim())}
+          useGravatar={useGravatar}
+          useDomainAvatar={useDomainAvatar}
           size="md"
           className="mt-0.5 shrink-0"
         />

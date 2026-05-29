@@ -1,0 +1,31 @@
+.meeting-invitation-day-preview .fc {
+  --fc-border-color: hsl(var(--border) / 0.55);
+  --fc-page-bg-color: transparent;
+  --fc-neutral-bg-color: hsl(var(--secondary) / 0.25);
+  font-size: 11px;
+}
+
+.meeting-invitation-day-preview .fc-timegrid-slot-label {
+  font-size: 10px;
+  color: hsl(var(--muted-foreground));
+}
+
+.meeting-invitation-day-preview .fc-timegrid-axis,
+.meeting-invitation-day-preview .fc-scrollgrid {
+  border: none;
+}
+
+.meeting-invitation-day-preview .fc-timegrid-event.meeting-invitation-preview-event {
+  border: 2px solid #8b5cf6 !important;
+  background: hsl(var(--background) / 0.92) !important;
+  box-shadow: 0 0 0 1px rgb(139 92 246 / 0.25);
+}
+
+.meeting-invitation-day-preview .fc-timegrid-event.meeting-invitation-preview-event .fc-event-main {
+  color: hsl(var(--foreground)) !important;
+  font-weight: 600;
+}
+
+.meeting-invitation-panel {
+  box-shadow: 0 1px 0 hsl(var(--border) / 0.4);
+}

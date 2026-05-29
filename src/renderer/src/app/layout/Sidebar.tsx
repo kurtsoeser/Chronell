@@ -5,6 +5,7 @@ import {
   Hourglass,
   Layers,
   ListChecks,
+  MailOpen,
   Move,
   Pencil,
   Plus,
@@ -29,6 +30,7 @@ import {
 } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { cn } from '@/lib/utils'
+import { computeUnifiedInboxUnreadBadge } from '@/lib/unified-inbox-unread'
 import { useAccountsStore } from '@/stores/accounts'
 import { useMailStore } from '@/stores/mail'
 import { showAppConfirm } from '@/stores/app-dialog'
@@ -107,7 +109,10 @@ export function Sidebar({ onOpenAccountDialog }: Props): JSX.Element {
     selectedCategoryName,
     listKind,
     todoDueKind,
-    todoCounts
+    todoCounts,
+    messages,
+    loading,
+    unifiedInboxUnreadDbCount
   } = useMailStore(
     useShallow((s) => ({
       foldersByAccount: s.foldersByAccount,
@@ -119,7 +124,10 @@ export function Sidebar({ onOpenAccountDialog }: Props): JSX.Element {
       selectedCategoryName: s.selectedCategoryName,
       listKind: s.listKind,
       todoDueKind: s.todoDueKind,
-      todoCounts: s.todoCounts
+      todoCounts: s.todoCounts,
+      messages: s.messages,
+      loading: s.loading,
+      unifiedInboxUnreadDbCount: s.unifiedInboxUnreadDbCount
     }))
   )
   const {
@@ -185,10 +193,17 @@ export function Sidebar({ onOpenAccountDialog }: Props): JSX.Element {
     void moveMessagesToFolder(ids, folder.id)
   }
 
-  const totalUnread = Object.values(foldersByAccount)
-    .flat()
-    .filter((f) => f.wellKnown === 'inbox')
-    .reduce((sum, f) => sum + (f.unreadCount ?? 0), 0)
+  const totalUnread = useMemo(
+    () =>
+      computeUnifiedInboxUnreadBadge({
+        foldersByAccount,
+        messages,
+        listKind,
+        loading,
+        dbUnreadCount: unifiedInboxUnreadDbCount
+      }),
+    [foldersByAccount, messages, listKind, loading, unifiedInboxUnreadDbCount]
+  )
   const online = useConnectivityStore((s) => s.online)
   const [contextMenu, setContextMenu] = useState<ContextState | null>(null)
   const [inlineEdit, setInlineEdit] = useState<SidebarInlineEditState | null>(null)
@@ -359,6 +374,28 @@ export function Sidebar({ onOpenAccountDialog }: Props): JSX.Element {
     }
   }
 
+  async function handleMarkAllReadInFolder(folder: MailFolder): Promise<void> {
+    if (!online) {
+      useUndoStore.getState().pushToast({
+        label: t('sidebar.syncFolderOffline'),
+        variant: 'error'
+      })
+      return
+    }
+    setError(null)
+    try {
+      await window.mailClient.mail.markAllReadInFolder(folder.id)
+      useUndoStore.getState().pushToast({
+        label: t('sidebar.markAllReadDone', { name: folder.name }),
+        variant: 'success'
+      })
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      setError(msg)
+      useUndoStore.getState().pushToast({ label: msg, variant: 'error' })
+    }
+  }
+
   function buildContextItems(folder: MailFolder | null, accountId: string): ContextMenuItem[] {
     if (!folder) {
       const acc = accounts.find((a) => a.id === accountId)
@@ -398,6 +435,15 @@ export function Sidebar({ onOpenAccountDialog }: Props): JSX.Element {
         disabled: !online,
         onSelect: (): void => {
           void handleSyncFolder(folder)
+        }
+      },
+      {
+        id: 'mark-all-read',
+        label: t('sidebar.markAllRead'),
+        icon: MailOpen,
+        disabled: !online || folder.unreadCount <= 0,
+        onSelect: (): void => {
+          void handleMarkAllReadInFolder(folder)
         }
       },
       {
@@ -674,7 +720,7 @@ export function Sidebar({ onOpenAccountDialog }: Props): JSX.Element {
           {favoriteFolderRowsUnordered.length > 0 && (
             <>
               <li className="list-none px-2 pt-2 pb-0.5">
-                <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground/80">
+                <span className="text-2xs font-medium uppercase tracking-wider text-muted-foreground">
                   {t('sidebar.foldersHeading')}
                 </span>
               </li>
@@ -713,7 +759,7 @@ export function Sidebar({ onOpenAccountDialog }: Props): JSX.Element {
           {favCats.length > 0 && (
             <>
               <li className="list-none px-2 pt-2 pb-0.5">
-                <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground/80">
+                <span className="text-2xs font-medium uppercase tracking-wider text-muted-foreground">
                   Kategorien
                 </span>
               </li>

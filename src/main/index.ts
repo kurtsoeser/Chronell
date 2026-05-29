@@ -4,7 +4,10 @@ import { fileURLToPath } from 'node:url'
 import { registerIpcHandlers } from './ipc'
 import { getDb, getDbPath, closeDb } from './db'
 import { listAccounts } from './accounts'
+import { findFolderByWellKnown } from './db/folders-repo'
+import { countMessagesInFolder } from './db/messages-repo'
 import { runInitialSync } from './sync-runner'
+import { repairAllMicrosoftMailSyncIfNeeded } from './mail-sync-repair'
 import { warnProviderAuthOnce } from './auth/auth-errors'
 import { startCalendarSync, stopCalendarSync } from './calendar-sync-runner'
 import { startMailPolling, stopMailPolling } from './mail-poll-runner'
@@ -254,7 +257,14 @@ app.whenReady().then(async () => {
 
   const accounts = await listAccounts()
   if (isAppOnline()) {
+    await repairAllMicrosoftMailSyncIfNeeded()
     for (const account of accounts) {
+      if (account.provider === 'microsoft') {
+        const inbox = findFolderByWellKnown(account.id, 'inbox')
+        if (inbox && countMessagesInFolder(inbox.id) > 0) {
+          continue
+        }
+      }
       void runInitialSync(account.id).catch((e) => warnProviderAuthOnce('startup', account.id, e))
     }
   } else {

@@ -83,6 +83,8 @@ interface MailState {
   todoDueKind: TodoDueKindList | null
   /** Zaehler fuer Schnellzugriff / Sidebar. */
   todoCounts: TodoCountsAll
+  /** Ungelesen in allen Posteingängen (DB, gleicher Scope wie Unified-Inbox). */
+  unifiedInboxUnreadDbCount: number | null
   /** ID der einzelnen Mail im Lesebereich. */
   selectedMessageId: number | null
   selectedMessage: MailFull | null
@@ -233,6 +235,17 @@ function persistCurrentMailListViewPrefs(state: {
 /** Optionen für `listUnifiedInbox` — offene ToDos immer mitladen (QuickSteps, Badges). */
 const UNIFIED_INBOX_LIST_OPTIONS = { includeOpenTodo: true as const }
 
+async function refreshUnifiedInboxUnreadDbCount(
+  set: (partial: Pick<MailState, 'unifiedInboxUnreadDbCount'>) => void
+): Promise<void> {
+  try {
+    const unifiedInboxUnreadDbCount = await window.mailClient.mail.getUnifiedInboxUnreadCount()
+    set({ unifiedInboxUnreadDbCount })
+  } catch (e) {
+    console.warn('[mail-store] getUnifiedInboxUnreadCount failed', e)
+  }
+}
+
 function pollFolderIdsTouchInbox(
   folderIds: number[],
   foldersByAccount: Record<string, MailFolder[]>
@@ -255,6 +268,7 @@ export const useMailStore = create<MailState>((set, get) => ({
   listKind: 'folder',
   todoDueKind: null,
   todoCounts: { today: 0, tomorrow: 0, this_week: 0, later: 0, overdue: 0, done: 0, waiting: 0 },
+  unifiedInboxUnreadDbCount: null,
   metaFolders: [],
   selectedMetaFolderId: null,
   selectedCategoryAccountId: null,
@@ -334,6 +348,7 @@ export const useMailStore = create<MailState>((set, get) => ({
           set((s) => ({
             foldersByAccount: { ...s.foldersByAccount, [accountId]: folders }
           }))
+          void refreshUnifiedInboxUnreadDbCount(set)
         }
 
         if (!isPoll) {
@@ -416,6 +431,7 @@ export const useMailStore = create<MailState>((set, get) => ({
               UNIFIED_INBOX_LIST_OPTIONS
             )
             set({ messages })
+            void refreshUnifiedInboxUnreadDbCount(set)
             if (reloadThreads) void loadCrossFolderThreadsUnified(messages, set)
             if (state.selectedMessageId) {
               const fresh = await window.mailClient.mail.getMessage(state.selectedMessageId)
@@ -516,6 +532,7 @@ export const useMailStore = create<MailState>((set, get) => ({
       ),
       metaFolders
     })
+    void refreshUnifiedInboxUnreadDbCount(set)
 
     const knownAccountIds = new Set(accounts.map((a) => a.id))
     const stored = readLastMailNav()
@@ -643,9 +660,20 @@ export const useMailStore = create<MailState>((set, get) => ({
       }
 
       if (useConnectivityStore.getState().online) {
-        void window.mailClient.mail
-          .syncFolder(folderId)
-          .catch((e) => console.error('[mail] folder sync failed:', e))
+        try {
+          await window.mailClient.mail.syncFolder(folderId)
+          const fresh = await window.mailClient.mail.listMessages({ folderId })
+          set({ messages: fresh })
+          void loadCrossFolderThreads(accountId, fresh, set)
+        } catch (syncErr) {
+          console.error('[mail] folder sync failed:', syncErr)
+          set({
+            error:
+              syncErr instanceof Error
+                ? syncErr.message
+                : String(syncErr)
+          })
+        }
       }
     } catch (e) {
       set({ loading: false, error: e instanceof Error ? e.message : String(e) })
@@ -844,6 +872,7 @@ export const useMailStore = create<MailState>((set, get) => ({
         UNIFIED_INBOX_LIST_OPTIONS
       )
       set({ messages, loading: false })
+      void refreshUnifiedInboxUnreadDbCount(set)
 
       void loadCrossFolderThreadsUnified(messages, set)
 
@@ -1107,6 +1136,18 @@ export const useMailStore = create<MailState>((set, get) => ({
     }
     try {
       await window.mailClient.mail.syncAccount(accountId)
+      const st = get()
+      if (st.listKind === 'folder' && st.selectedFolderId != null && st.selectedFolderAccountId === accountId) {
+        const messages = await window.mailClient.mail.listMessages({
+          folderId: st.selectedFolderId
+        })
+        set({ messages, error: null })
+        void loadCrossFolderThreads(accountId, messages, set)
+      } else if (st.listKind === 'unified_inbox') {
+        const messages = await window.mailClient.mail.listUnifiedInbox(300, UNIFIED_INBOX_LIST_OPTIONS)
+        set({ messages, error: null })
+        void loadCrossFolderThreadsUnified(messages, set)
+      }
     } catch (e) {
       set({ error: e instanceof Error ? e.message : String(e) })
     }

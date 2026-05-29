@@ -390,15 +390,11 @@ export function registerAuthIpc(): void {
     const email = profile.mail ?? profile.userPrincipalName
 
     let account: ConnectedAccount = {
-      id,
-      provider: 'microsoft',
+      ...prev,
       email,
       displayName: profile.displayName || email,
       tenantId: tokenResult.account.tenantId,
-      color: prev.color,
-      initials: initials(profile.displayName, email),
-      addedAt: prev.addedAt,
-      profilePhotoFile: prev.profilePhotoFile
+      initials: initials(profile.displayName, email)
     }
 
     try {

@@ -22,6 +22,10 @@ import {
   type CalendarParseIcsFileResult
 } from '@shared/types'
 import { parseIcsFileAtPath } from '../ics-import-service'
+import {
+  parseMeetingInvitationFromMessage,
+  respondToMeetingInvitation
+} from '../meeting-invitation-service'
 import { listAccounts } from '../accounts'
 import {
   afterCalendarEventCreated,
@@ -369,5 +373,15 @@ export function registerCalendarIpc(): void {
       }
       return parseIcsFileAtPath(filePaths[0])
     }
+  )
+
+  ipcMain.removeHandler(IPC.calendar.parseMeetingFromMessage)
+  ipcMain.handle(IPC.calendar.parseMeetingFromMessage, async (_event, messageId: number) =>
+    parseMeetingInvitationFromMessage(messageId)
+  )
+
+  ipcMain.removeHandler(IPC.calendar.respondToMeetingInvitation)
+  ipcMain.handle(IPC.calendar.respondToMeetingInvitation, async (_event, input) =>
+    respondToMeetingInvitation(input)
   )
 }

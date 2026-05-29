@@ -40,7 +40,7 @@ export function purgeDuplicateGraphCalendarEventsOnApi(
   for (const ev of api.getEvents()) {
     const cal = ev.extendedProps?.calendarEvent as CalendarEventView | undefined
     const graphEventId = cal?.graphEventId?.trim()
-    if (!graphEventId) continue
+    if (!graphEventId || !cal?.accountId) continue
     const key = `${cal.accountId}\u001f${graphEventId}`
     const list = byGraph.get(key) ?? []
     list.push(ev)

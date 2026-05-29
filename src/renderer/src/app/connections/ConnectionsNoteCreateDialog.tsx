@@ -49,7 +49,7 @@ export function ConnectionsNoteCreateDialog({
   }
 
   return (
-    <ModalRoot open onClose={onClose} zIndex={120}>
+    <ModalRoot open={open} onBackdropClick={onClose} zIndex={120}>
       <ModalPanel className="flex w-full max-w-lg flex-col gap-3 p-4">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-sm font-semibold text-foreground">

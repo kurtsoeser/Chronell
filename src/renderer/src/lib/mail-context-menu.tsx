@@ -731,28 +731,32 @@ export function buildMailContextItems(
 
     ...(msg.fromAddr?.trim() && (h.createContactFromSender || h.openSenderContact)
       ? [
-          ui.senderContactId != null && h.openSenderContact
-            ? {
-                id: 'open-sender-contact',
-                label: tr?.('mail.contextMenu.openSenderContact') ?? 'Kontakt öffnen',
-                icon: User,
-                disabled: isBulk,
-                onSelect: (): void => {
-                  h.openSenderContact?.(ui.senderContactId!)
-                }
-              }
-            : h.createContactFromSender
-              ? {
-                  id: 'create-sender-contact',
-                  label: tr?.('mail.contextMenu.createSenderContact') ?? 'Absender als Kontakt speichern',
-                  icon: UserPlus,
+          ...(ui.senderContactId != null && h.openSenderContact
+            ? [
+                {
+                  id: 'open-sender-contact',
+                  label: tr?.('mail.contextMenu.openSenderContact') ?? 'Kontakt öffnen',
+                  icon: User,
                   disabled: isBulk,
                   onSelect: (): void => {
-                    h.createContactFromSender?.(msg)
+                    h.openSenderContact?.(ui.senderContactId!)
                   }
                 }
-              : null
-        ].filter((x): x is ContextMenuItem => x != null)
+              ]
+            : h.createContactFromSender
+              ? [
+                  {
+                    id: 'create-sender-contact',
+                    label: tr?.('mail.contextMenu.createSenderContact') ?? 'Absender als Kontakt speichern',
+                    icon: UserPlus,
+                    disabled: isBulk,
+                    onSelect: (): void => {
+                      h.createContactFromSender?.(msg)
+                    }
+                  }
+                ]
+              : [])
+        ]
       : []),
 
     ...(msg.fromAddr?.trim() && (h.createContactFromSender || h.openSenderContact)

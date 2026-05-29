@@ -19,9 +19,8 @@ import { clearContactHistoryPreviewCache } from '@/app/layout/mail-right-sidebar
 import { ContactAttachmentsList } from '@/app/layout/mail-right-sidebar/ContactAttachmentsList'
 import { ContactHistoryList } from '@/app/layout/mail-right-sidebar/ContactHistoryList'
 import { ContactRelatedStrip } from '@/app/layout/mail-right-sidebar/ContactRelatedStrip'
-import { combineSenderAvatarImageSrc, profilePhotoSrcForEmail } from '@/lib/contact-avatar'
 import { findContactByEmail } from '@/lib/contact-photo-by-email'
-import { useSenderContactPhoto } from '@/lib/use-sender-contact-photo'
+import { useSenderAvatarSources } from '@/lib/use-sender-avatar-sources'
 import { useAccountsStore } from '@/stores/accounts'
 import { useMailStore } from '@/stores/mail'
 import { usePeoplePendingFocusStore } from '@/stores/people-pending-focus'
@@ -37,7 +36,6 @@ export function MailContactDetailsSidebar(): JSX.Element {
   const selectedMessageId = useMailStore((s) => s.selectedMessageId)
   const foldersByAccount = useMailStore((s) => s.foldersByAccount)
   const accounts = useAccountsStore((s) => s.accounts)
-  const accountDisplayAvatarDataUrls = useAccountsStore((s) => s.accountDisplayAvatarDataUrls)
   const setAppMode = useAppModeStore((s) => s.setMode)
 
   const [tab, setTab] = useState<ContactSidebarTab>('history')
@@ -109,13 +107,11 @@ export function MailContactDetailsSidebar(): JSX.Element {
     return correspondentEmail ?? t('mail.rightSidebar.contactTitle')
   }, [contact, correspondent, selectedMessage, correspondentEmail, t])
 
-  const contactPhoto = useSenderContactPhoto(correspondentEmail, correspondentAccountId)
-  const accountPhoto = profilePhotoSrcForEmail(
-    accounts,
-    accountDisplayAvatarDataUrls,
-    correspondentEmail
-  )
-  const avatarSrc = combineSenderAvatarImageSrc(accountPhoto, contactPhoto)
+  const {
+    imageSrc: avatarSrc,
+    useGravatar,
+    useDomainAvatar
+  } = useSenderAvatarSources(correspondentEmail, correspondentAccountId)
 
   useEffect(() => {
     let cancelled = false
@@ -247,7 +243,8 @@ export function MailContactDetailsSidebar(): JSX.Element {
             email={correspondentEmail}
             accountColor={account?.color}
             imageSrc={avatarSrc}
-            useGravatar
+            useGravatar={useGravatar}
+            useDomainAvatar={useDomainAvatar}
             size="sm"
             className="mt-px shrink-0"
           />

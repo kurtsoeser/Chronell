@@ -282,7 +282,6 @@ function openReadingPaneDraft(
   const accountId = patch.accountId
   const draft: ComposeDraft = {
     id: newId(),
-    accountId,
     mode: 'new',
     to: '',
     cc: '',

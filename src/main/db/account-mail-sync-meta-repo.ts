@@ -1,4 +1,11 @@
+import { BrowserWindow } from 'electron'
 import { getDb } from './index'
+
+function broadcastMailSyncMetaChanged(accountId: string): void {
+  for (const win of BrowserWindow.getAllWindows()) {
+    win.webContents.send('mail:sync-meta-changed', { accountId })
+  }
+}
 
 export interface AccountMailSyncMeta {
   accountId: string
@@ -10,13 +17,15 @@ export interface AccountMailSyncMeta {
 
 export function touchAccountMailSyncFinished(accountId: string): void {
   const db = getDb()
+  const now = new Date().toISOString()
   db.prepare(
     `INSERT INTO account_mail_sync_meta (account_id, last_finished_at, last_error)
-     VALUES (?, datetime('now'), NULL)
+     VALUES (?, ?, NULL)
      ON CONFLICT(account_id) DO UPDATE SET
-       last_finished_at = datetime('now'),
+       last_finished_at = excluded.last_finished_at,
        last_error = NULL`
-  ).run(accountId)
+  ).run(accountId, now)
+  broadcastMailSyncMetaChanged(accountId)
 }
 
 export function touchAccountMailSyncError(accountId: string, error: string): void {
@@ -26,6 +35,7 @@ export function touchAccountMailSyncError(accountId: string, error: string): voi
      VALUES (?, NULL, ?)
      ON CONFLICT(account_id) DO UPDATE SET last_error = excluded.last_error`
   ).run(accountId, error.slice(0, 500))
+  broadcastMailSyncMetaChanged(accountId)
 }
 
 function lastActivityAtForAccount(accountId: string): string | null {

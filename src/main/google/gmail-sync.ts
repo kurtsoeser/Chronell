@@ -2,6 +2,7 @@ import type { gmail_v1 } from 'googleapis'
 import { loadConfig } from '../config'
 import {
   upsertFolders,
+  reconcileAllFolderUnreadForAccount,
   findFolderByRemoteId,
   findFolderByWellKnown,
   setFolderMailboxCountsLocal,
@@ -194,6 +195,7 @@ export async function syncGoogleFolders(accountId: string): Promise<number> {
     }
   }
   upsertFolders(batch)
+  reconcileAllFolderUnreadForAccount(accountId)
   return batch.length
 }
 

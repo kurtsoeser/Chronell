@@ -62,6 +62,7 @@ export type ModalPanelVariant = 'center' | 'drawer-right'
 
 interface ModalPanelProps {
   className?: string
+  style?: React.CSSProperties
   variant?: ModalPanelVariant
   children: ReactNode
   onClick?: (e: React.MouseEvent) => void
@@ -73,6 +74,7 @@ interface ModalPanelProps {
 
 export function ModalPanel({
   className,
+  style,
   variant = 'center',
   children,
   onClick,
@@ -87,6 +89,7 @@ export function ModalPanel({
     <div
       role="dialog"
       aria-modal="true"
+      style={style}
       className={cn(className, !reducedMotion && (exiting ? motionOut : motionIn))}
       onClick={(e): void => {
         e.stopPropagation()

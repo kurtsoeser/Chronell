@@ -97,12 +97,19 @@ interface AccountsState {
   setGoogleClientId: (clientId: string, clientSecret?: string | null) => Promise<void>
   setNotionCredentials: (clientId: string, clientSecret?: string | null) => Promise<void>
   setSyncWindowDays: (days: number | null) => Promise<void>
+  setMailPollIntervalSeconds: (seconds: number) => Promise<void>
+  setMicrosoftMailTransport: (
+    mode: import('@shared/types').MicrosoftMailTransport
+  ) => Promise<void>
   setMailBodyIndexSettings: (patch: {
     enabled?: boolean
     speed?: import('@shared/mail-body-index').MailBodyIndexSpeed
   }) => Promise<void>
   setAutoLoadImages: (value: boolean) => Promise<void>
   setGravatarEnabled: (value: boolean) => Promise<void>
+  setAvatarPreferences: (
+    patch: Partial<import('@shared/avatar-preferences').AvatarPreferencesPatch>
+  ) => Promise<void>
   setCalendarTimeZone: (iana: string | null) => Promise<void>
   setWeatherLocation: (loc: AppConfigWeatherLocation | null) => Promise<void>
   addMicrosoftAccount: () => Promise<void>
@@ -245,6 +252,30 @@ export const useAccountsStore = create<AccountsState>((set, get) => ({
     }
   },
 
+  async setMailPollIntervalSeconds(seconds: number): Promise<void> {
+    set({ error: null })
+    try {
+      const config = await window.mailClient.config.setMailPollIntervalSeconds(seconds)
+      set({ config })
+    } catch (e) {
+      set({ error: e instanceof Error ? e.message : String(e) })
+      throw e
+    }
+  },
+
+  async setMicrosoftMailTransport(
+    mode: import('@shared/types').MicrosoftMailTransport
+  ): Promise<void> {
+    set({ error: null })
+    try {
+      const config = await window.mailClient.config.setMicrosoftMailTransport(mode)
+      set({ config })
+    } catch (e) {
+      set({ error: e instanceof Error ? e.message : String(e) })
+      throw e
+    }
+  },
+
   async setMailBodyIndexSettings(patch: {
     enabled?: boolean
     speed?: import('@shared/mail-body-index').MailBodyIndexSpeed
@@ -272,9 +303,15 @@ export const useAccountsStore = create<AccountsState>((set, get) => ({
   },
 
   async setGravatarEnabled(value: boolean): Promise<void> {
+    await get().setAvatarPreferences({ gravatarEnabled: value })
+  },
+
+  async setAvatarPreferences(
+    patch: Partial<import('@shared/avatar-preferences').AvatarPreferencesPatch>
+  ): Promise<void> {
     set({ error: null })
     try {
-      const config = await window.mailClient.config.setGravatarEnabled(value)
+      const config = await window.mailClient.config.setAvatarPreferences(patch)
       set({ config })
     } catch (e) {
       set({ error: e instanceof Error ? e.message : String(e) })
@@ -412,7 +449,10 @@ export const useAccountsStore = create<AccountsState>((set, get) => ({
   ): Promise<void> {
     set({ error: null })
     try {
-      await window.mailClient.auth.patchAccount({ accountId, ...patch })
+      const updated = await window.mailClient.auth.patchAccount({ accountId, ...patch })
+      set((state) => ({
+        accounts: state.accounts.map((a) => (a.id === accountId ? updated : a))
+      }))
     } catch (e) {
       set({ error: e instanceof Error ? e.message : String(e) })
       throw e

@@ -31,7 +31,7 @@ function linkFromComposedPath(e: Event): Element | null {
 export function useSanitizedHtmlShadowRoot(
   hostRef: RefObject<HTMLElement | null>,
   shadowInnerHtml: string,
-  logPrefix: 'mail' | 'calendar' | 'task',
+  logPrefix: 'mail' | 'calendar' | 'task' | 'compose-quoted',
   viewerTheme?: MailViewerTheme,
   previewScale?: number
 ): void {

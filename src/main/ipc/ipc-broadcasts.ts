@@ -3,6 +3,7 @@ import type { EntityEmbeddingProgress } from '@shared/entity-embeddings'
 import type { MailBodyIndexProgress } from '@shared/mail-body-index'
 import type { ConnectedAccount, MailChangedPayload, UserNoteKind } from '@shared/types'
 import { mergeMailChangedPayload } from '@shared/mail-changed-merge'
+import { reconcileAllFolderUnreadForAccount } from '../db/folders-repo'
 import {
   markProfileDataDirty,
   scheduleProfileSyncDebounced
@@ -24,6 +25,9 @@ function flushMailChanged(): void {
   if (pendingMailChanged.size === 0) return
   const batch = [...pendingMailChanged.values()]
   pendingMailChanged.clear()
+  for (const payload of batch) {
+    reconcileAllFolderUnreadForAccount(payload.accountId)
+  }
   for (const win of BrowserWindow.getAllWindows()) {
     for (const payload of batch) {
       win.webContents.send('mail:changed', payload)

@@ -187,7 +187,7 @@ export function VerticalSplitter({ onDrag, ariaLabel, variant = 'default' }: Spl
   const onDragRef = useRef(onDrag)
   onDragRef.current = onDrag
 
-  const finishDrag = useCallback((e?: PointerEvent): void => {
+  const finishDrag = useCallback((e?: { pointerId: number }): void => {
     if (!draggingRef.current) return
     if (
       e != null &&
@@ -329,7 +329,7 @@ export function HorizontalSplitter({
   const onDragRef = useRef(onDrag)
   onDragRef.current = onDrag
 
-  const finishDrag = useCallback((e?: PointerEvent): void => {
+  const finishDrag = useCallback((e?: { pointerId: number }): void => {
     if (!draggingRef.current) return
     if (
       e != null &&

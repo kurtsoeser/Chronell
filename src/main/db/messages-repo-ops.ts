@@ -16,6 +16,15 @@ export function setMessageReadLocal(id: number, isRead: boolean): void {
   db.prepare('UPDATE messages SET is_read = ? WHERE id = ?').run(isRead ? 1 : 0, id)
 }
 
+/** Alle lokal gecachten Mails im Ordner als gelesen markieren. Gibt Anzahl Aenderungen zurueck. */
+export function markAllMessagesReadInFolderLocal(folderId: number): number {
+  const db = getDb()
+  const result = db
+    .prepare('UPDATE messages SET is_read = 1 WHERE folder_id = ? AND is_read = 0')
+    .run(folderId)
+  return result.changes
+}
+
 export function setMessageFlaggedLocal(id: number, isFlagged: boolean): void {
   const db = getDb()
   const status = isFlagged ? 'flagged' : 'notFlagged'

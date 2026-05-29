@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { useCallback, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react'
 import { clientToGraphPoint, layoutNodesInRect } from '@/app/connections/graph-coords'
 import type { LayoutNode } from '@/app/connections/connections-graph-layout'
 
@@ -30,7 +30,7 @@ export function useGraphMarqueeSelect({
   onContainerPointerDown: (e: ReactPointerEvent) => void
   onContainerPointerMove: (e: ReactPointerEvent) => void
   onContainerPointerUp: (e: ReactPointerEvent) => void
-  onContainerContextMenu: (e: ReactPointerEvent) => void
+  onContainerContextMenu: (e: React.MouseEvent) => void
 } {
   const [marquee, setMarquee] = useState<GraphMarqueeRect | null>(null)
   const sessionRef = useRef<{
@@ -119,7 +119,7 @@ export function useGraphMarqueeSelect({
     [finishSession]
   )
 
-  const onContainerContextMenu = useCallback((e: ReactPointerEvent): void => {
+  const onContainerContextMenu = useCallback((e: ReactMouseEvent): void => {
     if (suppressContextMenuRef.current) {
       e.preventDefault()
       e.stopPropagation()

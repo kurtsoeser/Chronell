@@ -78,6 +78,7 @@ export async function googleListTaskLists(accountId: string): Promise<TaskListRo
       id: x.id!,
       name: (x.title ?? '').trim() || x.id!,
       isDefault: Boolean(x.id === '@default'),
+      wellKnownListName: x.id === '@default' ? 'defaultList' : null,
       provider: 'google' as const
     }))
   })

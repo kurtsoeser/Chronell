@@ -1,10 +1,11 @@
 import { ipcMain } from 'electron'
 import { IPC, type MailFolder, type MailListItem, type MailFull } from '@shared/types'
-import { listFoldersByAccount } from '../db/folders-repo'
+import { listFoldersByAccount, reconcileAllFolderUnreadForAccount } from '../db/folders-repo'
 import {
   listMessagesByFolder,
   listMessagesByAccount,
   listInboxMessagesAllAccounts,
+  countUnreadMessagesInAllInboxes,
   listMessagesByThread,
   listMessagesByThreadKeys
 } from '../db/messages-repo'
@@ -12,21 +13,26 @@ import { decorateMailList, decorateMailFull } from './ipc-helpers'
 
 export function registerMailListIpc(): void {
   ipcMain.removeHandler(IPC.mail.listFolders)
+  ipcMain.removeHandler(IPC.mail.getUnifiedInboxUnreadCount)
   ipcMain.removeHandler(IPC.mail.listMessages)
   ipcMain.removeHandler(IPC.mail.listInboxTriage)
   ipcMain.removeHandler(IPC.mail.listUnifiedInbox)
   ipcMain.removeHandler(IPC.mail.listThreadMessages)
   ipcMain.removeHandler(IPC.mail.listMessagesByThreads)
 
-  ipcMain.handle(
-    IPC.mail.listFolders,
-    (_event, accountId: string): MailFolder[] => listFoldersByAccount(accountId)
-  )
+  ipcMain.handle(IPC.mail.listFolders, (_event, accountId: string): MailFolder[] => {
+    reconcileAllFolderUnreadForAccount(accountId)
+    return listFoldersByAccount(accountId)
+  })
+
+  ipcMain.handle(IPC.mail.getUnifiedInboxUnreadCount, (): number => {
+    return countUnreadMessagesInAllInboxes()
+  })
 
   ipcMain.handle(
     IPC.mail.listMessages,
     (_event, options: { folderId?: number; accountId?: string; limit?: number }): MailListItem[] => {
-      const limit = options.limit ?? 100
+      const limit = options.limit ?? 250
       let rows: MailListItem[] = []
       if (options.folderId != null) rows = listMessagesByFolder(options.folderId, limit)
       else if (options.accountId) rows = listMessagesByAccount(options.accountId, limit)

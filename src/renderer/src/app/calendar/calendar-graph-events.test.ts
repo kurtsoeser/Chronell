@@ -13,6 +13,10 @@ function ev(partial: Partial<CalendarEventView> & Pick<CalendarEventView, 'id'>)
     startIso: '2026-05-20T11:00:00.000Z',
     endIso: '2026-05-20T12:00:00.000Z',
     isAllDay: false,
+    location: null,
+    webLink: null,
+    joinUrl: null,
+    organizer: null,
     ...partial
   }
 }

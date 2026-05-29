@@ -19,6 +19,71 @@ export async function setMessageRead(
   await client.api(`/me/messages/${remoteId}`).patch({ isRead })
 }
 
+interface GraphIdPage {
+  value: { id?: string | null }[]
+  '@odata.nextLink'?: string
+}
+
+/** Einzeln ungelesene Mails markieren (Graph v1), falls Ordner-Aktion nicht verfuegbar ist. */
+async function markFolderUnreadMessagesReadV1(
+  client: Awaited<ReturnType<typeof getClientFor>>,
+  folderRemoteId: string
+): Promise<void> {
+  let path = `/me/mailFolders/${folderRemoteId}/messages`
+  const maxRounds = 500
+
+  for (let round = 0; round < maxRounds; round++) {
+    const page = (await client
+      .api(path)
+      .filter('isRead eq false')
+      .select('id')
+      .top(100)
+      .get()) as GraphIdPage
+
+    if (!page.value?.length) break
+
+    for (const row of page.value) {
+      const id = row.id
+      if (!id) continue
+      try {
+        await client.api(`/me/messages/${id}`).patch({ isRead: true })
+      } catch (e: unknown) {
+        const err = e as { statusCode?: number; code?: string }
+        if (err.statusCode === 404 || err.code === 'ErrorItemNotFound') continue
+        throw e
+      }
+    }
+
+    const next = page['@odata.nextLink']
+    if (!next) break
+    path = next.replace(/^https:\/\/graph\.microsoft\.com\/v1\.0/i, '')
+  }
+}
+
+/** Markiert alle Nachrichten im Ordner auf dem Server als gelesen. */
+export async function markMailFolderAsRead(
+  accountId: string,
+  folderRemoteId: string
+): Promise<void> {
+  const client = await getClientFor(accountId)
+  try {
+    await client
+      .api(`/me/mailFolders/${folderRemoteId}/updateAllMessagesReadState`)
+      .version('beta')
+      .post({
+        isRead: true,
+        suppressReadReceipts: true
+      })
+    return
+  } catch (betaErr) {
+    console.warn(
+      '[graph] updateAllMessagesReadState (beta) fehlgeschlagen — Fallback per Einzelpatch:',
+      betaErr
+    )
+  }
+  await markFolderUnreadMessagesReadV1(client, folderRemoteId)
+}
+
 export async function setMessageFlagged(
   accountId: string,
   remoteId: string,
@@ -61,11 +126,6 @@ export async function setMessageCategories(
 export async function deleteMessageRemote(accountId: string, remoteId: string): Promise<void> {
   const client = await getClientFor(accountId)
   await client.api(`/me/messages/${remoteId}`).delete()
-}
-
-interface GraphIdPage {
-  value: { id?: string | null }[]
-  '@odata.nextLink'?: string
 }
 
 /**

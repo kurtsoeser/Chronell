@@ -66,6 +66,9 @@ function configHighlightLines(config: AppConfig): string[] {
   if (config.mailPollIntervalSeconds != null) {
     lines.push(`mailPollIntervalSeconds: ${config.mailPollIntervalSeconds}`)
   }
+  if (config.microsoftMailTransport) {
+    lines.push(`microsoftMailTransport: ${config.microsoftMailTransport}`)
+  }
   if (config.mailBodyIndexEnabled != null) {
     lines.push(`mailBodyIndexEnabled: ${config.mailBodyIndexEnabled}`)
   }
@@ -75,6 +78,15 @@ function configHighlightLines(config: AppConfig): string[] {
   lines.push(`autoLoadImages: ${config.autoLoadImages}`)
   if (config.gravatarEnabled != null) {
     lines.push(`gravatarEnabled: ${config.gravatarEnabled}`)
+  }
+  if (config.contactPhotoAvatarEnabled != null) {
+    lines.push(`contactPhotoAvatarEnabled: ${config.contactPhotoAvatarEnabled}`)
+  }
+  if (config.senderDomainAvatarEnabled != null) {
+    lines.push(`senderDomainAvatarEnabled: ${config.senderDomainAvatarEnabled}`)
+  }
+  if (config.accountProfileAvatarEnabled != null) {
+    lines.push(`accountProfileAvatarEnabled: ${config.accountProfileAvatarEnabled}`)
   }
   if (config.launchOnLogin != null) {
     lines.push(`launchOnLogin: ${config.launchOnLogin}`)

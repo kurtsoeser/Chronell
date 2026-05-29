@@ -101,7 +101,6 @@ export function EntityContextMiniGraph({
       style={{ minHeight: MINI_GRAPH_MIN_HEIGHT_PX }}
     >
       <ConnectionsGraph
-        className="h-full min-h-0 flex-1"
         nodes={snap.nodes}
         edges={snap.edges}
         allEdges={snap.edges}

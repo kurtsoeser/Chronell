@@ -2,6 +2,7 @@ import { createGraphClient } from './client'
 import { loadConfig } from '../config'
 import {
   upsertFolders,
+  reconcileAllFolderUnreadForAccount,
   findFolderByRemoteId,
   findFolderByWellKnown,
   setFolderMailboxCountsLocal,
@@ -199,6 +200,7 @@ export async function syncFolders(accountId: string): Promise<number> {
     totalCount: g.totalItemCount ?? 0
   }))
   upsertFolders(batch)
+  reconcileAllFolderUnreadForAccount(accountId)
 
   return batch.length
 }
@@ -207,6 +209,38 @@ function syncWindowFilter(days: number | null | undefined): string | null {
   if (days == null || !Number.isFinite(days) || days <= 0) return null
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
   return `receivedDateTime ge ${since}`
+}
+
+/** Neueste Mails per Empfangszeit — unabhaengig vom lastModified-Watermark. */
+async function fetchRecentMessagesInFolder(
+  client: ReturnType<typeof createGraphClient>,
+  accountId: string,
+  folder: { id: number; remoteId: string; wellKnown: string | null },
+  folderRemoteId: string,
+  topCount = 60
+): Promise<{ added: number; remoteIds: string[] }> {
+  const config = await loadConfig()
+  let request = client
+    .api(`/me/mailFolders/${folderRemoteId}/messages`)
+    .top(topCount)
+    .orderby('receivedDateTime DESC')
+    .select(MESSAGE_SELECT)
+
+  const filter = syncWindowFilter(config.syncWindowDays)
+  if (filter) request = request.filter(filter)
+
+  const page = (await request.get()) as GraphCollection<GraphMessage>
+  if (page.value.length === 0) return { added: 0, remoteIds: [] }
+
+  const allRemoteIds = page.value.map((m) => m.id).filter((id): id is string => Boolean(id))
+  const existing = listMessageIdsByRemoteIds(accountId, allRemoteIds)
+  const newRemoteIds = allRemoteIds.filter((id) => !existing.has(id))
+
+  const batch = page.value.map((m) => graphMessageToUpsert(m, accountId, folder.id))
+  upsertMailMessagesReconcilingTodos(accountId, batch)
+  mirrorGraphCategoriesToLocal(accountId, page.value)
+
+  return { added: newRemoteIds.length, remoteIds: newRemoteIds }
 }
 
 /** Listen-/Poll-Sync ohne Body (Body on-demand via message-body-fetch). */
@@ -553,20 +587,27 @@ export async function syncMessagesInFolder(
     return 0
   }
 
-  let request = client
-    .api(`/me/mailFolders/${folderRemoteId}/messages`)
-    .top(topCount)
-    .orderby('receivedDateTime DESC')
-    .select(MESSAGE_SELECT)
-
   const filter = syncWindowFilter(config.syncWindowDays)
-  if (filter) request = request.filter(filter)
+  const perPage = Math.min(Math.max(topCount, 50), 100)
+  const maxPages = 8
 
-  const page = (await request.get()) as GraphCollection<GraphMessage>
+  let url: string | null =
+    `/me/mailFolders/${folderRemoteId}/messages?$top=${perPage}&$orderby=${encodeURIComponent('receivedDateTime DESC')}&$select=${encodeURIComponent(MESSAGE_SELECT)}` +
+    (filter ? `&$filter=${encodeURIComponent(filter)}` : '')
 
-  const messages = page.value.map((m) => graphMessageToUpsert(m, accountId, folder.id))
+  const allValues: GraphMessage[] = []
+  let pages = 0
+  while (url && pages < maxPages) {
+    pages += 1
+    const page = (await client.api(url).get()) as GraphCollection<GraphMessage>
+    allValues.push(...page.value)
+    const next = page['@odata.nextLink']
+    url = next ? next.replace(/^https?:\/\/[^/]+\/v[0-9.]+/, '') : null
+  }
+
+  const messages = allValues.map((m) => graphMessageToUpsert(m, accountId, folder.id))
   upsertMailMessagesReconcilingTodos(accountId, messages)
-  mirrorGraphCategoriesToLocal(accountId, page.value)
+  mirrorGraphCategoriesToLocal(accountId, allValues)
 
   setFolderMailboxCountsLocal(
     folder.id,
@@ -574,21 +615,23 @@ export async function syncMessagesInFolder(
     remoteTotal
   )
 
-  // Watermark setzen: die juengste lastModifiedDateTime, damit das spaetere
-  // Polling von dort weiterlaufen kann.
-  let maxLastMod: string | null = null
-  for (const m of page.value) {
-    const t = m.lastModifiedDateTime
-    if (t && (!maxLastMod || t > maxLastMod)) maxLastMod = t
-  }
-  if (maxLastMod) {
-    const prev = getFolderSyncState(accountId, folder.id)
-    upsertFolderSyncState({
-      accountId,
-      folderId: folder.id,
-      deltaToken: prev?.deltaToken ?? null,
-      lastSyncedAt: maxLastMod
-    })
+  await bootstrapGraphFolderDelta(accountId, folder)
+
+  const afterBootstrap = getFolderSyncState(accountId, folder.id)
+  if (!afterBootstrap?.deltaToken) {
+    let maxReceived: string | null = null
+    for (const m of allValues) {
+      const t = m.receivedDateTime
+      if (t && (!maxReceived || t > maxReceived)) maxReceived = t
+    }
+    if (maxReceived) {
+      upsertFolderSyncState({
+        accountId,
+        folderId: folder.id,
+        deltaToken: null,
+        lastSyncedAt: maxReceived
+      })
+    }
   }
 
   return messages.length
@@ -602,48 +645,14 @@ export async function syncMessagesInFolder(
  * Falls noch kein Watermark gesetzt ist, faellt die Funktion auf einen
  * vollen Folder-Sync mit Sync-Window-Filter zurueck.
  */
-export async function pollMessagesInFolder(
+async function pollMessagesByLastModified(
+  client: ReturnType<typeof createGraphClient>,
   accountId: string,
+  folder: { id: number; remoteId: string; wellKnown: string | null },
   folderRemoteId: string,
-  maxPages = 4
-): Promise<{ added: number; from: string | null; to: string | null; remoteIds: string[] }> {
-  const folder = findFolderByRemoteId(accountId, folderRemoteId)
-  if (!folder) throw new Error(`Ordner ${folderRemoteId} nicht in DB gefunden.`)
-
-  const state = getFolderSyncState(accountId, folder.id)
-  if (!state?.lastSyncedAt) {
-    const count = await syncMessagesInFolder(accountId, folderRemoteId, 50)
-    return { added: count, from: null, to: null, remoteIds: [] }
-  }
-
-  const client = await getClientFor(accountId)
-
-  if (state.deltaToken?.trim()) {
-    try {
-      return await runGraphDeltaPollCycle(
-        client,
-        accountId,
-        folder,
-        folderRemoteId,
-        state.deltaToken.trim(),
-        Math.max(maxPages, 10),
-        state.lastSyncedAt
-      )
-    } catch (e) {
-      if (isGraphDeltaGoneError(e)) {
-        upsertFolderSyncState({
-          accountId,
-          folderId: folder.id,
-          deltaToken: null,
-          lastSyncedAt: state.lastSyncedAt
-        })
-      } else {
-        throw e
-      }
-    }
-  }
-
-  const since = state.lastSyncedAt
+  since: string,
+  maxPages: number
+): Promise<{ added: number; to: string | null; remoteIds: string[] }> {
   const filter = `lastModifiedDateTime gt ${since}`
 
   let selfEmailNorm: string | null = null
@@ -707,7 +716,106 @@ export async function pollMessagesInFolder(
     })
   }
 
-  return { added: total, from: since, to: maxLastMod, remoteIds }
+  return { added: total, to: maxLastMod, remoteIds }
+}
+
+export async function pollMessagesInFolder(
+  accountId: string,
+  folderRemoteId: string,
+  maxPages = 4
+): Promise<{ added: number; from: string | null; to: string | null; remoteIds: string[] }> {
+  const folder = findFolderByRemoteId(accountId, folderRemoteId)
+  if (!folder) throw new Error(`Ordner ${folderRemoteId} nicht in DB gefunden.`)
+
+  let state = getFolderSyncState(accountId, folder.id)
+  if (!state?.lastSyncedAt) {
+    const count = await syncMessagesInFolder(accountId, folderRemoteId, 50)
+    state = getFolderSyncState(accountId, folder.id)
+    const client = await getClientFor(accountId)
+    const recent = await fetchRecentMessagesInFolder(client, accountId, folder, folderRemoteId)
+    return {
+      added: count + recent.added,
+      from: null,
+      to: state?.lastSyncedAt ?? null,
+      remoteIds: recent.remoteIds
+    }
+  }
+
+  const client = await getClientFor(accountId)
+  let totalAdded = 0
+  const remoteIds: string[] = []
+  let fromWatermark = state.lastSyncedAt
+  let toWatermark: string | null = state.lastSyncedAt
+
+  if (!state.deltaToken?.trim()) {
+    await bootstrapGraphFolderDelta(accountId, folder)
+    state = getFolderSyncState(accountId, folder.id)
+  }
+
+  if (state?.deltaToken?.trim()) {
+    try {
+      const delta = await runGraphDeltaPollCycle(
+        client,
+        accountId,
+        folder,
+        folderRemoteId,
+        state.deltaToken.trim(),
+        Math.max(maxPages, 10),
+        state.lastSyncedAt
+      )
+      totalAdded += delta.added
+      remoteIds.push(...delta.remoteIds)
+      toWatermark = delta.to
+    } catch (e) {
+      if (isGraphDeltaGoneError(e)) {
+        upsertFolderSyncState({
+          accountId,
+          folderId: folder.id,
+          deltaToken: null,
+          lastSyncedAt: state.lastSyncedAt
+        })
+        await bootstrapGraphFolderDelta(accountId, folder)
+        state = getFolderSyncState(accountId, folder.id)
+        if (state?.deltaToken?.trim()) {
+          const delta = await runGraphDeltaPollCycle(
+            client,
+            accountId,
+            folder,
+            folderRemoteId,
+            state.deltaToken.trim(),
+            Math.max(maxPages, 10),
+            state.lastSyncedAt
+          )
+          totalAdded += delta.added
+          remoteIds.push(...delta.remoteIds)
+          toWatermark = delta.to
+        }
+      } else {
+        throw e
+      }
+    }
+  }
+
+  state = getFolderSyncState(accountId, folder.id)
+  if (!state?.deltaToken?.trim() && state?.lastSyncedAt) {
+    const mod = await pollMessagesByLastModified(
+      client,
+      accountId,
+      folder,
+      folderRemoteId,
+      state.lastSyncedAt,
+      maxPages
+    )
+    totalAdded += mod.added
+    remoteIds.push(...mod.remoteIds)
+    if (mod.to) toWatermark = mod.to
+  }
+
+  const recent = await fetchRecentMessagesInFolder(client, accountId, folder, folderRemoteId, 75)
+  totalAdded += recent.added
+  remoteIds.push(...recent.remoteIds)
+
+  return { added: totalAdded, from: fromWatermark, to: toWatermark, remoteIds }
 }
 
 export async function syncAccountInitial(accountId: string): Promise<{

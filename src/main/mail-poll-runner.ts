@@ -1,14 +1,14 @@
 import { runBackgroundPoll } from './sync-runner'
 import { wakeDueSnoozes } from './snooze'
 import { isAppOnline } from './network-status'
+import { clampMailPollIntervalSeconds } from '@shared/mail-poll-interval'
 import { loadConfigSync } from './config'
 
-const MIN_POLL_INTERVAL_MS = 30_000
-const MAX_POLL_INTERVAL_MS = 600_000
-
 let timer: NodeJS.Timeout | null = null
-let running = false
 let stopRequested = false
+
+/** Serialisiert Hintergrund- und manuelle Polls – kein stiller No-Op mehr. */
+let tickQueue: Promise<void> = Promise.resolve()
 
 /**
  * Liefert eine Folder-ID, die zusaetzlich zum Standard-Set (Inbox/Sent)
@@ -22,9 +22,8 @@ export function setActivePollFolder(folderId: number | null): void {
 }
 
 function resolvePollIntervalMs(): number {
-  const sec = loadConfigSync().mailPollIntervalSeconds ?? 60
-  const clamped = Math.min(Math.max(Math.floor(sec), 30), 600)
-  return clamped * 1000
+  const sec = loadConfigSync().mailPollIntervalSeconds ?? 30
+  return clampMailPollIntervalSeconds(sec) * 1000
 }
 
 function scheduleNextPollTick(): void {
@@ -33,13 +32,22 @@ function scheduleNextPollTick(): void {
     timer = null
   }
   timer = setInterval(() => {
-    void tick()
+    enqueueTick()
   }, resolvePollIntervalMs())
 }
 
-async function tick(): Promise<void> {
-  if (running || stopRequested) return
-  running = true
+function enqueueTick(): Promise<void> {
+  tickQueue = tickQueue
+    .then(() => executeTick())
+    .catch((e) => {
+      console.warn('[mail-poll] tick error', e)
+    })
+  return tickQueue
+}
+
+async function executeTick(): Promise<void> {
+  if (stopRequested) return
+
   try {
     // Faellige Snoozes zuerst zurueckschieben, damit der nachfolgende Poll
     // sie sofort in ihren Original-Ordnern wiederfindet.
@@ -62,9 +70,7 @@ async function tick(): Promise<void> {
       await runBackgroundPoll(extra)
     }
   } catch (e) {
-    console.warn('[mail-poll] tick error', e)
-  } finally {
-    running = false
+    console.warn('[mail-poll] executeTick error', e)
   }
 }
 
@@ -73,7 +79,7 @@ export function startMailPolling(): void {
   stopRequested = false
   // Erster Tick verzoegert, damit Initial-Sync zuerst durchlaeuft.
   setTimeout(() => {
-    void tick()
+    void enqueueTick()
   }, 15_000)
   scheduleNextPollTick()
 }
@@ -94,9 +100,9 @@ export function stopMailPolling(): void {
 
 /**
  * Manuelles Anstossen aus dem Renderer (z.B. ueber einen Refresh-Button).
- * Garantiert sequentiell zum Hintergrund-Tick.
+ * Wartet auf laufende Ticks und fuehrt danach garantiert einen Poll aus.
  */
 export async function triggerManualPoll(folderId: number | null): Promise<void> {
   setActivePollFolder(folderId)
-  await tick()
+  await enqueueTick()
 }

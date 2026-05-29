@@ -68,7 +68,7 @@ export function WeatherCodeIcon(props: {
       className={cn('shrink-0 text-primary/90', className)}
       strokeWidth={1.75}
       aria-hidden={title ? undefined : true}
-      title={title}
+      aria-label={title}
     />
   )
 }

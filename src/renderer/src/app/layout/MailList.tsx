@@ -21,6 +21,7 @@ import {
 import { useMailListHoverActionPrefs } from '@/lib/use-mail-list-hover-action-prefs'
 import { useUndoStore } from '@/stores/undo'
 import { indexMessagesByThread, type ThreadGroup } from '@/lib/thread-group'
+import { computeUnifiedInboxUnreadBadge } from '@/lib/unified-inbox-unread'
 import {
   messageListDateIso,
   pickThreadLatestMessage,
@@ -57,8 +58,7 @@ import { ObjectNoteDialog, type ObjectNoteTarget } from '@/components/ObjectNote
 import { Avatar } from '@/components/Avatar'
 import { AccountColorStripe } from '@/components/AccountColorStripe'
 import { resolvedAccountColorCss } from '@/lib/avatar-color'
-import { combineSenderAvatarImageSrc, profilePhotoSrcForEmail } from '@/lib/contact-avatar'
-import { useSenderContactPhoto } from '@/lib/use-sender-contact-photo'
+import { useSenderAvatarSources } from '@/lib/use-sender-avatar-sources'
 import { normalizeMailSenderEmail } from '@shared/mail-sender-email'
 import { useCreateContactFromMailStore } from '@/stores/create-contact-from-mail'
 import { StatusDot } from '@/components/StatusDot'
@@ -515,13 +515,24 @@ export function MailList(): JSX.Element {
                   : folder.name
                 : t('mail.list.noSelection')
 
+  const unifiedInboxUnreadDbCount = useMailStore((s) => s.unifiedInboxUnreadDbCount)
+
   const unifiedInboxUnread = useMemo(() => {
     if (listKind !== 'unified_inbox') return 0
-    return Object.values(foldersByAccount)
-      .flat()
-      .filter((f) => f.wellKnown === 'inbox')
-      .reduce((sum, f) => sum + (f.unreadCount ?? 0), 0)
-  }, [listKind, foldersByAccount])
+    return computeUnifiedInboxUnreadBadge({
+      foldersByAccount,
+      messages,
+      listKind,
+      loading,
+      dbUnreadCount: unifiedInboxUnreadDbCount
+    })
+  }, [
+    listKind,
+    foldersByAccount,
+    messages,
+    loading,
+    unifiedInboxUnreadDbCount
+  ])
 
   const { threads, messagesByThread } = useMemo(
     () =>
@@ -1231,9 +1242,10 @@ const ThreadHeadRow = memo(function ThreadHeadRow({
   }, [threadMessages, thread.rootMessage])
   const root = useMemo(() => pickThreadRootMessage(displayMessages), [displayMessages])
   const latest = useMemo(() => pickThreadLatestMessage(displayMessages), [displayMessages])
-  const accountSenderPhoto = profilePhotoSrcForEmail(accounts, profilePhotoDataUrls, root.fromAddr)
-  const contactSenderPhoto = useSenderContactPhoto(root.fromAddr, root.accountId)
-  const senderPhoto = combineSenderAvatarImageSrc(accountSenderPhoto, contactSenderPhoto)
+  const { imageSrc: senderPhoto, useGravatar, useDomainAvatar } = useSenderAvatarSources(
+    root.fromAddr,
+    root.accountId
+  )
   const hasMultiple = thread.messageCount > 1
   const outlookExpandHeader = !tableMode && hasMultiple && expanded
   const dateIso = messageListDateIso(latest)
@@ -1363,7 +1375,8 @@ const ThreadHeadRow = memo(function ThreadHeadRow({
           email={root.fromAddr}
           accountColor={account?.color}
           imageSrc={senderPhoto}
-          useGravatar={Boolean(root.fromAddr?.trim())}
+          useGravatar={useGravatar}
+          useDomainAvatar={useDomainAvatar}
           size="md"
           className="mt-0.5"
         />

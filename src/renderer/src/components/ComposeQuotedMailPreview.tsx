@@ -1,4 +1,5 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useComposeEditorEffectiveTheme } from '@/stores/compose-editor-theme'
 import { resolveMailViewerDarkSurfaceHex, useThemeStore } from '@/stores/theme'
 import {
   buildMailShadowRootInnerHtml,
@@ -20,9 +21,11 @@ export interface ComposeQuotedMailPreviewProps {
 /** Zitierte Original-Mail im Composer — gleiche Shadow-DOM-Pipeline wie Lesefenster. */
 export function ComposeQuotedMailPreview({
   quotedHtml,
-  viewerTheme = 'light',
+  viewerTheme: viewerThemeProp,
   className
 }: ComposeQuotedMailPreviewProps): JSX.Element {
+  const storedViewerTheme = useComposeEditorEffectiveTheme()
+  const viewerTheme = viewerThemeProp ?? storedViewerTheme
   const shadowHostRef = useRef<HTMLDivElement>(null)
   const [contentHeight, setContentHeight] = useState(80)
   const darkPalette = useThemeStore((s) => s.darkPalette)

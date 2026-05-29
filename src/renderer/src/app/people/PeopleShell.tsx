@@ -49,6 +49,7 @@ import {
   peopleListGroupCollapseKey
 } from '@/app/people/people-list-groups'
 import { useContactPhotoDataUrl } from '@/app/people/useContactPhotoDataUrl'
+import { isContactPhotoAvatarEnabled } from '@shared/avatar-preferences'
 import { PeopleContactTile } from '@/app/people/PeopleContactTile'
 import { PeopleShellSortableAccountNavRow } from '@/app/people/PeopleShellAccountNavRow'
 import { ContextMenu, type ContextMenuItem } from '@/components/ContextMenu'
@@ -212,10 +213,12 @@ export function PeopleShell(): JSX.Element {
 
   const [error, setError] = useState<string | null>(null)
 
+  const contactPhotoAvatarEnabled = isContactPhotoAvatarEnabled(useAccountsStore((s) => s.config))
+
   const selectedPhotoUrl = useContactPhotoDataUrl(
     selected?.id ?? null,
     selected?.photoLocalPath ?? null,
-    selected != null,
+    selected != null && contactPhotoAvatarEnabled,
     selected?.updatedLocal ?? null
   )
 

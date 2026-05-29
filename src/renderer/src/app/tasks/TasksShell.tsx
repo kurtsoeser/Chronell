@@ -13,7 +13,7 @@ import { addMonths, startOfMonth } from 'date-fns'
 import { Loader2, ListTodo, RefreshCw, Trash2, ChevronDown, Eraser } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { ConnectedAccount, TaskItemRow, TaskListRow } from '@shared/types'
-import type { WorkItemPlannedSchedule } from '@shared/work-item'
+import type { WorkItem, WorkItemPlannedSchedule } from '@shared/work-item'
 import { cloudTaskStableKey } from '@shared/work-item-keys'
 import { useAccountsStore } from '@/stores/accounts'
 import { useUndoStore } from '@/stores/undo'
@@ -41,6 +41,11 @@ import { readTasksCalendarFcView } from '@/app/tasks/tasks-calendar-view-storage
 import { readTasksCalendarDateMode } from '@/app/tasks/tasks-calendar-date-mode-storage'
 import type { CloudTaskCalendarDateMode } from '@/app/calendar/cloud-task-calendar'
 import { confirmDeleteCloudTasks } from '@/app/tasks/confirm-delete-cloud-task'
+import { buildTasksListContextMenuItems } from '@/app/tasks/tasks-list-context-menu'
+import type { MailContextHandlers } from '@/lib/mail-context-menu'
+import { accountSupportsCloudTasks } from '@/lib/cloud-task-accounts'
+import { openWorkItemInCalendar } from '@/app/work-items/work-item-calendar-nav'
+import type { WorkItemContextHandlers } from '@/app/work-items/work-item-context-menu'
 import {
   readTasksContentViewMode,
   type TasksContentViewMode
@@ -76,6 +81,9 @@ import { runTasksDueReminders } from '@/lib/tasks-due-reminders'
 import { readTasksSettingsPrefs } from '@/lib/tasks-settings-prefs'
 import { APP_PRODUCT_NAME } from '@shared/app-version'
 import { useMailStore } from '@/stores/mail'
+import { useComposeStore } from '@/stores/compose'
+import { useSnoozeUiStore } from '@/stores/snooze-ui'
+import { useAppModeStore } from '@/stores/app-mode'
 import {
   persistTasksViewSelection,
   readTasksViewSelection
@@ -122,6 +130,19 @@ export function TasksShell(): JSX.Element {
   const { t } = useTranslation()
   const tasksSettings = useTasksSettingsPrefs()
   const completeTodoForMessage = useMailStore((s) => s.completeTodoForMessage)
+  const selectMessage = useMailStore((s) => s.selectMessage)
+  const setMessageRead = useMailStore((s) => s.setMessageRead)
+  const toggleMessageFlag = useMailStore((s) => s.toggleMessageFlag)
+  const archiveMessage = useMailStore((s) => s.archiveMessage)
+  const deleteMessage = useMailStore((s) => s.deleteMessage)
+  const setTodoForMessage = useMailStore((s) => s.setTodoForMessage)
+  const setWaitingForMessage = useMailStore((s) => s.setWaitingForMessage)
+  const clearWaitingForMessage = useMailStore((s) => s.clearWaitingForMessage)
+  const refreshNow = useMailStore((s) => s.refreshNow)
+  const openReply = useComposeStore((s) => s.openReply)
+  const openForward = useComposeStore((s) => s.openForward)
+  const openSnoozePicker = useSnoozeUiStore((s) => s.open)
+  const setAppMode = useAppModeStore((s) => s.setMode)
   const pendingTaskKey = useTasksPendingFocusStore((s) =>
     s.pendingTask
       ? `${s.pendingTask.accountId}:${s.pendingTask.listId}:${s.pendingTask.taskId}`
@@ -210,6 +231,11 @@ export function TasksShell(): JSX.Element {
   )
   const [createTaskPreferredAccountId, setCreateTaskPreferredAccountId] = useState<string | null>(null)
   const [accountSidebarContextMenu, setAccountSidebarContextMenu] = useState<{
+    x: number
+    y: number
+    items: ContextMenuItem[]
+  } | null>(null)
+  const [taskListContextMenu, setTaskListContextMenu] = useState<{
     x: number
     y: number
     items: ContextMenuItem[]
@@ -1033,6 +1059,140 @@ export function TasksShell(): JSX.Element {
     setDetailOpen(true)
   }, [])
 
+  const displayItemsRef = useRef(displayItems)
+  displayItemsRef.current = displayItems
+
+  const toggleWorkItemCompleted = useCallback(
+    async (item: WorkItem): Promise<void> => {
+      if (item.kind === 'calendar_event') return
+      if (item.kind === 'mail_todo') {
+        const hit = displayItemsRef.current.find(
+          (x) => isMailTodoListItem(x) && x.messageId === item.messageId
+        )
+        if (hit) await toggleCompleted(hit)
+        return
+      }
+      const hit = displayItemsRef.current.find(
+        (x) => isCloudTaskListItem(x) && tasksListItemKey(x) === item.stableKey
+      )
+      if (hit) await toggleCompleted(hit)
+    },
+    [completeTodoForMessage, isUnified, loadListTasks, loadMailTodos, loadUnifiedTasks, patchTask]
+  )
+
+  const handleTaskEdit = useCallback(
+    (task: TasksListItem): void => {
+      setSelected(task)
+      showDetailPanel()
+    },
+    [showDetailPanel]
+  )
+
+  const mailContextHandlers = useMemo<MailContextHandlers>(
+    () => ({
+      openReply,
+      openForward,
+      setMessageRead,
+      toggleMessageFlag,
+      archiveMessage,
+      deleteMessage,
+      setTodoForMessage,
+      completeTodoForMessage: async (messageId: number): Promise<void> => {
+        await completeTodoForMessage(messageId)
+        if (isUnified && tasksSettings.includeMailTodosInList) void loadMailTodos()
+      },
+      setWaitingForMessage,
+      clearWaitingForMessage,
+      openSnoozePicker,
+      refreshNow: async (): Promise<void> => {
+        await refreshNow()
+        if (isUnified && tasksSettings.includeMailTodosInList) void loadMailTodos()
+      }
+    }),
+    [
+      openReply,
+      openForward,
+      setMessageRead,
+      toggleMessageFlag,
+      archiveMessage,
+      deleteMessage,
+      setTodoForMessage,
+      completeTodoForMessage,
+      setWaitingForMessage,
+      clearWaitingForMessage,
+      openSnoozePicker,
+      refreshNow,
+      isUnified,
+      tasksSettings.includeMailTodosInList,
+      loadMailTodos
+    ]
+  )
+
+  const workContextHandlers = useMemo<WorkItemContextHandlers>(
+    () => ({
+      t,
+      mailHandlers: mailContextHandlers,
+      canCreateCloudTask: (accountId): boolean =>
+        taskAccounts.some((a) => a.id === accountId && accountSupportsCloudTasks(a)),
+      onToggleCompleted: toggleWorkItemCompleted,
+      onShowInCalendar: (item): void => openWorkItemInCalendar(item, setAppMode),
+      onOpenInMail: (item): void => {
+        void selectMessage(item.messageId)
+        setAppMode('mail')
+      },
+      onOpenInTasks: (): void => {
+        /* bereits im Aufgaben-Modul */
+      },
+      onDeleteCloudTask: async (item): Promise<void> => {
+        const key = cloudTaskStableKey(item.accountId, item.listId, item.taskId)
+        const hit = displayItemsRef.current.find(
+          (x) => isCloudTaskListItem(x) && tasksListItemKey(x) === key
+        )
+        if (hit) await deleteTasks([hit])
+      },
+      refreshMailList: (): void => {
+        if (isUnified && tasksSettings.includeMailTodosInList) void loadMailTodos()
+      }
+    }),
+    [
+      t,
+      mailContextHandlers,
+      taskAccounts,
+      toggleWorkItemCompleted,
+      setAppMode,
+      selectMessage,
+      deleteTasks,
+      isUnified,
+      tasksSettings.includeMailTodosInList,
+      loadMailTodos
+    ]
+  )
+
+  const workContextHandlersRef = useRef(workContextHandlers)
+  workContextHandlersRef.current = workContextHandlers
+
+  const openTaskContextMenu = useCallback(
+    (task: TasksListItem, event: MouseEvent): void => {
+      event.preventDefault()
+      event.stopPropagation()
+      void (async (): Promise<void> => {
+        const items = await buildTasksListContextMenuItems(
+          task,
+          { x: event.clientX, y: event.clientY },
+          {
+            t,
+            inTasksModule: true,
+            plannedByTaskKey,
+            workItemHandlers: workContextHandlersRef.current,
+            onEdit: handleTaskEdit
+          }
+        )
+        setTaskListContextMenu({ x: event.clientX, y: event.clientY, items })
+      })()
+    },
+    [t, plannedByTaskKey, handleTaskEdit]
+  )
+
   const detailPanelBody = (
     <TasksDetailPanelBody
       item={selectedWorkItem}
@@ -1292,6 +1452,7 @@ export function TasksShell(): JSX.Element {
                       onSelect={setSelected}
                       onTaskClick={handleTaskClick}
                       onToggleCompleted={(item): void => void toggleCompleted(item)}
+                      onTaskContextMenu={openTaskContextMenu}
                       layoutOpts={listLayoutOpts}
                       enableDrag={tasksSettings.listDragEnabled}
                       isItemExiting={isExiting}
@@ -1415,6 +1576,14 @@ export function TasksShell(): JSX.Element {
           y={accountSidebarContextMenu.y}
           items={accountSidebarContextMenu.items}
           onClose={(): void => setAccountSidebarContextMenu(null)}
+        />
+      ) : null}
+      {taskListContextMenu ? (
+        <ContextMenu
+          x={taskListContextMenu.x}
+          y={taskListContextMenu.y}
+          items={taskListContextMenu.items}
+          onClose={(): void => setTaskListContextMenu(null)}
         />
       ) : null}
     </section>

@@ -33,9 +33,11 @@ export const IPC = {
     setGoogleClientId: 'config:set-google-client-id',
     setSyncWindowDays: 'config:set-sync-window-days',
     setMailPollIntervalSeconds: 'config:set-mail-poll-interval-seconds',
+    setMicrosoftMailTransport: 'config:set-microsoft-mail-transport',
     setProfileSyncPollIntervalSeconds: 'config:set-profile-sync-poll-interval-seconds',
     setAutoLoadImages: 'config:set-auto-load-images',
     setGravatarEnabled: 'config:set-gravatar-enabled',
+    setAvatarPreferences: 'config:set-avatar-preferences',
     setCalendarTimeZone: 'config:set-calendar-time-zone',
     setWeatherLocation: 'config:set-weather-location',
     setWorkflowMailFoldersIntroDismissed: 'config:set-workflow-mail-folders-intro-dismissed',
@@ -153,6 +155,7 @@ export const IPC = {
   },
   mail: {
     listFolders: 'mail:list-folders',
+    getUnifiedInboxUnreadCount: 'mail:get-unified-inbox-unread-count',
     listMessages: 'mail:list-messages',
     listInboxTriage: 'mail:list-inbox-triage',
     /** Alle lokalen Mails aus allen Posteingaengen (well_known = inbox), ohne LIMIT. */
@@ -172,6 +175,7 @@ export const IPC = {
     getAccountSyncMeta: 'mail:get-account-sync-meta',
     clearLocalMailCache: 'mail:clear-local-mail-cache',
     syncFolder: 'mail:sync-folder',
+    markAllReadInFolder: 'mail:mark-all-read-in-folder',
     bulkUnflagFlaggedMessages: 'mail:bulk-unflag-flagged-messages',
     setRead: 'mail:set-read',
     setFlagged: 'mail:set-flagged',
@@ -224,7 +228,9 @@ export const IPC = {
     /** Mails nach Kategorie (message_tags.tag), optional pro Konto. */
     listCategoryMessages: 'mail:list-category-messages',
     /** Konversationsverlauf mit einer E-Mail-Adresse (Kontaktdetails). */
-    listCorrespondence: 'mail:list-correspondence'
+    listCorrespondence: 'mail:list-correspondence',
+    /** Absender-Avatar anhand der Domain (Favicon, gecacht). */
+    getSenderDomainAvatarDataUrl: 'mail:get-sender-domain-avatar-data-url'
   },
   folder: {
     create: 'folder:create',
@@ -269,7 +275,9 @@ export const IPC = {
     syncAccount: 'calendar:sync-account',
     getAccountSyncStates: 'calendar:get-account-sync-states',
     parseIcsFile: 'calendar:parse-ics-file',
-    pickIcsFile: 'calendar:pick-ics-file'
+    pickIcsFile: 'calendar:pick-ics-file',
+    parseMeetingFromMessage: 'calendar:parse-meeting-from-message',
+    respondToMeetingInvitation: 'calendar:respond-to-meeting-invitation'
   },
   tasks: {
     listLists: 'tasks:list-lists',

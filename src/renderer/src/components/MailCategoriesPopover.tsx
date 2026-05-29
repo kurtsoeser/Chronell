@@ -101,12 +101,12 @@ export function MailCategoriesPopover({
   if (!open || !account) return null
 
   function isFav(name: string): boolean {
-    const key = `${account.id}::${name.toLowerCase()}`
+    const key = `${account!.id}::${name.toLowerCase()}`
     return favorites.some((f) => `${f.accountId ?? '*'}::${f.name.toLowerCase()}` === key)
   }
 
   function toggleFav(name: string): void {
-    const next = toggleFavoriteCategory(favorites, { accountId: account.id, name })
+    const next = toggleFavoriteCategory(favorites, { accountId: account!.id, name })
     setFavorites(next)
     persistFavoriteCategories(next)
   }

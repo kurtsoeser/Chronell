@@ -36,6 +36,9 @@ import {
   type RemoveMailTodoRecordsResult
 } from '@shared/types'
 import { writeAttachmentCacheFile } from '../attachment-cache'
+import { getSenderDomainAvatarDataUrl } from '../sender-domain-avatar'
+import { fetchMailAttachmentsMeta } from '../mail-attachment-fetch'
+import { scheduleIndexMessageAttachmentsIfNeeded } from './register-files-ipc'
 import { loadConfig } from '../config'
 import { listAccounts } from '../accounts'
 import { gmailSendMail, gmailSaveDraft } from '../google/gmail-compose'
@@ -45,12 +48,18 @@ import {
   gmailFetchInlineImages
 } from '../google/gmail-attachments'
 import { listAccountMailSyncMeta } from '../db/account-mail-sync-meta-repo'
-import { runInitialSync, runFolderSync } from '../sync-runner'
+import {
+  runInitialSync,
+  runFolderSync,
+  runFolderSyncOrPoll,
+  runManualAccountSync
+} from '../sync-runner'
+import { applyMarkAllReadInFolder } from '../folder-read-actions'
 import { clearMailAccountLocalCacheAndResync } from '../mail-cache-reset'
 import { runBulkUnflagFlaggedMessages } from '../mail-bulk-unflag-service'
 import { triggerManualPoll, setActivePollFolder } from '../mail-poll-runner'
 import { assertAppOnline } from '../network-status'
-import { findFolderById, findFolderByWellKnown } from '../db/folders-repo'
+import { findFolderById } from '../db/folders-repo'
 import { peekLastUndoable, markUndone } from '../db/message-actions-repo'
 import {
   listMessagesByAccount,
@@ -205,8 +214,6 @@ export function registerMailIpc(): void {
       _event,
       args: { messageId: number }
     ): Promise<AttachmentMeta[]> => {
-      const { fetchMailAttachmentsMeta } = await import('../mail-attachment-fetch')
-      const { scheduleIndexMessageAttachmentsIfNeeded } = await import('./register-files-ipc')
       const meta = await fetchMailAttachmentsMeta(args.messageId)
       scheduleIndexMessageAttachmentsIfNeeded(args.messageId)
       return meta
@@ -296,7 +303,8 @@ export function registerMailIpc(): void {
   
   ipcMain.handle(IPC.mail.syncAccount, async (_event, accountId: string) => {
     assertAppOnline()
-    return runInitialSync(accountId)
+    await runManualAccountSync(accountId)
+    return { folders: 0, inboxMessages: 0 }
   })
 
   ipcMain.handle(IPC.mail.getAccountSyncMeta, () => listAccountMailSyncMeta())
@@ -307,7 +315,7 @@ export function registerMailIpc(): void {
   
   ipcMain.handle(IPC.mail.syncFolder, async (_event, folderId: number) => {
     assertAppOnline()
-    return runFolderSync(folderId)
+    return runFolderSyncOrPoll(folderId)
   })
   
   ipcMain.handle(
@@ -371,6 +379,15 @@ export function registerMailIpc(): void {
       args: { messageId: number; targetFolderId: number }
     ): Promise<void> => {
       return applyMoveMessageToFolder(args.messageId, args.targetFolderId, { source: 'ui' })
+    }
+  )
+
+  ipcMain.removeHandler(IPC.mail.markAllReadInFolder)
+  ipcMain.handle(
+    IPC.mail.markAllReadInFolder,
+    async (_event, folderId: number): Promise<{ markedLocal: number }> => {
+      assertAppOnline()
+      return applyMarkAllReadInFolder(folderId)
     }
   )
   
@@ -697,6 +714,16 @@ export function registerMailIpc(): void {
     }
   })
   
+  ipcMain.removeHandler(IPC.mail.getSenderDomainAvatarDataUrl)
+  ipcMain.handle(
+    IPC.mail.getSenderDomainAvatarDataUrl,
+    async (_event, email: unknown): Promise<string | null> => {
+      const addr = typeof email === 'string' ? email.trim() : ''
+      if (!addr) return null
+      return getSenderDomainAvatarDataUrl(addr)
+    }
+  )
+
   ipcMain.handle(IPC.mail.undoLast, async (): Promise<UndoResult> => {
     const last = peekLastUndoable()
     if (!last) return { ok: false, error: 'Keine Aktion zum Zuruecknehmen.' }

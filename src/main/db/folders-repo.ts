@@ -127,6 +127,22 @@ export function adjustFolderUnread(folderId: number, delta: number): void {
   ).run(delta, folderId)
 }
 
+/**
+ * Ordner-Badges an den lokalen Nachrichten-Cache angleichen (Sidebar-Zaehler).
+ * Verhindert veraltete Server-Zaehler, wenn Mails lokal verschoben/geloescht wurden.
+ */
+export function reconcileAllFolderUnreadForAccount(accountId: string): void {
+  const db = getDb()
+  db.prepare(
+    `UPDATE folders
+     SET unread_count = (
+       SELECT COUNT(*) FROM messages m
+       WHERE m.folder_id = folders.id AND m.is_read = 0
+     )
+     WHERE account_id = ?`
+  ).run(accountId)
+}
+
 export function renameFolderLocal(id: number, name: string): void {
   const db = getDb()
   db.prepare('UPDATE folders SET name = ? WHERE id = ?').run(name, id)

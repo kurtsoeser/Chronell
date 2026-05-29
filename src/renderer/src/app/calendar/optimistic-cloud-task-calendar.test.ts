@@ -5,9 +5,9 @@ import {
   syncFullCalendarCloudTaskEventFromLayer
 } from '@/app/calendar/optimistic-cloud-task-calendar'
 import { cloudTaskStableKey } from '@shared/work-item-keys'
-import type { TaskItemWithContext } from '@/app/tasks/tasks-types'
+import type { CloudTaskListItem } from '@/app/tasks/tasks-types'
 
-function sampleTask(): TaskItemWithContext {
+function sampleTask(): CloudTaskListItem {
   return {
     id: 't1',
     listId: 'list-1',
@@ -16,7 +16,8 @@ function sampleTask(): TaskItemWithContext {
     dueIso: '2026-05-20',
     notes: null,
     accountId: 'acc-1',
-    listName: 'Tasks'
+    listName: 'Tasks',
+    source: 'cloud'
   }
 }
 

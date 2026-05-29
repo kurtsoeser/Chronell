@@ -14,13 +14,7 @@ import { routeToWipAfterTodoIfConfigured } from './workflow-mail-folder-routing'
 import { snoozeMessage } from './snooze'
 import { computeRuleSnoozeWakeAt } from './snooze-presets'
 import { listAccounts } from './accounts'
-import { BrowserWindow } from 'electron'
-
-function broadcastMailChanged(accountId: string): void {
-  for (const win of BrowserWindow.getAllWindows()) {
-    win.webContents.send('mail:changed', { accountId })
-  }
-}
+import { broadcastMailChanged } from './ipc/ipc-broadcasts'
 
 function truncate(text: string, max: number): string {
   if (text.length <= max) return text

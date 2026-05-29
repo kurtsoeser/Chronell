@@ -949,7 +949,6 @@ export function ConnectionsGraph({
                   height={n.h - 10}
                 >
                   <div
-                    xmlns="http://www.w3.org/1999/xhtml"
                     className="overflow-hidden text-[10px] leading-tight text-foreground"
                     style={{ width: n.w - 24, maxWidth: n.w - 24, height: n.h - 12 }}
                   >
@@ -994,10 +993,7 @@ export function ConnectionsGraph({
                       height={12}
                       className="pointer-events-none"
                     >
-                      <div
-                        xmlns="http://www.w3.org/1999/xhtml"
-                        className="flex h-3 w-3 items-center justify-center text-primary"
-                      >
+                      <div className="flex h-3 w-3 items-center justify-center text-primary">
                         <Link2 className="h-2.5 w-2.5" />
                       </div>
                     </foreignObject>

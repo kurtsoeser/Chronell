@@ -13,7 +13,10 @@ export function formatAccountLastSyncLabel(
 ): string {
   if (opts?.isSyncing && opts.syncingLabel) return opts.syncingLabel
   if (!iso?.trim()) return opts?.neverLabel ?? '—'
-  const d = parseISO(iso)
+  let d = parseISO(iso)
+  if (Number.isNaN(d.getTime()) && iso.includes(' ') && !iso.includes('T')) {
+    d = parseISO(iso.replace(' ', 'T'))
+  }
   if (Number.isNaN(d.getTime())) return opts?.neverLabel ?? '—'
   const locale = resolveDateFnsLocale(language)
   const relative = formatDistanceToNow(d, { addSuffix: true, locale })

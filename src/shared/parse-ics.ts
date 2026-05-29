@@ -10,8 +10,54 @@ export interface IcsParsedEvent {
   descriptionPlain: string | null
 }
 
+export type IcsMeetingMethod =
+  | 'REQUEST'
+  | 'CANCEL'
+  | 'REPLY'
+  | 'PUBLISH'
+  | 'COUNTER'
+  | 'REFRESH'
+  | 'OTHER'
+
+export type IcsAttendeePartStat =
+  | 'accepted'
+  | 'declined'
+  | 'tentative'
+  | 'needs-action'
+  | 'delegated'
+  | 'unknown'
+
+export interface IcsMeetingAttendee {
+  email: string
+  name: string | null
+  partStat: IcsAttendeePartStat
+  role: string | null
+  rsvp: boolean
+}
+
+export interface IcsMeetingOrganizer {
+  email: string
+  name: string | null
+}
+
+/** Meeting-Einladung aus iCalendar (METHOD + VEVENT-Metadaten). */
+export interface IcsMeetingInvitation extends IcsParsedEvent {
+  method: IcsMeetingMethod | null
+  sequence: number
+  status: string | null
+  organizer: IcsMeetingOrganizer | null
+  attendees: IcsMeetingAttendee[]
+  joinUrl: string | null
+  isCancelled: boolean
+}
+
 export interface ParseIcsResult {
   events: IcsParsedEvent[]
+  warnings: string[]
+}
+
+export interface ParseIcsMeetingResult {
+  invitation: IcsMeetingInvitation | null
   warnings: string[]
 }
 
@@ -237,4 +283,215 @@ export function parseIcsCalendarText(text: string): ParseIcsResult {
     warnings.push('Keine gueltigen Termine in der Datei gefunden.')
   }
   return { events, warnings }
+}
+
+function parseMailtoAddress(raw: string): { email: string; name: string | null } | null {
+  const v = decodeIcsText(raw).trim()
+  const mailtoMatch = v.match(/^mailto:(.+)$/i)
+  const emailRaw = (mailtoMatch?.[1] ?? v).split('?')[0]?.trim()
+  if (!emailRaw?.includes('@')) return null
+  return { email: emailRaw.toLowerCase(), name: null }
+}
+
+function parseNamedMailAddress(
+  value: string,
+  params: Record<string, string>
+): { email: string; name: string | null } | null {
+  const parsed = parseMailtoAddress(value)
+  if (!parsed) return null
+  const cn = params['CN']?.trim()
+  return { email: parsed.email, name: cn ? decodeIcsText(cn) : null }
+}
+
+function normalizePartStat(raw: string | undefined): IcsAttendeePartStat {
+  const v = (raw ?? '').trim().toUpperCase().replace(/-/g, '_')
+  switch (v) {
+    case 'ACCEPTED':
+      return 'accepted'
+    case 'DECLINED':
+      return 'declined'
+    case 'TENTATIVE':
+      return 'tentative'
+    case 'NEEDS_ACTION':
+      return 'needs-action'
+    case 'DELEGATED':
+      return 'delegated'
+    default:
+      return 'unknown'
+  }
+}
+
+function parseVeventMeetingBlock(lines: string[]): IcsMeetingInvitation | null {
+  const props = new Map<string, Array<{ params: Record<string, string>; value: string }>>()
+  for (const line of lines) {
+    if (!line.trim() || line.startsWith('BEGIN:') || line.startsWith('END:')) continue
+    const p = parsePropertyLine(line)
+    if (!p) continue
+    const list = props.get(p.name) ?? []
+    list.push({ params: p.params, value: p.value })
+    props.set(p.name, list)
+  }
+
+  const first = (name: string): { params: Record<string, string>; value: string } | undefined =>
+    props.get(name)?.[0]
+
+  const dtStart = first('DTSTART')
+  if (!dtStart) return null
+
+  let startIso: string
+  let endIso: string
+  let isAllDay: boolean
+  try {
+    const start = parseIcsDateValue(dtStart.value, dtStart.params)
+    startIso = start.iso
+    isAllDay = start.isAllDay
+    const dtEnd = first('DTEND')
+    const duration = first('DURATION')
+    if (isAllDay) {
+      endIso = allDayEndExclusive(startIso, dtEnd?.value ?? '', dtEnd?.params ?? {})
+    } else if (dtEnd) {
+      const end = parseIcsDateValue(dtEnd.value, dtEnd.params)
+      endIso = end.iso
+    } else if (duration?.value.trim()) {
+      const startMs = new Date(startIso).getTime()
+      const durMs = parseIcsDurationMs(duration.value)
+      endIso = new Date(startMs + durMs).toISOString()
+    } else {
+      endIso = new Date(new Date(startIso).getTime() + 60 * 60 * 1000).toISOString()
+    }
+  } catch {
+    return null
+  }
+
+  const summary = decodeIcsText(first('SUMMARY')?.value ?? '').trim() || 'Termin'
+  const location = decodeIcsText(first('LOCATION')?.value ?? '').trim() || null
+  const uid = first('UID')?.value?.trim() || null
+  const sequenceRaw = first('SEQUENCE')?.value?.trim()
+  const sequence = sequenceRaw && /^\d+$/.test(sequenceRaw) ? Number(sequenceRaw) : 0
+  const status = first('STATUS')?.value?.trim().toUpperCase() ?? null
+
+  const altDesc = props.get('X-ALT-DESC')?.find(
+    (p) => (p.params['FMTTYPE'] ?? '').toLowerCase().includes('html')
+  )
+  const desc = first('DESCRIPTION')
+  const descriptionPlain = desc ? decodeIcsText(desc.value).trim() || null : null
+  let bodyHtml: string | null = null
+  if (altDesc?.value.trim()) {
+    bodyHtml = decodeIcsText(altDesc.value).trim() || null
+  } else if (descriptionPlain) {
+    bodyHtml = descriptionPlain.includes('<')
+      ? descriptionPlain
+      : `<p>${escapeHtml(descriptionPlain).replace(/\n/g, '<br>')}</p>`
+  }
+
+  const organizerProp = first('ORGANIZER')
+  const organizer = organizerProp
+    ? parseNamedMailAddress(organizerProp.value, organizerProp.params)
+    : null
+
+  const attendees: IcsMeetingAttendee[] = []
+  for (const row of props.get('ATTENDEE') ?? []) {
+    const addr = parseNamedMailAddress(row.value, row.params)
+    if (!addr) continue
+    attendees.push({
+      email: addr.email,
+      name: addr.name,
+      partStat: normalizePartStat(row.params['PARTSTAT']),
+      role: row.params['ROLE']?.trim() ?? null,
+      rsvp: (row.params['RSVP'] ?? '').trim().toUpperCase() === 'TRUE'
+    })
+  }
+
+  const joinFromDesc = extractJoinUrlFromText(
+    [descriptionPlain, bodyHtml, location].filter(Boolean).join('\n')
+  )
+
+  return {
+    uid,
+    summary,
+    startIso,
+    endIso,
+    isAllDay,
+    location,
+    bodyHtml,
+    descriptionPlain,
+    method: null,
+    sequence,
+    status,
+    organizer,
+    attendees,
+    joinUrl: joinFromDesc,
+    isCancelled: status === 'CANCELLED'
+  }
+}
+
+function extractJoinUrlFromText(text: string): string | null {
+  const m = text.match(
+    /https:\/\/(?:teams\.microsoft\.com\/(?:meet|l\/meetup-join)|teams\.live\.com\/meet)\/[^\s"'<>]+/i
+  )
+  return m?.[0]?.replace(/[.,;:!?)>\]]+$/g, '').trim() ?? null
+}
+
+function readVcalendarMethod(lines: string[]): IcsMeetingMethod | null {
+  for (const line of lines) {
+    const p = parsePropertyLine(line)
+    if (!p || p.name !== 'METHOD') continue
+    const v = p.value.trim().toUpperCase()
+    if (v === 'REQUEST') return 'REQUEST'
+    if (v === 'CANCEL') return 'CANCEL'
+    if (v === 'REPLY') return 'REPLY'
+    if (v === 'PUBLISH') return 'PUBLISH'
+    if (v === 'COUNTER') return 'COUNTER'
+    if (v === 'REFRESH') return 'REFRESH'
+    return 'OTHER'
+  }
+  return null
+}
+
+/** Parst eine Meeting-Einladung aus iCalendar-Text (erstes VEVENT + METHOD). */
+export function parseIcsMeetingInvitation(text: string): ParseIcsMeetingResult {
+  const warnings: string[] = []
+  const lines = unfoldIcsLines(text)
+  const method = readVcalendarMethod(lines)
+  let invitation: IcsMeetingInvitation | null = null
+  let i = 0
+  while (i < lines.length) {
+    const line = lines[i]!.trim()
+    if (line.toUpperCase() === 'BEGIN:VEVENT') {
+      const block: string[] = []
+      i++
+      while (i < lines.length && lines[i]!.trim().toUpperCase() !== 'END:VEVENT') {
+        block.push(lines[i]!)
+        i++
+      }
+      if (!invitation) {
+        const ev = parseVeventMeetingBlock(block)
+        if (ev) {
+          invitation = {
+            ...ev,
+            method,
+            isCancelled: ev.isCancelled || method === 'CANCEL'
+          }
+        } else {
+          warnings.push('VEVENT konnte nicht gelesen werden.')
+        }
+      }
+    }
+    i++
+  }
+  if (!invitation && lines.some((l) => l.trim().toUpperCase().includes('VEVENT'))) {
+    warnings.push('Keine gueltige Meeting-Einladung gefunden.')
+  }
+  return { invitation, warnings }
+}
+
+/** Ermittelt den RSVP-Status des aktuellen Kontos anhand der Teilnehmerliste. */
+export function resolveSelfMeetingPartStat(
+  attendees: IcsMeetingAttendee[],
+  accountEmail: string | null | undefined
+): IcsAttendeePartStat | null {
+  const self = (accountEmail ?? '').trim().toLowerCase()
+  if (!self) return null
+  const hit = attendees.find((a) => a.email.toLowerCase() === self)
+  return hit?.partStat ?? null
 }

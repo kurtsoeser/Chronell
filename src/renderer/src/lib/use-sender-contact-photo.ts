@@ -4,11 +4,16 @@ import { loadContactPhotoUrlByEmail } from '@/lib/contact-photo-by-email'
 /** Lokales Kontaktfoto aus dem Adressbuch fuer eine Absender-E-Mail (ohne Gravatar). */
 export function useSenderContactPhoto(
   email: string | null | undefined,
-  accountId?: string | null
+  accountId?: string | null,
+  enabled = true
 ): string | null {
   const [url, setUrl] = useState<string | null>(null)
 
   useEffect(() => {
+    if (!enabled) {
+      setUrl(null)
+      return
+    }
     const addr = email?.trim()
     if (!addr) {
       setUrl(null)
@@ -21,7 +26,7 @@ export function useSenderContactPhoto(
     return (): void => {
       cancelled = true
     }
-  }, [email, accountId])
+  }, [email, accountId, enabled])
 
   return url
 }

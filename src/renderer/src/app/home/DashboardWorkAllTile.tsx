@@ -164,7 +164,7 @@ export function DashboardWorkAllTile({
                     type="button"
                     onClick={(): void => onOpenItem(item)}
                     onDoubleClick={(e): void => {
-                      if (!isMail) return
+                      if (item.kind !== 'mail_todo') return
                       e.preventDefault()
                       e.stopPropagation()
                       openMailReadingPopout(item.messageId, { osWindow: e.shiftKey })

@@ -12,6 +12,7 @@ function node(key: string): EntityGraphNode {
     ref: { kind: 'mail', messageId: Number(key.split(':')[1] ?? 1) },
     kind: 'mail',
     title: key,
+    subtitle: null,
     clusterKey: 'scope:mail',
     layoutScope: 'scope:mail'
   }

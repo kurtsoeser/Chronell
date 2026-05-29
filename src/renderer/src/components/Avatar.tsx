@@ -6,7 +6,9 @@ import {
   bgToRingClass,
   initialsFor
 } from '@/lib/avatar-color'
-import { gravatarUrlForEmail, isGravatarEnabled } from '@/lib/gravatar'
+import { gravatarUrlForEmail } from '@/lib/gravatar'
+import { loadSenderDomainAvatarDataUrl } from '@/lib/sender-domain-avatar'
+import { isGravatarEnabled, isSenderDomainAvatarEnabled } from '@shared/avatar-preferences'
 import { useAccountsStore } from '@/stores/accounts'
 
 export type AvatarSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl'
@@ -49,6 +51,11 @@ interface Props {
    * Kein Treffer (404) → Initialen.
    */
   useGravatar?: boolean
+  /**
+   * Optional: Domain-Favicon als Fallback nach Gravatar (Firmen-/Organisations-Logos).
+   * Nur sinnvoll fuer Mail-Absender, nicht fuer People-Listen.
+   */
+  useDomainAvatar?: boolean
 }
 
 export function Avatar({
@@ -61,7 +68,8 @@ export function Avatar({
   className,
   title,
   imageSrc: imageSrcProp,
-  useGravatar = false
+  useGravatar = false,
+  useDomainAvatar = false
 }: Props): JSX.Element {
   const cls = SIZE_CLASSES[size]
   const seed = email || name || initialsProp || ''
@@ -78,29 +86,39 @@ export function Avatar({
       : ''
 
   const gravatarEnabled = useAccountsStore((s) => isGravatarEnabled(s.config))
+  const domainAvatarsEnabled = useAccountsStore((s) => isSenderDomainAvatarEnabled(s.config))
   const allowGravatar = useGravatar && gravatarEnabled
+  const allowDomainAvatar = useDomainAvatar && domainAvatarsEnabled
 
   const [gravatarUrl, setGravatarUrl] = useState<string | null>(null)
+  const [gravatarChecked, setGravatarChecked] = useState(false)
+  const [domainAvatarUrl, setDomainAvatarUrl] = useState<string | null>(null)
   const [imgFailed, setImgFailed] = useState(false)
 
   useEffect(() => {
     setImgFailed(false)
-  }, [imageSrcProp, gravatarUrl])
+  }, [imageSrcProp, gravatarUrl, domainAvatarUrl])
 
   useEffect(() => {
     if (imageSrcProp || !allowGravatar) {
       setGravatarUrl(null)
+      setGravatarChecked(true)
       return
     }
     const addr = email?.trim()
     if (!addr) {
       setGravatarUrl(null)
+      setGravatarChecked(true)
       return
     }
     let cancelled = false
+    setGravatarChecked(false)
     void (async (): Promise<void> => {
       const url = await gravatarUrlForEmail(addr, GRAVATAR_PIXELS[size])
-      if (!url || cancelled) return
+      if (!url || cancelled) {
+        if (!cancelled) setGravatarChecked(true)
+        return
+      }
       await new Promise<void>((resolve) => {
         const probe = new Image()
         probe.onload = (): void => {
@@ -110,13 +128,33 @@ export function Avatar({
         probe.onerror = (): void => resolve()
         probe.src = url
       })
+      if (!cancelled) setGravatarChecked(true)
     })()
     return (): void => {
       cancelled = true
     }
   }, [email, imageSrcProp, allowGravatar, size])
 
-  const resolvedSrc = imageSrcProp || gravatarUrl || undefined
+  useEffect(() => {
+    if (imageSrcProp || gravatarUrl || !allowDomainAvatar || !gravatarChecked) {
+      setDomainAvatarUrl(null)
+      return
+    }
+    const addr = email?.trim()
+    if (!addr) {
+      setDomainAvatarUrl(null)
+      return
+    }
+    let cancelled = false
+    void loadSenderDomainAvatarDataUrl(addr).then((url) => {
+      if (!cancelled) setDomainAvatarUrl(url)
+    })
+    return (): void => {
+      cancelled = true
+    }
+  }, [email, imageSrcProp, gravatarUrl, gravatarChecked, allowDomainAvatar])
+
+  const resolvedSrc = imageSrcProp || gravatarUrl || domainAvatarUrl || undefined
   const showImage = Boolean(resolvedSrc) && !imgFailed
   const inlineBg =
     !showImage && bgClassHex ? ({ backgroundColor: bgClassHex } as const) : undefined

@@ -19,6 +19,11 @@ import {
   normalizeMailBodyIndexSpeed,
   type MailBodyIndexSpeed
 } from '@shared/mail-body-index'
+import {
+  MAIL_POLL_INTERVAL_PRESETS,
+  clampMailPollIntervalSeconds
+} from '@shared/mail-poll-interval'
+import type { MicrosoftMailTransport } from '@shared/types'
 import { OUTLOOK_COLOR_PRESET_OPTIONS, outlookCategoryDotClass } from '@/lib/outlook-category-colors'
 import { geocodeOpenMeteoPlace } from '@/lib/open-meteo-weather'
 import { buildFolderTree, type FolderNode } from '@/lib/folder-tree'
@@ -95,6 +100,7 @@ import {
 import { SettingsScaleControl } from '@/components/account-setup/SettingsScaleControl'
 import { SettingsShortcutsSection } from '@/components/account-setup/SettingsShortcutsSection'
 import { SettingsContactsWorkspaceSection } from '@/components/account-setup/SettingsContactsWorkspaceSection'
+import { SettingsContactsAvatarsSection } from '@/components/account-setup/SettingsContactsAvatarsSection'
 import {
   UI_SCALE_MAX,
   UI_SCALE_MIN,
@@ -279,9 +285,10 @@ export function AccountSetupDialog({
     setMicrosoftClientId,
     setGoogleClientId,
     setSyncWindowDays,
+    setMailPollIntervalSeconds,
+    setMicrosoftMailTransport,
     setMailBodyIndexSettings,
     setAutoLoadImages,
-    setGravatarEnabled,
     setCalendarTimeZone,
     setWeatherLocation,
     addMicrosoftAccount,
@@ -380,6 +387,40 @@ export function AccountSetupDialog({
         { value: 365 as const, label: t('settings.syncWindow.d365') },
         { value: null, label: t('settings.syncWindow.all') }
       ] satisfies Array<{ value: number | null; label: string }>,
+    [t]
+  )
+
+  const mailPollIntervalOptions = useMemo(
+    () =>
+      MAIL_POLL_INTERVAL_PRESETS.map((sec) => ({
+        value: sec,
+        label:
+          sec < 60
+            ? t('settings.mailPollIntervalSeconds', { count: sec })
+            : t('settings.mailPollIntervalMinutes', { count: sec / 60 })
+      })),
+    [t]
+  )
+
+  const mailPollIntervalSeconds = clampMailPollIntervalSeconds(
+    config?.mailPollIntervalSeconds ?? 30
+  )
+
+  const microsoftMailTransport: MicrosoftMailTransport =
+    config?.microsoftMailTransport ?? 'graph'
+
+  const microsoftMailTransportOptions = useMemo(
+    () =>
+      (
+        [
+          { value: 'graph' as const },
+          { value: 'ews' as const },
+          { value: 'auto' as const }
+        ] satisfies Array<{ value: MicrosoftMailTransport }>
+      ).map((opt) => ({
+        value: opt.value,
+        label: t(`settings.microsoftMailTransport.option.${opt.value}`)
+      })),
     [t]
   )
 
@@ -583,6 +624,7 @@ export function AccountSetupDialog({
       case 'contacts':
         return [
           { id: 'workspace', label: t('settings.contactsWorkspaceHeading') },
+          { id: 'avatars', label: t('settings.contactsAvatarsHeading') },
           { id: 'google', label: t('settings.contactsGoogleHeading') },
           { id: 'microsoft', label: t('settings.contactsMicrosoftHeading') },
           { id: 'accountsLink', label: t('settings.contactsGoAccounts') }
@@ -959,18 +1001,6 @@ export function AccountSetupDialog({
     }
   }
 
-  async function handleToggleGravatar(value: boolean): Promise<void> {
-    setBusy(true)
-    setLocalError(null)
-    try {
-      await setGravatarEnabled(value)
-    } catch (e) {
-      setLocalError(e instanceof Error ? e.message : String(e))
-    } finally {
-      setBusy(false)
-    }
-  }
-
   async function handleSyncWindowChange(value: string): Promise<void> {
     setBusy(true)
     setLocalError(null)
@@ -979,6 +1009,42 @@ export function AccountSetupDialog({
       await setSyncWindowDays(days)
       for (const acc of accounts) {
         void triggerSync(acc.id)
+      }
+    } catch (e) {
+      setLocalError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleMailPollIntervalChange(value: string): Promise<void> {
+    setBusy(true)
+    setLocalError(null)
+    try {
+      const seconds = Number.parseInt(value, 10)
+      await setMailPollIntervalSeconds(seconds)
+    } catch (e) {
+      setLocalError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleMicrosoftMailTransportChange(value: string): Promise<void> {
+    const mode = value as MicrosoftMailTransport
+    if (mode !== 'graph' && mode !== 'ews' && mode !== 'auto') return
+
+    setBusy(true)
+    setLocalError(null)
+    try {
+      const previous = config?.microsoftMailTransport ?? 'graph'
+      await setMicrosoftMailTransport(mode)
+      if (mode !== previous) {
+        for (const acc of accounts) {
+          if (acc.provider === 'microsoft') {
+            void triggerSync(acc.id)
+          }
+        }
       }
     } catch (e) {
       setLocalError(e instanceof Error ? e.message : String(e))
@@ -1901,6 +1967,77 @@ export function AccountSetupDialog({
               {subNavId.mail === 'sync' && (
               <section className="space-y-2">
                 <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  {t('settings.mailPollIntervalHeading')}
+                </h3>
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  {t('settings.mailPollIntervalIntro')}
+                </p>
+                <label className="block space-y-1 text-xs">
+                  <span className="font-medium text-foreground">
+                    {t('settings.mailPollIntervalLabel')}
+                  </span>
+                  <select
+                    value={String(mailPollIntervalSeconds)}
+                    onChange={(e): void => {
+                      void handleMailPollIntervalChange(e.target.value)
+                    }}
+                    disabled={busy}
+                    className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-xs outline-none focus:border-ring disabled:opacity-50"
+                  >
+                    {mailPollIntervalOptions.map((opt) => (
+                      <option key={opt.value} value={String(opt.value)}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="block leading-relaxed text-muted-foreground">
+                    {t('settings.mailPollIntervalHint')}
+                  </span>
+                </label>
+              </section>
+              )}
+
+              {subNavId.mail === 'sync' && (
+              <section className="space-y-2">
+                <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  <Cloud className="h-3.5 w-3.5" />
+                  {t('settings.microsoftMailTransportHeading')}
+                </h3>
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  {t('settings.microsoftMailTransportIntro')}
+                </p>
+                <label className="block space-y-1 text-xs">
+                  <span className="font-medium text-foreground">
+                    {t('settings.microsoftMailTransportLabel')}
+                  </span>
+                  <select
+                    value={microsoftMailTransport}
+                    onChange={(e): void => {
+                      void handleMicrosoftMailTransportChange(e.target.value)
+                    }}
+                    disabled={busy}
+                    className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-xs outline-none focus:border-ring disabled:opacity-50"
+                  >
+                    {microsoftMailTransportOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="block leading-relaxed text-muted-foreground">
+                    {t(`settings.microsoftMailTransportHint.${microsoftMailTransport}`)}
+                  </span>
+                  <span className="block leading-relaxed text-muted-foreground">
+                    {t('settings.microsoftMailTransportChangeNote')}
+                  </span>
+                </label>
+              </section>
+              )}
+
+              {subNavId.mail === 'sync' && (
+              <section className="space-y-2">
+                <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   <FileSearch className="h-3.5 w-3.5" />
                   {t('settings.mailBodyIndexHeading')}
                 </h3>
@@ -1999,23 +2136,6 @@ export function AccountSetupDialog({
                     <span className="block font-medium text-foreground">{t('settings.autoImagesTitle')}</span>
                     <span className="mt-0.5 block leading-relaxed text-muted-foreground">
                       {t('settings.autoImagesHint')}
-                    </span>
-                  </span>
-                </label>
-                <label className="flex cursor-pointer items-start gap-3 rounded-md bg-background/60 p-3">
-                  <input
-                    type="checkbox"
-                    checked={config?.gravatarEnabled === true}
-                    onChange={(e): void => {
-                      void handleToggleGravatar(e.target.checked)
-                    }}
-                    disabled={busy}
-                    className="mt-0.5 h-4 w-4 cursor-pointer accent-primary"
-                  />
-                  <span className="flex-1 text-xs">
-                    <span className="block font-medium text-foreground">{t('settings.gravatarTitle')}</span>
-                    <span className="mt-0.5 block leading-relaxed text-muted-foreground">
-                      {t('settings.gravatarHint')}
                     </span>
                   </span>
                 </label>
@@ -2705,6 +2825,8 @@ export function AccountSetupDialog({
                   }}
                 />
               )}
+
+              {subNavId.contacts === 'avatars' && <SettingsContactsAvatarsSection busy={busy} />}
 
               {subNavId.contacts === 'google' && (
               <section className="space-y-2 rounded-md bg-background/60 p-3">

@@ -324,6 +324,8 @@ export async function graphListTodoLists(accountId: string): Promise<TaskListRow
 
     isDefault: L.wellKnownListName === 'defaultList',
 
+    wellKnownListName: L.wellKnownListName ?? null,
+
     provider: 'microsoft' as const
 
   }))

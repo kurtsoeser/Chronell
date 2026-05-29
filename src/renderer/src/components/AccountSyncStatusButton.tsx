@@ -22,6 +22,7 @@ export function AccountSyncStatusButton({
   className?: string
 }): JSX.Element {
   const isSyncing = Boolean(sync && sync.state.startsWith('syncing'))
+  const isHeavySync = sync?.state === 'syncing-folders'
   const isError = sync?.state === 'error'
   const isSyncedOk = sync?.state === 'idle'
 
@@ -32,7 +33,7 @@ export function AccountSyncStatusButton({
         e.stopPropagation()
         onSync()
       }}
-      disabled={disabled || isSyncing}
+      disabled={disabled || isHeavySync}
       className={cn(
         'flex h-6 w-6 shrink-0 items-center justify-center rounded hover:bg-secondary disabled:opacity-40',
         isSyncedOk

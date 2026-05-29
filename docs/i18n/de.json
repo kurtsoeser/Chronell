@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Chronell — Manage deine Zeit, nicht deine Inbox",
-    "description": "Chronell 0.9.26: ICS-Import, visuelle Meta-Ordner, polierte Aufgaben- und Notizen-Module — Desktop-Arbeitszentrale für Windows 11 mit Microsoft 365 und Google."
+    "description": "Chronell 0.9.27: ICS-Import, visuelle Meta-Ordner, polierte Aufgaben- und Notizen-Module — Desktop-Arbeitszentrale für Windows 11 mit Microsoft 365 und Google."
   },
   "nav": {
     "method": "Die Methode",
@@ -178,21 +178,28 @@
     "eyebrow": "Release-Überblick",
     "title": "Was in den letzten Updates passiert ist",
     "lead": "Vom neuen Fluent-Look über den Verbindungs-Graph bis zum Profil-Sync — Chronell wächst schnell, ohne deine Mails in die Cloud zu legen.",
-    "v0926": {
+    "v0927": {
       "badge": "Aktuell",
       "date": "Mai 2026",
-      "title": "Mail und Dateien",
-      "b1": "Mail: Mail-Arbeitsbereich: Sidebar, Anhaenge, EWS und Aktionen (Microsoft-Mail per EWS (zusaetzlicher Transport); Korrespondenz-Historie pro Kontakt)",
-      "b2": "Dateien: Neues Dateien-Modul: Cloud-Dateien, Mail-Anhaenge und Index-Sync (Mail-Anhaenge lokal indexieren; OneDrive- und SharePoint-Upload)",
-      "b3": "Kalender: Kalender und Termine: Dialog, Vorschau, Kategorien und Shell (Termin-Kategorien; ueberarbeiteter Termin-Dialog)",
-      "b4": "Homepage: Release-Texte, Homepage-Timeline und Download auf 0.9.26"
+      "title": "Mail und Verbindungen",
+      "b1": "Mail: Mail-Arbeitsbereich: Sidebar, Anhaenge, EWS und Aktionen (Microsoft-Mail per EWS (zusaetzlicher Transport); QuickSteps erweitert)",
+      "b2": "Verbindungen: Verbindungs-Graph und Objekt-Verknuepfungen (Verbindungs-Graph)",
+      "b3": "Einstellungen: Einstellungen, Onboarding und Backup (Konten- und Erscheinungsbild-Einstellungen)",
+      "b4": "Homepage: Release-Texte, Homepage-Timeline und Download auf 0.9.27"
+    },"v0926": {
+      "date": "Mai 2026",
+      "title": "Mail und Aufgaben",
+      "b1": "Mail: Mail-Arbeitsbereich: Sidebar, Anhaenge, EWS und Aktionen (Microsoft-Mail per EWS (zusaetzlicher Transport); QuickSteps erweitert)",
+      "b2": "Aufgaben: Aufgaben-Modul und Cloud-Tasks-Sync (Aufgaben-Modul)",
+      "b3": "Einstellungen: Einstellungen, Onboarding und Backup (Konten- und Erscheinungsbild-Einstellungen)",
+      "b4": "Homepage: Release-Texte, Homepage-Timeline und Download auf 0.9.27"
     },"v0925": {
       "date": "Mai 2026",
       "title": "Mail und Dateien",
       "b1": "Mail: Mail-Arbeitsbereich: Sidebar, Anhaenge, EWS und Aktionen (Microsoft-Mail per EWS (zusaetzlicher Transport); Korrespondenz-Historie pro Kontakt)",
       "b2": "Dateien: Neues Dateien-Modul: Cloud-Dateien, Mail-Anhaenge und Index-Sync (Mail-Anhaenge lokal indexieren; OneDrive- und SharePoint-Upload)",
       "b3": "Kalender: Kalender und Termine: Dialog, Vorschau, Kategorien und Shell (Termin-Kategorien; ueberarbeiteter Termin-Dialog)",
-      "b4": "Homepage: Release-Texte, Homepage-Timeline und Download auf 0.9.26"
+      "b4": "Homepage: Release-Texte, Homepage-Timeline und Download auf 0.9.27"
     },"v0923": {
       "date": "Mai 2026",
       "title": "ICS-Import, Meta-Ordner & Module poliert",
@@ -266,7 +273,7 @@
   "highlights": {
     "eyebrow": "Neu ausprobieren",
     "title": "Vier Schwerpunkte der aktuellen Beta",
-    "lead": "Version 0.9.26 bringt ICS-Kalender-Import, einen visuellen Meta-Ordner-Editor und deutlich polierte Aufgaben-, Notizen- und Einstellungs-Module — auf Branding, Zoom und Gruppenkalendern aufbauend.",
+    "lead": "Version 0.9.27 bringt ICS-Kalender-Import, einen visuellen Meta-Ordner-Editor und deutlich polierte Aufgaben-, Notizen- und Einstellungs-Module — auf Branding, Zoom und Gruppenkalendern aufbauend.",
     "compose": {
       "title": "ICS-Kalender-Import",
       "desc": "Termine aus .ics-Dateien direkt in deine verbundenen Kalender — ohne Outlook-Web oder manuelles Copy-Paste.",
@@ -476,12 +483,12 @@
     "privacy": "Datenschutz"
   },
   "whatsNew": {
-    "label": "Version 0.9.26",
+    "label": "Version 0.9.27",
     "tagline": "ICS-Import · Meta-Ordner · Module poliert · Einstellungen"
   },
   "cta": {
     "title": "Bereit für das neue Chronell?",
-    "body": "Lade Version 0.9.26 für Windows 11 — ICS-Kalender-Import, visuelle Meta-Ordner, polierte Aufgaben- und Notizen-Module, Mail-Mehrfachauswahl, Termine mit Serien und optional Cloud-Sync. Updates ersetzen deine Version ohne Datenverlust.",
+    "body": "Lade Version 0.9.27 für Windows 11 — ICS-Kalender-Import, visuelle Meta-Ordner, polierte Aufgaben- und Notizen-Module, Mail-Mehrfachauswahl, Termine mit Serien und optional Cloud-Sync. Updates ersetzen deine Version ohne Datenverlust.",
     "button": "Jetzt herunterladen"
   }
 }

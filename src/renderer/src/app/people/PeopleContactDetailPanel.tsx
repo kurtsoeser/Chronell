@@ -38,6 +38,8 @@ import {
 } from '@/components/ModuleColumnHeader'
 import { cn } from '@/lib/utils'
 import { bgToRingClass, resolvedAccountColorCss } from '@/lib/avatar-color'
+import { isGravatarEnabled } from '@shared/avatar-preferences'
+import { useAccountsStore } from '@/stores/accounts'
 import { peopleListPrimaryLabel } from '@/app/people/people-display-label'
 import { parsePhonesJson } from '@/app/people/people-contact-json'
 import { EntityContextBlock } from '@/components/connections/EntityContextBlock'
@@ -138,6 +140,7 @@ export const PeopleContactDetailPanel = forwardRef<PeopleContactDetailPanelHandl
 
   const ringCls = account ? bgToRingClass(account.color) : ''
   const hasLocalPhoto = Boolean(selected.photoLocalPath?.trim())
+  const gravatarEnabled = isGravatarEnabled(useAccountsStore((s) => s.config))
 
   const resetForm = useCallback((): void => {
     setForm({
@@ -385,7 +388,7 @@ export const PeopleContactDetailPanel = forwardRef<PeopleContactDetailPanelHandl
               name={peopleListPrimaryLabel(selected, listSortBy)}
               email={selected.primaryEmail}
               imageSrc={photoUrl}
-              useGravatar={!hasLocalPhoto}
+              useGravatar={!hasLocalPhoto && gravatarEnabled}
               accountColor={account?.color ?? null}
               size="xl"
               className={cn(

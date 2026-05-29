@@ -341,6 +341,22 @@ export function listMessagesByCategoryTag(args: {
   return rows.map(mapOpenTodoJoinRow)
 }
 
+export function countMessagesInFolder(folderId: number): number {
+  const db = getDb()
+  const row = db
+    .prepare('SELECT COUNT(*) AS c FROM messages WHERE folder_id = ?')
+    .get(folderId) as { c: number }
+  return row?.c ?? 0
+}
+
+export function countMessagesForAccount(accountId: string): number {
+  const db = getDb()
+  const row = db
+    .prepare('SELECT COUNT(*) AS c FROM messages WHERE account_id = ?')
+    .get(accountId) as { c: number }
+  return row?.c ?? 0
+}
+
 export function listMessagesByFolder(folderId: number, limit = 100): MailListItem[] {
   const db = getDb()
   const sqlBody = `
@@ -417,6 +433,20 @@ export type ListInboxMessagesOptions = {
  * @param limit Positive Zahl = max. Zeilen; `null` = keine SQL-Begrenzung (alle lokal
  *   im Posteingang gespeicherten Mails).
  */
+/** Ungelesene Mails in allen Posteingängen (gleicher Scope wie Unified-Inbox-Liste). */
+export function countUnreadMessagesInAllInboxes(): number {
+  const db = getDb()
+  const row = db
+    .prepare(
+      `SELECT COUNT(*) AS c
+       FROM messages m
+       INNER JOIN folders f ON f.id = m.folder_id AND f.well_known = 'inbox'
+       WHERE m.is_read = 0`
+    )
+    .get() as { c: number } | undefined
+  return row?.c ?? 0
+}
+
 export function listInboxMessagesAllAccounts(
   limit: number | null,
   options?: ListInboxMessagesOptions

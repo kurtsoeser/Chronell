@@ -97,6 +97,8 @@ export interface TasksGroupedListProps {
 
   onToggleCompleted: (item: TasksListItem) => void
 
+  onTaskContextMenu?: (item: TasksListItem, event: MouseEvent) => void
+
   enableDrag?: boolean
 
   isItemExiting?: (key: string) => boolean
@@ -134,6 +136,8 @@ export function TasksGroupedList({
   onTaskClick,
 
   onToggleCompleted,
+
+  onTaskContextMenu,
 
   enableDrag = false,
 
@@ -412,6 +416,12 @@ export function TasksGroupedList({
                       }
 
                       onClick={(e): void => onTaskClick(task, e)}
+
+                      onContextMenu={
+                        onTaskContextMenu
+                          ? (e): void => onTaskContextMenu(task, e)
+                          : undefined
+                      }
 
                       onDoubleClick={(): void => onSelect(task)}
 

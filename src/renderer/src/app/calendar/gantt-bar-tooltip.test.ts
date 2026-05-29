@@ -8,23 +8,25 @@ function sampleItem(title: string): WorkItem {
     stableKey: 'k',
     kind: 'cloud_task',
     accountId: 'a',
+    listId: 'list-1',
+    taskId: 't',
+    listName: 'Inbox',
     title,
     completed: false,
     dueAtIso: null,
-    planned: {},
+    planned: { plannedStartIso: null, plannedEndIso: null },
     task: {
       id: 't',
-      accountId: 'a',
+      listId: 'list-1',
       title,
-      status: 'notStarted',
+      completed: false,
       dueIso: null,
-      listId: null,
-      listTitle: null,
+      notes: null,
       iconId: null,
       iconColor: null
     },
     linkedMessageIds: []
-  } as WorkItem
+  }
 }
 
 describe('formatGanttBarTooltip', () => {

@@ -49,7 +49,7 @@ export function ClusterIslandHullBackground({
   clusterFill: (clusterKey: string) => string
   /** Explizite Randfarbe (z. B. Kontenfarbe bei Gruppierung nach Konto). */
   clusterStroke?: (clusterKey: string) => string | undefined
-  hullStrokeClass?: (hull: ClusterHull) => string
+  hullStrokeClass?: (hull: ClusterHull) => string | undefined
   /** Bei Verbindungs-Inseln zeigt das HTML-Overlay die Titel. */
   showLabels?: boolean
 }): JSX.Element | null {

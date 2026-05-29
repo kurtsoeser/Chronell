@@ -6,7 +6,7 @@ Dieses Dokument beschreibt den **aktuellen Funktionsumfang** der Desktop-App. Es
 |------|------|
 | **Produktname (UI)** | Chronell |
 | **Technischer Name / Installer** | MailClient |
-| **Version** | **0.9.26** |
+| **Version** | **0.9.27** |
 | **Stand** | **29. Mai 2026** |
 | **App-ID** | `at.kurtsoeser.chronell` |
 | **Zielplattform** | Windows 11 (primär) |
@@ -483,93 +483,18 @@ Marker-Datei nach Migration: `%APPDATA%\Chronell\.chronell-migrated-from-mailcli
 
 ## 20. Versionshistorie
 
+### 0.9.27 - 29. Mai 2026
+
+- **Mail:** Mail-Arbeitsbereich: Sidebar, Anhaenge, EWS und Aktionen (Microsoft-Mail per EWS (zusaetzlicher Transport); QuickSteps erweitert)
+- **Verbindungen:** Verbindungs-Graph und Objekt-Verknuepfungen (Verbindungs-Graph)
+- **Einstellungen:** Einstellungen, Onboarding und Backup (Konten- und Erscheinungsbild-Einstellungen)
+- **Homepage:** Release-Texte, Homepage-Timeline und Download auf 0.9.27
+
+
 ### 0.9.26 - 29. Mai 2026
 
-- **Mail:** Mail-Arbeitsbereich: Sidebar, Anhaenge, EWS und Aktionen (Microsoft-Mail per EWS (zusaetzlicher Transport); Korrespondenz-Historie pro Kontakt)
-- **Dateien:** Neues Dateien-Modul: Cloud-Dateien, Mail-Anhaenge und Index-Sync (Mail-Anhaenge lokal indexieren; OneDrive- und SharePoint-Upload)
-- **Kalender:** Kalender und Termine: Dialog, Vorschau, Kategorien und Shell (Termin-Kategorien; ueberarbeiteter Termin-Dialog)
+- **Mail:** Mail-Arbeitsbereich: Sidebar, Anhaenge, EWS und Aktionen (Microsoft-Mail per EWS (zusaetzlicher Transport); QuickSteps erweitert)
+- **Aufgaben:** Aufgaben-Modul und Cloud-Tasks-Sync (Aufgaben-Modul)
+- **Einstellungen:** Einstellungen, Onboarding und Backup (Konten- und Erscheinungsbild-Einstellungen)
 - **Homepage:** Release-Texte, Homepage-Timeline und Download auf 0.9.26
 
-
-### 0.9.25 - 29. Mai 2026
-
-- **Mail:** Mail-Arbeitsbereich: Sidebar, Anhaenge, EWS und Aktionen (Microsoft-Mail per EWS (zusaetzlicher Transport); Korrespondenz-Historie pro Kontakt)
-- **Dateien:** Neues Dateien-Modul: Cloud-Dateien, Mail-Anhaenge und Index-Sync (Mail-Anhaenge lokal indexieren; OneDrive- und SharePoint-Upload)
-- **Kalender:** Kalender und Termine: Dialog, Vorschau, Kategorien und Shell (Termin-Kategorien; ueberarbeiteter Termin-Dialog)
-- **Homepage:** Release-Texte, Homepage-Timeline und Download auf 0.9.25
-
-
-### 0.9.23 — 26. Mai 2026
-
-- **Kalender:** ICS-Import per Drag & Drop und Dialog (`.ics` → M365/Google, einzeln oder mehrfach)
-- **Mail:** Meta-Ordner mit visuellem Regel-Editor; Kategorie-Favoriten in der Sidebar
-- **Aufgaben & Notizen:** überarbeitete Shells (Kanban/Liste, Fälligkeits-Buckets, Kalenderansichten)
-- **Einstellungen:** eigene Panels für Kalender, Aufgaben und Notizen; einheitlicher Datums-Picker; Signatur-Fußzeile
-- **UI:** Typografie, Scrollbars und Zoom-Shortcuts weiter verfeinert
-- **Homepage:** Release-Texte, Highlights und Download auf 0.9.23
-
-### 0.9.22 — 24. Mai 2026
-
-- **Branding:** neues Chronell-Icon und Logo in App, Windows-Build und auf [chronell.app](https://chronell.app/)
-- **Oberfläche:** Oberflächen-Zoom (Strg+Umschalt+Plus/Minus/0) über Main-Prozess — zuverlässig auf deutscher Tastatur
-- **Kalender:** M365-Gruppenkalender mit transitiveMemberOf und Fallback; bessere Graph-Fehlermeldungen
-- **Composer:** Gruppen-Empfänger-Suche mit Advanced-Query-Header
-- **Homepage:** Release-Texte, Highlights und Download auf 0.9.22; interaktive Modul-Demo
-
-### 0.9.21 — 23. Mai 2026
-
-- **Mail:** Mehrfachauswahl mit Aktionsleiste (Archivieren, Löschen, Kennzeichnen, Verschieben, ToDo, Snooze); ToDo-Thread-Cache; lesbare Link-Farben in Editor und Lesevorschau
-- **Kalender:** überarbeiteter Termin-Dialog; Serien für Termine und Cloud-Tasks (M365 nativ, Google lokal)
-- **Einstellungen:** Auto-Backup in Ordner, Inhaltsvorschau vor Import; modularer Backup-Bereich
-- **Anmeldung:** MSAL-Cache-Optimierung, Token-Lock, Silent-Gate — weniger Anmeldeprobleme
-- **Release:** Installer über GitHub Releases; Homepage und Doku auf 0.9.21
-
-### 0.9.20 — 22. Mai 2026
-
-- **Composer:** modularer Aufbau, Absender (Alias, freigegebenes Postfach), Nachrichtenoptionen, Textbausteine, Editor Hell/Dunkel
-- **OneDrive / SharePoint:** Cloud-Anhänge und Freigabe-Links im Mail-Text; Explorer mit Favoriten; Link-Einstellungen (Berechtigung, Ablauf)
-- **TipTap-Editor** überarbeitet; **Lesevorschau** mit Zoom und Konversations-Vorschau
-- **Einstellungen:** Tastenkürzel-Übersicht, Oberflächen- und Vorschau-Zoom; Kontakte-Arbeitsbereich
-- **Homepage:** Datenschutz-Seite (`datenschutz.html`); Release-Texte und Download auf 0.9.20
-- Viele Bugfixes (Sync-Status, Graph, Mail-Listen, Google-Scopes)
-
-### 0.9.19 — 21. Mai 2026
-
-- **Verbindungen:** Notiz-Vorschau im Graph, verbesserte Objekt-Vorschau, Kontextmenü am Knoten, Mini-Graph im Kontext
-- **Kalender:** ausgebaute Termin- und Cloud-Task-Vorschau, Zeitliste und Bookings-Anbindung stabiler
-- **Mail:** Lesefenster mit Kontext-Speicher; Graph-API-Throttling und Retry robuster
-- **Aufgaben:** feinere Listen-Darstellung und Anordnung
-- **Installer:** Git LFS + GitHub Releases als Homepage-Download (auch >100 MB)
-- **Homepage:** Screenshots, Release-Texte und Funktionsprotokoll auf 0.9.19
-
-### 0.9.17 — 20. Mai 2026
-
-- **Fluent-2-Redesign:** Mica-Hintergrund, Acrylic für Menüs/Popover, klare Ebenen (L0–L3) in allen Modulen
-- **Design-Presets:** Fluent, Midnight, Nord, Warm Paper — Hell/Dunkel und Oberflächenfarben
-- **Verbindungen:** Vorschau-Dock, Mini-Graph im Kontext, Pfad-Hervorhebung, Knoten-Kontextmenü
-- Viele Bugfixes in Mail, Kalender, Aufgaben, Notizen und Graph-Vorschau
-
-### 0.9.16 — 20. Mai 2026
-
-- **Modul Verbindungen:** Graph, Palette, Gruppierung, Layout speichern, Dichte-Scan
-- **KI-Verbindungen:** Gemini, OpenAI, Ollama; Snippet-Opt-in, Embeddings, Qualitätsprüfung, Audit-Log, Workflow-Integration
-- **Cloud-Sync:** Supabase-Profil (Notizen, Verbindungen, Regeln, UI, …), Auto-Sync, Konfliktlösung, Notiz-Anhänge in Storage
-- Homepage & Doku: Verbindungen, KI, Cloud-Sync als Beta-Highlights
-
-### 0.9.7 — 17. Mai 2026
-
-- **Windows-Installer** `Chronell-0.9.7-setup.exe`, Produktname Chronell
-- **Automatische Datenmigration** `%APPDATA%\mailclient` → `%APPDATA%\Chronell`
-- **Erste sichtbare App-Version** in Einstellungen → Info
-- `package.json` und `src/shared/app-version.ts` auf **0.9.7** gesetzt
-- Dieses **Funktionsprotokoll** angelegt als Referenz des Gesamtstands
-- Enthält u. a. den ausgebauten **Notizen**-Bereich mit **Entity-Links**, Modul **Arbeit**, Kalender-**Zeitliste**, erweitertes **Home-Dashboard**, **Personen** mit verknüpften Notizen
-
-### Vor 0.9.7
-
-- Kontinuierliche Entwicklung ohne öffentliche SemVer-Anzeige (`package.json` zuvor `0.0.1`)
-- Funktionsumfang entsprach bereits einem umfangreichen Vor-1.0-Produkt (siehe Abschnitte 2–15)
-
----
-
-*Letzte Aktualisierung dieses Dokuments: 29. Mai 2026 Â· Version 0.9.26*

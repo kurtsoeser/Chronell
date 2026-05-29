@@ -41,6 +41,10 @@ import { dedupeMailListThreadMessagesById } from '@/lib/mail-list-ui'
 import { runMailQuickStep } from '@/lib/run-mail-quickstep'
 import { QUICKSTEPS_CHANGED_EVENT } from '@/lib/quicksteps-changed'
 import { useComposeStore } from '@/stores/compose'
+import {
+  useComposeEditorEffectiveTheme,
+  useComposeEditorThemeStore
+} from '@/stores/compose-editor-theme'
 import { resolveMailViewerDarkSurfaceHex, useThemeStore } from '@/stores/theme'
 import {
   mailPreviewScalePercent,
@@ -63,8 +67,7 @@ import { cn } from '@/lib/utils'
 import { ContentCrossfade } from '@/components/motion/ContentCrossfade'
 import { LoadingIndicator } from '@/components/motion/LoadingIndicator'
 import { Avatar } from '@/components/Avatar'
-import { combineSenderAvatarImageSrc, profilePhotoSrcForEmail } from '@/lib/contact-avatar'
-import { useSenderContactPhoto } from '@/lib/use-sender-contact-photo'
+import { useSenderAvatarSources } from '@/lib/use-sender-avatar-sources'
 import { buildMailSenderContextItems } from '@/lib/mail-sender-context-menu'
 import { findContactByEmail } from '@/lib/contact-photo-by-email'
 import { useCreateContactFromMailStore } from '@/stores/create-contact-from-mail'
@@ -91,6 +94,9 @@ import {
 } from '@/lib/chronell-ui-classes'
 import { MailConversationPreview } from '@/app/layout/MailConversationPreview'
 import { useConversationThreadMessages } from '@/app/layout/use-conversation-thread-messages'
+import { MeetingInvitationPanel } from '@/app/layout/meeting-invitation/MeetingInvitationPanel'
+import { looksLikeMeetingInvitationMail } from '@shared/meeting-invitation-detect'
+import { isMeetingCalendarAttachment } from '@shared/meeting-invitation-attachment'
 import { useCreateCloudTaskUiStore } from '@/stores/create-cloud-task-ui'
 import { accountSupportsCloudTasks } from '@/lib/cloud-task-accounts'
 import type { AttachmentMeta, MailFull, ConnectedAccount, MailQuickStep } from '@shared/types'
@@ -319,40 +325,10 @@ export function ReadingPane({
   const messageAccount =
     accounts.find((a) => a.id === selectedMessage?.accountId) ?? null
 
-  const accountSenderPhoto =
-    selectedMessage != null
-      ? profilePhotoSrcForEmail(accounts, profilePhotoDataUrls, selectedMessage.fromAddr)
-      : undefined
-  const contactSenderPhoto = useSenderContactPhoto(
-    selectedMessage?.fromAddr,
-    selectedMessage?.accountId
-  )
-  const senderProfilePhoto = combineSenderAvatarImageSrc(accountSenderPhoto, contactSenderPhoto)
-
   const conversationThread = useConversationThreadMessages(selectedMessage, threadMessages)
 
-  const appTheme = useThemeStore((s) => s.effective)
-
-  // Sitzungs-Override: `null` = App-Theme; manueller Sonne/Mond-Toggle nur bis App-Theme wechselt.
-  const [viewerOverride, setViewerOverride] = useState<MailViewerTheme | null>(null)
-  const viewerTheme: MailViewerTheme = viewerOverride ?? appTheme
-
-  useEffect(() => {
-    setViewerOverride(null)
-  }, [appTheme])
-
-  function toggleViewerTheme(): void {
-    const next: MailViewerTheme = viewerTheme === 'light' ? 'dark' : 'light'
-    setViewerOverride(next)
-  }
-
-  useEffect(() => {
-    try {
-      window.localStorage.removeItem('mailclient.viewerTheme')
-    } catch {
-      // ignore
-    }
-  }, [])
+  const viewerTheme = useComposeEditorEffectiveTheme()
+  const toggleViewerTheme = useComposeEditorThemeStore((s) => s.toggle)
 
   // Auto-Read: nach 800ms im Lesebereich als gelesen markieren (max. ein Versuch pro Nachricht)
   useEffect(() => {
@@ -713,7 +689,6 @@ export function ReadingPane({
                 <MailReader
                   message={expanded}
                   account={messageAccount}
-                  senderProfilePhoto={senderProfilePhoto}
                   viewerTheme={viewerTheme}
                   autoLoadImages={autoLoadImages}
                   hideEntityConnections={hideEntityConnections}
@@ -730,7 +705,6 @@ export function ReadingPane({
                 <MailReader
                   message={selectedMessage}
                   account={messageAccount}
-                  senderProfilePhoto={senderProfilePhoto}
                   viewerTheme={viewerTheme}
                   autoLoadImages={autoLoadImages}
                   hideEntityConnections={hideEntityConnections}
@@ -788,7 +762,6 @@ function MailPreviewZoomToolbar({ hidePercent = false }: { hidePercent?: boolean
 function MailReader({
   message,
   account,
-  senderProfilePhoto,
   viewerTheme,
   autoLoadImages,
   hideEntityConnections = false,
@@ -799,7 +772,6 @@ function MailReader({
 }: {
   message: MailFull
   account: ConnectedAccount | null
-  senderProfilePhoto?: string
   viewerTheme: MailViewerTheme
   autoLoadImages: boolean
   hideEntityConnections?: boolean
@@ -810,6 +782,11 @@ function MailReader({
   onForward: () => void
 }): JSX.Element {
   const { t, i18n } = useTranslation()
+  const {
+    imageSrc: senderProfilePhoto,
+    useGravatar: senderUseGravatar,
+    useDomainAvatar: senderUseDomainAvatar
+  } = useSenderAvatarSources(message.fromAddr, message.accountId)
   const [loadImages, setLoadImages] = useState(autoLoadImages)
   const [inlineImages, setInlineImages] = useState<Record<string, string>>({})
   const [attachments, setAttachments] = useState<AttachmentMeta[]>([])
@@ -909,6 +886,7 @@ function MailReader({
   const visibleAttachments = useMemo(
     () =>
       attachments.filter((a) => {
+        if (isMeetingCalendarAttachment(a)) return false
         if (a.isInline) return false
         if ((a.size ?? 0) > 0 && (a.size ?? 0) < 200) return false
         return true
@@ -917,6 +895,12 @@ function MailReader({
   )
 
   const realAttachmentCount = visibleAttachments.length
+
+  const mayShowMeetingInvitation = useMemo(
+    () =>
+      attachments.some(isMeetingCalendarAttachment) || looksLikeMeetingInvitationMail(message),
+    [attachments, message]
+  )
 
   // Anhang-Bar nur zeigen, wenn auch wirklich etwas da ist. Den Lade-
   // Indikator zeigen wir bewusst NUR, wenn die DB schon weiss, dass die
@@ -1112,7 +1096,8 @@ function MailReader({
             email={message.fromAddr}
             accountColor={account?.color}
             imageSrc={senderProfilePhoto}
-            useGravatar={Boolean(message.fromAddr?.trim())}
+            useGravatar={senderUseGravatar}
+            useDomainAvatar={senderUseDomainAvatar}
             size="lg"
           />
           <div className="min-w-0 flex-1">
@@ -1162,6 +1147,16 @@ function MailReader({
           </div>
         )}
       </header>
+
+      {mayShowMeetingInvitation ? (
+        <MeetingInvitationPanel
+          messageId={message.id}
+          account={account}
+          onReply={onReply}
+          onReplyAll={onReplyAll}
+          onForward={onForward}
+        />
+      ) : null}
 
       <div
         ref={shadowHostRef}

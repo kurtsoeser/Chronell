@@ -1,4 +1,3 @@
-import { BrowserWindow } from 'electron'
 import {
   getMessageById,
   deleteMessageLocal,
@@ -40,12 +39,7 @@ import {
 import { runFolderSync } from './sync-runner'
 import { listAccounts } from './accounts'
 import { listTagsForMessage, replaceMessageTags } from './db/message-tags-repo'
-
-function broadcastMailChanged(accountId: string): void {
-  for (const win of BrowserWindow.getAllWindows()) {
-    win.webContents.send('mail:changed', { accountId })
-  }
-}
+import { broadcastMailChanged } from './ipc/ipc-broadcasts'
 
 function truncate(text: string, max: number): string {
   if (text.length <= max) return text

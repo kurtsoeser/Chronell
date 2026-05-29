@@ -10,7 +10,7 @@ export function SettingsDialogResizeGrip({
   return (
     <div
       role="separator"
-      aria-orientation="both"
+      aria-orientation="vertical"
       aria-label={t('settings.dialogResizeAria')}
       title={t('settings.dialogResizeTitle')}
       onPointerDown={onPointerDown}

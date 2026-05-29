@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type InputHTMLAttributes } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { format, parseISO } from 'date-fns'
 import { de as deFns, enUS as enUSFns } from 'date-fns/locale'
@@ -20,12 +20,16 @@ function formatYmdForDisplay(ymd: string, locale: typeof deFns): string {
   }
 }
 
-export interface ChronellDateFieldProps
-  extends Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'value' | 'onChange'> {
+export interface ChronellDateFieldProps {
   value: string
   onChange: (ymd: string) => void
   min?: string
   max?: string
+  disabled?: boolean
+  className?: string
+  id?: string
+  onKeyDown?: React.KeyboardEventHandler<HTMLButtonElement>
+  'aria-label'?: string
 }
 
 /**
@@ -39,7 +43,8 @@ export function ChronellDateField({
   disabled,
   className,
   id: idProp,
-  ...rest
+  onKeyDown,
+  'aria-label': ariaLabel
 }: ChronellDateFieldProps): JSX.Element {
   const { t, i18n } = useTranslation()
   const dfLocale = i18n.language.startsWith('de') ? deFns : enUSFns
@@ -89,13 +94,14 @@ export function ChronellDateField({
   return (
     <>
       <button
-        {...rest}
         id={id}
         ref={triggerRef}
         type="button"
         disabled={disabled}
         aria-haspopup="dialog"
         aria-expanded={open}
+        aria-label={ariaLabel}
+        onKeyDown={onKeyDown}
         className={cn(
           chronellDateFieldInputClass,
           'flex items-center justify-between gap-2 text-left',

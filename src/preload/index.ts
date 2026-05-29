@@ -374,12 +374,19 @@ const api = {
       ipcRenderer.invoke(IPC.config.setSyncWindowDays, days),
     setMailPollIntervalSeconds: (seconds: number): Promise<AppConfig> =>
       ipcRenderer.invoke(IPC.config.setMailPollIntervalSeconds, seconds),
+    setMicrosoftMailTransport: (
+      mode: import('@shared/types').MicrosoftMailTransport
+    ): Promise<AppConfig> =>
+      ipcRenderer.invoke(IPC.config.setMicrosoftMailTransport, mode),
     setProfileSyncPollIntervalSeconds: (seconds: number): Promise<AppConfig> =>
       ipcRenderer.invoke(IPC.config.setProfileSyncPollIntervalSeconds, seconds),
     setAutoLoadImages: (value: boolean): Promise<AppConfig> =>
       ipcRenderer.invoke(IPC.config.setAutoLoadImages, value),
     setGravatarEnabled: (value: boolean): Promise<AppConfig> =>
       ipcRenderer.invoke(IPC.config.setGravatarEnabled, value),
+    setAvatarPreferences: (
+      patch: Partial<import('@shared/avatar-preferences').AvatarPreferencesPatch>
+    ): Promise<AppConfig> => ipcRenderer.invoke(IPC.config.setAvatarPreferences, patch),
     setCalendarTimeZone: (iana: string | null): Promise<AppConfig> =>
       ipcRenderer.invoke(IPC.config.setCalendarTimeZone, iana),
     setWeatherLocation: (loc: AppConfigWeatherLocation | null): Promise<AppConfig> =>
@@ -754,6 +761,8 @@ const api = {
   mail: {
     listFolders: (accountId: string): Promise<MailFolder[]> =>
       ipcRenderer.invoke(IPC.mail.listFolders, accountId),
+    getUnifiedInboxUnreadCount: (): Promise<number> =>
+      ipcRenderer.invoke(IPC.mail.getUnifiedInboxUnreadCount),
     listMessages: (options: {
       folderId?: number
       accountId?: string
@@ -789,6 +798,8 @@ const api = {
       args: import('@shared/types').ListCorrespondenceInput
     ): Promise<import('@shared/types').ListCorrespondenceResult> =>
       ipcRenderer.invoke(IPC.mail.listCorrespondence, args),
+    getSenderDomainAvatarDataUrl: (email: string): Promise<string | null> =>
+      ipcRenderer.invoke(IPC.mail.getSenderDomainAvatarDataUrl, email),
     getMessage: (id: number): Promise<MailFull | null> =>
       ipcRenderer.invoke(IPC.mail.getMessage, id),
     listThreadMessages: (args: { accountId: string; threadKey: string }): Promise<MailFull[]> =>
@@ -835,6 +846,8 @@ const api = {
       ipcRenderer.invoke(IPC.mail.bulkUnflagFlaggedMessages, input),
     syncFolder: (folderId: number): Promise<number> =>
       ipcRenderer.invoke(IPC.mail.syncFolder, folderId),
+    markAllReadInFolder: (folderId: number): Promise<{ markedLocal: number }> =>
+      ipcRenderer.invoke(IPC.mail.markAllReadInFolder, folderId),
     setRead: (messageId: number, isRead: boolean): Promise<void> =>
       ipcRenderer.invoke(IPC.mail.setRead, { messageId, isRead }),
     setFlagged: (messageId: number, flagged: boolean): Promise<void> =>
@@ -1052,6 +1065,14 @@ const api = {
     pickIcsFile: (): Promise<
       import('@shared/types').CalendarParseIcsFileResult | { cancelled: true }
     > => ipcRenderer.invoke(IPC.calendar.pickIcsFile),
+    parseMeetingFromMessage: (
+      messageId: number
+    ): Promise<import('@shared/types').CalendarParseMeetingFromMessageResult> =>
+      ipcRenderer.invoke(IPC.calendar.parseMeetingFromMessage, messageId),
+    respondToMeetingInvitation: (
+      input: import('@shared/types').CalendarRespondToMeetingInput
+    ): Promise<import('@shared/types').CalendarRespondToMeetingResult> =>
+      ipcRenderer.invoke(IPC.calendar.respondToMeetingInvitation, input),
     onIcsFileOpen: (handler: (payload: { filePath: string }) => void): (() => void) => {
       const listener = (_e: IpcRendererEvent, payload: { filePath: string }): void => {
         if (payload?.filePath?.trim()) handler({ filePath: payload.filePath.trim() })
@@ -1198,6 +1219,14 @@ const api = {
       ipcRenderer.on('sync:status', listener)
       return (): void => {
         ipcRenderer.off('sync:status', listener)
+      }
+    },
+    onMailSyncMetaChanged: (handler: (payload: { accountId: string }) => void): (() => void) => {
+      const listener = (_e: IpcRendererEvent, payload: { accountId: string }): void =>
+        handler(payload)
+      ipcRenderer.on('mail:sync-meta-changed', listener)
+      return (): void => {
+        ipcRenderer.off('mail:sync-meta-changed', listener)
       }
     },
     onConnectivityChange: (handler: (payload: { online: boolean }) => void): (() => void) => {

@@ -1,5 +1,6 @@
 import { acquireEwsAccessToken } from '../auth/microsoft-ews'
 import { listAccounts } from '../accounts'
+import { loadConfig } from '../config'
 import {
   distinguishedFolderIdXml,
   escapeXmlText,
@@ -18,7 +19,7 @@ async function anchorMailboxFor(accountId: string): Promise<string> {
 }
 
 async function ewsContext(accountId: string): Promise<{ token: string; anchor: string }> {
-  const config = await import('../config').then((m) => m.loadConfig())
+  const config = await loadConfig()
   if (!config.microsoftClientId) {
     throw new Error('Keine Azure Client-ID konfiguriert.')
   }
@@ -36,6 +37,23 @@ type WellKnownFolder =
   | 'archive'
   | 'junkemail'
   | 'outbox'
+
+export async function ewsMarkFolderAsRead(
+  accountId: string,
+  restFolderId: string
+): Promise<void> {
+  const ewsFolderId = await translateRestIdToEwsId(accountId, restFolderId)
+  const { token, anchor } = await ewsContext(accountId)
+  await postEwsSoap({
+    accessToken: token,
+    anchorMailbox: anchor,
+    bodyXml: `<m:MarkAllItemsAsRead Read="true">
+  <m:FolderIds>
+    <t:FolderId Id="${escapeXmlText(ewsFolderId)}"/>
+  </m:FolderIds>
+</m:MarkAllItemsAsRead>`
+  })
+}
 
 export async function ewsSetMessageRead(
   accountId: string,

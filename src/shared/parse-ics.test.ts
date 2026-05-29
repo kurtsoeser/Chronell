@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseIcsCalendarText, parseIcsDateValue } from './parse-ics'
+import { parseIcsCalendarText, parseIcsDateValue, parseIcsMeetingInvitation } from './parse-ics'
 
 const SAMPLE_ICS = `BEGIN:VCALENDAR
 VERSION:2.0
@@ -50,5 +50,30 @@ END:VCALENDAR`
     expect(events[0]!.isAllDay).toBe(true)
     expect(events[0]!.startIso).toBe('2026-07-01')
     expect(events[0]!.endIso).toBe('2026-07-05')
+  })
+})
+
+describe('parseIcsMeetingInvitation', () => {
+  it('parses meeting invitation with organizer and attendees', () => {
+    const text = `BEGIN:VCALENDAR
+METHOD:REQUEST
+BEGIN:VEVENT
+UID:meeting-uid-1
+SUMMARY:Team Sync
+DTSTART:20260827T083000Z
+DTEND:20260827T093000Z
+ORGANIZER;CN=Tina Pavlicek:mailto:tina@example.com
+ATTENDEE;CN=Kurt;PARTSTAT=NEEDS-ACTION;RSVP=TRUE:mailto:kurt@example.com
+ATTENDEE;CN=Pat;PARTSTAT=ACCEPTED:mailto:pat@example.com
+LOCATION:Microsoft Teams Meeting
+DESCRIPTION:Join: https://teams.microsoft.com/meet/abc123
+END:VEVENT
+END:VCALENDAR`
+    const { invitation, warnings } = parseIcsMeetingInvitation(text)
+    expect(warnings).toHaveLength(0)
+    expect(invitation?.method).toBe('REQUEST')
+    expect(invitation?.organizer?.email).toBe('tina@example.com')
+    expect(invitation?.attendees).toHaveLength(2)
+    expect(invitation?.joinUrl).toContain('teams.microsoft.com')
   })
 })

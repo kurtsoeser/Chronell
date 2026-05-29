@@ -11,15 +11,15 @@ import {
   type CloudTaskPersistTarget
 } from '@/app/calendar/cloud-task-calendar'
 import { removeCloudTaskCalendarEventsByTaskKey } from '@/app/calendar/calendar-fc-event-source'
-import type { TaskItemWithContext } from '@/app/tasks/tasks-types'
+import type { CloudTaskListItem } from '@/app/tasks/tasks-types'
 
 export function applyOptimisticCloudTaskPersistToLayer(
   target: CloudTaskPersistTarget,
-  task: TaskItemWithContext,
-  items: readonly TaskItemWithContext[],
+  task: CloudTaskListItem,
+  items: readonly CloudTaskListItem[],
   plannedByKey: ReadonlyMap<string, WorkItemPlannedSchedule>,
   fcTimeZone: string
-): { items: TaskItemWithContext[]; plannedByKey: Map<string, WorkItemPlannedSchedule> } {
+): { items: CloudTaskListItem[]; plannedByKey: Map<string, WorkItemPlannedSchedule> } {
   const key = target.taskKey
   const nextPlanned = new Map(plannedByKey)
   let nextTask = task
@@ -52,7 +52,7 @@ export function applyOptimisticCloudTaskPersistToLayer(
 /** Gleicht den sichtbaren FC-Termin nach Drag/Resize mit Layer-Daten ab. */
 export function syncFullCalendarCloudTaskEventFromLayer(
   api: CalendarApi | null | undefined,
-  task: TaskItemWithContext,
+  task: CloudTaskListItem,
   planned: WorkItemPlannedSchedule | undefined,
   fcTimeZone: string,
   accountColorById: Record<string, string> = {}

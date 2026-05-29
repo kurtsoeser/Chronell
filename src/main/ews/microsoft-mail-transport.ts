@@ -4,10 +4,10 @@ import { acquireEwsAccessToken } from '../auth/microsoft-ews'
 
 export async function resolveMicrosoftMailTransportMode(): Promise<MicrosoftMailTransport> {
   const config = await loadConfig()
-  return config.microsoftMailTransport ?? 'auto'
+  return config.microsoftMailTransport ?? 'graph'
 }
 
-/** `auto`: EWS wenn Token verfuegbar, sonst Graph. */
+/** `graph` (Standard), `ews`, oder `auto` (EWS wenn Token verfuegbar). */
 export async function shouldUseEwsForMicrosoftMail(accountId: string): Promise<boolean> {
   const mode = await resolveMicrosoftMailTransportMode()
   if (mode === 'graph') return false

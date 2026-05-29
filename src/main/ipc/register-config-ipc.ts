@@ -1,7 +1,9 @@
 import { ipcMain } from 'electron'
 import { isValidIanaTimeZone } from '@shared/iana-timezone'
+import { clampMailPollIntervalSeconds } from '@shared/mail-poll-interval'
 import { clampProfileSyncPollIntervalSeconds } from '@shared/profile-sync-poll-interval'
-import { IPC, type AppConfig, type AppConfigWeatherLocation } from '@shared/types'
+import { IPC, type AppConfig, type AppConfigWeatherLocation, type MicrosoftMailTransport } from '@shared/types'
+import { normalizeAvatarPreferencesPatch } from '@shared/avatar-preferences'
 import { loadConfig, updateConfig } from '../config'
 
 export function registerConfigIpc(): void {
@@ -11,12 +13,14 @@ export function registerConfigIpc(): void {
   ipcMain.removeHandler(IPC.config.setSyncWindowDays)
   ipcMain.removeHandler(IPC.config.setAutoLoadImages)
   ipcMain.removeHandler(IPC.config.setGravatarEnabled)
+  ipcMain.removeHandler(IPC.config.setAvatarPreferences)
   ipcMain.removeHandler(IPC.config.setCalendarTimeZone)
   ipcMain.removeHandler(IPC.config.setWeatherLocation)
   ipcMain.removeHandler(IPC.config.setWorkflowMailFoldersIntroDismissed)
   ipcMain.removeHandler(IPC.config.setFirstRunSetupCompleted)
   ipcMain.removeHandler(IPC.config.setNotionCredentials)
   ipcMain.removeHandler(IPC.config.setMailPollIntervalSeconds)
+  ipcMain.removeHandler(IPC.config.setMicrosoftMailTransport)
   ipcMain.removeHandler(IPC.config.setProfileSyncPollIntervalSeconds)
 
   ipcMain.handle(IPC.config.get, async (): Promise<AppConfig> => {
@@ -66,8 +70,19 @@ export function registerConfigIpc(): void {
       if (!Number.isFinite(seconds)) {
         throw new Error('Ungueltiges Poll-Intervall.')
       }
-      const clamped = Math.min(Math.max(Math.floor(seconds), 30), 600)
-      return updateConfig({ mailPollIntervalSeconds: clamped })
+      return updateConfig({
+        mailPollIntervalSeconds: clampMailPollIntervalSeconds(seconds)
+      })
+    }
+  )
+
+  ipcMain.handle(
+    IPC.config.setMicrosoftMailTransport,
+    async (_event, mode: MicrosoftMailTransport): Promise<AppConfig> => {
+      if (mode !== 'graph' && mode !== 'ews' && mode !== 'auto') {
+        throw new Error('Ungueltiger Mail-Transport.')
+      }
+      return updateConfig({ microsoftMailTransport: mode })
     }
   )
 
@@ -94,6 +109,17 @@ export function registerConfigIpc(): void {
     IPC.config.setGravatarEnabled,
     async (_event, value: boolean): Promise<AppConfig> => {
       return updateConfig({ gravatarEnabled: Boolean(value) })
+    }
+  )
+
+  ipcMain.handle(
+    IPC.config.setAvatarPreferences,
+    async (_event, patch: unknown): Promise<AppConfig> => {
+      const normalized = normalizeAvatarPreferencesPatch(patch)
+      if (Object.keys(normalized).length === 0) {
+        return loadConfig()
+      }
+      return updateConfig(normalized)
     }
   )
 

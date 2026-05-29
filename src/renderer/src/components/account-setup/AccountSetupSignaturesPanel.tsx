@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { PenLine, Plus, Star, Trash2 } from 'lucide-react'
 import type { AccountSignatureTemplate } from '@shared/types'
 import { useAccountsStore } from '@/stores/accounts'
+import { showAppAlert } from '@/stores/app-dialog'
 import { showAppConfirm, showAppPrompt } from '@/stores/app-dialog'
 import { SignatureFooterEditor } from '@/components/SignatureFooterEditor'
 import {
@@ -80,6 +81,12 @@ export default function AccountSetupSignaturesPanel(): JSX.Element {
         signatureTemplates: nextTemplates,
         ...(defaultPatch !== undefined ? { defaultSignatureTemplateId: defaultPatch } : {})
       })
+    } catch (e) {
+      console.warn('[signature] Speichern:', e)
+      void showAppAlert(e instanceof Error ? e.message : String(e), {
+        title: t('settings.signaturesHeading')
+      })
+      throw e
     } finally {
       setSaving(false)
     }

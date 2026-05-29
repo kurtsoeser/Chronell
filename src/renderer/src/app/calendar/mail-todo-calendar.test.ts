@@ -28,7 +28,7 @@ function mail(partial: Partial<MailListItem> & Pick<MailListItem, 'id' | 'accoun
     todoDueAt: partial.todoDueAt ?? '2026-05-16',
     todoStartAt: partial.todoStartAt ?? null,
     todoEndAt: partial.todoEndAt ?? null,
-    todoId: partial.todoId ?? null
+    ...(partial.todoId != null ? { todoId: partial.todoId } : {})
   }
 }
 

@@ -95,10 +95,25 @@ export function SettingsAccountsPanel({
   }, [loadSyncMeta, accounts.length])
 
   useEffect(() => {
-    const idleAccounts = Object.entries(syncByAccount).filter(([, s]) => s.state === 'idle')
-    if (idleAccounts.length === 0) return
     loadSyncMeta()
   }, [syncByAccount, loadSyncMeta])
+
+  useEffect(() => {
+    const offMeta = window.mailClient.events.onMailSyncMetaChanged(() => {
+      loadSyncMeta()
+    })
+    const offMail = window.mailClient.events.onMailChanged(() => {
+      loadSyncMeta()
+    })
+    const interval = window.setInterval(() => {
+      loadSyncMeta()
+    }, 60_000)
+    return (): void => {
+      offMeta()
+      offMail()
+      window.clearInterval(interval)
+    }
+  }, [loadSyncMeta])
 
   useEffect(() => {
     if (accounts.length === 0) {
@@ -202,12 +217,14 @@ export function SettingsAccountsPanel({
                         >
                           {syncing
                             ? t('settings.accountSyncInProgress')
-                            : lastIso
-                              ? formatAccountLastSyncLabel(lastIso, i18n.language, {
-                                  neverLabel: t('settings.accountSyncNever'),
-                                  isSyncing: false
-                                }).split(' (')[0]
-                              : t('settings.accountSyncNever')}
+                            : meta?.lastSyncError && live?.state !== 'syncing-messages'
+                              ? t('settings.accountSyncFailedShort')
+                              : lastIso
+                                ? formatAccountLastSyncLabel(lastIso, i18n.language, {
+                                    neverLabel: t('settings.accountSyncNever'),
+                                    isSyncing: false
+                                  }).split(' (')[0]
+                                : t('settings.accountSyncNever')}
                         </span>
                       </span>
                     </button>

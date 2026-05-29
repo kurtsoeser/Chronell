@@ -152,7 +152,7 @@ export function ContactHistoryHoverPreview({
             </div>
             <ul className="space-y-0.5">
               {shownAttachments.map((a) => {
-                const Icon = mailFileRowIcon(a.mime, a.name)
+                const Icon = mailFileRowIcon(a.contentType, a.name)
                 return (
                   <li
                     key={a.id}

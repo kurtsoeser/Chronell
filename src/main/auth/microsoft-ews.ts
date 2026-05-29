@@ -1,5 +1,6 @@
 import { InteractionRequiredAuthError, type AuthenticationResult } from '@azure/msal-node'
 import { getPca } from './microsoft-pca'
+import { loginMicrosoftWithScopes } from './microsoft'
 import { withMicrosoftTokenLock } from './msal-token-lock'
 
 /** Delegated scope fuer Exchange Web Services (Office 365 Exchange Online API). */
@@ -28,7 +29,6 @@ export async function acquireEwsAccessToken(
       '[auth] EWS-Scope benoetigt Zustimmung — Browserfenster fuer EWS-Berechtigung.',
       e.errorCode ?? ''
     )
-    const { loginMicrosoftWithScopes } = await import('./microsoft')
     await loginMicrosoftWithScopes(clientId, [MICROSOFT_EWS_SCOPE], { prompt: 'consent' })
     const retry = await acquireEwsAccessTokenSilent(clientId, homeAccountId)
     return retry.accessToken

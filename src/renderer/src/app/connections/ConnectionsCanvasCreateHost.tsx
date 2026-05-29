@@ -145,7 +145,9 @@ export function useConnectionsCanvasCreate({
       'contact'
     ]
     return kinds.map((kind) => {
-      const Icon = entityRefKindIcon(kind === 'contact' ? 'people_contact' : kind)
+      const iconKind =
+        kind === 'contact' ? 'people_contact' : kind === 'task' ? 'cloud_task' : kind
+      const Icon = entityRefKindIcon(iconKind)
       return {
         id: kind,
         label: t(`connections.canvasCreate.${kind}`),

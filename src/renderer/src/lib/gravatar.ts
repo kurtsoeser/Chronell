@@ -1,9 +1,6 @@
 import type { AppConfig } from '@shared/types'
 
-/** Gravatar in den Einstellungen aktiviert (Standard: aus). */
-export function isGravatarEnabled(config: AppConfig | null | undefined): boolean {
-  return config?.gravatarEnabled === true
-}
+export { isGravatarEnabled } from '@shared/avatar-preferences'
 
 /**
  * Gravatar (SHA-256-Hash der normalisierten E-Mail), s. offizielle Doku.

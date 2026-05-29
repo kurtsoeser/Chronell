@@ -154,3 +154,37 @@ export async function gmailMoveMessageForFolderMove(
     }
   })
 }
+
+/** Entfernt UNREAD fuer alle ungelesenen Mails mit diesem Label (paginiert). */
+export async function gmailMarkFolderAsRead(accountId: string, labelId: string): Promise<void> {
+  const { gmail } = await getGoogleApis(accountId)
+  let pageToken: string | undefined
+  for (let round = 0; round < 500; round++) {
+    const res = await gmail.users.messages.list({
+      userId: 'me',
+      labelIds: [labelId],
+      q: 'is:unread',
+      maxResults: 500,
+      pageToken
+    })
+    const ids =
+      res.data.messages
+        ?.map((m) => m.id)
+        .filter((id): id is string => typeof id === 'string' && id.length > 0) ?? []
+    if (ids.length === 0) break
+    for (let i = 0; i < ids.length; i += 50) {
+      const chunk = ids.slice(i, i + 50)
+      await Promise.all(
+        chunk.map((id) =>
+          gmail.users.messages.modify({
+            userId: 'me',
+            id,
+            requestBody: { removeLabelIds: ['UNREAD'] }
+          })
+        )
+      )
+    }
+    pageToken = res.data.nextPageToken ?? undefined
+    if (!pageToken) break
+  }
+}

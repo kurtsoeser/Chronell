@@ -1,15 +1,33 @@
+import type { MailFolder } from '@shared/types'
 import {
   deleteMessageRemote as graphDeleteMessageRemote,
+  markMailFolderAsRead as graphMarkMailFolderAsRead,
   moveMessage as graphMoveMessage,
   setMessageRead as graphSetMessageRead
 } from '../graph/mail-actions'
 import {
   ewsDeleteMessage,
+  ewsMarkFolderAsRead,
   ewsMoveMessageToDistinguishedFolder,
   ewsMoveMessageToFolder,
   ewsSetMessageRead
 } from './mail-actions'
 import { shouldUseEwsForMicrosoftMail } from './microsoft-mail-transport'
+
+export async function microsoftMarkFolderAsRead(
+  accountId: string,
+  folder: MailFolder
+): Promise<void> {
+  if (await shouldUseEwsForMicrosoftMail(accountId)) {
+    try {
+      await ewsMarkFolderAsRead(accountId, folder.remoteId)
+      return
+    } catch (e) {
+      console.warn('[ews] markFolderAsRead fallback to Graph:', e)
+    }
+  }
+  await graphMarkMailFolderAsRead(accountId, folder.remoteId)
+}
 
 export async function microsoftSetMessageRead(
   accountId: string,

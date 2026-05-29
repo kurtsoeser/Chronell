@@ -128,7 +128,7 @@ import {
   loadCloudTasksForAccount,
   loadUnifiedCloudTasks
 } from '@/app/tasks/tasks-calendar-load'
-import type { TaskItemWithContext } from '@/app/tasks/tasks-types'
+import type { CloudTaskListItem } from '@/app/tasks/tasks-types'
 import { cloudTaskStableKey } from '@shared/work-item-keys'
 import type { WorkItemPlannedSchedule, WorkItem } from '@shared/work-item'
 import { cn } from '@/lib/utils'
@@ -439,8 +439,8 @@ export function CalendarShell(): JSX.Element {
   const userNoteOverlayRef = useRef(userNoteOverlay)
   userNoteOverlayRef.current = userNoteOverlay
   const [userNoteRangeItems, setUserNoteRangeItems] = useState<UserNoteListItem[]>([])
-  const [cloudTaskAllItems, setCloudTaskAllItems] = useState<TaskItemWithContext[]>([])
-  const [cloudTaskRangeItems, setCloudTaskRangeItems] = useState<TaskItemWithContext[]>([])
+  const [cloudTaskAllItems, setCloudTaskAllItems] = useState<CloudTaskListItem[]>([])
+  const [cloudTaskRangeItems, setCloudTaskRangeItems] = useState<CloudTaskListItem[]>([])
   const [cloudTaskPlannedByKey, setCloudTaskPlannedByKey] = useState(
     () => new Map<string, WorkItemPlannedSchedule>()
   )
@@ -450,7 +450,7 @@ export function CalendarShell(): JSX.Element {
   cloudTaskPlannedByKeyRef.current = cloudTaskPlannedByKey
   const cloudTaskLayerSigRef = useRef('')
   const cloudTaskFcEventsSigRef = useRef('')
-  const cloudTaskByKeyRef = useRef(new Map<string, TaskItemWithContext>())
+  const cloudTaskByKeyRef = useRef(new Map<string, CloudTaskListItem>())
   const lastCloudFilterRangeKeyRef = useRef('')
   const cloudTaskElByKeyRef = useRef(new Map<string, HTMLElement>())
   const cloudTaskPersistInFlightRef = useRef(0)
@@ -1009,7 +1009,7 @@ export function CalendarShell(): JSX.Element {
     [setModuleNavWidth]
   )
   const [previewCalendarEvent, setPreviewCalendarEvent] = useState<CalendarEventView | null>(null)
-  const [previewCloudTask, setPreviewCloudTask] = useState<TaskItemWithContext | null>(null)
+  const [previewCloudTask, setPreviewCloudTask] = useState<CloudTaskListItem | null>(null)
   const [previewCloudTaskSaving, setPreviewCloudTaskSaving] = useState(false)
   const [previewCloudTaskPlannedFromTimeline, setPreviewCloudTaskPlannedFromTimeline] =
     useState<WorkItemPlannedSchedule | null>(null)
@@ -1190,14 +1190,15 @@ export function CalendarShell(): JSX.Element {
         taskId: previewCloudTask.id,
         ...patch
       })
-      const merged: TaskItemWithContext = {
+      const merged: CloudTaskListItem = {
         ...next,
         accountId: previewCloudTask.accountId,
-        listName: previewCloudTask.listName
+        listName: previewCloudTask.listName,
+        source: 'cloud'
       }
       const key = cloudTaskStableKey(merged.accountId, merged.listId, merged.id)
       cloudTaskByKeyRef.current.set(key, merged)
-      const replace = (rows: TaskItemWithContext[]): TaskItemWithContext[] =>
+      const replace = (rows: CloudTaskListItem[]): CloudTaskListItem[] =>
         rows.map((row) =>
           cloudTaskStableKey(row.accountId, row.listId, row.id) === key ? merged : row
         )
@@ -1243,7 +1244,7 @@ export function CalendarShell(): JSX.Element {
   }, [])
 
   const reloadCloudTasksAll = useCallback(async (): Promise<{
-    items: TaskItemWithContext[]
+    items: CloudTaskListItem[]
     planned: Map<string, WorkItemPlannedSchedule>
   }> => {
     if (taskAccounts.length === 0) {
@@ -1257,7 +1258,7 @@ export function CalendarShell(): JSX.Element {
     try {
       const items = await loadUnifiedCloudTasks(taskAccounts, { cacheOnly: true })
       const planned = await loadPlannedScheduleMapForTasks(items)
-      const map = new Map<string, TaskItemWithContext>()
+      const map = new Map<string, CloudTaskListItem>()
       for (const t of items) {
         map.set(cloudTaskStableKey(t.accountId, t.listId, t.id), t)
       }
@@ -1277,13 +1278,13 @@ export function CalendarShell(): JSX.Element {
 
   const commitCloudTaskLayer = useCallback(
     (
-      merged: TaskItemWithContext[],
+      merged: CloudTaskListItem[],
       planned: Map<string, WorkItemPlannedSchedule>,
       rangeStart: Date,
       rangeEnd: Date,
       opts?: { force?: boolean }
     ): void => {
-      const map = new Map<string, TaskItemWithContext>()
+      const map = new Map<string, CloudTaskListItem>()
       for (const t of merged) {
         map.set(cloudTaskStableKey(t.accountId, t.listId, t.id), t)
       }
@@ -1342,14 +1343,15 @@ export function CalendarShell(): JSX.Element {
         } else {
           await window.mailClient.tasks.clearPlannedSchedule({ taskKey })
         }
-        const merged: TaskItemWithContext = {
+        const merged: CloudTaskListItem = {
           ...next,
           accountId: previewCloudTask.accountId,
-          listName: previewCloudTask.listName
+          listName: previewCloudTask.listName,
+          source: 'cloud'
         }
         const key = cloudTaskStableKey(merged.accountId, merged.listId, merged.id)
         cloudTaskByKeyRef.current.set(key, merged)
-        const replace = (rows: TaskItemWithContext[]): TaskItemWithContext[] =>
+        const replace = (rows: CloudTaskListItem[]): CloudTaskListItem[] =>
           rows.map((row) =>
             cloudTaskStableKey(row.accountId, row.listId, row.id) === key ? merged : row
           )
@@ -1367,7 +1369,7 @@ export function CalendarShell(): JSX.Element {
         syncFullCalendarCloudTaskEventFromLayer(
           api,
           merged,
-          planned,
+          planned ?? undefined,
           fcTimeZone,
           accountColorById
         )
@@ -1465,7 +1467,7 @@ export function CalendarShell(): JSX.Element {
 
   const applyCloudTaskRangeFilter = useCallback(
     (
-      items: TaskItemWithContext[],
+      items: CloudTaskListItem[],
       planned: Map<string, WorkItemPlannedSchedule>,
       start: Date,
       end: Date
@@ -1713,10 +1715,11 @@ export function CalendarShell(): JSX.Element {
       if (item.kind === 'cloud_task') {
         setPreviewCalendarEvent(null)
         clearSelectedMessage()
-        const task: TaskItemWithContext = {
+        const task: CloudTaskListItem = {
           ...item.task,
           accountId: item.accountId,
-          listName: item.listName
+          listName: item.listName,
+          source: 'cloud'
         }
         setPreviewCloudTaskPlannedFromTimeline(item.planned)
         setPreviewCloudTask(task)
@@ -2035,7 +2038,7 @@ export function CalendarShell(): JSX.Element {
           const { start, end } = api
             ? { start: api.view.activeStart, end: api.view.activeEnd }
             : lastRangeRef.current
-          const optimisticTask =
+          const optimisticTask: CloudTaskListItem =
             optimistic.items.find(
               (row) => cloudTaskStableKey(row.accountId, row.listId, row.id) === taskKey
             ) ?? task
@@ -2496,7 +2499,7 @@ export function CalendarShell(): JSX.Element {
         const cal = ev.extendedProps?.calendarEvent as CalendarEventView | undefined
         const loc = (cal?.location ?? '').trim().toLowerCase()
         if (loc.includes(q)) return true
-        const task = (ev.extendedProps as { cloudTask?: TaskItemWithContext } | undefined)?.cloudTask
+        const task = (ev.extendedProps as { cloudTask?: CloudTaskListItem } | undefined)?.cloudTask
         if ((task?.title ?? '').trim().toLowerCase().includes(q)) return true
         const note = (ev.extendedProps as { userNote?: UserNoteListItem } | undefined)?.userNote
         return (note?.title ?? note?.body ?? '').trim().toLowerCase().includes(q)
@@ -3263,7 +3266,7 @@ export function CalendarShell(): JSX.Element {
                       _cloudTaskPreviewKey?: string | null
                     }
                     const cloudTask = info.event.extendedProps.cloudTask as
-                      | TaskItemWithContext
+                      | CloudTaskListItem
                       | undefined
                     el.classList.toggle('fc-cal-event--completed', cloudTask?.completed === true)
                     const raw = info.event.extendedProps.accountColor as string | undefined
@@ -3635,7 +3638,7 @@ export function CalendarShell(): JSX.Element {
                   if (info.event.id === QUICK_CREATE_PLACEHOLDER_EVENT_ID) return false
                   const kind = info.event.extendedProps.calendarKind as string | undefined
                   if (kind === CALENDAR_KIND_CLOUD_TASK) {
-                    const task = info.event.extendedProps.cloudTask as TaskItemWithContext | undefined
+                    const task = info.event.extendedProps.cloudTask as CloudTaskListItem | undefined
                     if (task) {
                       setError(null)
                       setPreviewCalendarEvent(null)

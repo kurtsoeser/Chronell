@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { Circle, Loader2 } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { Circle, Loader2, Plus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { ConnectedAccount, TaskListRow } from '@shared/types'
 import { dueIsoFromClientInput } from '@shared/calendar-datetime'
 import { persistTasksCalendarCreateAccountId } from '@/app/tasks/tasks-calendar-create-storage'
 import {
+  pickCreateTaskListId,
   resolvePreferredAccountId,
   resolvePreferredListId
 } from '@/app/tasks/tasks-create-defaults'
@@ -79,7 +80,11 @@ export function TasksInlineCreateRow({
       .then((rows) => {
         if (cancelled) return
         setLists(rows)
-        setListId(resolvePreferredListId(selection, accountId, rows))
+        setListId(
+          selection?.kind === 'list' && selection.accountId === accountId
+            ? resolvePreferredListId(selection, accountId, rows)
+            : (pickCreateTaskListId(rows) ?? '')
+        )
       })
       .catch(() => {
         if (cancelled) return
@@ -130,6 +135,15 @@ export function TasksInlineCreateRow({
     }
   }, [accountId, canSubmit, due, listId, lists, notes, onCreated, title])
 
+  const submitFromEnter = useCallback(
+    (e: KeyboardEvent): void => {
+      if (e.key !== 'Enter' || e.shiftKey) return
+      e.preventDefault()
+      void submit()
+    },
+    [submit]
+  )
+
   useEffect(() => {
     setDue(defaultDueInputForCreate(settings.defaultDueOnCreate))
   }, [settings.defaultDueOnCreate])
@@ -145,33 +159,19 @@ export function TasksInlineCreateRow({
         <div className="flex min-w-0 flex-1 flex-col gap-1.5">
           <div className="flex min-w-0 flex-wrap items-center gap-1.5">
             {showAccountPicker ? (
-              <>
-                <select
-                  value={accountId}
-                  onChange={(e): void => setAccountId(e.target.value)}
-                  aria-label={t('tasks.create.account')}
-                  className={cn(fieldControlClass, 'max-w-[9rem] shrink-0 px-1.5 py-1 text-xs')}
-                >
-                  {taskAccounts.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {cloudTaskAccountOptionLabel(a)}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  value={listId}
-                  disabled={listsLoading || lists.length === 0}
-                  onChange={(e): void => setListId(e.target.value)}
-                  aria-label={t('tasks.create.list')}
-                  className={cn(fieldControlClass, 'max-w-[8rem] shrink-0 px-1.5 py-1 text-xs')}
-                >
-                  {lists.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.name}
-                    </option>
-                  ))}
-                </select>
-              </>
+              <select
+                value={accountId}
+                onChange={(e): void => setAccountId(e.target.value)}
+                onKeyDown={submitFromEnter}
+                aria-label={t('tasks.create.account')}
+                className={cn(fieldControlClass, 'max-w-[9rem] shrink-0 px-1.5 py-1 text-xs')}
+              >
+                {taskAccounts.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {cloudTaskAccountOptionLabel(a)}
+                  </option>
+                ))}
+              </select>
             ) : null}
             <input
               ref={titleRef}
@@ -180,18 +180,14 @@ export function TasksInlineCreateRow({
               disabled={busy}
               placeholder={t('tasks.shell.inlineCreateTitle')}
               onChange={(e): void => setTitle(e.target.value)}
-              onKeyDown={(e): void => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
-                  void submit()
-                }
-              }}
+              onKeyDown={submitFromEnter}
               className={cn(fieldControlClass, 'min-w-[8rem] flex-1 px-1.5 py-1 text-xs')}
             />
             <ChronellDateField
               value={due}
               disabled={busy}
               onChange={setDue}
+              onKeyDown={submitFromEnter}
               aria-label={t('tasks.create.due')}
               className={cn(fieldControlClass, 'w-[8.5rem] shrink-0 px-1.5 py-1 text-xs')}
             />
@@ -202,18 +198,27 @@ export function TasksInlineCreateRow({
                 disabled={busy}
                 placeholder={t('tasks.shell.inlineCreateNotes')}
                 onChange={(e): void => setNotes(e.target.value)}
-                onKeyDown={(e): void => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault()
-                    void submit()
-                  }
-                }}
+                onKeyDown={submitFromEnter}
                 className={cn(fieldControlClass, 'min-w-[6rem] flex-[2] px-1.5 py-1 text-xs')}
               />
             ) : null}
-            {busy ? (
-              <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" aria-hidden />
-            ) : null}
+            <button
+              type="button"
+              disabled={!canSubmit}
+              title={t('tasks.shell.inlineCreateSubmit')}
+              aria-label={t('tasks.shell.inlineCreateSubmit')}
+              onClick={(): void => void submit()}
+              className={cn(
+                'flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border',
+                'bg-primary/10 text-primary hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-40'
+              )}
+            >
+              {busy ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+              ) : (
+                <Plus className="h-3.5 w-3.5" aria-hidden />
+              )}
+            </button>
           </div>
           {error ? <p className="text-2xs text-destructive">{error}</p> : null}
         </div>
