@@ -67,6 +67,10 @@ const MailCreateContactHost = lazy(async () => {
   const m = await import('./app/layout/MailCreateContactHost')
   return { default: m.MailCreateContactHost }
 })
+const MailReplyWithMeetingHost = lazy(async () => {
+  const m = await import('./components/MailReplyWithMeetingHost')
+  return { default: m.MailReplyWithMeetingHost }
+})
 
 const HomeDashboard = lazy(async () => {
   const m = await import('./app/home/HomeDashboard')
@@ -332,6 +336,9 @@ export function App(): JSX.Element {
       ) : null}
       <Suspense fallback={null}>
         <MailCreateContactHost />
+      </Suspense>
+      <Suspense fallback={null}>
+        <MailReplyWithMeetingHost />
       </Suspense>
       <ToastStack />
       <Suspense fallback={null}>

@@ -7,8 +7,7 @@ import {
 import type {
   CalendarGraphCalendarRow,
   CalendarM365GroupCalendarsPage,
-  CalendarSaveEventRecurrence,
-  ComposeAttachment
+  CalendarSaveEventRecurrence
 } from '@shared/types'
 import { buildMicrosoftGraphRecurrencePayload } from '../calendar-recurrence'
 import {
@@ -728,7 +727,7 @@ function eventPostPath(graphCalendarId?: string | null): string {
  * GET/PATCH/DELETE fuer Termine.
  * Mit `graphCalendarId`: kalenderbezogener Pfad (wichtig fuer Abos, freigegebene und Group-Kalender).
  */
-function graphEventInstancePath(graphEventId: string, graphCalendarId?: string | null): string {
+export function graphEventInstancePath(graphEventId: string, graphCalendarId?: string | null): string {
   const calId = graphCalendarId?.trim() ?? ''
   const gid = parseM365GroupIdFromCalendarRef(calId)
   if (gid) {
@@ -878,29 +877,6 @@ export async function graphUpdateCalendarEvent(
   }
   const path = graphEventInstancePath(graphEventId, input.graphCalendarId)
   await client.api(path).patch(payload)
-}
-
-export async function graphAddEventFileAttachments(
-  accountId: string,
-  graphEventId: string,
-  attachments: ComposeAttachment[],
-  graphCalendarId?: string | null
-): Promise<void> {
-  if (!attachments.length) return
-  const client = await getClientFor(accountId)
-  const path = `${graphEventInstancePath(graphEventId, graphCalendarId)}/attachments`
-  for (const att of attachments) {
-    const name = att.name?.trim()
-    const contentType = att.contentType?.trim()
-    const contentBytes = att.dataBase64?.trim()
-    if (!name || !contentType || !contentBytes) continue
-    await client.api(path).post({
-      '@odata.type': '#microsoft.graph.fileAttachment',
-      name,
-      contentType,
-      contentBytes
-    })
-  }
 }
 
 /** Nur Start/Ende/Ganztaegig patchen (Drag & Drop / Resize), ohne Body zu ueberschreiben. */

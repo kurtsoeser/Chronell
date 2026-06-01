@@ -2382,6 +2382,12 @@
       "noAccounts": "No Microsoft or Google account connected for tasks.",
       "otherAccountHint": "This message is from an account without tasks. Pick a tasks account."
     },
+    "replyWithMeeting": {
+      "menu": "Reply with meeting",
+      "toolbar": "Reply with meeting",
+      "errorTitle": "Meeting from message",
+      "noCalendarAccount": "No calendar (Microsoft 365 or Google) is connected for this account."
+    },
     "contextMenu": {
       "removeTodoOnly": "Remove to-do entry (keep message)",
       "removeTodoOnlyBulk": "Remove to-do entries ({{count}})",
@@ -3546,7 +3552,8 @@
       "title": "Quick add",
       "titlePlaceholder": "Title",
       "whenLabel": "Date",
-      "detailsLink": "Details…"
+      "detailsLink": "Details…",
+      "addAttachment": "File"
     },
     "eventIcon": {
       "pickerTitle": "Event icon",
@@ -3689,7 +3696,11 @@
       "attachments": "Attachments",
       "attachmentsDropHint": "Drop files here to add them as event attachments.",
       "attachmentMax": "Maximum {{maxMb}} MB — skipped “{{file}}”.",
-      "attachmentProviderUnsupported": "Clipboard/file attachments are currently supported only for Microsoft 365 events.",
+      "attachmentProviderUnsupported": "File attachments are not supported for this account.",
+      "attachmentsLoading": "Loading attachments…",
+      "attachmentCloudHint": "Cloud file (link)",
+      "attachmentOpen": "Open",
+      "attachmentSaveAs": "Save as",
       "descriptionPlaceholder": "Add description",
       "descriptionEditorPlaceholder": "Rich text, tables, images …",
       "descriptionEmptyReadonly": "No description",

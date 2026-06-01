@@ -30,6 +30,9 @@ export const GOOGLE_CONTACTS_SCOPE_URL = 'https://www.googleapis.com/auth/contac
  */
 export const GOOGLE_GMAIL_FULL_SCOPE_URL = 'https://mail.google.com/' as const
 
+/** Drive-Dateien, die die App fuer Kalender-Termin-Anhaenge anlegt. */
+export const GOOGLE_DRIVE_FILE_SCOPE_URL = 'https://www.googleapis.com/auth/drive.file' as const
+
 export const GOOGLE_OAUTH_SCOPES = [
   'openid',
   'email',
@@ -37,6 +40,7 @@ export const GOOGLE_OAUTH_SCOPES = [
   'https://www.googleapis.com/auth/gmail.modify',
   GOOGLE_GMAIL_FULL_SCOPE_URL,
   'https://www.googleapis.com/auth/calendar',
+  GOOGLE_DRIVE_FILE_SCOPE_URL,
   'https://www.googleapis.com/auth/tasks',
   /** Kontakte lesen und bearbeiten (People API). Erfordert Re-Consent nach Scope-Aenderung. */
   GOOGLE_CONTACTS_SCOPE_URL
@@ -63,6 +67,15 @@ export function storedGoogleScopeIncludesContacts(scope: string | null | undefin
 }
 
 /** True, wenn Gmail-Vollzugriff (Papierkorb leeren / endgueltig loeschen) erteilt wurde. */
+export function storedGoogleScopeIncludesDriveFile(scope: string | null | undefined): boolean {
+  const parts = parseStoredScopeParts(scope)
+  return (
+    parts.includes(GOOGLE_DRIVE_FILE_SCOPE_URL) ||
+    parts.includes('https://www.googleapis.com/auth/drive') ||
+    parts.includes('https://www.googleapis.com/auth/drive.readonly')
+  )
+}
+
 export function storedGoogleScopeIncludesGmailFull(scope: string | null | undefined): boolean {
   const parts = parseStoredScopeParts(scope)
   return (

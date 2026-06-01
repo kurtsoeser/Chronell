@@ -39,7 +39,6 @@ import type {
   CalendarRecurrenceFrequency,
   CalendarRecurrenceRangeEndMode,
   CalendarSaveEventRecurrence,
-  ComposeAttachment,
   ConnectedAccount,
   MailMasterCategory,
   TaskListRow
@@ -82,7 +81,8 @@ import {
   isoToDatetimeLocalValue
 } from '@/app/work-items/work-item-datetime'
 import { cloudTaskAccountOptionLabel } from '@/lib/cloud-task-accounts'
-import { formatAttachmentBytes } from '@/lib/attachment-files'
+import { CalendarEventAttachmentsPanel } from '@/app/calendar/CalendarEventAttachmentsPanel'
+import { useCalendarEventAttachments } from '@/app/calendar/useCalendarEventAttachments'
 import { cn } from '@/lib/utils'
 import {
   eventDialogPanelSelectClass,
@@ -95,7 +95,6 @@ import { resolvedAccountColorCss } from '@/lib/avatar-color'
 import { EntityContextBlock } from '@/components/connections/EntityContextBlock'
 import { TipTapBody } from '@/components/TipTapBody'
 import { sanitizeComposeHtmlFragment } from '@/lib/sanitize-compose-html'
-import { appendHtmlToComposeBody, cloudFileLinkHtml } from '@/lib/compose-cloud-link'
 import { CalendarEventDescriptionPreview } from '@/app/calendar/CalendarEventDescriptionPreview'
 import { CalendarEventIconPicker } from '@/components/CalendarEventIconPicker'
 import { LocationAutocompleteInput } from '@/components/LocationAutocompleteInput'
@@ -278,8 +277,14 @@ export interface CalendarEventDialogProps {
   accounts: ConnectedAccount[]
   defaultAccountId?: string
   initialRange?: { start: Date; end: Date; allDay: boolean } | null
-  /** Optional: Betreff/Ort beim Anlegen (z. B. Duplizieren aus Kontextmenue). */
-  createPrefill?: { subject?: string; location?: string } | null
+  /** Optional: Vorausfuellung beim Anlegen (z. B. «Mit Besprechung antworten»). */
+  createPrefill?: {
+    subject?: string
+    location?: string
+    attendeeInput?: string
+    descriptionHtml?: string
+    teamsMeeting?: boolean
+  } | null
   initialCreateKind?: CalendarEventDialogCreateKind
   initialGraphCalendarId?: string
   initialTaskListId?: string
@@ -290,7 +295,7 @@ export interface CalendarEventDialogProps {
   /** Nach erfolgreichem Anlegen (Termin oder Aufgabe im Dialog). */
   onEntityCreated?: (payload: { ref: ChronellEntityRef; title: string }) => void
   onClose: () => void
-  onSaved: () => void
+  onSaved: (created?: CalendarEventView) => void
 }
 
 function PropertyRow({
@@ -401,8 +406,6 @@ export function CalendarEventDialog({
   const [busy, setBusy] = useState(false)
   const [localError, setLocalError] = useState<string | null>(null)
   const [driveOpen, setDriveOpen] = useState(false)
-  const [eventAttachments, setEventAttachments] = useState<ComposeAttachment[]>([])
-  const [attachmentError, setAttachmentError] = useState<string | null>(null)
   const [draggingFiles, setDraggingFiles] = useState(false)
   const [placement, setPlacement] = useState<CalendarEventDialogPlacement>(readCalendarEventDialogPlacement)
   const [modalSize, setModalSize] = useState(readCalendarEventDialogModalSize)
@@ -462,94 +465,7 @@ export function CalendarEventDialog({
   const [taskPlannedEnd, setTaskPlannedEnd] = useState('')
 
   const taskTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
-  const MAX_EVENT_ATTACHMENTS_TOTAL_BYTES = 25 * 1024 * 1024
   const dragDepthRef = useRef(0)
-
-  function hasDraggedFiles(e: React.DragEvent<HTMLElement>): boolean {
-    const types = e.dataTransfer?.types
-    if (!types) return false
-    return Array.from(types).includes('Files')
-  }
-
-  async function addFilesAsEventAttachments(files: File[]): Promise<void> {
-    if (files.length === 0) return
-    if (selectedAccount?.provider !== 'microsoft') {
-      setAttachmentError(t('calendar.eventDialog.attachmentProviderUnsupported'))
-      return
-    }
-    setAttachmentError(null)
-    const currentTotal = eventAttachments.reduce((s, a) => s + (a.size || 0), 0)
-    let running = currentTotal
-    const mapped: ComposeAttachment[] = []
-    for (const f of files) {
-      if (running + f.size > MAX_EVENT_ATTACHMENTS_TOTAL_BYTES) {
-        setAttachmentError(
-          t('calendar.eventDialog.attachmentMax', {
-            maxMb: Math.round(MAX_EVENT_ATTACHMENTS_TOTAL_BYTES / (1024 * 1024)),
-            file: f.name
-          })
-        )
-        continue
-      }
-      const buf = await f.arrayBuffer()
-      const bytes = new Uint8Array(buf)
-      let binary = ''
-      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]!)
-      mapped.push({
-        name: f.name,
-        contentType: f.type || 'application/octet-stream',
-        size: f.size,
-        dataBase64: btoa(binary)
-      })
-      running += f.size
-    }
-    setEventAttachments((prev) => [...prev, ...mapped])
-  }
-
-  const handleEditorDrop = (e: React.DragEvent<HTMLDivElement>): void => {
-    if (!hasDraggedFiles(e)) return
-    e.preventDefault()
-    e.stopPropagation()
-    dragDepthRef.current = 0
-    setDraggingFiles(false)
-    void addFilesAsEventAttachments(Array.from(e.dataTransfer.files))
-  }
-
-  const handleEditorDragEnter = (e: React.DragEvent<HTMLDivElement>): void => {
-    if (!hasDraggedFiles(e)) return
-    e.preventDefault()
-    e.stopPropagation()
-    dragDepthRef.current += 1
-    setDraggingFiles(true)
-  }
-
-  const handleEditorDragOver = (e: React.DragEvent<HTMLDivElement>): void => {
-    if (!hasDraggedFiles(e)) return
-    e.preventDefault()
-    e.stopPropagation()
-    e.dataTransfer.dropEffect = 'copy'
-  }
-
-  const handleEditorDragLeave = (e: React.DragEvent<HTMLDivElement>): void => {
-    if (!hasDraggedFiles(e)) return
-    e.preventDefault()
-    e.stopPropagation()
-    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1)
-    if (dragDepthRef.current === 0) setDraggingFiles(false)
-  }
-
-  const handleEditorPaste = (e: React.ClipboardEvent<HTMLDivElement>): void => {
-    const items = Array.from(e.clipboardData?.items ?? [])
-    if (items.length === 0) return
-    const files = items
-      .filter((item) => item.kind === 'file')
-      .map((item) => item.getAsFile())
-      .filter((f): f is File => Boolean(f))
-    if (files.length === 0) return
-    e.preventDefault()
-    e.stopPropagation()
-    void addFilesAsEventAttachments(files)
-  }
 
   function applyTaskScheduleFromRange(range: CalendarCreateRange | null | undefined): void {
     if (!range) {
@@ -571,8 +487,6 @@ export function CalendarEventDialog({
     setLocalError(null)
     setBusy(false)
     setDescriptionHtml('')
-    setEventAttachments([])
-    setAttachmentError(null)
     setCreateKind(initialCreateKind ?? 'event')
     setTaskNotes('')
     setReminderEnabled(false)
@@ -636,6 +550,7 @@ export function CalendarEventDialog({
       setSubject(createPrefill?.subject?.trim() ? createPrefill.subject : '')
       setEventIconId(undefined)
       setLocation(createPrefill?.location?.trim() ? createPrefill.location : '')
+      setDescriptionHtml(createPrefill?.descriptionHtml?.trim() ? createPrefill.descriptionHtml : '')
       if (initialRange) {
         setIsAllDay(initialRange.allDay)
         if (initialRange.allDay) {
@@ -667,8 +582,8 @@ export function CalendarEventDialog({
           ? calendarDestinationKey(acc, initialGraphCalendarId.trim())
           : ''
       )
-      setTeamsMeeting(false)
-      setAttendeeInput('')
+      setTeamsMeeting(createPrefill?.teamsMeeting === true)
+      setAttendeeInput(createPrefill?.attendeeInput?.trim() ? createPrefill.attendeeInput : '')
       setMsEventDetailsError(null)
       setMsEventDetailsLoading(false)
       setRecurFreq('none')
@@ -920,6 +835,70 @@ export function CalendarEventDialog({
     [taskAccounts, taskAccountId]
   )
   const cloudLinkAccount = selectedAccount?.provider === 'microsoft' ? selectedAccount : null
+
+  const eventAttachmentsApi = useCalendarEventAttachments({
+    account: selectedAccount,
+    graphEventId: mode === 'edit' ? initialEvent?.graphEventId : null,
+    graphCalendarId:
+      mode === 'edit' ? (initialEvent?.graphCalendarId ?? null) : graphCalendarId.trim() || null,
+    enabled: open && createKind === 'event'
+  })
+
+  function hasDraggedFiles(e: React.DragEvent<HTMLElement>): boolean {
+    const types = e.dataTransfer?.types
+    if (!types) return false
+    return Array.from(types).includes('Files')
+  }
+
+  const handleEditorDrop = (e: React.DragEvent<HTMLDivElement>): void => {
+    if (!hasDraggedFiles(e)) return
+    e.preventDefault()
+    e.stopPropagation()
+    dragDepthRef.current = 0
+    setDraggingFiles(false)
+    void eventAttachmentsApi.addFiles(Array.from(e.dataTransfer.files))
+  }
+
+  const handleEditorDragEnter = (e: React.DragEvent<HTMLDivElement>): void => {
+    if (!hasDraggedFiles(e)) return
+    e.preventDefault()
+    e.stopPropagation()
+    dragDepthRef.current += 1
+    setDraggingFiles(true)
+  }
+
+  const handleEditorDragOver = (e: React.DragEvent<HTMLDivElement>): void => {
+    if (!hasDraggedFiles(e)) return
+    e.preventDefault()
+    e.stopPropagation()
+    e.dataTransfer.dropEffect = 'copy'
+  }
+
+  const handleEditorDragLeave = (e: React.DragEvent<HTMLDivElement>): void => {
+    if (!hasDraggedFiles(e)) return
+    e.preventDefault()
+    e.stopPropagation()
+    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1)
+    if (dragDepthRef.current === 0) setDraggingFiles(false)
+  }
+
+  const handleEditorPaste = (e: React.ClipboardEvent<HTMLDivElement>): void => {
+    const items = Array.from(e.clipboardData?.items ?? [])
+    if (items.length === 0) return
+    const files = items
+      .filter((item) => item.kind === 'file')
+      .map((item) => item.getAsFile())
+      .filter((f): f is File => Boolean(f))
+    if (files.length === 0) return
+    e.preventDefault()
+    e.stopPropagation()
+    void eventAttachmentsApi.addFiles(files)
+  }
+
+  useEffect(() => {
+    if (!open) return
+    eventAttachmentsApi.reset()
+  }, [open])
 
   /** Outlook-Masterkategorien fuer Microsoft-Termine und -Aufgaben. */
   const useOutlookCategories =
@@ -1377,6 +1356,7 @@ export function CalendarEventDialog({
 
     setBusy(true)
     try {
+      let createdForSaved: CalendarEventView | undefined
       if (mode === 'create') {
         const created = await window.mailClient.calendar.createEvent({
           accountId,
@@ -1396,9 +1376,7 @@ export function CalendarEventDialog({
                   : {})
               }
             : {}),
-          ...(selectedAccount?.provider === 'microsoft' && eventAttachments.length > 0
-            ? { attachments: eventAttachments }
-            : {}),
+          ...eventAttachmentsApi.buildSavePayload(),
           ...(recurrence ? { recurrence } : {}),
           ...graphReminderPayload(selectedAccount?.provider, reminderEnabled, reminderMinutesBefore),
           ...(!isAllDay ? { timeZone: eventTimeZone } : {})
@@ -1410,12 +1388,16 @@ export function CalendarEventDialog({
             reminderEnabled ? { enabled: true, minutesBefore: reminderMinutesBefore } : { enabled: false }
           )
         }
+        createdForSaved = created.event
         if (calendarEventIconIsExplicit(eventIconId) && created.id?.trim()) {
           await window.mailClient.calendar.patchEventIcon({
             accountId,
             graphEventId: created.id.trim(),
             iconId: eventIconId
           })
+          if (createdForSaved) {
+            createdForSaved = { ...createdForSaved, icon: eventIconId.trim() }
+          }
         }
         const graphEventId = createdId
         if (graphEventId) {
@@ -1459,9 +1441,7 @@ export function CalendarEventDialog({
               }
             : {})
           ,
-          ...(initialEvent.source === 'microsoft' && eventAttachments.length > 0
-            ? { attachments: eventAttachments }
-            : {}),
+          ...eventAttachmentsApi.buildSavePayload(),
           ...graphReminderPayload(initialEvent.source, reminderEnabled, reminderMinutesBefore),
           ...(!isAllDay ? { timeZone: eventTimeZone } : {})
         }
@@ -1506,7 +1486,7 @@ export function CalendarEventDialog({
           })
         }
       }
-      onSaved()
+      onSaved(createdForSaved)
       onClose()
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : String(err))
@@ -2364,56 +2344,30 @@ export function CalendarEventDialog({
                         onChangeHtml={setDescriptionHtml}
                         placeholder={t('calendar.eventDialog.descriptionEditorPlaceholder')}
                         onAttachFiles={
-                          cloudLinkAccount
+                          eventAttachmentsApi.supportsFileAttachments
                             ? (files): void => {
-                                void addFilesAsEventAttachments(files)
+                                void eventAttachmentsApi.addFiles(files)
                               }
                             : undefined
                         }
-                        attachmentCount={eventAttachments.length}
-                        onCloudAttach={cloudLinkAccount ? (): void => setDriveOpen(true) : undefined}
+                        attachmentCount={
+                          eventAttachmentsApi.newFiles.length +
+                          eventAttachmentsApi.newReferences.length
+                        }
+                        onCloudAttach={
+                          eventAttachmentsApi.supportsCloudAttachments
+                            ? (): void => setDriveOpen(true)
+                            : undefined
+                        }
                         editorMinHeightClass="min-h-[220px]"
                         className="min-h-[260px] rounded-md border border-border bg-background !border-t-0"
                       />
-                      {draggingFiles ? (
-                        <p className="px-2 pb-2 text-2xs text-muted-foreground">
-                          {t('calendar.eventDialog.attachmentsDropHint')}
-                        </p>
-                      ) : null}
-                      {attachmentError ? (
-                        <p className="text-2xs text-destructive">{attachmentError}</p>
-                      ) : null}
-                      {eventAttachments.length > 0 ? (
-                        <div className="space-y-1.5">
-                          <p className="text-2xs font-medium text-muted-foreground">
-                            {t('calendar.eventDialog.attachments')}
-                          </p>
-                          <div className="space-y-1">
-                            {eventAttachments.map((a, idx) => (
-                              <div
-                                key={`${a.name}-${idx}`}
-                                className="flex items-center justify-between gap-2 rounded border border-border/70 bg-muted/20 px-2 py-1"
-                              >
-                                <div className="min-w-0">
-                                  <p className="truncate text-xs text-foreground">{a.name}</p>
-                                  <p className="text-2xs text-muted-foreground">
-                                    {formatAttachmentBytes(a.size || 0)}
-                                  </p>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={(): void =>
-                                    setEventAttachments((prev) => prev.filter((_, i) => i !== idx))
-                                  }
-                                  className="text-2xs text-muted-foreground hover:text-foreground"
-                                >
-                                  {t('common.remove')}
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ) : null}
+                      <CalendarEventAttachmentsPanel
+                        attachments={eventAttachmentsApi}
+                        disabled={eventFieldsLocked}
+                        showDropHint={draggingFiles}
+                        className="px-2 pb-2"
+                      />
                     </div>
                   )}
                 </div>
@@ -2582,9 +2536,8 @@ export function CalendarEventDialog({
       configureSharingLink={false}
       onClose={(): void => setDriveOpen(false)}
       onPickFile={(file): void => {
-        setDescriptionHtml((prev) =>
-          appendHtmlToComposeBody(prev, cloudFileLinkHtml(file.name, file.webUrl))
-        )
+        eventAttachmentsApi.addCloudReference(file)
+        setDriveOpen(false)
       }}
     />
   ) : null

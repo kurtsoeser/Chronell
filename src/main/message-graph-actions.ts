@@ -3,7 +3,8 @@ import {
   deleteMessageLocal,
   deleteAllMessagesInFolderLocal,
   setMessageReadLocal,
-  setMessageFlaggedLocal
+  setMessageFlaggedLocal,
+  updateMessageFolderLocal
 } from './db/messages-repo'
 import {
   findFolderByWellKnown,
@@ -248,8 +249,20 @@ export async function applyMoveMessageToWellKnownAlias(
   })
 }
 
+function adjustFolderUnreadForMove(
+  previousFolder: ReturnType<typeof findFolderById>,
+  targetFolder: NonNullable<ReturnType<typeof findFolderById>>,
+  wasUnread: boolean
+): void {
+  if (!wasUnread) return
+  if (previousFolder) adjustFolderUnread(previousFolder.id, -1)
+  adjustFolderUnread(targetFolder.id, 1)
+}
+
 /**
  * Verschiebt eine Mail in einen beliebigen Ordner desselben Kontos (Graph move).
+ * Lokale Zeile bleibt erhalten (wie Snooze), damit Mail-ToDos (`todos.message_id`) nicht
+ * durch `deleteMessageLocal` verloren gehen.
  */
 export async function applyMoveMessageToFolder(
   messageId: number,
@@ -268,53 +281,43 @@ export async function applyMoveMessageToFolder(
   const accounts = await listAccounts()
   const acc = accounts.find((a) => a.id === msg.accountId)
   const previousFolder = msg.folderId != null ? findFolderById(msg.folderId) : null
+  const source = opts?.source ?? 'ui'
+  const moveLabel =
+    source === 'workflow-mail-folders'
+      ? `Triage: nach „${truncate(targetFolder.name, 40)}“ — ${truncate(msg.subject ?? '(Kein Betreff)', 50)}`
+      : `Regel: verschoben nach „${truncate(targetFolder.name, 40)}“ — ${truncate(msg.subject ?? '(Kein Betreff)', 50)}`
 
   if (acc?.provider === 'google') {
-    deleteMessageLocal(messageId)
-    if (msg.folderId != null && !msg.isRead) {
-      adjustFolderUnread(msg.folderId, -1)
-    }
+    await gmailMoveMessageForFolderMove(
+      msg.accountId,
+      msg.remoteId,
+      previousFolder,
+      targetFolder
+    )
+    updateMessageFolderLocal(msg.id, targetFolder.id, msg.remoteId)
+    adjustFolderUnreadForMove(previousFolder, targetFolder, !msg.isRead)
+    recordAction({
+      messageId: msg.id,
+      accountId: msg.accountId,
+      actionType: 'move-message',
+      source,
+      ruleId: opts?.ruleId ?? null,
+      payload: {
+        previousFolderId: previousFolder?.id ?? null,
+        previousFolderRemoteId: previousFolder?.remoteId ?? null,
+        newRemoteId: msg.remoteId,
+        targetFolderId: targetFolder.id,
+        label: moveLabel
+      }
+    })
     broadcastMailChanged(msg.accountId)
-
-    const source = opts?.source ?? 'ui'
-
-    try {
-      await gmailMoveMessageForFolderMove(
-        msg.accountId,
-        msg.remoteId,
-        previousFolder,
-        targetFolder
+    void runFolderSync(targetFolder.id).catch((e) =>
+      console.warn('[message-graph-actions] Sync Ziel-Ordner (Gmail) fehlgeschlagen:', e)
+    )
+    if (previousFolder) {
+      void runFolderSync(previousFolder.id).catch((e) =>
+        console.warn('[message-graph-actions] Sync Quell-Ordner (Gmail) fehlgeschlagen:', e)
       )
-      void runFolderSync(targetFolder.id).catch((e) =>
-        console.warn('[message-graph-actions] Sync Ziel-Ordner (Gmail) fehlgeschlagen:', e)
-      )
-      if (previousFolder) {
-        void runFolderSync(previousFolder.id).catch((e) =>
-          console.warn('[message-graph-actions] Sync Quell-Ordner (Gmail) fehlgeschlagen:', e)
-        )
-      }
-      recordAction({
-        messageId: null,
-        accountId: msg.accountId,
-        actionType: 'move-message',
-        source,
-        ruleId: opts?.ruleId ?? null,
-        payload: {
-          previousFolderId: previousFolder?.id ?? null,
-          previousFolderRemoteId: previousFolder?.remoteId ?? null,
-          newRemoteId: msg.remoteId,
-          targetFolderId: targetFolder.id,
-          label:
-            source === 'workflow-mail-folders'
-              ? `Triage: nach „${truncate(targetFolder.name, 40)}“ — ${truncate(msg.subject ?? '(Kein Betreff)', 50)}`
-              : `Regel: verschoben nach „${truncate(targetFolder.name, 40)}“ — ${truncate(msg.subject ?? '(Kein Betreff)', 50)}`
-        }
-      })
-    } catch (e) {
-      if (msg.folderId != null) {
-        void runFolderSync(msg.folderId).catch(() => undefined)
-      }
-      throw e
     }
     return
   }
@@ -323,30 +326,11 @@ export async function applyMoveMessageToFolder(
     throw new Error('Verschieben in andere Ordner wird fuer dieses Konto nicht unterstuetzt.')
   }
 
-  const source = opts?.source ?? 'ui'
-
-  // Optimistisch: zuerst lokal entfernen, dann remote verschieben.
-  deleteMessageLocal(messageId)
-  if (msg.folderId != null && !msg.isRead) {
-    adjustFolderUnread(msg.folderId, -1)
-  }
-  broadcastMailChanged(msg.accountId)
-
-  let newRemoteId: string | undefined
-  try {
-    newRemoteId = await microsoftMoveMessage(msg.accountId, msg.remoteId, targetFolder.remoteId)
-  } catch (e) {
-    if (msg.folderId != null) {
-      void runFolderSync(msg.folderId).catch(() => undefined)
-    }
-    throw e
-  }
-
-  void runFolderSync(targetFolder.id).catch((e) =>
-    console.warn('[message-graph-actions] Sync Ziel-Ordner fehlgeschlagen:', e)
-  )
+  const newRemoteId = await microsoftMoveMessage(msg.accountId, msg.remoteId, targetFolder.remoteId)
+  updateMessageFolderLocal(msg.id, targetFolder.id, newRemoteId)
+  adjustFolderUnreadForMove(previousFolder, targetFolder, !msg.isRead)
   recordAction({
-    messageId: null,
+    messageId: msg.id,
     accountId: msg.accountId,
     actionType: 'move-message',
     source,
@@ -356,12 +340,18 @@ export async function applyMoveMessageToFolder(
       previousFolderRemoteId: previousFolder?.remoteId ?? null,
       newRemoteId,
       targetFolderId: targetFolder.id,
-      label:
-        source === 'workflow-mail-folders'
-          ? `Triage: nach „${truncate(targetFolder.name, 40)}“ — ${truncate(msg.subject ?? '(Kein Betreff)', 50)}`
-          : `Regel: verschoben nach „${truncate(targetFolder.name, 40)}“ — ${truncate(msg.subject ?? '(Kein Betreff)', 50)}`
+      label: moveLabel
     }
   })
+  broadcastMailChanged(msg.accountId)
+  void runFolderSync(targetFolder.id).catch((e) =>
+    console.warn('[message-graph-actions] Sync Ziel-Ordner fehlgeschlagen:', e)
+  )
+  if (previousFolder) {
+    void runFolderSync(previousFolder.id).catch((e) =>
+      console.warn('[message-graph-actions] Sync Quell-Ordner fehlgeschlagen:', e)
+    )
+  }
 }
 
 const MAX_MESSAGE_CATEGORIES = 25

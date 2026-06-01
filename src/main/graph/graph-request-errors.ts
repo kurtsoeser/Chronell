@@ -61,6 +61,22 @@ export function formatGraphErrorMessage(e: unknown, context?: string): string {
  * Graph / Exchange liefern 404 + ErrorItemNotFound, wenn die Ressource
  * unter der bekannten Id nicht mehr existiert (verschoben, gelöscht, veralteter Cache).
  */
+/** Reply/Forward-Entwurf: Referenz auf Original-Mail unterstützt die Operation nicht. */
+export function isGraphInvalidReferenceItem(e: unknown): boolean {
+  if (!e || typeof e !== 'object') return false
+  const o = e as { statusCode?: number; code?: string; body?: unknown; message?: string }
+  if (o.code === 'ErrorInvalidReferenceItem') return true
+  if (typeof o.message === 'string' && o.message.includes('ErrorInvalidReferenceItem')) return true
+  const body = o.body
+  if (typeof body === 'string' && body.includes('ErrorInvalidReferenceItem')) return true
+  if (body && typeof body === 'object') {
+    const code = (body as { error?: { code?: string } }).error?.code
+    if (code === 'ErrorInvalidReferenceItem') return true
+  }
+  const { code } = graphErrorBodyMessage(e)
+  return code === 'ErrorInvalidReferenceItem'
+}
+
 export function isGraphItemNotFound(e: unknown): boolean {
   if (!e || typeof e !== 'object') return false
   const o = e as {

@@ -11,6 +11,8 @@ import {
 
   Forward,
 
+  Calendar,
+
   MailOpen,
 
   Star,
@@ -42,6 +44,7 @@ import { openConnectionsGraphWithAiScan } from '@/lib/open-connections-graph'
 
 import type { TFunction } from 'i18next'
 import { useCreateCloudTaskUiStore } from '@/stores/create-cloud-task-ui'
+import { useMailReplyWithMeetingStore } from '@/stores/mail-reply-with-meeting'
 import { buildMailContextMoveMenuEntries } from '@/lib/mail-context-menu-move'
 
 const MAIL_CTX_TODO_FALLBACK = {
@@ -586,6 +589,26 @@ export function buildMailContextItems(
       onSelect: (): void => {
 
         void withFullMessage(msg.id, (full) => h.openForward(full))
+
+      }
+
+    },
+
+    {
+
+      id: 'replyWithMeeting',
+
+      label: tr ? tr('mail.replyWithMeeting.menu') : 'Mit Besprechung antworten',
+
+      icon: Calendar,
+
+      onSelect: (): void => {
+
+        void withFullMessage(msg.id, (full) => {
+
+          useMailReplyWithMeetingStore.getState().openFromMessage(full)
+
+        })
 
       }
 

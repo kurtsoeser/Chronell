@@ -1040,6 +1040,20 @@ const api = {
       ipcRenderer.invoke(IPC.calendar.updateEvent, input),
     getEvent: (input: CalendarGetEventInput): Promise<CalendarGetEventResult> =>
       ipcRenderer.invoke(IPC.calendar.getEvent, input),
+    listEventAttachments: (
+      input: import('@shared/types').CalendarListEventAttachmentsInput
+    ): Promise<import('@shared/types').CalendarEventAttachmentMeta[]> =>
+      ipcRenderer.invoke(IPC.calendar.listEventAttachments, input),
+    openEventAttachment: (
+      input: import('@shared/types').CalendarEventAttachmentActionInput
+    ): Promise<{ ok: boolean; error?: string }> =>
+      ipcRenderer.invoke(IPC.calendar.openEventAttachment, input),
+    saveEventAttachmentAs: (
+      input: import('@shared/types').CalendarEventAttachmentActionInput & {
+        suggestedName?: string
+      }
+    ): Promise<{ ok: boolean; path?: string; error?: string; cancelled?: boolean }> =>
+      ipcRenderer.invoke(IPC.calendar.saveEventAttachmentAs, input),
     deleteEvent: (input: CalendarDeleteEventInput): Promise<void> =>
       ipcRenderer.invoke(IPC.calendar.deleteEvent, input),
     transferEvent: (

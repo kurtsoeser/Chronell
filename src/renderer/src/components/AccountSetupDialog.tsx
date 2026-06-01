@@ -128,6 +128,7 @@ import { formatBytes } from '@/lib/format-bytes'
 import { AccountSetupBackupSection } from '@/components/account-setup/AccountSetupBackupSection'
 import { AccountSetupCloudSyncSection } from '@/components/account-setup/AccountSetupCloudSyncSection'
 import { APP_BRANDING } from '@shared/app-branding'
+import { publicAssetUrl } from '@/lib/public-asset-url'
 import {
   APP_ID,
   APP_PRODUCT_NAME,
@@ -2760,7 +2761,7 @@ export function AccountSetupDialog({
                 </h3>
                 <div className="flex gap-4">
                   <img
-                    src={APP_BRANDING.iconSvgPublicPath}
+                    src={publicAssetUrl(APP_BRANDING.iconSvgPublicFile)}
                     alt=""
                     className="h-16 w-16 shrink-0 object-contain"
                     width={64}

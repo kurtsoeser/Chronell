@@ -19,13 +19,15 @@ import {
   ExternalLink,
   Loader2,
   MapPin,
+  Paperclip,
   Pencil,
   Tag,
   User,
   Users,
   Video
 } from 'lucide-react'
-import type { CalendarEventView } from '@shared/types'
+import type { CalendarEventAttachmentMeta, CalendarEventView } from '@shared/types'
+import { CalendarEventAttachmentRow } from '@/app/calendar/CalendarEventAttachmentRow'
 import { fullCalendarEventToPatchSchedule } from '@/app/calendar/calendar-shell-view-helpers'
 import {
   patchScheduleInputWithMeetingNotify,
@@ -156,6 +158,9 @@ export function CalendarEventPreview(props: {
   const [teamsMeeting, setTeamsMeeting] = useState(false)
   const [detailLocation, setDetailLocation] = useState<string | null>(null)
   const [detailOrganizer, setDetailOrganizer] = useState<string | null>(null)
+  const [attachments, setAttachments] = useState<CalendarEventAttachmentMeta[]>([])
+  const [attachmentsLoading, setAttachmentsLoading] = useState(false)
+  const [attachmentBusyId, setAttachmentBusyId] = useState<string | null>(null)
 
   const [editingField, setEditingField] = useState<PreviewEditField | null>(null)
   const [titleDraft, setTitleDraft] = useState('')
@@ -253,6 +258,8 @@ export function CalendarEventPreview(props: {
       setTeamsMeeting(false)
       setDetailLocation(null)
       setDetailOrganizer(null)
+      setAttachments([])
+      setAttachmentsLoading(false)
       return
     }
     if (ev.source === 'google' && !ev.graphCalendarId?.trim()) {
@@ -263,11 +270,15 @@ export function CalendarEventPreview(props: {
       setTeamsMeeting(false)
       setDetailLocation(null)
       setDetailOrganizer(null)
+      setAttachments([])
+      setAttachmentsLoading(false)
       return
     }
+    const canLoadAttachments = ev.source === 'microsoft' || ev.source === 'google'
     let cancelled = false
     setDescLoading(true)
     setDescErr(null)
+    setAttachmentsLoading(canLoadAttachments)
     void window.mailClient.calendar
       .getEvent({
         accountId: ev.accountId,
@@ -297,6 +308,25 @@ export function CalendarEventPreview(props: {
       .finally(() => {
         if (!cancelled) setDescLoading(false)
       })
+
+    if (canLoadAttachments) {
+      void window.mailClient.calendar
+        .listEventAttachments({
+          accountId: ev.accountId,
+          graphEventId: eventId,
+          graphCalendarId: ev.graphCalendarId ?? null
+        })
+        .then((attList) => {
+          if (!cancelled) setAttachments(attList)
+        })
+        .catch((e) => {
+          console.warn('[calendar-preview] attachments:', e)
+          if (!cancelled) setAttachments([])
+        })
+        .finally(() => {
+          if (!cancelled) setAttachmentsLoading(false)
+        })
+    }
     return (): void => {
       cancelled = true
     }
@@ -306,6 +336,49 @@ export function CalendarEventPreview(props: {
     setEditingField(null)
     setInlineError(null)
   }, [])
+
+  const openAttachment = useCallback(
+    async (att: CalendarEventAttachmentMeta): Promise<void> => {
+      const eventId = ev.graphEventId?.trim()
+      if (!eventId) return
+      setAttachmentBusyId(att.id)
+      setErr(null)
+      try {
+        const res = await window.mailClient.calendar.openEventAttachment({
+          accountId: ev.accountId,
+          graphEventId: eventId,
+          graphCalendarId: ev.graphCalendarId ?? null,
+          attachmentId: att.id
+        })
+        if (!res.ok && res.error) setErr(res.error)
+      } finally {
+        setAttachmentBusyId(null)
+      }
+    },
+    [ev.accountId, ev.graphCalendarId, ev.graphEventId]
+  )
+
+  const saveAttachmentAs = useCallback(
+    async (att: CalendarEventAttachmentMeta): Promise<void> => {
+      const eventId = ev.graphEventId?.trim()
+      if (!eventId) return
+      setAttachmentBusyId(att.id)
+      setErr(null)
+      try {
+        const res = await window.mailClient.calendar.saveEventAttachmentAs({
+          accountId: ev.accountId,
+          graphEventId: eventId,
+          graphCalendarId: ev.graphCalendarId ?? null,
+          attachmentId: att.id,
+          suggestedName: att.name
+        })
+        if (!res.ok && !res.cancelled && res.error) setErr(res.error)
+      } finally {
+        setAttachmentBusyId(null)
+      }
+    },
+    [ev.accountId, ev.graphCalendarId, ev.graphEventId]
+  )
 
   const applyLocalEventPatch = useCallback(
     (
@@ -841,7 +914,9 @@ export function CalendarEventPreview(props: {
         organizerLabel ||
         attendeeEmails.length > 0 ||
         (ev.categories && ev.categories.length > 0) ||
-        teamsMeeting ? (
+        teamsMeeting ||
+        attachments.length > 0 ||
+        attachmentsLoading ? (
           <div className={cn('mb-3 px-3', previewDetailPanelClass)}>
             {calendarLabel ? (
               <PreviewDetailRow icon={CalendarDays} label={t('calendar.eventPreview.calendarLabel')}>
@@ -899,6 +974,29 @@ export function CalendarEventPreview(props: {
                     </span>
                   ))}
                 </div>
+              </PreviewDetailRow>
+            ) : null}
+            {attachmentsLoading ? (
+              <PreviewDetailRow icon={Paperclip} label={t('calendar.eventDialog.attachments')}>
+                <p className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  {t('calendar.eventDialog.attachmentsLoading')}
+                </p>
+              </PreviewDetailRow>
+            ) : attachments.length > 0 ? (
+              <PreviewDetailRow icon={Paperclip} label={t('calendar.eventDialog.attachments')}>
+                <ul className="space-y-1.5">
+                  {attachments.map((att) => (
+                    <li key={att.id}>
+                      <CalendarEventAttachmentRow
+                        att={att}
+                        disabled={attachmentBusyId === att.id}
+                        onOpen={(): void => void openAttachment(att)}
+                        onSaveAs={(): void => void saveAttachmentAs(att)}
+                      />
+                    </li>
+                  ))}
+                </ul>
               </PreviewDetailRow>
             ) : null}
           </div>

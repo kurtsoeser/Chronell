@@ -2,8 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { addDays, addMinutes, format, parseISO, startOfDay } from 'date-fns'
 import { useTranslation } from 'react-i18next'
 import type { ChronellEntityRef } from '@shared/entity-ref'
-import { Calendar as CalendarIcon, CheckSquare, FileText, Loader2, X } from 'lucide-react'
-import type { CalendarGraphCalendarRow, ConnectedAccount, TaskListRow } from '@shared/types'
+import { Calendar as CalendarIcon, CheckSquare, FileText, Loader2, Paperclip, X } from 'lucide-react'
+import type {
+  CalendarEventView,
+  CalendarGraphCalendarRow,
+  ConnectedAccount,
+  TaskListRow
+} from '@shared/types'
 import { dueIsoFromClientInput } from '@shared/calendar-datetime'
 import { cloudTaskStableKey } from '@shared/work-item-keys'
 import { applyCloudTaskPersistTarget } from '@/app/calendar/apply-cloud-task-persist'
@@ -27,6 +32,8 @@ import {
   isoToDatetimeLocalValue
 } from '@/app/work-items/work-item-datetime'
 import { cloudTaskAccountOptionLabel } from '@/lib/cloud-task-accounts'
+import { CalendarEventAttachmentsPanel } from '@/app/calendar/CalendarEventAttachmentsPanel'
+import { useCalendarEventAttachments } from '@/app/calendar/useCalendarEventAttachments'
 import { cn } from '@/lib/utils'
 
 export type CalendarCreateQuickKind = 'event' | 'task'
@@ -66,7 +73,7 @@ export interface CalendarCreateQuickPopoverProps {
   defaultAccountId?: string
   loadListsForAccount: (accountId: string) => Promise<TaskListRow[]>
   onClose: () => void
-  onSaved: () => void
+  onSaved: (created?: CalendarEventView) => void
   /** Nach erfolgreichem Anlegen (z. B. Verbindungen-Canvas). */
   onEntityCreated?: (payload: { ref: ChronellEntityRef; title: string }) => void
   onOpenDetails: (draft: CalendarCreateQuickDraft) => void
@@ -90,6 +97,7 @@ export function CalendarCreateQuickPopover({
   const { t, i18n } = useTranslation()
   const panelRef = useRef<HTMLDivElement>(null)
   const titleRef = useRef<HTMLInputElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
 
   const [createKind, setCreateKind] = useState<CalendarCreateQuickKind>(
@@ -124,6 +132,16 @@ export function CalendarCreateQuickPopover({
     [calendarAccounts]
   )
 
+  const selectedCalendarAccount = useMemo(
+    () => calendarAccounts.find((a) => a.id === accountId),
+    [calendarAccounts, accountId]
+  )
+
+  const eventAttachmentsApi = useCalendarEventAttachments({
+    account: selectedCalendarAccount,
+    enabled: createKind === 'event'
+  })
+
   const currentRange = useMemo(
     (): CalendarCreateRange => ({
       start: rangeStart,
@@ -144,6 +162,7 @@ export function CalendarCreateQuickPopover({
     setSubject('')
     setError(null)
     setBusy(false)
+    eventAttachmentsApi.reset()
     setCreateKind(calendarAccounts.length > 0 ? 'event' : 'task')
     const preferTaskAcc = resolvePreferredTaskAccountId(taskAccounts, defaultAccountId)
     setTaskAccountId(preferTaskAcc)
@@ -393,7 +412,8 @@ export function CalendarCreateQuickPopover({
           isAllDay: draft.isAllDay,
           location: null,
           bodyHtml: null,
-          categories: []
+          categories: [],
+          ...eventAttachmentsApi.buildSavePayload()
         })
         const graphEventId = created.id?.trim()
         if (graphEventId) {
@@ -402,9 +422,12 @@ export function CalendarCreateQuickPopover({
             title: draft.subject
           })
         }
+        onClose()
+        onSaved(created.event)
+        return
       }
-      onSaved()
       onClose()
+      onSaved()
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -687,6 +710,41 @@ export function CalendarCreateQuickPopover({
             </label>
           </div>
         )}
+
+        {createKind === 'event' && eventAttachmentsApi.supportsFileAttachments ? (
+          <div className="space-y-1">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-2xs uppercase tracking-wide text-muted-foreground">
+                {t('calendar.eventDialog.attachments')}
+              </span>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={(): void => fileInputRef.current?.click()}
+                className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-0.5 text-2xs font-medium hover:bg-secondary disabled:opacity-50"
+              >
+                <Paperclip className="h-3 w-3" />
+                {t('calendar.quickCreate.addAttachment')}
+              </button>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              className="hidden"
+              onChange={(e): void => {
+                const list = e.target.files
+                if (list?.length) void eventAttachmentsApi.addFiles(Array.from(list))
+                e.target.value = ''
+              }}
+            />
+            <CalendarEventAttachmentsPanel
+              attachments={eventAttachmentsApi}
+              disabled={busy}
+              compact
+            />
+          </div>
+        ) : null}
 
         {error ? <p className="text-xs text-destructive">{error}</p> : null}
 

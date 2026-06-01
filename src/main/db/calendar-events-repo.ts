@@ -1,3 +1,4 @@
+import { isCreatedCalendarEventGuarded } from '../calendar-created-event-guard'
 import { getDb } from './index'
 import type {
   CalendarEventView,
@@ -290,9 +291,9 @@ export function pruneCalendarEventsInRange(
   )
   const tx = db.transaction(() => {
     for (const r of rows) {
-      if (!keepGraphEventIds.has(r.graph_event_id)) {
-        del.run(accountId, r.graph_event_id)
-      }
+      if (keepGraphEventIds.has(r.graph_event_id)) continue
+      if (isCreatedCalendarEventGuarded(accountId, r.graph_event_id)) continue
+      del.run(accountId, r.graph_event_id)
     }
   })
   tx()

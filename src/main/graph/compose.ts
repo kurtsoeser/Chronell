@@ -3,6 +3,7 @@ import { listAccounts } from '../accounts'
 import { createGraphClient } from './client'
 import { loadConfig } from '../config'
 import { graphMailboxRoot } from './graph-mailbox-root'
+import { isGraphInvalidReferenceItem } from './graph-request-errors'
 
 async function getClientFor(accountId: string): Promise<ReturnType<typeof createGraphClient>> {
   const config = await loadConfig()
@@ -128,6 +129,118 @@ function messageFlagPatch(input: ComposeMessageInput): Record<string, unknown> {
   return o
 }
 
+function buildBaseMessage(input: ComposeMessageInput): Record<string, unknown> {
+  return {
+    subject: input.subject,
+    body: { contentType: 'HTML' as const, content: input.bodyHtml },
+    toRecipients: toGraphRecipients(input.to),
+    ccRecipients: toGraphRecipients(input.cc ?? []),
+    bccRecipients: toGraphRecipients(input.bcc ?? []),
+    ...messageFlagPatch(input)
+  }
+}
+
+function draftContentPatch(input: ComposeMessageInput): Record<string, unknown> {
+  return {
+    subject: input.subject,
+    body: { contentType: 'HTML' as const, content: input.bodyHtml },
+    ...messageFlagPatch(input)
+  }
+}
+
+function draftRecipientsPatch(input: ComposeMessageInput): Record<string, unknown> {
+  return {
+    toRecipients: toGraphRecipients(input.to),
+    ccRecipients: toGraphRecipients(input.cc ?? []),
+    bccRecipients: toGraphRecipients(input.bcc ?? [])
+  }
+}
+
+/** Reply/ReplyAll-Entwuerfe sind an die Original-Mail gekoppelt — Empfaenger-PATCH schlaegt oft fehl. */
+function isLinkedReplyCompose(input: ComposeMessageInput): boolean {
+  return Boolean(
+    input.replyToRemoteId?.trim() &&
+      input.replyMode &&
+      input.replyMode !== 'forward'
+  )
+}
+
+async function graphPatchDraft(
+  client: ReturnType<typeof createGraphClient>,
+  mb: string,
+  draftId: string,
+  patch: Record<string, unknown>
+): Promise<void> {
+  await client.api(`${mb}/messages/${draftId}`).patch(patch)
+}
+
+/**
+ * Aktualisiert einen Entwurf. Bei Reply/ReplyAll zuerst nur Inhalt; Empfaenger nur bei Erfolg.
+ * Graph: ErrorInvalidReferenceItem bei PATCH von to/cc/bcc auf gekoppelten Reply-Entwuerfen.
+ */
+async function graphPatchDraftForCompose(
+  client: ReturnType<typeof createGraphClient>,
+  mb: string,
+  draftId: string,
+  input: ComposeMessageInput
+): Promise<void> {
+  const content = draftContentPatch(input)
+  if (!isLinkedReplyCompose(input)) {
+    await graphPatchDraft(client, mb, draftId, { ...content, ...draftRecipientsPatch(input) })
+    return
+  }
+
+  try {
+    await graphPatchDraft(client, mb, draftId, { ...content, ...draftRecipientsPatch(input) })
+  } catch (e) {
+    if (!isGraphInvalidReferenceItem(e)) throw e
+    await graphPatchDraft(client, mb, draftId, content)
+    try {
+      await graphPatchDraft(client, mb, draftId, draftRecipientsPatch(input))
+    } catch (e2) {
+      if (!isGraphInvalidReferenceItem(e2)) throw e2
+    }
+  }
+}
+
+function createReplyEndpoint(
+  mb: string,
+  replyToRemoteId: string,
+  replyMode: 'reply' | 'replyAll' | 'forward'
+): string {
+  const id = replyToRemoteId.trim()
+  if (replyMode === 'forward') return `${mb}/messages/${id}/createForward`
+  if (replyMode === 'replyAll') return `${mb}/messages/${id}/createReplyAll`
+  return `${mb}/messages/${id}/createReply`
+}
+
+async function graphCreateReplyOrForwardDraft(
+  client: ReturnType<typeof createGraphClient>,
+  mb: string,
+  input: ComposeMessageInput
+): Promise<string> {
+  const replyToRemoteId = input.replyToRemoteId!.trim()
+  const replyMode = input.replyMode!
+  const endpoint = createReplyEndpoint(mb, replyToRemoteId, replyMode)
+  const createPayload =
+    replyMode === 'forward'
+      ? { message: buildBaseMessage(input) }
+      : { message: draftContentPatch(input) }
+
+  try {
+    const draft = (await client.api(endpoint).post(createPayload)) as { id: string }
+    await graphPatchDraftForCompose(client, mb, draft.id, input)
+    return draft.id
+  } catch (e) {
+    if (!isGraphInvalidReferenceItem(e)) throw e
+    console.warn(
+      `[compose] createReply/Forward fuer ${replyToRemoteId} nicht moeglich — Entwurf ohne Thread-Verknuepfung`
+    )
+    const draft = (await client.api(`${mb}/messages`).post(buildBaseMessage(input))) as { id: string }
+    return draft.id
+  }
+}
+
 // Graph hat ein hartes Limit von 4 MB pro Request bei sendMail/create.
 // Groessere Anhaenge muessen ueber eine Upload-Session am Draft hochgeladen
 // werden. Wir uebernehmen alles unter dieser Schwelle inline und laden
@@ -195,21 +308,21 @@ export async function sendMail(input: ComposeMessageInput): Promise<SendMailResu
   const refAtts = toGraphReferenceAttachments(input.referenceAttachments)
   const hasRefs = refAtts.length > 0
 
-  const baseMessage = {
-    subject: input.subject,
-    body: { contentType: 'HTML' as const, content: input.bodyHtml },
-    toRecipients: toGraphRecipients(input.to),
-    ccRecipients: toGraphRecipients(input.cc ?? []),
-    bccRecipients: toGraphRecipients(input.bcc ?? []),
-    ...messageFlagPatch(input)
-  }
+  const baseMessage = buildBaseMessage(input)
 
   const existingDraft = input.remoteDraftId?.trim()
   if (existingDraft) {
-    await client.api(`${mb}/messages/${existingDraft}`).patch(baseMessage)
-    await graphDeleteDraftFileAndReferenceAttachments(client, mb, existingDraft)
-    await graphApplyDraftAttachments(client, mb, existingDraft, inline, large, refAtts)
-    await client.api(`${mb}/messages/${existingDraft}/send`).post({})
+    const draftId = await graphSyncDraftContent(
+      client,
+      mb,
+      input,
+      baseMessage,
+      existingDraft,
+      inline,
+      large,
+      refAtts
+    )
+    await client.api(`${mb}/messages/${draftId}/send`).post({})
     return { sentFromExistingDraft: true }
   }
 
@@ -230,34 +343,8 @@ export async function sendMail(input: ComposeMessageInput): Promise<SendMailResu
     return { sentFromExistingDraft: false }
   }
 
-  let draftId: string
-  if (input.replyToRemoteId && input.replyMode) {
-    const endpoint =
-      input.replyMode === 'forward'
-        ? `${mb}/messages/${input.replyToRemoteId}/createForward`
-        : input.replyMode === 'replyAll'
-          ? `${mb}/messages/${input.replyToRemoteId}/createReplyAll`
-          : `${mb}/messages/${input.replyToRemoteId}/createReply`
-    const draft = (await client.api(endpoint).post({})) as { id: string }
-    draftId = draft.id
-    await client.api(`${mb}/messages/${draftId}`).patch(baseMessage)
-  } else {
-    const draft = (await client.api(`${mb}/messages`).post(baseMessage)) as { id: string }
-    draftId = draft.id
-  }
-
-  for (const att of inline) {
-    await client
-      .api(`${mb}/messages/${draftId}/attachments`)
-      .post(toGraphAttachments([att])[0])
-  }
-  for (const att of large) {
-    await uploadLargeAttachment(client, mb, draftId, att)
-  }
-  for (const ref of refAtts) {
-    await client.api(`${mb}/messages/${draftId}/attachments`).post(ref)
-  }
-
+  const draftId = await graphCreateFreshDraftId(client, mb, input, baseMessage)
+  await graphApplyDraftAttachments(client, mb, draftId, inline, large, refAtts)
   await client.api(`${mb}/messages/${draftId}/send`).post({})
   return { sentFromExistingDraft: false }
 }
@@ -266,27 +353,81 @@ export interface SaveMailDraftInput extends ComposeMessageInput {
   remoteDraftId?: string | null
 }
 
-async function graphDeleteDraftFileAndReferenceAttachments(
+type DraftAttachmentRow = {
+  id: string
+  '@odata.type'?: string
+  sourceUrl?: string | null
+}
+
+async function listDraftAttachmentRows(
+  client: ReturnType<typeof createGraphClient>,
+  mb: string,
+  messageId: string
+): Promise<DraftAttachmentRow[]> {
+  type Page = { value: DraftAttachmentRow[]; ['@odata.nextLink']?: string }
+  const out: DraftAttachmentRow[] = []
+  let url: string | null = `${mb}/messages/${messageId}/attachments?$top=100`
+  while (url) {
+    const page = (await client.api(url).get()) as Page
+    out.push(...(page.value ?? []))
+    const next = page['@odata.nextLink'] ?? null
+    url = next ? next.replace(/^https?:\/\/[^/]+\/v[0-9.]+/, '') : null
+  }
+  return out
+}
+
+/** Nur Dateianhänge entfernen — referenceAttachment löschen löst ErrorInvalidReferenceItem aus. */
+async function graphDeleteDraftFileAttachments(
   client: ReturnType<typeof createGraphClient>,
   mb: string,
   messageId: string
 ): Promise<void> {
-  type AttRow = { id: string; ['@odata.type']: string }
-  type Page = { value: AttRow[]; ['@odata.nextLink']?: string }
-  let url: string | null = `${mb}/messages/${messageId}/attachments?$top=100`
-  while (url) {
-    const page = (await client.api(url).get()) as Page
-    for (const a of page.value) {
-      const t = a['@odata.type']
-      if (
-        t === '#microsoft.graph.fileAttachment' ||
-        t === '#microsoft.graph.referenceAttachment'
-      ) {
-        await client.api(`${mb}/messages/${messageId}/attachments/${a.id}`).delete()
-      }
+  const rows = await listDraftAttachmentRows(client, mb, messageId)
+  for (const a of rows) {
+    if (a['@odata.type'] !== '#microsoft.graph.fileAttachment') continue
+    try {
+      await client.api(`${mb}/messages/${messageId}/attachments/${a.id}`).delete()
+    } catch (e) {
+      if (!isGraphInvalidReferenceItem(e)) throw e
     }
-    const next = page['@odata.nextLink'] ?? null
-    url = next ? next.replace(/^https?:\/\/[^/]+\/v[0-9.]+/, '') : null
+  }
+}
+
+async function graphCreateFreshDraftId(
+  client: ReturnType<typeof createGraphClient>,
+  mb: string,
+  input: ComposeMessageInput,
+  baseMessage: Record<string, unknown>
+): Promise<string> {
+  if (input.replyToRemoteId && input.replyMode) {
+    return graphCreateReplyOrForwardDraft(client, mb, input)
+  }
+  const draft = (await client.api(`${mb}/messages`).post(baseMessage)) as { id: string }
+  return draft.id
+}
+
+/** PATCH + Anhaenge; bei inkompatiblem Server-Entwurf neu anlegen. */
+async function graphSyncDraftContent(
+  client: ReturnType<typeof createGraphClient>,
+  mb: string,
+  input: ComposeMessageInput,
+  baseMessage: Record<string, unknown>,
+  remoteDraftId: string,
+  inline: AttachmentInput[],
+  large: AttachmentInput[],
+  refAtts: GraphReferenceAttachment[]
+): Promise<string> {
+  try {
+    await graphPatchDraftForCompose(client, mb, remoteDraftId, input)
+    await graphDeleteDraftFileAttachments(client, mb, remoteDraftId)
+    await graphApplyDraftAttachments(client, mb, remoteDraftId, inline, large, refAtts)
+    return remoteDraftId
+  } catch (e) {
+    if (!isGraphInvalidReferenceItem(e)) throw e
+    console.warn(`[compose] Server-Entwurf ${remoteDraftId} nicht aktualisierbar — neu anlegen`)
+    const draftId = await graphCreateFreshDraftId(client, mb, input, baseMessage)
+    await graphApplyDraftAttachments(client, mb, draftId, inline, large, refAtts)
+    return draftId
   }
 }
 
@@ -304,8 +445,20 @@ async function graphApplyDraftAttachments(
   for (const att of large) {
     await uploadLargeAttachment(client, mb, draftId, att)
   }
+  if (refAtts.length === 0) return
+
+  const existing = await listDraftAttachmentRows(client, mb, draftId)
+  const existingRefUrls = new Set(
+    existing
+      .filter((a) => a['@odata.type'] === '#microsoft.graph.referenceAttachment')
+      .map((a) => a.sourceUrl?.trim().toLowerCase())
+      .filter((u): u is string => Boolean(u))
+  )
   for (const ref of refAtts) {
+    const url = ref.sourceUrl?.trim().toLowerCase()
+    if (url && existingRefUrls.has(url)) continue
     await client.api(`${mb}/messages/${draftId}/attachments`).post(ref)
+    if (url) existingRefUrls.add(url)
   }
 }
 
@@ -318,39 +471,24 @@ export async function saveMailDraft(input: SaveMailDraftInput): Promise<{ remote
   const mb = await resolveMailboxRoot(input.accountId, input.sendFromEmail)
   const { inline, large } = partitionAttachments(input.attachments)
   const refAtts = toGraphReferenceAttachments(input.referenceAttachments)
-  const baseMessage = {
-    subject: input.subject,
-    body: { contentType: 'HTML' as const, content: input.bodyHtml },
-    toRecipients: toGraphRecipients(input.to),
-    ccRecipients: toGraphRecipients(input.cc ?? []),
-    bccRecipients: toGraphRecipients(input.bcc ?? []),
-    ...messageFlagPatch(input)
-  }
+  const baseMessage = buildBaseMessage(input)
 
   const rem = input.remoteDraftId?.trim()
   if (rem) {
-    await client.api(`${mb}/messages/${rem}`).patch(baseMessage)
-    await graphDeleteDraftFileAndReferenceAttachments(client, mb, rem)
-    await graphApplyDraftAttachments(client, mb, rem, inline, large, refAtts)
-    return { remoteDraftId: rem }
+    const draftId = await graphSyncDraftContent(
+      client,
+      mb,
+      input,
+      baseMessage,
+      rem,
+      inline,
+      large,
+      refAtts
+    )
+    return { remoteDraftId: draftId }
   }
 
-  let draftId: string
-  if (input.replyToRemoteId && input.replyMode) {
-    const endpoint =
-      input.replyMode === 'forward'
-        ? `${mb}/messages/${input.replyToRemoteId}/createForward`
-        : input.replyMode === 'replyAll'
-          ? `${mb}/messages/${input.replyToRemoteId}/createReplyAll`
-          : `${mb}/messages/${input.replyToRemoteId}/createReply`
-    const draft = (await client.api(endpoint).post({})) as { id: string }
-    draftId = draft.id
-    await client.api(`${mb}/messages/${draftId}`).patch(baseMessage)
-  } else {
-    const draft = (await client.api(`${mb}/messages`).post(baseMessage)) as { id: string }
-    draftId = draft.id
-  }
-
+  const draftId = await graphCreateFreshDraftId(client, mb, input, baseMessage)
   await graphApplyDraftAttachments(client, mb, draftId, inline, large, refAtts)
   return { remoteDraftId: draftId }
 }

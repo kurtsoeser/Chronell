@@ -76,6 +76,8 @@ export default defineConfig(({ mode }) => {
     },
     renderer: {
       root: path.resolve(__configDir, 'src/renderer'),
+      /** Relativ zu index.html — nötig für loadFile/file:// in der installierten App. */
+      base: './',
       resolve: {
         alias: {
           '@': path.resolve(__configDir, 'src/renderer/src'),

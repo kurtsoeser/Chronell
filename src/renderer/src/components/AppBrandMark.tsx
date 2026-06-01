@@ -1,5 +1,6 @@
 import { APP_BRANDING } from '@shared/app-branding'
 import { APP_PRODUCT_NAME } from '@shared/app-version'
+import { publicAssetUrl } from '@/lib/public-asset-url'
 import { cn } from '@/lib/utils'
 
 export interface AppBrandMarkProps {
@@ -19,7 +20,7 @@ export function AppBrandMark({
   return (
     <span className={cn('inline-flex min-w-0 items-center gap-2', className)}>
       <img
-        src={APP_BRANDING.iconSvgPublicPath}
+        src={publicAssetUrl(APP_BRANDING.iconSvgPublicFile)}
         alt=""
         className={cn('h-7 w-7 shrink-0 object-contain', iconClassName)}
         width={28}

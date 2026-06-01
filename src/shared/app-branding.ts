@@ -13,10 +13,10 @@ export const APP_PRIVACY_URL = 'https://chronell.app/datenschutz.html' as const
 export const APP_BRANDING = {
   productName: APP_PRODUCT_NAME,
   homepageUrl: APP_HOMEPAGE_URL,
-  /** Quadratisches App-Icon (SVG), Vite public root. */
-  iconSvgPublicPath: '/chronell-icon.svg',
+  /** Quadratisches App-Icon (SVG), Datei unter `src/renderer/public/`. */
+  iconSvgPublicFile: 'chronell-icon.svg',
   /** Favicon PNG (32 px) — für Fensterleiste/Electron zuverlässiger als SVG. */
-  faviconPngPublicPath: '/favicon.png',
+  faviconPngPublicFile: 'favicon.png',
   /** Tab/Favicon: PNG zuerst, SVG als Fallback. */
-  faviconPublicPath: '/favicon.png'
+  faviconPublicFile: 'favicon.png'
 } as const

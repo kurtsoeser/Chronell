@@ -93,6 +93,10 @@ import {
   deduplicateCalendarEventsByGraphEventId,
   purgeDuplicateGraphCalendarEventsOnApi
 } from '@/app/calendar/calendar-graph-events'
+import {
+  reconcileGraphCalendarEventOnCalendar,
+  syncFullCalendarGraphEventFromLayer
+} from '@/app/calendar/optimistic-graph-calendar'
 import { clearMegaTimelineCache } from '@/app/work-items/apply-calendar-event-schedule-to-work-items'
 import { applyCloudTaskPersistTarget } from '@/app/calendar/apply-cloud-task-persist'
 import {
@@ -242,7 +246,8 @@ import {
 import {
   fullCalendarEventToPatchSchedule,
   GANTT_TIMELINE_VIEW_ID,
-  MAX_TIME_GRID_SPAN_DAYS
+  MAX_TIME_GRID_SPAN_DAYS,
+  resolveCalendarEventGraphCalendarId
 } from '@/app/calendar/calendar-shell-view-helpers'
 import { CalendarGanttTimelineView } from '@/app/calendar/CalendarGanttTimelineView'
 import { ganttNavStepAnchor } from '@/app/calendar/calendar-gantt-scale'
@@ -1601,6 +1606,42 @@ export function CalendarShell(): JSX.Element {
   )
   reloadCalendarEventsOnlyRef.current = reloadCalendarEventsOnly
 
+  const applyOptimisticGraphCalendarEvent = useCallback((created: CalendarEventView): void => {
+    graphCalendarReconcilingRef.current = true
+    try {
+      flushSync(() => {
+        setEvents((prev) => {
+          const without = prev.filter(
+            (row) =>
+              !(
+                row.accountId === created.accountId &&
+                row.graphEventId === created.graphEventId
+              )
+          )
+          return deduplicateCalendarEventsByGraphEventId([...without, created])
+        })
+        setGraphCalendarSourceRev((rev) => rev + 1)
+      })
+      purgeDuplicateGraphCalendarEventsOnApi(calendarRef.current?.getApi())
+    } finally {
+      queueMicrotask(() => {
+        graphCalendarReconcilingRef.current = false
+      })
+    }
+  }, [])
+
+  const handleCalendarEventSaved = useCallback(
+    (created?: CalendarEventView): void => {
+      setQuickCreate(null)
+      calendarRef.current?.getApi().unselect()
+      if (created) {
+        applyOptimisticGraphCalendarEvent(created)
+      }
+      reloadVisibleRange({ silent: true })
+    },
+    [applyOptimisticGraphCalendarEvent, reloadVisibleRange]
+  )
+
   /** Ein-/Ausblenden in der Sidebar: `includeCalendars` aendert sich — Cloud-Termine neu laden (z. B. Gruppenkalender). */
   useEffect(() => {
     if (calendarLinkedAccounts.length === 0) return
@@ -2001,6 +2042,19 @@ export function CalendarShell(): JSX.Element {
     [hideCalendarFromSidebar, reloadCalendarsForAccount, reloadVisibleRange, t]
   )
 
+  const defaultGraphCalendarIdByAccount = useMemo(() => {
+    const m: Record<string, string | null> = {}
+    for (const acc of calendarLinkedAccounts) {
+      const rows = calendarsByAccount[acc.id]
+      if (!rows?.length) {
+        m[acc.id] = null
+        continue
+      }
+      m[acc.id] = rows.find((r) => r.isDefaultCalendar)?.id ?? rows[0]?.id ?? null
+    }
+    return m
+  }, [calendarLinkedAccounts, calendarsByAccount])
+
   const handleGraphEventChange = useCallback(
     async (info: EventChangeArg): Promise<void> => {
       const kind = info.event.extendedProps.calendarKind as string | undefined
@@ -2180,7 +2234,11 @@ export function CalendarShell(): JSX.Element {
         info.revert()
         return
       }
-      if (!calEv.graphCalendarId?.trim()) {
+      const resolvedGraphCalendarId = resolveCalendarEventGraphCalendarId(
+        calEv,
+        defaultGraphCalendarIdByAccount
+      )
+      if (calEv.source === 'google' && !resolvedGraphCalendarId?.trim()) {
         info.revert()
         setError(t('calendar.errors.missingGraphCalendarId'))
         return
@@ -2207,6 +2265,7 @@ export function CalendarShell(): JSX.Element {
       }
       const updatedCalEv: CalendarEventView = {
         ...calEv,
+        graphCalendarId: resolvedGraphCalendarId,
         startIso: sched.startIso,
         endIso: sched.endIso,
         isAllDay: sched.isAllDay
@@ -2232,9 +2291,10 @@ export function CalendarShell(): JSX.Element {
                 ? updatedCalEv
                 : prev
             )
-            setGraphCalendarSourceRev((rev) => rev + 1)
           })
-          purgeDuplicateGraphCalendarEventsOnApi(calendarRef.current?.getApi())
+          const api = calendarRef.current?.getApi()
+          syncFullCalendarGraphEventFromLayer(api, updatedCalEv)
+          reconcileGraphCalendarEventOnCalendar(api, updatedCalEv)
         } finally {
           queueMicrotask(() => {
             graphCalendarReconcilingRef.current = false
@@ -2262,9 +2322,11 @@ export function CalendarShell(): JSX.Element {
                 ? calEv
                 : prev
             )
-            setGraphCalendarSourceRev((rev) => rev + 1)
           })
-          purgeDuplicateGraphCalendarEventsOnApi(calendarRef.current?.getApi())
+          const api = calendarRef.current?.getApi()
+          syncFullCalendarGraphEventFromLayer(api, calEv)
+          reconcileGraphCalendarEventOnCalendar(api, calEv)
+          info.revert()
         } finally {
           queueMicrotask(() => {
             graphCalendarReconcilingRef.current = false
@@ -2288,7 +2350,7 @@ export function CalendarShell(): JSX.Element {
             {
               accountId: calEv.accountId,
               graphEventId: calEv.graphEventId,
-              graphCalendarId: calEv.graphCalendarId ?? null,
+              graphCalendarId: resolvedGraphCalendarId,
               startIso: sched.startIso,
               endIso: sched.endIso,
               isAllDay: sched.isAllDay
@@ -2303,6 +2365,7 @@ export function CalendarShell(): JSX.Element {
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e))
         rollbackOptimisticGraphSchedule()
+        info.revert()
       } finally {
         graphCalendarPersistInFlightRef.current = Math.max(
           0,
@@ -2317,22 +2380,10 @@ export function CalendarShell(): JSX.Element {
       loadMailTodosForRange,
       taskAccounts,
       commitCloudTaskLayer,
+      defaultGraphCalendarIdByAccount,
       t
     ]
   )
-
-  const defaultGraphCalendarIdByAccount = useMemo(() => {
-    const m: Record<string, string | null> = {}
-    for (const acc of calendarLinkedAccounts) {
-      const rows = calendarsByAccount[acc.id]
-      if (!rows?.length) {
-        m[acc.id] = null
-        continue
-      }
-      m[acc.id] = rows.find((r) => r.isDefaultCalendar)?.id ?? rows[0]?.id ?? null
-    }
-    return m
-  }, [calendarLinkedAccounts, calendarsByAccount])
 
   /** Hex aus Sidebar-Kalenderliste (Outlook-Farben), falls Graph beim Termin keine liefert. */
   const calendarDisplayHexByKey = useMemo(() => {
@@ -2444,13 +2495,19 @@ export function CalendarShell(): JSX.Element {
             calendarEvent: ev
           },
           editable: Boolean(
-            ev.graphEventId && (ev.source === 'microsoft' || ev.source === 'google')
+            ev.graphEventId &&
+              ev.calendarCanEdit !== false &&
+              (ev.source === 'microsoft' || ev.source === 'google')
           ),
           startEditable: Boolean(
-            ev.graphEventId && (ev.source === 'microsoft' || ev.source === 'google')
+            ev.graphEventId &&
+              ev.calendarCanEdit !== false &&
+              (ev.source === 'microsoft' || ev.source === 'google')
           ),
           durationEditable: Boolean(
-            ev.graphEventId && (ev.source === 'microsoft' || ev.source === 'google')
+            ev.graphEventId &&
+              ev.calendarCanEdit !== false &&
+              (ev.source === 'microsoft' || ev.source === 'google')
           )
         }
       }),
@@ -3195,12 +3252,9 @@ export function CalendarShell(): JSX.Element {
                   const calEv = movingEvent.extendedProps?.calendarEvent as
                     | CalendarEventView
                     | undefined
-                  return Boolean(
-                    calEv?.calendarCanEdit !== false &&
-                    calEv?.graphEventId &&
-                    calEv.graphCalendarId?.trim() &&
-                    (calEv.source === 'microsoft' || calEv.source === 'google')
-                  )
+                  if (!calEv?.graphEventId || calEv.calendarCanEdit === false) return false
+                  if (calEv.source === 'microsoft' || calEv.source === 'google') return true
+                  return false
                 }}
                 selectable={canInteractInTimeGrid}
                 selectMirror={false}
@@ -3870,7 +3924,7 @@ export function CalendarShell(): JSX.Element {
             loadListsForAccount={loadTaskListsForAccount}
             onRangeChange={handleQuickCreateRangeChange}
             onClose={dismissQuickCreate}
-            onSaved={(): void => reloadVisibleRange({ silent: true })}
+            onSaved={handleCalendarEventSaved}
             onOpenDetails={(draft): void => {
               dismissQuickCreate()
               setEventDialog({
@@ -3919,7 +3973,7 @@ export function CalendarShell(): JSX.Element {
         taskAccounts={taskAccounts}
         loadListsForAccount={loadTaskListsForAccount}
         onClose={(): void => setEventDialog(null)}
-        onSaved={(): void => reloadVisibleRange({ silent: true })}
+        onSaved={handleCalendarEventSaved}
       />
 
       {gotoDateOpen ? (

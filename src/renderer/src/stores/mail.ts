@@ -1474,10 +1474,29 @@ export const useMailStore = create<MailState>((set, get) => ({
         variant: 'success',
         onUndo: () => useUndoStore.getState().undoLast()
       })
-      if (get().selectedMessageId === messageId) {
-        const fresh = await window.mailClient.mail.getMessage(messageId)
-        if (fresh) set({ selectedMessage: fresh })
+      const fresh = await window.mailClient.mail.getMessage(messageId)
+      if (fresh) {
+        const todoListFields =
+          fresh.openTodoId != null
+            ? {
+                todoId: fresh.openTodoId,
+                todoDueKind: fresh.openTodoDueKind,
+                todoDueAt: fresh.openTodoDueAt,
+                todoStartAt: fresh.openTodoStartAt,
+                todoEndAt: fresh.openTodoEndAt
+              }
+            : {}
+        set((s) => ({
+          messages: s.messages.map((m) =>
+            m.id === messageId ? { ...m, ...todoListFields } : m
+          ),
+          ...(s.selectedMessageId === messageId ? { selectedMessage: fresh } : {})
+        }))
       }
+      void window.mailClient.mail
+        .listTodoCounts()
+        .then((todoCounts) => set({ todoCounts }))
+        .catch(() => undefined)
     } catch (e) {
       console.error('[mail-store] setTodoForMessage failed', e)
       set({ error: e instanceof Error ? e.message : String(e) })

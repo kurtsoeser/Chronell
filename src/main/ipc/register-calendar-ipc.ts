@@ -19,8 +19,17 @@ import {
   type CalendarListEventsInput,
   type CalendarListEventsForContactInput,
   type CalendarM365GroupCalendarsPage,
-  type CalendarParseIcsFileResult
+  type CalendarParseIcsFileResult,
+  type CalendarListEventAttachmentsInput,
+  type CalendarEventAttachmentActionInput,
+  type CalendarEventAttachmentMeta
 } from '@shared/types'
+import {
+  listCalendarEventAttachments,
+  openCalendarEventAttachment,
+  saveCalendarEventAttachmentAs
+} from '../calendar-event-attachment-service'
+import { sanitizeFileName } from './ipc-helpers'
 import { parseIcsFileAtPath } from '../ics-import-service'
 import {
   parseMeetingInvitationFromMessage,
@@ -217,7 +226,7 @@ export function registerCalendarIpc(): void {
   ipcMain.removeHandler(IPC.calendar.suggestFromMessage)
   ipcMain.handle(
     IPC.calendar.suggestFromMessage,
-    (_event, messageId: number): CalendarSuggestionFromMail =>
+    (_event, messageId: number): Promise<CalendarSuggestionFromMail> =>
       buildCalendarSuggestionFromMessage(messageId)
   )
 
@@ -244,8 +253,8 @@ export function registerCalendarIpc(): void {
       }
       assertAppOnline()
       const result = await createSimpleCalendarEventForAccount(input)
-      await afterCalendarEventCreated(input.accountId, input, result)
-      return result
+      const event = await afterCalendarEventCreated(input.accountId, input, result)
+      return event ? { ...result, event } : result
     }
   )
 
@@ -272,6 +281,64 @@ export function registerCalendarIpc(): void {
         },
         { forceRefresh: input.forceRefresh === true }
       )
+    }
+  )
+
+  ipcMain.removeHandler(IPC.calendar.listEventAttachments)
+  ipcMain.handle(
+    IPC.calendar.listEventAttachments,
+    async (
+      _event,
+      input: CalendarListEventAttachmentsInput
+    ): Promise<CalendarEventAttachmentMeta[]> => {
+      assertAppOnline()
+      if (!input?.accountId?.trim() || !input.graphEventId?.trim()) {
+        throw new Error('Ungueltige Parameter fuer calendar:list-event-attachments.')
+      }
+      return listCalendarEventAttachments({
+        accountId: input.accountId.trim(),
+        graphEventId: input.graphEventId.trim(),
+        graphCalendarId: input.graphCalendarId?.trim() || null
+      })
+    }
+  )
+
+  ipcMain.removeHandler(IPC.calendar.openEventAttachment)
+  ipcMain.handle(
+    IPC.calendar.openEventAttachment,
+    async (
+      _event,
+      input: CalendarEventAttachmentActionInput
+    ): Promise<{ ok: boolean; error?: string }> => {
+      assertAppOnline()
+      return openCalendarEventAttachment(input)
+    }
+  )
+
+  ipcMain.removeHandler(IPC.calendar.saveEventAttachmentAs)
+  ipcMain.handle(
+    IPC.calendar.saveEventAttachmentAs,
+    async (
+      event,
+      input: CalendarEventAttachmentActionInput & { suggestedName?: string }
+    ): Promise<{ ok: boolean; path?: string; error?: string; cancelled?: boolean }> => {
+      assertAppOnline()
+      const win = BrowserWindow.fromWebContents(event.sender) ?? undefined
+      const suggested = sanitizeFileName(input.suggestedName ?? 'attachment')
+      const result = await dialog.showSaveDialog(win!, {
+        defaultPath: suggested,
+        title: 'Anhang speichern unter'
+      })
+      if (result.canceled || !result.filePath) {
+        return { ok: false, cancelled: true }
+      }
+      const saved = await saveCalendarEventAttachmentAs({
+        ...input,
+        filePath: result.filePath
+      })
+      return saved.ok
+        ? { ok: true, path: result.filePath }
+        : { ok: false, error: saved.error }
     }
   )
 

@@ -98,6 +98,7 @@ import { MeetingInvitationPanel } from '@/app/layout/meeting-invitation/MeetingI
 import { looksLikeMeetingInvitationMail } from '@shared/meeting-invitation-detect'
 import { isMeetingCalendarAttachment } from '@shared/meeting-invitation-attachment'
 import { useCreateCloudTaskUiStore } from '@/stores/create-cloud-task-ui'
+import { openReplyWithMeetingFromMail } from '@/lib/mail-reply-with-meeting-action'
 import { accountSupportsCloudTasks } from '@/lib/cloud-task-accounts'
 import type { AttachmentMeta, MailFull, ConnectedAccount, MailQuickStep } from '@shared/types'
 import { outlookCategoryDotClass } from '@/lib/outlook-category-colors'
@@ -696,6 +697,7 @@ export function ReadingPane({
                   onReply={(): void => openReply('reply', expanded)}
                   onReplyAll={(): void => openReply('replyAll', expanded)}
                   onForward={(): void => openForward(expanded)}
+                  onReplyWithMeeting={(): void => openReplyWithMeetingFromMail(expanded)}
                 />
               )}
             </MailConversationPreview>
@@ -712,6 +714,7 @@ export function ReadingPane({
                   onReply={(): void => openReply('reply', selectedMessage)}
                   onReplyAll={(): void => openReply('replyAll', selectedMessage)}
                   onForward={(): void => openForward(selectedMessage)}
+                  onReplyWithMeeting={(): void => openReplyWithMeetingFromMail(selectedMessage)}
                 />
               </div>
             </div>
@@ -768,7 +771,8 @@ function MailReader({
   conversationTile = false,
   onReply,
   onReplyAll,
-  onForward
+  onForward,
+  onReplyWithMeeting
 }: {
   message: MailFull
   account: ConnectedAccount | null
@@ -780,6 +784,7 @@ function MailReader({
   onReply: () => void
   onReplyAll: () => void
   onForward: () => void
+  onReplyWithMeeting: () => void
 }): JSX.Element {
   const { t, i18n } = useTranslation()
   const {
@@ -1009,6 +1014,13 @@ function MailReader({
                 onClick={onForward}
                 iconClassName="text-sky-500"
                 hoverClassName="hover:bg-sky-500/15 hover:text-sky-400"
+              />
+              <IconButton
+                icon={Calendar}
+                label={t('mail.replyWithMeeting.toolbar')}
+                onClick={onReplyWithMeeting}
+                iconClassName="text-emerald-500"
+                hoverClassName="hover:bg-emerald-500/15 hover:text-emerald-400"
               />
             </div>
             {message.openTodoId != null && account && accountSupportsCloudTasks(account) ? (

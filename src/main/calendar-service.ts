@@ -9,7 +9,6 @@ import {
   graphPatchCalendarColor,
   graphCreateTeamsCalendarEvent,
   graphCreateSimpleCalendarEvent,
-  graphAddEventFileAttachments,
   graphUpdateCalendarEvent,
   graphPatchCalendarEventTimes,
   graphDeleteCalendarEvent,
@@ -19,6 +18,7 @@ import {
   type CreateTeamsCalendarEventInput,
   type CreateTeamsCalendarEventResult
 } from './graph/calendar-graph'
+import { addCalendarEventAttachments } from './calendar-event-attachment-service'
 import {
   googleListCalendars,
   googleListEventsInCalendar,
@@ -30,6 +30,7 @@ import {
 } from './google/calendar-google'
 import { addDays, min as minDate, startOfDay } from 'date-fns'
 import { getMessageById } from './db/messages-repo'
+import { meetingAttendeesFromMailParticipants } from '@shared/mail-meeting-attendees'
 import type {
   CalendarEventView,
   CalendarSuggestionFromMail,
@@ -352,17 +353,20 @@ export async function getCalendarEventForAccount(input: CalendarGetEventInput): 
   if (!acc) {
     throw new Error('Konto nicht gefunden.')
   }
+  const graphEventId = input.graphEventId.trim()
+  const graphCalendarId = input.graphCalendarId?.trim() || null
+  let detail: CalendarGetEventResult
   if (acc.provider === 'google') {
-    const calId = input.graphCalendarId?.trim()
-    if (!calId) {
+    if (!graphCalendarId) {
       throw new Error('Google: Kalender-ID fehlt (graphCalendarId).')
     }
-    return googleGetCalendarEventDetail(input.accountId, calId, input.graphEventId.trim())
-  }
-  if (acc.provider !== 'microsoft') {
+    detail = await googleGetCalendarEventDetail(input.accountId, graphCalendarId, graphEventId)
+  } else if (acc.provider !== 'microsoft') {
     throw new Error('Kalender-Termin-Details werden fuer dieses Konto nicht unterstuetzt.')
+  } else {
+    detail = await graphGetCalendarEvent(input.accountId, graphEventId, graphCalendarId)
   }
-  return graphGetCalendarEvent(input.accountId, input.graphEventId, input.graphCalendarId ?? null)
+  return detail
 }
 
 export async function createSimpleCalendarEventForAccount(
@@ -382,6 +386,12 @@ export async function createSimpleCalendarEventForAccount(
       attendeeEmails: input.attendeeEmails,
       timeZone: input.timeZone ?? null
     })
+    if (input.attachments?.length || input.referenceAttachments?.length) {
+      await addCalendarEventAttachments(input.accountId, r.id, input.graphCalendarId ?? null, {
+        files: input.attachments,
+        references: input.referenceAttachments
+      })
+    }
     return { id: r.id, webLink: r.webLink }
   }
   const r = await graphCreateSimpleCalendarEvent(input.accountId, {
@@ -399,8 +409,11 @@ export async function createSimpleCalendarEventForAccount(
     reminderMinutesBeforeStart: input.reminderMinutesBeforeStart ?? null,
     timeZone: input.timeZone ?? null
   })
-  if (input.attachments?.length) {
-    await graphAddEventFileAttachments(input.accountId, r.id, input.attachments, input.graphCalendarId ?? null)
+  if (input.attachments?.length || input.referenceAttachments?.length) {
+    await addCalendarEventAttachments(input.accountId, r.id, input.graphCalendarId ?? null, {
+      files: input.attachments,
+      references: input.referenceAttachments
+    })
   }
   return { id: r.id, webLink: r.webLink }
 }
@@ -423,6 +436,12 @@ export async function updateCalendarEventForAccount(input: CalendarUpdateEventIn
       attendeeEmails: input.attendeeEmails,
       timeZone: input.timeZone ?? null
     })
+    if (input.attachments?.length || input.referenceAttachments?.length) {
+      await addCalendarEventAttachments(input.accountId, input.graphEventId, calId, {
+        files: input.attachments,
+        references: input.referenceAttachments
+      })
+    }
     return
   }
   const { accountId, graphEventId, ...rest } = input
@@ -440,8 +459,11 @@ export async function updateCalendarEventForAccount(input: CalendarUpdateEventIn
     reminderMinutesBeforeStart: rest.reminderMinutesBeforeStart ?? null,
     timeZone: rest.timeZone ?? null
   })
-  if (input.attachments?.length) {
-    await graphAddEventFileAttachments(accountId, graphEventId, input.attachments, input.graphCalendarId ?? null)
+  if (input.attachments?.length || input.referenceAttachments?.length) {
+    await addCalendarEventAttachments(accountId, graphEventId, input.graphCalendarId ?? null, {
+      files: input.attachments,
+      references: input.referenceAttachments
+    })
   }
 }
 
@@ -491,20 +513,30 @@ export async function patchCalendarEventCategories(
   await graphPatchEventCategories(accountId, graphEventId, categories, graphCalendarId)
 }
 
-export function buildCalendarSuggestionFromMessage(messageId: number): CalendarSuggestionFromMail {
+export async function buildCalendarSuggestionFromMessage(
+  messageId: number
+): Promise<CalendarSuggestionFromMail> {
   const msg = getMessageById(messageId)
   if (!msg) throw new Error('Mail nicht gefunden.')
 
   const now = new Date()
   const start = new Date(now.getTime() + 60 * 60 * 1000)
-  const end = new Date(start.getTime() + 30 * 60 * 1000)
+  start.setMinutes(0, 0, 0)
+  const end = new Date(start.getTime() + 60 * 60 * 1000)
 
-  const attendeeBits = [msg.fromAddr, msg.toAddrs, msg.ccAddrs]
-    .filter(Boolean)
-    .join(', ')
-    .split(/[,;]/)
-    .map((s) => s.trim())
-    .filter((s) => s.includes('@'))
+  const accounts = await listAccounts()
+  const acc = accounts.find((a) => a.id === msg.accountId)
+  const excludeEmails = acc?.email?.trim() ? [acc.email.trim()] : []
+
+  const attendees = meetingAttendeesFromMailParticipants(
+    {
+      fromAddr: msg.fromAddr,
+      fromName: msg.fromName,
+      toAddrs: msg.toAddrs,
+      ccAddrs: msg.ccAddrs
+    },
+    excludeEmails
+  )
 
   const agenda =
     (msg.bodyText ?? msg.snippet ?? '')
@@ -512,16 +544,20 @@ export function buildCalendarSuggestionFromMessage(messageId: number): CalendarS
       .trim()
       .replace(/\r\n/g, '\n') || 'Agenda folgt.'
 
-  const bodyHtml = `<p><strong>Bezug:</strong> ${escapeHtml(msg.subject ?? '(Kein Betreff)')}</p><p>${escapeHtml(agenda).replace(/\n/g, '<br>')}</p><p><a href="mailto:${escapeHtml(msg.fromAddr ?? '')}?subject=${encodeURIComponent(msg.subject ?? '')}">Mail in Outlook oeffnen</a></p>`
+  const subjectRaw = msg.subject?.trim() ?? ''
+  const meetingSubject =
+    subjectRaw.length > 0 && !/^re:\s/i.test(subjectRaw) ? subjectRaw : subjectRaw || 'Besprechung'
+
+  const bodyHtml = `<p><strong>Bezug:</strong> ${escapeHtml(msg.subject ?? '(Kein Betreff)')}</p><p>${escapeHtml(agenda).replace(/\n/g, '<br>')}</p>`
 
   return {
     accountId: msg.accountId,
     messageId: msg.id,
-    subject: msg.subject?.trim() ? `Termin: ${msg.subject}` : 'Besprechung',
+    subject: meetingSubject,
     startIso: start.toISOString(),
     endIso: end.toISOString(),
     bodyHtml,
-    attendeeEmails: Array.from(new Set(attendeeBits)).slice(0, 20)
+    attendeeEmails: attendees.map((a) => a.address)
   }
 }
 

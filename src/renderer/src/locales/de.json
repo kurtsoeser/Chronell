@@ -2382,6 +2382,12 @@
       "noAccounts": "Kein Microsoft- oder Google-Konto für Aufgaben verbunden.",
       "otherAccountHint": "Die Mail stammt von einem Konto ohne Aufgaben. Wähle ein Aufgaben-Konto."
     },
+    "replyWithMeeting": {
+      "menu": "Mit Besprechung antworten",
+      "toolbar": "Mit Besprechung antworten",
+      "errorTitle": "Termin aus Mail",
+      "noCalendarAccount": "Für dieses Konto ist kein Kalender (Microsoft 365 oder Google) verbunden."
+    },
     "contextMenu": {
       "removeTodoOnly": "To-Do-Eintrag entfernen (Mail bleibt)",
       "removeTodoOnlyBulk": "To-Do-Einträge entfernen ({{count}})",
@@ -3519,7 +3525,8 @@
       "title": "Schnellerfassung",
       "titlePlaceholder": "Titel",
       "whenLabel": "Datum",
-      "detailsLink": "Details…"
+      "detailsLink": "Details…",
+      "addAttachment": "Datei"
     },
     "eventIcon": {
       "pickerTitle": "Symbol für Termin",
@@ -3662,7 +3669,11 @@
       "attachments": "Anhänge",
       "attachmentsDropHint": "Dateien hier ablegen, um sie als Termin-Anhang hinzuzufügen.",
       "attachmentMax": "Maximal {{maxMb}} MB – „{{file}}“ übersprungen.",
-      "attachmentProviderUnsupported": "Anhänge aus Zwischenablage/Datei werden aktuell nur für Microsoft-365-Termine unterstützt.",
+      "attachmentProviderUnsupported": "Dateianhänge werden für dieses Konto nicht unterstützt.",
+      "attachmentsLoading": "Anhänge werden geladen…",
+      "attachmentCloudHint": "Cloud-Datei (Link)",
+      "attachmentOpen": "Öffnen",
+      "attachmentSaveAs": "Speichern unter",
       "descriptionPlaceholder": "Beschreibung hinzufügen",
       "descriptionEditorPlaceholder": "Formatierter Text, Tabellen, Bilder …",
       "descriptionEmptyReadonly": "Keine Beschreibung",

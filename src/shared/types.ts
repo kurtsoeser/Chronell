@@ -832,8 +832,10 @@ export interface CalendarSaveEventInput {
   attendeeEmails?: string[] | null
   /** Microsoft 365: Teams-Besprechung (`isOnlineMeeting` / `onlineMeetingProvider`) — nicht fuer Ganztage. Einladungen unabhaengig davon. */
   teamsMeeting?: boolean | null
-  /** Microsoft 365: optionale Dateianhaenge fuer den Termin. */
+  /** Dateianhaenge (Microsoft Graph fileAttachment / Google Drive). */
   attachments?: ComposeAttachment[] | null
+  /** Microsoft 365: OneDrive/SharePoint als referenceAttachment. */
+  referenceAttachments?: ComposeReferenceAttachment[] | null
   /** Serientermin (nur Anlegen; Bearbeiten der Serie ist nicht implementiert). */
   recurrence?: CalendarSaveEventRecurrence | null
   /** Microsoft 365: Graph `isReminderOn` / `reminderMinutesBeforeStart`. */
@@ -845,6 +847,8 @@ export interface CalendarSaveEventInput {
 export interface CalendarSaveEventResult {
   id: string
   webLink: string | null
+  /** Sofort aus lokalem Cache — fuer optimistische Kalender-Aktualisierung in der UI. */
+  event?: CalendarEventView
 }
 
 export interface CalendarUpdateEventInput extends CalendarSaveEventInput {
@@ -858,6 +862,30 @@ export interface CalendarGetEventInput {
   graphCalendarId?: string | null
   /** Cache ignorieren und von Graph neu laden (wenn online). */
   forceRefresh?: boolean
+}
+
+export type CalendarEventAttachmentKind = 'file' | 'reference' | 'google_drive'
+
+/** Anhang-Metadaten eines Kalendertermins (Remote). */
+export interface CalendarEventAttachmentMeta {
+  id: string
+  name: string
+  contentType: string | null
+  size: number | null
+  kind: CalendarEventAttachmentKind
+  /** Cloud-Anhang / Google Drive: URL zum Oeffnen im Browser. */
+  sourceUrl?: string | null
+  isInline?: boolean
+}
+
+export interface CalendarListEventAttachmentsInput {
+  accountId: string
+  graphEventId: string
+  graphCalendarId?: string | null
+}
+
+export interface CalendarEventAttachmentActionInput extends CalendarListEventAttachmentsInput {
+  attachmentId: string
 }
 
 export interface CalendarGetEventResult {
@@ -874,6 +902,8 @@ export interface CalendarGetEventResult {
   reminderMinutesBeforeStart?: number | null
   /** IANA-Zeitzone von Start/Ende (zeitgebundene Termine). */
   timeZone?: string | null
+  /** Vorhandene Termin-Anhaenge (nur wenn frisch von der API geladen). */
+  attachments?: CalendarEventAttachmentMeta[]
 }
 
 /** Termin in anderen Kalender / anderes Konto kopieren oder verschieben. */

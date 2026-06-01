@@ -11,6 +11,7 @@ import {
   deleteCalendarEventDetails,
   upsertCalendarEventDetails
 } from './db/calendar-event-details-repo'
+import { registerCreatedCalendarEventGuard } from './calendar-created-event-guard'
 import { broadcastCalendarChanged } from './ipc/ipc-broadcasts'
 import type {
   CalendarEventView,
@@ -55,12 +56,17 @@ export async function afterCalendarEventCreated(
   accountId: string,
   input: CalendarSaveEventInput,
   result: CalendarSaveEventResult
-): Promise<void> {
+): Promise<CalendarEventView | null> {
   const accounts = await listAccounts()
   const acc = accounts.find((a) => a.id === accountId)
+  let createdView: CalendarEventView | null = null
   if (acc && (acc.provider === 'microsoft' || acc.provider === 'google')) {
-    upsertCalendarEvents([eventViewFromSaveInput(acc, input, result)])
+    createdView = eventViewFromSaveInput(acc, input, result)
+    upsertCalendarEvents([createdView])
     const eventId = result.id?.trim()
+    if (eventId) {
+      registerCreatedCalendarEventGuard(accountId, eventId)
+    }
     const attendeeEmails = input.attendeeEmails?.filter((e) => e.trim().length > 0) ?? []
     const hasDetailCache =
       attendeeEmails.length > 0 ||
@@ -77,6 +83,7 @@ export async function afterCalendarEventCreated(
     }
   }
   broadcastCalendarChanged(accountId)
+  return createdView
 }
 
 function readExistingEventLinks(

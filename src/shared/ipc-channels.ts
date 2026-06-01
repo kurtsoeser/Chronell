@@ -265,6 +265,9 @@ export const IPC = {
     createEvent: 'calendar:create-event',
     updateEvent: 'calendar:update-event',
     getEvent: 'calendar:get-event',
+    listEventAttachments: 'calendar:list-event-attachments',
+    openEventAttachment: 'calendar:open-event-attachment',
+    saveEventAttachmentAs: 'calendar:save-event-attachment-as',
     deleteEvent: 'calendar:delete-event',
     /** Nur Start/Ende/Ganztaegig (Drag & Drop / Resize). */
     patchEventSchedule: 'calendar:patch-event-schedule',
