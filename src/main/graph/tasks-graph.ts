@@ -482,7 +482,13 @@ export async function graphCreateTodoTask(
 
   if (!taskId) throw new Error('Graph: Aufgabe ohne ID angelegt.')
 
-  return rowAfterGraphTaskWrite(accountId, listId, taskId, input.dueIso)
+  let row = rowFromGraphTask(listId, created)
+  if (!row) throw new Error('Graph: Aufgabe ohne ID angelegt.')
+  row = mergeDueFromPatch(row, input.dueIso)
+  if (input.dueIso?.trim() && !row.dueIso) {
+    return rowAfterGraphTaskWrite(accountId, listId, taskId, input.dueIso)
+  }
+  return row
 
 }
 
@@ -566,7 +572,21 @@ export async function graphPatchTodoTask(
     body.categories = normalizeGraphTodoCategories(patch.categories) ?? []
   }
 
-  await client.api(`/me/todo/lists/${encList}/tasks/${encTask}`).patch(body)
+  const updated = (await client
+    .api(`/me/todo/lists/${encList}/tasks/${encTask}`)
+    .patch(body)) as GraphTodoTask
+
+  const statusOnlyPatch =
+    patch.completed !== undefined &&
+    patch.title === undefined &&
+    patch.notes === undefined &&
+    patch.dueIso === undefined &&
+    patch.categories === undefined
+
+  if (statusOnlyPatch) {
+    const row = rowFromGraphTask(listId, updated)
+    if (row) return row
+  }
 
   return rowAfterGraphTaskWrite(accountId, listId, taskId, patch.dueIso)
 

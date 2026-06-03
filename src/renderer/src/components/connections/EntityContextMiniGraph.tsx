@@ -20,12 +20,15 @@ export function EntityContextMiniGraph({
   anchor,
   active,
   className,
+  fillHeight = false,
   onNeighborCountChange
 }: {
   anchor: ChronellEntityRef
   /** Parent-Kontext-Bereich ist aufgeklappt. */
   active: boolean
   className?: string
+  /** Graph nutzt verfügbare Panel-Höhe (Kalender-Vorschau). */
+  fillHeight?: boolean
   onNeighborCountChange?: (count: number) => void
 }): JSX.Element | null {
   const { t } = useTranslation()
@@ -91,26 +94,34 @@ export function EntityContextMiniGraph({
     )
   }
 
+  const hint =
+    neighborCount > 0
+      ? t('connections.graph.hintFocus', { count: neighborCount })
+      : t('connections.localGraph.hint')
+
   return (
-    <div
-      className={cn(
-        'flex min-h-[160px] flex-col overflow-hidden rounded-md',
-        entityContextSectionBgClass,
-        className
-      )}
-      style={{ minHeight: MINI_GRAPH_MIN_HEIGHT_PX }}
-    >
-      <ConnectionsGraph
-        nodes={snap.nodes}
-        edges={snap.edges}
-        allEdges={snap.edges}
-        selectedKey={anchorKey}
-        clusterMode="kind"
-        compact
-        onSelectNode={(): void => {
-          openConnectionsGraphForRef(anchor)
-        }}
-      />
+    <div className={cn('flex flex-col gap-1.5', fillHeight && 'min-h-0 flex-1', className)}>
+      <div
+        className={cn(
+          'relative flex flex-col overflow-hidden rounded-md',
+          entityContextSectionBgClass,
+          fillHeight ? 'min-h-[200px] flex-1' : 'min-h-[160px]'
+        )}
+        style={{ minHeight: MINI_GRAPH_MIN_HEIGHT_PX }}
+      >
+        <ConnectionsGraph
+          nodes={snap.nodes}
+          edges={snap.edges}
+          allEdges={snap.edges}
+          selectedKey={anchorKey}
+          clusterMode="kind"
+          compact
+          onSelectNode={(): void => {
+            openConnectionsGraphForRef(anchor)
+          }}
+        />
+      </div>
+      <p className="shrink-0 px-0.5 text-2xs leading-snug text-muted-foreground">{hint}</p>
     </div>
   )
 }

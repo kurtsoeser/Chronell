@@ -638,25 +638,25 @@ export function ConnectionsGraph({
       </div>
       ) : null}
 
-      <p className="pointer-events-none absolute bottom-2 left-3 z-10 max-w-md text-xs text-muted-foreground">
-        {paletteDragOver
-          ? t('connections.palette.dropHint')
-          : linkDrag
-            ? t('connections.graph.hintLinkDrag')
-            : (multiSelectedKeys?.size ?? 0) > 0
-              ? t('connections.graph.multiSelectCount', {
-                  count: multiSelectedKeys!.size
-                })
-              : pathHighlight
-                ? t('connections.graph.hintPath')
-                : focus
-                  ? t('connections.graph.hintFocus', { count: focus.degree })
-                  : compact
-                    ? t('connections.localGraph.hint')
+      {!compact ? (
+        <p className="pointer-events-none absolute bottom-2 left-3 z-10 max-w-md text-2xs text-muted-foreground">
+          {paletteDragOver
+            ? t('connections.palette.dropHint')
+            : linkDrag
+              ? t('connections.graph.hintLinkDrag')
+              : (multiSelectedKeys?.size ?? 0) > 0
+                ? t('connections.graph.multiSelectCount', {
+                    count: multiSelectedKeys!.size
+                  })
+                : pathHighlight
+                  ? t('connections.graph.hintPath')
+                  : focus
+                    ? t('connections.graph.hintFocus', { count: focus.degree })
                     : enablePaletteDrop
                       ? t('connections.palette.hintGraph')
                       : t('connections.graph.hintPanZoom')}
-      </p>
+        </p>
+      ) : null}
 
       {linkBusy ? (
         <div className="pointer-events-none absolute left-1/2 top-3 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-md border border-border bg-card/95 px-2 py-1 text-xs text-muted-foreground shadow-sm">
@@ -949,10 +949,10 @@ export function ConnectionsGraph({
                   height={n.h - 10}
                 >
                   <div
-                    className="overflow-hidden text-[10px] leading-tight text-foreground"
+                    className="overflow-hidden text-2xs leading-tight text-foreground"
                     style={{ width: n.w - 24, maxWidth: n.w - 24, height: n.h - 12 }}
                   >
-                    <div className="flex items-start gap-1 font-medium">
+                    <div className="flex items-start gap-1 font-normal">
                       <Icon className="mt-0.5 h-3 w-3 shrink-0 text-muted-foreground" />
                       <div className="min-w-0 flex-1">
                         {n.titleLines.map((line, i) => (

@@ -862,6 +862,8 @@ export interface CalendarGetEventInput {
   graphCalendarId?: string | null
   /** Cache ignorieren und von Graph neu laden (wenn online). */
   forceRefresh?: boolean
+  /** Nur lokale Detail-Cache-Zeile (kein Netzwerk) — z. B. vor Drag/Resize. */
+  cacheOnly?: boolean
 }
 
 export type CalendarEventAttachmentKind = 'file' | 'reference' | 'google_drive'

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 
-import { CheckCircle2, ChevronDown, ChevronRight, Circle, Mail } from 'lucide-react'
+import { ChevronDown, ChevronRight, Mail } from 'lucide-react'
 
 import { useTranslation } from 'react-i18next'
 
@@ -13,7 +13,8 @@ import type { ConnectedAccount } from '@shared/types'
 import { listSubtleBorderClass } from '@/lib/chronell-ui-classes'
 import { cn } from '@/lib/utils'
 
-import { motionListItemExit } from '@/lib/motion'
+import { motionListItemEnter, motionListItemExit } from '@/lib/motion'
+import { isPendingCloudTaskId } from '@/app/tasks/tasks-optimistic-create'
 
 import { resolvedAccountColorCss } from '@/lib/avatar-color'
 
@@ -64,6 +65,7 @@ import { useTasksSettingsPrefs } from '@/lib/use-tasks-settings-prefs'
 import type { TaskListLayoutOptions } from '@/app/tasks/task-list-arrange'
 import { resolveTaskOverdueRowStyle } from '@/lib/task-row-overdue-style'
 import { TaskCategoryBadges } from '@/components/TaskCategoryBadges'
+import { TaskCompleteToggle } from '@/components/TaskCompleteToggle'
 
 function dueDateLabel(dueIso: string | null): string {
   return dueIso ? dueDateInputValue(dueIso) : ''
@@ -438,7 +440,9 @@ export function TasksGroupedList({
 
                         dragEnabled && 'cursor-grab active:cursor-grabbing',
 
-                        isItemExiting?.(key) && motionListItemExit
+                        isItemExiting?.(key) && motionListItemExit,
+
+                        isPendingCloudTaskId(task.id) && motionListItemEnter
 
                       )}
 
@@ -530,44 +534,14 @@ export function TasksGroupedList({
 
                         </div>
 
-                        <button
-
-                          type="button"
-
+                        <TaskCompleteToggle
+                          completed={task.completed}
                           title={
-
                             task.completed ? t('tasks.shell.markOpen') : t('tasks.shell.markDone')
-
                           }
-
-                          onClick={(e): void => {
-
-                            e.stopPropagation()
-
-                            onToggleCompleted(task)
-
-                          }}
-
-                          onMouseDown={(e): void => e.stopPropagation()}
-
-                          className={cn(
-                            'shrink-0 self-start pl-0.5 text-muted-foreground hover:text-foreground',
-                            settings.compactListRows ? 'py-1' : 'py-2'
-                          )}
-
-                        >
-
-                          {task.completed ? (
-
-                            <CheckCircle2 className="h-4 w-4 text-primary" aria-hidden />
-
-                          ) : (
-
-                            <Circle className="h-4 w-4" aria-hidden />
-
-                          )}
-
-                        </button>
+                          compact={settings.compactListRows}
+                          onToggle={(): void => onToggleCompleted(task)}
+                        />
 
                       </div>
 

@@ -85,6 +85,13 @@ export const eventDialogPanelSelectClass =
 export const eventDialogSectionHeadingClass =
   'mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground'
 
+/** Vorschau/Detail-Spalte: Feldlabel (Titel, Fällig, Notizen, …). */
+export const previewDetailFieldLabelClass =
+  'chronell-type-section-label mb-1 block text-muted-foreground'
+
+/** Vorschau/Detail-Spalte: Input, Textarea, Date. */
+export const previewDetailFieldControlClass = `${fieldControlClass} w-full px-2 py-1.5 text-xs`
+
 /** Dashboard-Kachel: Titel, Untertitel, Inhaltsbereich (siehe chronell-typography.css). */
 export const chronellDashboardTileTitleClass = 'chronell-type-dashboard-tile-title text-foreground'
 

@@ -292,7 +292,11 @@ export function MailCalendarDaySidebar(): JSX.Element {
 
   const canInteractInTimeGrid = calendarLinkedAccounts.length > 0 || taskAccounts.length > 0
 
-  const reloadDayData = useCallback((): void => {
+  const reloadDayData = useCallback((created?: CalendarEventView): void => {
+    if (created) {
+      useInboxCalendarAgendaCacheStore.getState().upsertPreviewCalendarEvent(created)
+      return
+    }
     void ensureEventRangeInCache()
     void window.mailClient.mail
       .listTodoMessagesInRange({

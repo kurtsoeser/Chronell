@@ -37,12 +37,16 @@ export async function loadOpenMailTodosForTasksList(
   const kinds = ['overdue', 'today', 'tomorrow', 'this_week', 'later'] as const
   const seen = new Set<number>()
   const out: MailTodoListItem[] = []
-  for (const dueKind of kinds) {
-    const rows = await window.mailClient.mail.listTodoMessages({
-      accountId: null,
-      dueKind,
-      limit: 400
-    })
+  const buckets = await Promise.all(
+    kinds.map((dueKind) =>
+      window.mailClient.mail.listTodoMessages({
+        accountId: null,
+        dueKind,
+        limit: 400
+      })
+    )
+  )
+  for (const rows of buckets) {
     for (const mail of rows) {
       if (mail.todoCompletedAt?.trim()) continue
       if (seen.has(mail.id)) continue

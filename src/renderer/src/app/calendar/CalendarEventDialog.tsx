@@ -1396,7 +1396,7 @@ export function CalendarEventDialog({
             iconId: eventIconId
           })
           if (createdForSaved) {
-            createdForSaved = { ...createdForSaved, icon: eventIconId.trim() }
+            createdForSaved = { ...createdForSaved, icon: eventIconId!.trim() }
           }
         }
         const graphEventId = createdId

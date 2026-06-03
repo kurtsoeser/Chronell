@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Chronell — Manage your time, not your inbox",
-    "description": "Chronell 0.9.27: ICS import, visual meta folders, polished tasks & notes modules — desktop work hub for Windows 11 with Microsoft 365 and Google."
+    "description": "Chronell 0.9.28: ICS import, visual meta folders, polished tasks & notes modules — desktop work hub for Windows 11 with Microsoft 365 and Google."
   },
   "nav": {
     "method": "The Method",
@@ -178,28 +178,35 @@
     "eyebrow": "Release overview",
     "title": "What shipped in recent updates",
     "lead": "From the new Fluent look to the connection graph and profile sync — Chronell moves fast without putting your mail in the cloud.",
-    "v0927": {
+            "v0928": {
       "badge": "Current",
+      "date": "Juni 2026",
+      "title": "Mail and Calendar",
+      "b1": "Mail: Mail workspace: sidebar, attachments, EWS, and actions",
+      "b2": "Calendar: Calendar and events: dialog, preview, categories, and shell",
+      "b3": "Tasks: Tasks module and cloud task sync",
+      "b4": "Homepage: Release notes, homepage timeline, and download for 0.9.28"
+    },"v0927": {
       "date": "Mai 2026",
       "title": "Mail and Connections",
       "b1": "Mail: Mail workspace: sidebar, attachments, EWS, and actions",
       "b2": "Connections: Connections graph and entity links",
       "b3": "Settings: Settings, onboarding, and backup",
-      "b4": "Homepage: Release notes, homepage timeline, and download for 0.9.27"
+      "b4": "Homepage: Release notes, homepage timeline, and download for 0.9.28"
     },"v0926": {
       "date": "Mai 2026",
       "title": "Mail and Tasks",
       "b1": "Mail: Mail workspace: sidebar, attachments, EWS, and actions",
       "b2": "Tasks: Tasks module and cloud task sync",
       "b3": "Settings: Settings, onboarding, and backup",
-      "b4": "Homepage: Release notes, homepage timeline, and download for 0.9.27"
+      "b4": "Homepage: Release notes, homepage timeline, and download for 0.9.28"
     },"v0925": {
       "date": "Mai 2026",
       "title": "Mail and Files",
       "b1": "Mail: Mail workspace: sidebar, attachments, EWS, and actions",
       "b2": "Files: New Files module: cloud files, mail attachments, and index sync",
       "b3": "Calendar: Calendar and events: dialog, preview, categories, and shell",
-      "b4": "Homepage: Release notes, homepage timeline, and download for 0.9.27"
+      "b4": "Homepage: Release notes, homepage timeline, and download for 0.9.28"
     },"v0923": {
       "date": "May 2026",
       "title": "ICS import, meta folders & module polish",
@@ -273,7 +280,7 @@
   "highlights": {
     "eyebrow": "Try it now",
     "title": "Four focus areas in the current beta",
-    "lead": "Version 0.9.27 adds ICS calendar import, a visual meta-folder editor, and significantly polished tasks, notes, and settings modules — building on branding, zoom, and group calendars.",
+    "lead": "Version 0.9.28 adds ICS calendar import, a visual meta-folder editor, and significantly polished tasks, notes, and settings modules — building on branding, zoom, and group calendars.",
     "compose": {
       "title": "ICS calendar import",
       "desc": "Events from .ics files straight into your connected calendars — no Outlook web or manual copy-paste.",
@@ -483,12 +490,12 @@
     "privacy": "Privacy"
   },
   "whatsNew": {
-    "label": "Version 0.9.27",
+    "label": "Version 0.9.28",
     "tagline": "ICS import · meta folders · module polish · settings"
   },
   "cta": {
     "title": "Ready for the new Chronell?",
-    "body": "Download version 0.9.27 for Windows 11 — ICS calendar import, visual meta folders, polished tasks and notes modules, mail bulk selection, events with recurrence, and optional cloud sync. Updates replace your version without losing data.",
+    "body": "Download version 0.9.28 for Windows 11 — ICS calendar import, visual meta folders, polished tasks and notes modules, mail bulk selection, events with recurrence, and optional cloud sync. Updates replace your version without losing data.",
     "button": "Download now"
   }
 }

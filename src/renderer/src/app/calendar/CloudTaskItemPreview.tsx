@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { format, parseISO } from 'date-fns'
 import { de as deFns, enUS as enUSFns } from 'date-fns/locale'
 import type { Locale } from 'date-fns'
@@ -22,6 +22,17 @@ import { cn } from '@/lib/utils'
 import { PreviewFoldSection } from '@/components/PreviewFoldSection'
 import { ChronellDatePickerPanel } from '@/components/ChronellDatePickerPanel'
 import { EntityContextBlock } from '@/components/connections/EntityContextBlock'
+import {
+  HorizontalSplitter,
+  useResizableHeight
+} from '@/components/ResizableSplitter'
+import {
+  CALENDAR_PREVIEW_NOTE_PANE_HEIGHT_DEFAULT,
+  CALENDAR_PREVIEW_NOTE_PANE_HEIGHT_KEY,
+  CALENDAR_PREVIEW_NOTE_PANE_HEIGHT_MIN,
+  calendarPreviewNotePaneHeightMax
+} from '@/app/calendar/calendar-preview-storage'
+import { previewSectionDividerClass } from '@/lib/chronell-ui-classes'
 
 function formatIsoDate(iso: string | null, locale: Locale): string | null {
   if (!iso) return null
@@ -98,6 +109,25 @@ export function CloudTaskItemPreview(props: {
   const [plannedEndDraft, setPlannedEndDraft] = useState('')
   const [inlineError, setInlineError] = useState<string | null>(null)
   const [notesSectionExpanded, setNotesSectionExpanded] = useState(false)
+
+  const notePaneHeightMax = calendarPreviewNotePaneHeightMax()
+  const [notePaneHeight, setNotePaneHeight] = useResizableHeight({
+    storageKey: CALENDAR_PREVIEW_NOTE_PANE_HEIGHT_KEY,
+    defaultHeight: CALENDAR_PREVIEW_NOTE_PANE_HEIGHT_DEFAULT,
+    minHeight: CALENDAR_PREVIEW_NOTE_PANE_HEIGHT_MIN,
+    maxHeight: notePaneHeightMax
+  })
+
+  useEffect(() => {
+    const clamp = (): void => {
+      const max = calendarPreviewNotePaneHeightMax()
+      setNotePaneHeight((h) =>
+        Math.min(max, Math.max(CALENDAR_PREVIEW_NOTE_PANE_HEIGHT_MIN, h))
+      )
+    }
+    window.addEventListener('resize', clamp)
+    return (): void => window.removeEventListener('resize', clamp)
+  }, [setNotePaneHeight])
 
   const titleInputRef = useRef<HTMLInputElement>(null)
   const notesEditorRef = useRef<HTMLTextAreaElement>(null)
@@ -280,8 +310,20 @@ export function CloudTaskItemPreview(props: {
     [beginInlineEdit, editable, inlineEditActivateOn, t]
   )
 
-  return (
-    <div className={cn('flex min-h-0 flex-1 flex-col overflow-y-auto bg-background', className)}>
+  const contextPane = (
+    <EntityContextBlock
+      anchor={{ kind: 'cloud_task', accountId: task.accountId, listId: task.listId, taskId: task.id }}
+      showObjectNote={false}
+      contentPaddingClass="px-4"
+      sectionCollapsedDefault={false}
+      contextFillHeight
+      dense
+      className={cn('min-h-0 flex-1', previewSectionDividerClass)}
+    />
+  )
+
+  const detailsBody: ReactNode = (
+    <>
       <div className="shrink-0 space-y-2 border-b border-border px-4 py-3">
         <p className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
           {t('calendar.cloudTaskPreview.sourceLabel')}
@@ -494,13 +536,33 @@ export function CloudTaskItemPreview(props: {
             </div>
           ) : null}
         </PreviewFoldSection>
+      </div>
+    </>
+  )
 
-        <EntityContextBlock
-          anchor={{ kind: 'cloud_task', accountId: task.accountId, listId: task.listId, taskId: task.id }}
-          showObjectNote={false}
-          contentPaddingClass="px-0"
-          sectionCollapsedDefault
-        />
+  return (
+    <div className={cn('flex min-h-0 flex-1 flex-col overflow-hidden bg-background', className)}>
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="space-y-3 px-4 py-3 text-sm">{detailsBody}</div>
+      </div>
+      <HorizontalSplitter
+        variant="subtle"
+        ariaLabel={t('calendar.cloudTaskPreview.contextSplitterAria')}
+        onDrag={(deltaY): void => {
+          setNotePaneHeight((h) => {
+            const max = calendarPreviewNotePaneHeightMax()
+            return Math.min(
+              max,
+              Math.max(CALENDAR_PREVIEW_NOTE_PANE_HEIGHT_MIN, h - deltaY)
+            )
+          })
+        }}
+      />
+      <div
+        className="flex min-h-0 shrink-0 flex-col overflow-hidden border-t border-border/40 bg-secondary/[0.02]"
+        style={{ height: Math.min(notePaneHeight, notePaneHeightMax) }}
+      >
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{contextPane}</div>
       </div>
     </div>
   )

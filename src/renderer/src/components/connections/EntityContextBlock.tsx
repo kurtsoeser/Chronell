@@ -31,7 +31,9 @@ export function EntityContextBlock({
   className,
   sectionCollapsedDefault = true,
   contentPaddingClass = 'px-6',
-  noteEditorFillHeight = false
+  noteEditorFillHeight = false,
+  contextFillHeight = false,
+  dense = false
 }: {
   anchor: ChronellEntityRef
   noteTarget?: ObjectNoteTarget | null
@@ -42,6 +44,10 @@ export function EntityContextBlock({
   contentPaddingClass?: string
   /** Notiz-Editor füllt verfügbare Höhe (z. B. Kalender-Vorschau). */
   noteEditorFillHeight?: boolean
+  /** Kontext-Bereich füllt unteres Vorschau-Panel (Graph + Verbindungen mit mehr Platz). */
+  contextFillHeight?: boolean
+  /** Kompaktere Typografie in Verbindungsliste. */
+  dense?: boolean
 }): JSX.Element {
   const { t } = useTranslation()
   const anchorKey = useMemo(() => entityRefKey(anchor), [anchor])
@@ -148,11 +154,13 @@ export function EntityContextBlock({
     </>
   )
 
+  const fillPane = contextFillHeight || noteEditorFillHeight
+
   return (
     <div
       className={cn(
         'flex min-h-0 flex-col',
-        noteEditorFillHeight && 'min-h-0 flex-1 overflow-hidden',
+        fillPane && 'min-h-0 flex-1 overflow-hidden',
         className
       )}
     >
@@ -175,17 +183,22 @@ export function EntityContextBlock({
         onToggle={toggleExpanded}
         summary={summaryNode}
         trailing={kontextTrailing}
-        className={cn(showNote ? 'min-h-0 shrink-0' : 'border-t-0')}
+        className={cn(
+          showNote ? 'min-h-0 shrink-0' : 'border-t-0',
+          contextFillHeight && 'flex min-h-0 flex-1 flex-col overflow-hidden'
+        )}
         contentClassName={cn(
-          'min-h-0 space-y-3 !px-0',
-          noteEditorFillHeight && 'max-h-52 overflow-y-auto'
+          'min-h-0 space-y-0 !px-0',
+          noteEditorFillHeight && !contextFillHeight && 'max-h-52 overflow-y-auto',
+          contextFillHeight && 'flex min-h-0 flex-1 flex-col overflow-hidden'
         )}
       >
         <div className={contentPaddingClass}>
           <EntityContextMiniGraph
             anchor={anchor}
             active={expanded}
-            className="h-44 max-h-44 shrink-0"
+            fillHeight={contextFillHeight}
+            className={contextFillHeight ? 'min-h-[200px] flex-1' : 'max-h-44 shrink-0'}
             onNeighborCountChange={setNeighborCount}
           />
         </div>
@@ -198,6 +211,8 @@ export function EntityContextBlock({
           onPickerOpenChange={setPickerOpen}
           contentPaddingClass={contentPaddingClass}
           onStatsChange={setStats}
+          dense={dense}
+          scrollable={contextFillHeight}
         />
       </PreviewFoldSection>
     </div>

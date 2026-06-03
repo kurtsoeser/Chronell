@@ -10,6 +10,10 @@ import {
   resolvePreferredListId
 } from '@/app/tasks/tasks-create-defaults'
 import type { CloudTaskListItem, TasksViewSelection } from '@/app/tasks/tasks-types'
+import {
+  buildOptimisticCloudTaskItem,
+  type TaskCreateUpsertMeta
+} from '@/app/tasks/tasks-optimistic-create'
 import { readTasksSettingsPrefs } from '@/lib/tasks-settings-prefs'
 import { defaultDueInputForCreate } from '@/lib/tasks-default-due-on-create'
 import { useTasksSettingsPrefs } from '@/lib/use-tasks-settings-prefs'
@@ -22,7 +26,7 @@ export interface TasksInlineCreateRowProps {
   selection: TasksViewSelection | null
   taskAccounts: ConnectedAccount[]
   loadListsForAccount: (accountId: string) => Promise<TaskListRow[]>
-  onCreated: (task: CloudTaskListItem) => void
+  onCreated: (task: CloudTaskListItem, meta?: TaskCreateUpsertMeta) => void
   /** „Alle Aufgaben“ — Konto und Liste in der Zeile wählen. */
   showAccountPicker: boolean
 }
@@ -107,39 +111,58 @@ export function TasksInlineCreateRow({
     !busy &&
     !listsLoading
 
-  const submit = useCallback(async (): Promise<void> => {
+  const submit = useCallback((): void => {
     if (!canSubmit) return
-    setBusy(true)
+    const trimmedTitle = title.trim()
+    const trimmedNotes = notes.trim() || null
+    const dueIso = dueIsoFromClientInput(due.trim() || null)
+    const listName = lists.find((l) => l.id === listId)?.name ?? ''
+    const optimistic = buildOptimisticCloudTaskItem({
+      accountId,
+      listId,
+      listName,
+      title: trimmedTitle,
+      notes: trimmedNotes,
+      dueIso
+    })
+
+    onCreated(optimistic)
+    setTitle('')
+    setDue(defaultDueInputForCreate(readTasksSettingsPrefs().defaultDueOnCreate))
+    setNotes('')
     setError(null)
-    try {
-      const dueIso = dueIsoFromClientInput(due.trim() || null)
-      const row = await window.mailClient.tasks.createTask({
-        accountId,
-        listId,
-        title: title.trim(),
-        notes: notes.trim() || null,
-        dueIso,
-        completed: false
-      })
-      persistTasksCalendarCreateAccountId(accountId)
-      const listName = lists.find((l) => l.id === listId)?.name ?? ''
-      onCreated({ ...row, accountId, listName, source: 'cloud' })
-      setTitle('')
-      setDue(defaultDueInputForCreate(readTasksSettingsPrefs().defaultDueOnCreate))
-      setNotes('')
-      window.setTimeout(() => titleRef.current?.focus(), 0)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
-    } finally {
-      setBusy(false)
-    }
+    window.setTimeout(() => titleRef.current?.focus(), 0)
+
+    void (async (): Promise<void> => {
+      setBusy(true)
+      try {
+        const row = await window.mailClient.tasks.createTask({
+          accountId,
+          listId,
+          title: trimmedTitle,
+          notes: trimmedNotes,
+          dueIso,
+          completed: false
+        })
+        persistTasksCalendarCreateAccountId(accountId)
+        onCreated(
+          { ...row, accountId, listName, source: 'cloud' },
+          { replacePendingId: optimistic.id }
+        )
+      } catch (e) {
+        onCreated(optimistic, { removePendingId: optimistic.id })
+        setError(e instanceof Error ? e.message : String(e))
+      } finally {
+        setBusy(false)
+      }
+    })()
   }, [accountId, canSubmit, due, listId, lists, notes, onCreated, title])
 
   const submitFromEnter = useCallback(
     (e: KeyboardEvent): void => {
       if (e.key !== 'Enter' || e.shiftKey) return
       e.preventDefault()
-      void submit()
+      submit()
     },
     [submit]
   )
@@ -207,7 +230,7 @@ export function TasksInlineCreateRow({
               disabled={!canSubmit}
               title={t('tasks.shell.inlineCreateSubmit')}
               aria-label={t('tasks.shell.inlineCreateSubmit')}
-              onClick={(): void => void submit()}
+              onClick={submit}
               className={cn(
                 'flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border',
                 'bg-primary/10 text-primary hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-40'

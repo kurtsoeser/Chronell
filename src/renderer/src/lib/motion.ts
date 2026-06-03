@@ -18,3 +18,9 @@ export const motionContentCrossfade = 'transition-opacity duration-200 ease-out'
 /** Liste: nach links ausgleiten (rechts → links), dabei ausblenden. */
 export const motionListItemExit =
   'pointer-events-none overflow-hidden opacity-0 -translate-x-3 scale-[0.98] transition-[opacity,transform] duration-150 ease-in'
+
+/** Aufgaben-Checkbox: kurzer Pop beim Abhaken. */
+export const motionTaskCheckPop = 'animate-in zoom-in-50 duration-200 ease-out'
+
+/** Neue Aufgabenzeile (optimistisch): sanft einblenden. */
+export const motionListItemEnter = 'animate-in fade-in slide-in-from-top-1 duration-200 ease-out'

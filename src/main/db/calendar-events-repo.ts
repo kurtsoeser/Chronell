@@ -190,7 +190,9 @@ export function listCalendarEventsInRange(
   if (Array.isArray(includeCalendars)) {
     if (includeCalendars.length === 0) return []
     const tuples: string[] = []
+    const primaryAccountIds = new Set<string>()
     includeCalendars.forEach((ref, i) => {
+      primaryAccountIds.add(ref.accountId)
       const cid = ref.graphCalendarId?.trim()
       if (!cid) return
       const ak = `a${i}`
@@ -199,8 +201,16 @@ export function listCalendarEventsInRange(
       params[ck] = cid
       tuples.push(`(account_id = @${ak} AND graph_calendar_id = @${ck})`)
     })
-    if (tuples.length === 0) return []
-    calFilter = ` AND (${tuples.join(' OR ')})`
+    const primaryClauses: string[] = []
+    let pi = 0
+    for (const accountId of primaryAccountIds) {
+      const pk = `pa${pi++}`
+      params[pk] = accountId
+      primaryClauses.push(`(account_id = @${pk} AND graph_calendar_id IS NULL)`)
+    }
+    const parts = [...tuples, ...primaryClauses]
+    if (parts.length === 0) return []
+    calFilter = ` AND (${parts.join(' OR ')})`
   }
 
   const rows = db

@@ -30,7 +30,7 @@ export function MailReplyWithMeetingHost(): JSX.Element | null {
 
   const loadTaskListsForAccount = useCallback(
     async (accountId: string): Promise<TaskListRow[]> =>
-      window.mailClient.tasks.listLists(accountId),
+      window.mailClient.tasks.listLists({ accountId }),
     []
   )
 

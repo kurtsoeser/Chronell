@@ -3,6 +3,7 @@ import type {
   ComposeAttachment,
   ComposeRecipient,
   ComposeReferenceAttachment,
+  ComposeSendInput,
   MailFull,
   MailImportance
 } from '@shared/types'
@@ -19,6 +20,7 @@ import type { ConnectionsCanvasCreateAnchor } from '@/app/connections/connection
 import { useAccountsStore } from '@/stores/accounts'
 import { useMailStore } from '@/stores/mail'
 import { showAppConfirm } from '@/stores/app-dialog'
+import { useUndoStore } from '@/stores/undo'
 import i18n from '@/i18n'
 
 export type ComposeMode = 'new' | 'reply' | 'replyAll' | 'forward'
@@ -587,6 +589,7 @@ export const useComposeStore = create<ComposeState>((set, get) => ({
 
     const scheduledRaw = draft.scheduledSendAt?.trim()
     let scheduledSendAt: string | null | undefined
+    let isScheduledSend = false
     if (scheduledRaw) {
       const ms = Date.parse(scheduledRaw)
       if (!Number.isNaN(ms) && ms > Date.now() + 15_000) {
@@ -597,54 +600,73 @@ export const useComposeStore = create<ComposeState>((set, get) => ({
           return
         }
         scheduledSendAt = new Date(ms).toISOString()
+        isScheduledSend = true
       }
     }
 
-    get().update(id, { busy: true, error: null })
+    const subjectLabel =
+      draft.subject.trim() ||
+      i18n.t('mail.composeTile.noSubjectPlaceholder', { defaultValue: '(Kein Betreff)' })
+    const canvasAnchor = draft.connectionsCanvasAnchor
+    const canvasTitle = draft.subject.trim() || '(Kein Betreff)'
 
-    try {
-      const sendResult = await window.mailClient.compose.send({
-        accountId: draft.accountId,
-        sendFromEmail: draft.sendFromEmail ?? undefined,
-        subject: draft.subject || '(Kein Betreff)',
-        bodyHtml,
-        to,
-        cc: cc.length ? cc : undefined,
-        bcc: bcc.length ? bcc : undefined,
-        attachments: allAttachments.length ? allAttachments : undefined,
-        referenceAttachments,
-        replyToRemoteId: draft.replyToRemoteId,
-        replyMode: draft.mode === 'new' ? undefined : draft.mode,
-        remoteDraftId: draft.savedRemoteDraftId ?? undefined,
-        linkedMessageId: draft.linkedMessageId ?? undefined,
-        trackWaitingOnMessageId:
-          draft.expectReply && draft.replyToMessageId != null
-            ? draft.replyToMessageId
-            : undefined,
-        expectReplyInDays:
-          draft.expectReply && draft.replyToMessageId != null
-            ? (draft.expectReplyDays ?? 7)
-            : undefined,
-        importance: draft.importance,
-        isDeliveryReceiptRequested: draft.isDeliveryReceiptRequested,
-        isReadReceiptRequested: draft.isReadReceiptRequested,
-        scheduledSendAt: scheduledSendAt ?? undefined
-      })
+    const sendInput: ComposeSendInput = {
+      accountId: draft.accountId,
+      sendFromEmail: draft.sendFromEmail ?? undefined,
+      subject: draft.subject || '(Kein Betreff)',
+      bodyHtml,
+      to,
+      cc: cc.length ? cc : undefined,
+      bcc: bcc.length ? bcc : undefined,
+      attachments: allAttachments.length ? allAttachments : undefined,
+      referenceAttachments,
+      replyToRemoteId: draft.replyToRemoteId,
+      replyMode: draft.mode === 'new' ? undefined : draft.mode,
+      remoteDraftId: draft.savedRemoteDraftId ?? undefined,
+      linkedMessageId: draft.linkedMessageId ?? undefined,
+      trackWaitingOnMessageId:
+        draft.expectReply && draft.replyToMessageId != null
+          ? draft.replyToMessageId
+          : undefined,
+      expectReplyInDays:
+        draft.expectReply && draft.replyToMessageId != null
+          ? (draft.expectReplyDays ?? 7)
+          : undefined,
+      importance: draft.importance,
+      isDeliveryReceiptRequested: draft.isDeliveryReceiptRequested,
+      isReadReceiptRequested: draft.isReadReceiptRequested,
+      scheduledSendAt: scheduledSendAt ?? undefined
+    }
 
-      const canvasAnchor = draft.connectionsCanvasAnchor
-      if (canvasAnchor && sendResult.messageId != null) {
-        connectionsCanvasMailPlacedHandler?.({
-          messageId: sendResult.messageId,
-          anchor: canvasAnchor,
-          title: draft.subject.trim() || '(Kein Betreff)'
+    get().close(id)
+
+    void (async (): Promise<void> => {
+      try {
+        const sendResult = await window.mailClient.compose.send(sendInput)
+
+        if (canvasAnchor && sendResult.messageId != null) {
+          connectionsCanvasMailPlacedHandler?.({
+            messageId: sendResult.messageId,
+            anchor: canvasAnchor,
+            title: canvasTitle
+          })
+        }
+
+        useUndoStore.getState().pushToast({
+          label: isScheduledSend
+            ? i18n.t('mail.compose.sendScheduledSuccess', { subject: subjectLabel })
+            : i18n.t('mail.compose.sendSuccess', { subject: subjectLabel }),
+          variant: 'success'
+        })
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e)
+        useUndoStore.getState().pushToast({
+          label: i18n.t('mail.compose.sendFailed', { subject: subjectLabel, error: msg }),
+          variant: 'error',
+          durationMs: 12_000
         })
       }
-
-      get().close(id)
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e)
-      get().update(id, { busy: false, error: msg })
-    }
+    })()
   }
 }))
 

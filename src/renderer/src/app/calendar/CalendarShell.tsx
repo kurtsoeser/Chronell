@@ -121,6 +121,7 @@ import {
 } from '@/app/calendar/calendar-quick-create-placeholder'
 import type { CalendarCreateRange } from '@/app/tasks/tasks-calendar-create-range'
 import { useCalendarSyncStore } from '@/stores/calendar-sync'
+import { useInboxCalendarAgendaCacheStore } from '@/stores/inbox-calendar-agenda-cache'
 import { useAppModeStore } from '@/stores/app-mode'
 import { useNotesPendingFocusStore } from '@/stores/notes-pending-focus'
 import { CloudTaskItemPreview } from '@/app/calendar/CloudTaskItemPreview'
@@ -1636,6 +1637,9 @@ export function CalendarShell(): JSX.Element {
       calendarRef.current?.getApi().unselect()
       if (created) {
         applyOptimisticGraphCalendarEvent(created)
+        useInboxCalendarAgendaCacheStore.getState().upsertPreviewCalendarEvent(created)
+        skipCalendarReloadUntilRef.current = Date.now() + 6000
+        return
       }
       reloadVisibleRange({ silent: true })
     },
@@ -2215,13 +2219,9 @@ export function CalendarShell(): JSX.Element {
           timelineReloadRef.current?.()
 
           if (api) {
-            await loadMailTodosForRange(api.view.activeStart, api.view.activeEnd)
             syncFullCalendarMailTodoEventFromLayer(api, optimisticMail, accountColorById)
             scheduleRemoveMailTodoCalendarEventsByMessageId(api, m.id, mailTodoFcId)
             scheduleRemoveDuplicateFullCalendarEventsById(api, [mailTodoFcId])
-          } else {
-            const { start, end } = lastRangeRef.current
-            await loadMailTodosForRange(start, end)
           }
         } catch (e) {
           setError(e instanceof Error ? e.message : String(e))
@@ -2230,7 +2230,8 @@ export function CalendarShell(): JSX.Element {
         return
       }
       const calEv = info.event.extendedProps.calendarEvent as CalendarEventView | undefined
-      if (!calEv?.graphEventId) {
+      const graphEventId = calEv?.graphEventId?.trim()
+      if (!calEv || !graphEventId) {
         info.revert()
         return
       }
@@ -2291,7 +2292,9 @@ export function CalendarShell(): JSX.Element {
                 ? updatedCalEv
                 : prev
             )
+            setGraphCalendarSourceRev((rev) => rev + 1)
           })
+          useInboxCalendarAgendaCacheStore.getState().upsertPreviewCalendarEvent(updatedCalEv)
           const api = calendarRef.current?.getApi()
           syncFullCalendarGraphEventFromLayer(api, updatedCalEv)
           reconcileGraphCalendarEventOnCalendar(api, updatedCalEv)
@@ -2335,43 +2338,44 @@ export function CalendarShell(): JSX.Element {
       }
 
       graphCalendarPersistInFlightRef.current += 1
-      skipCalendarReloadUntilRef.current = Date.now() + 5000
-      try {
-        applyOptimisticGraphSchedule()
+      skipCalendarReloadUntilRef.current = Date.now() + 6000
+      applyOptimisticGraphSchedule()
 
-        const scheduleResolution = await resolveMeetingScheduleChange(calEv, t)
-        if (scheduleResolution.action === 'discard') {
-          rollbackOptimisticGraphSchedule()
-          return
-        }
+      void (async (): Promise<void> => {
+        try {
+          const scheduleResolution = await resolveMeetingScheduleChange(calEv, t)
+          if (scheduleResolution.action === 'discard') {
+            rollbackOptimisticGraphSchedule()
+            return
+          }
 
-        await window.mailClient.calendar.patchEventSchedule(
-          patchScheduleInputWithMeetingNotify(
-            {
-              accountId: calEv.accountId,
-              graphEventId: calEv.graphEventId,
-              graphCalendarId: resolvedGraphCalendarId,
-              startIso: sched.startIso,
-              endIso: sched.endIso,
-              isAllDay: sched.isAllDay
-            },
-            scheduleResolution.notifyAttendees
+          await window.mailClient.calendar.patchEventSchedule(
+            patchScheduleInputWithMeetingNotify(
+              {
+                accountId: calEv.accountId,
+                graphEventId,
+                graphCalendarId: resolvedGraphCalendarId,
+                startIso: sched.startIso,
+                endIso: sched.endIso,
+                isAllDay: sched.isAllDay
+              },
+              scheduleResolution.notifyAttendees
+            )
           )
-        )
-        setError(null)
-        clearMegaTimelineCache()
-        purgeDuplicateGraphCalendarEventsOnApi(calendarRef.current?.getApi())
-        timelineReloadRef.current?.()
-      } catch (e) {
-        setError(e instanceof Error ? e.message : String(e))
-        rollbackOptimisticGraphSchedule()
-        info.revert()
-      } finally {
-        graphCalendarPersistInFlightRef.current = Math.max(
-          0,
-          graphCalendarPersistInFlightRef.current - 1
-        )
-      }
+          setError(null)
+          clearMegaTimelineCache()
+          purgeDuplicateGraphCalendarEventsOnApi(calendarRef.current?.getApi())
+          timelineReloadRef.current?.()
+        } catch (e) {
+          setError(e instanceof Error ? e.message : String(e))
+          rollbackOptimisticGraphSchedule()
+        } finally {
+          graphCalendarPersistInFlightRef.current = Math.max(
+            0,
+            graphCalendarPersistInFlightRef.current - 1
+          )
+        }
+      })()
     },
     [
       fcTimeZone,

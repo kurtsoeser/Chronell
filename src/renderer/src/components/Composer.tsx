@@ -16,6 +16,7 @@ import { ComposeFromField } from '@/components/ComposeFromField'
 import { ComposeEditorSurface } from '@/components/ComposeEditorSurface'
 import { ComposeEditorThemedPane } from '@/components/ComposeEditorThemedPane'
 import { ComposeMailBodyTile } from '@/components/ComposeMailBodyTile'
+import { ComposeMailBodyResizableLayout } from '@/components/ComposeMailBodyResizableLayout'
 import { composeMailBodyShellClass } from '@/lib/chronell-ui-classes'
 import { ComposeEditorThemeToggle } from '@/components/ComposeEditorThemeToggle'
 import { TipTapBody } from '@/components/TipTapBody'
@@ -420,95 +421,103 @@ function ComposerWindow({
       </div>
 
       <ComposeEditorSurface>
-      <div className={composeMailBodyShellClass}>
-        <ComposeMailBodyTile className="min-h-[12rem] flex-1">
-          <div className="compose-mail-chrome shrink-0">
-            <RecipientTokenField
-              inMailTile
-              label="An:"
-              accountId={draft.accountId}
-              value={draft.to}
-              onChange={(v): void => update(draft.id, { to: v })}
-              showToggle={!draft.showCcBcc}
-              onToggleCcBcc={(): void => update(draft.id, { showCcBcc: true })}
-            />
-            {draft.showCcBcc && (
-              <>
+      <div className={cn(composeMailBodyShellClass, 'overflow-hidden')}>
+        <ComposeMailBodyResizableLayout
+          editor={
+            <ComposeMailBodyTile className="flex h-full min-h-0 flex-col">
+              <div className="compose-mail-chrome shrink-0">
                 <RecipientTokenField
                   inMailTile
-                  label="Cc:"
+                  label="An:"
                   accountId={draft.accountId}
-                  value={draft.cc}
-                  onChange={(v): void => update(draft.id, { cc: v })}
+                  value={draft.to}
+                  onChange={(v): void => update(draft.id, { to: v })}
+                  showToggle={!draft.showCcBcc}
+                  onToggleCcBcc={(): void => update(draft.id, { showCcBcc: true })}
                 />
-                <RecipientTokenField
-                  inMailTile
-                  label="Bcc:"
-                  accountId={draft.accountId}
-                  value={draft.bcc}
-                  onChange={(v): void => update(draft.id, { bcc: v })}
+                {draft.showCcBcc && (
+                  <>
+                    <RecipientTokenField
+                      inMailTile
+                      label="Cc:"
+                      accountId={draft.accountId}
+                      value={draft.cc}
+                      onChange={(v): void => update(draft.id, { cc: v })}
+                    />
+                    <RecipientTokenField
+                      inMailTile
+                      label="Bcc:"
+                      accountId={draft.accountId}
+                      value={draft.bcc}
+                      onChange={(v): void => update(draft.id, { bcc: v })}
+                    />
+                  </>
+                )}
+                <div className="flex shrink-0 items-center px-3 py-2">
+                  <span className="w-12 shrink-0 text-xs text-muted-foreground">Betreff:</span>
+                  <input
+                    type="text"
+                    value={draft.subject}
+                    onChange={(e): void => update(draft.id, { subject: e.target.value })}
+                    placeholder="(Kein Betreff)"
+                    className="min-w-0 flex-1 bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground"
+                  />
+                </div>
+              </div>
+              <ComposeEditorThemedPane className="compose-mail-editor-section min-h-0 flex-1">
+                <TipTapBody
+                  inEditorSurface
+                  className="min-h-0 flex-1 border-t-0"
+                  valueHtml={draft.prependRichHtml}
+                  onChangeHtml={(v): void => update(draft.id, { prependRichHtml: v })}
+                  onAttachFiles={(files): void => void addFilesAsAttachments(files)}
+                  attachmentCount={draft.attachments.length}
+                  onCloudAttach={isMicrosoft ? openDrive : undefined}
+                  cloudAttachmentCount={draft.referenceAttachments.length}
+                  autoFocus
+                  fillHeight
                 />
-              </>
-            )}
-            <div className="flex shrink-0 items-center px-3 py-2">
-              <span className="w-12 shrink-0 text-xs text-muted-foreground">Betreff:</span>
-              <input
-                type="text"
-                value={draft.subject}
-                onChange={(e): void => update(draft.id, { subject: e.target.value })}
-                placeholder="(Kein Betreff)"
-                className="min-w-0 flex-1 bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground"
-              />
-            </div>
-          </div>
-          <ComposeEditorThemedPane className="compose-mail-editor-section min-h-0 flex-1">
-            <TipTapBody
-              inEditorSurface
-              className="min-h-0 flex-1 border-t-0"
-              valueHtml={draft.prependRichHtml}
-              onChangeHtml={(v): void => update(draft.id, { prependRichHtml: v })}
-              onAttachFiles={(files): void => void addFilesAsAttachments(files)}
-              attachmentCount={draft.attachments.length}
-              onCloudAttach={isMicrosoft ? openDrive : undefined}
-              cloudAttachmentCount={draft.referenceAttachments.length}
-              autoFocus
-              fillHeight
-            />
-          </ComposeEditorThemedPane>
-        </ComposeMailBodyTile>
-        <ComposeCollapsibleSection
-          className="shrink-0"
-          framed
-          label={t('mail.composeTile.signature', { defaultValue: 'Signatur' })}
-          collapsedDefault
-          headerAside={
-            <SignatureTemplateControls
-              accountId={draft.accountId}
-              signatureRichHtml={draft.signatureRichHtml}
-              activeTemplateId={draft.signatureTemplateId ?? null}
-              onSignatureHtmlChange={(html): void => update(draft.id, { signatureRichHtml: html })}
-              onActiveTemplateIdChange={(id): void => update(draft.id, { signatureTemplateId: id })}
-            />
+              </ComposeEditorThemedPane>
+            </ComposeMailBodyTile>
           }
-        >
-          <ComposeEditorThemedPane>
-            <SignatureFooterEditor
-              valueHtml={draft.signatureRichHtml}
-              onChangeHtml={(v): void => update(draft.id, { signatureRichHtml: v })}
-            />
-          </ComposeEditorThemedPane>
-        </ComposeCollapsibleSection>
-        {draft.quotedHtml ? (
-          <ComposeCollapsibleSection
-            className="shrink-0"
-            label={t('mail.composeTile.originalMail', { defaultValue: 'Original-Mail' })}
-            framed
-          >
-            <div className="p-2 pt-0">
-              <ComposeQuotedMailPreview quotedHtml={draft.quotedHtml} />
-            </div>
-          </ComposeCollapsibleSection>
-        ) : null}
+          bottom={
+            <>
+              <ComposeCollapsibleSection
+                className="shrink-0"
+                framed
+                label={t('mail.composeTile.signature', { defaultValue: 'Signatur' })}
+                collapsedDefault
+                headerAside={
+                  <SignatureTemplateControls
+                    accountId={draft.accountId}
+                    signatureRichHtml={draft.signatureRichHtml}
+                    activeTemplateId={draft.signatureTemplateId ?? null}
+                    onSignatureHtmlChange={(html): void => update(draft.id, { signatureRichHtml: html })}
+                    onActiveTemplateIdChange={(id): void => update(draft.id, { signatureTemplateId: id })}
+                  />
+                }
+              >
+                <ComposeEditorThemedPane>
+                  <SignatureFooterEditor
+                    valueHtml={draft.signatureRichHtml}
+                    onChangeHtml={(v): void => update(draft.id, { signatureRichHtml: v })}
+                  />
+                </ComposeEditorThemedPane>
+              </ComposeCollapsibleSection>
+              {draft.quotedHtml ? (
+                <ComposeCollapsibleSection
+                  className="shrink-0"
+                  label={t('mail.composeTile.originalMail', { defaultValue: 'Original-Mail' })}
+                  framed
+                >
+                  <div className="p-2 pt-0">
+                    <ComposeQuotedMailPreview quotedHtml={draft.quotedHtml} />
+                  </div>
+                </ComposeCollapsibleSection>
+              ) : null}
+            </>
+          }
+        />
       </div>
       </ComposeEditorSurface>
 

@@ -2885,7 +2885,10 @@
       "discardConfirm": "Discard",
       "discardAria": "Discard draft",
       "discardConfirmRemote": "Discard this draft? It will also be removed from the Drafts folder.",
-      "discardConfirmLocal": "Discard this draft? Unsaved changes will be lost."
+      "discardConfirmLocal": "Discard this draft? Unsaved changes will be lost.",
+      "sendSuccess": "\"{{subject}}\" was sent.",
+      "sendScheduledSuccess": "\"{{subject}}\" was scheduled for sending.",
+      "sendFailed": "\"{{subject}}\" could not be sent: {{error}}"
     },
     "composeTile": {
       "needAccount": "Connect an account first to send mail from the home page.",
@@ -2899,6 +2902,7 @@
       "noSubjectPlaceholder": "(No subject)",
       "signature": "Signature",
       "originalMail": "Original message",
+      "editorBottomSplitterAria": "Resize signature and original message area",
       "removeAttachmentAria": "Remove attachment",
       "send": "Send",
       "saveDraft": "Save draft",

@@ -62,7 +62,9 @@ export function EntityContextRelations({
   onActiveTabChange,
   pickerOpen: pickerOpenProp,
   onPickerOpenChange,
-  onStatsChange
+  onStatsChange,
+  dense = false,
+  scrollable = false
 }: {
   anchor: ChronellEntityRef
   contentPaddingClass?: string
@@ -72,7 +74,14 @@ export function EntityContextRelations({
   pickerOpen?: boolean
   onPickerOpenChange?: (open: boolean) => void
   onStatsChange?: (stats: EntityContextRelationsStats) => void
+  /** Kompaktere Schrift in Aufgaben-/Vorschau-Kontext. */
+  dense?: boolean
+  /** Eigener Scroll-Bereich unter dem Graph (Kalender-Kontext-Panel). */
+  scrollable?: boolean
 }): JSX.Element {
+  const linkTitleClass = dense ? 'text-2xs font-medium' : 'text-xs font-medium'
+  const linkMetaClass = dense ? 'text-3xs text-muted-foreground' : 'text-[9px] text-muted-foreground'
+  const emptyTextClass = dense ? 'text-2xs text-muted-foreground' : 'text-xs text-muted-foreground'
   const { t } = useTranslation()
   const setAppMode = useAppModeStore((s) => s.setMode)
   const anchorKey = useMemo(() => entityRefKey(anchor), [anchor])
@@ -384,7 +393,14 @@ export function EntityContextRelations({
   )
 
   return (
-    <div className={cn('space-y-2 pb-3', contentPaddingClass)}>
+    <div
+      className={cn(
+        'space-y-2 border-t pt-3 pb-3',
+        entityContextDividerClass,
+        contentPaddingClass,
+        scrollable && 'min-h-0 flex-1 overflow-y-auto'
+      )}
+    >
       <div className={cn('flex flex-wrap gap-1 border-b pb-2', entityContextDividerClass)}>
         {tabBtn('links', t('context.tabs.links'))}
         {tabBtn('suggestions', t('context.tabs.suggestions'), suggestions.length + chains.length)}
@@ -492,12 +508,10 @@ export function EntityContextRelations({
                       className="flex w-full items-start gap-1 rounded-md px-1 py-1 hover:bg-secondary/50"
                     >
                       <SIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-                      <div className="min-w-0 flex-1 text-xs">
-                        <span className="block truncate font-medium">{s.title}</span>
+                      <div className="min-w-0 flex-1">
+                        <span className={cn('block truncate', linkTitleClass)}>{s.title}</span>
                         {s.reasonText ? (
-                          <span className="block truncate text-[9px] text-muted-foreground">
-                            {s.reasonText}
-                          </span>
+                          <span className={cn('block truncate', linkMetaClass)}>{s.reasonText}</span>
                         ) : null}
                       </div>
                       <span className="shrink-0 pt-0.5 text-[9px] text-muted-foreground">
@@ -559,9 +573,9 @@ export function EntityContextRelations({
           {loading ? (
             <ConnectionsLoading t={t} />
           ) : links.length === 0 ? (
-            <p className="text-xs text-muted-foreground">{t('connections.empty')}</p>
+            <p className={emptyTextClass}>{t('connections.empty')}</p>
           ) : visibleLinks.length === 0 && filterWeakOnly ? (
-            <p className="text-xs text-muted-foreground">{t('connections.quality.noneWeak')}</p>
+            <p className={emptyTextClass}>{t('connections.quality.noneWeak')}</p>
           ) : (
             <div className="space-y-0.5">
               {visibleLinks.map((item) => (
@@ -569,6 +583,7 @@ export function EntityContextRelations({
                   key={item.linkId}
                   item={item}
                   busy={busy}
+                  dense={dense}
                   quality={qualityByLinkId.get(item.linkId)}
                   setAppMode={setAppMode}
                   onRemove={(): void => void removeLink(item.linkId)}
@@ -647,17 +662,20 @@ function ConnectionLinkRow({
   item,
   busy,
   quality,
+  dense = false,
   setAppMode,
   onRemove,
   t
 }: {
   item: EntityLinkedItem
   busy: boolean
+  dense?: boolean
   quality?: EntityLinkQualityAssessment
   setAppMode: (mode: AppShellMode) => void
   onRemove: () => void
   t: (key: string) => string
 }): JSX.Element {
+  const titleClass = dense ? 'text-2xs text-foreground' : 'text-xs text-foreground'
   const kind = item.peer.kind
   const Icon = entityRefKindIcon(kind)
   const open = (): void => {
@@ -667,7 +685,7 @@ function ConnectionLinkRow({
     <div className="flex items-center gap-1 rounded-md px-1 py-0.5 hover:bg-secondary/40">
       <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
       <button type="button" onClick={open} className="min-w-0 flex-1 text-left" title={item.title}>
-        <span className="flex items-center gap-1 truncate text-xs text-foreground">
+        <span className={cn('flex items-center gap-1 truncate', titleClass)}>
           <span className="truncate">{item.title}</span>
           {quality ? (
             <span

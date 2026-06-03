@@ -40,9 +40,11 @@ import {
   afterCalendarEventCreated,
   afterCalendarEventDeleted,
   afterCalendarEventIconPatched,
-  afterCalendarEventSchedulePatched,
+  prepareCalendarEventSchedulePatch,
+  rollbackCalendarEventSchedulePatch,
   afterCalendarEventUpdated
 } from '../calendar-cache-mutations'
+import { broadcastCalendarChanged } from './ipc-broadcasts'
 import {
   listCalendarAccountSyncStates,
   listCalendarEventsCached,
@@ -50,6 +52,7 @@ import {
 } from '../calendar-cache-service'
 import { syncCalendarFoldersForAccount } from '../calendar-folders-cache-service'
 import { getCalendarEventCached } from '../calendar-event-details-cache-service'
+import { getCalendarEventDetailsFromCache } from '../db/calendar-event-details-repo'
 import {
   listCalendarsCached,
   listM365GroupCalendarsCached
@@ -273,6 +276,20 @@ export function registerCalendarIpc(): void {
       if (!input?.accountId?.trim() || !input.graphEventId?.trim()) {
         throw new Error('Ungueltige Parameter fuer calendar:get-event.')
       }
+      if (input.cacheOnly === true) {
+        return (
+          getCalendarEventDetailsFromCache(
+            input.accountId.trim(),
+            input.graphEventId.trim()
+          ) ?? {
+            subject: null,
+            attendeeEmails: [],
+            joinUrl: null,
+            isOnlineMeeting: false,
+            bodyHtml: null
+          }
+        )
+      }
       return getCalendarEventCached(
         {
           accountId: input.accountId.trim(),
@@ -354,8 +371,18 @@ export function registerCalendarIpc(): void {
     IPC.calendar.patchEventSchedule,
     async (_event, input: CalendarPatchScheduleInput): Promise<void> => {
       assertAppOnline()
-      await patchCalendarEventScheduleForAccount(input)
-      afterCalendarEventSchedulePatched(input)
+      const previous = prepareCalendarEventSchedulePatch(input)
+      try {
+        await patchCalendarEventScheduleForAccount(input)
+        broadcastCalendarChanged(input.accountId)
+      } catch (e) {
+        rollbackCalendarEventSchedulePatch(
+          input.accountId,
+          input.graphEventId,
+          previous
+        )
+        throw e
+      }
     }
   )
 

@@ -75,6 +75,14 @@ import {
   loadOpenMailTodosForTasksList,
   mergeCloudAndMailTaskItems
 } from '@/app/tasks/tasks-mail-todos'
+import { loadUnifiedCloudTasks } from '@/app/tasks/tasks-calendar-load'
+import { runOptimisticTaskToggle, withTaskCompletedFlag } from '@/app/tasks/tasks-toggle-completed'
+import {
+  cloudTaskMatchesListSelection,
+  cloudTaskToListRow,
+  upsertCloudTaskInList,
+  type TaskCreateUpsertMeta
+} from '@/app/tasks/tasks-optimistic-create'
 import { mailListItemToWorkItem } from '@/app/work-items/work-item-mapper'
 import { useTasksSettingsPrefs } from '@/lib/use-tasks-settings-prefs'
 import { runTasksDueReminders } from '@/lib/tasks-due-reminders'
@@ -190,6 +198,7 @@ export function TasksShell(): JSX.Element {
   const unifiedTasksRef = useRef<CloudTaskListItem[]>([])
   const [mailTodoItems, setMailTodoItems] = useState<MailTodoListItem[]>([])
   unifiedTasksRef.current = unifiedTasks
+  const skipNextTasksChangedReloadRef = useRef(false)
   const [tasksLoading, setTasksLoading] = useState(false)
   const [unifiedLoading, setUnifiedLoading] = useState(false)
   const [tasksError, setTasksError] = useState<string | null>(null)
@@ -258,8 +267,19 @@ export function TasksShell(): JSX.Element {
       setListsLoadingByAccount((prev) => ({ ...prev, [targetAccountId]: true }))
       setListsErrorByAccount((prev) => ({ ...prev, [targetAccountId]: null }))
       try {
-        const rows = await window.mailClient.tasks.listLists({ accountId: targetAccountId })
+        const rows = await window.mailClient.tasks.listLists({
+          accountId: targetAccountId,
+          ...(opts?.force ? { forceRefresh: true } : { cacheOnly: true })
+        })
         setListsByAccount((prev) => ({ ...prev, [targetAccountId]: rows }))
+        if (!opts?.force && rows.length === 0) {
+          void window.mailClient.tasks
+            .listLists({ accountId: targetAccountId })
+            .then((fresh) => {
+              setListsByAccount((prev) => ({ ...prev, [targetAccountId]: fresh }))
+            })
+            .catch(() => undefined)
+        }
         setSelection((prev) => {
           if (prev?.kind !== 'list' || prev.accountId !== targetAccountId) return prev
           if (prev.listId && rows.some((r) => r.id === prev.listId)) return prev
@@ -305,15 +325,36 @@ export function TasksShell(): JSX.Element {
         return
       }
       const silent = opts?.silent ?? listTasksRef.current.length > 0
+      const forceRefresh = opts?.forceRefresh === true
       if (!silent) setTasksLoading(true)
       setTasksError(null)
+      const listArgs = {
+        accountId,
+        listId,
+        showCompleted: true as const,
+        showHidden: false as const
+      }
       try {
+        if (!forceRefresh) {
+          const cached = await window.mailClient.tasks.listTasks({
+            ...listArgs,
+            cacheOnly: true
+          })
+          if (cached.length > 0) {
+            setListTasks(cached)
+            if (!silent) setTasksLoading(false)
+            void window.mailClient.tasks
+              .listTasks(listArgs)
+              .then(setListTasks)
+              .catch((e) => {
+                console.warn('[TasksShell] background listTasks failed', e)
+              })
+            return
+          }
+        }
         const rows = await window.mailClient.tasks.listTasks({
-          accountId,
-          listId,
-          showCompleted: true,
-          showHidden: false,
-          forceRefresh: opts?.forceRefresh === true
+          ...listArgs,
+          forceRefresh
         })
         setListTasks(rows)
       } catch (e) {
@@ -328,56 +369,72 @@ export function TasksShell(): JSX.Element {
 
   const loadUnifiedTasks = useCallback(
     async (opts?: { silent?: boolean; forceRefresh?: boolean }): Promise<void> => {
+      if (taskAccounts.length === 0) {
+        setUnifiedTasks([])
+        return
+      }
       const silent = opts?.silent ?? unifiedTasksRef.current.length > 0
+      const forceRefresh = opts?.forceRefresh === true
       if (!silent) setUnifiedLoading(true)
       setTasksError(null)
       try {
-      const merged: CloudTaskListItem[] = []
-      for (const acc of taskAccounts) {
-        const lists = await loadListsForAccount(acc.id)
-        for (const list of lists) {
-          try {
-            const rows = await window.mailClient.tasks.listTasks({
-              accountId: acc.id,
-              listId: list.id,
-              showCompleted: true,
-              showHidden: false,
-              forceRefresh: opts?.forceRefresh === true
-            })
-            for (const row of rows) {
-              merged.push({
-                ...row,
-                accountId: acc.id,
-                listName: list.name,
-                source: 'cloud'
+        if (!forceRefresh) {
+          const cached = await loadUnifiedCloudTasks(taskAccounts, { cacheOnly: true })
+          if (cached.length > 0) {
+            setUnifiedTasks(cached)
+            if (!silent) setUnifiedLoading(false)
+            void loadUnifiedCloudTasks(taskAccounts)
+              .then((fresh) => setUnifiedTasks(fresh))
+              .catch((e) => {
+                console.warn('[TasksShell] background unified refresh failed', e)
               })
+            for (const acc of taskAccounts) {
+              void loadListsForAccount(acc.id)
             }
-          } catch (e) {
-            console.warn('[TasksShell] unified listTasks failed', acc.id, list.id, e)
+            return
           }
         }
+        const merged = await loadUnifiedCloudTasks(taskAccounts, { forceRefresh })
+        setUnifiedTasks(merged)
+        for (const acc of taskAccounts) {
+          void loadListsForAccount(acc.id, { force: forceRefresh })
+        }
+      } catch (e) {
+        setTasksError(e instanceof Error ? e.message : String(e))
+        if (!silent) setUnifiedTasks([])
+      } finally {
+        if (!silent) setUnifiedLoading(false)
       }
-      setUnifiedTasks(merged)
-    } catch (e) {
-      setTasksError(e instanceof Error ? e.message : String(e))
-      if (!silent) setUnifiedTasks([])
-    } finally {
-      if (!silent) setUnifiedLoading(false)
-    }
-  },
+    },
     [taskAccounts, loadListsForAccount]
   )
 
   useEffect(() => {
     const off = window.mailClient.events.onTasksChanged(() => {
-      if (isUnified) {
-        void loadUnifiedTasks({ silent: true })
+      if (skipNextTasksChangedReloadRef.current) {
+        skipNextTasksChangedReloadRef.current = false
         return
       }
-      void loadListTasks({ silent: true })
+      if (isUnified) {
+        void loadUnifiedCloudTasks(taskAccounts, { cacheOnly: true })
+          .then(setUnifiedTasks)
+          .catch((e) => console.warn('[TasksShell] tasks-changed cache reload failed', e))
+        return
+      }
+      if (!accountId || !listId) return
+      void window.mailClient.tasks
+        .listTasks({
+          accountId,
+          listId,
+          showCompleted: true,
+          showHidden: false,
+          cacheOnly: true
+        })
+        .then(setListTasks)
+        .catch((e) => console.warn('[TasksShell] tasks-changed cache reload failed', e))
     })
     return off
-  }, [isUnified, loadListTasks, loadUnifiedTasks])
+  }, [isUnified, accountId, listId, taskAccounts])
 
   useEffect(() => {
     const mins = tasksSettings.backgroundSyncIntervalMinutes
@@ -673,28 +730,95 @@ export function TasksShell(): JSX.Element {
     [applyTaskRowUpdate]
   )
 
-  async function toggleCompleted(task: TasksListItem): Promise<void> {
-    if (isMailTodoListItem(task)) {
-      try {
-        if (!task.completed) {
-          await completeTodoForMessage(task.messageId)
-        } else {
-          // Re-open mail todo: set due today via store
-          await useMailStore.getState().setTodoForMessage(task.messageId, 'today')
+  const toggleCompleted = useCallback(
+    (task: TasksListItem): void => {
+      runOptimisticTaskToggle({
+        task,
+        filter: listViewPrefs.filter,
+        markExiting,
+        onCloudOptimistic: (item, completed): void => {
+          const merged = withTaskCompletedFlag(item, completed)
+          if (isUnified) {
+            setUnifiedTasks((prev) =>
+              prev.map((x) => (tasksListItemKey(x) === tasksListItemKey(merged) ? merged : x))
+            )
+          } else {
+            setListTasks((prev) =>
+              prev.map((x) => (x.id === item.id ? { ...x, completed } : x))
+            )
+          }
+          setSelected((s) =>
+            s && tasksListItemKey(s) === tasksListItemKey(merged) ? merged : s
+          )
+        },
+        onMailOptimistic: (item, completed): void => {
+          const merged = withTaskCompletedFlag(item, completed)
+          setMailTodoItems((prev) =>
+            prev.map((x) => (x.messageId === item.messageId ? merged : x))
+          )
+          setSelected((s) =>
+            s && tasksListItemKey(s) === tasksListItemKey(merged) ? merged : s
+          )
+        },
+        onMailRemove: (messageId): void => {
+          setMailTodoItems((prev) => prev.filter((x) => x.messageId !== messageId))
+          setSelected((s) =>
+            s && isMailTodoListItem(s) && s.messageId === messageId ? null : s
+          )
+        },
+        onCloudRevert: (item, previous): void => {
+          const merged = withTaskCompletedFlag(item, previous)
+          if (isUnified) {
+            setUnifiedTasks((prev) =>
+              prev.map((x) => (tasksListItemKey(x) === tasksListItemKey(merged) ? merged : x))
+            )
+          } else {
+            setListTasks((prev) =>
+              prev.map((x) => (x.id === item.id ? { ...x, completed: previous } : x))
+            )
+          }
+        },
+        onMailRevert: (item): void => {
+          setMailTodoItems((prev) => {
+            if (prev.some((x) => x.messageId === item.messageId)) {
+              return prev.map((x) => (x.messageId === item.messageId ? item : x))
+            }
+            return [...prev, item]
+          })
+        },
+        patchCloudRemote: async (item, completed): Promise<TaskItemRow> => {
+          const next = await window.mailClient.tasks.patchTask({
+            accountId: item.accountId,
+            listId: item.listId,
+            taskId: item.id,
+            completed
+          })
+          applyTaskRowUpdate(next, item)
+          return next
+        },
+        completeMailRemote: (messageId): Promise<void> =>
+          window.mailClient.mail.completeTodoForMessage(messageId),
+        reopenMailRemote: (messageId): Promise<void> =>
+          window.mailClient.mail.setTodoForMessage({ messageId, dueKind: 'today' }),
+        onCloudSyncError: (): void => {
+          if (isUnified) void loadUnifiedTasks()
+          else void loadListTasks()
+        },
+        onMailSyncError: (): void => {
+          void loadMailTodos()
         }
-        void loadMailTodos()
-      } catch {
-        void loadMailTodos()
-      }
-      return
-    }
-    try {
-      await patchTask(task, { completed: !task.completed })
-    } catch {
-      if (isUnified) void loadUnifiedTasks()
-      else void loadListTasks()
-    }
-  }
+      })
+    },
+    [
+      listViewPrefs.filter,
+      markExiting,
+      isUnified,
+      applyTaskRowUpdate,
+      loadUnifiedTasks,
+      loadListTasks,
+      loadMailTodos
+    ]
+  )
 
   const saveCloudTask = useCallback(
     async (draft: CloudTaskSaveDraft): Promise<void> => {
@@ -999,22 +1123,62 @@ export function TasksShell(): JSX.Element {
     return (): void => window.removeEventListener(GLOBAL_CREATE_EVENT, onGlobalCreate as EventListener)
   }, [taskAccounts.length, openCreateTaskDialog])
 
+  const upsertCreatedCloudTask = useCallback(
+    (task: CloudTaskListItem, meta?: TaskCreateUpsertMeta): void => {
+      if (meta?.removePendingId) {
+        if (isUnified) {
+          setUnifiedTasks((prev) => upsertCloudTaskInList(prev, task, meta))
+        } else {
+          setListTasks((prev) => prev.filter((x) => x.id !== meta.removePendingId))
+        }
+        setSelected((s) =>
+          s && isCloudTaskListItem(s) && s.id === meta.removePendingId ? null : s
+        )
+        return
+      }
+      if (!cloudTaskMatchesListSelection(task, selection, isUnified)) return
+      if (isUnified) {
+        setUnifiedTasks((prev) => upsertCloudTaskInList(prev, task, meta))
+      } else {
+        const row = cloudTaskToListRow(task)
+        setListTasks((prev) => {
+          const replaceId = meta?.replacePendingId
+          if (replaceId) {
+            const idx = prev.findIndex((x) => x.id === replaceId)
+            if (idx >= 0) {
+              const next = [...prev]
+              next[idx] = row
+              return next
+            }
+          }
+          if (prev.some((x) => x.id === row.id)) {
+            return prev.map((x) => (x.id === row.id ? row : x))
+          }
+          return [...prev, row]
+        })
+      }
+      setSelected(task)
+      selectionAnchorRef.current = tasksListItemKey(task)
+      if (!meta?.removePendingId) {
+        skipNextTasksChangedReloadRef.current = true
+      }
+    },
+    [isUnified, selection]
+  )
+
   const handleTaskCreated = useCallback(
     (task: CloudTaskListItem): void => {
       closeCreateTaskDialog()
-      setSelected(task)
-      handleTasksMutated()
+      upsertCreatedCloudTask(task)
     },
-    [closeCreateTaskDialog, handleTasksMutated]
+    [closeCreateTaskDialog, upsertCreatedCloudTask]
   )
 
   const handleInlineTaskCreated = useCallback(
-    (task: TasksListItem): void => {
-      setSelected(task)
-      selectionAnchorRef.current = tasksListItemKey(task)
-      handleTasksMutated()
+    (task: CloudTaskListItem, meta?: TaskCreateUpsertMeta): void => {
+      upsertCreatedCloudTask(task, meta)
     },
-    [handleTasksMutated]
+    [upsertCreatedCloudTask]
   )
 
   useEffect(() => {
@@ -1077,7 +1241,7 @@ export function TasksShell(): JSX.Element {
       )
       if (hit) await toggleCompleted(hit)
     },
-    [completeTodoForMessage, isUnified, loadListTasks, loadMailTodos, loadUnifiedTasks, patchTask]
+    [toggleCompleted]
   )
 
   const handleTaskEdit = useCallback(
@@ -1451,7 +1615,7 @@ export function TasksShell(): JSX.Element {
                       checkedKeys={checkedKeys}
                       onSelect={setSelected}
                       onTaskClick={handleTaskClick}
-                      onToggleCompleted={(item): void => void toggleCompleted(item)}
+                      onToggleCompleted={toggleCompleted}
                       onTaskContextMenu={openTaskContextMenu}
                       layoutOpts={listLayoutOpts}
                       enableDrag={tasksSettings.listDragEnabled}

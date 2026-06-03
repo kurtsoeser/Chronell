@@ -134,6 +134,14 @@ export function replaceM365GroupCalendarFolders(accountId: string, rows: Calenda
   tx()
 }
 
+/** Standard-Kalender-ID aus dem lokalen Ordner-Cache (Microsoft/Google). */
+export function resolveDefaultGraphCalendarIdFromCache(accountId: string): string | null {
+  const rows = listStandardCalendarFoldersFromCache(accountId)
+  const def = rows.find((r) => r.isDefaultCalendar) ?? rows[0]
+  const id = def?.id?.trim()
+  return id || null
+}
+
 export function listStandardCalendarFoldersFromCache(accountId: string): CalendarGraphCalendarRow[] {
   const db = getDb()
   const rows = db

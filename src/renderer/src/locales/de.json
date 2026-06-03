@@ -2858,7 +2858,10 @@
       "discardConfirm": "Verwerfen",
       "discardAria": "Entwurf verwerfen",
       "discardConfirmRemote": "Diesen Entwurf wirklich verwerfen? Er wird auch aus dem Ordner «Entwürfe» gelöscht.",
-      "discardConfirmLocal": "Diesen Entwurf wirklich verwerfen? Nicht gespeicherte Änderungen gehen verloren."
+      "discardConfirmLocal": "Diesen Entwurf wirklich verwerfen? Nicht gespeicherte Änderungen gehen verloren.",
+      "sendSuccess": "«{{subject}}» wurde gesendet.",
+      "sendScheduledSuccess": "«{{subject}}» ist für den geplanten Versand eingeplant.",
+      "sendFailed": "«{{subject}}» konnte nicht gesendet werden: {{error}}"
     },
     "composeTile": {
       "needAccount": "Bitte zuerst ein Konto anlegen, um von der Startseite zu mailen.",
@@ -2872,6 +2875,7 @@
       "noSubjectPlaceholder": "(Kein Betreff)",
       "signature": "Signatur",
       "originalMail": "Original-Mail",
+      "editorBottomSplitterAria": "Höhe von Signatur und Original-Mail anpassen",
       "removeAttachmentAria": "Anhang entfernen",
       "send": "Senden",
       "saveDraft": "Entwurf speichern",

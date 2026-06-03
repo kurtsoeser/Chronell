@@ -22,14 +22,31 @@ export async function loadCalendarEventDetailForMeetingCheck(
   const graphEventId = ev.graphEventId?.trim()
   if (!graphEventId) return null
   try {
-    return await window.mailClient.calendar.getEvent({
+    const detail = await window.mailClient.calendar.getEvent({
       accountId: ev.accountId,
       graphEventId,
-      graphCalendarId: ev.graphCalendarId ?? null
+      graphCalendarId: ev.graphCalendarId ?? null,
+      cacheOnly: true
     })
+    if (
+      detail.attendeeEmails.length === 0 &&
+      !detail.isOnlineMeeting &&
+      !detail.joinUrl?.trim()
+    ) {
+      return null
+    }
+    return detail
   } catch {
     return null
   }
+}
+
+async function confirmMeetingScheduleChange(t: TFunction): Promise<boolean> {
+  return showAppConfirm(t('calendar.scheduleChangeDialog.body'), {
+    title: t('calendar.scheduleChangeDialog.title'),
+    confirmLabel: t('calendar.scheduleChangeDialog.saveAndNotify'),
+    cancelLabel: t('calendar.scheduleChangeDialog.discard')
+  })
 }
 
 export async function resolveMeetingScheduleChange(
@@ -44,16 +61,18 @@ export async function resolveMeetingScheduleChange(
     return { action: 'proceed', notifyAttendees: false }
   }
 
+  if (ev.joinUrl?.trim()) {
+    const save = await confirmMeetingScheduleChange(t)
+    if (!save) return { action: 'discard' }
+    return { action: 'proceed', notifyAttendees: true }
+  }
+
   const detail = await loadCalendarEventDetailForMeetingCheck(ev)
   if (!calendarEventLooksLikeMeeting(ev, detail)) {
     return { action: 'proceed', notifyAttendees: false }
   }
 
-  const save = await showAppConfirm(t('calendar.scheduleChangeDialog.body'), {
-    title: t('calendar.scheduleChangeDialog.title'),
-    confirmLabel: t('calendar.scheduleChangeDialog.saveAndNotify'),
-    cancelLabel: t('calendar.scheduleChangeDialog.discard')
-  })
+  const save = await confirmMeetingScheduleChange(t)
   if (!save) return { action: 'discard' }
   return { action: 'proceed', notifyAttendees: true }
 }

@@ -5,6 +5,7 @@ import type { TaskListRow } from '@shared/types'
 import type { WorkItem } from '@shared/work-item'
 import { cloudTaskStableKey } from '@shared/work-item-keys'
 import { cn } from '@/lib/utils'
+import { useExitingIds } from '@/lib/use-exiting-ids'
 import { useAccountsStore } from '@/stores/accounts'
 import { useMailStore } from '@/stores/mail'
 import { useAppModeStore } from '@/stores/app-mode'
@@ -34,6 +35,12 @@ import {
   type CloudTaskListItem
 } from '@/app/tasks/tasks-types'
 import { loadOpenMailTodosForTasksList, mergeCloudAndMailTaskItems } from '@/app/tasks/tasks-mail-todos'
+import { runOptimisticTaskToggle, withTaskCompletedFlag } from '@/app/tasks/tasks-toggle-completed'
+import {
+  upsertCloudTaskInList,
+  type TaskCreateUpsertMeta
+} from '@/app/tasks/tasks-optimistic-create'
+import type { TaskItemRow } from '@shared/types'
 import { loadUnifiedCloudTasks } from '@/app/tasks/tasks-calendar-load'
 import { useTasksSettingsPrefs } from '@/lib/use-tasks-settings-prefs'
 
@@ -47,6 +54,7 @@ export function MailTasksSidebar(): JSX.Element {
   )
   const setAppMode = useAppModeStore((s) => s.setMode)
 
+  const { isExiting, markExiting } = useExitingIds<string>()
   const completeTodoForMessage = useMailStore((s) => s.completeTodoForMessage)
   const selectMessage = useMailStore((s) => s.selectMessage)
   const setMessageRead = useMailStore((s) => s.setMessageRead)
@@ -77,6 +85,7 @@ export function MailTasksSidebar(): JSX.Element {
   const [unifiedTasks, setUnifiedTasks] = useState<CloudTaskListItem[]>([])
   const unifiedTasksRef = useRef<CloudTaskListItem[]>([])
   unifiedTasksRef.current = unifiedTasks
+  const skipNextTasksChangedReloadRef = useRef(false)
 
   const [mailTodoItems, setMailTodoItems] = useState<import('@/app/tasks/tasks-types').MailTodoListItem[]>(
     []
@@ -170,10 +179,16 @@ export function MailTasksSidebar(): JSX.Element {
 
   useEffect(() => {
     const off = window.mailClient.events.onTasksChanged(() => {
-      void loadUnifiedTasks({ silent: true })
+      if (skipNextTasksChangedReloadRef.current) {
+        skipNextTasksChangedReloadRef.current = false
+        return
+      }
+      void loadUnifiedCloudTasks(taskAccounts, { cacheOnly: true })
+        .then(setUnifiedTasks)
+        .catch((e) => console.warn('[MailTasksSidebar] tasks-changed cache reload failed', e))
     })
     return off
-  }, [loadUnifiedTasks])
+  }, [taskAccounts])
 
   useEffect(() => {
     const off = window.mailClient.events.onMailChanged(() => {
@@ -207,47 +222,104 @@ export function MailTasksSidebar(): JSX.Element {
   const selectedKey = selected ? tasksListItemKey(selected) : null
   const [checkedKeys, setCheckedKeys] = useState<Set<string>>(() => new Set())
 
-  const patchTask = useCallback(
-    async (item: CloudTaskListItem, patch: { completed?: boolean }): Promise<void> => {
-      const next = await window.mailClient.tasks.patchTask({
-        accountId: item.accountId,
-        listId: item.listId,
-        taskId: item.id,
-        ...patch
-      })
-      const merged: CloudTaskListItem = {
-        ...next,
-        accountId: item.accountId,
-        listName: item.listName,
-        source: 'cloud'
+  const handleInlineTaskCreated = useCallback(
+    (task: CloudTaskListItem, meta?: TaskCreateUpsertMeta): void => {
+      if (meta?.removePendingId) {
+        setUnifiedTasks((prev) => upsertCloudTaskInList(prev, task, meta))
+        setSelected((s) =>
+          s && isCloudTaskListItem(s) && s.id === meta.removePendingId ? null : s
+        )
+        return
       }
-      setUnifiedTasks((prev) => prev.map((x) => (tasksListItemKey(x) === tasksListItemKey(merged) ? merged : x)))
-      setSelected((s) => (s && tasksListItemKey(s) === tasksListItemKey(merged) ? merged : s))
+      setUnifiedTasks((prev) => upsertCloudTaskInList(prev, task, meta))
+      setSelected(task)
+      if (!meta?.removePendingId) {
+        skipNextTasksChangedReloadRef.current = true
+      }
     },
     []
   )
 
+  const applyCloudTaskRow = useCallback((next: TaskItemRow, ctx: CloudTaskListItem): void => {
+    const merged: CloudTaskListItem = {
+      ...next,
+      accountId: ctx.accountId,
+      listName: ctx.listName,
+      source: 'cloud'
+    }
+    setUnifiedTasks((prev) =>
+      prev.map((x) => (tasksListItemKey(x) === tasksListItemKey(merged) ? merged : x))
+    )
+    setSelected((s) => (s && tasksListItemKey(s) === tasksListItemKey(merged) ? merged : s))
+  }, [])
+
   const toggleCompleted = useCallback(
-    async (task: TasksListItem): Promise<void> => {
-      if (isMailTodoListItem(task)) {
-        try {
-          if (!task.completed) {
-            await completeTodoForMessage(task.messageId)
-          } else {
-            await useMailStore.getState().setTodoForMessage(task.messageId, 'today')
-          }
-        } finally {
+    (task: TasksListItem): void => {
+      runOptimisticTaskToggle({
+        task,
+        filter: listViewPrefs.filter,
+        markExiting,
+        onCloudOptimistic: (item, completed): void => {
+          const merged = withTaskCompletedFlag(item, completed)
+          setUnifiedTasks((prev) =>
+            prev.map((x) => (tasksListItemKey(x) === tasksListItemKey(merged) ? merged : x))
+          )
+          setSelected((s) =>
+            s && tasksListItemKey(s) === tasksListItemKey(merged) ? merged : s
+          )
+        },
+        onMailOptimistic: (item, completed): void => {
+          const merged = withTaskCompletedFlag(item, completed)
+          setMailTodoItems((prev) =>
+            prev.map((x) => (x.messageId === item.messageId ? merged : x))
+          )
+          setSelected((s) =>
+            s && tasksListItemKey(s) === tasksListItemKey(merged) ? merged : s
+          )
+        },
+        onMailRemove: (messageId): void => {
+          setMailTodoItems((prev) => prev.filter((x) => x.messageId !== messageId))
+          setSelected((s) =>
+            s && isMailTodoListItem(s) && s.messageId === messageId ? null : s
+          )
+        },
+        onCloudRevert: (item, previous): void => {
+          const merged = withTaskCompletedFlag(item, previous)
+          setUnifiedTasks((prev) =>
+            prev.map((x) => (tasksListItemKey(x) === tasksListItemKey(merged) ? merged : x))
+          )
+        },
+        onMailRevert: (item): void => {
+          setMailTodoItems((prev) => {
+            if (prev.some((x) => x.messageId === item.messageId)) {
+              return prev.map((x) => (x.messageId === item.messageId ? item : x))
+            }
+            return [...prev, item]
+          })
+        },
+        patchCloudRemote: async (item, completed): Promise<TaskItemRow> => {
+          const next = await window.mailClient.tasks.patchTask({
+            accountId: item.accountId,
+            listId: item.listId,
+            taskId: item.id,
+            completed
+          })
+          applyCloudTaskRow(next, item)
+          return next
+        },
+        completeMailRemote: (messageId): Promise<void> =>
+          window.mailClient.mail.completeTodoForMessage(messageId),
+        reopenMailRemote: (messageId): Promise<void> =>
+          window.mailClient.mail.setTodoForMessage({ messageId, dueKind: 'today' }),
+        onCloudSyncError: (): void => {
+          void loadUnifiedTasks()
+        },
+        onMailSyncError: (): void => {
           void loadMailTodos()
         }
-        return
-      }
-      try {
-        await patchTask(task, { completed: !task.completed })
-      } catch {
-        void loadUnifiedTasks()
-      }
+      })
     },
-    [completeTodoForMessage, loadMailTodos, loadUnifiedTasks, patchTask]
+    [listViewPrefs.filter, markExiting, applyCloudTaskRow, loadMailTodos, loadUnifiedTasks]
   )
 
   const onTaskClick = useCallback((item: TasksListItem, _event: MouseEvent): void => {
@@ -488,16 +560,15 @@ export function MailTasksSidebar(): JSX.Element {
             checkedKeys={checkedKeys}
             onSelect={setSelected}
             onTaskClick={onTaskClick}
-            onToggleCompleted={(item): void => void toggleCompleted(item)}
+            onToggleCompleted={toggleCompleted}
             onTaskContextMenu={openTaskContextMenu}
             enableDrag={tasksSettings.listDragEnabled}
+            isItemExiting={isExiting}
             inlineCreate={{
               selection,
               taskAccounts,
               loadListsForAccount,
-              onCreated: async (): Promise<void> => {
-                void loadUnifiedTasks({ silent: true, forceRefresh: true })
-              },
+              onCreated: handleInlineTaskCreated,
               showAccountPicker: true
             }}
           />

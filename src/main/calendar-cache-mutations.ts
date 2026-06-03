@@ -1,4 +1,5 @@
 import { listAccounts } from './accounts'
+import { resolveDefaultGraphCalendarIdFromCache } from './db/calendar-folders-repo'
 import { patchCachedCalendarEventIcon, patchCachedCalendarEventSchedule } from './calendar-cache-service'
 import { registerSchedulePatchGuard } from './calendar-schedule-patch-guard'
 import { getDb } from './db/index'
@@ -12,6 +13,7 @@ import {
   upsertCalendarEventDetails
 } from './db/calendar-event-details-repo'
 import { registerCreatedCalendarEventGuard } from './calendar-created-event-guard'
+import { clearSchedulePatchGuard } from './calendar-schedule-patch-guard'
 import { broadcastCalendarChanged } from './ipc/ipc-broadcasts'
 import type {
   CalendarEventView,
@@ -23,12 +25,22 @@ import type {
   ConnectedAccount
 } from '@shared/types'
 
+function resolveGraphCalendarIdForCache(
+  acc: ConnectedAccount,
+  graphCalendarId: string | null | undefined
+): string | null {
+  const trimmed = graphCalendarId?.trim()
+  if (trimmed) return trimmed
+  if (acc.provider === 'google') return 'primary'
+  return resolveDefaultGraphCalendarIdFromCache(acc.id)
+}
+
 function eventViewFromSaveInput(
   acc: ConnectedAccount,
   input: CalendarSaveEventInput,
   result: CalendarSaveEventResult
 ): CalendarEventView {
-  const graphCalId = input.graphCalendarId?.trim() || null
+  const graphCalId = resolveGraphCalendarIdForCache(acc, input.graphCalendarId)
   const source = acc.provider === 'google' ? 'google' : 'microsoft'
   return {
     id: `${acc.id}:${result.id}`,
@@ -119,7 +131,7 @@ export async function afterCalendarEventUpdated(
   broadcastCalendarChanged(accountId)
 }
 
-export function afterCalendarEventSchedulePatched(input: CalendarPatchScheduleInput): void {
+function applySchedulePatchToLocalCache(input: CalendarPatchScheduleInput): void {
   const graphEventId = input.graphEventId.trim()
   const changes = patchCachedCalendarEventSchedule(input.accountId, graphEventId, {
     startIso: input.startIso,
@@ -140,6 +152,28 @@ export function afterCalendarEventSchedulePatched(input: CalendarPatchScheduleIn
     }
   }
   registerSchedulePatchGuard(input)
+}
+
+/** Vor Graph-PATCH: SQLite + Guard, damit Reloads waehrend des API-Aufrufs die neue Zeit zeigen. */
+export function prepareCalendarEventSchedulePatch(
+  input: CalendarPatchScheduleInput
+): CalendarEventView | null {
+  const prev = getCalendarEventByGraphEventId(input.accountId, input.graphEventId.trim())
+  applySchedulePatchToLocalCache(input)
+  return prev
+}
+
+export function rollbackCalendarEventSchedulePatch(
+  accountId: string,
+  graphEventId: string,
+  previous: CalendarEventView | null
+): void {
+  clearSchedulePatchGuard(accountId, graphEventId)
+  if (previous) upsertCalendarEvents([previous])
+}
+
+export function afterCalendarEventSchedulePatched(input: CalendarPatchScheduleInput): void {
+  applySchedulePatchToLocalCache(input)
   broadcastCalendarChanged(input.accountId)
 }
 

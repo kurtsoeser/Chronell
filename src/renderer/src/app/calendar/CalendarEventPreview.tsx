@@ -629,6 +629,8 @@ export function CalendarEventPreview(props: {
         }}
         noteTarget={noteTarget}
         noteEditorFillHeight
+        contextFillHeight
+        dense
         contentPaddingClass="px-4"
         sectionCollapsedDefault
         className={cn('min-h-0 flex-1', previewSectionDividerClass)}

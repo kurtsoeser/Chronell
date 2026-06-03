@@ -13,6 +13,11 @@ import {
 } from '@/app/work-items/work-item-datetime'
 import { EntityContextBlock } from '@/components/connections/EntityContextBlock'
 import { TaskRecurrenceSummaryFromItem } from '@/components/TaskRecurrenceSummary'
+import { cn } from '@/lib/utils'
+import {
+  previewDetailFieldControlClass,
+  previewDetailFieldLabelClass
+} from '@/lib/chronell-ui-classes'
 
 export interface CloudTaskSaveDraft {
   title: string
@@ -74,104 +79,103 @@ export function CloudTaskWorkItemDetail({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3">
-      {accountLine ? <p className="text-[10px] text-muted-foreground">{accountLine}</p> : null}
-      <div>
-        <label className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-          {t('tasks.shell.fieldTitle')}
-        </label>
-        <div className="flex items-start gap-2">
-          {onDisplayChange ? (
-            <CalendarEventIconPicker
-              layout="compact"
-              openOn="doubleClick"
-              iconId={item.task.iconId}
-              iconColorHex={resolveEntityIconColor(item.task.iconColor)}
-              title={title.trim() || t('tasks.shell.untitled')}
-              disabled={saving}
-              onIconChange={(iconId): void =>
-                void onDisplayChange({ iconId: iconId ?? null })
-              }
-              footer={
-                <IconColorPickerFooter
-                  iconColor={item.task.iconColor}
-                  onIconColorChange={(iconColor): void => void onDisplayChange({ iconColor })}
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="flex flex-col gap-3 p-3">
+          {accountLine ? <p className="text-2xs text-muted-foreground">{accountLine}</p> : null}
+          <div className="shrink-0">
+            <label className={previewDetailFieldLabelClass}>{t('tasks.shell.fieldTitle')}</label>
+            <div className="flex items-start gap-2">
+              {onDisplayChange ? (
+                <CalendarEventIconPicker
+                  layout="compact"
+                  openOn="doubleClick"
+                  iconId={item.task.iconId}
+                  iconColorHex={resolveEntityIconColor(item.task.iconColor)}
+                  title={title.trim() || t('tasks.shell.untitled')}
+                  disabled={saving}
+                  onIconChange={(iconId): void =>
+                    void onDisplayChange({ iconId: iconId ?? null })
+                  }
+                  footer={
+                    <IconColorPickerFooter
+                      iconColor={item.task.iconColor}
+                      onIconColorChange={(iconColor): void => void onDisplayChange({ iconColor })}
+                    />
+                  }
                 />
-              }
+              ) : null}
+              <input
+                value={title}
+                onChange={(e): void => setTitle(e.target.value)}
+                className={cn(previewDetailFieldControlClass, 'min-w-0 flex-1')}
+              />
+            </div>
+          </div>
+          <div className="shrink-0">
+            <label className={previewDetailFieldLabelClass}>{t('work.preview.plannedStart')}</label>
+            <input
+              type="datetime-local"
+              value={plannedStart}
+              onChange={(e): void => setPlannedStart(e.target.value)}
+              className={previewDetailFieldControlClass}
             />
-          ) : null}
-          <input
-            value={title}
-            onChange={(e): void => setTitle(e.target.value)}
-            className="min-w-0 flex-1 rounded-md border border-border bg-background px-2 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary"
-          />
+          </div>
+          <div className="shrink-0">
+            <label className={previewDetailFieldLabelClass}>{t('work.preview.plannedEnd')}</label>
+            <input
+              type="datetime-local"
+              value={plannedEnd}
+              onChange={(e): void => setPlannedEnd(e.target.value)}
+              className={previewDetailFieldControlClass}
+            />
+          </div>
+          <TaskRecurrenceSummaryFromItem task={item.task} />
+
+          <div className="shrink-0">
+            <label className={previewDetailFieldLabelClass}>{t('tasks.shell.fieldDue')}</label>
+            <input
+              type="date"
+              value={due}
+              onChange={(e): void => setDue(e.target.value)}
+              className={previewDetailFieldControlClass}
+            />
+          </div>
+          <div className="shrink-0">
+            <label className={previewDetailFieldLabelClass}>{t('tasks.shell.fieldNotes')}</label>
+            <textarea
+              value={notes}
+              onChange={(e): void => setNotes(e.target.value)}
+              rows={4}
+              className={cn(
+                previewDetailFieldControlClass,
+                'min-h-[4.5rem] max-h-36 resize-y'
+              )}
+            />
+          </div>
         </div>
-      </div>
-      <div>
-        <label className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-          {t('work.preview.plannedStart')}
-        </label>
-        <input
-          type="datetime-local"
-          value={plannedStart}
-          onChange={(e): void => setPlannedStart(e.target.value)}
-          className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary"
-        />
-      </div>
-      <div>
-        <label className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-          {t('work.preview.plannedEnd')}
-        </label>
-        <input
-          type="datetime-local"
-          value={plannedEnd}
-          onChange={(e): void => setPlannedEnd(e.target.value)}
-          className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary"
-        />
-      </div>
-      <TaskRecurrenceSummaryFromItem task={item.task} />
 
-      <div>
-        <label className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-          {t('tasks.shell.fieldDue')}
-        </label>
-        <input
-          type="date"
-          value={due}
-          onChange={(e): void => setDue(e.target.value)}
-          className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary"
-        />
-      </div>
-      <div className="min-h-0 flex-1">
-        <label className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-          {t('tasks.shell.fieldNotes')}
-        </label>
-        <textarea
-          value={notes}
-          onChange={(e): void => setNotes(e.target.value)}
-          rows={8}
-          className="h-full min-h-[120px] w-full resize-y rounded-md border border-border bg-background px-2 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary"
+        <EntityContextBlock
+          anchor={{
+            kind: 'cloud_task',
+            accountId: item.accountId,
+            listId: item.listId,
+            taskId: item.taskId
+          }}
+          showObjectNote={false}
+          contentPaddingClass="px-3"
+          sectionCollapsedDefault
+          dense
+          className="border-t border-white/[0.04] dark:border-white/[0.04]"
         />
       </div>
 
-      <EntityContextBlock
-        anchor={{
-          kind: 'cloud_task',
-          accountId: item.accountId,
-          listId: item.listId,
-          taskId: item.taskId
-        }}
-        showObjectNote={false}
-        contentPaddingClass="px-0"
-        sectionCollapsedDefault
-      />
-
-      <div className="flex flex-wrap gap-2">
+      <div className="flex shrink-0 flex-wrap gap-2 border-t border-white/[0.04] p-3 dark:border-white/[0.04]">
         <button
           type="button"
           onClick={handleSave}
           disabled={saving}
-          className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-50"
+          className="rounded-md bg-primary px-3 py-1.5 text-2xs font-semibold text-primary-foreground disabled:opacity-50"
         >
           {saving ? t('common.loading') : t('common.save')}
         </button>
@@ -179,7 +183,7 @@ export function CloudTaskWorkItemDetail({
           type="button"
           onClick={(): void => void onDelete()}
           disabled={saving}
-          className="inline-flex items-center gap-1 rounded-md border border-destructive/40 px-3 py-1.5 text-xs text-destructive hover:bg-destructive/10 disabled:opacity-50"
+          className="inline-flex items-center gap-1 rounded-md border border-destructive/40 px-3 py-1.5 text-2xs text-destructive hover:bg-destructive/10 disabled:opacity-50"
         >
           <Trash2 className="h-3.5 w-3.5" />
           {t('common.delete')}

@@ -112,12 +112,16 @@ export async function loadCloudTasksForSelection(
   if (!selection) return []
 
   if (selection.kind === 'list') {
-    const rows = await window.mailClient.tasks.listTasks({
+    const listArgs = {
       accountId: selection.accountId,
       listId: selection.listId,
-      showCompleted: true,
-      showHidden: false
-    })
+      showCompleted: true as const,
+      showHidden: false as const
+    }
+    let rows = await window.mailClient.tasks.listTasks({ ...listArgs, cacheOnly: true })
+    if (rows.length === 0) {
+      rows = await window.mailClient.tasks.listTasks(listArgs)
+    }
     const listName =
       listsByAccount[selection.accountId]?.find((l) => l.id === selection.listId)?.name ?? ''
     return rows.map((row) => ({
@@ -136,12 +140,16 @@ export async function loadCloudTasksForSelection(
     }
     for (const list of lists ?? []) {
       try {
-        const rows = await window.mailClient.tasks.listTasks({
+        const listArgs = {
           accountId: acc.id,
           listId: list.id,
-          showCompleted: true,
-          showHidden: false
-        })
+          showCompleted: true as const,
+          showHidden: false as const
+        }
+        let rows = await window.mailClient.tasks.listTasks({ ...listArgs, cacheOnly: true })
+        if (rows.length === 0) {
+          rows = await window.mailClient.tasks.listTasks(listArgs)
+        }
         for (const row of rows) {
           merged.push({ ...row, accountId: acc.id, listName: list.name, source: 'cloud' })
         }

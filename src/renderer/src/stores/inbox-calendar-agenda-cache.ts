@@ -9,6 +9,7 @@ import {
   calendarPreviewRangeIso,
   filterUpcomingCalendarEvents
 } from '@/lib/calendar-dashboard-range'
+import { deduplicateCalendarEventsByGraphEventId } from '@/app/calendar/calendar-graph-events'
 import { mailListItemTodoScheduleWindow } from '@/app/calendar/mail-todo-calendar'
 
 const MAX_AGENDA = 10
@@ -48,6 +49,8 @@ interface InboxCalendarAgendaCacheState {
    * RAM-Cache (gleiche Konten, Alter unter INBOX_AGENDA_STALE_MS) kein Abruf.
    */
   loadAgenda: (calendarLinkedAccounts: ConnectedAccount[], opts?: { force?: boolean }) => Promise<void>
+  /** Neuer Termin: sofort in Vorschau/Agenda, ohne auf Hintergrund-Sync zu warten. */
+  upsertPreviewCalendarEvent: (ev: CalendarEventView) => void
 }
 
 export const useInboxCalendarAgendaCacheStore = create<InboxCalendarAgendaCacheState>((set, get) => ({
@@ -58,6 +61,43 @@ export const useInboxCalendarAgendaCacheStore = create<InboxCalendarAgendaCacheS
   fetchedAt: 0,
   cachedKey: null,
   inFlight: false,
+
+  upsertPreviewCalendarEvent(ev): void {
+    const nowMs = Date.now()
+    const s = Date.parse(ev.startIso)
+    const e = Date.parse(ev.endIso)
+    set((state) => {
+      const previewRangeEvents = deduplicateCalendarEventsByGraphEventId([
+        ...state.previewRangeEvents.filter(
+          (row) =>
+            !(
+              row.accountId === ev.accountId &&
+              row.graphEventId === ev.graphEventId
+            )
+        ),
+        ev
+      ])
+      let agenda = state.agenda
+      if (Number.isFinite(s) && Number.isFinite(e) && e >= nowMs) {
+        const row: InboxAgendaRow = { kind: 'graph', ev, startMs: s, endMs: e }
+        const without = state.agenda.filter(
+          (r) =>
+            r.kind !== 'graph' ||
+            !(
+              r.ev.accountId === ev.accountId &&
+              r.ev.graphEventId === ev.graphEventId
+            )
+        )
+        agenda = [...without, row].sort((a, b) => a.startMs - b.startMs).slice(0, MAX_AGENDA)
+      }
+      const dashboardUpcomingCalendar = filterUpcomingCalendarEvents(
+        previewRangeEvents,
+        DASHBOARD_CALENDAR_MAX_EVENTS,
+        nowMs
+      )
+      return { previewRangeEvents, agenda, dashboardUpcomingCalendar }
+    })
+  },
 
   async loadAgenda(calendarLinkedAccounts, opts): Promise<void> {
     const key = calendarLinkedKey(calendarLinkedAccounts)
