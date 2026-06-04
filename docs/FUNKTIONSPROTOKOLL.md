@@ -6,8 +6,8 @@ Dieses Dokument beschreibt den **aktuellen Funktionsumfang** der Desktop-App. Es
 |------|------|
 | **Produktname (UI)** | Chronell |
 | **Technischer Name / Installer** | MailClient |
-| **Version** | **0.9.28** |
-| **Stand** | **3. Juni 2026** |
+| **Version** | **0.9.30** |
+| **Stand** | **5. Juni 2026** |
 | **App-ID** | `at.kurtsoeser.chronell` |
 | **Zielplattform** | Windows 11 (primär) |
 | **Autor** | Kurt Soeser |
@@ -482,6 +482,22 @@ Marker-Datei nach Migration: `%APPDATA%\Chronell\.chronell-migrated-from-mailcli
 ---
 
 ## 20. Versionshistorie
+
+### 0.9.30 - 5. Juni 2026
+
+- **Mail:** Mail-Arbeitsbereich: Sidebar, Anhaenge, EWS und Aktionen (Composer und Lesefenster)
+- **Kalender:** Kalender und Termine: Dialog, Vorschau, Kategorien und Shell (ueberarbeiteter Termin-Dialog; Kalender-Layout speichern)
+- **Einstellungen:** Einstellungen, Onboarding und Backup (Konten- und Erscheinungsbild-Einstellungen; ueberarbeiteter Ersteinrichtungs-Assistent)
+- **Homepage:** Release-Texte, Homepage-Timeline und Download auf 0.9.30
+
+
+### 0.9.29 - 4. Juni 2026
+
+- **Mail:** Mail-Arbeitsbereich: Sidebar, Anhaenge, EWS und Aktionen (Composer und Lesefenster)
+- **Kalender:** Kalender und Termine: Dialog, Vorschau, Kategorien und Shell (ueberarbeiteter Termin-Dialog; Kalender-Layout speichern)
+- **Einstellungen:** Einstellungen, Onboarding und Backup (Konten- und Erscheinungsbild-Einstellungen; ueberarbeiteter Ersteinrichtungs-Assistent)
+- **Homepage:** Release-Texte, Homepage-Timeline und Download auf 0.9.29
+
 
 ### 0.9.28 - 3. Juni 2026
 

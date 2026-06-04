@@ -28,7 +28,10 @@ import {
   broadcastProfileSyncStatus,
   registerProfileSyncStatusReader
 } from './profile-sync-status-broadcast'
-import { markProfileDataDirty } from './profile-sync-scheduler'
+import {
+  computeConflictPending,
+  computeConflictRemoteNewer
+} from './profile-sync-conflict'
 import {
   startProfileSyncRunner,
   stopProfileSyncRunner
@@ -58,32 +61,6 @@ async function ensureProfileDeviceId(): Promise<string> {
   const id = randomUUID()
   await updateConfig({ profileDeviceId: id })
   return id
-}
-
-function computeConflictRemoteNewer(
-  remoteMs: number,
-  localPulledAt: number,
-  localPushedAt: number
-): boolean {
-  if (!Number.isFinite(remoteMs) || remoteMs <= 0) return false
-  return remoteMs > localPulledAt && remoteMs > localPushedAt
-}
-
-/** Cloud ist neuer als letzter Pull — Auto-Sync wartet auf Nutzerwahl. */
-function computeConflictPending(
-  remoteMs: number,
-  localPulledAt: number,
-  localPushedAt: number,
-  localDirty: boolean,
-  hasRemote: boolean
-): boolean {
-  if (!hasRemote || !Number.isFinite(remoteMs) || remoteMs <= 0) return false
-  if (remoteMs <= localPulledAt) {
-    return localDirty && localPushedAt > 0 && remoteMs > localPushedAt
-  }
-  if (localDirty) return true
-  if (localPushedAt > 0 && remoteMs > localPushedAt) return true
-  return true
 }
 
 export async function getProfileSyncStatus(): Promise<ProfileSyncStatus> {
@@ -153,7 +130,8 @@ export async function getProfileSyncStatus(): Promise<ProfileSyncStatus> {
     syncing: syncInProgress,
     conflictRemoteNewer,
     conflictPending,
-    autoSyncActive: config.profileDataMode === 'cloud' && stored != null
+    autoSyncActive:
+      config.profileDataMode === 'cloud' && stored != null && !conflictPending
   }
 }
 
@@ -439,8 +417,10 @@ export async function runProfileSyncInternal(
       pushed = true
       remoteUpdatedAt = upsertBody.updated_at
       setRemoteUpdatedAtCache(remoteUpdatedAt)
+      const pushedAt = new Date().toISOString()
       await updateConfig({
-        profileCloudLastPushedAt: new Date().toISOString(),
+        profileCloudLastPushedAt: pushedAt,
+        profileCloudLastPulledAt: remoteUpdatedAt ?? pushedAt,
         profileCloudLocalDirtyAt: null
       })
     }
@@ -469,7 +449,6 @@ export async function runProfileSyncInternal(
 export async function runProfileSyncNow(
   localStorage: Record<string, string>
 ): Promise<ProfileSyncRunResult> {
-  await markProfileDataDirty()
   return runProfileSyncInternal({ localStorage, source: 'manual', resolution: 'auto' })
 }
 

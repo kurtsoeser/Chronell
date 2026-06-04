@@ -61,6 +61,7 @@ import {
   sanitizeMailHtml,
   type MailViewerTheme
 } from '@/lib/sanitize'
+import { loadUseOsFloatingPanelsDefault } from '@/lib/floating-panels-prefs'
 import { isMailClientRuntimeComplete } from '@/lib/mail-client-runtime'
 import { useSanitizedHtmlShadowRoot } from '@/lib/use-sanitized-html-shadow-root'
 import { cn } from '@/lib/utils'
@@ -133,7 +134,7 @@ export type ReadingPaneProps = {
   /** Vorschau abdocken / wieder andocken (ersetzt getrennte Pop-up- und Abdock-Buttons). */
   onTogglePreviewDetach?: () => void
   /** Umschalt+Klick auf Abdock-Toggle: Lesefenster-Pop-up (modulübergreifend). */
-  onRequestGlobalPopout?: (opts?: { osWindow?: boolean }) => void
+  onRequestGlobalPopout?: (opts?: { osWindow?: boolean; inAppFloat?: boolean }) => void
   /** Abdock-Toggle ausblenden (z. B. schwebendes Panel hat eigene Titelleiste). */
   hidePreviewDetachToggle?: boolean
   /** Eigenes Fenster / globales Pop-up: feste Nachricht inkl. Konversation. */
@@ -223,7 +224,7 @@ export function ReadingPane({
   const openForward = useComposeStore((s) => s.openForward)
   const openDraftFromMessage = useComposeStore((s) => s.openDraftFromMessage)
   const popOutCompose = useComposeStore((s) => s.popOutToWindow)
-  const closeCompose = useComposeStore((s) => s.close)
+  const closeCompose = useComposeStore((s) => s.closeAndSaveDraft)
   const readingPaneDraft = useComposeStore((s) => s.drafts.find((d) => d.embedInReadingPane) ?? null)
   const selectedFolderId = useMailStore((s) => s.selectedFolderId)
   const openSnoozePicker = useSnoozeUiStore((s) => s.open)
@@ -266,7 +267,7 @@ export function ReadingPane({
       readingPaneDraft.linkedMessageId == null && readingPaneDraft.replyToMessageId == null
 
     if (isStandaloneCompose || !tiesToSelection) {
-      closeCompose(readingPaneDraft.id)
+      void closeCompose(readingPaneDraft.id)
     }
   }, [
     selectedMessage?.id,
@@ -629,10 +630,14 @@ export function ReadingPane({
             aria-pressed={previewDetached}
             onClick={(e): void => {
               if (e.shiftKey && onRequestGlobalPopout) {
-                onRequestGlobalPopout({ osWindow: true })
+                onRequestGlobalPopout({ inAppFloat: true })
                 return
               }
-              onTogglePreviewDetach()
+              if (onRequestGlobalPopout && loadUseOsFloatingPanelsDefault()) {
+                onRequestGlobalPopout({})
+                return
+              }
+              onTogglePreviewDetach?.()
             }}
           >
             {previewDetached ? (

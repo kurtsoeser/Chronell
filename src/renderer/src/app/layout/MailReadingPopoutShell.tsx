@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Pin, X } from 'lucide-react'
+import { Pin } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { ReadingPane } from '@/app/layout/ReadingPane'
+import { PopoutTitlebarControls } from '@/app/layout/PopoutTitlebarControls'
 import { useIsolatedMailView } from '@/app/layout/use-isolated-mail-view'
 import { parseMailReadingPopoutRoute } from '@/app/layout/mail-reading-popout-route'
 import {
@@ -14,6 +15,7 @@ import {
   moduleColumnHeaderShellBarClass
 } from '@/components/ModuleColumnHeader'
 import { cn } from '@/lib/utils'
+import { useFramelessTitlebar } from '@/lib/use-frameless-titlebar'
 import { useAccountsStore } from '@/stores/accounts'
 import { useMailStore } from '@/stores/mail'
 import { useZoomShortcuts } from '@/hooks/use-zoom-shortcuts'
@@ -24,6 +26,7 @@ export function MailReadingPopoutShell(): JSX.Element {
   const messageId = route?.messageId ?? null
   const isolatedView = useIsolatedMailView(messageId)
   const [alwaysOnTop, setAlwaysOnTop] = useState(() => loadMailReadingPopoutAlwaysOnTopDefault())
+  const frameless = useFramelessTitlebar()
 
   useZoomShortcuts()
 
@@ -61,6 +64,11 @@ export function MailReadingPopoutShell(): JSX.Element {
     void window.mailClient.mailReadingPopout.close({ messageId })
   }
 
+  const handlePopIn = (): void => {
+    if (messageId == null) return
+    void window.mailClient.mailReadingPopout.requestDock({ messageId })
+  }
+
   if (messageId == null) {
     return (
       <div className="flex h-screen items-center justify-center bg-background p-6 text-foreground">
@@ -71,7 +79,12 @@ export function MailReadingPopoutShell(): JSX.Element {
 
   return (
     <div className="flex h-screen min-h-0 flex-col bg-background text-foreground">
-      <div className={moduleColumnHeaderShellBarClass}>
+      <header
+        className={cn(
+          moduleColumnHeaderShellBarClass,
+          frameless && 'glass-topbar electron-window-titlebar h-12 select-none pr-0'
+        )}
+      >
         <span className="min-w-0 flex-1 truncate text-sm font-semibold">
           {isolatedView.selectedMessage?.subject?.trim() || t('mail.readingPopout.windowTitle')}
         </span>
@@ -92,15 +105,8 @@ export function MailReadingPopoutShell(): JSX.Element {
         >
           <Pin className={cn(moduleColumnHeaderIconGlyphClass, alwaysOnTop && 'text-primary')} />
         </ModuleColumnHeaderIconButton>
-        <ModuleColumnHeaderIconButton
-          type="button"
-          onClick={handleClose}
-          title={t('common.close')}
-          aria-label={t('common.close')}
-        >
-          <X className={moduleColumnHeaderIconGlyphClass} />
-        </ModuleColumnHeaderIconButton>
-      </div>
+        <PopoutTitlebarControls onPopIn={handlePopIn} onClose={handleClose} />
+      </header>
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <ReadingPane
           isolatedView={isolatedView}

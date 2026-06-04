@@ -80,7 +80,18 @@ export const IPC = {
     focus: 'mail-reading-popout:focus',
     isOpen: 'mail-reading-popout:is-open',
     getAlwaysOnTop: 'mail-reading-popout:get-always-on-top',
-    setAlwaysOnTop: 'mail-reading-popout:set-always-on-top'
+    setAlwaysOnTop: 'mail-reading-popout:set-always-on-top',
+    requestDock: 'mail-reading-popout:request-dock'
+  },
+  panelPopout: {
+    open: 'panel-popout:open',
+    close: 'panel-popout:close',
+    closeAll: 'panel-popout:close-all',
+    focus: 'panel-popout:focus',
+    isOpen: 'panel-popout:is-open',
+    stashPayload: 'panel-popout:stash-payload',
+    takePayload: 'panel-popout:take-payload',
+    requestDock: 'panel-popout:request-dock'
   },
   entityLinks: {
     list: 'entity-links:list',

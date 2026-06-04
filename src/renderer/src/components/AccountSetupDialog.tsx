@@ -6,6 +6,7 @@ import { useAccountsStore } from '@/stores/accounts'
 import { useAppModeStore } from '@/stores/app-mode'
 import { useLocaleStore } from '@/stores/locale'
 import { useThemeStore, ACCENT_LIST } from '@/stores/theme'
+import { SettingsFloatingPanelsSection } from '@/components/account-setup/SettingsFloatingPanelsSection'
 import { SettingsThemeColorsSection } from '@/components/account-setup/SettingsThemeColorsSection'
 import type { AppLocale } from '@/i18n'
 import { useMailStore } from '@/stores/mail'
@@ -1626,6 +1627,8 @@ export function AccountSetupDialog({
                 <SettingsThemeColorsSection />
 
                 <p className="text-2xs leading-relaxed text-muted-foreground mt-1">{t('settings.themeHint')}</p>
+
+                <SettingsFloatingPanelsSection />
 
                 <div className="mt-4 space-y-2 border-t border-border/60 pt-4">
                   <h4 className="text-xs font-semibold text-foreground">

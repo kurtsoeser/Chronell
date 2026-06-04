@@ -9,3 +9,8 @@ export function mainWindowTitleBarOptions(): Pick<BrowserWindowConstructorOption
   if (!isWin32FramelessTitleBar()) return {}
   return { frame: false }
 }
+
+/** Abgedockte Fenster: gleiches frameless-Chrome wie das Hauptfenster (Windows). */
+export function popoutWindowTitleBarOptions(): Pick<BrowserWindowConstructorOptions, 'frame'> {
+  return mainWindowTitleBarOptions()
+}

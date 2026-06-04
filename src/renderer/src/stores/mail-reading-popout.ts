@@ -1,4 +1,6 @@
 import { create } from 'zustand'
+import { resolveMailReadingPopoutUseOsWindow } from '@/lib/open-mail-reading-popout'
+import type { MailReadingPopoutOpenOpts } from '@/lib/open-mail-reading-popout'
 import { useMailStore } from '@/stores/mail'
 import { useMailWorkspaceLayoutStore } from '@/stores/mail-workspace-layout'
 import { loadMailReadingPopoutAlwaysOnTopDefault } from '@/app/layout/mail-reading-popout-prefs'
@@ -8,8 +10,8 @@ interface MailReadingPopoutState {
   messageId: number | null
   /** Beim Oeffnen: separates Electron-Fenster statt In-App-Panel. */
   useOsWindow: boolean
-  openFromCurrentSelection: (opts?: { osWindow?: boolean }) => void
-  openForMessage: (messageId: number, opts?: { osWindow?: boolean }) => void
+  openFromCurrentSelection: (opts?: MailReadingPopoutOpenOpts) => void
+  openForMessage: (messageId: number, opts?: MailReadingPopoutOpenOpts) => void
   close: () => void
 }
 
@@ -25,12 +27,12 @@ export const useMailReadingPopoutStore = create<MailReadingPopoutState>((set, ge
   },
 
   openForMessage: (messageId, opts): void => {
-    const osWindow = opts?.osWindow === true
+    const useOsWindow = resolveMailReadingPopoutUseOsWindow(opts)
     const layout = useMailWorkspaceLayoutStore.getState()
     if (layout.readingPlacement === 'float') {
       layout.setReadingPlacement('dock')
     }
-    if (osWindow) {
+    if (useOsWindow) {
       set({ open: false, messageId, useOsWindow: true })
       const msg = useMailStore.getState().selectedMessage
       const title =

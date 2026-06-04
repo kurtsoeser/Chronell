@@ -82,7 +82,7 @@ function ComposerWindow({
   minimized: boolean
 }): JSX.Element {
   const update = useComposeStore((s) => s.update)
-  const close = useComposeStore((s) => s.close)
+  const closeAndSaveDraft = useComposeStore((s) => s.closeAndSaveDraft)
   const focus = useComposeStore((s) => s.focus)
   const send = useComposeStore((s) => s.send)
   const saveRemoteDraft = useComposeStore((s) => s.saveRemoteDraft)
@@ -114,7 +114,7 @@ function ComposerWindow({
   const account = accounts.find((a) => a.id === draft.accountId) ?? accounts[0]
   const isMicrosoft = account?.provider === 'microsoft'
 
-  useComposeAutoSave(draft.id, !minimized)
+  useComposeAutoSave(draft.id, true)
 
   const attachmentsTotal = draft.attachments.reduce((s, a) => s + a.size, 0)
   const windowState = draft.windowState ?? getInitialWindowState(index)
@@ -267,7 +267,7 @@ function ComposerWindow({
           type="button"
           onClick={(e): void => {
             e.stopPropagation()
-            close(draft.id)
+            void closeAndSaveDraft(draft.id)
           }}
           className="rounded p-0.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
           aria-label="Schliessen"
@@ -376,7 +376,7 @@ function ComposerWindow({
         </button>
         <button
           type="button"
-          onClick={(): void => close(draft.id)}
+          onClick={(): void => void closeAndSaveDraft(draft.id)}
           className="rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
           aria-label={t('common.close', { defaultValue: 'Schliessen' })}
           title={t('common.close', { defaultValue: 'Schliessen' })}

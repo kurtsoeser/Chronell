@@ -9,6 +9,8 @@ interface ConnectionsGraphFocusState {
   emphasisKeys: string[] | null
   /** Viewport auf diese Knoten zentrieren (einmalig). */
   fitToKeys: string[] | null
+  /** Graph-Insel fokussieren (einmalig, nach Modulwechsel). */
+  pendingFocusClusterKey: string | null
   /** Scan-Panel mit diesen Ankern öffnen (einmalig). */
   pendingScanAnchors: EntityLinkAiScanAnchor[] | null
   /** Scan nach Öffnen des Panels automatisch starten (einmalig). */
@@ -17,6 +19,8 @@ interface ConnectionsGraphFocusState {
   setEmphasisKeys: (keys: string[] | null) => void
   requestFitToKeys: (keys: string[]) => void
   clearFitToKeys: () => void
+  requestFocusCluster: (clusterKey: string) => void
+  clearPendingClusterFocus: () => void
   requestAiScanForRefs: (
     refs: ChronellEntityRef[],
     titles?: Map<string, string>,
@@ -29,6 +33,7 @@ export const useConnectionsGraphFocusStore = create<ConnectionsGraphFocusState>(
   highlightKey: null,
   emphasisKeys: null,
   fitToKeys: null,
+  pendingFocusClusterKey: null,
   pendingScanAnchors: null,
   pendingAutoStartScan: false,
   setHighlightRef(ref): void {
@@ -42,6 +47,13 @@ export const useConnectionsGraphFocusStore = create<ConnectionsGraphFocusState>(
   },
   clearFitToKeys(): void {
     set({ fitToKeys: null })
+  },
+  requestFocusCluster(clusterKey): void {
+    const key = clusterKey.trim()
+    set({ pendingFocusClusterKey: key || null })
+  },
+  clearPendingClusterFocus(): void {
+    set({ pendingFocusClusterKey: null })
   },
   requestAiScanForRefs(refs, titles, opts): void {
     const anchors = refs.slice(0, 50).map((ref) => {

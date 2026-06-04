@@ -21,7 +21,10 @@ import {
 import { workItemsToViews } from '@/app/work-items/work-item-mapper'
 import { GROUPED_LIST_VIRTUALIZE_THRESHOLD } from '@/lib/grouped-list-virtuoso'
 import { dueDateInputValue } from '@/app/work-items/work-item-datetime'
-import { openMailReadingPopout } from '@/lib/open-mail-reading-popout'
+import {
+  mailReadingPopoutOptsFromClick,
+  openMailReadingPopout
+} from '@/lib/open-mail-reading-popout'
 import { useTasksSettingsPrefs } from '@/lib/use-tasks-settings-prefs'
 import { resolveTaskOverdueRowStyle } from '@/lib/task-row-overdue-style'
 
@@ -165,7 +168,7 @@ export function WorkItemsGroupedList({
                 }
                 e.stopPropagation()
                 if (item.kind === 'mail_todo') {
-                  openMailReadingPopout(item.messageId, { osWindow: e.shiftKey })
+                  openMailReadingPopout(item.messageId, mailReadingPopoutOptsFromClick(e))
                 }
               }}
               className={cn(
@@ -291,7 +294,7 @@ export function WorkItemsGroupedList({
                 }
                 e.stopPropagation()
                 if (item.kind === 'mail_todo') {
-                  openMailReadingPopout(item.messageId, { osWindow: e.shiftKey })
+                  openMailReadingPopout(item.messageId, mailReadingPopoutOptsFromClick(e))
                 }
               }}
                           className={cn(

@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-  End-of-day Veröffentlichung: QA, Release-Notizen, Doku-Sync, Windows-Build, GitHub Release, vollständiger Git-Push.
+  End-of-day Veröffentlichung: QA-Preflight (Typecheck/Tests vor Version & Doku), Release-Notizen, Doku-Sync, Windows-Build, GitHub Release, vollständiger Git-Push.
 
 .EXAMPLE
   npm run publish:day
@@ -208,6 +208,13 @@ if (-not $NotesFile) {
 
 $notesPath = Resolve-ReleaseNotesFile -RepoRoot $repoRoot -TargetVersion $plannedVersion
 
+if (-not $SkipChecks) {
+  Invoke-NpmStep -ScriptName 'typecheck' -Label 'Typecheck (Preflight)'
+  Invoke-NpmStep -ScriptName 'test' -Label 'Tests (Preflight)'
+} else {
+  Write-Host 'Qualitaetschecks uebersprungen (-SkipChecks).' -ForegroundColor DarkGray
+}
+
 $prepareArgs = @{
   Bump     = $Bump
   NoPrompt = $NoPrompt
@@ -232,13 +239,6 @@ if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 if ($releaseInfo.Version -ne $version) {
   Write-Host "  Hinweis: Notizen-Version $($releaseInfo.Version) != package.json $version" -ForegroundColor Yellow
-}
-
-if (-not $SkipChecks) {
-  Invoke-NpmStep -ScriptName 'typecheck' -Label 'Typecheck'
-  Invoke-NpmStep -ScriptName 'test' -Label 'Tests'
-} else {
-  Write-Host 'Qualitaetschecks uebersprungen (-SkipChecks).' -ForegroundColor DarkGray
 }
 
 if ($LocalOnly) {

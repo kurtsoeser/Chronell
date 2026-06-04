@@ -31,6 +31,7 @@ import { ContextMenu } from '@/components/ContextMenu'
 import type { ConnectionsCanvasCreateAnchor } from '@/app/connections/connections-canvas-create'
 import { CalendarPreviewPaneToolbarButton } from '@/app/calendar/CalendarPosteingangToolbar'
 import { ConnectionsPreviewPane } from '@/app/connections/ConnectionsPreviewPane'
+import { useConnectionsPanelPopoutDock } from '@/app/connections/use-connections-panel-popout-dock'
 import {
   readConnectionsPreviewPlacement,
   type ConnectionsPreviewPlacement
@@ -96,6 +97,8 @@ export function ConnectionsShell(): JSX.Element {
   const setHighlightRef = useConnectionsGraphFocusStore((s) => s.setHighlightRef)
   const setEmphasisKeys = useConnectionsGraphFocusStore((s) => s.setEmphasisKeys)
   const requestFitToKeys = useConnectionsGraphFocusStore((s) => s.requestFitToKeys)
+  const pendingFocusClusterKey = useConnectionsGraphFocusStore((s) => s.pendingFocusClusterKey)
+  const clearPendingClusterFocus = useConnectionsGraphFocusStore((s) => s.clearPendingClusterFocus)
   const pendingScanAnchors = useConnectionsGraphFocusStore((s) => s.pendingScanAnchors)
   const pendingAutoStartScan = useConnectionsGraphFocusStore((s) => s.pendingAutoStartScan)
   const clearPendingAiScan = useConnectionsGraphFocusStore((s) => s.clearPendingAiScan)
@@ -302,6 +305,13 @@ export function ConnectionsShell(): JSX.Element {
     if (selected) setPreviewOpen(true)
   }, [selected?.key])
 
+  useConnectionsPanelPopoutDock({
+    setPreviewOpen,
+    setPreviewPlacement,
+    setSelected,
+    graphNodes: graph?.nodes ?? []
+  })
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if (e.key !== 'Escape' || multiSelectedKeys.size === 0) return
@@ -408,6 +418,25 @@ export function ConnectionsShell(): JSX.Element {
     openScan({ anchors: pendingScanAnchors })
     clearPendingAiScan()
   }, [pendingScanAnchors, clearPendingAiScan, openScan])
+
+  useEffect(() => {
+    if (!graph || !pendingFocusClusterKey) return
+    const islandNodes = graph.nodes.filter((n) => n.clusterKey === pendingFocusClusterKey)
+    if (islandNodes.length === 0) {
+      clearPendingClusterFocus()
+      return
+    }
+    const keys = islandNodes.map((n) => n.key)
+    setEmphasisKeys(keys)
+    requestFitToKeys(keys)
+    clearPendingClusterFocus()
+  }, [
+    graph,
+    pendingFocusClusterKey,
+    setEmphasisKeys,
+    requestFitToKeys,
+    clearPendingClusterFocus
+  ])
 
   const handleScanIsland = useCallback(
     (clusterKey: string): void => {

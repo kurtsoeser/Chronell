@@ -18,7 +18,10 @@ import {
   type MegaItemTimeDisplay
 } from '@/app/mega/mega-timeline-label'
 import type { TaskListArrangeBy } from '@/app/tasks/task-list-arrange'
-import { openMailReadingPopout } from '@/lib/open-mail-reading-popout'
+import {
+  mailReadingPopoutOptsFromClick,
+  openMailReadingPopout
+} from '@/lib/open-mail-reading-popout'
 
 function kindIconComponent(item: WorkItem): LucideIcon {
   if (item.kind === 'mail_todo') return Mail
@@ -196,7 +199,7 @@ export function MegaTimelineList({
                       if (item.kind !== 'mail_todo') return
                       e.preventDefault()
                       e.stopPropagation()
-                      openMailReadingPopout(item.messageId, { osWindow: e.shiftKey })
+                      openMailReadingPopout(item.messageId, mailReadingPopoutOptsFromClick(e))
                     }}
                     onContextMenu={
                       onContextMenu

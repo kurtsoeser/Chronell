@@ -37,7 +37,10 @@ import { useAccountsStore } from '@/stores/accounts'
 import { useCalendarPendingFocusStore } from '@/stores/calendar-pending-focus'
 import { useCalendarIcsImportStore } from '@/stores/calendar-ics-import'
 import { useMailStore } from '@/stores/mail'
-import { openMailReadingPopout } from '@/lib/open-mail-reading-popout'
+import {
+  mailReadingPopoutOptsFromClick,
+  openMailReadingPopout
+} from '@/lib/open-mail-reading-popout'
 import { useComposeStore } from '@/stores/compose'
 import { useSnoozeUiStore } from '@/stores/snooze-ui'
 import { CalendarEventSearchDialog } from '@/app/calendar/CalendarEventSearchDialog'
@@ -171,11 +174,19 @@ import { deleteCalendarEventIpc } from '@/lib/calendar-ipc'
 import { applyCalendarEventDomColors } from '@/lib/calendar-event-chip-style'
 import { accountColorToCssBackground } from '@/lib/avatar-color'
 import { ReadingPane } from '@/app/layout/ReadingPane'
+import { MailRightSidebar } from '@/app/layout/MailRightSidebar'
 import { GLOBAL_CREATE_EVENT, useGlobalCreateNavigateStore } from '@/lib/global-create'
 import { VerticalSplitter, useResizableWidth } from '@/components/ResizableSplitter'
 import { useModuleNavColumnWidth } from '@/lib/module-nav-column-width'
 import { useCalendarPanelLayoutStore } from '@/stores/calendar-panel-layout'
 import { CalendarFloatingPanel } from '@/app/calendar/CalendarFloatingPanel'
+import type { CalendarPreviewPopoutStash } from '@/app/panel-popout/panel-popout-stash-types'
+import { loadUseOsFloatingPanelsDefault } from '@/lib/floating-panels-prefs'
+import {
+  openCalendarPreviewOsPopout,
+  openCalendarZeitlisteOsPopout
+} from '@/lib/open-panel-popout-helpers'
+import { useCalendarPanelPopoutDock } from '@/app/calendar/use-calendar-panel-popout-dock'
 import { CalendarDockPanelSlide } from '@/app/calendar/CalendarDockPanelSlide'
 import { useCalendarMailExternalDrop } from '@/lib/use-calendar-mail-external-drop'
 import { useCalendarCloudTaskExternalDrop } from '@/lib/use-calendar-cloud-task-external-drop'
@@ -218,6 +229,7 @@ import { CalendarShellOverlayToggles } from '@/app/calendar/shell/CalendarShellO
 import {
   CAL_FLOAT_INBOX_SIZE_KEY,
   CAL_FLOAT_PREVIEW_SIZE_KEY,
+  CAL_FLOAT_CONTEXT_SIZE_KEY,
   CAL_SIDE_PANEL_MIN_WIDTH_PX,
   calendarSidePanelMaxWidthPx,
   migrateLegacyCalendarShellSource,
@@ -1038,12 +1050,21 @@ export function CalendarShell(): JSX.Element {
     minWidth: CAL_SIDE_PANEL_MIN_WIDTH_PX,
     maxWidth: sidePanelMaxWidth
   })
+  const [contextColumnWidth, setContextColumnWidth] = useResizableWidth({
+    storageKey: 'mailclient.calendarShell.contextSidebarWidth',
+    defaultWidth: 348,
+    minWidth: CAL_SIDE_PANEL_MIN_WIDTH_PX,
+    maxWidth: sidePanelMaxWidth
+  })
   useEffect(() => {
     setInboxColumnWidth((w) => Math.min(w, sidePanelMaxWidth))
   }, [sidePanelMaxWidth, setInboxColumnWidth])
   useEffect(() => {
     setPreviewPaneWidth((w) => Math.min(w, sidePanelMaxWidth))
   }, [sidePanelMaxWidth, setPreviewPaneWidth])
+  useEffect(() => {
+    setContextColumnWidth((w) => Math.min(w, sidePanelMaxWidth))
+  }, [sidePanelMaxWidth, setContextColumnWidth])
 
   useEffect(() => {
     if (selectedMessageId != null) {
@@ -1111,14 +1132,38 @@ export function CalendarShell(): JSX.Element {
 
   const inboxPlacement = useCalendarPanelLayoutStore((s) => s.inboxPlacement)
   const previewPlacement = useCalendarPanelLayoutStore((s) => s.previewPlacement)
+  const contextPlacement = useCalendarPanelLayoutStore((s) => s.contextPlacement)
+  const rightContextOpen = useCalendarPanelLayoutStore((s) => s.contextOpen)
   const setInboxPlacement = useCalendarPanelLayoutStore((s) => s.setInboxPlacement)
   const setPreviewPlacement = useCalendarPanelLayoutStore((s) => s.setPreviewPlacement)
+  const setContextPlacement = useCalendarPanelLayoutStore((s) => s.setContextPlacement)
+  const setRightContextOpen = useCalendarPanelLayoutStore((s) => s.setContextOpen)
+
+  useCalendarPanelPopoutDock({
+    setRightInboxOpen,
+    setInboxPlacement,
+    setRightPreviewOpen,
+    setPreviewPlacement,
+    setEventDialog,
+    setSchedulingOpen,
+    setSchedulingSlots,
+    setSchedulingAccountId,
+    setSchedulingDurationMin,
+    setSchedulingMeetingTitle,
+    setPreviewCalendarEvent,
+    setPreviewCloudTask,
+    setPreviewCloudTaskPlannedFromTimeline,
+    clearSelectedMessage,
+    selectMessageWithThreadPreview
+  })
 
   const inboxDockShow = rightInboxOpen && inboxPlacement === 'dock'
   const previewDockShow = rightPreviewOpen && previewPlacement === 'dock'
+  const contextDockShow = rightContextOpen && contextPlacement === 'dock'
 
   const [inboxDockStripInDom, setInboxDockStripInDom] = useState(inboxDockShow)
   const [previewDockStripInDom, setPreviewDockStripInDom] = useState(previewDockShow)
+  const [contextDockStripInDom, setContextDockStripInDom] = useState(contextDockShow)
   useEffect(() => {
     persistLeftSidebarCollapsed(leftSidebarCollapsed)
   }, [leftSidebarCollapsed])
@@ -1131,18 +1176,102 @@ export function CalendarShell(): JSX.Element {
     setPreviewDockStripInDom(rightPreviewOpen && previewPlacement === 'dock')
   }, [rightPreviewOpen, previewPlacement])
 
+  useEffect(() => {
+    setContextDockStripInDom(rightContextOpen && contextPlacement === 'dock')
+  }, [rightContextOpen, contextPlacement])
+
   const inboxFloatWidth = inboxColumnWidth
   const previewFloatWidth = previewPaneWidth
+  const contextFloatWidth = contextColumnWidth
   const sidePanelFloatMaxWidthPx = sidePanelMaxWidth
+
+  const useOsFloatingPanels = loadUseOsFloatingPanelsDefault()
 
   const bothPanelsFloating = useMemo(
     () =>
+      !useOsFloatingPanels &&
       rightInboxOpen &&
       inboxPlacement === 'float' &&
       rightPreviewOpen &&
       previewPlacement === 'float',
-    [rightInboxOpen, inboxPlacement, rightPreviewOpen, previewPlacement]
+    [useOsFloatingPanels, rightInboxOpen, inboxPlacement, rightPreviewOpen, previewPlacement]
   )
+
+  const previewColumnLabel = useMemo((): string => {
+    if (previewCloudTask) return t('calendar.shell.previewBadgeCloudTask')
+    if (previewCalendarEvent) return t('calendar.shell.previewBadgeEvent')
+    if (selectedMessageId != null) return t('calendar.shell.previewBadgeMail')
+    return t('calendar.shell.previewBadgeDefault')
+  }, [previewCloudTask, previewCalendarEvent, selectedMessageId, t])
+
+  const buildPreviewPopoutStash = useCallback((): CalendarPreviewPopoutStash => {
+    if (schedulingOpen) {
+      return {
+        focus: 'scheduling',
+        accountId: schedulingAccountId,
+        durationMin: schedulingDurationMin,
+        meetingTitle: schedulingMeetingTitle,
+        slots: schedulingSlots
+      }
+    }
+    if (previewCloudTask) {
+      return {
+        focus: 'task',
+        accountId: previewCloudTask.accountId,
+        listId: previewCloudTask.listId,
+        taskId: previewCloudTask.id
+      }
+    }
+    if (previewCalendarEvent) {
+      const graphEventId = previewCalendarEvent.graphEventId?.trim()
+      if (graphEventId) {
+        return {
+          focus: 'event',
+          accountId: previewCalendarEvent.accountId,
+          graphEventId
+        }
+      }
+    }
+    const msgId = useMailStore.getState().selectedMessageId
+    if (msgId != null) return { focus: 'mail', messageId: msgId }
+    return { focus: 'empty' }
+  }, [
+    schedulingOpen,
+    schedulingAccountId,
+    schedulingDurationMin,
+    schedulingMeetingTitle,
+    schedulingSlots,
+    previewCloudTask,
+    previewCalendarEvent
+  ])
+
+  const undockPreviewPanel = useCallback((): void => {
+    if (useOsFloatingPanels) {
+      void openCalendarPreviewOsPopout(buildPreviewPopoutStash(), previewColumnLabel)
+      persistRightPreviewOpen(false)
+      setRightPreviewOpen(false)
+      setPreviewPlacement('dock')
+      return
+    }
+    setPreviewPlacement('float')
+  }, [
+    useOsFloatingPanels,
+    buildPreviewPopoutStash,
+    previewColumnLabel,
+    persistRightPreviewOpen,
+    setPreviewPlacement
+  ])
+
+  const undockInboxPanel = useCallback((): void => {
+    if (useOsFloatingPanels) {
+      void openCalendarZeitlisteOsPopout(t('mega.shell.title'))
+      persistRightInboxOpen(false)
+      setRightInboxOpen(false)
+      setInboxPlacement('dock')
+      return
+    }
+    setInboxPlacement('float')
+  }, [useOsFloatingPanels, t, persistRightInboxOpen, setInboxPlacement])
 
   const previewFloatPos = useMemo(() => {
     const x = Math.max(12, window.innerWidth - previewFloatWidth - 20)
@@ -1156,6 +1285,24 @@ export function CalendarShell(): JSX.Element {
     }
     return { x: Math.max(12, window.innerWidth - inboxFloatWidth - 20), y: 68 }
   }, [bothPanelsFloating, inboxFloatWidth, previewFloatPos.x, previewFloatWidth])
+
+  const contextFloatPos = useMemo(() => {
+    let x = Math.max(12, window.innerWidth - contextFloatWidth - 20)
+    if (rightPreviewOpen && previewPlacement === 'float') {
+      x = Math.max(12, previewFloatPos.x - contextFloatWidth - 12)
+    } else if (rightInboxOpen && inboxPlacement === 'float') {
+      x = Math.max(12, inboxFloatPos.x - contextFloatWidth - 12)
+    }
+    return { x, y: 68 }
+  }, [
+    contextFloatWidth,
+    inboxFloatPos.x,
+    inboxPlacement,
+    previewFloatPos.x,
+    previewPlacement,
+    rightInboxOpen,
+    rightPreviewOpen
+  ])
 
   const previewCloudTaskPlanned = useMemo(() => {
     if (!previewCloudTask) return null
@@ -1171,13 +1318,6 @@ export function CalendarShell(): JSX.Element {
     if (!previewCloudTask) return undefined
     return accounts.find((a) => a.id === previewCloudTask.accountId)?.displayName
   }, [previewCloudTask, accounts])
-
-  const previewColumnLabel = useMemo((): string => {
-    if (previewCloudTask) return t('calendar.shell.previewBadgeCloudTask')
-    if (previewCalendarEvent) return t('calendar.shell.previewBadgeEvent')
-    if (selectedMessageId != null) return t('calendar.shell.previewBadgeMail')
-    return t('calendar.shell.previewBadgeDefault')
-  }, [previewCloudTask, previewCalendarEvent, selectedMessageId, t])
 
   const previewCalendarName = useMemo((): string | null => {
     if (!previewCalendarEvent) return null
@@ -2823,14 +2963,18 @@ export function CalendarShell(): JSX.Element {
     isGanttTimelineView,
     rightInboxOpen,
     rightPreviewOpen,
+    rightContextOpen,
     inboxPlacement,
     previewPlacement,
+    contextPlacement,
     leftSidebarCollapsed,
     moduleNavWidth,
     inboxColumnWidth,
     previewPaneWidth,
+    contextColumnWidth,
     inboxDockShow,
     previewDockShow,
+    contextDockShow,
     uiScale
   ])
 
@@ -3139,6 +3283,8 @@ export function CalendarShell(): JSX.Element {
                     persistRightPreviewOpen(next)
                     setRightPreviewOpen(next)
                   }}
+                  rightContextOpen={rightContextOpen}
+                  onRightContextOpenChange={setRightContextOpen}
                   viewMenuRef={viewMenuRef}
                   viewMenuOpen={viewMenuOpen}
                   setViewMenuOpen={setViewMenuOpen}
@@ -3395,7 +3541,7 @@ export function CalendarShell(): JSX.Element {
                       const onMailDblclick = (e: MouseEvent): void => {
                         e.preventDefault()
                         e.stopPropagation()
-                        openMailReadingPopout(m.id, { osWindow: e.shiftKey })
+                        openMailReadingPopout(m.id, mailReadingPopoutOptsFromClick(e))
                       }
                       mailEl._calMailDblclick = onMailDblclick
                       info.el.addEventListener('dblclick', onMailDblclick)
@@ -3796,12 +3942,12 @@ export function CalendarShell(): JSX.Element {
                   persistRightInboxOpen(false)
                   setRightInboxOpen(false)
                 }}
-                onRequestUndock={(): void => setInboxPlacement('float')}
+                onRequestUndock={undockInboxPanel}
               />
             </div>
           </CalendarDockPanelSlide>
         ) : null}
-        {inboxPlacement === 'float' ? (
+        {inboxPlacement === 'float' && !useOsFloatingPanels ? (
           <CalendarFloatingPanel
             open={rightInboxOpen}
             title={t('mega.shell.title')}
@@ -3856,7 +4002,7 @@ export function CalendarShell(): JSX.Element {
                 label={previewColumnLabel}
                 undockTitle={t('calendar.shell.undockPreviewTitle')}
                 hideTitle={t('calendar.shell.hidePreviewTitle')}
-                onUndock={(): void => setPreviewPlacement('float')}
+                onUndock={undockPreviewPanel}
                 onHide={(): void => {
                   persistRightPreviewOpen(false)
                   setRightPreviewOpen(false)
@@ -3868,7 +4014,7 @@ export function CalendarShell(): JSX.Element {
             </div>
           </CalendarDockPanelSlide>
         ) : null}
-        {previewPlacement === 'float' ? (
+        {previewPlacement === 'float' && !useOsFloatingPanels ? (
           <CalendarFloatingPanel
             open={rightPreviewOpen}
             title={previewColumnLabel}
@@ -3886,6 +4032,55 @@ export function CalendarShell(): JSX.Element {
             onDock={(): void => setPreviewPlacement('dock')}
           >
             {calendarPreviewBody}
+          </CalendarFloatingPanel>
+        ) : null}
+        {contextDockStripInDom ? (
+          <CalendarDockPanelSlide
+            visible={contextDockShow}
+            panelWidthPx={contextColumnWidth}
+            onWidthTransitionEnd={refreshCalendarSize}
+            onExitTransitionComplete={(): void => {
+              if (!rightContextOpen) setContextDockStripInDom(false)
+            }}
+            splitter={
+              <VerticalSplitter
+                onDrag={(delta): void => setContextColumnWidth((w) => w - delta)}
+                ariaLabel={t('calendar.shell.splitterContextAria')}
+              />
+            }
+          >
+            <div
+              style={{ width: contextColumnWidth }}
+              className="flex h-full min-h-0 shrink-0 flex-col overflow-hidden"
+            >
+              <CalendarPreviewDockHeader
+                label={t('calendar.shell.contextSidebarTitle')}
+                undockTitle={t('calendar.shell.undockContextTitle')}
+                hideTitle={t('calendar.shell.hideContextTitle')}
+                onUndock={(): void => setContextPlacement('float')}
+                onHide={(): void => setRightContextOpen(false)}
+              />
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                <MailRightSidebar hideChrome />
+              </div>
+            </div>
+          </CalendarDockPanelSlide>
+        ) : null}
+        {contextPlacement === 'float' ? (
+          <CalendarFloatingPanel
+            open={rightContextOpen}
+            title={t('calendar.shell.contextSidebarTitle')}
+            widthPx={contextFloatWidth}
+            minHeightPx={360}
+            persistSizeKey={CAL_FLOAT_CONTEXT_SIZE_KEY}
+            minResizeWidthPx={CAL_SIDE_PANEL_MIN_WIDTH_PX}
+            maxResizeWidthPx={sidePanelFloatMaxWidthPx}
+            defaultPosition={contextFloatPos}
+            zIndex={94}
+            onClose={(): void => setRightContextOpen(false)}
+            onDock={(): void => setContextPlacement('dock')}
+          >
+            <MailRightSidebar hideChrome />
           </CalendarFloatingPanel>
         ) : null}
         </div>

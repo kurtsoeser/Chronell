@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron'
 import { IPC, type MailReadingPopoutOpenInput } from '@shared/types'
+import { broadcastMailReadingPopoutDock } from './ipc-broadcasts'
 import {
   closeAllMailReadingPopouts,
   closeMailReadingPopout,
@@ -61,6 +62,16 @@ export function registerMailReadingPopoutIpc(): void {
       const messageId = typeof args?.messageId === 'number' ? args.messageId : 0
       if (!Number.isFinite(messageId) || messageId <= 0) return
       setMailReadingPopoutAlwaysOnTop(messageId, args.alwaysOnTop === true)
+    }
+  )
+
+  ipcMain.handle(
+    IPC.mailReadingPopout.requestDock,
+    (_event, args: { messageId: number }): void => {
+      const messageId = typeof args?.messageId === 'number' ? args.messageId : 0
+      if (!Number.isFinite(messageId) || messageId <= 0) return
+      closeMailReadingPopout(messageId)
+      broadcastMailReadingPopoutDock({ messageId })
     }
   )
 }

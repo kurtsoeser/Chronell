@@ -3,6 +3,7 @@ import type { AppShellMode } from '@/stores/app-mode'
 /** Standard-Reihenfolge der Modul-Tabs in der Top-Leiste. */
 export const DEFAULT_TOPBAR_MODULE_ORDER: AppShellMode[] = [
   'home',
+  'layoutStudio',
   'mail',
   'calendar',
   'bookings',

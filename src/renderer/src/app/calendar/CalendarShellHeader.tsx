@@ -17,6 +17,7 @@ import {
   moduleColumnHeaderToolbarToggleClass
 } from '@/components/ModuleColumnHeader'
 import {
+  CalendarContextSidebarToolbarButton,
   CalendarPosteingangToolbarButton,
   CalendarPreviewPaneToolbarButton
 } from '@/app/calendar/CalendarPosteingangToolbar'
@@ -43,6 +44,8 @@ export interface CalendarShellHeaderProps {
   onRightInboxOpenChange: (open: boolean) => void
   rightPreviewOpen: boolean
   onRightPreviewOpenChange: (open: boolean) => void
+  rightContextOpen: boolean
+  onRightContextOpenChange: (open: boolean) => void
   viewMenuRef: RefObject<HTMLDivElement>
   viewMenuOpen: boolean
   setViewMenuOpen: (open: boolean | ((prev: boolean) => boolean)) => void
@@ -80,6 +83,8 @@ export function CalendarShellHeader(props: CalendarShellHeaderProps): JSX.Elemen
     onRightInboxOpenChange,
     rightPreviewOpen,
     onRightPreviewOpenChange,
+    rightContextOpen,
+    onRightContextOpenChange,
     viewMenuRef,
     viewMenuOpen,
     setViewMenuOpen,
@@ -212,6 +217,10 @@ export function CalendarShellHeader(props: CalendarShellHeaderProps): JSX.Elemen
         <CalendarPreviewPaneToolbarButton
           open={rightPreviewOpen}
           onOpenChange={onRightPreviewOpenChange}
+        />
+        <CalendarContextSidebarToolbarButton
+          open={rightContextOpen}
+          onOpenChange={onRightContextOpenChange}
         />
 
         {onNewEventClick != null ? (

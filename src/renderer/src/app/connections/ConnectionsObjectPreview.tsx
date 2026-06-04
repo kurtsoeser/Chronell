@@ -23,7 +23,7 @@ export function ConnectionsObjectPreview({
 }: {
   entityRef: ChronellEntityRef
   accounts: readonly ConnectedAccount[]
-  onRequestMailPopout?: (opts?: { osWindow?: boolean }) => void
+  onRequestMailPopout?: (opts?: import('@/lib/open-mail-reading-popout').MailReadingPopoutOpenOpts) => void
   onContextNoteTarget?: (target: ObjectNoteTarget | null) => void
 }): JSX.Element {
   const { t } = useTranslation()

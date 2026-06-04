@@ -157,3 +157,24 @@ export function broadcastMailReadingPopoutClosed(payload: { messageId: number })
     win.webContents.send('mail-reading-popout:closed', payload)
   }
 }
+
+export function broadcastPanelPopoutClosed(payload: {
+  panel: string
+  instanceKey: string
+}): void {
+  for (const win of BrowserWindow.getAllWindows()) {
+    win.webContents.send('panel-popout:closed', payload)
+  }
+}
+
+export function broadcastPanelPopoutDock(payload: import('@shared/panel-popout').PanelPopoutDockPayload): void {
+  for (const win of BrowserWindow.getAllWindows()) {
+    win.webContents.send('panel-popout:dock', payload)
+  }
+}
+
+export function broadcastMailReadingPopoutDock(payload: { messageId: number }): void {
+  for (const win of BrowserWindow.getAllWindows()) {
+    win.webContents.send('mail-reading-popout:dock', payload)
+  }
+}

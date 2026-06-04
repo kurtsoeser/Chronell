@@ -24,7 +24,10 @@ import {
 } from '@/lib/zoned-iso-date'
 import type { MailListItem, ConnectedAccount } from '@shared/types'
 import { accountColorToCssBackground } from '@/lib/avatar-color'
-import { openMailReadingPopout } from '@/lib/open-mail-reading-popout'
+import {
+  mailReadingPopoutOptsFromClick,
+  openMailReadingPopout
+} from '@/lib/open-mail-reading-popout'
 import { MIME_THREAD_IDS, readDraggedWorkflowMessageIds } from '@/lib/workflow-dnd'
 import {
   scheduleRemoveDuplicateFullCalendarEventsById,
@@ -432,7 +435,7 @@ export function MailTodoCalendar({
             const onDblclick = (e: MouseEvent): void => {
               e.preventDefault()
               e.stopPropagation()
-              openMailReadingPopout(m.id, { osWindow: e.shiftKey })
+              openMailReadingPopout(m.id, mailReadingPopoutOptsFromClick(e))
             }
             info.el.addEventListener('dblclick', onDblclick)
           }

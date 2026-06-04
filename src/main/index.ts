@@ -20,6 +20,7 @@ import {
 } from './open-external'
 import { closeAllTeamsChatPopouts } from './teams-chat-popout'
 import { closeAllMailReadingPopouts } from './mail-reading-popout'
+import { closeAllPanelPopouts } from './panel-popout/panel-popout-window'
 import { pruneStaleAttachmentCache } from './attachment-cache'
 import { applyPendingChromiumCachePurgeOnStartup } from './local-data-service'
 import {
@@ -294,6 +295,7 @@ app.whenReady().then(async () => {
 app.on('before-quit', () => {
   closeAllTeamsChatPopouts()
   closeAllMailReadingPopouts()
+  closeAllPanelPopouts()
   stopMailPolling()
   stopCalendarSync()
   stopConnectivityMonitoring()

@@ -40,6 +40,8 @@ export interface CalendarEventIconPickerProps {
   className?: string
   /** Kompakt: Standard-Inhalt des Triggers wenn kein explizites `iconId` gesetzt ist. */
   triggerIcon?: ReactNode
+  /** Vorschau: Icon-Raster beim Mount geöffnet (z. B. Dialog „Tab-Symbol wählen“). */
+  defaultPickerOpen?: boolean
 }
 
 const PICKER_GRID_COLS = 8
@@ -106,10 +108,11 @@ export function CalendarEventIconPicker({
   footer,
   compactButtonClassName,
   className,
-  triggerIcon
+  triggerIcon,
+  defaultPickerOpen = false
 }: CalendarEventIconPickerProps): JSX.Element {
   const { t } = useTranslation()
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(defaultPickerOpen && layout === 'preview')
   const [query, setQuery] = useState('')
   const popoverRef = useRef<HTMLDivElement>(null)
   const anchorRef = useRef<HTMLButtonElement>(null)

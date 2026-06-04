@@ -11,7 +11,10 @@ import { showAppConfirm } from '@/stores/app-dialog'
 import { useAccountsStore } from '@/stores/accounts'
 import { useComposeStore } from '@/stores/compose'
 import { useSnoozeUiStore } from '@/stores/snooze-ui'
-import { openMailReadingPopout } from '@/lib/open-mail-reading-popout'
+import {
+  mailReadingPopoutOptsFromClick,
+  openMailReadingPopout
+} from '@/lib/open-mail-reading-popout'
 import { isMailClientRuntimeComplete } from '@/lib/mail-client-runtime'
 import {
   getVisibleMailListHoverActions,
@@ -431,7 +434,7 @@ export function MailList(): JSX.Element {
     },
     onPopout: (e, m): void => {
       e.stopPropagation()
-      openMailReadingPopout(m.id, { osWindow: e.shiftKey })
+      openMailReadingPopout(m.id, mailReadingPopoutOptsFromClick(e))
     },
     onForward: (e, m): void => {
       e.stopPropagation()
@@ -1072,7 +1075,7 @@ export function MailList(): JSX.Element {
                       void selectMessage(id)
                     }}
                     onOpenPopout={(id, e): void => {
-                      openMailReadingPopout(id, { osWindow: e.shiftKey })
+                      openMailReadingPopout(id, mailReadingPopoutOptsFromClick(e))
                     }}
                     onContextMail={openMailContext}
                     rowActions={rowActions}
@@ -1107,7 +1110,7 @@ export function MailList(): JSX.Element {
                       void selectMessage(id)
                     }}
                     onOpenPopout={(id, e): void => {
-                      openMailReadingPopout(id, { osWindow: e.shiftKey })
+                      openMailReadingPopout(id, mailReadingPopoutOptsFromClick(e))
                     }}
                     onContextMail={openMailContext}
                     rowActions={rowActions}

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { Pin, RefreshCw, Search, SendHorizonal, X } from 'lucide-react'
+import { Pin, RefreshCw, Search, SendHorizonal } from 'lucide-react'
+import { PopoutTitlebarControls } from '@/app/layout/PopoutTitlebarControls'
+import { useFramelessTitlebar } from '@/lib/use-frameless-titlebar'
 import { cn } from '@/lib/utils'
 import {
   ModuleColumnHeaderIconButton,
@@ -22,6 +24,7 @@ interface GraphMe {
 }
 
 export function TeamsChatPopoutShell(): JSX.Element {
+  const frameless = useFramelessTitlebar()
   const route = parseTeamsChatPopoutRoute()
   const accounts = useAccountsStore((s) => s.accounts)
   const msAccounts = useMemo(() => accounts.filter((a) => a.id.startsWith('ms:')), [accounts])
@@ -202,7 +205,12 @@ export function TeamsChatPopoutShell(): JSX.Element {
 
   return (
     <div className="flex h-screen min-h-0 flex-col bg-background text-foreground">
-      <header className={moduleColumnHeaderShellBarClass}>
+      <header
+        className={cn(
+          moduleColumnHeaderShellBarClass,
+          frameless && 'glass-topbar electron-window-titlebar h-12 select-none pr-0'
+        )}
+      >
         <div className="min-w-0 flex-1 truncate text-xs font-semibold">{title}</div>
         <div className="flex shrink-0 items-center gap-0.5">
           <ModuleColumnHeaderIconButton
@@ -230,10 +238,8 @@ export function TeamsChatPopoutShell(): JSX.Element {
               aria-hidden
             />
           </ModuleColumnHeaderIconButton>
-          <ModuleColumnHeaderIconButton type="button" onClick={handleClose} title="Fenster schliessen">
-            <X className={moduleColumnHeaderIconGlyphClass} aria-hidden />
-          </ModuleColumnHeaderIconButton>
         </div>
+        <PopoutTitlebarControls onClose={handleClose} />
       </header>
 
       {messagesError != null && (

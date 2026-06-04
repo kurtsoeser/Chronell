@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Chronell — Manage your time, not your inbox",
-    "description": "Chronell 0.9.28: ICS import, visual meta folders, polished tasks & notes modules — desktop work hub for Windows 11 with Microsoft 365 and Google."
+    "description": "Chronell 0.9.30: Custom views with layout wizard, mail & calendar workspace — desktop work hub for Windows 11 with Microsoft 365 and Google."
   },
   "nav": {
     "method": "The Method",
@@ -27,7 +27,7 @@
     "taglineLine2Accent": "inbox",
     "taglineLine2Suffix": ".",
     "positioning": "Chronell is not an email client. It's a system to manage your time.",
-    "subline": "Microsoft 365 and Google in one desktop workspace — ICS calendar import, visual meta folders, polished tasks and notes modules, mail bulk selection, and connection graph. Built for Windows 11.",
+    "subline": "Microsoft 365 and Google in one desktop workspace — custom views from mail, calendar, and tasks, floating panels, and a refined mail and calendar workspace. Built for Windows 11.",
     "ctaDownload": "Download for Windows",
     "ctaMethod": "Discover the method",
     "mockup": {
@@ -178,35 +178,49 @@
     "eyebrow": "Release overview",
     "title": "What shipped in recent updates",
     "lead": "From the new Fluent look to the connection graph and profile sync — Chronell moves fast without putting your mail in the cloud.",
-            "v0928": {
+    "v0930": {
       "badge": "Current",
       "date": "Juni 2026",
       "title": "Mail and Calendar",
       "b1": "Mail: Mail workspace: sidebar, attachments, EWS, and actions",
       "b2": "Calendar: Calendar and events: dialog, preview, categories, and shell",
+      "b3": "Settings: Settings, onboarding, and backup",
+      "b4": "Homepage: Release notes, homepage timeline, and download for 0.9.30"
+    },"v0929": {
+      "date": "June 2026",
+      "title": "Custom views & mail/calendar",
+      "b1": "Custom views: your own tabs with a layout wizard — combine mail, calendar, timeline, dashboard tiles, and preview panels",
+      "b2": "Detach panels: open zones in floating windows and dock them back with one click",
+      "b3": "Mail & calendar: refined workspace, event dialog, and saved calendar layout",
+      "b4": "Settings & onboarding: account and appearance settings; refined first-run setup wizard"
+    },"v0928": {
+      "date": "Juni 2026",
+      "title": "Mail and Calendar",
+      "b1": "Mail: Mail workspace: sidebar, attachments, EWS, and actions",
+      "b2": "Calendar: Calendar and events: dialog, preview, categories, and shell",
       "b3": "Tasks: Tasks module and cloud task sync",
-      "b4": "Homepage: Release notes, homepage timeline, and download for 0.9.28"
+      "b4": "Homepage: Release notes, homepage timeline, and download for 0.9.30"
     },"v0927": {
       "date": "Mai 2026",
       "title": "Mail and Connections",
       "b1": "Mail: Mail workspace: sidebar, attachments, EWS, and actions",
       "b2": "Connections: Connections graph and entity links",
       "b3": "Settings: Settings, onboarding, and backup",
-      "b4": "Homepage: Release notes, homepage timeline, and download for 0.9.28"
+      "b4": "Homepage: Release notes, homepage timeline, and download for 0.9.30"
     },"v0926": {
       "date": "Mai 2026",
       "title": "Mail and Tasks",
       "b1": "Mail: Mail workspace: sidebar, attachments, EWS, and actions",
       "b2": "Tasks: Tasks module and cloud task sync",
       "b3": "Settings: Settings, onboarding, and backup",
-      "b4": "Homepage: Release notes, homepage timeline, and download for 0.9.28"
+      "b4": "Homepage: Release notes, homepage timeline, and download for 0.9.30"
     },"v0925": {
       "date": "Mai 2026",
       "title": "Mail and Files",
       "b1": "Mail: Mail workspace: sidebar, attachments, EWS, and actions",
       "b2": "Files: New Files module: cloud files, mail attachments, and index sync",
       "b3": "Calendar: Calendar and events: dialog, preview, categories, and shell",
-      "b4": "Homepage: Release notes, homepage timeline, and download for 0.9.28"
+      "b4": "Homepage: Release notes, homepage timeline, and download for 0.9.30"
     },"v0923": {
       "date": "May 2026",
       "title": "ICS import, meta folders & module polish",
@@ -280,34 +294,34 @@
   "highlights": {
     "eyebrow": "Try it now",
     "title": "Four focus areas in the current beta",
-    "lead": "Version 0.9.28 adds ICS calendar import, a visual meta-folder editor, and significantly polished tasks, notes, and settings modules — building on branding, zoom, and group calendars.",
+    "lead": "Version 0.9.30 adds custom views with a layout wizard — plus refined mail and calendar workspaces, floating panels, and improved settings.",
     "compose": {
-      "title": "ICS calendar import",
-      "desc": "Events from .ics files straight into your connected calendars — no Outlook web or manual copy-paste.",
-      "b1": "Drag & drop .ics onto the calendar or import via dialog",
-      "b2": "Pick single or multiple events and create them in M365 or Google calendars",
-      "b3": "Ideal for invites, travel plans, and external calendar exports"
+      "title": "Custom views",
+      "desc": "Your own workspaces from mail, calendar, tasks, and more — as a top-bar tab, layout via wizard.",
+      "b1": "Wizard: pick a template, fill zones, choose icon and name — ready as your own tab",
+      "b2": "Mix freely: mail list, calendar, timeline, dashboard tiles, and preview panels",
+      "b3": "Detach panels: open zones in floating windows — dock back with one click"
     },
     "connections": {
-      "title": "Visual meta folders",
-      "desc": "Virtual inboxes via rules — now with a graphical expression editor instead of text only.",
-      "b1": "Rules as a tree: AND/OR, fields, operators at a glance",
-      "b2": "Create, edit, and understand faster — even with complex filters",
-      "b3": "Still cross-account and local in SQLite"
+      "title": "Mail & calendar",
+      "desc": "Refined mail workspace and calendar shell — event dialog, preview, and saved layout.",
+      "b1": "Mail: sidebar, attachments, composer, and reading pane in one workspace",
+      "b2": "Calendar: event dialog, categories, and saved calendar layout",
+      "b3": "Context preview: event, task, or mail depending on selection in the right column"
     },
     "ai": {
-      "title": "Tasks & notes",
-      "desc": "Modules for planned work and thoughts — shell, lists, and calendar view refined.",
-      "b1": "Tasks: kanban and grouped list with due buckets and mail to-dos",
-      "b2": "Notes: improved sidebar, calendar and list views, links in context",
-      "b3": "One window: from mail to task, from note to event"
+      "title": "Floating panels",
+      "desc": "Mail reading pane, calendar preview, and composer in their own window — without leaving your main workspace.",
+      "b1": "Detach and dock panels — also from custom views",
+      "b2": "Multiple floating windows in parallel — e.g. event and mail side by side",
+      "b3": "Position and size are preserved — back into the zone via the dock button"
     },
     "cloudSync": {
-      "title": "Settings & UI",
-      "desc": "Calendar, tasks, and notes settings in dedicated panels — plus a consistent date picker.",
-      "b1": "Settings → Calendar / Tasks / Notes with module-specific options",
-      "b2": "Unified Chronell date picker in events, tasks, and notes",
-      "b3": "Typography, scrollbars, and zoom shortcuts further refined — from 0.9.22: branding & group calendars"
+      "title": "Settings & onboarding",
+      "desc": "Account and appearance settings plus a refined first-run setup wizard.",
+      "b1": "Top bar: show/hide modules, reorder via drag & drop",
+      "b2": "Configure floating panels in settings",
+      "b3": "Profile sync: take custom views and layouts to your second PC"
     }
   },
   "showcase": {
@@ -377,6 +391,10 @@
     "eyebrow": "Built for your workflow",
     "title": "What Chronell delivers",
     "grid": {
+      "customViews": {
+        "title": "Custom views",
+        "desc": "Your own tabs with a layout wizard: combine mail, calendar, timeline, dashboard tiles, and preview — detach panels and dock them back."
+      },
       "design": {
         "title": "Fluent design",
         "desc": "Fluent 2 tokens app-wide: Mica, shell bars, acrylic overlays, dashboard panels, and selectable dark/light presets."
@@ -490,12 +508,12 @@
     "privacy": "Privacy"
   },
   "whatsNew": {
-    "label": "Version 0.9.28",
-    "tagline": "ICS import · meta folders · module polish · settings"
+    "label": "Version 0.9.30",
+    "tagline": "Custom views · layout wizard · floating panels · mail & calendar"
   },
   "cta": {
     "title": "Ready for the new Chronell?",
-    "body": "Download version 0.9.28 for Windows 11 — ICS calendar import, visual meta folders, polished tasks and notes modules, mail bulk selection, events with recurrence, and optional cloud sync. Updates replace your version without losing data.",
+    "body": "Download version 0.9.30 for Windows 11 — custom views with layout wizard, floating panels, refined mail and calendar workspace, and optional cloud sync. Updates replace your version without losing data.",
     "button": "Download now"
   }
 }

@@ -12,6 +12,8 @@ import { CalendarFloatingPanel } from '@/app/calendar/CalendarFloatingPanel'
 import { useMailWorkspaceLayoutStore } from '@/stores/mail-workspace-layout'
 import { useMailPendingFocusStore } from '@/stores/mail-pending-focus'
 import { useMailStore } from '@/stores/mail'
+import { loadUseOsFloatingPanelsDefault } from '@/lib/floating-panels-prefs'
+import { openMailCalendarSidebarOsPopout } from '@/lib/open-panel-popout-helpers'
 import { useMailReadingPopoutStore } from '@/stores/mail-reading-popout'
 
 const MAIL_FLOAT_READING_SIZE_KEY = 'mailclient.mailWorkspace.readingFloatSize'
@@ -81,8 +83,11 @@ export function MailWorkspace(props: { onOpenAccountDialog: () => void }): JSX.E
 
   const dockedReading = readingOpen && readingPlacement === 'dock'
   const dockedCalendar = calendarOpen && calendarPlacement === 'dock'
-  const floatReading = readingOpen && readingPlacement === 'float'
-  const floatCalendar = calendarOpen && calendarPlacement === 'float'
+  const useOsFloatingPanels = loadUseOsFloatingPanelsDefault()
+  const floatReading =
+    readingOpen && readingPlacement === 'float' && !useOsFloatingPanels
+  const floatCalendar =
+    calendarOpen && calendarPlacement === 'float' && !useOsFloatingPanels
 
   const readingFloatWidth = useMemo(
     () => Math.min(720, Math.max(320, Math.round(calendarColWidth + 160))),
@@ -111,18 +116,44 @@ export function MailWorkspace(props: { onOpenAccountDialog: () => void }): JSX.E
   const openReadingPopout = useMailReadingPopoutStore((s) => s.openFromCurrentSelection)
 
   const requestReadingUndock = useCallback((): void => {
+    if (useOsFloatingPanels) {
+      if (readingPlacement === 'float') {
+        setReadingPlacement('dock')
+        return
+      }
+      openReadingPopout()
+      setReadingOpen(false)
+      setReadingPlacement('dock')
+      return
+    }
     setReadingPlacement(readingPlacement === 'float' ? 'dock' : 'float')
-  }, [readingPlacement, setReadingPlacement])
+  }, [
+    useOsFloatingPanels,
+    readingPlacement,
+    setReadingPlacement,
+    openReadingPopout,
+    setReadingOpen
+  ])
 
   const requestReadingGlobalPopout = useCallback(
-    (opts?: { osWindow?: boolean }): void => {
-      openReadingPopout({ osWindow: opts?.osWindow === true })
+    (opts?: { osWindow?: boolean; inAppFloat?: boolean }): void => {
+      openReadingPopout(opts)
+      if (useOsFloatingPanels && !opts?.inAppFloat) {
+        setReadingOpen(false)
+        setReadingPlacement('dock')
+      }
     },
-    [openReadingPopout]
+    [openReadingPopout, useOsFloatingPanels, setReadingOpen, setReadingPlacement]
   )
   const requestCalendarUndock = useCallback((): void => {
+    if (useOsFloatingPanels) {
+      void openMailCalendarSidebarOsPopout(t('mail.workspace.floatCalendarTitle'))
+      setCalendarOpen(false)
+      setCalendarPlacement('dock')
+      return
+    }
     setCalendarPlacement('float')
-  }, [setCalendarPlacement])
+  }, [useOsFloatingPanels, setCalendarPlacement, setCalendarOpen, t])
 
   return (
     <div className={moduleShellClass}>

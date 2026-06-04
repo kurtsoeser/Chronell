@@ -1,5 +1,6 @@
 import { app, BrowserWindow, screen } from 'electron'
 import { resolveAppWindowIcon } from './app-icon'
+import { popoutWindowTitleBarOptions } from './window-titlebar'
 import { attachChromiumZoomShortcutGuard } from './zoom-shortcut-guard'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -118,6 +119,7 @@ export function openMailReadingPopout(input: MailReadingPopoutOpenInput): void {
     backgroundColor: '#0e0e12',
     title,
     alwaysOnTop,
+    ...popoutWindowTitleBarOptions(),
     ...(icon ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.mjs'),

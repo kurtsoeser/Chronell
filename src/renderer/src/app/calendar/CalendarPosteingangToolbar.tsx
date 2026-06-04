@@ -1,4 +1,4 @@
-import { PanelRightClose, PanelRightOpen, BookOpen } from 'lucide-react'
+import { PanelRightClose, PanelRightOpen, BookOpen, LayoutDashboard } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import {
   moduleColumnHeaderIconGlyphClass,
@@ -24,6 +24,29 @@ export function CalendarPosteingangToolbarButton(props: {
       ) : (
         <PanelRightOpen className={moduleColumnHeaderIconGlyphClass} />
       )}
+    </button>
+  )
+}
+
+export function CalendarContextSidebarToolbarButton(props: {
+  open: boolean
+  onOpenChange: (next: boolean) => void
+}): JSX.Element {
+  const { open, onOpenChange } = props
+  const { t } = useTranslation()
+  return (
+    <button
+      type="button"
+      title={
+        open
+          ? t('calendar.posteingangUi.toggleContextHide')
+          : t('calendar.posteingangUi.toggleContextShow')
+      }
+      aria-pressed={open}
+      onClick={(): void => onOpenChange(!open)}
+      className={moduleColumnHeaderToolbarToggleClass(open)}
+    >
+      <LayoutDashboard className={moduleColumnHeaderIconGlyphClass} />
     </button>
   )
 }

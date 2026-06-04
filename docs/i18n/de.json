@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Chronell — Manage deine Zeit, nicht deine Inbox",
-    "description": "Chronell 0.9.28: ICS-Import, visuelle Meta-Ordner, polierte Aufgaben- und Notizen-Module — Desktop-Arbeitszentrale für Windows 11 mit Microsoft 365 und Google."
+    "description": "Chronell 0.9.30: Individuelle Ansichten mit Layout-Assistent, Mail- und Kalender-Arbeitsbereich — Desktop-Arbeitszentrale für Windows 11 mit Microsoft 365 und Google."
   },
   "nav": {
     "method": "Die Methode",
@@ -27,7 +27,7 @@
     "taglineLine2Accent": "Inbox",
     "taglineLine2Suffix": "",
     "positioning": "Chronell ist kein E-Mail-Client. Es ist ein System für deine Zeit.",
-    "subline": "Microsoft 365 und Google in einer Desktop-Arbeitszentrale — ICS-Kalender-Import, visuelle Meta-Ordner, polierte Aufgaben- und Notizen-Module, Mail-Mehrfachauswahl und Verbindungs-Graph. Für Windows 11.",
+    "subline": "Microsoft 365 und Google in einer Desktop-Arbeitszentrale — individuelle Ansichten aus Mail, Kalender und Aufgaben, schwebende Panels und überarbeiteter Mail- und Kalender-Arbeitsbereich. Für Windows 11.",
     "ctaDownload": "Für Windows herunterladen",
     "ctaMethod": "Methode entdecken",
     "mockup": {
@@ -178,35 +178,49 @@
     "eyebrow": "Release-Überblick",
     "title": "Was in den letzten Updates passiert ist",
     "lead": "Vom neuen Fluent-Look über den Verbindungs-Graph bis zum Profil-Sync — Chronell wächst schnell, ohne deine Mails in die Cloud zu legen.",
-            "v0928": {
+    "v0930": {
       "badge": "Aktuell",
+      "date": "Juni 2026",
+      "title": "Mail und Kalender",
+      "b1": "Mail: Mail-Arbeitsbereich: Sidebar, Anhaenge, EWS und Aktionen (Composer und Lesefenster)",
+      "b2": "Kalender: Kalender und Termine: Dialog, Vorschau, Kategorien und Shell (ueberarbeiteter Termin-Dialog; Kalender-Layout speichern)",
+      "b3": "Einstellungen: Einstellungen, Onboarding und Backup (Konten- und Erscheinungsbild-Einstellungen; ueberarbeiteter Ersteinrichtungs-Assistent)",
+      "b4": "Homepage: Release-Texte, Homepage-Timeline und Download auf 0.9.30"
+    },"v0929": {
+      "date": "Juni 2026",
+      "title": "Individuelle Ansichten & Mail/Kalender",
+      "b1": "Individuelle Ansichten: eigene Tabs mit Layout-Assistent — Mail, Kalender, Zeitliste, Dashboard-Kacheln und Vorschau frei kombinieren",
+      "b2": "Panels abdocken: Bereiche als schwebendes Fenster öffnen und per Klick wieder andocken",
+      "b3": "Mail & Kalender: überarbeiteter Arbeitsbereich, Termin-Dialog und Kalender-Layout speichern",
+      "b4": "Einstellungen & Onboarding: Konten- und Erscheinungsbild-Einstellungen; überarbeiteter Ersteinrichtungs-Assistent"
+    },"v0928": {
       "date": "Juni 2026",
       "title": "Mail und Kalender",
       "b1": "Mail: Mail-Arbeitsbereich: Sidebar, Anhaenge, EWS und Aktionen (Kontext-Sidebar in Mail (Kontakt, Historie, Kalender); Composer und Lesefenster)",
       "b2": "Kalender: Kalender und Termine: Dialog, Vorschau, Kategorien und Shell (ueberarbeiteter Termin-Dialog; Termin-Vorschau)",
       "b3": "Aufgaben: Aufgaben-Modul und Cloud-Tasks-Sync (Aufgaben-Modul)",
-      "b4": "Homepage: Release-Texte, Homepage-Timeline und Download auf 0.9.28"
+      "b4": "Homepage: Release-Texte, Homepage-Timeline und Download auf 0.9.30"
     },"v0927": {
       "date": "Mai 2026",
       "title": "Mail und Verbindungen",
       "b1": "Mail: Mail-Arbeitsbereich: Sidebar, Anhaenge, EWS und Aktionen (Microsoft-Mail per EWS (zusaetzlicher Transport); QuickSteps erweitert)",
       "b2": "Verbindungen: Verbindungs-Graph und Objekt-Verknuepfungen (Verbindungs-Graph)",
       "b3": "Einstellungen: Einstellungen, Onboarding und Backup (Konten- und Erscheinungsbild-Einstellungen)",
-      "b4": "Homepage: Release-Texte, Homepage-Timeline und Download auf 0.9.28"
+      "b4": "Homepage: Release-Texte, Homepage-Timeline und Download auf 0.9.30"
     },"v0926": {
       "date": "Mai 2026",
       "title": "Mail und Aufgaben",
       "b1": "Mail: Mail-Arbeitsbereich: Sidebar, Anhaenge, EWS und Aktionen (Microsoft-Mail per EWS (zusaetzlicher Transport); QuickSteps erweitert)",
       "b2": "Aufgaben: Aufgaben-Modul und Cloud-Tasks-Sync (Aufgaben-Modul)",
       "b3": "Einstellungen: Einstellungen, Onboarding und Backup (Konten- und Erscheinungsbild-Einstellungen)",
-      "b4": "Homepage: Release-Texte, Homepage-Timeline und Download auf 0.9.28"
+      "b4": "Homepage: Release-Texte, Homepage-Timeline und Download auf 0.9.30"
     },"v0925": {
       "date": "Mai 2026",
       "title": "Mail und Dateien",
       "b1": "Mail: Mail-Arbeitsbereich: Sidebar, Anhaenge, EWS und Aktionen (Microsoft-Mail per EWS (zusaetzlicher Transport); Korrespondenz-Historie pro Kontakt)",
       "b2": "Dateien: Neues Dateien-Modul: Cloud-Dateien, Mail-Anhaenge und Index-Sync (Mail-Anhaenge lokal indexieren; OneDrive- und SharePoint-Upload)",
       "b3": "Kalender: Kalender und Termine: Dialog, Vorschau, Kategorien und Shell (Termin-Kategorien; ueberarbeiteter Termin-Dialog)",
-      "b4": "Homepage: Release-Texte, Homepage-Timeline und Download auf 0.9.28"
+      "b4": "Homepage: Release-Texte, Homepage-Timeline und Download auf 0.9.30"
     },"v0923": {
       "date": "Mai 2026",
       "title": "ICS-Import, Meta-Ordner & Module poliert",
@@ -280,34 +294,34 @@
   "highlights": {
     "eyebrow": "Neu ausprobieren",
     "title": "Vier Schwerpunkte der aktuellen Beta",
-    "lead": "Version 0.9.28 bringt ICS-Kalender-Import, einen visuellen Meta-Ordner-Editor und deutlich polierte Aufgaben-, Notizen- und Einstellungs-Module — auf Branding, Zoom und Gruppenkalendern aufbauend.",
+    "lead": "Version 0.9.30 bringt individuelle Ansichten mit Layout-Assistent — plus überarbeitete Mail- und Kalender-Arbeitsbereiche, schwebende Panels und verfeinerte Einstellungen.",
     "compose": {
-      "title": "ICS-Kalender-Import",
-      "desc": "Termine aus .ics-Dateien direkt in deine verbundenen Kalender — ohne Outlook-Web oder manuelles Copy-Paste.",
-      "b1": "Drag & Drop von .ics auf den Kalender oder Import über den Dialog",
-      "b2": "Einzelne oder mehrere Termine wählen und in M365- oder Google-Kalender anlegen",
-      "b3": "Ideal für Einladungen, Reisepläne und externe Kalender-Exporte"
+      "title": "Individuelle Ansichten",
+      "desc": "Eigene Arbeitsbereiche aus Mail, Kalender, Aufgaben und mehr — als Tab in der Top-Leiste, Layout per Assistent.",
+      "b1": "Assistent: Vorlage wählen, Zonen befüllen, Icon und Name — fertig als eigener Tab",
+      "b2": "Frei kombinierbar: Mail-Liste, Kalender, Zeitliste, Dashboard-Kacheln und Vorschau-Panels",
+      "b3": "Panels abdocken: Bereiche als schwebendes Fenster — zurück andocken per Klick"
     },
     "connections": {
-      "title": "Meta-Ordner visuell",
-      "desc": "Virtuelle Postfächer per Regeln — jetzt mit grafischem Ausdrucks-Editor statt nur Text.",
-      "b1": "Regeln als Baum: UND/ODER, Felder, Operatoren auf einen Blick",
-      "b2": "Schneller anlegen, ändern und verstehen — auch bei komplexen Filtern",
-      "b3": "Weiterhin kontenübergreifend und lokal in SQLite"
+      "title": "Mail & Kalender",
+      "desc": "Überarbeiteter Mail-Arbeitsbereich und Kalender-Shell — Termin-Dialog, Vorschau und Layout speichern.",
+      "b1": "Mail: Sidebar, Anhänge, Composer und Lesefenster in einem durchgängigen Arbeitsbereich",
+      "b2": "Kalender: Termin-Dialog, Kategorien und gespeichertes Kalender-Layout",
+      "b3": "Kontext-Vorschau: Termin, Aufgabe oder Mail je nach Auswahl in der rechten Spalte"
     },
     "ai": {
-      "title": "Aufgaben & Notizen",
-      "desc": "Die Module für geplante Arbeit und Gedanken — Shell, Listen und Kalenderansicht überarbeitet.",
-      "b1": "Aufgaben: Kanban und gruppierte Liste mit Fälligkeits-Buckets und Mail-ToDos",
-      "b2": "Notizen: verbesserte Seitenleiste, Kalender- und Listenansicht, Verknüpfungen im Kontext",
-      "b3": "Ein Fenster: von der Mail zur Aufgabe, von der Notiz zum Termin"
+      "title": "Schwebende Panels",
+      "desc": "Mail-Lesefenster, Kalender-Vorschau und Composer als eigenes Fenster — ohne den Hauptarbeitsbereich zu verlassen.",
+      "b1": "Panels abdocken und wieder andocken — auch aus individuellen Ansichten",
+      "b2": "Mehrere schwebende Fenster parallel — z. B. Termin und Mail nebeneinander",
+      "b3": "Position und Größe bleiben erhalten — zurück in die Zone per Dock-Button"
     },
     "cloudSync": {
-      "title": "Einstellungen & UI",
-      "desc": "Kalender-, Aufgaben- und Notizen-Einstellungen in eigenen Panels — plus durchgängiger Datums-Picker.",
-      "b1": "Einstellungen → Kalender / Aufgaben / Notizen mit Modul-spezifischen Optionen",
-      "b2": "Einheitlicher Chronell-Datums-Picker in Terminen, Tasks und Notizen",
-      "b3": "Typografie, Scrollbars und Zoom-Shortcuts weiter verfeinert — aus 0.9.22: Branding & Gruppenkalender"
+      "title": "Einstellungen & Onboarding",
+      "desc": "Konten- und Erscheinungsbild-Einstellungen sowie überarbeiteter Ersteinrichtungs-Assistent.",
+      "b1": "Top-Leiste: Module ein- und ausblenden, Reihenfolge per Drag & Drop",
+      "b2": "Schwebende Panels in den Einstellungen konfigurieren",
+      "b3": "Profil-Sync: individuelle Ansichten und Layouts auf dem zweiten PC mitnehmen"
     }
   },
   "showcase": {
@@ -377,6 +391,10 @@
     "eyebrow": "Für Deinen Workflow gebaut",
     "title": "Was Chronell liefert",
     "grid": {
+      "customViews": {
+        "title": "Individuelle Ansichten",
+        "desc": "Eigene Tabs mit Layout-Assistent: Mail, Kalender, Zeitliste, Dashboard-Kacheln und Vorschau frei kombinieren — Panels abdocken und wieder andocken."
+      },
       "design": {
         "title": "Fluent Design",
         "desc": "Fluent-2-Tokens in der ganzen App: Mica, Shell-Bars, Acrylic-Overlays, Dashboard-Panels und wählbare Dark/Light-Presets."
@@ -490,12 +508,12 @@
     "privacy": "Datenschutz"
   },
   "whatsNew": {
-    "label": "Version 0.9.28",
-    "tagline": "ICS-Import · Meta-Ordner · Module poliert · Einstellungen"
+    "label": "Version 0.9.30",
+    "tagline": "Individuelle Ansichten · Layout-Assistent · Schwebende Panels · Mail & Kalender"
   },
   "cta": {
     "title": "Bereit für das neue Chronell?",
-    "body": "Lade Version 0.9.28 für Windows 11 — ICS-Kalender-Import, visuelle Meta-Ordner, polierte Aufgaben- und Notizen-Module, Mail-Mehrfachauswahl, Termine mit Serien und optional Cloud-Sync. Updates ersetzen deine Version ohne Datenverlust.",
+    "body": "Lade Version 0.9.30 für Windows 11 — individuelle Ansichten mit Layout-Assistent, schwebende Panels, überarbeiteter Mail- und Kalender-Arbeitsbereich und optional Cloud-Sync. Updates ersetzen deine Version ohne Datenverlust.",
     "button": "Jetzt herunterladen"
   }
 }

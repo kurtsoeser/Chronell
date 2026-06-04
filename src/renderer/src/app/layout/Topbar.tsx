@@ -26,7 +26,16 @@ import {
   Filter,
   Link2,
   Building2,
-  Files
+  Files,
+  Columns3,
+  Image,
+  LayoutDashboard,
+  LayoutGrid,
+  Pencil,
+  Plus,
+  RotateCcw,
+  TextCursor,
+  Trash2
 } from 'lucide-react'
 import {
   DndContext,
@@ -61,21 +70,44 @@ import {
 } from '@/stores/theme'
 import type { ConnectedAccount, SearchHit } from '@shared/types'
 import { useAppModeStore, type AppShellMode } from '@/stores/app-mode'
+import { CustomViewIconPickerDialog } from '@/app/custom-views/CustomViewIconPickerDialog'
+import { resolveCustomViewTabIcon } from '@/lib/custom-view-tab-icon'
+import { CUSTOM_VIEWS_CHANGED_EVENT, useCustomViewsStore } from '@/stores/custom-views'
+import { showAppPrompt } from '@/stores/app-dialog'
 import {
-  readTopbarModuleOrder,
-  persistTopbarModuleOrder,
-  reconcileTopbarModuleOrder
-} from '@/app/layout/topbar-module-order'
+  customViewIconIdOrDefault,
+  readCustomViews,
+  readCustomViewTopbarOrder,
+  reconcileCustomViewTopbarOrder
+} from '@/app/custom-views/custom-views-storage'
+import { readTopbarModuleOrder, reconcileTopbarModuleOrder } from '@/app/layout/topbar-module-order'
 import {
   TOPBAR_MODULE_PREFS_CHANGED_EVENT,
   readTopbarModuleHiddenSet,
-  readVisibleTopbarModuleOrder,
-  reorderVisibleTopbarModules,
   resolveVisibleAppShellMode,
   setTopbarModuleVisible
 } from '@/app/layout/topbar-module-prefs'
+import {
+  isTopbarModuleTabId,
+  mergeTopbarTabOrderAfterModulePrefsChange,
+  parseTopbarTabCustomViewId,
+  readTopbarTabOrder,
+  readVisibleTopbarTabOrder,
+  reorderVisibleTopbarTabs,
+  persistTopbarTabOrder,
+  reconcileTopbarTabOrder,
+  topbarTabCustomViewId,
+  type TopbarTabId
+} from '@/app/layout/topbar-tab-order'
+import { useTopbarTabsOverflow } from '@/app/layout/use-topbar-tabs-overflow'
+import {
+  TopbarTabsOverflowMenu,
+  type TopbarOverflowEntry
+} from '@/app/layout/TopbarTabsOverflowMenu'
+import { TopbarTabsOverflowMeasureButton } from '@/app/layout/TopbarTabsOverflowMeasureButton'
 import { ContextMenu, type ContextMenuItem } from '@/components/ContextMenu'
 import { useMailWorkspaceLayoutStore } from '@/stores/mail-workspace-layout'
+import { useCalendarPanelLayoutStore } from '@/stores/calendar-panel-layout'
 import { useConnectivityStore } from '@/stores/connectivity'
 import { TopbarGlobalSearch } from '@/app/layout/TopbarGlobalSearch'
 import {
@@ -94,6 +126,64 @@ import { WindowTitlebarControls } from '@/app/layout/WindowTitlebarControls'
 
 interface Props {
   onOpenAccountDialog: () => void
+}
+
+function SortableCustomViewTab({
+  id,
+  name,
+  iconId,
+  active,
+  onSelect,
+  onContextMenu,
+  dragAria,
+  dragTitle
+}: {
+  id: TopbarTabId
+  name: string
+  iconId: string
+  active: boolean
+  onSelect: () => void
+  onContextMenu: (e: React.MouseEvent) => void
+  dragAria: string
+  dragTitle: string
+}): JSX.Element {
+  const TabIcon = resolveCustomViewTabIcon(iconId)
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    ...(isDragging ? { zIndex: 10, position: 'relative' } : {})
+  }
+  return (
+    <button
+      ref={setNodeRef}
+      style={style}
+      type="button"
+      {...attributes}
+      {...listeners}
+      onClick={onSelect}
+      onContextMenu={onContextMenu}
+      title={dragTitle || name}
+      className={cn(
+        'relative inline-flex h-12 shrink-0 touch-none items-center gap-1.5 whitespace-nowrap rounded-md px-3 text-xs font-medium transition-colors',
+        'cursor-grab active:cursor-grabbing',
+        active ? 'text-foreground' : 'text-muted-foreground hover:bg-secondary/50 hover:text-foreground',
+        isDragging && 'opacity-90'
+      )}
+      aria-current={active ? 'page' : undefined}
+    >
+      <TabIcon key={iconId} className="h-4 w-4 shrink-0" aria-hidden />
+      <span className="max-w-[8rem] truncate">{name}</span>
+      <span className="sr-only">{` ${dragAria}`}</span>
+      <span
+        aria-hidden
+        className={cn(
+          'absolute inset-x-1 -bottom-px h-0.5 rounded-t bg-primary transition-opacity',
+          active ? 'opacity-100' : 'opacity-0'
+        )}
+      />
+    </button>
+  )
 }
 
 function SortableTopbarModeTab({
@@ -405,6 +495,11 @@ export function Topbar({ onOpenAccountDialog }: Props): JSX.Element {
     () =>
       [
         { id: 'home' as const, label: t('topbar.modeHome'), icon: House },
+        {
+          id: 'layoutStudio' as const,
+          label: t('topbar.modeLayoutStudio'),
+          icon: Columns3
+        },
         { id: 'mail' as const, label: t('topbar.modeMail'), icon: Inbox },
         { id: 'calendar' as const, label: t('topbar.modeCalendar'), icon: Calendar },
         { id: 'bookings' as const, label: t('topbar.modeBookings'), icon: Building2 },
@@ -427,6 +522,29 @@ export function Topbar({ onOpenAccountDialog }: Props): JSX.Element {
   const framelessTitlebar = useFramelessTitlebar()
   const mode = useAppModeStore((s) => s.mode)
   const setAppMode = useAppModeStore((s) => s.setMode)
+  const customViews = useCustomViewsStore((s) => s.views)
+  const reorderCustomViews = useCustomViewsStore((s) => s.reorderViews)
+  const activeCustomViewId = useCustomViewsStore((s) => s.activeViewId)
+  const openCustomViewWizard = useCustomViewsStore((s) => s.openWizard)
+  const customViewEditMode = useCustomViewsStore((s) => s.editMode)
+  const customViewEditSnapshot = useCustomViewsStore((s) => s.editSnapshot)
+  const toggleCustomViewEditMode = useCustomViewsStore((s) => s.toggleViewEditMode)
+  const openCustomViewTemplatePicker = useCustomViewsStore((s) => s.openTemplatePickerForView)
+  const renameCustomView = useCustomViewsStore((s) => s.renameView)
+  const revertCustomViewLayout = useCustomViewsStore((s) => s.revertViewLayout)
+  const focusCustomView = useCustomViewsStore((s) => s.focusCustomView)
+  const setActiveCustomView = useCustomViewsStore((s) => s.setActiveView)
+  const deleteCustomView = useCustomViewsStore((s) => s.deleteView)
+
+  const customViewIds = useMemo(() => customViews.map((v) => v.id), [customViews])
+
+  const [customViewIconPickerId, setCustomViewIconPickerId] = useState<string | null>(null)
+
+  const [customViewContextMenu, setCustomViewContextMenu] = useState<{
+    x: number
+    y: number
+    viewId: string
+  } | null>(null)
   const accounts = useAccountsStore((s) => s.accounts)
   const openFloatingNew = useComposeStore((s) => s.openFloatingNew)
   const refreshNow = useMailStore((s) => s.refreshNow)
@@ -437,15 +555,21 @@ export function Topbar({ onOpenAccountDialog }: Props): JSX.Element {
   )
   const online = useConnectivityStore((s) => s.online)
 
+  const [tabOrder, setTabOrder] = useState<TopbarTabId[]>(() =>
+    readTopbarTabOrder(readCustomViews().map((v) => v.id))
+  )
   const [modeOrder, setModeOrder] = useState(readTopbarModuleOrder)
   const [hiddenModules, setHiddenModules] = useState(readTopbarModuleHiddenSet)
 
-  const visibleModeOrder = useMemo(
-    () => readVisibleTopbarModuleOrder(modeOrder, hiddenModules),
-    [modeOrder, hiddenModules]
+  const visibleTabIds = useMemo(
+    () => readVisibleTopbarTabOrder(tabOrder, hiddenModules),
+    [tabOrder, hiddenModules]
   )
 
-  const visibleModuleCount = visibleModeOrder.length
+  const visibleModuleCount = useMemo(
+    () => visibleTabIds.filter((id) => parseTopbarTabCustomViewId(id) == null).length,
+    [visibleTabIds]
+  )
 
   const [moduleContextMenu, setModuleContextMenu] = useState<{
     x: number
@@ -453,12 +577,101 @@ export function Topbar({ onOpenAccountDialog }: Props): JSX.Element {
     moduleId: AppShellMode
   } | null>(null)
 
-  const orderedShellModes = useMemo(() => {
-    const byId = new Map(shellModes.map((m) => [m.id, m]))
-    return visibleModeOrder
-      .map((id) => byId.get(id))
-      .filter((x): x is (typeof shellModes)[number] => x != null)
-  }, [shellModes, visibleModeOrder])
+  const topbarTabEntries = useMemo(() => {
+    const modesById = new Map(shellModes.map((m) => [m.id, m]))
+    const viewsById = new Map(customViews.map((v) => [v.id, v]))
+    const out: Array<
+      | { kind: 'module'; tabId: TopbarTabId; id: AppShellMode; label: string; icon: React.ComponentType<{ className?: string }> }
+      | { kind: 'customView'; tabId: TopbarTabId; view: (typeof customViews)[number] }
+    > = []
+    for (const tabId of visibleTabIds) {
+      const viewId = parseTopbarTabCustomViewId(tabId)
+      if (viewId) {
+        const view = viewsById.get(viewId)
+        if (view) out.push({ kind: 'customView', tabId, view })
+        continue
+      }
+      if (isTopbarModuleTabId(tabId)) {
+        const mode = modesById.get(tabId)
+        if (mode) {
+          out.push({ kind: 'module', tabId, id: mode.id, label: mode.label, icon: mode.icon })
+        }
+      }
+    }
+    return out
+  }, [customViews, shellModes, visibleTabIds])
+
+  const activeTopbarTabId = useMemo((): TopbarTabId => {
+    if (mode === 'customView' && activeCustomViewId) {
+      return topbarTabCustomViewId(activeCustomViewId)
+    }
+    if (mode !== 'customView') return mode
+    return visibleTabIds[0] ?? 'home'
+  }, [activeCustomViewId, mode, visibleTabIds])
+
+  const topbarMeasureKey = useMemo(
+    () =>
+      topbarTabEntries
+        .map((e) =>
+          e.kind === 'module'
+            ? `${e.tabId}:${e.label}`
+            : `${e.tabId}:${e.view.name}:${customViewIconIdOrDefault(e.view.iconId)}`
+        )
+        .join('|'),
+    [topbarTabEntries]
+  )
+
+  const {
+    navRef,
+    measureRef,
+    overflowMeasureRef,
+    createBtnRef,
+    visibleIndices,
+    showOverflow
+  } = useTopbarTabsOverflow(
+    topbarTabEntries.length,
+    activeTopbarTabId,
+    visibleTabIds,
+    topbarMeasureKey
+  )
+
+  const { inlineTabEntries, overflowTabEntries } = useMemo(() => {
+    const inline: typeof topbarTabEntries = []
+    const overflow: TopbarOverflowEntry[] = []
+    topbarTabEntries.forEach((entry, index) => {
+      if (visibleIndices.size === 0 || visibleIndices.has(index)) {
+        inline.push(entry)
+        return
+      }
+      if (entry.kind === 'module') {
+        overflow.push({
+          kind: 'module',
+          tabId: entry.tabId,
+          id: entry.id,
+          label: entry.label,
+          icon: entry.icon,
+          active: mode === entry.id
+        })
+      } else {
+        const tabIconId = customViewIconIdOrDefault(entry.view.iconId)
+        const ViewIcon = resolveCustomViewTabIcon(tabIconId)
+        overflow.push({
+          kind: 'customView',
+          tabId: entry.tabId,
+          name: entry.view.name,
+          icon: ViewIcon,
+          active: mode === 'customView' && activeCustomViewId === entry.view.id,
+          viewId: entry.view.id
+        })
+      }
+    })
+    return { inlineTabEntries: inline, overflowTabEntries: overflow }
+  }, [activeCustomViewId, mode, topbarTabEntries, visibleIndices])
+
+  const sortableVisibleTabIds = useMemo(
+    () => inlineTabEntries.map((e) => e.tabId),
+    [inlineTabEntries]
+  )
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -468,23 +681,41 @@ export function Topbar({ onOpenAccountDialog }: Props): JSX.Element {
   )
 
   useEffect(() => {
-    const canonical = shellModes.map((m) => m.id)
-    setModeOrder((prev) => {
-      const next = reconcileTopbarModuleOrder(prev, canonical)
-      if (next.length === prev.length && next.every((id, i) => id === prev[i])) return prev
-      persistTopbarModuleOrder(next)
-      return next
-    })
+    const syncCustomViewsMeta = (): void => {
+      const views = useCustomViewsStore.getState().views
+      const ids = views.map((v) => v.id)
+      const topbarOrder = reconcileCustomViewTopbarOrder(views, readCustomViewTopbarOrder())
+      useCustomViewsStore.setState({ topbarOrder })
+      setTabOrder((prev) => reconcileTopbarTabOrder(readTopbarTabOrder(ids), shellModes.map((m) => m.id), ids))
+    }
+    window.addEventListener(CUSTOM_VIEWS_CHANGED_EVENT, syncCustomViewsMeta)
+    return (): void => window.removeEventListener(CUSTOM_VIEWS_CHANGED_EVENT, syncCustomViewsMeta)
   }, [shellModes])
 
   useEffect(() => {
+    const canonical = shellModes.map((m) => m.id)
+    setTabOrder((prev) => reconcileTopbarTabOrder(prev, canonical, customViewIds))
+    setModeOrder((prev) => {
+      const next = reconcileTopbarModuleOrder(prev, canonical)
+      if (next.length === prev.length && next.every((id, i) => id === prev[i])) return prev
+      return next
+    })
+  }, [customViewIds, shellModes])
+
+  useEffect(() => {
     const onPrefsChanged = (): void => {
-      setModeOrder(readTopbarModuleOrder())
+      const modules = readTopbarModuleOrder()
+      setModeOrder(modules)
       setHiddenModules(readTopbarModuleHiddenSet())
+      setTabOrder((prev) => {
+        const next = mergeTopbarTabOrderAfterModulePrefsChange(prev, modules, customViewIds)
+        persistTopbarTabOrder(next, customViewIds)
+        return next
+      })
     }
     window.addEventListener(TOPBAR_MODULE_PREFS_CHANGED_EVENT, onPrefsChanged)
     return (): void => window.removeEventListener(TOPBAR_MODULE_PREFS_CHANGED_EVENT, onPrefsChanged)
-  }, [])
+  }, [customViewIds])
 
   const openModuleContextMenu = useCallback((e: React.MouseEvent, moduleId: AppShellMode): void => {
     e.preventDefault()
@@ -529,25 +760,126 @@ export function Topbar({ onOpenAccountDialog }: Props): JSX.Element {
     return items
   }, [hideModuleFromTopbar, moduleContextMenu, t, visibleModuleCount])
 
-  const onTopbarModesDragEnd = useCallback(
+  const customViewContextMenuItems = useMemo((): ContextMenuItem[] => {
+    if (!customViewContextMenu) return []
+    const { viewId } = customViewContextMenu
+    const view = customViews.find((v) => v.id === viewId)
+    const editingThis =
+      activeCustomViewId === viewId && customViewEditMode && mode === 'customView'
+    const canRevert = customViewEditSnapshot?.viewId === viewId
+
+    return [
+      {
+        id: 'toggle-edit-custom-view',
+        label: editingThis ? t('customView.menuEndEdit') : t('customView.menuEditLayout'),
+        icon: Pencil,
+        onSelect: (): void => {
+          toggleCustomViewEditMode(viewId)
+          setCustomViewContextMenu(null)
+        }
+      },
+      {
+        id: 'choose-layout-custom-view',
+        label: t('layoutStudio.chooseLayout'),
+        icon: LayoutGrid,
+        onSelect: (): void => {
+          openCustomViewTemplatePicker(viewId)
+          setCustomViewContextMenu(null)
+        }
+      },
+      {
+        id: 'rename-custom-view',
+        label: t('customView.menuRename'),
+        icon: TextCursor,
+        onSelect: (): void => {
+          setCustomViewContextMenu(null)
+          void (async (): Promise<void> => {
+            const next = await showAppPrompt(t('customView.renamePrompt'), {
+              title: t('customView.menuRename'),
+              defaultValue: view?.name ?? '',
+              placeholder: t('customView.wizard.namePlaceholder')
+            })
+            if (next?.trim()) renameCustomView(viewId, next)
+          })()
+        }
+      },
+      {
+        id: 'icon-custom-view',
+        label: t('customView.menuChangeIcon'),
+        icon: Image,
+        onSelect: (): void => {
+          setCustomViewIconPickerId(viewId)
+          setCustomViewContextMenu(null)
+        }
+      },
+      {
+        id: 'revert-custom-view',
+        label: t('customView.revertLayout'),
+        icon: RotateCcw,
+        disabled: !canRevert,
+        onSelect: (): void => {
+          revertCustomViewLayout(viewId)
+          setCustomViewContextMenu(null)
+        }
+      },
+      { id: 'sep-custom-view', label: '', separator: true },
+      {
+        id: 'delete-custom-view',
+        label: t('customView.delete'),
+        icon: Trash2,
+        destructive: true,
+        onSelect: (): void => {
+          if (!window.confirm(t('settings.modulesCustomViewDeleteConfirm', { name: view?.name ?? '' }))) {
+            setCustomViewContextMenu(null)
+            return
+          }
+          deleteCustomView(viewId)
+          setCustomViewContextMenu(null)
+        }
+      }
+    ]
+  }, [
+    activeCustomViewId,
+    customViewContextMenu,
+    customViewEditMode,
+    customViewEditSnapshot,
+    customViews,
+    deleteCustomView,
+    mode,
+    openCustomViewTemplatePicker,
+    renameCustomView,
+    revertCustomViewLayout,
+    t,
+    toggleCustomViewEditMode
+  ])
+
+  const onTopbarTabsDragEnd = useCallback(
     (e: DragEndEvent): void => {
       const { active, over } = e
       if (!over || active.id === over.id) return
-      const next = reorderVisibleTopbarModules(
-        modeOrder,
+      const next = reorderVisibleTopbarTabs(
+        tabOrder,
         hiddenModules,
-        active.id as AppShellMode,
-        over.id as AppShellMode
+        String(active.id),
+        String(over.id)
       )
-      if (next.every((id, i) => id === modeOrder[i])) return
-      setModeOrder(next)
-      persistTopbarModuleOrder(next)
+      if (next.every((id, i) => id === tabOrder[i])) return
+      setTabOrder(next)
+      persistTopbarTabOrder(next, customViewIds)
+      setModeOrder(readTopbarModuleOrder())
+      const viewOrder = next
+        .map((id) => parseTopbarTabCustomViewId(id))
+        .filter((id): id is string => id != null)
+      reorderCustomViews(viewOrder)
     },
-    [hiddenModules, modeOrder]
+    [customViewIds, hiddenModules, reorderCustomViews, tabOrder]
   )
 
   const readingOpenMw = useMailWorkspaceLayoutStore((s) => s.readingOpen)
   const calendarOpenMw = useMailWorkspaceLayoutStore((s) => s.calendarOpen)
+  const contextOpenCal = useCalendarPanelLayoutStore((s) => s.contextOpen)
+  const setContextOpenCal = useCalendarPanelLayoutStore((s) => s.setContextOpen)
+  const setContextPlacementCal = useCalendarPanelLayoutStore((s) => s.setContextPlacement)
   const setReadingOpenMw = useMailWorkspaceLayoutStore((s) => s.setReadingOpen)
   const setCalendarOpenMw = useMailWorkspaceLayoutStore((s) => s.setCalendarOpen)
   const setReadingPlacementMw = useMailWorkspaceLayoutStore((s) => s.setReadingPlacement)
@@ -604,29 +936,102 @@ export function Topbar({ onOpenAccountDialog }: Props): JSX.Element {
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
-        onDragEnd={onTopbarModesDragEnd}
+        onDragEnd={onTopbarTabsDragEnd}
       >
         <nav
-          className="flex h-12 min-h-12 min-w-0 flex-1 items-stretch overflow-x-auto overflow-y-hidden overscroll-x-contain py-0 [-webkit-overflow-scrolling:touch]"
+          ref={navRef}
+          className="relative flex h-12 min-h-12 min-w-0 flex-1 items-stretch overflow-hidden py-0"
           aria-label={t('topbar.modesAria')}
         >
-          <SortableContext items={visibleModeOrder} strategy={horizontalListSortingStrategy}>
-            <div className="flex min-w-min flex-nowrap items-stretch gap-0.5 pr-1 pl-0.5 sm:gap-1 sm:pl-1">
-              {orderedShellModes.map(({ id, label, icon }) => (
-                <SortableTopbarModeTab
-                  key={id}
-                  id={id}
-                  label={label}
-                  icon={icon}
-                  active={mode === id}
-                  onSelect={setAppMode}
-                  onContextMenu={openModuleContextMenu}
-                  dragAria={t('topbar.moduleDragAria')}
-                  dragTitle={t('topbar.moduleDragTitle')}
-                />
-              ))}
-            </div>
-          </SortableContext>
+          <TopbarTabsOverflowMeasureButton measureRef={overflowMeasureRef} />
+          <div
+            ref={measureRef}
+            aria-hidden
+            className="pointer-events-none absolute left-0 top-0 -z-10 flex h-0 overflow-hidden opacity-0"
+          >
+            {topbarTabEntries.map((entry) => {
+              const Icon =
+                entry.kind === 'module'
+                  ? entry.icon
+                  : resolveCustomViewTabIcon(customViewIconIdOrDefault(entry.view.iconId))
+              const label = entry.kind === 'module' ? entry.label : entry.view.name
+              return (
+                <span
+                  key={`measure-${entry.tabId}`}
+                  className="inline-flex h-12 shrink-0 items-center gap-1.5 whitespace-nowrap px-3 text-xs font-medium"
+                >
+                  <Icon className="h-4 w-4 shrink-0" aria-hidden />
+                  <span className="max-w-[8rem] truncate">{label}</span>
+                </span>
+              )
+            })}
+          </div>
+          <div className="flex min-w-0 flex-1 items-stretch overflow-hidden">
+            <SortableContext items={sortableVisibleTabIds} strategy={horizontalListSortingStrategy}>
+              <div className="flex min-w-0 flex-1 items-stretch gap-0.5 overflow-hidden pl-0.5 sm:gap-1 sm:pl-1">
+                {inlineTabEntries.map((entry) => {
+                  if (entry.kind === 'module') {
+                    return (
+                      <SortableTopbarModeTab
+                        key={entry.tabId}
+                        id={entry.id}
+                        label={entry.label}
+                        icon={entry.icon}
+                        active={mode === entry.id}
+                        onSelect={setAppMode}
+                        onContextMenu={openModuleContextMenu}
+                        dragAria={t('topbar.moduleDragAria')}
+                        dragTitle={t('topbar.moduleDragTitle')}
+                      />
+                    )
+                  }
+                  return (
+                    <SortableCustomViewTab
+                      key={`${entry.tabId}:${customViewIconIdOrDefault(entry.view.iconId)}`}
+                      id={entry.tabId}
+                      name={entry.view.name}
+                      iconId={customViewIconIdOrDefault(entry.view.iconId)}
+                      active={mode === 'customView' && activeCustomViewId === entry.view.id}
+                      onSelect={(): void => setActiveCustomView(entry.view.id)}
+                      onContextMenu={(e): void => {
+                        e.preventDefault()
+                        setCustomViewContextMenu({
+                          x: e.clientX,
+                          y: e.clientY,
+                          viewId: entry.view.id
+                        })
+                      }}
+                      dragAria={t('topbar.moduleDragAria')}
+                      dragTitle={t('topbar.moduleDragTitle')}
+                    />
+                  )
+                })}
+              </div>
+            </SortableContext>
+            {showOverflow ? (
+              <TopbarTabsOverflowMenu
+                entries={overflowTabEntries}
+                onSelectModule={setAppMode}
+                onSelectCustomView={setActiveCustomView}
+                onModuleContextMenu={openModuleContextMenu}
+                onCustomViewContextMenu={(e, viewId): void => {
+                  e.preventDefault()
+                  setCustomViewContextMenu({ x: e.clientX, y: e.clientY, viewId })
+                }}
+              />
+            ) : null}
+          </div>
+          <button
+            ref={createBtnRef}
+            type="button"
+            onClick={openCustomViewWizard}
+            className="inline-flex h-12 shrink-0 items-center gap-1 rounded-md px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary/50 hover:text-foreground"
+            title={t('topbar.createViewTitle')}
+            aria-label={t('topbar.createViewAria')}
+          >
+            <Plus className="h-4 w-4 shrink-0" aria-hidden />
+            <span className="hidden sm:inline">{t('topbar.createView')}</span>
+          </button>
         </nav>
       </DndContext>
 
@@ -636,6 +1041,32 @@ export function Topbar({ onOpenAccountDialog }: Props): JSX.Element {
           y={moduleContextMenu.y}
           items={moduleContextMenuItems}
           onClose={(): void => setModuleContextMenu(null)}
+        />
+      ) : null}
+
+      {customViewContextMenu ? (
+        <ContextMenu
+          x={customViewContextMenu.x}
+          y={customViewContextMenu.y}
+          items={customViewContextMenuItems}
+          onClose={(): void => setCustomViewContextMenu(null)}
+        />
+      ) : null}
+
+      {customViewIconPickerId ? (
+        <CustomViewIconPickerDialog
+          open
+          viewId={customViewIconPickerId}
+          viewName={
+            customViews.find((v) => v.id === customViewIconPickerId)?.name ?? ''
+          }
+          iconId={customViewIconIdOrDefault(
+            customViews.find((v) => v.id === customViewIconPickerId)?.iconId
+          )}
+          onIconChange={(viewId, iconId): void => {
+            useCustomViewsStore.getState().setViewIcon(viewId, iconId)
+          }}
+          onClose={(): void => setCustomViewIconPickerId(null)}
         />
       ) : null}
 
@@ -670,6 +1101,20 @@ export function Topbar({ onOpenAccountDialog }: Props): JSX.Element {
             aria-label={t('topbar.calendarPaneShowAria')}
           >
             <Calendar className="h-4 w-4" />
+          </button>
+        ) : null}
+        {mode === 'calendar' && !contextOpenCal ? (
+          <button
+            type="button"
+            title={t('topbar.contextSidebarShowTitle')}
+            onClick={(): void => {
+              setContextOpenCal(true)
+              setContextPlacementCal('dock')
+            }}
+            className="flex h-8 w-8 items-center justify-center rounded-md border border-dashed border-border text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            aria-label={t('topbar.contextSidebarShowAria')}
+          >
+            <LayoutDashboard className="h-4 w-4" />
           </button>
         ) : null}
 

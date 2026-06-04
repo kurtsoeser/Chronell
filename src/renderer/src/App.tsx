@@ -6,11 +6,19 @@ import { useMailStore } from './stores/mail'
 import { useCalendarSyncStore } from './stores/calendar-sync'
 import { useGlobalShortcuts } from './lib/use-global-shortcuts'
 import { useZoomShortcuts } from './hooks/use-zoom-shortcuts'
+import { usePanelPopoutDockListener } from './hooks/use-panel-popout-dock-listener'
 import {
   OPEN_ACCOUNT_SETTINGS_EVENT,
   type OpenAccountSettingsTab
 } from './lib/open-account-settings'
 import { PENDING_MAIL_RULES_SETTINGS_KEY, useAppModeStore } from './stores/app-mode'
+import { useCustomViewsStore } from './stores/custom-views'
+import {
+  readActiveCustomViewId,
+  readCustomViews,
+  readCustomViewTopbarOrder,
+  reconcileCustomViewTopbarOrder
+} from '@/app/custom-views/custom-views-storage'
 import {
   TOPBAR_MODULE_PREFS_CHANGED_EVENT,
   isTopbarModuleVisible,
@@ -75,6 +83,18 @@ const MailReplyWithMeetingHost = lazy(async () => {
 const HomeDashboard = lazy(async () => {
   const m = await import('./app/home/HomeDashboard')
   return { default: m.HomeDashboard }
+})
+const LayoutStudioShell = lazy(async () => {
+  const m = await import('./app/layout-studio/LayoutStudioShell')
+  return { default: m.LayoutStudioShell }
+})
+const CustomViewShell = lazy(async () => {
+  const m = await import('./app/custom-views/CustomViewShell')
+  return { default: m.CustomViewShell }
+})
+const CreateCustomViewWizard = lazy(async () => {
+  const m = await import('./app/custom-views/CreateCustomViewWizard')
+  return { default: m.CreateCustomViewWizard }
 })
 const MailWorkspace = lazy(async () => {
   const m = await import('./app/layout/MailWorkspace')
@@ -199,10 +219,21 @@ export function App(): JSX.Element {
     useMailStore.getState().initialize()
     useCalendarSyncStore.getState().initialize()
     void useAccountsStore.getState().initialize()
+
+    const views = readCustomViews()
+    const topbarOrder = reconcileCustomViewTopbarOrder(views, readCustomViewTopbarOrder())
+    const activeViewId = readActiveCustomViewId()
+    useCustomViewsStore.setState({ views, topbarOrder, activeViewId })
+
+    if (useAppModeStore.getState().mode === 'customView') {
+      const valid = activeViewId && views.some((v) => v.id === activeViewId)
+      if (!valid) useAppModeStore.getState().setMode('home')
+    }
   }, [])
 
   useGlobalShortcuts()
   useZoomShortcuts()
+  usePanelPopoutDockListener(true)
 
   useEffect(() => {
     return subscribeConnectivityFromMain()
@@ -272,6 +303,8 @@ export function App(): JSX.Element {
       <div className="chronell-module-shell flex min-h-0 flex-1 flex-col">
         <Suspense fallback={<AppShellFallback />}>
           {mode === 'home' && <HomeDashboard />}
+          {mode === 'layoutStudio' && <LayoutStudioShell />}
+          {mode === 'customView' && <CustomViewShell />}
           {mode === 'calendar' && <CalendarShell />}
           {mode === 'bookings' && <BookingsShell />}
           {mode === 'tasks' && <TasksShell />}
@@ -288,6 +321,9 @@ export function App(): JSX.Element {
           )}
         </Suspense>
       </div>
+      <Suspense fallback={null}>
+        <CreateCustomViewWizard />
+      </Suspense>
       {showFirstRunWizard ? (
         <Suspense fallback={null}>
           <FirstRunWizard

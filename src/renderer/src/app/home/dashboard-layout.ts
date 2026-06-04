@@ -46,6 +46,7 @@ export type DashboardTileId =
   | 'notes_new'
   | 'notes_overview'
   | 'notes_last'
+  | 'pinned_shortcuts'
 
 export const DASHBOARD_TILE_IDS: DashboardTileId[] = [
   'todo_all',
@@ -73,7 +74,8 @@ export const DASHBOARD_TILE_IDS: DashboardTileId[] = [
   'notes_new',
   'notes_overview',
   'notes_last',
-  'composer'
+  'composer',
+  'pinned_shortcuts'
 ]
 
 /** x/y = linke obere Ecke im Canvas (px), w/h = Groesse (px). */
@@ -135,7 +137,8 @@ const LEGACY_GRID_LAYOUT: Record<DashboardTileId, LegacyGridCell> = {
   work_all: { x: 0, y: 36, w: 4, h: 10 },
   notes_new: { x: 4, y: 36, w: 2, h: 5 },
   notes_overview: { x: 6, y: 36, w: 3, h: 10 },
-  notes_last: { x: 9, y: 36, w: 3, h: 10 }
+  notes_last: { x: 9, y: 36, w: 3, h: 10 },
+  pinned_shortcuts: { x: 0, y: 46, w: 4, h: 8 }
 }
 
 /** Referenzbreite fuer Raster→Pixel (Defaults + Migration). */

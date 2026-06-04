@@ -580,7 +580,26 @@ const api = {
     getAlwaysOnTop: (ref: MailReadingPopoutRef): Promise<boolean> =>
       ipcRenderer.invoke(IPC.mailReadingPopout.getAlwaysOnTop, ref),
     setAlwaysOnTop: (ref: MailReadingPopoutRef & { alwaysOnTop: boolean }): Promise<void> =>
-      ipcRenderer.invoke(IPC.mailReadingPopout.setAlwaysOnTop, ref)
+      ipcRenderer.invoke(IPC.mailReadingPopout.setAlwaysOnTop, ref),
+    requestDock: (ref: MailReadingPopoutRef): Promise<void> =>
+      ipcRenderer.invoke(IPC.mailReadingPopout.requestDock, ref)
+  },
+  panelPopout: {
+    open: (input: import('@shared/panel-popout').PanelPopoutOpenInput): Promise<void> =>
+      ipcRenderer.invoke(IPC.panelPopout.open, input),
+    close: (ref: import('@shared/panel-popout').PanelPopoutRef): Promise<void> =>
+      ipcRenderer.invoke(IPC.panelPopout.close, ref),
+    closeAll: (): Promise<void> => ipcRenderer.invoke(IPC.panelPopout.closeAll),
+    focus: (ref: import('@shared/panel-popout').PanelPopoutRef): Promise<boolean> =>
+      ipcRenderer.invoke(IPC.panelPopout.focus, ref),
+    isOpen: (ref: import('@shared/panel-popout').PanelPopoutRef): Promise<boolean> =>
+      ipcRenderer.invoke(IPC.panelPopout.isOpen, ref),
+    stashPayload: (input: import('@shared/panel-popout').PanelPopoutStashInput): Promise<void> =>
+      ipcRenderer.invoke(IPC.panelPopout.stashPayload, input),
+    takePayload: (key: string): Promise<unknown> =>
+      ipcRenderer.invoke(IPC.panelPopout.takePayload, key),
+    requestDock: (payload: import('@shared/panel-popout').PanelPopoutDockPayload): Promise<void> =>
+      ipcRenderer.invoke(IPC.panelPopout.requestDock, payload)
   },
   entityLinks: {
     list: (anchor: ChronellEntityRef): Promise<EntityLinksListResult> =>
@@ -1373,6 +1392,38 @@ const api = {
       ipcRenderer.on('mail-reading-popout:closed', listener)
       return (): void => {
         ipcRenderer.off('mail-reading-popout:closed', listener)
+      }
+    },
+    onPanelPopoutClosed: (
+      handler: (payload: import('@shared/panel-popout').PanelPopoutClosedPayload) => void
+    ): (() => void) => {
+      const listener = (
+        _e: IpcRendererEvent,
+        payload: import('@shared/panel-popout').PanelPopoutClosedPayload
+      ): void => handler(payload)
+      ipcRenderer.on('panel-popout:closed', listener)
+      return (): void => {
+        ipcRenderer.off('panel-popout:closed', listener)
+      }
+    },
+    onPanelPopoutDock: (
+      handler: (payload: import('@shared/panel-popout').PanelPopoutDockPayload) => void
+    ): (() => void) => {
+      const listener = (
+        _e: IpcRendererEvent,
+        payload: import('@shared/panel-popout').PanelPopoutDockPayload
+      ): void => handler(payload)
+      ipcRenderer.on('panel-popout:dock', listener)
+      return (): void => {
+        ipcRenderer.off('panel-popout:dock', listener)
+      }
+    },
+    onMailReadingPopoutDock: (handler: (payload: MailReadingPopoutRef) => void): (() => void) => {
+      const listener = (_e: IpcRendererEvent, payload: MailReadingPopoutRef): void =>
+        handler(payload)
+      ipcRenderer.on('mail-reading-popout:dock', listener)
+      return (): void => {
+        ipcRenderer.off('mail-reading-popout:dock', listener)
       }
     },
     onProfileSyncStatus: (

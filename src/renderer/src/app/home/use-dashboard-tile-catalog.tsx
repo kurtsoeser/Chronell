@@ -17,6 +17,7 @@ import {
   FileText,
   Layers,
   ListTodo,
+  MapPin,
   Loader2,
   Moon,
   PanelTop,
@@ -57,11 +58,18 @@ import { accountSupportsCloudTasks } from '@/lib/cloud-task-accounts'
 import { useAccountsStore } from '@/stores/accounts'
 import { useInboxCalendarAgendaCacheStore } from '@/stores/inbox-calendar-agenda-cache'
 import { useMailStore, mailListUsesCrossAccountThreadScope } from '@/stores/mail'
-import { openMailReadingPopout } from '@/lib/open-mail-reading-popout'
+import {
+  mailReadingPopoutOptsFromClick,
+  openMailReadingPopout
+} from '@/lib/open-mail-reading-popout'
 import {
   buildMailboxFlagExcludedFolderIds,
   threadMatchesMailboxFlaggedFilter
 } from '@/lib/mail-flagged-mailbox-view'
+import {
+  focusContextPreviewMailMessage,
+  focusContextPreviewWorkItem
+} from '@/lib/focus-context-preview'
 import { useAppModeStore } from '@/stores/app-mode'
 import { useCalendarPendingFocusStore } from '@/stores/calendar-pending-focus'
 import { useComposeStore } from '@/stores/compose'
@@ -87,6 +95,7 @@ import { DashboardDeskNoteTile } from '@/app/home/DashboardDeskNoteTile'
 import { DashboardNotesNewTile } from '@/app/home/DashboardNotesNewTile'
 import { DashboardNotesPreviewTile } from '@/app/home/DashboardNotesPreviewTile'
 import { DashboardWorkAllTile } from '@/app/home/DashboardWorkAllTile'
+import { DashboardPinnedShortcutsTile } from '@/app/home/DashboardPinnedShortcutsTile'
 import { openWorkItemInCalendar } from '@/app/work-items/work-item-calendar-nav'
 import { resolveVisibleAppShellMode } from '@/app/layout/topbar-module-prefs'
 import { pushRecentSearch, readRecentSearches } from '@/app/home/dashboard-recent-searches'
@@ -182,7 +191,7 @@ function DashboardTodoMessageList(props: {
                     onDoubleClick={(e): void => {
                       e.preventDefault()
                       e.stopPropagation()
-                      openMailReadingPopout(m.id, { osWindow: e.shiftKey })
+                      openMailReadingPopout(m.id, mailReadingPopoutOptsFromClick(e))
                     }}
                     onContextMenu={(e): void => onContextMail(e, m)}
                     className={cn(
@@ -503,6 +512,7 @@ export function useDashboardTileCatalog(opts?: {
 
   const openWorkItemFromDashboard = useCallback(
     async (item: WorkItem): Promise<void> => {
+      if (focusContextPreviewWorkItem(item)) return
       if (item.kind === 'mail_todo') {
         await openMessageInFolder(item.messageId)
         setAppMode('mail')
@@ -826,6 +836,7 @@ export function useDashboardTileCatalog(opts?: {
 
   const openFromDashboard = useCallback(
     async (messageId: number): Promise<void> => {
+      if (await focusContextPreviewMailMessage(messageId)) return
       await openMessageInFolder(messageId)
       setAppMode('mail')
     },
@@ -1074,6 +1085,14 @@ export function useDashboardTileCatalog(opts?: {
         )
       },
       {
+        id: 'pinned_shortcuts' as const,
+        icon: MapPin,
+        title: t('dashboard.tiles.pinnedShortcutsTitle'),
+        subtitle: t('dashboard.tiles.pinnedShortcutsSubtitle'),
+        onOpenFull: (): void => setAppMode('connections'),
+        body: <DashboardPinnedShortcutsTile />
+      },
+      {
         id: 'inbox' as const,
         icon: Inbox,
         title: t('dashboard.tiles.inboxTitle'),
@@ -1135,7 +1154,7 @@ export function useDashboardTileCatalog(opts?: {
                               onDoubleClick={(e): void => {
                                 e.preventDefault()
                                 e.stopPropagation()
-                                openMailReadingPopout(latest.id, { osWindow: e.shiftKey })
+                                openMailReadingPopout(latest.id, mailReadingPopoutOptsFromClick(e))
                               }}
                               onContextMenu={(e): void => {
                                 void openDashboardMailContext(e, latest, threadContextOpts)
@@ -1227,7 +1246,7 @@ export function useDashboardTileCatalog(opts?: {
                           onDoubleClick={(e): void => {
                             e.preventDefault()
                             e.stopPropagation()
-                            openMailReadingPopout(m.id, { osWindow: e.shiftKey })
+                            openMailReadingPopout(m.id, mailReadingPopoutOptsFromClick(e))
                           }}
                           className={cn(
                             'group relative flex w-full items-start gap-2 px-3 py-2 text-left text-xs transition-colors',
@@ -1308,7 +1327,7 @@ export function useDashboardTileCatalog(opts?: {
                           onDoubleClick={(e): void => {
                             e.preventDefault()
                             e.stopPropagation()
-                            openMailReadingPopout(m.id, { osWindow: e.shiftKey })
+                            openMailReadingPopout(m.id, mailReadingPopoutOptsFromClick(e))
                           }}
                           className={cn(
                             'group relative flex w-full items-start gap-2 px-3 py-2 text-left text-xs transition-colors',
@@ -1417,7 +1436,7 @@ export function useDashboardTileCatalog(opts?: {
                         onDoubleClick={(e): void => {
                           e.preventDefault()
                           e.stopPropagation()
-                          openMailReadingPopout(hit.id, { osWindow: e.shiftKey })
+                          openMailReadingPopout(hit.id, mailReadingPopoutOptsFromClick(e))
                         }}
                         className="flex w-full flex-col items-start gap-0.5 px-2 py-1.5 text-left text-[11px] transition-colors hover:bg-secondary/50"
                       >
@@ -1623,7 +1642,7 @@ export function useDashboardTileCatalog(opts?: {
                               onDoubleClick={(e): void => {
                                 e.preventDefault()
                                 e.stopPropagation()
-                                openMailReadingPopout(latest.id, { osWindow: e.shiftKey })
+                                openMailReadingPopout(latest.id, mailReadingPopoutOptsFromClick(e))
                               }}
                               className={cn(
                                 'group relative flex w-full items-start gap-2 px-3 py-2 text-left text-xs transition-colors',

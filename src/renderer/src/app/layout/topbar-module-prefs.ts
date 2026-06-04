@@ -9,7 +9,7 @@ import {
 export const TOPBAR_MODULE_PREFS_CHANGED_EVENT = 'mailclient:topbar-module-prefs-changed'
 
 /** Standardmäßig ausgeblendet (z. B. Modul „Alle Arbeit“). */
-export const DEFAULT_TOPBAR_HIDDEN_MODULES: readonly AppShellMode[] = ['work']
+export const DEFAULT_TOPBAR_HIDDEN_MODULES: readonly AppShellMode[] = ['work', 'layoutStudio']
 
 const HIDDEN_STORAGE_KEY = 'mailclient.topbarModuleHidden.v1'
 const ALLOWED = new Set<string>(DEFAULT_TOPBAR_MODULE_ORDER)

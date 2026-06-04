@@ -13,8 +13,20 @@ import {
 } from './profile-sync-status-broadcast'
 import { registerProfileSyncRunner } from './profile-sync-runner-bridge'
 
-let pollTimer: ReturnType<typeof setInterval> | null = null
+let pollTimer: ReturnType<typeof setTimeout> | null = null
+let pollStopped = true
 let startupDone = false
+
+function scheduleNextPoll(): void {
+  if (pollStopped) return
+  if (pollTimer != null) clearTimeout(pollTimer)
+  pollTimer = setTimeout(() => {
+    pollTimer = null
+    void runAutoSync().finally(() => {
+      scheduleNextPoll()
+    })
+  }, readPollIntervalMsSync())
+}
 
 async function runAutoSync(): Promise<void> {
   const config = await loadConfig()
@@ -39,11 +51,10 @@ export function startProfileSyncRunner(): void {
     void runAutoSync()
   })
 
-  if (pollTimer != null) return
+  if (!pollStopped) return
 
-  pollTimer = setInterval(() => {
-    void runAutoSync()
-  }, readPollIntervalMsSync())
+  pollStopped = false
+  scheduleNextPoll()
 
   if (!startupDone) {
     startupDone = true
@@ -55,8 +66,9 @@ export function startProfileSyncRunner(): void {
 
 export function stopProfileSyncRunner(): void {
   cancelScheduledProfileSync()
+  pollStopped = true
   if (pollTimer != null) {
-    clearInterval(pollTimer)
+    clearTimeout(pollTimer)
     pollTimer = null
   }
   startupDone = false

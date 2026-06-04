@@ -19,6 +19,9 @@ import { initialSignatureForAccount } from '@/lib/signature-templates'
 import type { ConnectionsCanvasCreateAnchor } from '@/app/connections/connections-canvas-create'
 import { useAccountsStore } from '@/stores/accounts'
 import { useMailStore } from '@/stores/mail'
+import { hasComposeDraftContent } from '@/lib/compose-draft-save'
+import { shouldUseOsFloatingPanel } from '@/lib/open-panel-popout'
+import { openComposeOsPopout } from '@/lib/open-panel-popout-helpers'
 import { showAppConfirm } from '@/stores/app-dialog'
 import { useUndoStore } from '@/stores/undo'
 import i18n from '@/i18n'
@@ -132,6 +135,8 @@ interface ComposeState {
   openReply: (mode: 'reply' | 'replyAll', message: MailFull) => void
   openForward: (message: MailFull) => void
   close: (id: string) => void
+  /** Fenster schliessen; offenen Inhalt zuerst in «Entwürfe» speichern. */
+  closeAndSaveDraft: (id: string) => Promise<void>
   focus: (id: string) => void
   update: (id: string, patch: Partial<ComposeDraft>) => void
   addAttachments: (id: string, files: ComposeAttachmentFile[]) => void
@@ -337,6 +342,10 @@ export const useComposeStore = create<ComposeState>((set, get) => ({
       connectionsCanvasAnchor: options?.connectionsCanvasAnchor,
       ...defaultComposeFields(accountId)
     }
+    if (shouldUseOsFloatingPanel()) {
+      void openComposeOsPopout(draft)
+      return draft.id
+    }
     set((s) => ({ drafts: [...s.drafts, draft], activeId: draft.id }))
     return draft.id
   },
@@ -370,6 +379,13 @@ export const useComposeStore = create<ComposeState>((set, get) => ({
   },
 
   popOutToWindow(id: string): void {
+    const draft = get().drafts.find((d) => d.id === id)
+    if (!draft) return
+    if (shouldUseOsFloatingPanel()) {
+      void openComposeOsPopout({ ...draft, embedInReadingPane: false })
+      get().close(id)
+      return
+    }
     get().update(id, { embedInReadingPane: false })
     get().focus(id)
   },
@@ -457,6 +473,15 @@ export const useComposeStore = create<ComposeState>((set, get) => ({
       const activeId = s.activeId === id ? (next[next.length - 1]?.id ?? null) : s.activeId
       return { drafts: next, activeId }
     })
+  },
+
+  async closeAndSaveDraft(id: string): Promise<void> {
+    const draft = get().drafts.find((d) => d.id === id)
+    if (!draft) return
+    if (hasComposeDraftContent(draft)) {
+      await get().saveRemoteDraft(id)
+    }
+    get().close(id)
   },
 
   focus(id: string): void {

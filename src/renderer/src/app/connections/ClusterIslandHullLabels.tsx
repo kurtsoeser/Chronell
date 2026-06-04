@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Palette, RefreshCw, Sparkles } from 'lucide-react'
+import { MapPin, Palette, RefreshCw, Sparkles } from 'lucide-react'
+import {
+  addDashboardPinnedShortcut,
+  isShortcutPinned,
+  readDashboardPinnedShortcuts,
+  writeDashboardPinnedShortcuts
+} from '@/app/home/dashboard-pinned-shortcuts'
 import { ClusterIslandColorSubmenu } from '@/app/connections/ClusterIslandColorSubmenu'
 import type { ClusterIslandStyle } from '@/app/connections/cluster-island-style'
 import { ContextMenu, type ContextMenuItem } from '@/components/ContextMenu'
@@ -198,6 +204,26 @@ export function ClusterIslandHullLabelOverlay({
         }
       })
     }
+    const alreadyPinned = isShortcutPinned(readDashboardPinnedShortcuts(), {
+      kind: 'connection_island',
+      clusterKey: hull.key
+    })
+    items.push({
+      id: 'pin-dashboard',
+      label: alreadyPinned
+        ? t('connections.graph.islandPinnedOnDashboard')
+        : t('connections.graph.islandPinToDashboard'),
+      icon: MapPin,
+      disabled: alreadyPinned,
+      onSelect: (): void => {
+        const next = addDashboardPinnedShortcut(readDashboardPinnedShortcuts(), {
+          kind: 'connection_island',
+          clusterKey: hull.key
+        })
+        writeDashboardPinnedShortcuts(next)
+        setMenu(null)
+      }
+    })
     if (canStyle) {
       items.push({
         id: 'color',

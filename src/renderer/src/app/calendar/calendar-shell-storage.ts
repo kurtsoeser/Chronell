@@ -14,6 +14,7 @@ export const LEGACY_CAL_SHELL_SOURCE_KEY = 'mailclient.calendar.shellSource'
 /** Groesse der schwebenden Seitenpanels (JSON `{w,h}`), siehe `CalendarFloatingPanel`. */
 export const CAL_FLOAT_INBOX_SIZE_KEY = 'mailclient.calendar.float.inbox'
 export const CAL_FLOAT_PREVIEW_SIZE_KEY = 'mailclient.calendar.float.preview'
+export const CAL_FLOAT_CONTEXT_SIZE_KEY = 'mailclient.calendar.float.context'
 
 /** Mindestbreite Zeitliste / Vorschau (angedockt und Pop-up). */
 export const CAL_SIDE_PANEL_MIN_WIDTH_PX = 180

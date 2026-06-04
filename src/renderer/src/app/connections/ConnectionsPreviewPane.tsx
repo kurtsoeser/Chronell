@@ -27,6 +27,8 @@ import {
   VerticalSplitter
 } from '@/components/ResizableSplitter'
 import { openMailReadingPopout } from '@/lib/open-mail-reading-popout'
+import { shouldUseOsFloatingPanel } from '@/lib/open-panel-popout'
+import { openConnectionsPreviewOsPopout } from '@/lib/open-panel-popout-helpers'
 import { entityRefKindIcon } from '@/lib/entity-ref-ui'
 import { cn } from '@/lib/utils'
 import { useAccountsStore } from '@/stores/accounts'
@@ -46,7 +48,7 @@ function ConnectionsPreviewChrome({
   onClose: () => void
   onOpenInModule: () => void
   /** Optional: Shift+Klick auf „Schwebend“ öffnet die Mail in einem eigenen Fenster. */
-  onMailPopout?: (opts?: { osWindow?: boolean }) => void
+  onMailPopout?: (opts?: import('@/lib/open-mail-reading-popout').MailReadingPopoutOpenOpts) => void
 }): JSX.Element {
   const { t } = useTranslation()
   const accounts = useAccountsStore((s) => s.accounts)
@@ -117,7 +119,7 @@ function ConnectionsPreviewChrome({
                 }
                 onClick={(e): void => {
                   if (e.shiftKey && isMailLike && onMailPopout) {
-                    onMailPopout({ osWindow: true })
+                    onMailPopout({ inAppFloat: true })
                     return
                   }
                   onUndock()
@@ -222,18 +224,23 @@ export function ConnectionsPreviewPane({
 
   const floatPanelOpen = placement === 'float' && open
 
-  const handleMailPopout = (opts?: { osWindow?: boolean }): void => {
+  const handleMailPopout = (opts?: import('@/lib/open-mail-reading-popout').MailReadingPopoutOpenOpts): void => {
     void (async (): Promise<void> => {
       let messageId: number | null = null
       if (node.ref.kind === 'mail') messageId = node.ref.messageId
       else if (node.ref.kind === 'mail_todo') {
         messageId = await window.mailClient.entityLinks.getMailTodoMessageId(node.ref.todoId)
       }
-      if (messageId != null) openMailReadingPopout(messageId, { osWindow: opts?.osWindow })
+      if (messageId != null) openMailReadingPopout(messageId, opts)
     })()
   }
 
   const handleUndock = (): void => {
+    if (shouldUseOsFloatingPanel()) {
+      void openConnectionsPreviewOsPopout(node.ref, node.title)
+      onClose()
+      return
+    }
     onPlacementChange('float')
     persistConnectionsPreviewPlacement('float')
   }

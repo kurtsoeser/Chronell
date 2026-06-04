@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { CUSTOM_VIEWS_CHANGED_EVENT } from '@/stores/custom-views'
 import {
   replaceLocalStorageFromBackup,
   snapshotLocalStorage
@@ -16,6 +17,7 @@ export function ProfileSyncBridge(): null {
       pushPrefs()
     }
     window.addEventListener('storage', onStorage)
+    window.addEventListener(CUSTOM_VIEWS_CHANGED_EVENT, pushPrefs)
 
     const offApplied = window.mailClient.events.onProfileSyncApplied((payload) => {
       replaceLocalStorageFromBackup(payload.localStorage)
@@ -25,6 +27,7 @@ export function ProfileSyncBridge(): null {
     return () => {
       clearInterval(interval)
       window.removeEventListener('storage', onStorage)
+      window.removeEventListener(CUSTOM_VIEWS_CHANGED_EVENT, pushPrefs)
       offApplied()
     }
   }, [])

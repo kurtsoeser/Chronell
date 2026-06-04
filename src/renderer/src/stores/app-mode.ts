@@ -1,7 +1,9 @@
 import { create } from 'zustand'
+import { writeActiveCustomViewId } from '@/app/custom-views/custom-views-storage'
 
 export type AppShellMode =
   | 'home'
+  | 'layoutStudio'
   | 'mail'
   | 'calendar'
   | 'bookings'
@@ -12,6 +14,8 @@ export type AppShellMode =
   | 'files'
   | 'connections'
   | 'chat'
+  /** Benutzerdefinierte Ansicht aus dem Layout-Assistenten */
+  | 'customView'
 
 const STORAGE_KEY = 'mailclient.appShellMode'
 
@@ -60,6 +64,7 @@ function readStored(): AppShellMode {
     }
     if (
       v === 'home' ||
+      v === 'layoutStudio' ||
       v === 'mail' ||
       v === 'calendar' ||
       v === 'bookings' ||
@@ -69,7 +74,8 @@ function readStored(): AppShellMode {
       v === 'notes' ||
       v === 'files' ||
       v === 'connections' ||
-      v === 'chat'
+      v === 'chat' ||
+      v === 'customView'
     )
       return v
   } catch {
@@ -89,6 +95,7 @@ function persist(mode: AppShellMode): void {
 interface AppModeState {
   mode: AppShellMode
   setMode: (mode: AppShellMode) => void
+  setCustomView: (viewId: string) => void
 }
 
 export const useAppModeStore = create<AppModeState>((set) => ({
@@ -96,5 +103,10 @@ export const useAppModeStore = create<AppModeState>((set) => ({
   setMode(mode): void {
     persist(mode)
     set({ mode })
+  },
+  setCustomView(viewId): void {
+    persist('customView')
+    writeActiveCustomViewId(viewId)
+    set({ mode: 'customView' })
   }
 }))

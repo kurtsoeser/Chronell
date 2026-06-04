@@ -7,7 +7,10 @@ import { Loader2, PanelRightClose, SquareArrowOutUpRight } from 'lucide-react'
 import type { MailListItem } from '@shared/types'
 import { cn } from '@/lib/utils'
 import { useMailStore } from '@/stores/mail'
-import { openMailReadingPopout } from '@/lib/open-mail-reading-popout'
+import {
+  mailReadingPopoutOptsFromClick,
+  openMailReadingPopout
+} from '@/lib/open-mail-reading-popout'
 import { useAccountsStore } from '@/stores/accounts'
 import { useAppModeStore } from '@/stores/app-mode'
 import { useCalendarPendingFocusStore } from '@/stores/calendar-pending-focus'
@@ -314,7 +317,7 @@ export function InboxCalendarSidebar({
                       if (row.kind !== 'mail') return
                       e.preventDefault()
                       e.stopPropagation()
-                      openMailReadingPopout(row.message.id, { osWindow: e.shiftKey })
+                      openMailReadingPopout(row.message.id, mailReadingPopoutOptsFromClick(e))
                     }}
                   >
                     <span className="w-[3.25rem] shrink-0 self-center truncate pt-0.5 text-2xs tabular-nums leading-tight text-muted-foreground">

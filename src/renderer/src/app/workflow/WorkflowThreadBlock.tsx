@@ -4,7 +4,10 @@ import { compareMessageChronoDesc } from '@/lib/thread-display-pick'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { MIME_THREAD_IDS } from '@/lib/workflow-dnd'
-import { openMailReadingPopout } from '@/lib/open-mail-reading-popout'
+import {
+  mailReadingPopoutOptsFromClick,
+  openMailReadingPopout
+} from '@/lib/open-mail-reading-popout'
 import { AccountColorStripe } from '@/components/AccountColorStripe'
 import type { ThreadGroup } from '@/lib/thread-group'
 
@@ -65,7 +68,7 @@ export function WorkflowThreadBlock({
         }}
         onDoubleClick={(e): void => {
           e.stopPropagation()
-          openMailReadingPopout(latest.id, { osWindow: e.shiftKey })
+          openMailReadingPopout(latest.id, mailReadingPopoutOptsFromClick(e))
         }}
         onKeyDown={(e): void => {
           if (e.key === 'Enter' || e.key === ' ') {
@@ -171,7 +174,7 @@ export function WorkflowSubMessageRow({
       }}
       onDoubleClick={(e): void => {
         e.stopPropagation()
-        openMailReadingPopout(message.id, { osWindow: e.shiftKey })
+        openMailReadingPopout(message.id, mailReadingPopoutOptsFromClick(e))
       }}
       onKeyDown={(e): void => {
         if (e.key === 'Enter' || e.key === ' ') {

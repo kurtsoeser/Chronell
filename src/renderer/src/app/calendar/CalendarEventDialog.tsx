@@ -51,6 +51,8 @@ import { CalendarEventRecurrenceSection } from '@/app/calendar/CalendarEventRecu
 import { CalendarEventDialogDayPicker } from '@/app/calendar/CalendarEventDialogDayPicker'
 import { CalendarEventCategoryPopover } from '@/app/calendar/CalendarEventCategoryPopover'
 import { CalendarFloatingPanel } from '@/app/calendar/CalendarFloatingPanel'
+import { loadUseOsFloatingPanelsDefault } from '@/lib/floating-panels-prefs'
+import { openCalendarEventDialogOsPopout } from '@/lib/open-calendar-event-popout'
 import {
   CAL_EVENT_DIALOG_DEFAULT_DOCK_W,
   CAL_EVENT_DIALOG_DAY_COLUMN_WIDTH_KEY,
@@ -296,6 +298,8 @@ export interface CalendarEventDialogProps {
   onEntityCreated?: (payload: { ref: ChronellEntityRef; title: string }) => void
   onClose: () => void
   onSaved: (created?: CalendarEventView) => void
+  /** Eigenes OS-Fenster (Panel-Popout); kein Modal/Float/Dock in der Haupt-App. */
+  surface?: 'modal' | 'dock' | 'float' | 'osWindow'
 }
 
 function PropertyRow({
@@ -365,7 +369,8 @@ export function CalendarEventDialog({
   onTaskCreated,
   onEntityCreated,
   onClose,
-  onSaved
+  onSaved,
+  surface
 }: CalendarEventDialogProps): JSX.Element | null {
   const { t, i18n } = useTranslation()
   const collatorLocale = i18n.language.startsWith('de') ? 'de' : 'en'
@@ -1536,7 +1541,23 @@ export function CalendarEventDialog({
           ? t('calendar.eventDialog.undockTitle')
           : t('calendar.eventDialog.dockTitle')
       }
-      onClick={(): void => {
+      onClick={(e): void => {
+        if (surface === 'osWindow') return
+        if (loadUseOsFloatingPanelsDefault() && placement === 'dock' && !e.shiftKey) {
+          void openCalendarEventDialogOsPopout({
+            mode,
+            defaultAccountId,
+            initialRange: initialRange ?? null,
+            createPrefill,
+            initialCreateKind,
+            initialGraphCalendarId,
+            initialTaskListId,
+            initialEvent,
+            title: initialEvent?.title
+          })
+          onClose()
+          return
+        }
         if (placement === 'dock') setPlacementPersisted('float')
         else setPlacementPersisted('dock')
       }}
@@ -2543,6 +2564,15 @@ export function CalendarEventDialog({
   ) : null
 
   if (!open) return null
+
+  if (surface === 'osWindow') {
+    return (
+      <>
+        <div className="flex h-full min-h-0 flex-col overflow-hidden">{panelInner}</div>
+        {drivePortal}
+      </>
+    )
+  }
 
   if (placement === 'dock') {
     return (
