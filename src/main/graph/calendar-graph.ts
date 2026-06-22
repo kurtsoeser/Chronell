@@ -4,6 +4,7 @@ import {
   formatUtcIsoAsLocalDateTime,
   utcIsoFromWallDateTime
 } from '@shared/calendar-datetime'
+import { prepareCalendarEventBodyHtml } from '@shared/calendar-event-body-html'
 import type {
   CalendarGraphCalendarRow,
   CalendarM365GroupCalendarsPage,
@@ -625,25 +626,10 @@ function applyGraphReminderToPayload(
   payload.reminderMinutesBeforeStart = Math.max(0, Math.min(10_080, Math.round(reminderMinutesBeforeStart)))
 }
 
-function escapeHtmlPlain(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-}
-
-/** Graph-Body (HTML oder Text) fuer Editor / Anzeige. */
 export function normalizeGraphEventBodyHtml(
   body: { contentType?: string | null; content?: string | null } | null | undefined
 ): string | null {
-  const raw = body?.content?.trim()
-  if (!raw) return null
-  const ct = (body?.contentType || '').toLowerCase()
-  if (ct === 'html' || raw.includes('<')) {
-    return raw
-  }
-  return `<p>${escapeHtmlPlain(raw).replace(/\n/g, '<br>')}</p>`
+  return prepareCalendarEventBodyHtml(body?.content)
 }
 
 async function graphEventDateFields(input: GraphEventWriteFields): Promise<{
@@ -703,7 +689,7 @@ function eventWritePayload(input: GraphEventWriteFields): Promise<{
       subject: input.subject.trim() || '(Ohne Titel)',
       body: {
         contentType: 'HTML' as const,
-        content: input.bodyHtml?.trim() ? input.bodyHtml.trim() : '<p></p>'
+        content: prepareCalendarEventBodyHtml(input.bodyHtml) ?? '<p></p>'
       },
       ...dates,
       ...(input.location?.trim()
@@ -953,7 +939,7 @@ export async function graphCreateTeamsCalendarEvent(
     subject: input.subject,
     body: {
       contentType: 'HTML',
-      content: input.bodyHtml?.trim() ? input.bodyHtml : '<p></p>'
+      content: prepareCalendarEventBodyHtml(input.bodyHtml) ?? '<p></p>'
     },
     start: { dateTime: startLocal, timeZone: graphWindowsTz },
     end: { dateTime: endLocal, timeZone: graphWindowsTz },
@@ -968,4 +954,189 @@ export async function graphCreateTeamsCalendarEvent(
     webLink: created.webLink ?? null,
     joinUrl: created.onlineMeeting?.joinUrl ?? null
   }
+}
+
+type GraphScheduleStatus =
+  | 'free'
+  | 'busy'
+  | 'tentative'
+  | 'oof'
+  | 'workingElsewhere'
+  | 'unknown'
+
+function mapGraphScheduleStatus(raw: string | null | undefined): GraphScheduleStatus {
+  switch (raw?.toLowerCase()) {
+    case 'free':
+      return 'free'
+    case 'busy':
+      return 'busy'
+    case 'tentative':
+      return 'tentative'
+    case 'oof':
+      return 'oof'
+    case 'workingelsewhere':
+      return 'workingElsewhere'
+    default:
+      return 'unknown'
+  }
+}
+
+interface GraphScheduleItem {
+  start?: GraphDateTimeTimeZone | null
+  end?: GraphDateTimeTimeZone | null
+  status?: string | null
+}
+
+interface GraphScheduleInfo {
+  scheduleId?: string | null
+  availabilityView?: string | null
+  scheduleItems?: GraphScheduleItem[] | null
+}
+
+interface GraphScheduleCollection {
+  value?: GraphScheduleInfo[] | null
+}
+
+function graphDateTimeToUtcIso(dt: GraphDateTimeTimeZone | null | undefined): string | null {
+  if (!dt?.dateTime?.trim()) return null
+  const tz = dt.timeZone?.trim() || 'UTC'
+  try {
+    if (tz === 'UTC' || tz === 'Etc/UTC') {
+      const ms = Date.parse(`${dt.dateTime.trim()}Z`)
+      return Number.isFinite(ms) ? new Date(ms).toISOString() : null
+    }
+    const iana = graphWindowsZoneToIana(tz) ?? tz
+    return utcIsoFromWallDateTime(dt.dateTime.trim(), iana, false, () => iana)
+  } catch {
+    const ms = Date.parse(dt.dateTime.trim())
+    return Number.isFinite(ms) ? new Date(ms).toISOString() : null
+  }
+}
+
+export async function graphGetAttendeeSchedule(
+  accountId: string,
+  input: import('@shared/types').CalendarGetAttendeeScheduleInput
+): Promise<import('@shared/types').CalendarAttendeeScheduleView[]> {
+  const emails = Array.from(
+    new Set(input.attendeeEmails.map((e) => e.trim().toLowerCase()).filter(Boolean))
+  ).slice(0, 20)
+  if (emails.length === 0) return []
+
+  const client = await getClientFor(accountId)
+  const appCfg = await loadConfig()
+  const iana =
+    appCfg.calendarTimeZone?.trim() || Intl.DateTimeFormat().resolvedOptions().timeZone
+  const graphWindowsTz = ianaToWindowsTimeZone(iana)
+  const startLocal = formatUtcIsoAsLocalDateTime(input.startIso, iana)
+  const endLocal = formatUtcIsoAsLocalDateTime(input.endIso, iana)
+  if (!startLocal || !endLocal) {
+    throw new Error('Ungueltige Start- oder Endzeit.')
+  }
+
+  const body = {
+    schedules: emails,
+    startTime: { dateTime: startLocal, timeZone: graphWindowsTz },
+    endTime: { dateTime: endLocal, timeZone: graphWindowsTz },
+    availabilityViewInterval: Math.max(15, Math.min(60, input.intervalMinutes ?? 30))
+  }
+
+  const res = (await runGraphMailboxRequest(accountId, 'calendar:getSchedule', () =>
+    client.api('/me/calendar/getSchedule').post(body)
+  )) as GraphScheduleCollection
+
+  const out: import('@shared/types').CalendarAttendeeScheduleView[] = []
+  for (const row of res.value ?? []) {
+    const email = row.scheduleId?.trim() ?? ''
+    if (!email) continue
+    const items: import('@shared/types').CalendarAttendeeScheduleItem[] = []
+    for (const item of row.scheduleItems ?? []) {
+      const startIso = graphDateTimeToUtcIso(item.start)
+      const endIso = graphDateTimeToUtcIso(item.end)
+      if (!startIso || !endIso) continue
+      items.push({
+        startIso,
+        endIso,
+        status: mapGraphScheduleStatus(item.status)
+      })
+    }
+    out.push({
+      email,
+      items,
+      availabilityView: row.availabilityView ?? null
+    })
+  }
+  return out
+}
+
+interface GraphMeetingTimeSuggestion {
+  confidence?: number | null
+  meetingTimeSlot?: {
+    start?: GraphDateTimeTimeZone | null
+    end?: GraphDateTimeTimeZone | null
+  } | null
+}
+
+interface GraphFindMeetingTimesResult {
+  meetingTimeSuggestions?: GraphMeetingTimeSuggestion[] | null
+}
+
+export async function graphFindMeetingTimes(
+  accountId: string,
+  input: import('@shared/types').CalendarFindMeetingTimesInput
+): Promise<import('@shared/types').CalendarFreeSlot[]> {
+  const emails = Array.from(
+    new Set(input.attendeeEmails.map((e) => e.trim().toLowerCase()).filter(Boolean))
+  ).slice(0, 20)
+
+  const client = await getClientFor(accountId)
+  const appCfg = await loadConfig()
+  const iana =
+    appCfg.calendarTimeZone?.trim() || Intl.DateTimeFormat().resolvedOptions().timeZone
+  const graphWindowsTz = ianaToWindowsTimeZone(iana)
+  const startLocal = formatUtcIsoAsLocalDateTime(input.rangeStartIso, iana)
+  const endLocal = formatUtcIsoAsLocalDateTime(input.rangeEndIso, iana)
+  if (!startLocal || !endLocal) {
+    throw new Error('Ungueltige Start- oder Endzeit.')
+  }
+
+  const durationMin = Math.max(15, Math.min(480, input.durationMinutes))
+  const hours = Math.floor(durationMin / 60)
+  const mins = durationMin % 60
+  const meetingDuration =
+    hours > 0 && mins > 0 ? `PT${hours}H${mins}M`
+    : hours > 0 ? `PT${hours}H`
+    : `PT${mins}M`
+
+  const body: Record<string, unknown> = {
+    timeConstraint: {
+      timeslots: [
+        {
+          start: { dateTime: startLocal, timeZone: graphWindowsTz },
+          end: { dateTime: endLocal, timeZone: graphWindowsTz }
+        }
+      ]
+    },
+    meetingDuration,
+    maxCandidates: Math.max(1, Math.min(10, input.maxCandidates ?? 5))
+  }
+
+  if (emails.length > 0) {
+    body.attendees = emails.map((address) => ({
+      type: 'required',
+      emailAddress: { address }
+    }))
+  }
+
+  const res = (await runGraphMailboxRequest(accountId, 'calendar:findMeetingTimes', () =>
+    client.api('/me/findMeetingTimes').post(body)
+  )) as GraphFindMeetingTimesResult
+
+  const slots: import('@shared/types').CalendarFreeSlot[] = []
+  for (const suggestion of res.meetingTimeSuggestions ?? []) {
+    const startIso = graphDateTimeToUtcIso(suggestion.meetingTimeSlot?.start)
+    const endIso = graphDateTimeToUtcIso(suggestion.meetingTimeSlot?.end)
+    if (!startIso || !endIso) continue
+    slots.push({ startIso, endIso })
+  }
+  return slots
 }

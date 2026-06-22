@@ -970,6 +970,52 @@ export interface CalendarSuggestionFromMail {
   attendeeEmails: string[]
 }
 
+export interface CalendarFreeSlot {
+  startIso: string
+  endIso: string
+}
+
+export interface CalendarFindLocalFreeSlotsInput {
+  accountId: string
+  durationMinutes: number
+  rangeStartIso: string
+  rangeEndIso: string
+  workingHoursStart?: number
+  workingHoursEnd?: number
+  maxResults?: number
+  notBeforeIso?: string | null
+}
+
+export interface CalendarAttendeeScheduleItem {
+  startIso: string
+  endIso: string
+  status: 'free' | 'busy' | 'tentative' | 'oof' | 'workingElsewhere' | 'unknown'
+}
+
+export interface CalendarAttendeeScheduleView {
+  email: string
+  items: CalendarAttendeeScheduleItem[]
+  /** Graph availabilityView: 0=free, 1=tentative, 2=busy, 3=oof, 4=workingElsewhere */
+  availabilityView?: string | null
+}
+
+export interface CalendarGetAttendeeScheduleInput {
+  accountId: string
+  attendeeEmails: string[]
+  startIso: string
+  endIso: string
+  intervalMinutes?: number
+}
+
+export interface CalendarFindMeetingTimesInput {
+  accountId: string
+  attendeeEmails: string[]
+  durationMinutes: number
+  rangeStartIso: string
+  rangeEndIso: string
+  maxCandidates?: number
+}
+
 export type MeetingInvitationResponseKind = 'accept' | 'decline' | 'tentative' | 'propose'
 
 export type MeetingAttendeePartStat =

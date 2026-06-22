@@ -50,6 +50,29 @@ export function buildMicrosoftTodoRecurrencePayload(
   return buildMicrosoftGraphRecurrencePayload(recurrence, startLocal, recurrenceTimeZoneWindows)
 }
 
+/**
+ * Graph To Do PATCH: `range.startDate`/`endDate` loesen oft 400 aus.
+ * Leeres `range`-Objekt uebergeben; der Dienst baut den Bereich neu (MS Graph SDK #2677).
+ */
+export function buildMicrosoftTodoRecurrencePatchPayload(
+  recurrence: TaskSaveRecurrence,
+  dueIso: string,
+  recurrenceTimeZoneWindows: string,
+  calendarIanaTz: string
+): { recurrence: Record<string, unknown> } {
+  const full = buildMicrosoftTodoRecurrencePayload(
+    recurrence,
+    dueIso,
+    recurrenceTimeZoneWindows,
+    calendarIanaTz
+  )
+  const pattern = (full.recurrence as { pattern?: Record<string, unknown> }).pattern
+  if (!pattern) {
+    throw new Error('Wiederholende Aufgabe: Serienmuster ungueltig.')
+  }
+  return { recurrence: { pattern, range: {} } }
+}
+
 /** Microsoft Graph `todoTask.recurrence` → provider-neutrales Modell. */
 export function parseGraphTodoRecurrence(raw: unknown): TaskSaveRecurrence | null {
   if (!raw || typeof raw !== 'object') return null

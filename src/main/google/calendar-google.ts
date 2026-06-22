@@ -4,6 +4,7 @@ import {
   formatUtcIsoAsLocalDateTime,
   utcIsoFromWallDateTime
 } from '@shared/calendar-datetime'
+import { prepareCalendarEventBodyHtml } from '@shared/calendar-event-body-html'
 import type { calendar_v3 } from 'googleapis'
 import type { CalendarGraphCalendarRow, CalendarSaveEventRecurrence } from '@shared/types'
 import { loadConfig } from '../config'
@@ -60,32 +61,16 @@ export function buildGoogleAttendees(
   return out
 }
 
-function escapeHtmlPlain(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-}
-
 function normalizeGoogleEventDescriptionHtml(raw: string | null | undefined): string | null {
-  const c = raw?.trim()
-  if (!c) return null
-  if (/<[a-z][\s\S]*>/i.test(c)) return c
-  return `<p>${escapeHtmlPlain(c).replace(/\n/g, '<br>')}</p>`
-}
-
-function isEffectivelyEmptyEditorHtml(html: string): boolean {
-  const t = html.replace(/<[^>]+>/gi, '').replace(/\u00a0/g, ' ').trim()
-  return t.length === 0
+  return prepareCalendarEventBodyHtml(raw)
 }
 
 /** Google `description` ist ein String; HTML bleibt als Zeichenkette erhalten (wie Web-Outlook). */
 function googleCalendarDescriptionFromEditorHtml(html: string | null | undefined): string | undefined {
   if (html === null || html === undefined) return undefined
-  if (isEffectivelyEmptyEditorHtml(html)) return ''
-  const t = html.trim().replace(/\0/g, '').slice(0, GOOGLE_CAL_DESCRIPTION_MAX)
-  return t || ''
+  const prepared = prepareCalendarEventBodyHtml(html)
+  if (prepared === null) return ''
+  return prepared.slice(0, GOOGLE_CAL_DESCRIPTION_MAX)
 }
 
 function googleDateToIso(

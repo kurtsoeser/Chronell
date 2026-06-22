@@ -148,7 +148,7 @@ export const RecipientTokenField = forwardRef<
       return
     }
 
-    const parts = trimmed.split(/[,;]+/)
+    const parts = trimmed.split(/[,;\n]+/)
     if (parts.length > 1) {
       const nextComplete = [...complete]
       let remaining = ''

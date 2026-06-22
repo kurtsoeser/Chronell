@@ -168,7 +168,8 @@ export function CalendarPreviewPopoutShell(): JSX.Element {
         title: draft.title,
         notes: draft.notes || null,
         dueIso: draft.dueIso,
-        completed: cloudTask.completed
+        completed: cloudTask.completed,
+        recurrence: draft.recurrence
       })
     } finally {
       setTaskSaving(false)

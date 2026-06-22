@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Loader2, Search } from 'lucide-react'
+import { Loader2, Search, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import type { MailBodyIndexProgress } from '@shared/mail-body-index'
@@ -35,9 +35,19 @@ export function MailBodyIndexProgressToast(): JSX.Element | null {
   const [enabled, setEnabled] = useState(true)
   const [dismissing, setDismissing] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [userDismissed, setUserDismissed] = useState(false)
   const wasActiveRef = useRef(false)
 
   const active = enabled && progress != null && progress.pending > 0
+
+  function requestDismiss(): void {
+    setUserDismissed(true)
+    if (reducedMotion) {
+      setMounted(false)
+      return
+    }
+    setDismissing(true)
+  }
 
   useEffect(() => {
     void fetchMailBodyIndexStatus().then((s) => {
@@ -55,8 +65,15 @@ export function MailBodyIndexProgressToast(): JSX.Element | null {
   useEffect(() => {
     if (active) {
       wasActiveRef.current = true
-      setMounted(true)
-      setDismissing(false)
+      if (!userDismissed) {
+        setMounted(true)
+        setDismissing(false)
+      }
+      return
+    }
+    if (userDismissed) {
+      wasActiveRef.current = false
+      setUserDismissed(false)
       return
     }
     if (wasActiveRef.current && mounted) {
@@ -67,7 +84,7 @@ export function MailBodyIndexProgressToast(): JSX.Element | null {
         setDismissing(true)
       }
     }
-  }, [active, mounted, reducedMotion])
+  }, [active, mounted, reducedMotion, userDismissed])
 
   if (!mounted || !progress) return null
 
@@ -85,7 +102,10 @@ export function MailBodyIndexProgressToast(): JSX.Element | null {
       onExitComplete={(): void => {
         setMounted(false)
         setDismissing(false)
-        wasActiveRef.current = false
+        if (!active) {
+          wasActiveRef.current = false
+          setUserDismissed(false)
+        }
       }}
       className="chronell-acrylic-popover pointer-events-auto flex w-full flex-col gap-1.5 border-border px-3 py-2.5 text-xs"
     >
@@ -97,6 +117,14 @@ export function MailBodyIndexProgressToast(): JSX.Element | null {
         )}
         <span className="min-w-0 flex-1 leading-snug text-foreground">{label}</span>
         <span className="shrink-0 tabular-nums text-muted-foreground">{pct}%</span>
+        <button
+          type="button"
+          onClick={requestDismiss}
+          className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
+          aria-label={t('common.close')}
+        >
+          <X className="h-3 w-3" />
+        </button>
       </div>
       <div className="h-1 overflow-hidden rounded-full bg-muted">
         <div

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { Columns3, LayoutGrid, List, Loader2, RefreshCw } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { WorkItem } from '@shared/work-item'
@@ -36,7 +36,7 @@ import {
   buildWorkItemContextMenuItems,
   type WorkItemContextHandlers
 } from '@/app/work-items/work-item-context-menu'
-import { workListFilterCounts } from '@/app/work-items/work-item-list-arrange'
+import { flattenVisibleWorkItemViews, workListFilterCounts } from '@/app/work-items/work-item-list-arrange'
 import { confirmDeleteCloudTasks } from '@/app/tasks/confirm-delete-cloud-task'
 import {
   persistWorkListViewPrefs,
@@ -47,6 +47,8 @@ import { workItemsToViews } from '@/app/work-items/work-item-mapper'
 import type { MailContextHandlers } from '@/lib/mail-context-menu'
 import { accountSupportsCloudTasks } from '@/lib/cloud-task-accounts'
 import { useCreateCloudTaskUiStore } from '@/stores/create-cloud-task-ui'
+import { nextCheckedListSelection } from '@/lib/id-bulk-selection'
+import { useBulkListKeyboardShortcuts } from '@/lib/use-bulk-list-keyboard-shortcuts'
 
 export function WorkShell(): JSX.Element {
   const { t } = useTranslation()
@@ -80,6 +82,8 @@ export function WorkShell(): JSX.Element {
     readWorkContentViewMode()
   )
   const [selected, setSelected] = useState<WorkItem | null>(null)
+  const [checkedKeys, setCheckedKeys] = useState<Set<string>>(() => new Set())
+  const selectionAnchorRef = useRef<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [contextMenu, setContextMenu] = useState<{
     x: number
@@ -154,6 +158,94 @@ export function WorkShell(): JSX.Element {
     [selectMessage]
   )
 
+  const visibleOrderedKeys = useMemo(() => {
+    return flattenVisibleWorkItemViews(views, listViewPrefs.arrange, listViewPrefs.chrono, listViewPrefs.filter, workArrangeCtx).map(
+      (v) => v.stableKey
+    )
+  }, [views, listViewPrefs.arrange, listViewPrefs.chrono, listViewPrefs.filter, workArrangeCtx])
+
+  useEffect(() => {
+    setCheckedKeys(new Set())
+    selectionAnchorRef.current = null
+  }, [listViewPrefs.filter, listViewPrefs.arrange, listViewPrefs.chrono])
+
+  const handleItemClick = useCallback(
+    (item: WorkItem, event: MouseEvent): void => {
+      const key = item.stableKey
+      const { checkedKeys: nextChecked, anchor } = nextCheckedListSelection(
+        key,
+        { shiftKey: event.shiftKey, ctrlKey: event.ctrlKey, metaKey: event.metaKey },
+        visibleOrderedKeys,
+        checkedKeys,
+        selectionAnchorRef.current,
+        selected?.stableKey ?? null
+      )
+      const mod = event.shiftKey || event.ctrlKey || event.metaKey
+      if (mod) {
+        setCheckedKeys(nextChecked)
+        selectionAnchorRef.current = anchor
+        handleSelect(item)
+        return
+      }
+      setCheckedKeys(new Set())
+      selectionAnchorRef.current = key
+      handleSelect(item)
+    },
+    [visibleOrderedKeys, checkedKeys, selected?.stableKey, handleSelect]
+  )
+
+  const clearChecked = useCallback((): void => {
+    setCheckedKeys(new Set())
+    selectionAnchorRef.current = null
+  }, [])
+
+  const selectAllVisible = useCallback((): void => {
+    setCheckedKeys(new Set(visibleOrderedKeys))
+    if (visibleOrderedKeys.length > 0) {
+      selectionAnchorRef.current = visibleOrderedKeys[0]!
+    }
+  }, [visibleOrderedKeys])
+
+  const deleteChecked = useCallback(async (): Promise<void> => {
+    const targets = items.filter(
+      (item) => item.kind === 'cloud_task' && checkedKeys.has(item.stableKey)
+    )
+    if (targets.length === 0) return
+    if (!(await confirmDeleteCloudTasks(t, targets.length))) return
+    setSaving(true)
+    try {
+      const deleted = new Set<string>()
+      for (const item of targets) {
+        if (item.kind !== 'cloud_task') continue
+        await window.mailClient.tasks.deleteTask({
+          accountId: item.accountId,
+          listId: item.listId,
+          taskId: item.taskId
+        })
+        deleted.add(item.stableKey)
+      }
+      setCheckedKeys((prev) => {
+        const next = new Set(prev)
+        for (const k of deleted) next.delete(k)
+        return next
+      })
+      setSelected((s) => (s && deleted.has(s.stableKey) ? null : s))
+      await reload()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setSaving(false)
+    }
+  }, [items, checkedKeys, reload, t])
+
+  useBulkListKeyboardShortcuts(checkedKeys.size, {
+    onDelete: (): void => {
+      void deleteChecked()
+    },
+    onClear: clearChecked,
+    onSelectAll: selectAllVisible
+  })
+
   const handleOpenInMail = useCallback((): void => {
     if (selected?.kind !== 'mail_todo') return
     void selectMessage(selected.messageId)
@@ -185,7 +277,8 @@ export function WorkShell(): JSX.Element {
           title: draft.title,
           notes: draft.notes || null,
           dueIso: draft.dueIso,
-          completed: selected.completed
+          completed: selected.completed,
+          recurrence: draft.recurrence
         })
         if (draft.plannedStartIso && draft.plannedEndIso) {
           await window.mailClient.tasks.setPlannedSchedule({
@@ -487,8 +580,9 @@ export function WorkShell(): JSX.Element {
                   chrono={listViewPrefs.chrono}
                   filter={listViewPrefs.filter}
                   selectedKey={selected?.stableKey ?? null}
+                  checkedKeys={checkedKeys}
                   onSelect={handleSelect}
-                  onItemClick={handleSelect}
+                  onItemClick={handleItemClick}
                   onToggleCompleted={(item): void => void handleToggleCompleted(item)}
                   onContextMenu={openItemContextMenu}
                 />

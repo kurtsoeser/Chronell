@@ -25,7 +25,7 @@ import {
 } from '@/app/layout-studio/panels/LayoutStudioCalendarViews'
 import { LayoutStudioDashboardTile } from '@/app/layout-studio/panels/LayoutStudioDashboardTile'
 import { parseDashboardTileIdFromPanel } from '@/app/layout-studio/layout-studio-panel-ids'
-import type { LayoutStudioPanelId } from '@/app/layout-studio/layout-studio-storage'
+import type { LayoutStudioPanelId } from '@/app/layout-studio/layout-studio-panel-ids'
 
 export function LayoutStudioPanel({ panel }: { panel: LayoutStudioPanelId }): JSX.Element {
   const { t } = useTranslation()

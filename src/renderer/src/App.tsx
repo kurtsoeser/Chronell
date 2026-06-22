@@ -79,14 +79,14 @@ const MailReplyWithMeetingHost = lazy(async () => {
   const m = await import('./components/MailReplyWithMeetingHost')
   return { default: m.MailReplyWithMeetingHost }
 })
+const MailScheduleMeetingHost = lazy(async () => {
+  const m = await import('./components/MailScheduleMeetingHost')
+  return { default: m.MailScheduleMeetingHost }
+})
 
 const HomeDashboard = lazy(async () => {
   const m = await import('./app/home/HomeDashboard')
   return { default: m.HomeDashboard }
-})
-const LayoutStudioShell = lazy(async () => {
-  const m = await import('./app/layout-studio/LayoutStudioShell')
-  return { default: m.LayoutStudioShell }
 })
 const CustomViewShell = lazy(async () => {
   const m = await import('./app/custom-views/CustomViewShell')
@@ -303,7 +303,6 @@ export function App(): JSX.Element {
       <div className="chronell-module-shell flex min-h-0 flex-1 flex-col">
         <Suspense fallback={<AppShellFallback />}>
           {mode === 'home' && <HomeDashboard />}
-          {mode === 'layoutStudio' && <LayoutStudioShell />}
           {mode === 'customView' && <CustomViewShell />}
           {mode === 'calendar' && <CalendarShell />}
           {mode === 'bookings' && <BookingsShell />}
@@ -375,6 +374,9 @@ export function App(): JSX.Element {
       </Suspense>
       <Suspense fallback={null}>
         <MailReplyWithMeetingHost />
+      </Suspense>
+      <Suspense fallback={null}>
+        <MailScheduleMeetingHost />
       </Suspense>
       <ToastStack />
       <Suspense fallback={null}>

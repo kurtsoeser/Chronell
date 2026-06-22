@@ -32,6 +32,7 @@ import {
 import {
   buildNavigableMessageIds,
   formatSnoozeWake,
+  findMailListItemById,
   isMailInDeletedItemsFolder,
   pickInitialMessageId,
   shorten,
@@ -1367,7 +1368,8 @@ export const useMailStore = create<MailState>((set, get) => ({
     })
 
     for (const id of ordered) {
-      const item = get().messages.find((m) => m.id === id)
+      const st = get()
+      const item = findMailListItemById(st.messages, st.threadMessages, id)
       if (!item) continue
       if (item.accountId !== accountId) {
         if (!errs.some((x) => x.includes('Kontos')))

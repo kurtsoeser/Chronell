@@ -26,11 +26,17 @@ function allKindsSet(): Set<EntityRefKind> {
 export function ConnectionsObjectPalette({
   className,
   selectedKey = null,
+  checkedKeys,
   onSelectItem
 }: {
   className?: string
   selectedKey?: string | null
-  onSelectItem?: (item: EntityLinkTargetCandidate) => void
+  checkedKeys?: ReadonlySet<string>
+  onSelectItem?: (
+    item: EntityLinkTargetCandidate,
+    event: { shiftKey: boolean; ctrlKey: boolean; metaKey: boolean },
+    visibleKeys: readonly string[]
+  ) => void
 }): JSX.Element {
   const { t } = useTranslation()
   const [activeKinds, setActiveKinds] = useState<Set<EntityRefKind>>(allKindsSet)
@@ -188,6 +194,8 @@ export function ConnectionsObjectPalette({
                 const Icon = entityRefKindIcon(item.target.kind)
                 const key = entityRefKey(item.target)
                 const isSelected = selectedKey === key
+                const isChecked = checkedKeys?.has(key) ?? false
+                const visibleKeys = items.map((row) => entityRefKey(row.target))
                 return (
                   <li key={key}>
                     <div
@@ -209,20 +217,34 @@ export function ConnectionsObjectPalette({
                           didDragRef.current = false
                         }, 0)
                       }}
-                      onClick={(): void => {
+                      onClick={(e): void => {
                         if (didDragRef.current) return
-                        onSelectItem?.(item)
+                        onSelectItem?.(
+                          item,
+                          {
+                            shiftKey: e.shiftKey,
+                            ctrlKey: e.ctrlKey,
+                            metaKey: e.metaKey
+                          },
+                          visibleKeys
+                        )
                       }}
                       onKeyDown={(e): void => {
                         if (e.key !== 'Enter' && e.key !== ' ') return
                         e.preventDefault()
-                        onSelectItem?.(item)
+                        onSelectItem?.(
+                          item,
+                          { shiftKey: false, ctrlKey: false, metaKey: false },
+                          visibleKeys
+                        )
                       }}
                       className={cn(
                         'flex cursor-grab items-center gap-1.5 rounded-md border px-1.5 py-1.5 text-left hover:border-border hover:bg-secondary/50 active:cursor-grabbing',
-                        isSelected
+                        isChecked
                           ? 'border-primary/50 bg-primary/10 ring-1 ring-primary/20'
-                          : 'border-transparent'
+                          : isSelected
+                            ? 'border-primary/50 bg-primary/10 ring-1 ring-primary/20'
+                            : 'border-transparent'
                       )}
                       title={t('connections.palette.itemHint')}
                     >

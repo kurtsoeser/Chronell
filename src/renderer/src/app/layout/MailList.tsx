@@ -38,7 +38,7 @@ import {
   dedupeMailListThreadMessagesById,
   MAIL_LIST_UNIFIED_INBOX_STRIPE_BAR
 } from '@/lib/mail-list-ui'
-import { MIME_THREAD_IDS } from '@/lib/workflow-dnd'
+import { writeMailDragPayload } from '@/lib/workflow-dnd'
 import {
   computeMailListLayout,
   filterMailListLayoutForCollapsedGroups,
@@ -119,7 +119,8 @@ import {
   MailListTableRowIcons,
   type MailTableCellCtx
 } from '@/app/layout/mail-list-table-parts'
-import { useMailListBulkSelection, messageIdFromMailListRow } from '@/lib/mail-list-bulk-selection'
+import { useMailListBulkSelection, messageIdFromMailListRow, resolveBulkDragMessageIds } from '@/lib/mail-list-bulk-selection'
+import { useBulkListKeyboardShortcuts } from '@/lib/use-bulk-list-keyboard-shortcuts'
 import { MailListRowCheckbox } from '@/components/MailListRowCheckbox'
 import { MailListSelectableCheckbox } from '@/components/MailListSelectableCheckbox'
 import { MailListBulkActionBar } from '@/components/MailListBulkActionBar'
@@ -674,6 +675,12 @@ export function MailList(): JSX.Element {
     [bulkSelection]
   )
 
+  const resolveDragMessageIds = useCallback(
+    (messageId: number, fallbackIds: readonly number[]): number[] =>
+      resolveBulkDragMessageIds(messageId, fallbackIds, bulkSelection.selectedIds),
+    [bulkSelection.selectedIds]
+  )
+
   const runBulkArchive = useCallback((): void => {
     const ids = [...bulkSelection.selectedIds]
     markExiting(ids, () => {
@@ -746,6 +753,21 @@ export function MailList(): JSX.Element {
     },
     [bulkSelection.selectedIds, openSnoozePicker]
   )
+
+  const runBulkToggleRead = useCallback((): void => {
+    const anyUnread = bulkSelectedMessages.some((m) => !m.isRead)
+    if (anyUnread) runBulkMarkRead()
+    else runBulkMarkUnread()
+  }, [bulkSelectedMessages, runBulkMarkRead, runBulkMarkUnread])
+
+  useBulkListKeyboardShortcuts(bulkSelection.selectedCount, {
+    onDelete: runBulkDelete,
+    onArchive: listKind === 'todo' ? undefined : runBulkArchive,
+    onToggleRead: runBulkToggleRead,
+    onToggleFlag: runBulkToggleFlag,
+    onClear: bulkSelection.clear,
+    onSelectAll: bulkSelection.selectAllVisible
+  })
 
   const openMailContext = useCallback(
     async (
@@ -1089,6 +1111,7 @@ export function MailList(): JSX.Element {
                     tableColumns={tableColumns}
                     tableGridTemplate={tableGridTemplate}
                     showPreviewInSubject={showPreviewInSubject}
+                    resolveDragMessageIds={resolveDragMessageIds}
                   />
                 )
               }
@@ -1121,6 +1144,7 @@ export function MailList(): JSX.Element {
                     tableColumns={tableColumns}
                     tableGridTemplate={tableGridTemplate}
                     showPreviewInSubject={showPreviewInSubject}
+                    resolveDragMessageIds={resolveDragMessageIds}
                   />
                 )
             }}
@@ -1205,7 +1229,8 @@ const ThreadHeadRow = memo(function ThreadHeadRow({
   tableColumns = [],
   tableGridTemplate = '',
   showPreviewInSubject = true,
-  suggestionHint
+  suggestionHint,
+  resolveDragMessageIds
 }: {
   thread: ThreadGroup
   threadMessages: MailListItem[]
@@ -1237,6 +1262,7 @@ const ThreadHeadRow = memo(function ThreadHeadRow({
   tableGridTemplate?: string
   showPreviewInSubject?: boolean
   suggestionHint?: EntityLinkSuggestionCountEntry
+  resolveDragMessageIds: (messageId: number, fallbackIds: readonly number[]) => number[]
 }): JSX.Element {
   const { t } = useTranslation()
   const displayMessages = useMemo((): MailListItem[] => {
@@ -1315,12 +1341,10 @@ const ThreadHeadRow = memo(function ThreadHeadRow({
     <div
       draggable
       onDragStart={(e): void => {
-        const payload = JSON.stringify(conversationDragIds)
-        e.dataTransfer.setData(MIME_THREAD_IDS, payload)
-        e.dataTransfer.setData('text/plain', conversationDragIds.join(','))
-        e.dataTransfer.setData('text/mailclient-message-id', String(latest.id))
-        e.dataTransfer.setData('application/x-mailclient-message-id', String(latest.id))
-        e.dataTransfer.effectAllowed = 'move'
+        writeMailDragPayload(
+          e.dataTransfer,
+          resolveDragMessageIds(latest.id, conversationDragIds)
+        )
       }}
       onContextMenu={(e): void => {
         void onContextMail(e, latest, threadContextOpts)
@@ -1585,7 +1609,8 @@ const ThreadSubRow = memo(function ThreadSubRow({
   tableMode = false,
   tableColumns = [],
   tableGridTemplate = '',
-  showPreviewInSubject = true
+  showPreviewInSubject = true,
+  resolveDragMessageIds
 }: {
   message: MailListItem
   accounts: ConnectedAccount[]
@@ -1611,6 +1636,7 @@ const ThreadSubRow = memo(function ThreadSubRow({
   tableColumns?: MailListTableColumnId[]
   tableGridTemplate?: string
   showPreviewInSubject?: boolean
+  resolveDragMessageIds: (messageId: number, fallbackIds: readonly number[]) => number[]
 }): JSX.Element {
   const { t } = useTranslation()
   const folder = findFolderForMessage(message, foldersByAccount)
@@ -1652,12 +1678,7 @@ const ThreadSubRow = memo(function ThreadSubRow({
     <div
       draggable
       onDragStart={(e): void => {
-        const id = String(message.id)
-        e.dataTransfer.setData(MIME_THREAD_IDS, JSON.stringify([message.id]))
-        e.dataTransfer.setData('text/plain', id)
-        e.dataTransfer.setData('text/mailclient-message-id', id)
-        e.dataTransfer.setData('application/x-mailclient-message-id', id)
-        e.dataTransfer.effectAllowed = 'move'
+        writeMailDragPayload(e.dataTransfer, resolveDragMessageIds(message.id, [message.id]))
       }}
       className={cn(
         'group/subrow relative ml-7 flex cursor-grab items-start gap-1 active:cursor-grabbing',

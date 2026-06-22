@@ -116,6 +116,8 @@ import { useNotesPendingFocusStore } from '@/stores/notes-pending-focus'
 import { showAppConfirm } from '@/stores/app-dialog'
 import { useUndoStore } from '@/stores/undo'
 import { useNotesSettingsPrefs } from '@/lib/use-notes-settings-prefs'
+import { useIdBulkSelection } from '@/lib/id-bulk-selection'
+import { useBulkListKeyboardShortcuts } from '@/lib/use-bulk-list-keyboard-shortcuts'
 
 const NOTES_DETAIL_WIDTH_KEY = 'mailclient.notesShell.detailWidth'
 const NOTES_NAV_WIDTH_KEY = 'mailclient.notesShell.navWidth.v2'
@@ -352,6 +354,16 @@ export function NotesShell(): JSX.Element {
     const filtered = notesForNavSelection(notes, navSelection)
     return sortNotesPages(filtered, pagesSort, t('notes.shell.untitled'))
   }, [notes, navSelection, pagesSort, t])
+
+  const pagesSelection = useIdBulkSelection(
+    useMemo(() => pagesNotes.map((n) => n.id), [pagesNotes]),
+    useMemo(() => {
+      // Auswahl wird bei Scope-Wechsel zurückgesetzt (z.B. Sortierung/Filter/Navigation).
+      if (navSelection.kind === 'accounts')
+        return `acc:${navSelection.accountKey}:${pagesSort}:${dateFrom}:${dateTo}`
+      return `sec:${navSelection.scope}:${pagesSort}:${dateFrom}:${dateTo}`
+    }, [navSelection, pagesSort, dateFrom, dateTo])
+  )
 
   const showSectionLabelsInPages =
     notesSettings.showSectionLabelsInPages ||
@@ -768,6 +780,59 @@ export function NotesShell(): JSX.Element {
     })
   }
 
+  const deleteCheckedNotes = useCallback(async (): Promise<void> => {
+    const ids = [...pagesSelection.selectedIds]
+    if (ids.length === 0) return
+    const ok = await showAppConfirm(
+      t('notes.shell.deleteBulkConfirm', { count: ids.length }),
+      {
+        title: t('notes.shell.deleteTitle'),
+        confirmLabel: t('common.delete'),
+        cancelLabel: t('common.cancel'),
+        variant: 'danger'
+      }
+    )
+    if (!ok) return
+
+    setSaving(true)
+    try {
+      for (const id of ids) {
+        await window.mailClient.notes.delete(id)
+        if (editing?.id === id) {
+          setEditing(null)
+          clearSelectedMessage()
+        }
+      }
+      pagesSelection.clear()
+      pushToast({
+        label: t('notes.shell.deletedBulk', { count: ids.length }),
+        variant: 'success'
+      })
+      await load()
+      await loadSections()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setSaving(false)
+    }
+  }, [
+    pagesSelection,
+    t,
+    editing?.id,
+    clearSelectedMessage,
+    pushToast,
+    load,
+    loadSections
+  ])
+
+  useBulkListKeyboardShortcuts(pagesSelection.selectedCount, {
+    onDelete: (): void => {
+      void deleteCheckedNotes()
+    },
+    onClear: pagesSelection.clear,
+    onSelectAll: pagesSelection.selectAllVisible
+  })
+
   const copyNote = useCallback(
     async (note: UserNoteListItem): Promise<void> => {
       setSaving(true)
@@ -920,7 +985,15 @@ export function NotesShell(): JSX.Element {
           showSectionLabels={showSectionLabelsInPages}
           loading={loading}
           activeNoteId={editing?.id ?? null}
-          onOpenNote={openEdit}
+          selectedNoteIds={pagesSelection.selectedIds}
+          onOpenNote={(note, e): void => {
+            pagesSelection.handlePointerDown(note.id, {
+              shiftKey: e.shiftKey,
+              ctrlKey: e.ctrlKey,
+              metaKey: e.metaKey
+            })
+            openEdit(note)
+          }}
           onRenameNoteTitle={renameNoteTitleInList}
           onPatchNoteDisplay={patchNoteDisplayInList}
           onDeleteNote={deleteNote}

@@ -1053,6 +1053,18 @@ const api = {
       ipcRenderer.invoke(IPC.calendar.createTeamsMeeting, args),
     suggestFromMessage: (messageId: number): Promise<CalendarSuggestionFromMail> =>
       ipcRenderer.invoke(IPC.calendar.suggestFromMessage, messageId),
+    findLocalFreeSlots: (
+      input: import('@shared/types').CalendarFindLocalFreeSlotsInput
+    ): Promise<import('@shared/types').CalendarFreeSlot[]> =>
+      ipcRenderer.invoke(IPC.calendar.findLocalFreeSlots, input),
+    getAttendeeSchedule: (
+      input: import('@shared/types').CalendarGetAttendeeScheduleInput
+    ): Promise<import('@shared/types').CalendarAttendeeScheduleView[]> =>
+      ipcRenderer.invoke(IPC.calendar.getAttendeeSchedule, input),
+    findMeetingTimes: (
+      input: import('@shared/types').CalendarFindMeetingTimesInput
+    ): Promise<import('@shared/types').CalendarFreeSlot[]> =>
+      ipcRenderer.invoke(IPC.calendar.findMeetingTimes, input),
     createEvent: (input: CalendarSaveEventInput): Promise<CalendarSaveEventResult> =>
       ipcRenderer.invoke(IPC.calendar.createEvent, input),
     updateEvent: (input: CalendarUpdateEventInput): Promise<void> =>

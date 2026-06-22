@@ -4,6 +4,7 @@ import { useComposeStore } from '@/stores/compose'
 import { useSnoozeUiStore } from '@/stores/snooze-ui'
 import { useUndoStore } from '@/stores/undo'
 import { useAppModeStore } from '@/stores/app-mode'
+import { isBulkListKeyboardActive } from '@/lib/use-bulk-list-keyboard-shortcuts'
 
 /**
  * Zentrales Tastatur-Shortcut-System fuer die App.
@@ -20,6 +21,7 @@ import { useAppModeStore } from '@/stores/app-mode'
  *   F                  -> Stern umschalten
  *   A                  -> Archivieren
  *   Del / Backspace    -> Loeschen
+ *   (Bei Mehrfachauswahl in Listen: Del/A/E/U/F/Escape/Strg+A — siehe useBulkListKeyboardShortcuts)
  *   E                  -> Erledigt (Archive, wie Outlook QuickStep)
  *   T                  -> ToDo Heute
  *   M                  -> ToDo Morgen
@@ -93,6 +95,7 @@ export function useGlobalShortcuts(): void {
       }
 
       if (composeOpen) return
+      if (isBulkListKeyboardActive()) return
       if (selectedId == null || !selected) return
       if (e.ctrlKey || e.metaKey || e.altKey) return
 

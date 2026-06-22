@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useMemo,
   useRef,
   useState,
   type KeyboardEvent
@@ -19,6 +20,7 @@ import {
 import { readNotesSettingsPrefs } from '@/lib/notes-settings-prefs'
 import { noteKindsForFilter } from '@/lib/notes-settings-prefs'
 import { useSearchDropdownPortal } from '@/lib/use-search-dropdown-portal'
+import { useIdBulkSelection } from '@/lib/id-bulk-selection'
 import { cn } from '@/lib/utils'
 
 const SEARCH_DEBOUNCE_MS = 280
@@ -120,6 +122,11 @@ export function NotesShellSearch({
   const visibleRows =
     query.trim().length >= 2 ? results : recentNotes
   const showRecentHeader = open && query.trim().length < 2 && recentNotes.length > 0
+
+  const rowSelection = useIdBulkSelection(
+    useMemo(() => visibleRows.map((note) => note.id), [visibleRows]),
+    `${query.trim()}:${open ? 'open' : 'closed'}`
+  )
 
   const pickNote = useCallback(
     (note: UserNoteListItem): void => {
@@ -244,6 +251,7 @@ export function NotesShellSearch({
 
             {visibleRows.map((note, index) => {
               const active = index === highlight
+              const bulkSelected = rowSelection.isSelected(note.id)
               return (
                 <button
                   key={note.id}
@@ -251,10 +259,20 @@ export function NotesShellSearch({
                   role="option"
                   aria-selected={active}
                   onMouseEnter={(): void => setHighlight(index)}
-                  onClick={(): void => pickNote(note)}
+                  onClick={(e): void => {
+                    rowSelection.handlePointerDown(note.id, {
+                      shiftKey: e.shiftKey,
+                      ctrlKey: e.ctrlKey,
+                      metaKey: e.metaKey
+                    })
+                    if (!(e.shiftKey || e.ctrlKey || e.metaKey)) {
+                      pickNote(note)
+                    }
+                  }}
                   className={cn(
                     'flex w-full items-start gap-2 px-2 py-1.5 text-left text-xs',
-                    active && 'bg-secondary/80'
+                    bulkSelected && 'bg-primary/10 ring-1 ring-primary/20 ring-inset',
+                    active && !bulkSelected && 'bg-secondary/80'
                   )}
                 >
                   {active ? (

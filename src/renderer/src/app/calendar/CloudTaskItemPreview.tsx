@@ -63,13 +63,15 @@ function buildSaveDraft(args: {
   plannedStart: string
   plannedEnd: string
   untitled: string
+  recurrence?: CloudTaskSaveDraft['recurrence']
 }): CloudTaskSaveDraft {
   return {
     title: args.title.trim() || args.untitled,
     notes: args.notes.trim(),
     dueIso: dueDateInputToStorageIso(args.due),
     plannedStartIso: datetimeLocalValueToIso(args.plannedStart),
-    plannedEndIso: datetimeLocalValueToIso(args.plannedEnd)
+    plannedEndIso: datetimeLocalValueToIso(args.plannedEnd),
+    ...(args.recurrence !== undefined ? { recurrence: args.recurrence } : {})
   }
 }
 

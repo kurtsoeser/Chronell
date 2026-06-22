@@ -84,6 +84,20 @@ export function isMailInDeletedItemsFolder(
   return false
 }
 
+export function findMailListItemById(
+  messages: readonly MailListItem[],
+  threadMessages: Readonly<Record<string, MailListItem[]>>,
+  id: number
+): MailListItem | undefined {
+  const inList = messages.find((m) => m.id === id)
+  if (inList) return inList
+  for (const list of Object.values(threadMessages)) {
+    const hit = list.find((m) => m.id === id)
+    if (hit) return hit
+  }
+  return undefined
+}
+
 export function shorten(text: string, max = 50): string {
   if (text.length <= max) return text
   return text.slice(0, max - 1) + '...'

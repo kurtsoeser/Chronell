@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { addDays, format, isToday, parseISO, startOfDay } from 'date-fns'
+import { addDays, format, isToday, parseISO, startOfDay, startOfWeek } from 'date-fns'
 import { de as deFns, enUS as enUSFns } from 'date-fns/locale'
 import type { Locale } from 'date-fns'
 import { useTranslation } from 'react-i18next'
@@ -43,8 +43,39 @@ import {
 } from '@/lib/calendar-event-timezone'
 import '@/app/calendar/notion-calendar.css'
 
+const K_PICKER_VIEW = 'mailclient.calendarEventDialog.pickerView'
+
+type PickerViewMode = 'day' | 'week'
+
+function readPickerView(): PickerViewMode {
+  try {
+    const v = window.localStorage.getItem(K_PICKER_VIEW)
+    if (v === 'week') return 'week'
+  } catch {
+    // ignore
+  }
+  return 'day'
+}
+
+function writePickerView(mode: PickerViewMode): void {
+  try {
+    window.localStorage.setItem(K_PICKER_VIEW, mode)
+  } catch {
+    // ignore
+  }
+}
+
 function formatDayTitle(d: Date, locale: Locale): string {
   return format(d, 'EEE, d. MMM yyyy', { locale })
+}
+
+function formatWeekTitle(weekStart: Date, weekEndExcl: Date, locale: Locale): string {
+  const weekEnd = addDays(weekEndExcl, -1)
+  const sameMonth = weekStart.getMonth() === weekEnd.getMonth()
+  if (sameMonth) {
+    return `${format(weekStart, 'd.', { locale })}–${format(weekEnd, 'd. MMM yyyy', { locale })}`
+  }
+  return `${format(weekStart, 'd. MMM', { locale })} – ${format(weekEnd, 'd. MMM yyyy', { locale })}`
 }
 
 function shiftEventDatetimeLocalByDays(dtLocal: string, deltaDays: number): string {
@@ -54,14 +85,14 @@ function shiftEventDatetimeLocalByDays(dtLocal: string, deltaDays: number): stri
   return formatEventDatetimeLocal(nextYmd, p.hour, p.minute)
 }
 
-function filterEventsForDay(
+function filterEventsForRange(
   events: CalendarEventView[],
   accountId: string,
-  dayStartMs: Date,
-  dayEndExcl: Date
+  rangeStartMs: Date,
+  rangeEndExcl: Date
 ): CalendarEventView[] {
-  const startMs = dayStartMs.getTime()
-  const endMs = dayEndExcl.getTime()
+  const startMs = rangeStartMs.getTime()
+  const endMs = rangeEndExcl.getTime()
   return events.filter((ev) => {
     if (ev.accountId !== accountId) return false
     const s = Date.parse(ev.startIso)
@@ -111,6 +142,7 @@ export function CalendarEventDialogDayPicker({
   const [timeGridSlotMinutes, setTimeGridSlotMinutes] = useState<TimeGridSlotMinutes>(
     readTimeGridSlotMinutesFromStorage
   )
+  const [pickerView, setPickerView] = useState<PickerViewMode>(() => readPickerView())
 
   useEffect(() => {
     persistTimeGridSlotMinutes(timeGridSlotMinutes)
@@ -166,7 +198,14 @@ export function CalendarEventDialogDayPicker({
 
   const dayStartMs = useMemo(() => startOfDay(activeDay), [activeDay])
   const dayEndExcl = useMemo(() => addDays(dayStartMs, 1), [dayStartMs])
-  const dayRangeKey = `${dayStartMs.toISOString()}\u001f${dayEndExcl.toISOString()}`
+  const weekStartMs = useMemo(
+    () => startOfWeek(dayStartMs, { weekStartsOn: calSettings.weekStartsOn }),
+    [dayStartMs, calSettings.weekStartsOn]
+  )
+  const weekEndExcl = useMemo(() => addDays(weekStartMs, 7), [weekStartMs])
+  const rangeStartMs = pickerView === 'week' ? weekStartMs : dayStartMs
+  const rangeEndExcl = pickerView === 'week' ? weekEndExcl : dayEndExcl
+  const rangeKey = `${rangeStartMs.toISOString()}\u001f${rangeEndExcl.toISOString()}`
 
   const calendarListKey = useMemo(() => {
     if (!accountId) return ''
@@ -176,23 +215,23 @@ export function CalendarEventDialogDayPicker({
       .join('\u001f')
   }, [accountId, calendarsByAccount])
 
-  const cachedDayEvents = useMemo(
+  const cachedRangeEvents = useMemo(
     () =>
       accountId
-        ? filterEventsForDay(previewRangeEvents, accountId, dayStartMs, dayEndExcl)
+        ? filterEventsForRange(previewRangeEvents, accountId, rangeStartMs, rangeEndExcl)
         : [],
-    [accountId, previewRangeEvents, dayStartMs, dayEndExcl]
+    [accountId, previewRangeEvents, rangeStartMs, rangeEndExcl]
   )
 
-  const [refreshedDayEvents, setRefreshedDayEvents] = useState<CalendarEventView[] | null>(null)
+  const [refreshedRangeEvents, setRefreshedRangeEvents] = useState<CalendarEventView[] | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
 
-  const visibleDayEvents = refreshedDayEvents ?? cachedDayEvents
+  const visibleRangeEvents = refreshedRangeEvents ?? cachedRangeEvents
 
   useEffect(() => {
-    setRefreshedDayEvents(null)
+    setRefreshedRangeEvents(null)
     setLoadError(null)
-  }, [accountId, dayRangeKey])
+  }, [accountId, rangeKey, pickerView])
 
   useEffect(() => {
     if (!accountId) return
@@ -208,8 +247,8 @@ export function CalendarEventDialogDayPicker({
 
     const seq = ++fetchSeqRef.current
     setLoadError(null)
-    const rangeStart = dayStartMs.toISOString()
-    const rangeEnd = dayEndExcl.toISOString()
+    const rangeStart = rangeStartMs.toISOString()
+    const rangeEnd = rangeEndExcl.toISOString()
 
     void (async (): Promise<void> => {
       try {
@@ -228,19 +267,19 @@ export function CalendarEventDialogDayPicker({
           includeCalendars
         })
         if (fetchSeqRef.current !== seq) return
-        setRefreshedDayEvents(
-          filterEventsForDay(events, accountId, dayStartMs, dayEndExcl)
+        setRefreshedRangeEvents(
+          filterEventsForRange(events, accountId, rangeStartMs, rangeEndExcl)
         )
       } catch (e) {
         if (fetchSeqRef.current !== seq) return
         setLoadError(e instanceof Error ? e.message : String(e))
       }
     })()
-  }, [accountId, accounts, calendarListKey, dayRangeKey, calendarsByAccount, dayStartMs, dayEndExcl])
+  }, [accountId, accounts, calendarListKey, rangeKey, calendarsByAccount, rangeStartMs, rangeEndExcl])
 
   useEffect(() => {
-    calendarRef.current?.getApi()?.gotoDate(dayStartMs)
-  }, [dayStartMs])
+    calendarRef.current?.getApi()?.gotoDate(rangeStartMs)
+  }, [rangeStartMs, pickerView])
 
   useEffect(() => {
     const host = calendarHostRef.current
@@ -283,10 +322,10 @@ export function CalendarEventDialogDayPicker({
   }, [isAllDay, dtStart, dtEnd, eventTimeZone, disabled])
 
   const graphFcEvents = useMemo((): EventInput[] => {
-    const startMs = dayStartMs.getTime()
-    const endMs = dayEndExcl.getTime()
+    const startMs = rangeStartMs.getTime()
+    const endMs = rangeEndExcl.getTime()
     const out: EventInput[] = []
-    for (const ev of visibleDayEvents) {
+    for (const ev of visibleRangeEvents) {
       if (editingEventId && ev.id === editingEventId) continue
       const s = Date.parse(ev.startIso)
       const e = Date.parse(ev.endIso)
@@ -314,9 +353,9 @@ export function CalendarEventDialogDayPicker({
     }
     return out
   }, [
-    visibleDayEvents,
-    dayStartMs,
-    dayEndExcl,
+    visibleRangeEvents,
+    rangeStartMs,
+    rangeEndExcl,
     editingEventId,
     defaultGraphCalendarIdByAccount,
     calendarDisplayHexByKey
@@ -368,24 +407,30 @@ export function CalendarEventDialogDayPicker({
     [applySelectionRange, timeGridSlotMinutes]
   )
 
-  const shiftDay = useCallback(
+  const shiftRange = useCallback(
     (deltaDays: number): void => {
       if (deltaDays === 0) return
+      const step = pickerView === 'week' ? deltaDays * 7 : deltaDays
       if (isAllDay) {
         if (!dayStart || !dayEnd) return
-        const nextStart = format(addDays(parseISO(`${dayStart}T12:00:00`), deltaDays), 'yyyy-MM-dd')
-        const nextEnd = format(addDays(parseISO(`${dayEnd}T12:00:00`), deltaDays), 'yyyy-MM-dd')
+        const nextStart = format(addDays(parseISO(`${dayStart}T12:00:00`), step), 'yyyy-MM-dd')
+        const nextEnd = format(addDays(parseISO(`${dayEnd}T12:00:00`), step), 'yyyy-MM-dd')
         onAllDayRangeChange(nextStart, nextEnd)
         return
       }
       if (!dtStart || !dtEnd) return
       onTimedRangeChange(
-        shiftEventDatetimeLocalByDays(dtStart, deltaDays),
-        shiftEventDatetimeLocalByDays(dtEnd, deltaDays)
+        shiftEventDatetimeLocalByDays(dtStart, step),
+        shiftEventDatetimeLocalByDays(dtEnd, step)
       )
     },
-    [isAllDay, dayStart, dayEnd, dtStart, dtEnd, onAllDayRangeChange, onTimedRangeChange]
+    [pickerView, isAllDay, dayStart, dayEnd, dtStart, dtEnd, onAllDayRangeChange, onTimedRangeChange]
   )
+
+  const setPickerViewMode = useCallback((mode: PickerViewMode): void => {
+    setPickerView(mode)
+    writePickerView(mode)
+  }, [])
 
   useEffect(() => {
     if (isAllDay || !dtStart) return
@@ -400,30 +445,66 @@ export function CalendarEventDialogDayPicker({
   return (
     <div ref={dayPickerRootRef} className="flex h-full min-h-0 flex-col" tabIndex={-1}>
       <div className="shrink-0 border-b border-border px-2 py-2">
+        <div className="mb-2 flex items-center justify-center gap-1">
+          <button
+            type="button"
+            className={cn(
+              'rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors',
+              pickerView === 'day'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-secondary/70 hover:text-foreground'
+            )}
+            onClick={(): void => setPickerViewMode('day')}
+          >
+            {t('calendar.eventDialog.dayColumnViewDay')}
+          </button>
+          <button
+            type="button"
+            className={cn(
+              'rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors',
+              pickerView === 'week'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-secondary/70 hover:text-foreground'
+            )}
+            onClick={(): void => setPickerViewMode('week')}
+          >
+            {t('calendar.eventDialog.dayColumnViewWeek')}
+          </button>
+        </div>
         <div className="flex items-center justify-between gap-1">
           <button
             type="button"
             className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
-            title={t('mail.rightSidebar.dayPrev')}
+            title={
+              pickerView === 'week'
+                ? t('calendar.eventDialog.dayColumnWeekPrev')
+                : t('mail.rightSidebar.dayPrev')
+            }
             disabled={disabled}
-            onClick={(): void => shiftDay(-1)}
+            onClick={(): void => shiftRange(-1)}
           >
             <ChevronLeft className="h-3.5 w-3.5" />
           </button>
           <div className="min-w-0 flex-1 text-center">
             <div className="truncate text-[11px] font-semibold text-foreground">
-              {formatDayTitle(dayStartMs, dfLocale)}
+              {pickerView === 'week'
+                ? formatWeekTitle(weekStartMs, weekEndExcl, dfLocale)
+                : formatDayTitle(dayStartMs, dfLocale)}
             </div>
-            {isToday(dayStartMs) ? (
+            {pickerView === 'day' && isToday(dayStartMs) ? (
               <div className="text-[10px] text-muted-foreground">{t('mail.rightSidebar.dayToday')}</div>
             ) : null}
           </div>
           <button
             type="button"
             className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
-            title={t('mail.rightSidebar.dayNext')}
+            title={
+              pickerView === 'week'
+                ? t('calendar.eventDialog.dayColumnWeekNext')
+                : t('mail.rightSidebar.dayNext')
+            }
             disabled={disabled}
-            onClick={(): void => shiftDay(1)}
+            onClick={(): void => shiftRange(1)}
           >
             <ChevronRight className="h-3.5 w-3.5" />
           </button>
@@ -447,7 +528,7 @@ export function CalendarEventDialogDayPicker({
             )}
           >
             <FullCalendar
-              key={`${i18n.language}-${eventTimeZone}-${timeGridSlotMinutes}-${calSettings.slotMinTime}-${calSettings.slotMaxTime}-${dayRangeKey}`}
+              key={`${i18n.language}-${eventTimeZone}-${timeGridSlotMinutes}-${calSettings.slotMinTime}-${calSettings.slotMaxTime}-${pickerView}-${rangeKey}`}
               ref={(inst): void => {
                 calendarRef.current = inst
               }}
@@ -456,8 +537,10 @@ export function CalendarEventDialogDayPicker({
               height="100%"
               timeZone={eventTimeZone}
               headerToolbar={false}
-              initialView="timeGridDay"
-              initialDate={dayStartMs}
+              initialView={pickerView === 'week' ? 'timeGridWeek' : 'timeGridDay'}
+              initialDate={rangeStartMs}
+              firstDay={calSettings.weekStartsOn}
+              weekends={!calSettings.hideWeekends}
               slotMinTime={calSettings.slotMinTime}
               slotMaxTime={calSettings.slotMaxTime}
               scrollTime={calSettings.scrollTime}

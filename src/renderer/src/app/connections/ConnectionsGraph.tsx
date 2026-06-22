@@ -133,7 +133,7 @@ export function ConnectionsGraph({
   onNodeContextMenu,
   onSelectNode,
   multiSelectedKeys,
-  onToggleMultiSelect,
+  onMultiSelectPointerDown,
   onMarqueeComplete,
   onScanIsland,
   suggestionHints,
@@ -181,7 +181,11 @@ export function ConnectionsGraph({
   ) => void
   onSelectNode: (node: EntityGraphNode | null) => void
   multiSelectedKeys?: ReadonlySet<string>
-  onToggleMultiSelect?: (key: string) => void
+  onMultiSelectPointerDown?: (
+    key: string,
+    modifiers: { shiftKey: boolean; ctrlKey: boolean; metaKey: boolean },
+    visibleKeys: readonly string[]
+  ) => void
   onMarqueeComplete?: (nodeKeys: string[]) => void
   onScanIsland?: (clusterKey: string) => void
   suggestionHints?: ReadonlyMap<string, EntityLinkSuggestionCountEntry>
@@ -847,7 +851,15 @@ export function ConnectionsGraph({
                   ev.stopPropagation()
                   setHoverKey(null)
                   if (ev.shiftKey || ev.ctrlKey || ev.metaKey) {
-                    onToggleMultiSelect?.(n.key)
+                    onMultiSelectPointerDown?.(
+                      n.key,
+                      {
+                        shiftKey: ev.shiftKey,
+                        ctrlKey: ev.ctrlKey,
+                        metaKey: ev.metaKey
+                      },
+                      nodes.map((row) => row.key)
+                    )
                     return
                   }
                   onSelectNode(n.node)
@@ -1106,7 +1118,11 @@ export function ConnectionsGraphWithFilter(props: {
   ) => void
   onSelectNode: (node: EntityGraphNode | null) => void
   multiSelectedKeys?: ReadonlySet<string>
-  onToggleMultiSelect?: (key: string) => void
+  onMultiSelectPointerDown?: (
+    key: string,
+    modifiers: { shiftKey: boolean; ctrlKey: boolean; metaKey: boolean },
+    visibleKeys: readonly string[]
+  ) => void
   onMarqueeComplete?: (nodeKeys: string[]) => void
   onScanIsland?: (clusterKey: string) => void
   suggestionHints?: ReadonlyMap<string, EntityLinkSuggestionCountEntry>
@@ -1176,7 +1192,7 @@ export function ConnectionsGraphWithFilter(props: {
       onNodeContextMenu={props.onNodeContextMenu}
       onSelectNode={props.onSelectNode}
       multiSelectedKeys={props.multiSelectedKeys}
-      onToggleMultiSelect={props.onToggleMultiSelect}
+      onMultiSelectPointerDown={props.onMultiSelectPointerDown}
       onMarqueeComplete={props.onMarqueeComplete}
       onScanIsland={props.onScanIsland}
       suggestionHints={props.suggestionHints}

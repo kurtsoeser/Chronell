@@ -31,6 +31,7 @@ import {
 import { addDays, min as minDate, startOfDay } from 'date-fns'
 import { getMessageById } from './db/messages-repo'
 import { meetingAttendeesFromMailParticipants } from '@shared/mail-meeting-attendees'
+import { findLocalFreeSlots } from '@shared/calendar-free-slots'
 import type {
   CalendarEventView,
   CalendarSuggestionFromMail,
@@ -45,8 +46,19 @@ import type {
   CalendarIncludeCalendarRef,
   ConnectedAccount,
   CalendarGetEventInput,
-  CalendarGetEventResult
+  CalendarGetEventResult,
+  CalendarFindLocalFreeSlotsInput,
+  CalendarFreeSlot,
+  CalendarGetAttendeeScheduleInput,
+  CalendarAttendeeScheduleView,
+  CalendarFindMeetingTimesInput
 } from '@shared/types'
+import { listCalendarEventsInRange } from './db/calendar-events-repo'
+import { parseMeetingInvitationFromMessage } from './meeting-invitation-service'
+import {
+  graphGetAttendeeSchedule,
+  graphFindMeetingTimes
+} from './graph/calendar-graph'
 
 export type CalendarListEventsFocus =
   | null
@@ -519,10 +531,30 @@ export async function buildCalendarSuggestionFromMessage(
   const msg = getMessageById(messageId)
   if (!msg) throw new Error('Mail nicht gefunden.')
 
-  const now = new Date()
-  const start = new Date(now.getTime() + 60 * 60 * 1000)
-  start.setMinutes(0, 0, 0)
-  const end = new Date(start.getTime() + 60 * 60 * 1000)
+  let start: Date
+  let end: Date
+
+  try {
+    const parsed = await parseMeetingInvitationFromMessage(messageId)
+    const inv = parsed.invitation
+    if (inv?.startIso && inv.endIso && !inv.isAllDay) {
+      const invStart = new Date(inv.startIso)
+      const invEnd = new Date(inv.endIso)
+      if (!Number.isNaN(invStart.getTime()) && !Number.isNaN(invEnd.getTime()) && invEnd > invStart) {
+        start = invStart
+        end = invEnd
+      } else {
+        throw new Error('invalid invitation times')
+      }
+    } else {
+      throw new Error('no invitation times')
+    }
+  } catch {
+    const now = new Date()
+    start = new Date(now.getTime() + 60 * 60 * 1000)
+    start.setMinutes(0, 0, 0)
+    end = new Date(start.getTime() + 60 * 60 * 1000)
+  }
 
   const accounts = await listAccounts()
   const acc = accounts.find((a) => a.id === msg.accountId)
@@ -559,6 +591,43 @@ export async function buildCalendarSuggestionFromMessage(
     bodyHtml,
     attendeeEmails: attendees.map((a) => a.address)
   }
+}
+
+export async function findLocalFreeSlotsForAccount(
+  input: CalendarFindLocalFreeSlotsInput
+): Promise<CalendarFreeSlot[]> {
+  const events = listCalendarEventsInRange(input.rangeStartIso, input.rangeEndIso).filter(
+    (ev) => ev.accountId === input.accountId
+  )
+  return findLocalFreeSlots(events, {
+    durationMinutes: input.durationMinutes,
+    rangeStartIso: input.rangeStartIso,
+    rangeEndIso: input.rangeEndIso,
+    workingHoursStart: input.workingHoursStart,
+    workingHoursEnd: input.workingHoursEnd,
+    maxResults: input.maxResults,
+    notBeforeIso: input.notBeforeIso
+  })
+}
+
+export async function getAttendeeScheduleForAccount(
+  input: CalendarGetAttendeeScheduleInput
+): Promise<CalendarAttendeeScheduleView[]> {
+  const account = (await listAccounts()).find((a) => a.id === input.accountId)
+  if (!account || account.provider !== 'microsoft') {
+    throw new Error('Teilnehmer-Verfügbarkeit ist nur für Microsoft-365-Konten verfügbar.')
+  }
+  return graphGetAttendeeSchedule(input.accountId, input)
+}
+
+export async function findMeetingTimesForAccount(
+  input: CalendarFindMeetingTimesInput
+): Promise<CalendarFreeSlot[]> {
+  const account = (await listAccounts()).find((a) => a.id === input.accountId)
+  if (!account || account.provider !== 'microsoft') {
+    throw new Error('Terminvorschläge für alle Teilnehmer sind nur für Microsoft-365-Konten verfügbar.')
+  }
+  return graphFindMeetingTimes(input.accountId, input)
 }
 
 function escapeHtml(s: string): string {

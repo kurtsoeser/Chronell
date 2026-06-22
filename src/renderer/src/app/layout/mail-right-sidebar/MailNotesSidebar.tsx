@@ -9,6 +9,7 @@ import { useAppModeStore } from '@/stores/app-mode'
 import { useNotesPendingFocusStore } from '@/stores/notes-pending-focus'
 
 const AUTOSAVE_MS = 800
+const EMPTY_NOTE_SELECTION: ReadonlySet<number> = new Set()
 
 function userNoteToListItem(note: UserNote): UserNoteListItem {
   return {
@@ -348,6 +349,7 @@ export function MailNotesSidebar(): JSX.Element {
           showSectionLabels={false}
           loading={loading}
           activeNoteId={activeNoteId}
+          selectedNoteIds={EMPTY_NOTE_SELECTION}
           onOpenNote={(n): void => openNote(n)}
           onRenameNoteTitle={renameNoteTitleInList}
           onPatchNoteDisplay={patchNoteDisplayInList}

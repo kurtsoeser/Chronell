@@ -15,7 +15,7 @@ import { useTasksPendingFocusStore } from '@/stores/tasks-pending-focus'
 import { TasksGroupedList } from '@/app/tasks/TasksGroupedList'
 import { TasksListViewMenu } from '@/components/TasksListViewMenu'
 import { ContextMenu, type ContextMenuItem } from '@/components/ContextMenu'
-import { taskListFilterCounts } from '@/app/tasks/task-list-arrange'
+import { taskListFilterCounts, flattenVisibleTaskItems, type TaskListArrangeContext } from '@/app/tasks/task-list-arrange'
 import { confirmDeleteCloudTasks } from '@/app/tasks/confirm-delete-cloud-task'
 import { buildTasksListContextMenuItems } from '@/app/tasks/tasks-list-context-menu'
 import type { MailContextHandlers } from '@/lib/mail-context-menu'
@@ -43,6 +43,17 @@ import {
 import type { TaskItemRow } from '@shared/types'
 import { loadUnifiedCloudTasks } from '@/app/tasks/tasks-calendar-load'
 import { useTasksSettingsPrefs } from '@/lib/use-tasks-settings-prefs'
+import {
+  focusContextPreviewCloudTask,
+  focusContextPreviewMailMessage
+} from '@/lib/focus-context-preview'
+import { openCalendarPreviewOsPopout } from '@/lib/open-panel-popout-helpers'
+import {
+  mailReadingPopoutOptsFromClick,
+  openMailReadingPopout
+} from '@/lib/open-mail-reading-popout'
+import { nextCheckedListSelection } from '@/lib/id-bulk-selection'
+import { useBulkListKeyboardShortcuts } from '@/lib/use-bulk-list-keyboard-shortcuts'
 
 export function MailTasksSidebar(): JSX.Element {
   const { t } = useTranslation()
@@ -221,6 +232,60 @@ export function MailTasksSidebar(): JSX.Element {
   const [selected, setSelected] = useState<TasksListItem | null>(null)
   const selectedKey = selected ? tasksListItemKey(selected) : null
   const [checkedKeys, setCheckedKeys] = useState<Set<string>>(() => new Set())
+  const selectionAnchorRef = useRef<string | null>(null)
+
+  const taskArrangeCtx = useMemo((): TaskListArrangeContext => {
+    const accountById = new Map(taskAccounts.map((a) => [a.id, a] as const))
+    return {
+      accountLabel: (id: string): string => {
+        const a = accountById.get(id)
+        return a?.displayName?.trim() || a?.email || id
+      },
+      todoBucketLabel: (kind) => t(`mail.todoBucket.${kind}` as const),
+      noDueLabel: t('tasks.listArrange.noDue'),
+      openLabel: t('tasks.listArrange.statusOpen'),
+      doneLabel: t('tasks.listArrange.statusDone')
+    }
+  }, [taskAccounts, t])
+
+  const listLayoutOpts = useMemo(
+    () => ({
+      overdueMode: tasksSettings.overdueMode,
+      noDuePlacement: tasksSettings.noDuePlacement
+    }),
+    [tasksSettings.overdueMode, tasksSettings.noDuePlacement]
+  )
+
+  const visibleOrderedKeys = useMemo(() => {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+    return flattenVisibleTaskItems(
+      displayItems,
+      listViewPrefs.arrange,
+      listViewPrefs.chrono,
+      listViewPrefs.filter,
+      taskArrangeCtx,
+      tz,
+      listLayoutOpts
+    ).map((item) => tasksListItemKey(item))
+  }, [displayItems, listViewPrefs, taskArrangeCtx, listLayoutOpts])
+
+  const visibleOrderedItems = useMemo(() => {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+    return flattenVisibleTaskItems(
+      displayItems,
+      listViewPrefs.arrange,
+      listViewPrefs.chrono,
+      listViewPrefs.filter,
+      taskArrangeCtx,
+      tz,
+      listLayoutOpts
+    )
+  }, [displayItems, listViewPrefs, taskArrangeCtx, listLayoutOpts])
+
+  useEffect(() => {
+    setCheckedKeys(new Set())
+    selectionAnchorRef.current = null
+  }, [listViewPrefs.filter, listViewPrefs.arrange, listViewPrefs.chrono])
 
   const handleInlineTaskCreated = useCallback(
     (task: CloudTaskListItem, meta?: TaskCreateUpsertMeta): void => {
@@ -322,9 +387,110 @@ export function MailTasksSidebar(): JSX.Element {
     [listViewPrefs.filter, markExiting, applyCloudTaskRow, loadMailTodos, loadUnifiedTasks]
   )
 
-  const onTaskClick = useCallback((item: TasksListItem, _event: MouseEvent): void => {
+  const onTaskClick = useCallback((item: TasksListItem, event: MouseEvent): void => {
+    const key = tasksListItemKey(item)
+    const mod = event.shiftKey || event.ctrlKey || event.metaKey
+    if (mod) {
+      const { checkedKeys: nextChecked, anchor } = nextCheckedListSelection(
+        key,
+        { shiftKey: event.shiftKey, ctrlKey: event.ctrlKey, metaKey: event.metaKey },
+        visibleOrderedKeys,
+        checkedKeys,
+        selectionAnchorRef.current,
+        selectedKey
+      )
+      setCheckedKeys(nextChecked)
+      selectionAnchorRef.current = anchor
+      setSelected(item)
+      return
+    }
+    setCheckedKeys(new Set())
+    selectionAnchorRef.current = key
     setSelected(item)
+    if (isCloudTaskListItem(item)) {
+      focusContextPreviewCloudTask(
+        item.accountId,
+        item.listId,
+        item.id,
+        item.title?.trim() || t('tasks.shell.untitled'),
+        item,
+        item.listName ?? ''
+      )
+      return
+    }
+    if (isMailTodoListItem(item)) {
+      void focusContextPreviewMailMessage(item.messageId)
+    }
+  }, [visibleOrderedKeys, checkedKeys, selectedKey, t])
+
+  const clearChecked = useCallback((): void => {
+    setCheckedKeys(new Set())
+    selectionAnchorRef.current = null
   }, [])
+
+  const selectAllVisible = useCallback((): void => {
+    setCheckedKeys(new Set(visibleOrderedKeys))
+    if (visibleOrderedKeys.length > 0) {
+      selectionAnchorRef.current = visibleOrderedKeys[0]!
+    }
+  }, [visibleOrderedKeys])
+
+  const deleteChecked = useCallback(async (): Promise<void> => {
+    const items = visibleOrderedItems.filter(
+      (item) => isCloudTaskListItem(item) && checkedKeys.has(tasksListItemKey(item))
+    )
+    if (items.length === 0) return
+    if (!(await confirmDeleteCloudTasks(t, items.length))) return
+    const deletedKeys = new Set<string>()
+    try {
+      for (const item of items) {
+        if (!isCloudTaskListItem(item)) continue
+        await window.mailClient.tasks.deleteTask({
+          accountId: item.accountId,
+          listId: item.listId,
+          taskId: item.id
+        })
+        deletedKeys.add(tasksListItemKey(item))
+      }
+      setCheckedKeys((prev) => {
+        const next = new Set(prev)
+        for (const k of deletedKeys) next.delete(k)
+        return next
+      })
+      setUnifiedTasks((prev) => prev.filter((x) => !deletedKeys.has(tasksListItemKey(x))))
+      setSelected((s) => (s && deletedKeys.has(tasksListItemKey(s)) ? null : s))
+    } catch (e) {
+      setTasksError(e instanceof Error ? e.message : String(e))
+    }
+  }, [visibleOrderedItems, checkedKeys, t])
+
+  useBulkListKeyboardShortcuts(checkedKeys.size, {
+    onDelete: (): void => {
+      void deleteChecked()
+    },
+    onClear: clearChecked,
+    onSelectAll: selectAllVisible
+  })
+
+  const onTaskDoubleClick = useCallback((item: TasksListItem, event: MouseEvent): void => {
+    setSelected(item)
+    if (isCloudTaskListItem(item)) {
+      const title = item.title?.trim() || t('tasks.shell.untitled')
+      void openCalendarPreviewOsPopout(
+        {
+          focus: 'task',
+          accountId: item.accountId,
+          listId: item.listId,
+          taskId: item.id
+        },
+        title
+      )
+      return
+    }
+    if (isMailTodoListItem(item)) {
+      openMailReadingPopout(item.messageId, mailReadingPopoutOptsFromClick(event))
+    }
+  }, [t])
 
   const displayItemsRef = useRef(displayItems)
   displayItemsRef.current = displayItems
@@ -370,6 +536,18 @@ export function MailTasksSidebar(): JSX.Element {
     (task: TasksListItem): void => {
       setSelected(task)
       if (isCloudTaskListItem(task)) {
+        if (
+          focusContextPreviewCloudTask(
+            task.accountId,
+            task.listId,
+            task.id,
+            task.title?.trim() || t('tasks.shell.untitled'),
+            task,
+            task.listName ?? ''
+          )
+        ) {
+          return
+        }
         useTasksPendingFocusStore.getState().queueTask({
           accountId: task.accountId,
           listId: task.listId,
@@ -379,11 +557,14 @@ export function MailTasksSidebar(): JSX.Element {
         return
       }
       if (isMailTodoListItem(task)) {
-        void selectMessage(task.messageId)
-        setAppMode('mail')
+        void focusContextPreviewMailMessage(task.messageId).then((handled) => {
+          if (handled) return
+          void selectMessage(task.messageId)
+          setAppMode('mail')
+        })
       }
     },
-    [selectMessage, setAppMode]
+    [selectMessage, setAppMode, t]
   )
 
   const mailContextHandlers = useMemo<MailContextHandlers>(
@@ -433,8 +614,11 @@ export function MailTasksSidebar(): JSX.Element {
       onToggleCompleted: toggleWorkItemCompleted,
       onShowInCalendar: (item): void => openWorkItemInCalendar(item, setAppMode),
       onOpenInMail: (item): void => {
-        void selectMessage(item.messageId)
-        setAppMode('mail')
+        void focusContextPreviewMailMessage(item.messageId).then((handled) => {
+          if (handled) return
+          void selectMessage(item.messageId)
+          setAppMode('mail')
+        })
       },
       onOpenInTasks: (item): void => {
         useTasksPendingFocusStore.getState().queueTask({
@@ -560,6 +744,7 @@ export function MailTasksSidebar(): JSX.Element {
             checkedKeys={checkedKeys}
             onSelect={setSelected}
             onTaskClick={onTaskClick}
+            onTaskDoubleClick={onTaskDoubleClick}
             onToggleCompleted={toggleCompleted}
             onTaskContextMenu={openTaskContextMenu}
             enableDrag={tasksSettings.listDragEnabled}
@@ -569,7 +754,8 @@ export function MailTasksSidebar(): JSX.Element {
               taskAccounts,
               loadListsForAccount,
               onCreated: handleInlineTaskCreated,
-              showAccountPicker: true
+              showAccountPicker: true,
+              showNotes: true
             }}
           />
         )}

@@ -26,6 +26,7 @@
   font-weight: 600;
 }
 
-.meeting-invitation-panel {
-  box-shadow: 0 1px 0 hsl(var(--border) / 0.4);
+.meeting-invitation-day-preview .fc-timegrid-event.mail-schedule-conflict {
+  border-color: #f59e0b !important;
+  box-shadow: 0 0 0 1px rgb(245 158 11 / 0.35);
 }

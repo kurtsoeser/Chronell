@@ -39,8 +39,9 @@ export interface WorkItemsGroupedListProps {
   chrono: WorkListChronoOrder
   filter: WorkListFilter
   selectedKey: string | null
+  checkedKeys: Set<string>
   onSelect: (item: WorkItem) => void
-  onItemClick: (item: WorkItem) => void
+  onItemClick: (item: WorkItem, event: ReactMouseEvent) => void
   onToggleCompleted: (item: WorkItem) => void
   onContextMenu?: (item: WorkItem, event: ReactMouseEvent) => void
 }
@@ -52,6 +53,7 @@ export function WorkItemsGroupedList({
   chrono,
   filter,
   selectedKey,
+  checkedKeys,
   onSelect,
   onItemClick,
   onToggleCompleted,
@@ -121,6 +123,7 @@ export function WorkItemsGroupedList({
       const view = workItemsToViews([item], accountById, timeZone)[0]
       if (!view) return null
       const active = selectedKey === view.stableKey
+      const checked = checkedKeys.has(view.stableKey)
       const acc = accountById.get(view.accountId)
       const accountStripe = acc ? resolvedAccountColorCss(acc.color) : undefined
       const overdueStyle =
@@ -139,7 +142,8 @@ export function WorkItemsGroupedList({
           style={overdueStyle.rowStyle}
           className={cn(
             'relative border-b border-border/60',
-            active && !overdueStyle.rowStyle && 'bg-secondary/30'
+            checked && 'bg-primary/8',
+            active && !checked && !overdueStyle.rowStyle && 'bg-secondary/30'
           )}
           onContextMenu={
             onContextMenu ? (e): void => onContextMenu(item, e) : undefined
@@ -160,7 +164,7 @@ export function WorkItemsGroupedList({
           <div className="flex items-start gap-1.5 px-2">
             <button
               type="button"
-              onClick={(): void => onItemClick(item)}
+              onClick={(e): void => onItemClick(item, e)}
               onDoubleClick={(e): void => {
                 if (!isMail) {
                   onSelect(item)
@@ -203,7 +207,7 @@ export function WorkItemsGroupedList({
         </div>
       )
     },
-    [accountById, onContextMenu, onItemClick, onSelect, onToggleCompleted, selectedKey, t, timeZone, tasksSettings]
+    [accountById, checkedKeys, onContextMenu, onItemClick, onSelect, onToggleCompleted, selectedKey, t, timeZone, tasksSettings]
   )
 
   if (flat && items.length >= GROUPED_LIST_VIRTUALIZE_THRESHOLD) {
@@ -255,6 +259,7 @@ export function WorkItemsGroupedList({
                   const item = itemByKey.get(view.stableKey)
                   if (!item) return null
                   const active = selectedKey === view.stableKey
+                  const checked = checkedKeys.has(view.stableKey)
                   const acc = accountById.get(view.accountId)
                   const stripe = acc ? resolvedAccountColorCss(acc.color) : undefined
                   const isMail = view.kind === 'mail_todo'
@@ -263,7 +268,8 @@ export function WorkItemsGroupedList({
                       key={view.stableKey}
                       className={cn(
                         'relative border-b border-border/60',
-                        active && 'bg-secondary/30'
+                        checked && 'bg-primary/8',
+                        active && !checked && 'bg-secondary/30'
                       )}
                       onContextMenu={
                         onContextMenu
@@ -286,7 +292,7 @@ export function WorkItemsGroupedList({
                       <div className="flex items-start gap-1.5 px-2">
                         <button
                           type="button"
-                          onClick={(): void => onItemClick(item)}
+                          onClick={(e): void => onItemClick(item, e)}
                           onDoubleClick={(e): void => {
                 if (!isMail) {
                   onSelect(item)

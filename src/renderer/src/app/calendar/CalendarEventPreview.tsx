@@ -35,16 +35,25 @@ import {
 } from '@/app/calendar/calendar-meeting-schedule-change'
 import { openExternalUrl } from '@/lib/open-external'
 import { ChronellDateField } from '@/components/ChronellDateField'
+import { ChronellTimeField } from '@/components/ChronellTimeField'
 import {
   previewDetailPanelClass,
-  previewSectionDividerClass
+  previewSectionDividerClass,
+  eventDialogPanelSelectClass
 } from '@/lib/chronell-ui-classes'
+import {
+  addMinutesToDate,
+  mergeHmIntoDate,
+  mergeHmIntoEndAfterStart,
+  mergeYmdIntoDate
+} from '@/lib/calendar-time-select'
 import { cn } from '@/lib/utils'
 import { EntityContextBlock } from '@/components/connections/EntityContextBlock'
 import { CalendarEventDescriptionPreview } from '@/app/calendar/CalendarEventDescriptionPreview'
 import { CalendarEventIconPicker } from '@/components/CalendarEventIconPicker'
 import { calendarEventIconIsExplicit, resolveCalendarEventIcon } from '@/lib/calendar-event-icons'
 import { sanitizeComposeHtmlFragment } from '@/lib/sanitize-compose-html'
+import { prepareCalendarEventBodyHtml } from '@shared/calendar-event-body-html'
 import { useThemeStore } from '@/stores/theme'
 
 function formatEventRange(
@@ -444,7 +453,9 @@ export function CalendarEventPreview(props: {
         endIso: ev.endIso,
         isAllDay: ev.isAllDay,
         location: ev.location ?? null,
-        bodyHtml: descHtml || null,
+        bodyHtml: descHtml.trim()
+          ? prepareCalendarEventBodyHtml(sanitizeComposeHtmlFragment(descHtml.trim()))
+          : null,
         categories: ev.categories ?? null
       })
       applyLocalEventPatch({ title: subject })
@@ -579,6 +590,11 @@ export function CalendarEventPreview(props: {
     },
     [rangeEnd, rangeStart]
   )
+
+  const timedStartYmd = useMemo(() => format(rangeStart, 'yyyy-MM-dd'), [rangeStart])
+  const timedStartHm = useMemo(() => format(rangeStart, 'HH:mm'), [rangeStart])
+  const timedEndYmd = useMemo(() => format(rangeEnd, 'yyyy-MM-dd'), [rangeEnd])
+  const timedEndHm = useMemo(() => format(rangeEnd, 'HH:mm'), [rangeEnd])
 
   const clickableClass = canEdit
     ? 'cursor-pointer rounded-sm transition-colors hover:bg-secondary/60 hover:text-foreground'
@@ -785,43 +801,67 @@ export function CalendarEventPreview(props: {
                       <span className="text-2xs text-muted-foreground">
                         {t('calendar.eventDialog.labelBegin')}
                       </span>
-                      <input
-                        type="datetime-local"
-                        disabled={inlineSaving}
-                        value={format(rangeStart, "yyyy-MM-dd'T'HH:mm")}
-                        onChange={(e): void => {
-                          const v = e.target.value
-                          if (!v) return
-                          const d = new Date(v)
-                          if (Number.isNaN(d.getTime())) return
-                          setRangeStart(d)
-                          if (rangeEnd.getTime() <= d.getTime()) {
-                            setRangeEnd(new Date(d.getTime() + 30 * 60 * 1000))
-                          }
-                        }}
-                        className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm tabular-nums"
-                      />
+                      <div className="grid grid-cols-2 gap-2">
+                        <ChronellDateField
+                          disabled={inlineSaving}
+                          value={timedStartYmd}
+                          onChange={(v): void => {
+                            if (!v) return
+                            const nextStart = mergeYmdIntoDate(rangeStart, v)
+                            setRangeStart(nextStart)
+                            if (rangeEnd.getTime() <= nextStart.getTime()) {
+                              setRangeEnd(addMinutesToDate(nextStart, 30))
+                            }
+                          }}
+                          className={cn(eventDialogPanelSelectClass, 'min-w-0 tabular-nums')}
+                        />
+                        <ChronellTimeField
+                          disabled={inlineSaving}
+                          value={timedStartHm}
+                          aria-label={t('calendar.eventDialog.editStartTimeAria')}
+                          className={cn(eventDialogPanelSelectClass, 'min-w-0 tabular-nums')}
+                          onChange={(hm): void => {
+                            const nextStart = mergeHmIntoDate(rangeStart, hm)
+                            setRangeStart(nextStart)
+                            if (rangeEnd.getTime() <= nextStart.getTime()) {
+                              setRangeEnd(addMinutesToDate(nextStart, 30))
+                            }
+                          }}
+                        />
+                      </div>
                     </label>
                     <label className="block space-y-0.5">
                       <span className="text-2xs text-muted-foreground">
                         {t('calendar.eventDialog.labelEnd')}
                       </span>
-                      <input
-                        type="datetime-local"
-                        disabled={inlineSaving}
-                        value={format(rangeEnd, "yyyy-MM-dd'T'HH:mm")}
-                        onChange={(e): void => {
-                          const v = e.target.value
-                          if (!v) return
-                          const d = new Date(v)
-                          if (Number.isNaN(d.getTime())) return
-                          setRangeEnd(d)
-                          if (d.getTime() <= rangeStart.getTime()) {
-                            setRangeStart(new Date(d.getTime() - 30 * 60 * 1000))
-                          }
-                        }}
-                        className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm tabular-nums"
-                      />
+                      <div className="grid grid-cols-2 gap-2">
+                        <ChronellDateField
+                          disabled={inlineSaving}
+                          value={timedEndYmd}
+                          min={timedStartYmd}
+                          onChange={(v): void => {
+                            if (!v) return
+                            const nextEnd = mergeYmdIntoDate(rangeEnd, v)
+                            if (nextEnd.getTime() <= rangeStart.getTime()) {
+                              setRangeEnd(addMinutesToDate(rangeStart, 30))
+                            } else {
+                              setRangeEnd(nextEnd)
+                            }
+                          }}
+                          className={cn(eventDialogPanelSelectClass, 'min-w-0 tabular-nums')}
+                        />
+                        <ChronellTimeField
+                          disabled={inlineSaving}
+                          value={timedEndHm}
+                          aria-label={t('calendar.eventDialog.editEndTimeAria')}
+                          className={cn(eventDialogPanelSelectClass, 'min-w-0 tabular-nums')}
+                          onChange={(hm): void => {
+                            setRangeEnd(
+                              mergeHmIntoEndAfterStart(rangeStart, rangeEnd, hm, 30)
+                            )
+                          }}
+                        />
+                      </div>
                     </label>
                   </div>
                 )}

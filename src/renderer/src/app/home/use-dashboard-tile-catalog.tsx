@@ -68,7 +68,9 @@ import {
 } from '@/lib/mail-flagged-mailbox-view'
 import {
   focusContextPreviewMailMessage,
-  focusContextPreviewWorkItem
+  openCalendarEventInCustomViewOrModule,
+  openMailInCustomViewOrModule,
+  openWorkItemInCustomViewOrModule
 } from '@/lib/focus-context-preview'
 import { useAppModeStore } from '@/stores/app-mode'
 import { useCalendarPendingFocusStore } from '@/stores/calendar-pending-focus'
@@ -96,7 +98,6 @@ import { DashboardNotesNewTile } from '@/app/home/DashboardNotesNewTile'
 import { DashboardNotesPreviewTile } from '@/app/home/DashboardNotesPreviewTile'
 import { DashboardWorkAllTile } from '@/app/home/DashboardWorkAllTile'
 import { DashboardPinnedShortcutsTile } from '@/app/home/DashboardPinnedShortcutsTile'
-import { openWorkItemInCalendar } from '@/app/work-items/work-item-calendar-nav'
 import { resolveVisibleAppShellMode } from '@/app/layout/topbar-module-prefs'
 import { pushRecentSearch, readRecentSearches } from '@/app/home/dashboard-recent-searches'
 import type { DashboardCustomTileStored } from '@/app/home/dashboard-custom-tiles'
@@ -512,19 +513,9 @@ export function useDashboardTileCatalog(opts?: {
 
   const openWorkItemFromDashboard = useCallback(
     async (item: WorkItem): Promise<void> => {
-      if (focusContextPreviewWorkItem(item)) return
-      if (item.kind === 'mail_todo') {
-        await openMessageInFolder(item.messageId)
-        setAppMode('mail')
-        return
-      }
-      if (item.kind === 'cloud_task') {
-        setAppMode(resolveVisibleAppShellMode('work', ['tasks', 'calendar']))
-        return
-      }
-      openWorkItemInCalendar(item, setAppMode)
+      await openWorkItemInCustomViewOrModule(item, setAppMode)
     },
-    [openMessageInFolder, setAppMode]
+    [setAppMode]
   )
 
   const openWorkFullCb = useCallback((): void => {
@@ -783,6 +774,7 @@ export function useDashboardTileCatalog(opts?: {
 
   const openThreadMessageCb = useCallback(
     async (m: MailListItem): Promise<void> => {
+      if (await focusContextPreviewMailMessage(m.id)) return
       setMailListArrangeBy('todo_bucket')
       await selectMessage(m.id)
       setAppMode('mail')
@@ -836,11 +828,9 @@ export function useDashboardTileCatalog(opts?: {
 
   const openFromDashboard = useCallback(
     async (messageId: number): Promise<void> => {
-      if (await focusContextPreviewMailMessage(messageId)) return
-      await openMessageInFolder(messageId)
-      setAppMode('mail')
+      await openMailInCustomViewOrModule(messageId, setAppMode)
     },
-    [openMessageInFolder, setAppMode]
+    [setAppMode]
   )
 
   const openWaitingFullCb = useCallback(async (): Promise<void> => {
@@ -1482,8 +1472,7 @@ export function useDashboardTileCatalog(opts?: {
                       <button
                         type="button"
                         onClick={(): void => {
-                          useCalendarPendingFocusStore.getState().queueFocusEvent(ev)
-                          setAppMode('calendar')
+                          openCalendarEventInCustomViewOrModule(ev, setAppMode)
                         }}
                         className="flex w-full items-start gap-2.5 px-3 py-2.5 text-left text-xs transition-colors hover:bg-secondary/50"
                       >
@@ -1588,8 +1577,7 @@ export function useDashboardTileCatalog(opts?: {
               loading={weekEventsLoading}
               hasLinkedCalendars={calendarLinkedAccounts.length > 0}
               onOpenEvent={(ev): void => {
-                useCalendarPendingFocusStore.getState().queueFocusEvent(ev)
-                setAppMode('calendar')
+                openCalendarEventInCustomViewOrModule(ev, setAppMode)
               }}
               onCreateEventOnDay={(day): void => {
                 useCalendarPendingFocusStore.getState().queueCreateEventOnDay(formatISO(startOfDay(day)))

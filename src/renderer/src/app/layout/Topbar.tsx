@@ -27,7 +27,6 @@ import {
   Link2,
   Building2,
   Files,
-  Columns3,
   Image,
   LayoutDashboard,
   LayoutGrid,
@@ -73,7 +72,7 @@ import { useAppModeStore, type AppShellMode } from '@/stores/app-mode'
 import { CustomViewIconPickerDialog } from '@/app/custom-views/CustomViewIconPickerDialog'
 import { resolveCustomViewTabIcon } from '@/lib/custom-view-tab-icon'
 import { CUSTOM_VIEWS_CHANGED_EVENT, useCustomViewsStore } from '@/stores/custom-views'
-import { showAppPrompt } from '@/stores/app-dialog'
+import { showAppConfirm, showAppPrompt } from '@/stores/app-dialog'
 import {
   customViewIconIdOrDefault,
   readCustomViews,
@@ -495,11 +494,6 @@ export function Topbar({ onOpenAccountDialog }: Props): JSX.Element {
     () =>
       [
         { id: 'home' as const, label: t('topbar.modeHome'), icon: House },
-        {
-          id: 'layoutStudio' as const,
-          label: t('topbar.modeLayoutStudio'),
-          icon: Columns3
-        },
         { id: 'mail' as const, label: t('topbar.modeMail'), icon: Inbox },
         { id: 'calendar' as const, label: t('topbar.modeCalendar'), icon: Calendar },
         { id: 'bookings' as const, label: t('topbar.modeBookings'), icon: Building2 },
@@ -829,12 +823,19 @@ export function Topbar({ onOpenAccountDialog }: Props): JSX.Element {
         icon: Trash2,
         destructive: true,
         onSelect: (): void => {
-          if (!window.confirm(t('settings.modulesCustomViewDeleteConfirm', { name: view?.name ?? '' }))) {
+          void (async (): Promise<void> => {
+            const ok = await showAppConfirm(
+              t('settings.modulesCustomViewDeleteConfirm', { name: view?.name ?? '' }),
+              {
+                title: t('customView.delete'),
+                variant: 'danger',
+                confirmLabel: t('common.delete')
+              }
+            )
             setCustomViewContextMenu(null)
-            return
-          }
-          deleteCustomView(viewId)
-          setCustomViewContextMenu(null)
+            if (!ok) return
+            deleteCustomView(viewId)
+          })()
         }
       }
     ]

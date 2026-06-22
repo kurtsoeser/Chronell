@@ -57,6 +57,7 @@ import {
   type TaskListArrangeContext
 } from '@/app/tasks/task-list-arrange'
 import { toggleKeyInSet } from '@/app/tasks/task-selection'
+import { useBulkListKeyboardShortcuts } from '@/lib/use-bulk-list-keyboard-shortcuts'
 import {
   readTasksListViewPrefs,
   persistTasksListViewPrefs,
@@ -833,7 +834,8 @@ export function TasksShell(): JSX.Element {
           title: draft.title,
           notes: draft.notes || null,
           dueIso: draft.dueIso,
-          completed: selected.completed
+          completed: selected.completed,
+          recurrence: draft.recurrence
         })
         if (draft.plannedStartIso && draft.plannedEndIso) {
           await window.mailClient.tasks.setPlannedSchedule({
@@ -931,6 +933,14 @@ export function TasksShell(): JSX.Element {
     )
     await deleteTasks(items)
   }
+
+  useBulkListKeyboardShortcuts(checkedKeys.size, {
+    onDelete: (): void => {
+      void deleteChecked()
+    },
+    onClear: clearChecked,
+    onSelectAll: selectAllVisible
+  })
 
   const displayLoading = isUnified ? unifiedLoading : tasksLoading
   const isKanbanView = contentViewMode === 'kanban'

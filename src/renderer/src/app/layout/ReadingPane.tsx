@@ -4,6 +4,7 @@ import {
   ReplyAll,
   Forward,
   Calendar,
+  CalendarClock,
   Clock,
   Hourglass,
   Archive,
@@ -99,7 +100,7 @@ import { MeetingInvitationPanel } from '@/app/layout/meeting-invitation/MeetingI
 import { looksLikeMeetingInvitationMail } from '@shared/meeting-invitation-detect'
 import { isMeetingCalendarAttachment } from '@shared/meeting-invitation-attachment'
 import { useCreateCloudTaskUiStore } from '@/stores/create-cloud-task-ui'
-import { openReplyWithMeetingFromMail } from '@/lib/mail-reply-with-meeting-action'
+import { openScheduleMeetingFromMail } from '@/lib/mail-schedule-meeting-action'
 import { accountSupportsCloudTasks } from '@/lib/cloud-task-accounts'
 import type { AttachmentMeta, MailFull, ConnectedAccount, MailQuickStep } from '@shared/types'
 import { outlookCategoryDotClass } from '@/lib/outlook-category-colors'
@@ -498,7 +499,7 @@ export function ReadingPane({
 
   return (
     <section className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      {!readingPaneDraft && (
+      {!readingPaneDraft && !hideEntityConnections && (
       <div ref={toolbarRef} className={moduleColumnHeaderReadingToolbarClass}>
         <div className="flex min-h-0 min-w-0 flex-1 items-center gap-0.5 overflow-x-auto">
         <IconButton
@@ -678,7 +679,19 @@ export function ReadingPane({
           }
           className="flex min-h-0 flex-1 flex-col overflow-hidden"
         >
-          {conversationThread ? (
+          {hideEntityConnections ? (
+            <MailReader
+              message={selectedMessage}
+              account={messageAccount}
+              viewerTheme={viewerTheme}
+              autoLoadImages={autoLoadImages}
+              hideEntityConnections
+              onReply={(): void => openReply('reply', selectedMessage)}
+              onReplyAll={(): void => openReply('replyAll', selectedMessage)}
+              onForward={(): void => openForward(selectedMessage)}
+              onScheduleMeeting={(): void => openScheduleMeetingFromMail(selectedMessage)}
+            />
+          ) : conversationThread ? (
             <MailConversationPreview
               messages={conversationThread}
               selectedMessageId={selectedMessageId!}
@@ -697,12 +710,11 @@ export function ReadingPane({
                   account={messageAccount}
                   viewerTheme={viewerTheme}
                   autoLoadImages={autoLoadImages}
-                  hideEntityConnections={hideEntityConnections}
                   conversationTile
                   onReply={(): void => openReply('reply', expanded)}
                   onReplyAll={(): void => openReply('replyAll', expanded)}
                   onForward={(): void => openForward(expanded)}
-                  onReplyWithMeeting={(): void => openReplyWithMeetingFromMail(expanded)}
+                  onScheduleMeeting={(): void => openScheduleMeetingFromMail(expanded)}
                 />
               )}
             </MailConversationPreview>
@@ -714,12 +726,11 @@ export function ReadingPane({
                   account={messageAccount}
                   viewerTheme={viewerTheme}
                   autoLoadImages={autoLoadImages}
-                  hideEntityConnections={hideEntityConnections}
                   conversationTile
                   onReply={(): void => openReply('reply', selectedMessage)}
                   onReplyAll={(): void => openReply('replyAll', selectedMessage)}
                   onForward={(): void => openForward(selectedMessage)}
-                  onReplyWithMeeting={(): void => openReplyWithMeetingFromMail(selectedMessage)}
+                  onScheduleMeeting={(): void => openScheduleMeetingFromMail(selectedMessage)}
                 />
               </div>
             </div>
@@ -777,7 +788,7 @@ function MailReader({
   onReply,
   onReplyAll,
   onForward,
-  onReplyWithMeeting
+  onScheduleMeeting
 }: {
   message: MailFull
   account: ConnectedAccount | null
@@ -789,7 +800,7 @@ function MailReader({
   onReply: () => void
   onReplyAll: () => void
   onForward: () => void
-  onReplyWithMeeting: () => void
+  onScheduleMeeting: () => void
 }): JSX.Element {
   const { t, i18n } = useTranslation()
   const {
@@ -1021,9 +1032,9 @@ function MailReader({
                 hoverClassName="hover:bg-sky-500/15 hover:text-sky-400"
               />
               <IconButton
-                icon={Calendar}
-                label={t('mail.replyWithMeeting.toolbar')}
-                onClick={onReplyWithMeeting}
+                icon={CalendarClock}
+                label={t('mail.scheduleMeeting.toolbar')}
+                onClick={onScheduleMeeting}
                 iconClassName="text-emerald-500"
                 hoverClassName="hover:bg-emerald-500/15 hover:text-emerald-400"
               />

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   Calendar,
@@ -31,6 +31,8 @@ import { usePeoplePendingFocusStore } from '@/stores/people-pending-focus'
 import { useMailPendingFocusStore } from '@/stores/mail-pending-focus'
 import { useTasksPendingFocusStore } from '@/stores/tasks-pending-focus'
 import { persistTasksViewSelection } from '@/app/tasks/tasks-view-storage'
+import { useIdBulkSelection } from '@/lib/id-bulk-selection'
+import { cn } from '@/lib/utils'
 function hasAnyResults(result: GlobalSearchResult | null): boolean {
   if (!result) return false
   return (
@@ -216,6 +218,21 @@ export function TopbarGlobalSearch(): JSX.Element {
 
   const showPanel = open && query.trim().length >= 2
 
+  const searchRowKeys = useMemo((): string[] => {
+    if (!results) return []
+    const keys: string[] = []
+    for (const hit of results.mails) keys.push(`mail:${hit.id}`)
+    for (const note of results.notes) keys.push(`note:${note.id}`)
+    for (const ev of results.calendarEvents) keys.push(`cal:${ev.id}`)
+    for (const task of results.tasks) {
+      keys.push(`task:${task.accountId}:${task.listId}:${task.taskId}`)
+    }
+    for (const c of results.contacts) keys.push(`contact:${c.id}`)
+    return keys
+  }, [results])
+
+  const searchSelection = useIdBulkSelection(searchRowKeys, query.trim())
+
   return (
     <div ref={containerRef} className="relative w-full min-w-0 max-w-[28rem]">
       <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -278,20 +295,34 @@ export function TopbarGlobalSearch(): JSX.Element {
             {results && results.mails.length > 0 ? (
               <SearchSection title={t('topbar.searchSectionMail')}>
                 {results.mails.map((hit) => {
+                  const rowKey = `mail:${hit.id}`
                   const color = accountColorById.get(hit.accountId)
                   const date = hit.receivedAt
                     ? new Date(hit.receivedAt).toLocaleDateString(dateLocale, {
                         day: '2-digit',
                         month: '2-digit',
-                        year: '2-digit'
+                        year: 'numeric'
                       })
                     : ''
+                  const bulkSelected = searchSelection.isSelected(rowKey)
                   return (
                     <button
-                      key={`mail-${hit.id}`}
+                      key={rowKey}
                       type="button"
-                      onClick={(): void => void handleSelectMail(hit)}
-                      className="flex w-full items-start gap-2 border-b border-border/50 px-3 py-1.5 text-left text-xs transition-colors last:border-b-0 hover:bg-secondary/60"
+                      onClick={(e): void => {
+                        searchSelection.handlePointerDown(rowKey, {
+                          shiftKey: e.shiftKey,
+                          ctrlKey: e.ctrlKey,
+                          metaKey: e.metaKey
+                        })
+                        if (!(e.shiftKey || e.ctrlKey || e.metaKey)) {
+                          handleSelectMail(hit)
+                        }
+                      }}
+                      className={cn(
+                        'flex w-full items-start gap-2 border-b border-border/50 px-3 py-1.5 text-left text-xs transition-colors last:border-b-0 hover:bg-secondary/60',
+                        bulkSelected && 'bg-primary/10 ring-1 ring-primary/20 ring-inset'
+                      )}
                     >
                       {color ? (
                         <span
@@ -326,28 +357,59 @@ export function TopbarGlobalSearch(): JSX.Element {
 
             {results && results.notes.length > 0 ? (
               <SearchSection title={t('topbar.searchSectionNotes')}>
-                {results.notes.map((note) => (
+                {results.notes.map((note) => {
+                  const rowKey = `note:${note.id}`
+                  const bulkSelected = searchSelection.isSelected(rowKey)
+                  return (
                   <button
-                    key={`note-${note.id}`}
+                    key={rowKey}
                     type="button"
-                    onClick={(): void => handleSelectNote(note)}
-                    className="flex w-full items-start gap-2 px-3 py-1.5 text-left text-xs hover:bg-secondary/60"
+                    onClick={(e): void => {
+                      searchSelection.handlePointerDown(rowKey, {
+                        shiftKey: e.shiftKey,
+                        ctrlKey: e.ctrlKey,
+                        metaKey: e.metaKey
+                      })
+                      if (!(e.shiftKey || e.ctrlKey || e.metaKey)) {
+                        handleSelectNote(note)
+                      }
+                    }}
+                    className={cn(
+                      'flex w-full items-start gap-2 px-3 py-1.5 text-left text-xs hover:bg-secondary/60',
+                      bulkSelected && 'bg-primary/10 ring-1 ring-primary/20 ring-inset'
+                    )}
                   >
                     <StickyNote className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                     <span className="min-w-0 flex-1 truncate font-medium">{note.title}</span>
                   </button>
-                ))}
+                  )
+                })}
               </SearchSection>
             ) : null}
 
             {results && results.calendarEvents.length > 0 ? (
               <SearchSection title={t('topbar.searchSectionCalendar')}>
-                {results.calendarEvents.map((ev) => (
+                {results.calendarEvents.map((ev) => {
+                  const rowKey = `cal:${ev.id}`
+                  const bulkSelected = searchSelection.isSelected(rowKey)
+                  return (
                   <button
-                    key={`cal-${ev.id}`}
+                    key={rowKey}
                     type="button"
-                    onClick={(): void => handleSelectCalendar(ev)}
-                    className="flex w-full items-start gap-2 px-3 py-1.5 text-left text-xs hover:bg-secondary/60"
+                    onClick={(e): void => {
+                      searchSelection.handlePointerDown(rowKey, {
+                        shiftKey: e.shiftKey,
+                        ctrlKey: e.ctrlKey,
+                        metaKey: e.metaKey
+                      })
+                      if (!(e.shiftKey || e.ctrlKey || e.metaKey)) {
+                        handleSelectCalendar(ev)
+                      }
+                    }}
+                    className={cn(
+                      'flex w-full items-start gap-2 px-3 py-1.5 text-left text-xs hover:bg-secondary/60',
+                      bulkSelected && 'bg-primary/10 ring-1 ring-primary/20 ring-inset'
+                    )}
                   >
                     <Calendar className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                     <span className="min-w-0 flex-1">
@@ -359,48 +421,81 @@ export function TopbarGlobalSearch(): JSX.Element {
                       ) : null}
                     </span>
                   </button>
-                ))}
+                  )
+                })}
               </SearchSection>
             ) : null}
 
             {results && results.tasks.length > 0 ? (
               <SearchSection title={t('topbar.searchSectionTasks')}>
-                {results.tasks.map((task) => (
-                  <button
-                    key={`task-${task.accountId}-${task.listId}-${task.taskId}`}
-                    type="button"
-                    onClick={(): void => handleSelectTask(task)}
-                    className="flex w-full items-start gap-2 px-3 py-1.5 text-left text-xs hover:bg-secondary/60"
-                  >
-                    <ListTodo className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                    <span className="min-w-0 flex-1 truncate font-medium">{task.title}</span>
-                  </button>
-                ))}
+                {results.tasks.map((task) => {
+                  const rowKey = `task:${task.accountId}:${task.listId}:${task.taskId}`
+                  const bulkSelected = searchSelection.isSelected(rowKey)
+                  return (
+                    <button
+                      key={rowKey}
+                      type="button"
+                      onClick={(e): void => {
+                        searchSelection.handlePointerDown(rowKey, {
+                          shiftKey: e.shiftKey,
+                          ctrlKey: e.ctrlKey,
+                          metaKey: e.metaKey
+                        })
+                        if (!(e.shiftKey || e.ctrlKey || e.metaKey)) {
+                          handleSelectTask(task)
+                        }
+                      }}
+                      className={cn(
+                        'flex w-full items-start gap-2 px-3 py-1.5 text-left text-xs hover:bg-secondary/60',
+                        bulkSelected && 'bg-primary/10 ring-1 ring-primary/20 ring-inset'
+                      )}
+                    >
+                      <ListTodo className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      <span className="min-w-0 flex-1 truncate font-medium">{task.title}</span>
+                    </button>
+                  )
+                })}
               </SearchSection>
             ) : null}
 
             {results && results.contacts.length > 0 ? (
               <SearchSection title={t('topbar.searchSectionContacts')}>
-                {results.contacts.map((c) => (
-                  <button
-                    key={`contact-${c.id}`}
-                    type="button"
-                    onClick={(): void => handleSelectContact(c)}
-                    className="flex w-full items-start gap-2 px-3 py-1.5 text-left text-xs hover:bg-secondary/60"
-                  >
-                    <Users className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate font-medium">
-                        {c.displayName || c.primaryEmail || t('common.unknown')}
-                      </span>
-                      {c.primaryEmail ? (
-                        <span className="block truncate text-[10px] text-muted-foreground">
-                          {c.primaryEmail}
+                {results.contacts.map((c) => {
+                  const rowKey = `contact:${c.id}`
+                  const bulkSelected = searchSelection.isSelected(rowKey)
+                  return (
+                    <button
+                      key={rowKey}
+                      type="button"
+                      onClick={(e): void => {
+                        searchSelection.handlePointerDown(rowKey, {
+                          shiftKey: e.shiftKey,
+                          ctrlKey: e.ctrlKey,
+                          metaKey: e.metaKey
+                        })
+                        if (!(e.shiftKey || e.ctrlKey || e.metaKey)) {
+                          handleSelectContact(c)
+                        }
+                      }}
+                      className={cn(
+                        'flex w-full items-start gap-2 px-3 py-1.5 text-left text-xs hover:bg-secondary/60',
+                        bulkSelected && 'bg-primary/10 ring-1 ring-primary/20 ring-inset'
+                      )}
+                    >
+                      <Users className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-medium">
+                          {c.displayName || c.primaryEmail || t('common.unknown')}
                         </span>
-                      ) : null}
-                    </span>
-                  </button>
-                ))}
+                        {c.primaryEmail ? (
+                          <span className="block truncate text-[10px] text-muted-foreground">
+                            {c.primaryEmail}
+                          </span>
+                        ) : null}
+                      </span>
+                    </button>
+                  )
+                })}
               </SearchSection>
             ) : null}
           </div>,

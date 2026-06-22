@@ -18,6 +18,18 @@ export function orderedMessageIdsFromRows(rows: readonly MailListVirtualRow[]): 
 }
 
 /** Bereich zwischen Anker und Ziel in Listenreihenfolge (Windows Shift+Klick). */
+/** Drag-Payload: bei aktiver Mehrfachauswahl alle markierten Mails, sonst Fallback (z. B. Thread). */
+export function resolveBulkDragMessageIds(
+  messageId: number,
+  fallbackIds: readonly number[],
+  selectedIds: ReadonlySet<number>
+): number[] {
+  if (selectedIds.size > 0 && selectedIds.has(messageId)) {
+    return [...selectedIds]
+  }
+  return [...fallbackIds]
+}
+
 export function rangeMessageIdsInListOrder(
   visibleIds: readonly number[],
   anchorId: number,

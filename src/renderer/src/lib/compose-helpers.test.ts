@@ -58,10 +58,37 @@ describe('formatRecipientsWithTail / parseRecipientsWithTail', () => {
   })
 })
 
+describe('parseRecipientEntry', () => {
+  it('parst «Name email@domain» mit optionalem Semikolon', () => {
+    expect(parseRecipients('Birgit Karre birgit.karre@haup.ac.at;')).toEqual([
+      { address: 'birgit.karre@haup.ac.at', name: 'Birgit Karre' }
+    ])
+    expect(parseRecipients('Melanie Hermetinger melanie.hermetinger@haup.ac.at')).toEqual([
+      { address: 'melanie.hermetinger@haup.ac.at', name: 'Melanie Hermetinger' }
+    ])
+  })
+})
+
 describe('parseRecipientsBulk', () => {
   it('parst Tabellenzeilen Name[TAB]E-Mail', () => {
     expect(parseRecipientsBulk('Brigit Karre\tkarre@haup.ac.at')).toEqual([
       { address: 'karre@haup.ac.at', name: 'Brigit Karre' }
+    ])
+  })
+
+  it('parst mehrzeilige Outlook-Teilnehmerlisten (Name + E-Mail pro Zeile)', () => {
+    const raw = `Birgit Karre birgit.karre@haup.ac.at;
+
+ Isabella Engelke isabella.engelke@haup.ac.at;
+
+Michaela Ecker michaela.ecker@haup.ac.at;
+
+Melanie Hermetinger melanie.hermetinger@haup.ac.at`
+    expect(parseRecipientsBulk(raw)).toEqual([
+      { address: 'birgit.karre@haup.ac.at', name: 'Birgit Karre' },
+      { address: 'isabella.engelke@haup.ac.at', name: 'Isabella Engelke' },
+      { address: 'michaela.ecker@haup.ac.at', name: 'Michaela Ecker' },
+      { address: 'melanie.hermetinger@haup.ac.at', name: 'Melanie Hermetinger' }
     ])
   })
 

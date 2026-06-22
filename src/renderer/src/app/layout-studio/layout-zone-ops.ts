@@ -1,4 +1,4 @@
-import type { LayoutStudioPanelId } from '@/app/layout-studio/layout-studio-storage'
+import type { LayoutStudioPanelId } from '@/app/layout-studio/layout-studio-panel-ids'
 import {
   LAYOUT_ZONE_MAX_LEAVES,
   clampZoneRatio,

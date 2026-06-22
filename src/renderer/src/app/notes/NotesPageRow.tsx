@@ -42,6 +42,7 @@ function NoteDragHandle({ noteId }: { noteId: number }): JSX.Element {
 export function NotesPageRow({
   note,
   active,
+  selected,
   onOpen,
   onRenameTitle,
   onPatchDisplay,
@@ -51,7 +52,8 @@ export function NotesPageRow({
 }: {
   note: UserNoteListItem
   active: boolean
-  onOpen: (note: UserNoteListItem) => void
+  selected: boolean
+  onOpen: (note: UserNoteListItem, event: MouseEvent) => void
   onRenameTitle: (note: UserNoteListItem, title: string) => void | Promise<void>
   onPatchDisplay: (
     note: UserNoteListItem,
@@ -88,7 +90,7 @@ export function NotesPageRow({
     <div
       className={cn(
         'flex min-w-0 items-center gap-0.5 rounded-md transition-colors',
-        active ? 'bg-secondary font-medium text-foreground' : 'hover:bg-secondary/60',
+        selected ? 'bg-primary/10 ring-1 ring-primary/20 ring-inset' : active ? 'bg-secondary font-medium text-foreground' : 'hover:bg-secondary/60',
         isExiting && motionListItemExit
       )}
       onContextMenu={
@@ -136,7 +138,7 @@ export function NotesPageRow({
       ) : (
         <button
           type="button"
-          onClick={(): void => onOpen(note)}
+          onClick={(e): void => onOpen(note, e)}
           onDoubleClick={(e): void => {
             e.preventDefault()
             e.stopPropagation()

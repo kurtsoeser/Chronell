@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { ComposerStack } from '@/components/Composer'
+import { ReadingPaneCompose } from '@/components/ReadingPaneCompose'
 import { PopoutWindowChrome } from '@/app/panel-popout/PopoutWindowChrome'
 import { parsePanelPopoutRoute } from '@/app/panel-popout/panel-popout-route'
 import { requestPanelPopoutDock } from '@/lib/request-panel-popout-dock'
@@ -49,7 +49,13 @@ export function ComposePopoutShell(): JSX.Element {
 
   return (
     <PopoutWindowChrome title={title} onClose={close} onPopIn={popIn}>
-      <ComposerStack />
+      {draft ? (
+        <ReadingPaneCompose draft={draft} hidePopOutButton />
+      ) : (
+        <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+          …
+        </div>
+      )}
     </PopoutWindowChrome>
   )
 }

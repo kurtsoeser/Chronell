@@ -16,7 +16,6 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import {
   LayoutGrid,
-  Columns3,
   Building2,
   Calendar,
   GripVertical,
@@ -36,6 +35,7 @@ import {
 import { useTranslation } from 'react-i18next'
 import type { AppShellMode } from '@/stores/app-mode'
 import { cn } from '@/lib/utils'
+import { showAppConfirm } from '@/stores/app-dialog'
 import {
   DEFAULT_TOPBAR_MODULE_ORDER,
   readTopbarModuleOrder,
@@ -68,7 +68,6 @@ const MODULE_DEFS: Array<{
   icon: React.ComponentType<{ className?: string }>
 }> = [
   { id: 'home', labelKey: 'topbar.modeHome', icon: House },
-  { id: 'layoutStudio', labelKey: 'topbar.modeLayoutStudio', icon: Columns3 },
   { id: 'mail', labelKey: 'topbar.modeMail', icon: Inbox },
   { id: 'calendar', labelKey: 'topbar.modeCalendar', icon: Calendar },
   { id: 'bookings', labelKey: 'topbar.modeBookings', icon: Building2 },
@@ -331,8 +330,13 @@ export function SettingsTopbarModulesSection(): JSX.Element {
   )
 
   const onDeleteCustomView = useCallback(
-    (viewId: string, name: string): void => {
-      if (!window.confirm(t('settings.modulesCustomViewDeleteConfirm', { name }))) return
+    async (viewId: string, name: string): Promise<void> => {
+      const ok = await showAppConfirm(t('settings.modulesCustomViewDeleteConfirm', { name }), {
+        title: t('customView.delete'),
+        variant: 'danger',
+        confirmLabel: t('common.delete')
+      })
+      if (!ok) return
       deleteCustomView(viewId)
     },
     [deleteCustomView, t]
@@ -402,7 +406,9 @@ export function SettingsTopbarModulesSection(): JSX.Element {
                       name={view.name}
                       iconId={view.iconId}
                       onEdit={(): void => startEditingView(view.id)}
-                      onDelete={(): void => onDeleteCustomView(view.id, view.name)}
+                      onDelete={(): void => {
+                        void onDeleteCustomView(view.id, view.name)
+                      }}
                       dragAria={dragAria}
                       dragTitle={dragTitle}
                       editLabel={t('settings.modulesCustomViewEdit')}

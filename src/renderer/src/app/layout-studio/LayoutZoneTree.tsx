@@ -13,7 +13,7 @@ import {
   readLayoutZoneLeafDragId
 } from '@/app/layout-studio/layout-zone-dnd'
 import { layoutStudioPanelTitleKey } from '@/app/layout-studio/layout-studio-panel-ids'
-import type { LayoutStudioPanelId } from '@/app/layout-studio/layout-studio-storage'
+import type { LayoutStudioPanelId } from '@/app/layout-studio/layout-studio-panel-ids'
 
 export type LayoutZonePopoutConfig = {
   viewId: string

@@ -50,6 +50,7 @@ import {
   createTaskForAccount,
   deleteTaskForAccount,
   patchTaskForAccount,
+  persistTaskRecurrenceToCache,
   updateTaskForAccount
 } from '../tasks-service'
 
@@ -139,16 +140,27 @@ export function registerTasksIpc(): void {
     const listId = requireListId(input?.listId)
     const title = typeof input?.title === 'string' ? input.title.trim() : ''
     if (!title) throw new Error('Titel fehlt.')
+    const recurrence = input.recurrence
     const task = await createTaskForAccount(accountId, listId, {
       title,
       notes: input.notes ?? null,
       dueIso: input.dueIso ?? null,
       completed: input.completed === true,
-      recurrence: input.recurrence ?? null,
+      recurrence,
       categories: input.categories ?? null
     })
     afterTaskCreated(accountId, task)
-    return task
+    if (recurrence) {
+      const acc = (await listAccounts()).find((a) => a.id === accountId)
+      persistTaskRecurrenceToCache(
+        accountId,
+        listId,
+        task.id,
+        recurrence,
+        acc?.provider === 'google'
+      )
+    }
+    return getCloudTaskFromCache(accountId, listId, task.id) ?? task
   })
 
   ipcMain.removeHandler(IPC.tasks.patchTask)
@@ -186,14 +198,26 @@ export function registerTasksIpc(): void {
     const taskId = requireTaskId(input?.taskId)
     const title = typeof input?.title === 'string' ? input.title.trim() : ''
     if (!title) throw new Error('Titel fehlt.')
+    const recurrence = input.recurrence
     const task = await updateTaskForAccount(accountId, listId, taskId, {
       title,
       notes: input.notes ?? null,
       dueIso: input.dueIso ?? null,
       completed: input.completed === true,
-      categories: input.categories ?? null
+      categories: input.categories ?? null,
+      recurrence
     })
     afterTaskUpdated(accountId, task)
+    if (recurrence !== undefined) {
+      const acc = (await listAccounts()).find((a) => a.id === accountId)
+      persistTaskRecurrenceToCache(
+        accountId,
+        listId,
+        taskId,
+        recurrence,
+        acc?.provider === 'google'
+      )
+    }
     return getCloudTaskFromCache(accountId, listId, taskId) ?? task
   })
 

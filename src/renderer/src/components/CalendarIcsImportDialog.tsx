@@ -14,6 +14,7 @@ import {
   parseCalendarDestinationKey
 } from '@/app/calendar/calendar-create-destination'
 import { sanitizeComposeHtmlFragment } from '@/lib/sanitize-compose-html'
+import { prepareCalendarEventBodyHtml } from '@shared/calendar-event-body-html'
 import { cn } from '@/lib/utils'
 import { ModalPanel, ModalRoot } from '@/components/motion/Modal'
 import { useCalendarIcsImportStore } from '@/stores/calendar-ics-import'
@@ -148,7 +149,7 @@ export function CalendarIcsImportDialog({
     try {
       for (const ev of toImport) {
         const bodyHtml = ev.bodyHtml?.trim()
-          ? sanitizeComposeHtmlFragment(ev.bodyHtml.trim())
+          ? prepareCalendarEventBodyHtml(sanitizeComposeHtmlFragment(ev.bodyHtml.trim()))
           : null
         await window.mailClient.calendar.createEvent({
           accountId: destination.accountId,

@@ -67,6 +67,7 @@ import { SidebarFooter } from '@/app/layout/sidebar/SidebarFooter'
 import { useUndoStore } from '@/stores/undo'
 import { useConnectivityStore } from '@/stores/connectivity'
 import { readDraggedWorkflowMessageIds } from '@/lib/workflow-dnd'
+import { findMailListItemById } from '@/stores/mail-store-helpers'
 import {
   SIDEBAR_HIDDEN_MAIL_FOLDER_KEYS_STORAGE_KEY,
   MAIL_SIDEBAR_FOLDER_VISIBILITY_CHANGED_EVENT,
@@ -179,11 +180,12 @@ export function Sidebar({ onOpenAccountDialog }: Props): JSX.Element {
     const state = useMailStore.getState()
     const msgs: MailListItem[] = []
     for (const id of ids) {
-      const m = state.messages.find((x) => x.id === id)
+      const m = findMailListItemById(state.messages, state.threadMessages, id)
       if (m) msgs.push(m)
     }
     if (msgs.length === 0) return
-    if (msgs.some((m) => m.accountId !== folder.accountId)) {
+    const accountIds = new Set(msgs.map((m) => m.accountId))
+    if (accountIds.size > 1 || msgs.some((m) => m.accountId !== folder.accountId)) {
       useUndoStore.getState().pushToast({
         label: t('mail.move.dropWrongAccount'),
         variant: 'error'

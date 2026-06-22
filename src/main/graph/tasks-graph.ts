@@ -7,6 +7,7 @@ import {
 
 import type { TaskItemRow, TaskListRow, TaskSaveRecurrence } from '@shared/types'
 import {
+  buildMicrosoftTodoRecurrencePatchPayload,
   buildMicrosoftTodoRecurrencePayload,
   parseGraphTodoRecurrence
 } from '../task-recurrence'
@@ -485,6 +486,13 @@ export async function graphCreateTodoTask(
   let row = rowFromGraphTask(listId, created)
   if (!row) throw new Error('Graph: Aufgabe ohne ID angelegt.')
   row = mergeDueFromPatch(row, input.dueIso)
+  if (input.recurrence) {
+    row = {
+      ...row,
+      recurrence: row.recurrence ?? input.recurrence,
+      recurrenceLocalOnly: false
+    }
+  }
   if (input.dueIso?.trim() && !row.dueIso) {
     return rowAfterGraphTaskWrite(accountId, listId, taskId, input.dueIso)
   }
@@ -513,6 +521,8 @@ export async function graphPatchTodoTask(
     completed?: boolean
 
     categories?: string[] | null
+
+    recurrence?: TaskSaveRecurrence | null
 
   }
 
@@ -572,6 +582,10 @@ export async function graphPatchTodoTask(
     body.categories = normalizeGraphTodoCategories(patch.categories) ?? []
   }
 
+  if (patch.recurrence !== undefined) {
+    body.recurrence = patch.recurrence
+  }
+
   const updated = (await client
     .api(`/me/todo/lists/${encList}/tasks/${encTask}`)
     .patch(body)) as GraphTodoTask
@@ -581,7 +595,8 @@ export async function graphPatchTodoTask(
     patch.title === undefined &&
     patch.notes === undefined &&
     patch.dueIso === undefined &&
-    patch.categories === undefined
+    patch.categories === undefined &&
+    patch.recurrence === undefined
 
   if (statusOnlyPatch) {
     const row = rowFromGraphTask(listId, updated)
@@ -602,7 +617,13 @@ export async function graphUpdateTodoTask(
 
   taskId: string,
 
-  input: { title: string; notes?: string | null; dueIso?: string | null; completed?: boolean; categories?: string[] | null }
+  input: {
+    title: string
+    notes?: string | null
+    dueIso?: string | null
+    completed?: boolean
+    categories?: string[] | null
+  }
 
 ): Promise<TaskItemRow> {
 
@@ -619,6 +640,54 @@ export async function graphUpdateTodoTask(
     categories: input.categories
 
   })
+
+}
+
+
+
+export async function graphPatchTodoTaskRecurrence(
+
+  accountId: string,
+
+  listId: string,
+
+  taskId: string,
+
+  recurrence: TaskSaveRecurrence,
+
+  dueIso: string
+
+): Promise<TaskItemRow> {
+
+  const client = await getClientFor(accountId)
+
+  const encList = encodeURIComponent(listId)
+
+  const encTask = encodeURIComponent(taskId)
+
+  const { iana, windows } = await graphTodoTimeZone()
+
+  const body = buildMicrosoftTodoRecurrencePatchPayload(recurrence, dueIso, windows, iana)
+
+  await client.api(`/me/todo/lists/${encList}/tasks/${encTask}`).patch(body)
+
+  const full = await graphGetTodoTask(accountId, listId, taskId)
+
+  let row = rowFromGraphTask(listId, full)
+
+  if (!row) throw new Error('Graph: Aufgabe konnte nicht gelesen werden.')
+
+  row = mergeDueFromPatch(row, dueIso)
+
+  return {
+
+    ...row,
+
+    recurrence: row.recurrence ?? recurrence,
+
+    recurrenceLocalOnly: false
+
+  }
 
 }
 

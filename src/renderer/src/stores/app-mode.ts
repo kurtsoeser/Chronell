@@ -3,7 +3,6 @@ import { writeActiveCustomViewId } from '@/app/custom-views/custom-views-storage
 
 export type AppShellMode =
   | 'home'
-  | 'layoutStudio'
   | 'mail'
   | 'calendar'
   | 'bookings'
@@ -46,10 +45,23 @@ function migrateLegacyMegaMode(): void {
   }
 }
 
+/** Entferntes Layout-Labor: auf Start umleiten (eigene Ansichten ersetzen das Modul). */
+function migrateLegacyLayoutStudioMode(): void {
+  try {
+    const v = window.localStorage.getItem(STORAGE_KEY)
+    if (v === 'layoutStudio') {
+      window.localStorage.setItem(STORAGE_KEY, 'home')
+    }
+  } catch {
+    // ignore
+  }
+}
+
 function readStored(): AppShellMode {
   try {
     migrateLegacyWorkflowMode()
     migrateLegacyMegaMode()
+    migrateLegacyLayoutStudioMode()
     const v = window.localStorage.getItem(STORAGE_KEY)
     if (v === 'focus' || v === 'rules') {
       persist('mail')
@@ -64,7 +76,6 @@ function readStored(): AppShellMode {
     }
     if (
       v === 'home' ||
-      v === 'layoutStudio' ||
       v === 'mail' ||
       v === 'calendar' ||
       v === 'bookings' ||

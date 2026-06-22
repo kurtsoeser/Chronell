@@ -4,7 +4,7 @@ import { addDays, format, isToday, parseISO, startOfDay } from 'date-fns'
 import { de as deFns, enUS as enUSFns } from 'date-fns/locale'
 import type { Locale } from 'date-fns'
 import { useTranslation } from 'react-i18next'
-import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, CalendarClock, Loader2 } from 'lucide-react'
 import FullCalendar from '@fullcalendar/react'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
@@ -25,8 +25,7 @@ import {
 import type { CalendarCreateRange } from '@/app/tasks/tasks-calendar-create-range'
 import { useAccountsStore } from '@/stores/accounts'
 import { useAppModeStore } from '@/stores/app-mode'
-import { useCalendarPendingFocusStore } from '@/stores/calendar-pending-focus'
-import { useMailStore } from '@/stores/mail'
+import { focusContextPreviewMailMessage, openCalendarEventInCustomViewOrModule } from '@/lib/focus-context-preview'
 import { useInboxCalendarAgendaCacheStore } from '@/stores/inbox-calendar-agenda-cache'
 import { buildCalendarIncludeCalendars } from '@/lib/build-calendar-include-calendars'
 import {
@@ -44,6 +43,8 @@ import {
 } from '@/lib/calendar-event-display-hex'
 import { applyCalendarEventDomColors } from '@/lib/calendar-event-chip-style'
 import { useCalendarListByAccount } from '@/lib/use-calendar-list-by-account'
+import { useMailStore } from '@/stores/mail'
+import { openScheduleMeetingFromMail } from '@/lib/mail-schedule-meeting-action'
 import '@/app/calendar/notion-calendar.css'
 
 const K_DAY_ISO = 'mailclient.mailRightSidebar.dayIso'
@@ -112,7 +113,7 @@ export function MailCalendarDaySidebar(): JSX.Element {
   const loadAgendaFromCache = useInboxCalendarAgendaCacheStore((s) => s.loadAgenda)
 
   const setAppMode = useAppModeStore((s) => s.setMode)
-  const selectMessage = useMailStore((s) => s.selectMessage)
+  const selectedMessage = useMailStore((s) => s.selectedMessage)
 
   const [day, setDay] = useState(() => readDay())
   useEffect(() => writeDay(day), [day])
@@ -182,8 +183,7 @@ export function MailCalendarDaySidebar(): JSX.Element {
 
   const openCalendarEvent = useCallback(
     (ev: CalendarEventView): void => {
-      useCalendarPendingFocusStore.getState().queueFocusEvent(ev)
-      setAppMode('calendar')
+      openCalendarEventInCustomViewOrModule(ev, setAppMode)
     },
     [setAppMode]
   )
@@ -341,13 +341,13 @@ export function MailCalendarDaySidebar(): JSX.Element {
       const kind = info.event.extendedProps?.calendarKind as string | undefined
       if (kind === CALENDAR_KIND_MAIL_TODO) {
         const m = info.event.extendedProps?.mailMessage as MailListItem | undefined
-        if (m) void selectMessage(m.id)
+        if (m) void focusContextPreviewMailMessage(m.id)
         return
       }
       const cal = info.event.extendedProps?.calendarEvent as CalendarEventView | undefined
       if (cal) openCalendarEvent(cal)
     },
-    [openCalendarEvent, selectMessage]
+    [openCalendarEvent]
   )
 
   return (
@@ -379,6 +379,16 @@ export function MailCalendarDaySidebar(): JSX.Element {
             <ChevronRight className="h-4 w-4" />
           </button>
         </div>
+        {selectedMessage ? (
+          <button
+            type="button"
+            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-1.5 text-[11px] font-medium text-emerald-700 transition-colors hover:bg-emerald-500/20 dark:text-emerald-300"
+            onClick={(): void => openScheduleMeetingFromMail(selectedMessage)}
+          >
+            <CalendarClock className="h-3.5 w-3.5" />
+            {t('mail.scheduleMeeting.sidebar')}
+          </button>
+        ) : null}
       </div>
 
       <div className="min-h-0 flex-1 overflow-hidden">

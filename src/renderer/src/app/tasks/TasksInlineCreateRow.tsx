@@ -29,6 +29,8 @@ export interface TasksInlineCreateRowProps {
   onCreated: (task: CloudTaskListItem, meta?: TaskCreateUpsertMeta) => void
   /** „Alle Aufgaben“ — Konto und Liste in der Zeile wählen. */
   showAccountPicker: boolean
+  /** Notizfeld anzeigen (überschreibt die globale Einstellung). */
+  showNotes?: boolean
 }
 
 export function TasksInlineCreateRow({
@@ -36,10 +38,12 @@ export function TasksInlineCreateRow({
   taskAccounts,
   loadListsForAccount,
   onCreated,
-  showAccountPicker
+  showAccountPicker,
+  showNotes: showNotesProp
 }: TasksInlineCreateRowProps): JSX.Element | null {
   const { t } = useTranslation()
   const settings = useTasksSettingsPrefs()
+  const showNotes = showNotesProp ?? settings.inlineCreateShowNotes
   const titleRef = useRef<HTMLInputElement>(null)
 
   const [accountId, setAccountId] = useState('')
@@ -214,7 +218,7 @@ export function TasksInlineCreateRow({
               aria-label={t('tasks.create.due')}
               className={cn(fieldControlClass, 'w-[8.5rem] shrink-0 px-1.5 py-1 text-xs')}
             />
-            {settings.inlineCreateShowNotes ? (
+            {showNotes ? (
               <input
                 type="text"
                 value={notes}

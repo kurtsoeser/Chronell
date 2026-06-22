@@ -220,7 +220,8 @@ export function ConnectionsObjectPreview({
           title: draft.title,
           notes: draft.notes || null,
           dueIso: draft.dueIso,
-          completed: cloudTask.completed
+          completed: cloudTask.completed,
+          recurrence: draft.recurrence
         })
         if (draft.plannedStartIso && draft.plannedEndIso) {
           await window.mailClient.tasks.setPlannedSchedule({

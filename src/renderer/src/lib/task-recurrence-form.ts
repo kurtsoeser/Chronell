@@ -1,6 +1,7 @@
 import type {
   CalendarRecurrenceFrequency,
   CalendarRecurrenceRangeEndMode,
+  TaskItemRow,
   TaskSaveRecurrence
 } from '@shared/types'
 
@@ -50,6 +51,28 @@ export function buildTaskSaveRecurrence(state: TaskRecurrenceFormState): TaskSav
       : {}),
     ...(state.recurEnd === 'until' ? { untilDate: state.recurUntilDate } : {}),
     ...(state.recurEnd === 'count' ? { count: parseInt(state.recurCount, 10) } : {})
+  }
+}
+
+export function taskRecurrenceToFormState(
+  task: Pick<TaskItemRow, 'recurrence'> | null | undefined
+): TaskRecurrenceFormState {
+  const recurrence = task?.recurrence
+  if (!recurrence) {
+    return {
+      recurFreq: 'none',
+      recurEnd: 'never',
+      recurUntilDate: '',
+      recurCount: '10',
+      recurWeekdays: []
+    }
+  }
+  return {
+    recurFreq: recurrence.frequency,
+    recurEnd: recurrence.rangeEnd,
+    recurUntilDate: recurrence.untilDate ?? '',
+    recurCount: recurrence.count != null ? String(recurrence.count) : '10',
+    recurWeekdays: recurrence.weekdays ?? []
   }
 }
 

@@ -12,6 +12,7 @@ import {
   Forward,
 
   Calendar,
+  CalendarClock,
 
   MailOpen,
 
@@ -45,6 +46,7 @@ import { openConnectionsGraphWithAiScan } from '@/lib/open-connections-graph'
 import type { TFunction } from 'i18next'
 import { useCreateCloudTaskUiStore } from '@/stores/create-cloud-task-ui'
 import { useMailReplyWithMeetingStore } from '@/stores/mail-reply-with-meeting'
+import { useMailScheduleMeetingStore } from '@/stores/mail-schedule-meeting'
 import { buildMailContextMoveMenuEntries } from '@/lib/mail-context-menu-move'
 
 const MAIL_CTX_TODO_FALLBACK = {
@@ -589,6 +591,26 @@ export function buildMailContextItems(
       onSelect: (): void => {
 
         void withFullMessage(msg.id, (full) => h.openForward(full))
+
+      }
+
+    },
+
+    {
+
+      id: 'scheduleMeeting',
+
+      label: tr ? tr('mail.scheduleMeeting.menu') : 'Termin planen',
+
+      icon: CalendarClock,
+
+      onSelect: (): void => {
+
+        void withFullMessage(msg.id, (full) => {
+
+          useMailScheduleMeetingStore.getState().openFromMessage(full)
+
+        })
 
       }
 

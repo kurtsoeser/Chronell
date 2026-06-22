@@ -24,6 +24,7 @@ export function NotesPagesPane({
   sections,
   loading,
   activeNoteId,
+  selectedNoteIds,
   onOpenNote,
   onRenameNoteTitle,
   onPatchNoteDisplay,
@@ -43,7 +44,8 @@ export function NotesPagesPane({
   sections: NoteSection[]
   loading: boolean
   activeNoteId: number | null
-  onOpenNote: (note: UserNoteListItem) => void
+  selectedNoteIds: ReadonlySet<number>
+  onOpenNote: (note: UserNoteListItem, event: React.MouseEvent) => void
   onRenameNoteTitle: (note: UserNoteListItem, title: string) => void | Promise<void>
   onPatchNoteDisplay: (
     note: UserNoteListItem,
@@ -82,7 +84,7 @@ export function NotesPagesPane({
           onLink: (note): void => {
             setContextMenu(null)
             setLinkNoteId(note.id)
-            onOpenNote(note)
+            onOpenNote(note, { shiftKey: false, ctrlKey: false, metaKey: false } as React.MouseEvent)
           }
         })
       : []
@@ -144,7 +146,8 @@ export function NotesPagesPane({
                 key={note.id}
                 note={note}
                 active={activeNoteId === note.id}
-                onOpen={onOpenNote}
+                selected={selectedNoteIds.has(note.id)}
+                onOpen={(n, e): void => onOpenNote(n, e)}
                 onRenameTitle={onRenameNoteTitle}
                 onPatchDisplay={onPatchNoteDisplay}
                 onContextMenu={openContextMenu}

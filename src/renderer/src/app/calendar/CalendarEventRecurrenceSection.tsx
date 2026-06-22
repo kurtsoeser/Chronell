@@ -32,6 +32,8 @@ interface Props {
   eventFieldsLocked: boolean
   /** Ohne eigenen Abschnittsrahmen (z. B. Spalte im Termin-Grid). */
   embedded?: boolean
+  /** Select-/Eingabe-Stil (Standard: Termin-Dialog). */
+  controlClass?: string
 }
 
 export function CalendarEventRecurrenceSection({
@@ -47,7 +49,8 @@ export function CalendarEventRecurrenceSection({
   recurWeekdays,
   setRecurWeekdays,
   eventFieldsLocked,
-  embedded = false
+  embedded = false,
+  controlClass = eventDialogPanelSelectClass
 }: Props): JSX.Element {
   const { t } = useTranslation()
   const tk = (key: string): string => t(`${i18nPrefix}.${key}`)
@@ -88,7 +91,7 @@ export function CalendarEventRecurrenceSection({
             setRecurFreq(v)
           }
         }}
-        className={eventDialogPanelSelectClass}
+        className={controlClass}
       >
         <option value="none">{tk('recurrenceFreqNone')}</option>
         <option value="daily">{tk('recurrenceFreqDaily')}</option>
@@ -136,7 +139,7 @@ export function CalendarEventRecurrenceSection({
               const v = e.target.value
               if (v === 'never' || v === 'until' || v === 'count') setRecurEnd(v)
             }}
-            className={eventDialogPanelSelectClass}
+            className={controlClass}
           >
             <option value="never">{tk('recurrenceEndNever')}</option>
             <option value="until">{tk('recurrenceEndUntil')}</option>
@@ -151,7 +154,7 @@ export function CalendarEventRecurrenceSection({
                 value={recurUntilDate}
                 onChange={setRecurUntilDate}
                 disabled={eventFieldsLocked}
-                className="text-xs"
+                className={cn(controlClass, 'text-xs')}
               />
             </label>
           ) : null}
@@ -167,7 +170,7 @@ export function CalendarEventRecurrenceSection({
                 value={recurCount}
                 onChange={(e): void => setRecurCount(e.target.value)}
                 disabled={eventFieldsLocked}
-                className="w-full rounded border border-border bg-background px-2 py-1 text-xs tabular-nums"
+                className={cn(controlClass, 'tabular-nums')}
               />
             </label>
           ) : null}

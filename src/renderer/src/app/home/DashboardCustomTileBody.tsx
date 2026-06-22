@@ -7,7 +7,7 @@ import { Loader2 } from 'lucide-react'
 import type { ConnectedAccount, MailListItem } from '@shared/types'
 import { cn } from '@/lib/utils'
 import { resolvedAccountColorCss } from '@/lib/avatar-color'
-import { useMailStore } from '@/stores/mail'
+import { focusContextPreviewMailMessage } from '@/lib/focus-context-preview'
 import {
   mailReadingPopoutOptsFromClick,
   openMailReadingPopout
@@ -28,7 +28,6 @@ export function DashboardCustomTileBody(props: {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [lines, setLines] = useState<MailListItem[]>([])
-  const openMessageInFolder = useMailStore((s) => s.openMessageInFolder)
 
   const load = useCallback(async (): Promise<void> => {
     setLoading(true)
@@ -100,7 +99,7 @@ export function DashboardCustomTileBody(props: {
           <button
             type="button"
             onClick={(): void => {
-              void openMessageInFolder(m.id)
+              void focusContextPreviewMailMessage(m.id)
             }}
             onDoubleClick={(e): void => {
               e.preventDefault()
@@ -144,7 +143,7 @@ export function DashboardCustomTileBody(props: {
                   <button
                     type="button"
                     onClick={(): void => {
-                      void openMessageInFolder(m.id)
+                      void focusContextPreviewMailMessage(m.id)
                     }}
                     onDoubleClick={(e): void => {
                       e.preventDefault()

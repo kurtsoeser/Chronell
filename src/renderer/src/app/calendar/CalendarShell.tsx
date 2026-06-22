@@ -45,6 +45,7 @@ import { useComposeStore } from '@/stores/compose'
 import { useSnoozeUiStore } from '@/stores/snooze-ui'
 import { CalendarEventSearchDialog } from '@/app/calendar/CalendarEventSearchDialog'
 import { showAppConfirm } from '@/stores/app-dialog'
+import { useIdBulkSelection } from '@/lib/id-bulk-selection'
 import {
   CalendarScheduleChangeDiscardedError,
   patchScheduleInputWithMeetingNotify,
@@ -1473,7 +1474,8 @@ export function CalendarShell(): JSX.Element {
           title: draft.title,
           notes: draft.notes || null,
           dueIso: draft.dueIso,
-          completed: previewCloudTask.completed
+          completed: previewCloudTask.completed,
+          recurrence: draft.recurrence
         })
         let planned: WorkItemPlannedSchedule | null = null
         if (draft.plannedStartIso && draft.plannedEndIso) {
@@ -2885,8 +2887,20 @@ export function CalendarShell(): JSX.Element {
       const lo = compareAsc(startInclusive, endInclusive) <= 0 ? startInclusive : endInclusive
       const hi = compareAsc(startInclusive, endInclusive) <= 0 ? endInclusive : startInclusive
       const span = differenceInCalendarDays(hi, lo) + 1
+      setMiniMonth(startOfMonth(lo))
+
+      if (span === 1) {
+        const currentView = activeViewIdRef.current
+        if (currentView === GANTT_TIMELINE_VIEW_ID) {
+          setGanttAnchor(lo)
+          return
+        }
+        api.gotoDate(lo)
+        return
+      }
+
       const capped = Math.min(Math.max(span, 1), MAX_TIME_GRID_SPAN_DAYS)
-      const viewId = capped === 1 ? 'timeGridDay' : `timeGrid${capped}Day`
+      const viewId = `timeGrid${capped}Day`
       api.gotoDate(lo)
       api.changeView(viewId)
       setActiveViewId(viewId)
@@ -2894,7 +2908,6 @@ export function CalendarShell(): JSX.Element {
       setViewMenuOpen(false)
       setDaysSubOpen(false)
       setSettingsSubOpen(false)
-      setMiniMonth(startOfMonth(lo))
     },
     []
   )
@@ -3027,6 +3040,23 @@ export function CalendarShell(): JSX.Element {
     const dayCell = root.querySelector('.fc-daygrid-day.fc-day-today') as HTMLElement | null
     dayCell?.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' })
   }, [])
+
+  const graphEventKey = useCallback(
+    (ev: CalendarEventView): string => `${ev.accountId}:${(ev.graphEventId ?? '').trim()}`,
+    []
+  )
+
+  const orderedGraphEventKeys = useMemo((): string[] => {
+    return [...events]
+      .filter((e) => (e.graphEventId ?? '').trim().length > 0)
+      .sort((a, b) => (a.startIso ?? '').localeCompare(b.startIso ?? ''))
+      .map((e) => graphEventKey(e))
+  }, [events, graphEventKey])
+
+  const graphEventSelection = useIdBulkSelection(
+    orderedGraphEventKeys,
+    useMemo(() => `${activeViewId}:${visibleStart.toISOString()}`, [activeViewId, visibleStart])
+  )
 
   useEffect(() => {
     if (!calendarEventSearchOpen) return
@@ -3837,6 +3867,15 @@ export function CalendarShell(): JSX.Element {
                     if (userNoteOverlayRef.current) void loadUserNotesForRange(arg.start, arg.end)
                   }
                 }}
+                eventClassNames={(arg): string[] => {
+                  const kind = arg.event.extendedProps.calendarKind as string | undefined
+                  if (kind) return []
+                  const ev = arg.event.extendedProps.calendarEvent as CalendarEventView | undefined
+                  if (!ev) return []
+                  const key = graphEventKey(ev)
+                  if (!key || !graphEventSelection.isSelected(key)) return []
+                  return ['ring-2', 'ring-primary/40', 'ring-inset', 'rounded']
+                }}
                 eventClick={(info): boolean => {
                   info.jsEvent.preventDefault()
                   if (info.event.id === QUICK_CREATE_PLACEHOLDER_EVENT_ID) return false
@@ -3877,6 +3916,11 @@ export function CalendarShell(): JSX.Element {
                   }
                   const ev = info.event.extendedProps.calendarEvent as CalendarEventView | undefined
                   if (ev) {
+                    graphEventSelection.handlePointerDown(graphEventKey(ev), {
+                      shiftKey: info.jsEvent.shiftKey,
+                      ctrlKey: info.jsEvent.ctrlKey,
+                      metaKey: info.jsEvent.metaKey
+                    })
                     setError(null)
                     clearSelectedMessage()
                     setPreviewCloudTask(null)

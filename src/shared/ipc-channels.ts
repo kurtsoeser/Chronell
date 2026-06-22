@@ -291,7 +291,10 @@ export const IPC = {
     parseIcsFile: 'calendar:parse-ics-file',
     pickIcsFile: 'calendar:pick-ics-file',
     parseMeetingFromMessage: 'calendar:parse-meeting-from-message',
-    respondToMeetingInvitation: 'calendar:respond-to-meeting-invitation'
+    respondToMeetingInvitation: 'calendar:respond-to-meeting-invitation',
+    findLocalFreeSlots: 'calendar:find-local-free-slots',
+    getAttendeeSchedule: 'calendar:get-attendee-schedule',
+    findMeetingTimes: 'calendar:find-meeting-times'
   },
   tasks: {
     listLists: 'tasks:list-lists',

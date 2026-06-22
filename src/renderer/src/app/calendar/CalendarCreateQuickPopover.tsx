@@ -27,6 +27,14 @@ import {
   readTasksCalendarCreateAccountId
 } from '@/app/tasks/tasks-calendar-create-storage'
 import { ChronellDateField } from '@/components/ChronellDateField'
+import { ChronellTimeField } from '@/components/ChronellTimeField'
+import {
+  addMinutesToDate,
+  mergeHmIntoDate,
+  mergeHmIntoEndAfterStart,
+  mergeYmdIntoDate
+} from '@/lib/calendar-time-select'
+import { eventDialogPanelSelectClass } from '@/lib/chronell-ui-classes'
 import {
   datetimeLocalValueToIso,
   isoToDatetimeLocalValue
@@ -150,6 +158,11 @@ export function CalendarCreateQuickPopover({
     }),
     [rangeStart, rangeEnd, isAllDay]
   )
+
+  const timedStartYmd = useMemo(() => format(rangeStart, 'yyyy-MM-dd'), [rangeStart])
+  const timedStartHm = useMemo(() => format(rangeStart, 'HH:mm'), [rangeStart])
+  const timedEndYmd = useMemo(() => format(rangeEnd, 'yyyy-MM-dd'), [rangeEnd])
+  const timedEndHm = useMemo(() => format(rangeEnd, 'HH:mm'), [rangeEnd])
 
   useEffect(() => {
     onRangeChange?.(currentRange)
@@ -599,37 +612,67 @@ export function CalendarCreateQuickPopover({
               <span className="text-2xs text-muted-foreground">
                 {t('calendar.eventDialog.labelBegin')}
               </span>
-              <input
-                type="datetime-local"
-                disabled={busy}
-                value={isoToDatetimeLocalValue(rangeStart.toISOString())}
-                onChange={(e): void => {
-                  const iso = datetimeLocalValueToIso(e.target.value)
-                  if (!iso) return
-                  const next = new Date(iso)
-                  setRangeStart(next)
-                  if (rangeEnd.getTime() <= next.getTime()) {
-                    setRangeEnd(addMinutes(next, 30))
-                  }
-                }}
-                className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm tabular-nums"
-              />
+              <div className="grid grid-cols-2 gap-2">
+                <ChronellDateField
+                  disabled={busy}
+                  value={timedStartYmd}
+                  onChange={(v): void => {
+                    if (!v) return
+                    const nextStart = mergeYmdIntoDate(rangeStart, v)
+                    setRangeStart(nextStart)
+                    if (rangeEnd.getTime() <= nextStart.getTime()) {
+                      setRangeEnd(addMinutesToDate(nextStart, 30))
+                    }
+                  }}
+                  className={cn(eventDialogPanelSelectClass, 'min-w-0 tabular-nums')}
+                />
+                <ChronellTimeField
+                  disabled={busy}
+                  value={timedStartHm}
+                  aria-label={t('calendar.eventDialog.editStartTimeAria')}
+                  className={cn(eventDialogPanelSelectClass, 'min-w-0 tabular-nums')}
+                  onChange={(hm): void => {
+                    const nextStart = mergeHmIntoDate(rangeStart, hm)
+                    setRangeStart(nextStart)
+                    if (rangeEnd.getTime() <= nextStart.getTime()) {
+                      setRangeEnd(addMinutesToDate(nextStart, 30))
+                    }
+                  }}
+                />
+              </div>
             </label>
             <label className="block space-y-0.5">
               <span className="text-2xs text-muted-foreground">
                 {t('calendar.eventDialog.labelEnd')}
               </span>
-              <input
-                type="datetime-local"
-                disabled={busy}
-                value={isoToDatetimeLocalValue(rangeEnd.toISOString())}
-                onChange={(e): void => {
-                  const iso = datetimeLocalValueToIso(e.target.value)
-                  if (!iso) return
-                  setRangeEnd(new Date(iso))
-                }}
-                className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm tabular-nums"
-              />
+              <div className="grid grid-cols-2 gap-2">
+                <ChronellDateField
+                  disabled={busy}
+                  value={timedEndYmd}
+                  min={timedStartYmd}
+                  onChange={(v): void => {
+                    if (!v) return
+                    const nextEnd = mergeYmdIntoDate(rangeEnd, v)
+                    if (nextEnd.getTime() <= rangeStart.getTime()) {
+                      setRangeEnd(addMinutesToDate(rangeStart, 30))
+                    } else {
+                      setRangeEnd(nextEnd)
+                    }
+                  }}
+                  className={cn(eventDialogPanelSelectClass, 'min-w-0 tabular-nums')}
+                />
+                <ChronellTimeField
+                  disabled={busy}
+                  value={timedEndHm}
+                  aria-label={t('calendar.eventDialog.editEndTimeAria')}
+                  className={cn(eventDialogPanelSelectClass, 'min-w-0 tabular-nums')}
+                  onChange={(hm): void => {
+                    setRangeEnd(
+                      mergeHmIntoEndAfterStart(rangeStart, rangeEnd, hm, 30)
+                    )
+                  }}
+                />
+              </div>
             </label>
             </div>
           )}

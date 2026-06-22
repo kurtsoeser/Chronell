@@ -96,10 +96,15 @@ export function WorkItemPreviewPanel({
     (accountById.get(item.accountId)?.displayName ?? item.accountId) +
     (item.listName ? ` · ${item.listName}` : '')
 
+  const accountProvider = accountById.get(item.accountId)?.provider
+
   return (
     <CloudTaskWorkItemDetail
       item={item}
       accountLine={accountLine}
+      accountProvider={
+        accountProvider === 'microsoft' || accountProvider === 'google' ? accountProvider : undefined
+      }
       saving={saving}
       onSave={(draft): void => {
         if (onCloudSave) void onCloudSave(draft)

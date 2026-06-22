@@ -65,7 +65,10 @@ import {
   deleteCalendarEventForAccount,
   patchCalendarEventScheduleForAccount,
   patchCalendarEventCategories,
-  buildCalendarSuggestionFromMessage
+  buildCalendarSuggestionFromMessage,
+  findLocalFreeSlotsForAccount,
+  getAttendeeScheduleForAccount,
+  findMeetingTimesForAccount
 } from '../calendar-service'
 import { transferCalendarEvent } from '../calendar-event-transfer'
 import { assertAppOnline } from '../network-status'
@@ -231,6 +234,27 @@ export function registerCalendarIpc(): void {
     IPC.calendar.suggestFromMessage,
     (_event, messageId: number): Promise<CalendarSuggestionFromMail> =>
       buildCalendarSuggestionFromMessage(messageId)
+  )
+
+  ipcMain.removeHandler(IPC.calendar.findLocalFreeSlots)
+  ipcMain.handle(
+    IPC.calendar.findLocalFreeSlots,
+    (_event, input: import('@shared/types').CalendarFindLocalFreeSlotsInput) =>
+      findLocalFreeSlotsForAccount(input)
+  )
+
+  ipcMain.removeHandler(IPC.calendar.getAttendeeSchedule)
+  ipcMain.handle(
+    IPC.calendar.getAttendeeSchedule,
+    (_event, input: import('@shared/types').CalendarGetAttendeeScheduleInput) =>
+      getAttendeeScheduleForAccount(input)
+  )
+
+  ipcMain.removeHandler(IPC.calendar.findMeetingTimes)
+  ipcMain.handle(
+    IPC.calendar.findMeetingTimes,
+    (_event, input: import('@shared/types').CalendarFindMeetingTimesInput) =>
+      findMeetingTimesForAccount(input)
   )
 
   ipcMain.removeHandler(IPC.calendar.createEvent)

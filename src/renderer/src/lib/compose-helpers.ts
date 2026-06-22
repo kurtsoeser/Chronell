@@ -25,7 +25,7 @@ export function formatRecipientsForInput(recipients: ParsedRecipient[]): string 
 const COMPLETE_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export function parseRecipientEntry(entry: string): ParsedRecipient | null {
-  const trimmed = entry.trim()
+  const trimmed = entry.trim().replace(/[;,]+\s*$/, '')
   if (!trimmed) return null
   const match = trimmed.match(/^(.*?)<([^>]+)>\s*$/)
   if (match) {
@@ -34,9 +34,19 @@ export function parseRecipientEntry(entry: string): ParsedRecipient | null {
     if (!COMPLETE_EMAIL_RE.test(address)) return null
     return { address, name }
   }
-  const address = trimmed
-  if (!COMPLETE_EMAIL_RE.test(address)) return null
-  return { address }
+  if (COMPLETE_EMAIL_RE.test(trimmed)) {
+    return { address: trimmed }
+  }
+  // «Vorname Nachname email@domain» (häufig aus Outlook-Listen, mit/ohne Semikolon)
+  const nameEmail = trimmed.match(/^(.+?)\s+([^\s@]+@[^\s@]+\.[^\s@]+)$/)
+  if (nameEmail) {
+    const name = nameEmail[1]?.trim().replace(/^["']|["']$/g, '') || undefined
+    const address = nameEmail[2]?.trim() ?? ''
+    if (COMPLETE_EMAIL_RE.test(address)) {
+      return { address, ...(name ? { name } : {}) }
+    }
+  }
+  return null
 }
 
 /**

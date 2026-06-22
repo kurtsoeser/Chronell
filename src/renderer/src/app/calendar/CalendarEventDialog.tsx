@@ -11,8 +11,7 @@ import {
   addHours,
   addMonths,
   format,
-  parseISO,
-  set
+  parseISO
 } from 'date-fns'
 import { useTranslation } from 'react-i18next'
 import {
@@ -97,10 +96,12 @@ import { resolvedAccountColorCss } from '@/lib/avatar-color'
 import { EntityContextBlock } from '@/components/connections/EntityContextBlock'
 import { TipTapBody } from '@/components/TipTapBody'
 import { sanitizeComposeHtmlFragment } from '@/lib/sanitize-compose-html'
+import { prepareCalendarEventBodyHtml } from '@shared/calendar-event-body-html'
 import { CalendarEventDescriptionPreview } from '@/app/calendar/CalendarEventDescriptionPreview'
 import { CalendarEventIconPicker } from '@/components/CalendarEventIconPicker'
 import { LocationAutocompleteInput } from '@/components/LocationAutocompleteInput'
 import { ChronellDateField } from '@/components/ChronellDateField'
+import { ChronellTimeField } from '@/components/ChronellTimeField'
 import { useResizableWidth, VerticalSplitter } from '@/components/ResizableSplitter'
 import {
   RecipientTokenField,
@@ -211,27 +212,6 @@ function formatDurationMs(
   if (h > 0 && m > 0) return tr('calendar.eventDialog.durationHMin', { hours: h, minutes: m })
   if (h > 0) return tr('calendar.eventDialog.durationH', { hours: h })
   return tr('calendar.eventDialog.durationMin', { minutes: m })
-}
-
-function quarterHourTimesForYmd(ymd: string): string[] {
-  const base = parseISO(`${ymd}T12:00:00`)
-  const out: string[] = []
-  for (let h = 0; h < 24; h++) {
-    for (let m = 0; m < 60; m += 15) {
-      out.push(
-        format(set(base, { hours: h, minutes: m, seconds: 0, milliseconds: 0 }), 'HH:mm')
-      )
-    }
-  }
-  return out
-}
-
-function timeSelectOptions(ymd: string, currentHm: string): string[] {
-  const base = quarterHourTimesForYmd(ymd)
-  if (currentHm && !base.includes(currentHm)) {
-    return [...base, currentHm].sort()
-  }
-  return base
 }
 
 function taskDatetimeLocalToMs(dtLocal: string): number {
@@ -764,16 +744,6 @@ export function CalendarEventDialog({
     }
   }, [isAllDay, dtStart, dtEnd, eventTimeZone, t])
 
-  const startTimeOptions = useMemo(() => {
-    if (!timedDisplay) return []
-    return timeSelectOptions(timedDisplay.startYmd, timedDisplay.startHm)
-  }, [timedDisplay])
-
-  const endTimeOptions = useMemo(() => {
-    if (!timedDisplay) return []
-    return timeSelectOptions(timedDisplay.endYmd, timedDisplay.endHm)
-  }, [timedDisplay])
-
   /** Formularfelder gesperrt (Busy oder Kalender nur lesbar). */
   const eventFieldsLocked = useMemo(
     () => busy || (mode === 'edit' && initialEvent?.calendarCanEdit === false),
@@ -798,16 +768,6 @@ export function CalendarEventDialog({
       endYmd: ep.ymd
     }
   }, [isTaskCreate, taskPlannedStart, taskPlannedEnd, t])
-
-  const taskStartTimeOptions = useMemo(() => {
-    if (!taskTimedDisplay) return []
-    return timeSelectOptions(taskTimedDisplay.startYmd, taskTimedDisplay.startHm)
-  }, [taskTimedDisplay])
-
-  const taskEndTimeOptions = useMemo(() => {
-    if (!taskTimedDisplay) return []
-    return timeSelectOptions(taskTimedDisplay.endYmd, taskTimedDisplay.endHm)
-  }, [taskTimedDisplay])
 
   const showEventDayColumn = mode === 'create' || mode === 'edit'
 
@@ -1320,7 +1280,7 @@ export function CalendarEventDialog({
 
     const bodyHtml = isEffectivelyEmptyEditorHtml(descriptionHtml)
       ? null
-      : sanitizeComposeHtmlFragment(descriptionHtml.trim())
+      : prepareCalendarEventBodyHtml(sanitizeComposeHtmlFragment(descriptionHtml.trim()))
 
     const parsedAttendees = attendeeEmailsFromField(attendeeInput)
 
@@ -1792,25 +1752,19 @@ export function CalendarEventDialog({
                               }}
                               className={cn(eventDialogPanelSelectClass, 'min-w-0 tabular-nums')}
                             />
-                            <select
+                            <ChronellTimeField
                               disabled={busy}
                               value={taskTimedDisplay.startHm}
                               aria-label={t('tasks.create.plannedStart')}
                               className={cn(eventDialogPanelSelectClass, 'min-w-0 tabular-nums')}
-                              onChange={(e): void => {
-                                const nextStart = mergeTimeIntoEventStart(taskPlannedStart, e.target.value)
+                              onChange={(hm): void => {
+                                const nextStart = mergeTimeIntoEventStart(taskPlannedStart, hm)
                                 setTaskPlannedStart(nextStart)
                                 if (taskDatetimeLocalToMs(taskPlannedEnd) <= taskDatetimeLocalToMs(nextStart)) {
                                   setTaskPlannedEnd(addMinutesToTaskDatetimeLocal(nextStart, 15))
                                 }
                               }}
-                            >
-                              {taskStartTimeOptions.map((hm) => (
-                                <option key={`task-start-${hm}`} value={hm}>
-                                  {hm}
-                                </option>
-                              ))}
-                            </select>
+                            />
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -1833,23 +1787,17 @@ export function CalendarEventDialog({
                               }}
                               className={cn(eventDialogPanelSelectClass, 'min-w-0 tabular-nums')}
                             />
-                            <select
+                            <ChronellTimeField
                               disabled={busy}
                               value={taskTimedDisplay.endHm}
                               aria-label={t('tasks.create.plannedEnd')}
                               className={cn(eventDialogPanelSelectClass, 'min-w-0 tabular-nums')}
-                              onChange={(e): void => {
+                              onChange={(hm): void => {
                                 setTaskPlannedEnd(
-                                  mergeTimeIntoTaskEnd(taskPlannedStart, taskPlannedEnd, e.target.value)
+                                  mergeTimeIntoTaskEnd(taskPlannedStart, taskPlannedEnd, hm)
                                 )
                               }}
-                            >
-                              {taskEndTimeOptions.map((hm) => (
-                                <option key={`task-end-${hm}`} value={hm}>
-                                  {hm}
-                                </option>
-                              ))}
-                            </select>
+                            />
                           </div>
                         </div>
                         <p className="pl-14 text-xs tabular-nums text-muted-foreground">
@@ -1881,13 +1829,12 @@ export function CalendarEventDialog({
                               }}
                               className={cn(eventDialogPanelSelectClass, 'min-w-0 tabular-nums')}
                             />
-                            <select
+                            <ChronellTimeField
                               disabled={eventFieldsLocked}
                               value={timedDisplay.startHm}
                               aria-label={t('calendar.eventDialog.editStartTimeAria')}
                               className={cn(eventDialogPanelSelectClass, 'min-w-0 tabular-nums')}
-                              onChange={(e): void => {
-                                const hm = e.target.value
+                              onChange={(hm): void => {
                                 const nextStart = mergeTimeIntoEventStart(dtStart, hm)
                                 setDtStart(nextStart)
                                 if (
@@ -1897,13 +1844,7 @@ export function CalendarEventDialog({
                                   setDtEnd(addMinutesInEventZone(nextStart, 15, eventTimeZone))
                                 }
                               }}
-                            >
-                              {startTimeOptions.map((hm) => (
-                                <option key={`start-${hm}`} value={hm}>
-                                  {hm}
-                                </option>
-                              ))}
-                            </select>
+                            />
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -1929,21 +1870,15 @@ export function CalendarEventDialog({
                               }}
                               className={cn(eventDialogPanelSelectClass, 'min-w-0 tabular-nums')}
                             />
-                            <select
+                            <ChronellTimeField
                               disabled={eventFieldsLocked}
                               value={timedDisplay.endHm}
                               aria-label={t('calendar.eventDialog.editEndTimeAria')}
                               className={cn(eventDialogPanelSelectClass, 'min-w-0 tabular-nums')}
-                              onChange={(e): void => {
-                                setDtEnd(mergeTimeIntoEventEnd(dtStart, dtEnd, e.target.value, eventTimeZone))
+                              onChange={(hm): void => {
+                                setDtEnd(mergeTimeIntoEventEnd(dtStart, dtEnd, hm, eventTimeZone))
                               }}
-                            >
-                              {endTimeOptions.map((hm) => (
-                                <option key={`end-${hm}`} value={hm}>
-                                  {hm}
-                                </option>
-                              ))}
-                            </select>
+                            />
                           </div>
                         </div>
                         <p className="pl-14 text-xs tabular-nums text-muted-foreground">

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Loader2, RefreshCw, Route, Save, Search, Sparkles, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { ChronellEntityRef } from '@shared/entity-ref'
@@ -40,6 +40,11 @@ import { ConnectionsAiScanPanel } from '@/app/connections/ConnectionsAiScanPanel
 import { ConnectionsEmbeddingIndexBar } from '@/app/connections/ConnectionsEmbeddingIndexBar'
 import { ConnectionsGraphControls } from '@/components/connections/ConnectionsGraphControls'
 import { ConnectionsObjectPalette } from '@/components/connections/ConnectionsObjectPalette'
+import {
+  rangeIdsInListOrder,
+  toggleIdInSet,
+  type BulkSelectionModifiers
+} from '@/lib/id-bulk-selection'
 import {
   moduleColumnHeaderActionsClass,
   moduleColumnHeaderOutlineSmClass,
@@ -213,6 +218,7 @@ export function ConnectionsShell(): JSX.Element {
   const [multiSelectedKeys, setMultiSelectedKeys] = useState<ReadonlySet<string>>(
     () => new Set()
   )
+  const graphSelectionAnchorRef = useRef<string | null>(null)
   const [scanProfile, setScanProfile] = useState<EntityLinkAiScanProfile | null>(null)
   const [density, setDensity] = useState<EntityLinkGraphDensityStats | null>(null)
   const [showLinkQualityOnGraph, setShowLinkQualityOnGraph] = useState(false)
@@ -318,10 +324,37 @@ export function ConnectionsShell(): JSX.Element {
       const el = e.target as HTMLElement | null
       if (el?.closest('input, textarea, select, [contenteditable="true"]')) return
       setMultiSelectedKeys(new Set())
+      graphSelectionAnchorRef.current = null
     }
     window.addEventListener('keydown', onKey)
     return (): void => window.removeEventListener('keydown', onKey)
   }, [multiSelectedKeys.size])
+
+  const applyGraphMultiSelect = useCallback(
+    (key: string, modifiers: BulkSelectionModifiers, visibleKeys: readonly string[]): void => {
+      const extend = modifiers.ctrlKey || modifiers.metaKey
+      if (modifiers.shiftKey) {
+        const anchor = graphSelectionAnchorRef.current ?? selected?.key ?? key
+        const range = rangeIdsInListOrder(visibleKeys, anchor, key)
+        if (extend) {
+          setMultiSelectedKeys((prev) => {
+            const next = new Set(prev)
+            for (const k of range) next.add(k)
+            return next
+          })
+        } else {
+          setMultiSelectedKeys(new Set(range))
+        }
+        graphSelectionAnchorRef.current = anchor
+        return
+      }
+      if (extend) {
+        setMultiSelectedKeys((prev) => toggleIdInSet(prev, key))
+        graphSelectionAnchorRef.current = key
+      }
+    },
+    [selected?.key]
+  )
 
   const buildScanAnchorsFromKeys = useCallback(
     (keys: Iterable<string>): EntityLinkAiScanAnchor[] => {
@@ -335,15 +368,6 @@ export function ConnectionsShell(): JSX.Element {
     },
     [graph]
   )
-
-  const handleToggleMultiSelect = useCallback((key: string): void => {
-    setMultiSelectedKeys((prev) => {
-      const next = new Set(prev)
-      if (next.has(key)) next.delete(key)
-      else next.add(key)
-      return next
-    })
-  }, [])
 
   const scanAnchorsForPanel = useMemo((): EntityLinkAiScanAnchor[] | null => {
     if (multiSelectedKeys.size === 0) return null
@@ -453,6 +477,7 @@ export function ConnectionsShell(): JSX.Element {
   const handleMarqueeComplete = useCallback((nodeKeys: string[]): void => {
     if (nodeKeys.length === 0) return
     setMultiSelectedKeys(new Set(nodeKeys))
+    graphSelectionAnchorRef.current = nodeKeys[0] ?? null
     openScan()
   }, [openScan])
 
@@ -697,14 +722,26 @@ export function ConnectionsShell(): JSX.Element {
     useConnectionsCanvasCreate({ onEntityPlaced: placeCreatedOnCanvas })
 
   const handlePaletteSelect = useCallback(
-    (item: EntityLinkTargetCandidate): void => {
+    (
+      item: EntityLinkTargetCandidate,
+      event: { shiftKey: boolean; ctrlKey: boolean; metaKey: boolean },
+      visibleKeys: readonly string[]
+    ): void => {
+      const key = entityRefKey(item.target)
+      const mod = event.shiftKey || event.ctrlKey || event.metaKey
+      if (mod) {
+        applyGraphMultiSelect(key, event, visibleKeys)
+      } else {
+        setMultiSelectedKeys(new Set())
+        graphSelectionAnchorRef.current = key
+      }
       const node = nodeFromPaletteItem(item, graph)
       setSelected(node)
       setHighlightRef(item.target)
       setPreviewOpen(true)
       if (pathOverlay) clearPath()
     },
-    [graph, setHighlightRef, pathOverlay, clearPath]
+    [graph, setHighlightRef, pathOverlay, clearPath, applyGraphMultiSelect]
   )
 
   const runPathTo = useCallback(
@@ -741,6 +778,7 @@ export function ConnectionsShell(): JSX.Element {
           <ConnectionsObjectPalette
             className="min-h-0 flex-1"
             selectedKey={selectedKey}
+            checkedKeys={multiSelectedKeys}
             onSelectItem={handlePaletteSelect}
           />
         </aside>
@@ -926,7 +964,7 @@ export function ConnectionsShell(): JSX.Element {
                 openNodeContextMenu(node, anchor)
               }}
               multiSelectedKeys={multiSelectedKeys}
-              onToggleMultiSelect={handleToggleMultiSelect}
+              onMultiSelectPointerDown={applyGraphMultiSelect}
               onMarqueeComplete={handleMarqueeComplete}
               onScanIsland={handleScanIsland}
               suggestionHints={suggestionHints}
@@ -941,6 +979,7 @@ export function ConnectionsShell(): JSX.Element {
                   return
                 }
                 setMultiSelectedKeys(new Set())
+                graphSelectionAnchorRef.current = null
                 setEmphasisKeys(null)
                 setSelected(node)
                 if (node) setPreviewOpen(true)

@@ -6,14 +6,17 @@ import { useTranslation } from 'react-i18next'
 import { Loader2, PanelRightClose, SquareArrowOutUpRight } from 'lucide-react'
 import type { MailListItem } from '@shared/types'
 import { cn } from '@/lib/utils'
-import { useMailStore } from '@/stores/mail'
 import {
   mailReadingPopoutOptsFromClick,
   openMailReadingPopout
 } from '@/lib/open-mail-reading-popout'
 import { useAccountsStore } from '@/stores/accounts'
 import { useAppModeStore } from '@/stores/app-mode'
-import { useCalendarPendingFocusStore } from '@/stores/calendar-pending-focus'
+import { useMailStore } from '@/stores/mail'
+import {
+  focusContextPreviewMailMessage,
+  openCalendarEventInCustomViewOrModule
+} from '@/lib/focus-context-preview'
 import {
   useInboxCalendarAgendaCacheStore,
   type InboxAgendaRow
@@ -109,7 +112,6 @@ export function InboxCalendarSidebar({
     () => accounts.filter((a) => a.provider === 'microsoft' || a.provider === 'google'),
     [accounts]
   )
-  const selectMessage = useMailStore((s) => s.selectMessage)
   const setTodoScheduleForMessage = useMailStore((s) => s.setTodoScheduleForMessage)
   const setAppMode = useAppModeStore((s) => s.setMode)
 
@@ -307,11 +309,10 @@ export function InboxCalendarSidebar({
                     className="flex w-full items-stretch gap-1 rounded-md px-1 py-1 text-left hover:bg-secondary/60"
                     onClick={(): void => {
                       if (row.kind === 'mail') {
-                        void selectMessage(row.message.id)
+                        void focusContextPreviewMailMessage(row.message.id)
                         return
                       }
-                      useCalendarPendingFocusStore.getState().queueFocusEvent(row.ev)
-                      setAppMode('calendar')
+                      openCalendarEventInCustomViewOrModule(row.ev, setAppMode)
                     }}
                     onDoubleClick={(e): void => {
                       if (row.kind !== 'mail') return

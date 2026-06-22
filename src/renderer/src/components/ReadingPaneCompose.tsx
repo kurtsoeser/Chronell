@@ -41,10 +41,12 @@ function arrayBufferToBase64(buf: ArrayBuffer): string {
 
 export function ReadingPaneCompose({
   draft,
-  onPopOut
+  onPopOut,
+  hidePopOutButton = false
 }: {
   draft: ComposeDraft
-  onPopOut: () => void
+  onPopOut?: () => void
+  hidePopOutButton?: boolean
 }): JSX.Element {
   const { t } = useTranslation()
   const accounts = useAccountsStore((s) => s.accounts)
@@ -190,15 +192,17 @@ export function ReadingPaneCompose({
             })
           }
         />
-        <button
-          type="button"
-          title={t('mail.readingPane.composePopOutTitle')}
-          aria-label={t('mail.readingPane.composePopOutTitle')}
-          onClick={onPopOut}
-          className="rounded-md border border-border p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
-        >
-          <SquareArrowOutUpRight className="h-3.5 w-3.5" />
-        </button>
+        {!hidePopOutButton && onPopOut ? (
+          <button
+            type="button"
+            title={t('mail.readingPane.composePopOutTitle')}
+            aria-label={t('mail.readingPane.composePopOutTitle')}
+            onClick={onPopOut}
+            className="rounded-md border border-border p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
+          >
+            <SquareArrowOutUpRight className="h-3.5 w-3.5" />
+          </button>
+        ) : null}
       </div>
 
       <ComposeEditorSurface

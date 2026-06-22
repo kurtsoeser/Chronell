@@ -1,5 +1,6 @@
 import { useEditor, EditorContent, type Editor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
+import Link from '@tiptap/extension-link'
 import Placeholder from '@tiptap/extension-placeholder'
 import { ComposeImage } from '@/components/tiptap-compose-image'
 import TextAlign from '@tiptap/extension-text-align'
@@ -159,12 +160,13 @@ export function TipTapBody({
     () => [
       StarterKit.configure({
         codeBlock: false,
-        heading: { levels: [1, 2, 3] },
-        link: {
-          openOnClick: false,
-          autolink: true,
-          HTMLAttributes: { rel: 'noopener noreferrer' }
-        }
+        heading: { levels: [1, 2, 3] }
+      }),
+      Link.configure({
+        openOnClick: false,
+        autolink: true,
+        linkOnPaste: true,
+        HTMLAttributes: { rel: 'noopener noreferrer', target: '_blank' }
       }),
       Placeholder.configure({ placeholder: placeholder ?? 'Nachricht schreiben…' }),
       ComposeImage,

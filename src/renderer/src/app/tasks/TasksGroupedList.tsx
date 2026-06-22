@@ -97,6 +97,8 @@ export interface TasksGroupedListProps {
 
   onTaskClick: (item: TasksListItem, event: MouseEvent) => void
 
+  onTaskDoubleClick?: (item: TasksListItem, event: MouseEvent) => void
+
   onToggleCompleted: (item: TasksListItem) => void
 
   onTaskContextMenu?: (item: TasksListItem, event: MouseEvent) => void
@@ -136,6 +138,8 @@ export function TasksGroupedList({
   onSelect,
 
   onTaskClick,
+
+  onTaskDoubleClick,
 
   onToggleCompleted,
 
@@ -425,7 +429,15 @@ export function TasksGroupedList({
                           : undefined
                       }
 
-                      onDoubleClick={(): void => onSelect(task)}
+                      onDoubleClick={(e): void => {
+                        if (onTaskDoubleClick) {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          onTaskDoubleClick(task, e)
+                          return
+                        }
+                        onSelect(task)
+                      }}
 
                       style={overdueStyle.rowStyle}
 

@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
-import { Trash2 } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { AlertCircle, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import type { CalendarRecurrenceRangeEndMode } from '@shared/types'
 import type { CloudTaskWorkItem } from '@shared/work-item'
 import { CalendarEventIconPicker } from '@/components/CalendarEventIconPicker'
 import { IconColorPickerFooter } from '@/components/IconColorPickerFooter'
@@ -11,8 +12,16 @@ import {
   dueDateInputValue,
   isoToDatetimeLocalValue
 } from '@/app/work-items/work-item-datetime'
+import { CalendarEventRecurrenceSection } from '@/app/calendar/CalendarEventRecurrenceSection'
 import { EntityContextBlock } from '@/components/connections/EntityContextBlock'
-import { TaskRecurrenceSummaryFromItem } from '@/components/TaskRecurrenceSummary'
+import {
+  buildTaskSaveRecurrence,
+  defaultWeekdayFromDueYmd,
+  taskRecurrenceToFormState,
+  type TaskRecurrenceUiFrequency,
+  validateTaskRecurrenceForm
+} from '@/lib/task-recurrence-form'
+import type { TaskSaveRecurrence } from '@shared/types'
 import { cn } from '@/lib/utils'
 import {
   previewDetailFieldControlClass,
@@ -25,6 +34,8 @@ export interface CloudTaskSaveDraft {
   dueIso: string | null
   plannedStartIso: string | null
   plannedEndIso: string | null
+  /** `null` = keine Serie; `undefined` = unveraendert lassen (z. B. Inline-Vorschau). */
+  recurrence?: TaskSaveRecurrence | null
 }
 
 export interface CloudTaskDisplayPatch {
@@ -35,6 +46,7 @@ export interface CloudTaskDisplayPatch {
 export interface CloudTaskWorkItemDetailProps {
   item: CloudTaskWorkItem
   accountLine?: string
+  accountProvider?: 'microsoft' | 'google'
   saving?: boolean
   onSave: (draft: CloudTaskSaveDraft) => void | Promise<void>
   onDelete: () => void | Promise<void>
@@ -44,6 +56,7 @@ export interface CloudTaskWorkItemDetailProps {
 export function CloudTaskWorkItemDetail({
   item,
   accountLine,
+  accountProvider,
   saving,
   onSave,
   onDelete,
@@ -59,22 +72,78 @@ export function CloudTaskWorkItemDetail({
   const [plannedEnd, setPlannedEnd] = useState(() =>
     isoToDatetimeLocalValue(item.planned.plannedEndIso)
   )
+  const initialRecurrence = taskRecurrenceToFormState(item.task)
+  const [recurFreq, setRecurFreq] = useState<TaskRecurrenceUiFrequency>(initialRecurrence.recurFreq)
+  const [recurEnd, setRecurEnd] = useState<CalendarRecurrenceRangeEndMode>(initialRecurrence.recurEnd)
+  const [recurUntilDate, setRecurUntilDate] = useState(initialRecurrence.recurUntilDate)
+  const [recurCount, setRecurCount] = useState(initialRecurrence.recurCount)
+  const [recurWeekdays, setRecurWeekdays] = useState(initialRecurrence.recurWeekdays)
+  const [saveError, setSaveError] = useState<string | null>(null)
+
+  /** Nur Server-/Auswahl-Daten — nicht die `item`-Referenz (wechselt bei jedem Parent-Rebuild). */
+  const savedRecurrenceKey = useMemo(
+    () => JSON.stringify(item.task.recurrence ?? null),
+    [item.task.recurrence]
+  )
 
   useEffect(() => {
     setTitle(item.title)
     setNotes(item.task.notes ?? '')
     setDue(dueDateInputValue(item.dueAtIso))
+    setSaveError(null)
+  }, [item.stableKey, item.title, item.task.notes, item.dueAtIso])
+
+  useEffect(() => {
     setPlannedStart(isoToDatetimeLocalValue(item.planned.plannedStartIso))
     setPlannedEnd(isoToDatetimeLocalValue(item.planned.plannedEndIso))
-  }, [item])
+  }, [item.stableKey, item.planned.plannedStartIso, item.planned.plannedEndIso])
+
+  useEffect(() => {
+    const nextRecurrence = taskRecurrenceToFormState(item.task)
+    setRecurFreq(nextRecurrence.recurFreq)
+    setRecurEnd(nextRecurrence.recurEnd)
+    setRecurUntilDate(nextRecurrence.recurUntilDate)
+    setRecurCount(nextRecurrence.recurCount)
+    setRecurWeekdays(nextRecurrence.recurWeekdays)
+  }, [item.stableKey, savedRecurrenceKey])
 
   const handleSave = (): void => {
+    const dueYmd = due.trim()
+    const recurErr = validateTaskRecurrenceForm(
+      { recurFreq, recurEnd, recurUntilDate, recurCount, recurWeekdays },
+      dueYmd
+    )
+    if (recurErr === 'dueRequired') {
+      setSaveError(t('tasks.create.recurrenceDueRequired'))
+      return
+    }
+    if (recurErr === 'untilInvalid') {
+      setSaveError(t('tasks.create.recurrenceUntilInvalid'))
+      return
+    }
+    if (recurErr === 'untilBeforeDue') {
+      setSaveError(t('tasks.create.recurrenceUntilBeforeDue'))
+      return
+    }
+    if (recurErr === 'countInvalid') {
+      setSaveError(t('tasks.create.recurrenceCountInvalid'))
+      return
+    }
+    setSaveError(null)
+    const recurrence = buildTaskSaveRecurrence({
+      recurFreq,
+      recurEnd,
+      recurUntilDate,
+      recurCount,
+      recurWeekdays
+    })
     void onSave({
       title: title.trim() || t('tasks.shell.untitled'),
       notes: notes.trim(),
       dueIso: dueDateInputToStorageIso(due),
       plannedStartIso: datetimeLocalValueToIso(plannedStart),
-      plannedEndIso: datetimeLocalValueToIso(plannedEnd)
+      plannedEndIso: datetimeLocalValueToIso(plannedEnd),
+      recurrence: recurrence ?? null
     })
   }
 
@@ -130,16 +199,56 @@ export function CloudTaskWorkItemDetail({
               className={previewDetailFieldControlClass}
             />
           </div>
-          <TaskRecurrenceSummaryFromItem task={item.task} />
-
           <div className="shrink-0">
             <label className={previewDetailFieldLabelClass}>{t('tasks.shell.fieldDue')}</label>
             <input
               type="date"
               value={due}
-              onChange={(e): void => setDue(e.target.value)}
+              onChange={(e): void => {
+                const v = e.target.value
+                setDue(v)
+                if (
+                  v &&
+                  recurWeekdays.length === 0 &&
+                  (recurFreq === 'weekly' || recurFreq === 'biweekly')
+                ) {
+                  setRecurWeekdays(defaultWeekdayFromDueYmd(v))
+                }
+              }}
               className={previewDetailFieldControlClass}
             />
+          </div>
+          <div className="shrink-0">
+            <CalendarEventRecurrenceSection
+              i18nPrefix="tasks.create"
+              recurFreq={recurFreq}
+              setRecurFreq={(v): void => {
+                setRecurFreq(v)
+                if (
+                  (v === 'weekly' || v === 'biweekly') &&
+                  recurWeekdays.length === 0 &&
+                  due.trim()
+                ) {
+                  setRecurWeekdays(defaultWeekdayFromDueYmd(due.trim()))
+                }
+              }}
+              recurEnd={recurEnd}
+              setRecurEnd={setRecurEnd}
+              recurUntilDate={recurUntilDate}
+              setRecurUntilDate={setRecurUntilDate}
+              recurCount={recurCount}
+              setRecurCount={setRecurCount}
+              recurWeekdays={recurWeekdays}
+              setRecurWeekdays={setRecurWeekdays}
+              eventFieldsLocked={Boolean(saving)}
+              embedded
+              controlClass={previewDetailFieldControlClass}
+            />
+            {accountProvider === 'google' && recurFreq !== 'none' ? (
+              <p className="mt-2 text-[10px] leading-snug text-muted-foreground">
+                {t('tasks.create.recurrenceGoogleNote')}
+              </p>
+            ) : null}
           </div>
           <div className="shrink-0">
             <label className={previewDetailFieldLabelClass}>{t('tasks.shell.fieldNotes')}</label>
@@ -153,6 +262,12 @@ export function CloudTaskWorkItemDetail({
               )}
             />
           </div>
+          {saveError ? (
+            <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-2xs text-destructive">
+              <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <span>{saveError}</span>
+            </div>
+          ) : null}
         </div>
 
         <EntityContextBlock

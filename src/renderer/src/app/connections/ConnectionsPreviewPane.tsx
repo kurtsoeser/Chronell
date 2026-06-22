@@ -171,16 +171,20 @@ function ConnectionsPreviewChrome({
           }}
         />
         <div
-          className="flex min-h-0 shrink-0 flex-col overflow-hidden bg-secondary/[0.02]"
+          className="flex min-h-0 shrink-0 flex-col overflow-hidden border-t border-border/40 bg-secondary/[0.02]"
           style={{ height: Math.min(contextHeight, contextHeightMax) }}
         >
-          <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             <EntityContextBlock
               anchor={node.ref}
               noteTarget={contextNoteTarget}
               showObjectNote={contextNoteTarget != null}
               sectionCollapsedDefault={false}
               contentPaddingClass="px-3"
+              noteEditorFillHeight={contextNoteTarget != null}
+              contextFillHeight
+              dense
+              className="min-h-0 flex-1"
             />
           </div>
         </div>

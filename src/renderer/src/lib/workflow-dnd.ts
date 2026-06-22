@@ -31,6 +31,18 @@ function parseIdsFromPlainText(plain: string): number[] {
  * Hinweis: In Electron/Chromium ist `getData` fuer Custom-MIME oft erst beim `drop`
  * zuverlaessig; `text/plain` mit komma-separierten IDs dient als Fallback.
  */
+/** Setzt natives Drag-Payload fuer eine oder mehrere Mail-Message-IDs. */
+export function writeMailDragPayload(dt: DataTransfer, messageIds: readonly number[]): void {
+  const uniq = [...new Set(messageIds.filter((id) => Number.isFinite(id)))].map(Number)
+  if (uniq.length === 0) return
+  const payload = JSON.stringify(uniq)
+  dt.setData(MIME_THREAD_IDS, payload)
+  dt.setData('text/plain', uniq.join(','))
+  dt.setData('text/mailclient-message-id', String(uniq[0]))
+  dt.setData('application/x-mailclient-message-id', String(uniq[0]))
+  dt.effectAllowed = 'move'
+}
+
 export function readDraggedWorkflowMessageIds(dt: DataTransfer): number[] {
   const raw = dt.getData(MIME_THREAD_IDS).trim()
   if (raw) {

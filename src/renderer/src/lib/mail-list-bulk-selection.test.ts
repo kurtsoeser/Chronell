@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   messageIdFromMailListRow,
   orderedMessageIdsFromRows,
-  rangeMessageIdsInListOrder
+  rangeMessageIdsInListOrder,
+  resolveBulkDragMessageIds
 } from '@/lib/mail-list-bulk-selection'
 import type { MailListVirtualRow } from '@/lib/mail-list-arrange'
 import type { MailListItem } from '@shared/types'
@@ -78,6 +79,22 @@ describe('orderedMessageIdsFromRows', () => {
       }
     ]
     expect(orderedMessageIdsFromRows(rows)).toEqual([1, 2])
+  })
+})
+
+describe('resolveBulkDragMessageIds', () => {
+  it('returns all selected ids when dragged row is part of bulk selection', () => {
+    const selected = new Set([10, 20, 30])
+    expect(resolveBulkDragMessageIds(20, [20], selected)).toEqual([10, 20, 30])
+  })
+
+  it('returns fallback when row is not bulk-selected', () => {
+    const selected = new Set([10, 30])
+    expect(resolveBulkDragMessageIds(20, [20, 21], selected)).toEqual([20, 21])
+  })
+
+  it('returns fallback when nothing is selected', () => {
+    expect(resolveBulkDragMessageIds(20, [20, 21], new Set())).toEqual([20, 21])
   })
 })
 

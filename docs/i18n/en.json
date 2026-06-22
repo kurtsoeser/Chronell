@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Chronell — Manage your time, not your inbox",
-    "description": "Chronell 0.9.30: Custom views with layout wizard, mail & calendar workspace — desktop work hub for Windows 11 with Microsoft 365 and Google."
+    "description": "Chronell 0.9.31: Custom views with layout wizard, mail & calendar workspace — desktop work hub for Windows 11 with Microsoft 365 and Google."
   },
   "nav": {
     "method": "The Method",
@@ -178,14 +178,21 @@
     "eyebrow": "Release overview",
     "title": "What shipped in recent updates",
     "lead": "From the new Fluent look to the connection graph and profile sync — Chronell moves fast without putting your mail in the cloud.",
-    "v0930": {
+    "v0931": {
       "badge": "Current",
       "date": "Juni 2026",
       "title": "Mail and Calendar",
       "b1": "Mail: Mail workspace: sidebar, attachments, EWS, and actions",
       "b2": "Calendar: Calendar and events: dialog, preview, categories, and shell",
+      "b3": "Connections: Connections graph and entity links",
+      "b4": "Homepage: Release notes, homepage timeline, and download for 0.9.31"
+    },"v0930": {
+      "date": "Juni 2026",
+      "title": "Mail and Calendar",
+      "b1": "Mail: Mail workspace: sidebar, attachments, EWS, and actions",
+      "b2": "Calendar: Calendar and events: dialog, preview, categories, and shell",
       "b3": "Settings: Settings, onboarding, and backup",
-      "b4": "Homepage: Release notes, homepage timeline, and download for 0.9.30"
+      "b4": "Homepage: Release notes, homepage timeline, and download for 0.9.31"
     },"v0929": {
       "date": "June 2026",
       "title": "Custom views & mail/calendar",
@@ -199,28 +206,28 @@
       "b1": "Mail: Mail workspace: sidebar, attachments, EWS, and actions",
       "b2": "Calendar: Calendar and events: dialog, preview, categories, and shell",
       "b3": "Tasks: Tasks module and cloud task sync",
-      "b4": "Homepage: Release notes, homepage timeline, and download for 0.9.30"
+      "b4": "Homepage: Release notes, homepage timeline, and download for 0.9.31"
     },"v0927": {
       "date": "Mai 2026",
       "title": "Mail and Connections",
       "b1": "Mail: Mail workspace: sidebar, attachments, EWS, and actions",
       "b2": "Connections: Connections graph and entity links",
       "b3": "Settings: Settings, onboarding, and backup",
-      "b4": "Homepage: Release notes, homepage timeline, and download for 0.9.30"
+      "b4": "Homepage: Release notes, homepage timeline, and download for 0.9.31"
     },"v0926": {
       "date": "Mai 2026",
       "title": "Mail and Tasks",
       "b1": "Mail: Mail workspace: sidebar, attachments, EWS, and actions",
       "b2": "Tasks: Tasks module and cloud task sync",
       "b3": "Settings: Settings, onboarding, and backup",
-      "b4": "Homepage: Release notes, homepage timeline, and download for 0.9.30"
+      "b4": "Homepage: Release notes, homepage timeline, and download for 0.9.31"
     },"v0925": {
       "date": "Mai 2026",
       "title": "Mail and Files",
       "b1": "Mail: Mail workspace: sidebar, attachments, EWS, and actions",
       "b2": "Files: New Files module: cloud files, mail attachments, and index sync",
       "b3": "Calendar: Calendar and events: dialog, preview, categories, and shell",
-      "b4": "Homepage: Release notes, homepage timeline, and download for 0.9.30"
+      "b4": "Homepage: Release notes, homepage timeline, and download for 0.9.31"
     },"v0923": {
       "date": "May 2026",
       "title": "ICS import, meta folders & module polish",
@@ -294,7 +301,7 @@
   "highlights": {
     "eyebrow": "Try it now",
     "title": "Four focus areas in the current beta",
-    "lead": "Version 0.9.30 adds custom views with a layout wizard — plus refined mail and calendar workspaces, floating panels, and improved settings.",
+    "lead": "Version 0.9.31 adds custom views with a layout wizard — plus refined mail and calendar workspaces, floating panels, and improved settings.",
     "compose": {
       "title": "Custom views",
       "desc": "Your own workspaces from mail, calendar, tasks, and more — as a top-bar tab, layout via wizard.",
@@ -508,12 +515,12 @@
     "privacy": "Privacy"
   },
   "whatsNew": {
-    "label": "Version 0.9.30",
+    "label": "Version 0.9.31",
     "tagline": "Custom views · layout wizard · floating panels · mail & calendar"
   },
   "cta": {
     "title": "Ready for the new Chronell?",
-    "body": "Download version 0.9.30 for Windows 11 — custom views with layout wizard, floating panels, refined mail and calendar workspace, and optional cloud sync. Updates replace your version without losing data.",
+    "body": "Download version 0.9.31 for Windows 11 — custom views with layout wizard, floating panels, refined mail and calendar workspace, and optional cloud sync. Updates replace your version without losing data.",
     "button": "Download now"
   }
 }
