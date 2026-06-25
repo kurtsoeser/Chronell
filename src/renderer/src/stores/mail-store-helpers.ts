@@ -192,3 +192,26 @@ export function buildNavigableMessageIds(state: MailNavigableLayoutState): numbe
   )
   return navigableIdsFromFlatRows(visibleFlatRows)
 }
+
+/**
+ * Naechste sichtbare Mail nach Entfernen einer Nachricht aus der aktuellen Ansicht
+ * (Liste, Filter, Thread-Layout). Bevorzugt die Mail an derselben Listenposition,
+ * sonst die vorherige.
+ */
+export function pickSuccessorMessageId(
+  state: MailNavigableLayoutState,
+  removedMessageId: number
+): number | null {
+  const ids = buildNavigableMessageIds(state)
+  const idx = ids.indexOf(removedMessageId)
+  if (idx !== -1) {
+    const remaining = ids.filter((id) => id !== removedMessageId)
+    return remaining[idx] ?? remaining[idx - 1] ?? null
+  }
+
+  const rawIdx = state.messages.findIndex((m) => m.id === removedMessageId)
+  if (rawIdx === -1) return null
+
+  const remaining = state.messages.filter((m) => m.id !== removedMessageId)
+  return remaining[rawIdx]?.id ?? remaining[rawIdx - 1]?.id ?? null
+}

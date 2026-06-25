@@ -3,15 +3,20 @@ import { useTranslation } from 'react-i18next'
 import type { CalendarEventView } from '@shared/types'
 import type { CloudTaskListItem } from '@/app/tasks/tasks-types'
 import type { WorkItemPlannedSchedule } from '@shared/work-item'
+import { cloudTaskStableKey } from '@shared/work-item-keys'
 import { CalendarEventPreview } from '@/app/calendar/CalendarEventPreview'
 import { CalendarSchedulingPanel } from '@/app/calendar/CalendarSchedulingPanel'
-import { CloudTaskItemPreview } from '@/app/calendar/CloudTaskItemPreview'
+import { taskItemToWorkItem } from '@/app/work-items/work-item-mapper'
 import { parsePanelPopoutRoute } from '@/app/panel-popout/panel-popout-route'
 import type { CalendarPreviewPopoutStash } from '@/app/panel-popout/panel-popout-stash-types'
 import { PopoutWindowChrome } from '@/app/panel-popout/PopoutWindowChrome'
 import { requestPanelPopoutDock } from '@/lib/request-panel-popout-dock'
 import { ReadingPane } from '@/app/layout/ReadingPane'
-import type { CloudTaskDisplayPatch, CloudTaskSaveDraft } from '@/app/work/CloudTaskWorkItemDetail'
+import {
+  CloudTaskWorkItemDetail,
+  type CloudTaskDisplayPatch,
+  type CloudTaskSaveDraft
+} from '@/app/work/CloudTaskWorkItemDetail'
 import { useAccountsStore } from '@/stores/accounts'
 import { useMailStore } from '@/stores/mail'
 import { useZoomShortcuts } from '@/hooks/use-zoom-shortcuts'
@@ -80,11 +85,37 @@ export function CalendarPreviewPopoutShell(): JSX.Element {
       if (stash.focus === 'task') {
         const tasks = await window.mailClient.tasks.listTasks({
           accountId: stash.accountId,
-          listId: stash.listId
+          listId: stash.listId,
+          showCompleted: true
         })
         const hit = tasks.find((row) => row.id === stash.taskId)
-        if (!cancelled && hit) {
-          setCloudTask({ ...hit, accountId: stash.accountId, listName: '', source: 'cloud' })
+        if (!hit) {
+          if (!cancelled) setCloudTask(null)
+          return
+        }
+        const lists = await window.mailClient.tasks.listLists({ accountId: stash.accountId })
+        const listName = lists.find((l) => l.id === stash.listId)?.name ?? ''
+        const ctx: CloudTaskListItem = {
+          ...hit,
+          accountId: stash.accountId,
+          listName,
+          source: 'cloud'
+        }
+        const taskKey = cloudTaskStableKey(stash.accountId, stash.listId, stash.taskId)
+        const plannedRows = await window.mailClient.tasks.listPlannedSchedules({
+          taskKeys: [taskKey]
+        })
+        const plannedRow = plannedRows.find((p) => p.taskKey === taskKey)
+        if (!cancelled) {
+          setCloudTask(ctx)
+          setCloudTaskPlanned(
+            plannedRow
+              ? {
+                  plannedStartIso: plannedRow.plannedStartIso,
+                  plannedEndIso: plannedRow.plannedEndIso
+                }
+              : null
+          )
         }
       }
       if (stash.focus === 'mail') {
@@ -157,11 +188,34 @@ export function CalendarPreviewPopoutShell(): JSX.Element {
 
   const fcTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
 
+  const cloudTaskWorkItem = useMemo(() => {
+    if (!cloudTask) return null
+    const key = cloudTaskStableKey(cloudTask.accountId, cloudTask.listId, cloudTask.id)
+    const plannedByTaskKey = cloudTaskPlanned
+      ? new Map<string, WorkItemPlannedSchedule>([[key, cloudTaskPlanned]])
+      : undefined
+    return taskItemToWorkItem(cloudTask, { plannedByTaskKey })
+  }, [cloudTask, cloudTaskPlanned])
+
+  const cloudTaskAccountLine = useMemo(() => {
+    if (!cloudTask) return undefined
+    const acc =
+      accounts.find((a) => a.id === cloudTask.accountId)?.displayName ?? cloudTask.accountId
+    return cloudTask.listName ? `${acc} · ${cloudTask.listName}` : acc
+  }, [cloudTask, accounts])
+
+  const cloudTaskAccountProvider = useMemo((): 'microsoft' | 'google' | undefined => {
+    if (!cloudTask) return undefined
+    const p = accounts.find((a) => a.id === cloudTask.accountId)?.provider
+    return p === 'microsoft' || p === 'google' ? p : undefined
+  }, [cloudTask, accounts])
+
   const savePreviewCloudTask = useCallback(async (draft: CloudTaskSaveDraft): Promise<void> => {
     if (!cloudTask) return
     setTaskSaving(true)
     try {
-      await window.mailClient.tasks.updateTask({
+      const taskKey = cloudTaskStableKey(cloudTask.accountId, cloudTask.listId, cloudTask.id)
+      const next = await window.mailClient.tasks.updateTask({
         accountId: cloudTask.accountId,
         listId: cloudTask.listId,
         taskId: cloudTask.id,
@@ -171,21 +225,62 @@ export function CalendarPreviewPopoutShell(): JSX.Element {
         completed: cloudTask.completed,
         recurrence: draft.recurrence
       })
+      if (draft.plannedStartIso && draft.plannedEndIso) {
+        await window.mailClient.tasks.setPlannedSchedule({
+          taskKey,
+          plannedStartIso: draft.plannedStartIso,
+          plannedEndIso: draft.plannedEndIso
+        })
+        setCloudTaskPlanned({
+          plannedStartIso: draft.plannedStartIso,
+          plannedEndIso: draft.plannedEndIso
+        })
+      } else {
+        await window.mailClient.tasks.clearPlannedSchedule({ taskKey })
+        setCloudTaskPlanned(null)
+      }
+      setCloudTask({
+        ...next,
+        accountId: cloudTask.accountId,
+        listName: cloudTask.listName,
+        source: 'cloud'
+      })
     } finally {
       setTaskSaving(false)
     }
   }, [cloudTask])
+
+  const deletePreviewCloudTask = useCallback(async (): Promise<void> => {
+    if (!cloudTask) return
+    setTaskSaving(true)
+    try {
+      await window.mailClient.tasks.deleteTask({
+        accountId: cloudTask.accountId,
+        listId: cloudTask.listId,
+        taskId: cloudTask.id
+      })
+      close()
+    } finally {
+      setTaskSaving(false)
+    }
+  }, [cloudTask, close])
 
   const patchPreviewCloudTaskDisplay = useCallback(
     async (patch: CloudTaskDisplayPatch): Promise<void> => {
       if (!cloudTask) return
       setTaskSaving(true)
       try {
-        await window.mailClient.tasks.patchTaskDisplay({
+        const next = await window.mailClient.tasks.patchTaskDisplay({
           accountId: cloudTask.accountId,
           listId: cloudTask.listId,
           taskId: cloudTask.id,
           ...patch
+        })
+        setCloudTask({
+          ...next,
+          accountId: cloudTask.accountId,
+          listName: cloudTask.listName,
+          source: 'cloud'
         })
       } finally {
         setTaskSaving(false)
@@ -212,16 +307,14 @@ export function CalendarPreviewPopoutShell(): JSX.Element {
       />
     ) : (
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        {cloudTask ? (
-          <CloudTaskItemPreview
-            task={cloudTask}
-            planned={cloudTaskPlanned}
-            accountDisplayName={
-              accounts.find((a) => a.id === cloudTask.accountId)?.displayName ?? cloudTask.accountId
-            }
-            editable
+        {cloudTaskWorkItem ? (
+          <CloudTaskWorkItemDetail
+            item={cloudTaskWorkItem}
+            accountLine={cloudTaskAccountLine}
+            accountProvider={cloudTaskAccountProvider}
             saving={taskSaving}
             onSave={savePreviewCloudTask}
+            onDelete={deletePreviewCloudTask}
             onDisplayChange={patchPreviewCloudTaskDisplay}
           />
         ) : calendarEvent ? (

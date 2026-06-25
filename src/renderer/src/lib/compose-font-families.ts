@@ -23,6 +23,7 @@ export interface ComposeFontFamily {
 /** System- und Web-Safe-Schriften (überall verfügbar, kein Download). */
 const WEB_SAFE_COMPOSE_FONTS: ComposeFontFamily[] = [
   { id: 'system', label: 'System', value: 'system-ui, sans-serif' },
+  { id: 'calibri', label: 'Calibri', value: 'Calibri, Arial, sans-serif' },
   { id: 'arial', label: 'Arial', value: 'Arial, Helvetica, sans-serif' },
   { id: 'georgia', label: 'Georgia', value: 'Georgia, serif' },
   { id: 'courier', label: 'Courier New', value: "'Courier New', Courier, monospace" },
@@ -61,3 +62,17 @@ export const COMPOSE_FONT_FAMILIES: readonly ComposeFontFamily[] = [
   ...WEB_SAFE_COMPOSE_FONTS,
   ...BUNDLED_COMPOSE_FONTS
 ]
+
+export const COMPOSE_DEFAULT_FONT_FAMILY_ID = 'calibri'
+
+export function composeFontFamilyById(id: string): ComposeFontFamily | undefined {
+  return COMPOSE_FONT_FAMILIES.find((f) => f.id === id)
+}
+
+export function resolveComposeFontFamilyValue(id: string): string {
+  return (
+    composeFontFamilyById(id)?.value ??
+    composeFontFamilyById(COMPOSE_DEFAULT_FONT_FAMILY_ID)?.value ??
+    'Arial, Helvetica, sans-serif'
+  )
+}

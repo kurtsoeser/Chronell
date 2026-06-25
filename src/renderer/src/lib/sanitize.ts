@@ -280,7 +280,7 @@ function buildMailShadowLightThemeCss(contentPadding: string): string {
       color: #1f1f23;
       forced-color-adjust: none;
     }
-    a { color: #0b66c2; }
+    a { color: #0b66c2; cursor: pointer; }
     img { max-width: 100%; height: auto; }
     blockquote { border-left: 3px solid #d6d6db; margin: 0 0 0 4px; padding: 4px 12px;
       color: #555; }
@@ -387,6 +387,7 @@ function buildMailDarkHtmlShellCss(
     .mail-html-invert-layer a:visited {
       color: #915700 !important;
       text-decoration-color: #915700 !important;
+      cursor: pointer;
     }
     img { max-width: 100%; height: auto; }
     table { max-width: 100%; }
@@ -450,7 +451,7 @@ const calendarDescriptionLightThemeCss = `
       word-wrap: break-word;
       overflow: hidden;
     }
-    a { color: #0b66c2; }
+    a { color: #0b66c2; cursor: pointer; }
     img { max-width: 100%; height: auto; }
     blockquote { border-left: 3px solid #d6d6db; margin: 0 0 0 4px; padding: 4px 12px; color: #555; }
     table { max-width: 100%; }

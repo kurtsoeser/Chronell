@@ -7,6 +7,7 @@ import {
   sanitizeMailHtml,
   type MailViewerTheme
 } from '@/lib/sanitize'
+import { prepareCalendarEventBodyHtml } from '@shared/calendar-event-body-html'
 import { useSanitizedHtmlShadowRoot } from '@/lib/use-sanitized-html-shadow-root'
 import { previewSectionDividerClass } from '@/lib/chronell-ui-classes'
 import { cn } from '@/lib/utils'
@@ -50,7 +51,9 @@ export function CalendarEventDescriptionPreview({
 
   const safeHtml = useMemo(() => {
     if (isEmpty) return ''
-    return sanitizeMailHtml(html.trim(), { loadImages: true })
+    const prepared = prepareCalendarEventBodyHtml(html.trim())
+    if (!prepared) return ''
+    return sanitizeMailHtml(prepared, { loadImages: true })
   }, [html, isEmpty])
 
   const shadowInnerHtml = useMemo(

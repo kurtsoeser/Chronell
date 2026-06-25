@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { hasComposeDraftContent } from './compose-draft-save'
+import { buildDefaultComposeBodyHtml } from './compose-default-body'
 import type { ComposeDraft } from '@/stores/compose'
 
 function minimalDraft(overrides: Partial<ComposeDraft> = {}): ComposeDraft {
@@ -38,5 +39,11 @@ describe('hasComposeDraftContent', () => {
 
   it('ignoriert nur Zitat ohne Empfaenger oder Text', () => {
     expect(hasComposeDraftContent(minimalDraft())).toBe(false)
+  })
+
+  it('ignoriert leeren Standard-Editor-Inhalt', () => {
+    expect(
+      hasComposeDraftContent(minimalDraft({ prependRichHtml: buildDefaultComposeBodyHtml() }))
+    ).toBe(false)
   })
 })

@@ -1,0 +1,63 @@
+import type { Editor } from '@tiptap/react'
+import { resolveComposeFontFamilyValue } from '@/lib/compose-font-families'
+import { composeFontSizePtOptionValue } from '@/lib/compose-font-sizes'
+import {
+  readComposeSettingsPrefs,
+  type ComposeSettingsPrefsV1
+} from '@/lib/compose-settings-prefs'
+
+function escapeHtmlAttr(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
+
+export function isComposeBodyEffectivelyEmpty(html: string): boolean {
+  const trimmed = html.trim()
+  if (!trimmed) return true
+  const stripped = trimmed
+    .replace(/<br\s*\/?>/gi, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/<[^>]+>/g, '')
+    .replace(/\s+/g, '')
+  return stripped.length === 0
+}
+
+export function buildDefaultComposeBodyHtml(
+  prefs: ComposeSettingsPrefsV1 = readComposeSettingsPrefs()
+): string {
+  const family = resolveComposeFontFamilyValue(prefs.defaultFontFamilyId)
+  const size = composeFontSizePtOptionValue(prefs.defaultFontSizePt)
+  const color = prefs.defaultTextColor
+  return `<p><span style="font-family:${escapeHtmlAttr(family)};font-size:${escapeHtmlAttr(size)};color:${escapeHtmlAttr(color)}"><br></span></p>`
+}
+
+export function applyComposeDefaultTypingMarks(
+  editor: Editor,
+  prefs: ComposeSettingsPrefsV1 = readComposeSettingsPrefs()
+): void {
+  if (editor.isDestroyed) return
+  const family = resolveComposeFontFamilyValue(prefs.defaultFontFamilyId)
+  const size = composeFontSizePtOptionValue(prefs.defaultFontSizePt)
+  editor
+    .chain()
+    .setMark('textStyle', {
+      fontFamily: family,
+      fontSize: size,
+      color: prefs.defaultTextColor
+    })
+    .run()
+}
+
+export function composeEditorSurfaceStyle(
+  prefs: ComposeSettingsPrefsV1 = readComposeSettingsPrefs()
+): { fontFamily: string; fontSize: string; color: string; lineHeight: string } {
+  return {
+    fontFamily: resolveComposeFontFamilyValue(prefs.defaultFontFamilyId),
+    fontSize: composeFontSizePtOptionValue(prefs.defaultFontSizePt),
+    color: prefs.defaultTextColor,
+    lineHeight: '1.5'
+  }
+}

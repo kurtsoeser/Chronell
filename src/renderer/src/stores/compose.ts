@@ -20,6 +20,8 @@ import type { ConnectionsCanvasCreateAnchor } from '@/app/connections/connection
 import { useAccountsStore } from '@/stores/accounts'
 import { useMailStore } from '@/stores/mail'
 import { hasComposeDraftContent } from '@/lib/compose-draft-save'
+import { buildDefaultComposeBodyHtml } from '@/lib/compose-default-body'
+import { readComposeSettingsPrefs } from '@/lib/compose-settings-prefs'
 import { shouldUseOsFloatingPanel } from '@/lib/open-panel-popout'
 import { openComposeOsPopout } from '@/lib/open-panel-popout-helpers'
 import { showAppConfirm } from '@/stores/app-dialog'
@@ -182,13 +184,14 @@ function defaultComposeFields(accountId: string): Pick<
   | 'scheduledSendAt'
 > {
   const sig = initialSignatureForAccount(accountId)
+  const prefs = readComposeSettingsPrefs()
   return {
     signatureRichHtml: sig.html,
     signatureTemplateId: sig.templateId,
     referenceAttachments: [],
-    importance: 'normal',
+    importance: prefs.defaultImportance,
     isDeliveryReceiptRequested: false,
-    isReadReceiptRequested: false,
+    isReadReceiptRequested: prefs.requestReadReceiptByDefault,
     smimeEncrypt: false,
     smimeSign: false,
     scheduledSendAt: null
@@ -295,7 +298,7 @@ function openReadingPaneDraft(
     bcc: '',
     showCcBcc: false,
     subject: '',
-    prependRichHtml: '',
+    prependRichHtml: buildDefaultComposeBodyHtml(),
     prependPlain: '',
     quotedHtml: '',
     attachments: [],
@@ -332,7 +335,7 @@ export const useComposeStore = create<ComposeState>((set, get) => ({
       bcc: '',
       showCcBcc: false,
       subject: '',
-      prependRichHtml: '',
+      prependRichHtml: buildDefaultComposeBodyHtml(),
       prependPlain: '',
       quotedHtml: '',
       attachments: [],
@@ -402,7 +405,7 @@ export const useComposeStore = create<ComposeState>((set, get) => ({
       bcc: '',
       showCcBcc: false,
       subject: '',
-      prependRichHtml: '',
+      prependRichHtml: buildDefaultComposeBodyHtml(),
       prependPlain: '',
       quotedHtml: '',
       attachments: [],

@@ -1,4 +1,5 @@
 import type { ComposeDraft } from '@/stores/compose'
+import { isComposeBodyEffectivelyEmpty } from '@/lib/compose-default-body'
 
 /** Verzögerung nach der letzten Änderung, bis der Entwurf in «Entwürfe» geschrieben wird. */
 export const COMPOSE_AUTO_SAVE_DELAY_MS = 5_000
@@ -24,13 +25,15 @@ export function composeDraftSaveFingerprint(draft: ComposeDraft): string {
 }
 
 export function hasComposeDraftContent(draft: ComposeDraft): boolean {
+  const hasBody =
+    (draft.prependRichHtml.trim() && !isComposeBodyEffectivelyEmpty(draft.prependRichHtml)) ||
+    draft.prependPlain.trim()
   return Boolean(
     draft.to.trim() ||
       draft.cc.trim() ||
       draft.bcc.trim() ||
       draft.subject.trim() ||
-      draft.prependRichHtml.trim() ||
-      draft.prependPlain.trim() ||
+      hasBody ||
       draft.attachments.length > 0 ||
       draft.referenceAttachments.length > 0
   )

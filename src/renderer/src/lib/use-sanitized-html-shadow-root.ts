@@ -58,13 +58,14 @@ export function useSanitizedHtmlShadowRoot(
     shadow.innerHTML = shadowInnerHtml
     syncMailModuleSurfaceVar(host, viewerTheme)
 
+    const linkInShadow = (linkEl: Element): boolean => shadow.contains(linkEl)
+
     const openFromEvent = (e: MouseEvent): void => {
       if (e.defaultPrevented) return
       if (e.type === 'auxclick' && e.button !== 1) return
       if (e.type === 'click' && e.button !== 0) return
       const linkEl = linkFromComposedPath(e)
-      if (!linkEl) return
-      if (!shadow.contains(linkEl)) return
+      if (!linkEl || !linkInShadow(linkEl)) return
 
       const rawHref =
         linkEl.getAttribute('data-mail-external')?.trim() ||
@@ -85,8 +86,7 @@ export function useSanitizedHtmlShadowRoot(
       if (e.defaultPrevented) return
       if (e.key !== 'Enter') return
       const linkEl = linkFromComposedPath(e)
-      if (!linkEl) return
-      if (!shadow.contains(linkEl)) return
+      if (!linkEl || !linkInShadow(linkEl)) return
       const ae = document.activeElement
       if (ae && ae !== linkEl && !linkEl.contains(ae)) return
 
@@ -103,13 +103,15 @@ export function useSanitizedHtmlShadowRoot(
       })
     }
 
-    host.addEventListener('click', openFromEvent, false)
-    host.addEventListener('auxclick', openFromEvent, false)
-    host.addEventListener('keydown', keyOpen, false)
+    // Capture auf dem Shadow-Root: zuverlaessiger als Bubble am Host (Electron/Shadow-DOM).
+    const capture = true
+    shadow.addEventListener('click', openFromEvent, capture)
+    shadow.addEventListener('auxclick', openFromEvent, capture)
+    shadow.addEventListener('keydown', keyOpen, capture)
     return (): void => {
-      host.removeEventListener('click', openFromEvent, false)
-      host.removeEventListener('auxclick', openFromEvent, false)
-      host.removeEventListener('keydown', keyOpen, false)
+      shadow.removeEventListener('click', openFromEvent, capture)
+      shadow.removeEventListener('auxclick', openFromEvent, capture)
+      shadow.removeEventListener('keydown', keyOpen, capture)
     }
   }, [hostRef, shadowInnerHtml, logPrefix, viewerTheme, previewScale])
 }

@@ -51,6 +51,12 @@ import { hrefForExternalOpen, openExternalUrl } from '@/lib/open-external'
 import { COMPOSE_FONT_FAMILIES } from '@/lib/compose-font-families'
 import { COMPOSE_FONT_SIZES_PT, composeFontSizePtOptionValue } from '@/lib/compose-font-sizes'
 import {
+  applyComposeDefaultTypingMarks,
+  composeEditorSurfaceStyle,
+  isComposeBodyEffectivelyEmpty
+} from '@/lib/compose-default-body'
+import { useComposeSettingsPrefs } from '@/lib/use-compose-settings-prefs'
+import {
   composeEditorScalePercent,
   useComposeEditorScaleStore
 } from '@/stores/compose-editor-scale'
@@ -151,6 +157,11 @@ export function TipTapBody({
   const [colorPickerOpen, setColorPickerOpen] = useState<'text' | 'highlight' | null>(null)
   const composeScale = useComposeEditorScaleStore((s) => s.scale)
   const composeEditorTheme = useComposeEditorEffectiveTheme()
+  const composePrefs = useComposeSettingsPrefs()
+  const editorSurfaceStyle = useMemo(
+    () => (inEditorSurface ? composeEditorSurfaceStyle(composePrefs) : null),
+    [composePrefs, inEditorSurface]
+  )
   const preparedValueHtml = useMemo(
     () => prepareComposeEditorHtml(valueHtml) || '<p></p>',
     [valueHtml]
@@ -187,10 +198,14 @@ export function TipTapBody({
   const editor = useEditor({
     extensions,
     content: preparedValueHtml,
+    onCreate({ editor: ed }): void {
+      if (inEditorSurface) applyComposeDefaultTypingMarks(ed, composePrefs)
+    },
     editorProps: {
       attributes: {
         class: cn(
-          'max-w-none px-4 py-3 text-sm leading-relaxed text-foreground focus:outline-none',
+          'max-w-none px-4 py-3 leading-relaxed text-foreground focus:outline-none',
+          !inEditorSurface && 'text-sm',
           contentMinHeight,
           '[&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5',
           '[&_h1]:text-2xl [&_h1]:font-bold [&_h1]:mt-3 [&_h1]:mb-2',
@@ -201,7 +216,10 @@ export function TipTapBody({
           !inEditorSurface && '[&_a]:text-primary',
           '[&_img]:rounded [&_img]:my-2 [&_hr]:my-3 [&_hr]:border-border',
           '[&_table_td>p]:mb-0 [&_table_td>p]:mt-0 [&_table_th>p]:mb-0 [&_table_th>p]:mt-0'
-        )
+        ),
+        style: editorSurfaceStyle
+          ? `font-family:${editorSurfaceStyle.fontFamily};font-size:${editorSurfaceStyle.fontSize};color:${editorSurfaceStyle.color};line-height:${editorSurfaceStyle.lineHeight}`
+          : undefined
       },
       handleDOMEvents: {
         click: (_view, event): boolean => handleTipTapExternalLinkMouse(event as MouseEvent),
@@ -213,6 +231,35 @@ export function TipTapBody({
       if (html !== null) onChangeHtml(html)
     }
   })
+
+  useEffect(() => {
+    if (!editor || editor.isDestroyed || !inEditorSurface) return
+    const style = composeEditorSurfaceStyle(composePrefs)
+    editor.setOptions({
+      editorProps: {
+        ...editor.options.editorProps,
+        attributes: {
+          class: cn(
+            'max-w-none px-4 py-3 leading-relaxed text-foreground focus:outline-none',
+            contentMinHeight,
+            '[&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5',
+            '[&_h1]:text-2xl [&_h1]:font-bold [&_h1]:mt-3 [&_h1]:mb-2',
+            '[&_h2]:text-xl  [&_h2]:font-bold [&_h2]:mt-3 [&_h2]:mb-2',
+            '[&_h3]:text-base [&_h3]:font-semibold [&_h3]:mt-2 [&_h3]:mb-1',
+            '[&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground',
+            '[&_a]:underline',
+            '[&_img]:rounded [&_img]:my-2 [&_hr]:my-3 [&_hr]:border-border',
+            '[&_table_td>p]:mb-0 [&_table_td>p]:mt-0 [&_table_th>p]:mb-0 [&_table_th>p]:mt-0'
+          ),
+          style: `font-family:${style.fontFamily};font-size:${style.fontSize};color:${style.color};line-height:${style.lineHeight}`
+        }
+      }
+    })
+    const html = safeTiptapGetHtml(editor)
+    if (html !== null && isComposeBodyEffectivelyEmpty(html)) {
+      applyComposeDefaultTypingMarks(editor, composePrefs)
+    }
+  }, [editor, inEditorSurface, composePrefs, contentMinHeight])
 
   useEffect(() => {
     if (!editor || editor.isDestroyed) return

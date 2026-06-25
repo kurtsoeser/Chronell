@@ -35,9 +35,11 @@ import {
   findMailListItemById,
   isMailInDeletedItemsFolder,
   pickInitialMessageId,
+  pickSuccessorMessageId,
   shorten,
   snapshotMailNavForPersist,
-  todoDueKindShortLabel
+  todoDueKindShortLabel,
+  type MailNavigableLayoutState
 } from './mail-store-helpers'
 import { touchRecentMailMoveFolder } from '@/lib/mail-move-recent'
 
@@ -364,18 +366,16 @@ export const useMailStore = create<MailState>((set, get) => ({
         const reloadThreads = state.expandedThreads.size > 0
         if (state.listKind === 'todo') {
           try {
-            const messages = state.todoDueKind
+            const prior = get()
+            const messages = prior.todoDueKind
               ? await window.mailClient.mail.listTodoMessages({
                   accountId: null,
-                  dueKind: state.todoDueKind
+                  dueKind: prior.todoDueKind
                 })
               : await loadAllOpenTodoMessages()
             set({ messages })
             void loadCrossFolderThreadsForTodoList(messages, set)
-            if (state.selectedMessageId) {
-              const fresh = await window.mailClient.mail.getMessage(state.selectedMessageId)
-              if (fresh) set({ selectedMessage: fresh })
-            }
+            await reconcileSelectionAfterMessagesReload(messages, prior, set, get)
           } catch (e) {
             console.error('[mail-store] listTodoMessages on mail:changed', e)
           }
@@ -384,12 +384,10 @@ export const useMailStore = create<MailState>((set, get) => ({
 
         if (state.listKind === 'snoozed') {
           try {
+            const prior = get()
             const messages = await window.mailClient.mail.listSnoozed(200)
             set({ messages, threadMessages: {} })
-            if (state.selectedMessageId) {
-              const fresh = await window.mailClient.mail.getMessage(state.selectedMessageId)
-              if (fresh) set({ selectedMessage: fresh })
-            }
+            await reconcileSelectionAfterMessagesReload(messages, prior, set, get)
           } catch (e) {
             console.error('[mail-store] listSnoozed on mail:changed', e)
           }
@@ -398,12 +396,10 @@ export const useMailStore = create<MailState>((set, get) => ({
 
         if (state.listKind === 'waiting') {
           try {
+            const prior = get()
             const messages = await window.mailClient.mail.listWaitingMessages({ limit: 200 })
             set({ messages, threadMessages: {} })
-            if (state.selectedMessageId) {
-              const fresh = await window.mailClient.mail.getMessage(state.selectedMessageId)
-              if (fresh) set({ selectedMessage: fresh })
-            }
+            await reconcileSelectionAfterMessagesReload(messages, prior, set, get)
           } catch (e) {
             console.error('[mail-store] listWaitingMessages on mail:changed', e)
           }
@@ -419,7 +415,11 @@ export const useMailStore = create<MailState>((set, get) => ({
             if (state.selectedMessageId) {
               try {
                 const fresh = await window.mailClient.mail.getMessage(state.selectedMessageId)
-                if (fresh) set({ selectedMessage: fresh })
+                if (fresh) {
+                  set({ selectedMessage: fresh })
+                } else {
+                  advanceSelectionAfterRemoval(state.selectedMessageId, set, get)
+                }
               } catch {
                 /* ignore */
               }
@@ -427,6 +427,7 @@ export const useMailStore = create<MailState>((set, get) => ({
             return
           }
           try {
+            const prior = get()
             const messages = await window.mailClient.mail.listUnifiedInbox(
               300,
               UNIFIED_INBOX_LIST_OPTIONS
@@ -434,10 +435,7 @@ export const useMailStore = create<MailState>((set, get) => ({
             set({ messages })
             void refreshUnifiedInboxUnreadDbCount(set)
             if (reloadThreads) void loadCrossFolderThreadsUnified(messages, set)
-            if (state.selectedMessageId) {
-              const fresh = await window.mailClient.mail.getMessage(state.selectedMessageId)
-              if (fresh) set({ selectedMessage: fresh })
-            }
+            await reconcileSelectionAfterMessagesReload(messages, prior, set, get)
           } catch (e) {
             console.error('[mail-store] unified inbox on mail:changed', e)
           }
@@ -446,15 +444,13 @@ export const useMailStore = create<MailState>((set, get) => ({
 
         if (state.listKind === 'meta_folder' && state.selectedMetaFolderId != null) {
           try {
+            const prior = get()
             const messages = await window.mailClient.mail.listMetaFolderMessages(
               state.selectedMetaFolderId
             )
             set({ messages })
             if (reloadThreads) void loadCrossFolderThreadsUnified(messages, set)
-            if (state.selectedMessageId) {
-              const fresh = await window.mailClient.mail.getMessage(state.selectedMessageId)
-              if (fresh) set({ selectedMessage: fresh })
-            }
+            await reconcileSelectionAfterMessagesReload(messages, prior, set, get)
           } catch (e) {
             console.error('[mail-store] meta folder on mail:changed', e)
           }
@@ -463,6 +459,7 @@ export const useMailStore = create<MailState>((set, get) => ({
 
         if (state.listKind === 'category' && state.selectedCategoryName) {
           try {
+            const prior = get()
             const messages = await window.mailClient.mail.listCategoryMessages({
               accountId: state.selectedCategoryAccountId,
               category: state.selectedCategoryName,
@@ -470,10 +467,7 @@ export const useMailStore = create<MailState>((set, get) => ({
             })
             set({ messages })
             if (reloadThreads) void loadCrossFolderThreadsUnified(messages, set)
-            if (state.selectedMessageId) {
-              const fresh = await window.mailClient.mail.getMessage(state.selectedMessageId)
-              if (fresh) set({ selectedMessage: fresh })
-            }
+            await reconcileSelectionAfterMessagesReload(messages, prior, set, get)
           } catch (e) {
             console.error('[mail-store] category on mail:changed', e)
           }
@@ -481,6 +475,7 @@ export const useMailStore = create<MailState>((set, get) => ({
         }
 
         if (state.selectedFolderId && state.selectedFolderAccountId === accountId) {
+          const prior = get()
           const messages = await window.mailClient.mail.listMessages({
             folderId: state.selectedFolderId
           })
@@ -488,10 +483,7 @@ export const useMailStore = create<MailState>((set, get) => ({
 
           if (reloadThreads) void loadCrossFolderThreads(accountId, messages, set)
 
-          if (state.selectedMessageId) {
-            const fresh = await window.mailClient.mail.getMessage(state.selectedMessageId)
-            if (fresh) set({ selectedMessage: fresh })
-          }
+          await reconcileSelectionAfterMessagesReload(messages, prior, set, get)
         } else if (state.listKind === 'folder' && !state.selectedFolderId) {
           const accountFolders = get().foldersByAccount[accountId] ?? []
           const inbox = accountFolders.find((f) => f.wellKnown === 'inbox')
@@ -1169,20 +1161,13 @@ export const useMailStore = create<MailState>((set, get) => ({
     }
 
     const st = get()
-    const sid = st.selectedMessageId
 
     async function reloadCrossAccountView(load: () => Promise<MailListItem[]>): Promise<void> {
+      const prior = get()
       const messages = await load()
       set({ messages })
       void loadCrossFolderThreadsUnified(messages, set)
-      if (sid != null) {
-        if (!messages.some((m) => m.id === sid)) {
-          set({ selectedMessageId: null, selectedMessage: null })
-        } else {
-          const fresh = await window.mailClient.mail.getMessage(sid)
-          if (fresh) set({ selectedMessage: fresh })
-        }
-      }
+      await reconcileSelectionAfterMessagesReload(messages, prior, set, get)
     }
 
     try {
@@ -1292,9 +1277,9 @@ export const useMailStore = create<MailState>((set, get) => ({
     const state = get()
     const item = state.messages.find((m) => m.id === messageId)
     const subject = item?.subject ?? '(Mail)'
+    advanceSelectionAfterRemoval(messageId, set, get)
     try {
       await window.mailClient.mail.archive(messageId)
-      advanceSelectionAfterRemoval(messageId, set, get)
       useUndoStore.getState().pushToast({
         label: `Archiviert: ${shorten(subject)}`,
         variant: 'success',
@@ -1312,10 +1297,10 @@ export const useMailStore = create<MailState>((set, get) => ({
     const subject = item?.subject ?? '(Mail)'
     const permanent =
       item != null && isMailInDeletedItemsFolder(item.folderId, state.foldersByAccount)
+    advanceSelectionAfterRemoval(messageId, set, get)
     try {
       if (permanent) {
         await window.mailClient.mail.permanentDeleteMessage(messageId)
-        advanceSelectionAfterRemoval(messageId, set, get)
         set({ error: null })
         useUndoStore.getState().pushToast({
           label: `Endgueltig geloescht: ${shorten(subject)}`,
@@ -1323,7 +1308,6 @@ export const useMailStore = create<MailState>((set, get) => ({
         })
       } else {
         await window.mailClient.mail.moveToTrash(messageId)
-        advanceSelectionAfterRemoval(messageId, set, get)
         set({ error: null })
         useUndoStore.getState().pushToast({
           label: `Geloescht: ${shorten(subject)}`,
@@ -1378,9 +1362,9 @@ export const useMailStore = create<MailState>((set, get) => ({
       }
       if (item.folderId === targetFolderId) continue
 
+      advanceSelectionAfterRemoval(id, set, get)
       try {
         await window.mailClient.mail.moveToFolder({ messageId: id, targetFolderId })
-        advanceSelectionAfterRemoval(id, set, get)
         moved++
       } catch (e) {
         console.error('[mail-store] moveMessagesToFolder failed', e)
@@ -1926,6 +1910,41 @@ async function loadCrossFolderThreadsUnified(
 }
 
 /**
+ * Nach Listen-Reload: Vorschau zur naechsten Mail wechseln, wenn die Auswahl
+ * nicht mehr in der Liste ist oder die Mail in der DB fehlt.
+ */
+async function reconcileSelectionAfterMessagesReload(
+  messages: MailListItem[],
+  priorState: MailNavigableLayoutState & { selectedMessageId: number | null },
+  set: (partial: Partial<MailState> | ((s: MailState) => Partial<MailState>)) => void,
+  get: () => MailState
+): Promise<void> {
+  const sid = priorState.selectedMessageId
+  if (sid == null) return
+
+  const stillInList = messages.some((m) => m.id === sid)
+  if (stillInList) {
+    try {
+      const fresh = await window.mailClient.mail.getMessage(sid)
+      if (fresh) {
+        set({ selectedMessage: fresh })
+        return
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const nextId = pickSuccessorMessageId(priorState, sid)
+  set({ selectedMessageId: nextId, selectedMessage: null, messageLoading: false })
+  if (nextId != null) {
+    await get().selectMessage(nextId)
+  } else {
+    snapshotMailNavForPersist(get())
+  }
+}
+
+/**
  * Entfernt die Message optimistisch aus der Liste und waehlt die naechste
  * Mail als selectedMessage aus.
  */
@@ -1935,25 +1954,27 @@ function advanceSelectionAfterRemoval(
   get: () => MailState
 ): void {
   const state = get()
-  const idx = state.messages.findIndex((m) => m.id === messageId)
-  if (idx === -1) return
-
-  const nextList = state.messages.filter((m) => m.id !== messageId)
   const wasSelected = state.selectedMessageId === messageId
+  const inList = state.messages.some((m) => m.id === messageId)
+  const nextList = inList
+    ? state.messages.filter((m) => m.id !== messageId)
+    : state.messages
 
-  let nextSelectedId: number | null = state.selectedMessageId
+  let nextSelectedId = state.selectedMessageId
   if (wasSelected) {
-    const next = nextList[idx] ?? nextList[idx - 1] ?? null
-    nextSelectedId = next?.id ?? null
+    nextSelectedId = pickSuccessorMessageId(state, messageId)
   }
 
   set({
     messages: nextList,
     selectedMessageId: nextSelectedId,
-    selectedMessage: wasSelected ? null : state.selectedMessage
+    selectedMessage: wasSelected ? null : state.selectedMessage,
+    ...(wasSelected && nextSelectedId == null ? { messageLoading: false } : {})
   })
 
   if (wasSelected && nextSelectedId != null) {
     void get().selectMessage(nextSelectedId)
+  } else if (wasSelected) {
+    snapshotMailNavForPersist(get())
   }
 }
