@@ -3,7 +3,8 @@ import { cn } from './utils'
 
 describe('cn', () => {
   it('fuehrt Klassen zusammen', () => {
-    expect(cn('a', false && 'b', 'c')).toMatch(/a/)
+    const hidden: false | 'b' = false
+    expect(cn('a', hidden, 'c')).toMatch(/a/)
     expect(cn('a', 'c')).toContain('a')
     expect(cn('a', 'c')).toContain('c')
   })

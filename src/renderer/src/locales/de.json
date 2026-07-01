@@ -193,18 +193,130 @@
       "title": "Notiz",
       "shortLabel": "Notiz",
       "open": "Notiz öffnen",
-      "placeholder": "Markdown-Notiz schreiben …",
-      "markdownHint": "Markdown wird direkt gespeichert. Toolbar oder Vorschau helfen beim Formatieren.",
+      "placeholder": "Notiz schreiben …",
+      "wysiwygHint": "Formatierung über die Toolbar. Checklisten, [[ für interne Seitlinks.",
+      "autosaveHint": "Änderungen werden automatisch gespeichert.",
       "updatedAt": "Gespeichert: {{date}}",
       "notSaved": "Noch nicht gespeichert",
       "saving": "Speichert …",
       "saved": "Notiz gespeichert.",
       "saveFailed": "Notiz konnte nicht gespeichert werden.",
       "viewSwitcherLabel": "Notizansicht umschalten",
-      "markdownTab": "Markdown",
-      "previewTab": "Vorschau",
       "resizeAria": "Größe ändern",
       "moveAria": "Notizfenster verschieben"
+    },
+    "templates": {
+      "menuHeading": "Neue Seite aus Vorlage",
+      "blank": {
+        "title": "Leere Seite",
+        "description": "Ohne vorgegebenen Inhalt"
+      },
+      "meeting": {
+        "title": "Meeting-Protokoll",
+        "description": "Agenda, Notizen und nächste Schritte"
+      },
+      "project": {
+        "title": "Projektseite",
+        "description": "Ziel, Status und Meilensteine"
+      },
+      "weekly": {
+        "title": "Wochenplan",
+        "description": "Prioritäten und Aufgaben der Woche"
+      },
+      "checklist": {
+        "title": "Checkliste",
+        "description": "Abhakbare Aufgabenliste"
+      },
+      "customSection": "Eigene Vorlagen",
+      "manageHeading": "Seitenvorlagen verwalten",
+      "manageHint": "Eingebaute Vorlagen sind fest. Eigene Vorlagen kannst du anlegen, bearbeiten und löschen.",
+      "createButton": "Neue Vorlage",
+      "builtinBadge": "Eingebaut",
+      "editorCreateTitle": "Seitenvorlage anlegen",
+      "editorEditTitle": "Seitenvorlage bearbeiten",
+      "editorNameLabel": "Name",
+      "editorDescriptionLabel": "Kurzbeschreibung (optional)",
+      "editorBodyLabel": "Inhalt der Vorlage",
+      "deleteTitle": "Vorlage löschen",
+      "deleteConfirm": "Vorlage „{{name}}“ wirklich löschen?",
+      "nameRequired": "Bitte einen Namen eingeben.",
+      "saveFromNote": "Als Vorlage speichern",
+      "savedToast": "Seitenvorlage gespeichert.",
+      "wikiLinkBrowseHint": "Zuletzt bearbeitete Seiten — tippen zum Filtern",
+      "wikiLinkNoResults": "Keine passende Seite gefunden"
+    },
+    "meetingInsert": {
+      "button": "Besprechungsdetails einfügen",
+      "title": "Besprechungsdetails einfügen",
+      "account": "Konto",
+      "day": "Tag",
+      "eventsHeading": "Termine an diesem Tag",
+      "loadingEvents": "Termine werden geladen …",
+      "loadFailed": "Termine konnten nicht geladen werden.",
+      "noEvents": "Keine Termine an diesem Tag.",
+      "noAccounts": "Kein Microsoft- oder Google-Konto mit Kalender verbunden.",
+      "linkToEvent": "Notiz mit diesem Termin verknüpfen",
+      "scheduleNote": "Geplante Zeit der Notiz auf Termin setzen",
+      "insert": "Einfügen",
+      "insertedToast": "Besprechungsdetails eingefügt.",
+      "allDay": "Ganztägig",
+      "fieldDate": "Zeit",
+      "fieldLocation": "Ort",
+      "fieldOrganizer": "Organisator",
+      "fieldAttendees": "Teilnehmer",
+      "fieldOnlineMeeting": "Online-Besprechung",
+      "joinMeeting": "Beitreten",
+      "agenda": "Agenda",
+      "notes": "Notizen",
+      "nextSteps": "Nächste Schritte"
+    },
+    "mailInsert": {
+      "title": "Mail in Notiz",
+      "newPage": "In neue Notiz…",
+      "appendPage": "An Notiz anhängen…",
+      "appendTitle": "Notiz auswählen",
+      "searchPlaceholder": "Notiz suchen …",
+      "noNotes": "Keine freien Notizen gefunden.",
+      "mailNotFound": "Mail wurde nicht gefunden.",
+      "noteNotFound": "Notiz wurde nicht gefunden.",
+      "failed": "Mail konnte nicht übernommen werden: {{message}}",
+      "from": "Von",
+      "to": "An",
+      "date": "Datum",
+      "subject": "Betreff",
+      "excerpt": "E-Mail",
+      "selectionNewPage": "Auswahl in neue Notiz",
+      "selectionAppendPage": "Auswahl an Notiz anhängen"
+    },
+    "screenClip": {
+      "title": "Screenshot einfügen",
+      "button": "Screenshot einfügen",
+      "defaultTitle": "Screenshot",
+      "emptyClipboard": "Kein Bild in der Zwischenablage. Zuerst einen Screenshot erstellen (z. B. Win+Shift+S) oder Strg+Shift+Alt+S verwenden.",
+      "hint": "Tastenkürzel: Strg+Shift+Alt+S"
+    },
+    "quickCapture": {
+      "windowTitle": "Schnellnotiz",
+      "defaultTitle": "Schnellnotiz",
+      "titlePlaceholder": "Titel (optional)",
+      "bodyPlaceholder": "Gedanken festhalten …",
+      "hint": "Tastenkürzel: Strg+Shift+Alt+N",
+      "menu": "Schnellnotiz erfassen"
+    },
+    "onenote": {
+      "pageDateEdit": "Datum bearbeiten",
+      "pageTimeEdit": "Uhrzeit bearbeiten",
+      "scheduleDateEdit": "Planungsdatum wählen",
+      "scheduleTimeEdit": "Planungszeit wählen",
+      "metaSection": "Abschnitt",
+      "metaKind": "Art",
+      "metaCategories": "Kategorien",
+      "metaSchedule": "Planung",
+      "metaAttachments": "Anhänge",
+      "categoriesEmpty": "Klicken, um Kategorien zu setzen …",
+      "sectionEmpty": "Klicken, um Abschnitt zu wählen …",
+      "sectionPickerAria": "Abschnitt wählen",
+      "planInCalendar": "Im Kalender planen …"
     },
     "preview": {
       "loading": "Notiz wird geladen …"
@@ -215,6 +327,9 @@
       "newStandalone": "Neue freie Notiz",
       "newStandaloneTitle": "Neue freie Notiz",
       "newPage": "Neue Seite",
+      "newSubPageTitle": "Neue Unterseite",
+      "categories": "Kategorien",
+      "breadcrumb": "Seitenpfad",
       "searchPlaceholder": "Notizen durchsuchen …",
       "searchClear": "Suche löschen",
       "searchToggle": "Suchliste ein- oder ausblenden",
@@ -281,6 +396,8 @@
       "namePlaceholder": "Name der Sektion",
       "allNotes": "Alle Notizen",
       "ungrouped": "Ungruppiert",
+      "pinned": "Angepinnt",
+      "categories": "Kategorien",
       "moveTo": "Sektion",
       "deleteTitle": "Sektion löschen",
       "deleteConfirm": "Sektion „{{name}}“ löschen? Notizen bleiben erhalten und werden ungruppiert.",
@@ -302,7 +419,25 @@
       "openLink": "Im Browser öffnen",
       "saveAs": "Speichern unter",
       "cloudRequiresM365": "Für OneDrive- und SharePoint-Dateien ein Microsoft-365-Konto verbinden.",
-      "requiresSavedNote": "Speichern Sie die Notiz einmal, um Dateien anzuhängen."
+      "requiresSavedNote": "Speichern Sie die Notiz einmal, um Dateien anzuhängen.",
+      "playInline": "In der App abspielen",
+      "playbackPosition": "Wiedergabeposition",
+      "playbackLoading": "Wiedergabe wird geladen …",
+      "playbackError": "Wiedergabe in der App nicht möglich.",
+      "retryPlayback": "Erneut versuchen"
+    },
+    "dropZone": {
+      "hint": "Dateien hier ablegen",
+      "imagesInline": "Bilder werden zusätzlich in die Notiz eingefügt."
+    },
+    "audio": {
+      "record": "Aufnahme",
+      "stop": "Stopp",
+      "defaultName": "Aufnahme"
+    },
+    "export": {
+      "print": "Drucken",
+      "pdf": "Als PDF speichern"
     },
     "preview": {
       "loading": "Vorschau wird geladen …",
@@ -320,10 +455,22 @@
       "contactNotFound": "Kontakt nicht gefunden.",
       "unsupported": "Vorschau für diesen Typ nicht verfügbar."
     },
+    "subPages": {
+      "title": "Unterseiten ({{count}})",
+      "create": "Unterseite",
+      "empty": "Noch keine Unterseiten",
+      "expand": "Unterseiten einblenden",
+      "collapse": "Unterseiten ausblenden"
+    },
     "pagesContextMenu": {
       "copy": "Kopieren",
       "move": "Verschieben",
       "link": "Verknüpfen",
+      "pin": "Anpinnen",
+      "unpin": "Lösen",
+      "createSubPage": "Unterseite erstellen",
+      "setParent": "Übergeordnete Seite",
+      "parentRoot": "Keine (oberste Ebene)",
       "linkDialogTitle": "Mit Objekt verknüpfen",
       "copied": "Notiz kopiert."
     },
@@ -1364,12 +1511,15 @@
     "notesResetAll": "Alle Notizen-Einstellungen zurücksetzen",
     "notesEditorHeading": "Editor",
     "notesEditorHeightLabel": "Editor-Höhe",
-    "notesEditorPreviewModeLabel": "Standard-Ansicht des Editors",
-    "notesEditorModeLive": "Live (geteilt)",
-    "notesEditorModeEdit": "Nur Bearbeiten",
-    "notesEditorModePreview": "Nur Vorschau",
-    "notesEditorModeToggle": "Umschalter Bearbeiten / Vorschau",
-    "notesEditorToggleTabLabel": "Standard-Tab beim Umschalter",
+    "notesEditorThemeLabel": "Editor-Hell/Dunkel",
+    "notesEditorThemeHint": "Gilt auch für den Mail-Editor — gleiche Einstellung.",
+    "notesDefaultTemplateLabel": "Standard-Vorlage für neue Seiten",
+    "notesAudioQualityLabel": "Audio-Aufnahmequalität",
+    "notesAudioQualityHint": "Gilt für Sprachnotizen in Anhängen. Höhere Qualität = größere Dateien.",
+    "notesAudioQuality_compact": "Kompakt (32 kbps, Mono)",
+    "notesAudioQuality_standard": "Standard (64 kbps, Mono)",
+    "notesAudioQuality_high": "Hoch (128 kbps, Stereo)",
+    "notesAudioQuality_maximum": "Maximum (192 kbps, Stereo)",
     "notesShowSectionLabelsLabel": "Sektionsnamen in der Seitenliste immer anzeigen",
     "notesUseGlobalNavWidthLabel": "Gleiche Navigationsbreite wie andere Module",
     "notesNavWidthLabel": "Breite der linken Navigation (Notizen)",
@@ -1382,6 +1532,7 @@
     "notesPreviewFloatHeightLabel": "Höhe schwebende Vorschau",
     "notesWorkflowHeading": "Arbeitsablauf & Filter",
     "notesAutosaveLabel": "Automatisch speichern",
+    "notesAutosaveOnChange": "Nach Änderungen (empfohlen)",
     "notesAutosaveOff": "Aus (nur manuell)",
     "notesAutosaveOnLeave": "Beim Verlassen der Notiz",
     "notesAutosaveInterval": "Im Intervall",
@@ -2667,10 +2818,21 @@
       "loadExternalImages": "Externe Bilder laden",
       "loadingAttachments": "Anhänge werden geladen …",
       "saveAttachmentAsTitle": "Speichern unter …",
-      "attachmentInlineChip": "inline"
+      "attachmentInlineChip": "inline",
+      "metaFolder": "Ordner",
+      "metaFrom": "Von",
+      "metaTo": "An",
+      "metaCc": "Cc",
+      "metaAccount": "Konto",
+      "metaCategories": "Kategorien",
+      "categoriesEmpty": "Klicken, um Kategorien zu setzen …",
+      "metaImportanceHigh": "Hohe Priorität",
+      "metaFlagged": "Markiert"
     },
     "meetingInvitation": {
       "ariaLabel": "Termineinladung",
+      "collapse": "Termin-Vorschau einklappen",
+      "expand": "Termin-Vorschau ausklappen",
       "loading": "Termineinladung wird geladen …",
       "intro": "Sie wurden zu folgendem Termin eingeladen.",
       "cancelledIntro": "Dieser Termin wurde abgesagt.",
@@ -3722,6 +3884,13 @@
       "clear": "Löschen",
       "today": "Heute",
       "dialogAria": "Datum wählen"
+    },
+    "timePicker": {
+      "placeholder": "HH:mm",
+      "now": "Jetzt",
+      "dialogAria": "Uhrzeit wählen",
+      "manualAria": "Uhrzeit eingeben",
+      "listAria": "Uhrzeiten"
     },
     "posteingangUi": {
       "toggleInboxHide": "Posteingang ausblenden",

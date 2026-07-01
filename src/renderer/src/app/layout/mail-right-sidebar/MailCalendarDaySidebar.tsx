@@ -1,16 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { addDays, format, isToday, parseISO, startOfDay } from 'date-fns'
-import { de as deFns, enUS as enUSFns } from 'date-fns/locale'
 import type { Locale } from 'date-fns'
+import { addDays, format, isToday, parseISO, startOfDay } from 'date-fns'
+import { useDateFnsLocale } from '@/lib/date-fns-locale'
 import { useTranslation } from 'react-i18next'
 import { ChevronLeft, ChevronRight, CalendarClock, Loader2 } from 'lucide-react'
 import FullCalendar from '@fullcalendar/react'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
 import luxonPlugin from '@fullcalendar/luxon'
-import deLocale from '@fullcalendar/core/locales/de'
-import enGbLocale from '@fullcalendar/core/locales/en-gb'
+import { useCalendarFcLocale } from '@/hooks/use-calendar-fc-locale'
 import type { DateSelectArg, EventClickArg, EventInput } from '@fullcalendar/core'
 import type { CalendarEventView, MailListItem, TaskListRow } from '@shared/types'
 import {
@@ -76,7 +75,7 @@ function formatDayTitle(d: Date, locale: Locale): string {
 
 export function MailCalendarDaySidebar(): JSX.Element {
   const { t, i18n } = useTranslation()
-  const dfLocale: Locale = i18n.language.startsWith('de') ? deFns : enUSFns
+  const dfLocale = useDateFnsLocale()
   const calSettings = useCalendarSettingsPrefs()
   const calendarFcEventContentRender = useCalendarFcEventContent()
   const calendarRef = useRef<FullCalendar | null>(null)
@@ -316,7 +315,7 @@ export function MailCalendarDaySidebar(): JSX.Element {
     [calSettings.defaultTimeGridSlotMinutes]
   )
 
-  const fcLocale = i18n.language.startsWith('de') ? deLocale : enGbLocale
+  const fcLocale = useCalendarFcLocale()
 
   const onSelect = useCallback(
     (sel: DateSelectArg): void => {

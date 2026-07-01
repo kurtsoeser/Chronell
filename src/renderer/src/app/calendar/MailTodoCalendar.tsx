@@ -10,13 +10,9 @@ import {
 } from 'react'
 import { flushSync } from 'react-dom'
 import FullCalendar from '@fullcalendar/react'
-import dayGridPlugin from '@fullcalendar/daygrid'
-import timeGridPlugin from '@fullcalendar/timegrid'
-import listPlugin from '@fullcalendar/list'
-import interactionPlugin from '@fullcalendar/interaction'
-import luxonPlugin from '@fullcalendar/luxon'
-import deLocale from '@fullcalendar/core/locales/de'
 import type { EventApi, EventDropArg } from '@fullcalendar/core'
+import { CALENDAR_FC_CORE_PLUGINS } from '@/app/calendar/calendar-fc-plugins'
+import { useCalendarFcLocale } from '@/hooks/use-calendar-fc-locale'
 import type { EventResizeDoneArg } from '@fullcalendar/interaction'
 import {
   appointmentRangeFromCalendarSlot,
@@ -167,6 +163,7 @@ export function MailTodoCalendar({
   className
 }: MailTodoCalendarProps): JSX.Element {
   const calSettings = useCalendarSettingsPrefs()
+  const fcLocale = useCalendarFcLocale()
   const timeGridFcSlotOpts = useMemo(
     () => timeGridFcSnapOptions(calSettings.defaultTimeGridSlotMinutes),
     [calSettings.defaultTimeGridSlotMinutes]
@@ -396,8 +393,8 @@ export function MailTodoCalendar({
         ref={(inst): void => {
           assignMergedFullCalendarRef(inst, calendarRef, fullCalendarRef)
         }}
-        plugins={[dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin, luxonPlugin]}
-        locale={deLocale}
+        plugins={CALENDAR_FC_CORE_PLUGINS}
+        locale={fcLocale}
         height="100%"
         timeZone={timeZone}
         headerToolbar={false}

@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type MutableRefObject,
   type PointerEvent as ReactPointerEvent
 } from 'react'
 import { createPortal } from 'react-dom'
@@ -18,10 +19,18 @@ import {
   type UserNotePeopleContactUpsertInput
 } from '@shared/types'
 import { PreviewFoldSection } from '@/components/PreviewFoldSection'
+import { ComposeEditorThemeToggle } from '@/components/ComposeEditorThemeToggle'
+import { RichTextNotesPreview } from '@/components/RichTextNotesPreview'
+import { TipTapNoteEditorLazy } from '@/components/TipTapNoteEditorLazy'
 import { cn } from '@/lib/utils'
+import {
+  hasNoteBodyContent,
+  noteBodiesEqual,
+  prepareNoteBodyForEditor,
+  storedBodyFromEditorHtml
+} from '@/lib/note-body-html'
+import { useThemeStore } from '@/stores/theme'
 import { useUndoStore } from '@/stores/undo'
-import { MarkdownNoteEditorLazy } from './MarkdownNoteEditorLazy'
-import type { MarkdownNoteEditorLayout } from './MarkdownNoteEditor'
 import { NotesAttachmentsPanel } from '@/app/notes/NotesAttachmentsPanel'
 
 export type ObjectNoteTarget =
@@ -96,7 +105,10 @@ interface Props {
   variant?: 'button' | 'section' | 'panel'
   /** Nur bei `variant="section"`: Bereich zunächst eingeklappt; Chevron zum Aufklappen. */
   sectionCollapsedDefault?: boolean
-  layout?: MarkdownNoteEditorLayout
+  /** @deprecated Markdown-Layout; WYSIWYG-Editor ignoriert dies. */
+  layout?: 'live' | 'toggle'
+  /** Theme-Toggle im Editor (bei Popup/Header extern: false). */
+  showThemeToggle?: boolean
   className?: string
   /** Horizontales Padding des Inhalts bei `variant="section"` (Standard: px-6). */
   contentPaddingClass?: string
@@ -177,18 +189,19 @@ async function saveNoteForTarget(
   target: ObjectNoteTarget,
   body: string
 ): Promise<UserNote> {
+  const storedBody = storedBodyFromEditorHtml(body)
   if (target.kind === 'mail') {
     return window.mailClient.notes.upsertMail({
       messageId: target.messageId,
       title: target.title ?? null,
-      body
+      body: storedBody
     })
   }
   if (target.kind === 'people_contact') {
     return upsertPeopleContactNote({
       contactId: target.contactId,
       title: target.title ?? null,
-      body
+      body: storedBody
     })
   }
   return window.mailClient.notes.upsertCalendar({
@@ -197,10 +210,36 @@ async function saveNoteForTarget(
     calendarRemoteId: target.calendarRemoteId,
     eventRemoteId: target.eventRemoteId,
     title: target.title ?? null,
-    body,
+    body: storedBody,
     eventTitleSnapshot: target.eventTitleSnapshot ?? target.title ?? null,
     eventStartIsoSnapshot: target.eventStartIsoSnapshot ?? null
   })
+}
+
+async function applyLoadedNoteBody(
+  target: ObjectNoteTarget,
+  loaded: UserNote | null,
+  setNote: (note: UserNote | null) => void,
+  setEditorSeedHtml: (html: string) => void,
+  bodyRef: MutableRefObject<string>,
+  lastSavedBody: MutableRefObject<string>
+): Promise<void> {
+  const stored = loaded?.body ?? ''
+  const prepared = prepareNoteBodyForEditor(stored)
+  bodyRef.current = prepared.html
+  setEditorSeedHtml(prepared.html)
+  lastSavedBody.current = storedBodyFromEditorHtml(stored)
+  if (!prepared.migratedFromMarkdown) return
+  try {
+    const saved = await saveNoteForTarget(target, prepared.html)
+    setNote(saved)
+    const editorHtml = prepareNoteBodyForEditor(saved.body).html
+    bodyRef.current = editorHtml
+    setEditorSeedHtml(editorHtml)
+    lastSavedBody.current = saved.body
+  } catch {
+    // Editor zeigt migriertes HTML; Speichern beim naechsten Autosave.
+  }
 }
 
 function formatUpdatedAt(value: string | null, locale: string): string {
@@ -214,7 +253,8 @@ export function ObjectNoteEditor({
   target,
   variant = 'button',
   sectionCollapsedDefault = false,
-  layout = 'live',
+  layout: _layout = 'live',
+  showThemeToggle,
   className,
   contentPaddingClass = 'px-6',
   fillHeight = false,
@@ -225,7 +265,7 @@ export function ObjectNoteEditor({
   const [open, setOpen] = useState(variant === 'section')
   const [sectionExpanded, setSectionExpanded] = useState(() => !sectionCollapsedDefault)
   const [note, setNote] = useState<UserNote | null>(null)
-  const [body, setBody] = useState('')
+  const [editorSeedHtml, setEditorSeedHtml] = useState('')
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -237,6 +277,8 @@ export function ObjectNoteEditor({
     h: POPUP_DEFAULT_H
   })
   const lastSavedBody = useRef('')
+  const bodyRef = useRef('')
+  const editorFlushRef = useRef<(() => void) | null>(null)
   const anchorRef = useRef<HTMLButtonElement>(null)
   const popupRef = useRef<HTMLDivElement>(null)
   const popupFrameRef = useRef(popupFrame)
@@ -258,7 +300,7 @@ export function ObjectNoteEditor({
   const key = useMemo(() => targetKey(target), [target])
   const isPopupVariant = variant === 'button' || variant === 'panel'
   const usePopupPortal = variant === 'button'
-  const markdownHeight = Math.max(
+  const popupEditorMinHeight = Math.max(
     POPUP_EDITOR_MIN_H,
     popupFrame.h - POPUP_CHROME_H
   )
@@ -396,10 +438,7 @@ export function ObjectNoteEditor({
     void loadNoteForTarget(target)
       .then((loaded) => {
         if (cancelled) return
-        setNote(loaded)
-        const nextBody = loaded?.body ?? ''
-        setBody(nextBody)
-        lastSavedBody.current = nextBody
+        return applyLoadedNoteBody(target, loaded, setNote, setEditorSeedHtml, bodyRef, lastSavedBody)
       })
       .catch((e) => {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e))
@@ -420,13 +459,12 @@ export function ObjectNoteEditor({
   }, [key, variant, sectionCollapsedDefault])
 
   useEffect(() => {
-    if (!dirty || body === lastSavedBody.current) return
+    if (!dirty || noteBodiesEqual(bodyRef.current, lastSavedBody.current)) return
     const handle = window.setTimeout(() => {
       void save(false)
     }, 800)
     return (): void => window.clearTimeout(handle)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [body, dirty, key])
+  }, [dirty, key])
 
   useEffect(() => {
     const off = window.mailClient.events.onNotesChanged((payload) => {
@@ -445,10 +483,7 @@ export function ObjectNoteEditor({
   async function reload(): Promise<void> {
     try {
       const loaded = await loadNoteForTarget(target)
-      setNote(loaded)
-      const nextBody = loaded?.body ?? ''
-      setBody(nextBody)
-      lastSavedBody.current = nextBody
+      await applyLoadedNoteBody(target, loaded, setNote, setEditorSeedHtml, bodyRef, lastSavedBody)
       setDirty(false)
     } catch {
       // Der normale Lade-Effect zeigt Fehler; Broadcast-Reloads bleiben still.
@@ -456,14 +491,18 @@ export function ObjectNoteEditor({
   }
 
   async function save(showToast: boolean): Promise<void> {
-    if (saving || body === lastSavedBody.current) return
+    editorFlushRef.current?.()
+    const toStore = storedBodyFromEditorHtml(bodyRef.current)
+    if (saving || noteBodiesEqual(toStore, lastSavedBody.current)) return
     setSaving(true)
     setError(null)
     try {
-      const saved = await saveNoteForTarget(target, body)
+      const saved = await saveNoteForTarget(target, bodyRef.current)
       setNote(saved)
+      const editorHtml = prepareNoteBodyForEditor(saved.body).html
+      bodyRef.current = editorHtml
+      setEditorSeedHtml(editorHtml)
       lastSavedBody.current = saved.body
-      setBody(saved.body)
       setDirty(false)
       if (showToast) {
         pushToast({ label: t('notes.editor.saved'), variant: 'success' })
@@ -478,7 +517,7 @@ export function ObjectNoteEditor({
     }
   }
 
-  const hasContent = body.trim().length > 0
+  const hasContent = hasNoteBodyContent(bodyRef.current) || hasNoteBodyContent(editorSeedHtml)
   const updatedLabel = formatUpdatedAt(note?.updatedAt ?? null, i18n.language)
 
   const hideSectionStickyTitle = variant === 'section' && sectionCollapsedDefault
@@ -531,15 +570,20 @@ export function ObjectNoteEditor({
             <span className="truncate">{t('notes.editor.title')}</span>
           </div>
           {variant === 'button' ? (
-            <button
-              type="button"
-              onClick={(): void => setOpen(false)}
-              onPointerDown={(e): void => e.stopPropagation()}
-              className="rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
-              aria-label={t('common.close')}
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
+            <div className="flex shrink-0 items-center gap-0.5">
+              <ComposeEditorThemeToggle compact />
+              <button
+                type="button"
+                onClick={(): void => setOpen(false)}
+                onPointerDown={(e): void => e.stopPropagation()}
+                className="rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                aria-label={t('common.close')}
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ) : variant === 'section' ? (
+            <ComposeEditorThemeToggle compact />
           ) : null}
         </div>
       ) : null}
@@ -556,18 +600,18 @@ export function ObjectNoteEditor({
           fillHeight ? 'flex flex-1 flex-col' : 'flex-1'
         )}
       >
-        <MarkdownNoteEditorLazy
-          value={body}
-          onChange={(nextBody): void => {
-            setBody(nextBody)
+        <TipTapNoteEditorLazy
+          key={note?.id ?? 'new'}
+          valueHtml={editorSeedHtml}
+          onChangeHtml={(nextBody): void => {
+            bodyRef.current = nextBody
             setDirty(true)
           }}
-          disabled={loading}
           fillHeight={fillHeight}
-          minHeight={fillHeight ? 120 : undefined}
-          height={fillHeight ? undefined : isPopupVariant ? markdownHeight : 180}
-          layout={layout}
-          preview={isPopupVariant ? 'edit' : 'live'}
+          minHeight={fillHeight ? 120 : isPopupVariant ? popupEditorMinHeight : 180}
+          flushRef={editorFlushRef}
+          showThemeToggle={showThemeToggle ?? variant !== 'button'}
+          currentNoteId={note?.id}
           placeholder={t('notes.editor.placeholder')}
           className={fillHeight ? 'min-h-0 flex-1' : undefined}
         />
@@ -583,7 +627,7 @@ export function ObjectNoteEditor({
         </span>
         <button
           type="button"
-          disabled={saving || loading || body === lastSavedBody.current}
+          disabled={saving || loading || noteBodiesEqual(bodyRef.current, lastSavedBody.current)}
           onClick={(): void => void save(true)}
           className="inline-flex items-center gap-1 rounded-md border border-border bg-secondary/60 px-2 py-1 font-medium text-foreground hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
         >
@@ -667,15 +711,14 @@ export function ObjectNoteEditor({
   )
 }
 
-/** Schreibgeschützte Markdown-Vorschau einer Mail- oder Kalender-Notiz (lädt wie `ObjectNoteEditor`). */
+/** Schreibgeschützte Vorschau einer Mail- oder Kalender-Notiz (lädt wie `ObjectNoteEditor`). */
 export function ObjectNotePreview(props: {
   target: ObjectNoteTarget
   className?: string
-  /** Höhe des Markdown-Viewers (Pixel). */
-  previewHeight?: number
 }): JSX.Element | null {
-  const { target, className, previewHeight = 200 } = props
+  const { target, className } = props
   const { t, i18n } = useTranslation()
+  const viewerTheme = useThemeStore((s) => s.effective)
   const [note, setNote] = useState<UserNote | null>(null)
   const [body, setBody] = useState('')
   const [loading, setLoading] = useState(true)
@@ -753,7 +796,7 @@ export function ObjectNotePreview(props: {
     )
   }
 
-  if (!body.trim()) return null
+  if (!hasNoteBodyContent(body)) return null
 
   return (
     <div
@@ -773,17 +816,7 @@ export function ObjectNotePreview(props: {
           </span>
         ) : null}
       </div>
-      <div className="max-h-[min(40vh,360px)] overflow-y-auto rounded-md border border-border/80 bg-background">
-        <MarkdownNoteEditorLazy
-          value={body}
-          onChange={(): void => undefined}
-          disabled
-          preview="preview"
-          layout="live"
-          height={previewHeight}
-          placeholder=""
-        />
-      </div>
+      <RichTextNotesPreview notes={body} viewerTheme={viewerTheme} className="max-h-[min(40vh,360px)]" />
     </div>
   )
 }
@@ -820,20 +853,24 @@ export function ObjectNoteDialog({ target, onClose }: DialogProps): JSX.Element 
             <StickyNote className="h-4 w-4 text-amber-500" />
             {t('notes.editor.title')}
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
-            aria-label={t('common.close')}
-          >
-            <X className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-1">
+            <ComposeEditorThemeToggle compact />
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
+              aria-label={t('common.close')}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </header>
         <ObjectNoteEditor
           target={target}
           variant="panel"
           layout="toggle"
           className="rounded-none border-0 shadow-none"
+          showThemeToggle={false}
         />
       </div>
     </div>

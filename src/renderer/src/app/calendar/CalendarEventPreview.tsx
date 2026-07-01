@@ -9,9 +9,9 @@ import {
   HorizontalSplitter,
   useResizableHeight
 } from '@/components/ResizableSplitter'
-import { addDays, differenceInMinutes, format, parseISO, startOfDay } from 'date-fns'
-import { de as deFns, enUS as enUSFns } from 'date-fns/locale'
 import type { Locale } from 'date-fns'
+import { addDays, differenceInMinutes, format, parseISO, startOfDay } from 'date-fns'
+import { useDateFnsLocale } from '@/lib/date-fns-locale'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import {
@@ -182,7 +182,7 @@ export function CalendarEventPreview(props: {
   const titleInputRef = useRef<HTMLInputElement>(null)
   const scheduleEditorRef = useRef<HTMLDivElement>(null)
 
-  const dfLocale: Locale = i18n.language.startsWith('de') ? deFns : enUSFns
+  const dfLocale = useDateFnsLocale()
   const allDaySuffix = t('calendar.eventPreview.allDaySuffix')
   const sameDayFmt = i18n.language.startsWith('de') ? 'EEEE, d. MMMM yyyy' : 'EEEE, MMMM d, yyyy'
   const rangeLabel = useMemo(

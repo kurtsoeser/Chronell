@@ -193,18 +193,130 @@
       "title": "Note",
       "shortLabel": "Note",
       "open": "Open note",
-      "placeholder": "Write a Markdown note…",
-      "markdownHint": "Markdown is stored directly. Use the toolbar or preview for formatting.",
+      "placeholder": "Write a note…",
+      "wysiwygHint": "Use the toolbar. Checklists, type [[ for internal page links.",
+      "autosaveHint": "Changes are saved automatically.",
       "updatedAt": "Saved: {{date}}",
       "notSaved": "Not saved yet",
       "saving": "Saving…",
       "saved": "Note saved.",
       "saveFailed": "Could not save note.",
       "viewSwitcherLabel": "Switch note view",
-      "markdownTab": "Markdown",
-      "previewTab": "Preview",
       "resizeAria": "Resize",
       "moveAria": "Move note window"
+    },
+    "templates": {
+      "menuHeading": "New page from template",
+      "blank": {
+        "title": "Blank page",
+        "description": "No preset content"
+      },
+      "meeting": {
+        "title": "Meeting notes",
+        "description": "Agenda, notes, and next steps"
+      },
+      "project": {
+        "title": "Project page",
+        "description": "Goal, status, and milestones"
+      },
+      "weekly": {
+        "title": "Weekly plan",
+        "description": "Priorities and tasks for the week"
+      },
+      "checklist": {
+        "title": "Checklist",
+        "description": "Checkable task list"
+      },
+      "customSection": "Custom templates",
+      "manageHeading": "Manage page templates",
+      "manageHint": "Built-in templates are fixed. You can create, edit, and delete your own templates.",
+      "createButton": "New template",
+      "builtinBadge": "Built-in",
+      "editorCreateTitle": "Create page template",
+      "editorEditTitle": "Edit page template",
+      "editorNameLabel": "Name",
+      "editorDescriptionLabel": "Short description (optional)",
+      "editorBodyLabel": "Template content",
+      "deleteTitle": "Delete template",
+      "deleteConfirm": "Delete template “{{name}}”?",
+      "nameRequired": "Please enter a name.",
+      "saveFromNote": "Save as template",
+      "savedToast": "Page template saved.",
+      "wikiLinkBrowseHint": "Recently edited pages — type to filter",
+      "wikiLinkNoResults": "No matching page found"
+    },
+    "meetingInsert": {
+      "button": "Insert meeting details",
+      "title": "Insert meeting details",
+      "account": "Account",
+      "day": "Day",
+      "eventsHeading": "Events on this day",
+      "loadingEvents": "Loading events…",
+      "loadFailed": "Could not load events.",
+      "noEvents": "No events on this day.",
+      "noAccounts": "No Microsoft or Google account connected for calendar.",
+      "linkToEvent": "Link note to this event",
+      "scheduleNote": "Set note schedule to event time",
+      "insert": "Insert",
+      "insertedToast": "Meeting details inserted.",
+      "allDay": "All day",
+      "fieldDate": "When",
+      "fieldLocation": "Location",
+      "fieldOrganizer": "Organizer",
+      "fieldAttendees": "Attendees",
+      "fieldOnlineMeeting": "Online meeting",
+      "joinMeeting": "Join",
+      "agenda": "Agenda",
+      "notes": "Notes",
+      "nextSteps": "Next steps"
+    },
+    "mailInsert": {
+      "title": "Mail to note",
+      "newPage": "To new note…",
+      "appendPage": "Append to note…",
+      "appendTitle": "Choose note",
+      "searchPlaceholder": "Search notes…",
+      "noNotes": "No standalone notes found.",
+      "mailNotFound": "Mail was not found.",
+      "noteNotFound": "Note was not found.",
+      "failed": "Could not add mail to note: {{message}}",
+      "from": "From",
+      "to": "To",
+      "date": "Date",
+      "subject": "Subject",
+      "excerpt": "Email",
+      "selectionNewPage": "Selection to new note",
+      "selectionAppendPage": "Selection to existing note"
+    },
+    "screenClip": {
+      "title": "Insert screenshot",
+      "button": "Insert screenshot",
+      "defaultTitle": "Screenshot",
+      "emptyClipboard": "No image in clipboard. Take a screenshot first (e.g. Win+Shift+S) or use Ctrl+Shift+Alt+S.",
+      "hint": "Shortcut: Ctrl+Shift+Alt+S"
+    },
+    "quickCapture": {
+      "windowTitle": "Quick capture",
+      "defaultTitle": "Quick note",
+      "titlePlaceholder": "Title (optional)",
+      "bodyPlaceholder": "Capture a thought…",
+      "hint": "Shortcut: Ctrl+Shift+Alt+N",
+      "menu": "Quick capture note"
+    },
+    "onenote": {
+      "pageDateEdit": "Edit date",
+      "pageTimeEdit": "Edit time",
+      "scheduleDateEdit": "Pick schedule date",
+      "scheduleTimeEdit": "Pick schedule time",
+      "metaSection": "Section",
+      "metaKind": "Type",
+      "metaCategories": "Categories",
+      "metaSchedule": "Schedule",
+      "metaAttachments": "Attachments",
+      "categoriesEmpty": "Click to add categories…",
+      "sectionEmpty": "Click to choose a section…",
+      "sectionPickerAria": "Choose section",
+      "planInCalendar": "Schedule in calendar…"
     },
     "preview": {
       "loading": "Loading note…"
@@ -215,6 +327,9 @@
       "newStandalone": "New standalone note",
       "newStandaloneTitle": "New standalone note",
       "newPage": "New page",
+      "newSubPageTitle": "New sub-page",
+      "categories": "Categories",
+      "breadcrumb": "Page path",
       "searchPlaceholder": "Search notes…",
       "searchClear": "Clear search",
       "searchToggle": "Show or hide search results",
@@ -281,6 +396,8 @@
       "namePlaceholder": "Section name",
       "allNotes": "All notes",
       "ungrouped": "Ungrouped",
+      "pinned": "Pinned",
+      "categories": "Categories",
       "moveTo": "Section",
       "deleteTitle": "Delete section",
       "deleteConfirm": "Delete section \"{{name}}\"? Notes will be kept and moved to ungrouped.",
@@ -302,7 +419,25 @@
       "openLink": "Open in browser",
       "saveAs": "Save as",
       "cloudRequiresM365": "Connect a Microsoft 365 account for OneDrive and SharePoint files.",
-      "requiresSavedNote": "Save the note once to attach files."
+      "requiresSavedNote": "Save the note once to attach files.",
+      "playInline": "Play in app",
+      "playbackPosition": "Playback position",
+      "playbackLoading": "Loading playback…",
+      "playbackError": "Could not play in the app.",
+      "retryPlayback": "Try again"
+    },
+    "dropZone": {
+      "hint": "Drop files here",
+      "imagesInline": "Images are also inserted into the note."
+    },
+    "audio": {
+      "record": "Record",
+      "stop": "Stop",
+      "defaultName": "Recording"
+    },
+    "export": {
+      "print": "Print",
+      "pdf": "Save as PDF"
     },
     "preview": {
       "loading": "Loading preview…",
@@ -320,10 +455,22 @@
       "contactNotFound": "Contact not found.",
       "unsupported": "Preview not available for this type."
     },
+    "subPages": {
+      "title": "Sub-pages ({{count}})",
+      "create": "Sub-page",
+      "empty": "No sub-pages yet",
+      "expand": "Show sub-pages",
+      "collapse": "Hide sub-pages"
+    },
     "pagesContextMenu": {
       "copy": "Copy",
       "move": "Move",
       "link": "Link",
+      "pin": "Pin",
+      "unpin": "Unpin",
+      "createSubPage": "Create sub-page",
+      "setParent": "Parent page",
+      "parentRoot": "None (top level)",
       "linkDialogTitle": "Link to object",
       "copied": "Note copied."
     },
@@ -1364,12 +1511,15 @@
     "notesResetAll": "Reset all notes settings",
     "notesEditorHeading": "Editor",
     "notesEditorHeightLabel": "Editor height",
-    "notesEditorPreviewModeLabel": "Default editor view",
-    "notesEditorModeLive": "Live (split)",
-    "notesEditorModeEdit": "Edit only",
-    "notesEditorModePreview": "Preview only",
-    "notesEditorModeToggle": "Edit / preview toggle",
-    "notesEditorToggleTabLabel": "Default tab when toggling",
+    "notesEditorThemeLabel": "Editor light/dark",
+    "notesEditorThemeHint": "Also applies to the mail editor — shared setting.",
+    "notesDefaultTemplateLabel": "Default template for new pages",
+    "notesAudioQualityLabel": "Audio recording quality",
+    "notesAudioQualityHint": "Applies to voice notes in attachments. Higher quality means larger files.",
+    "notesAudioQuality_compact": "Compact (32 kbps, mono)",
+    "notesAudioQuality_standard": "Standard (64 kbps, mono)",
+    "notesAudioQuality_high": "High (128 kbps, stereo)",
+    "notesAudioQuality_maximum": "Maximum (192 kbps, stereo)",
     "notesShowSectionLabelsLabel": "Always show section names in the page list",
     "notesUseGlobalNavWidthLabel": "Same navigation width as other modules",
     "notesNavWidthLabel": "Left navigation width (notes)",
@@ -1382,6 +1532,7 @@
     "notesPreviewFloatHeightLabel": "Floating preview height",
     "notesWorkflowHeading": "Workflow & filters",
     "notesAutosaveLabel": "Auto-save",
+    "notesAutosaveOnChange": "After changes (recommended)",
     "notesAutosaveOff": "Off (manual only)",
     "notesAutosaveOnLeave": "When leaving the note",
     "notesAutosaveInterval": "On an interval",
@@ -2667,10 +2818,21 @@
       "loadExternalImages": "Load external images",
       "loadingAttachments": "Loading attachments…",
       "saveAttachmentAsTitle": "Save as…",
-      "attachmentInlineChip": "inline"
+      "attachmentInlineChip": "inline",
+      "metaFolder": "Folder",
+      "metaFrom": "From",
+      "metaTo": "To",
+      "metaCc": "Cc",
+      "metaAccount": "Account",
+      "metaCategories": "Categories",
+      "categoriesEmpty": "Click to set categories…",
+      "metaImportanceHigh": "High importance",
+      "metaFlagged": "Flagged"
     },
     "meetingInvitation": {
       "ariaLabel": "Meeting invitation",
+      "collapse": "Collapse meeting preview",
+      "expand": "Expand meeting preview",
       "loading": "Loading meeting invitation…",
       "intro": "You have been invited to the following meeting.",
       "cancelledIntro": "This meeting has been cancelled.",
@@ -3749,6 +3911,13 @@
       "clear": "Clear",
       "today": "Today",
       "dialogAria": "Pick a date"
+    },
+    "timePicker": {
+      "placeholder": "HH:mm",
+      "now": "Now",
+      "dialogAria": "Choose time",
+      "manualAria": "Enter time",
+      "listAria": "Times"
     },
     "posteingangUi": {
       "toggleInboxHide": "Hide inbox column",

@@ -17,7 +17,8 @@ import {
   startOfWeek,
   startOfYear
 } from 'date-fns'
-import { de as deFns, enUS as enUSFns } from 'date-fns/locale'
+import type { Locale } from 'date-fns'
+import { resolveDateFnsLocale } from '@/lib/date-fns-locale'
 import type { TimeGridSlotMinutes } from '@/app/calendar/calendar-shell-storage'
 
 export const GANTT_TIMELINE_VIEW_ID = 'ganttTimeline' as const
@@ -186,7 +187,7 @@ function alignGanttRangeStartToSlot(rangeStart: Date, slotMinutes: number): Date
   return new Date(aligned)
 }
 
-function hourSlotPrimaryLabel(t: Date, locale: typeof deFns): string {
+function hourSlotPrimaryLabel(t: Date, locale: Locale): string {
   if (t.getMinutes() !== 0) return ''
   return format(t, 'HH:mm', { locale })
 }
@@ -199,7 +200,7 @@ export function buildGanttHeaderColumns(
   now = new Date(),
   hourSlotMinutes: TimeGridSlotMinutes = 15
 ): GanttHeaderColumn[] {
-  const locale = localeCode.startsWith('de') ? deFns : enUSFns
+  const locale = resolveDateFnsLocale(localeCode)
   const todayStart = startOfDay(now).getTime()
   const cols: GanttHeaderColumn[] = []
 
@@ -345,7 +346,7 @@ export function ganttRangeTitle(
   rangeEnd: Date,
   localeCode: string
 ): string {
-  const locale = localeCode.startsWith('de') ? deFns : enUSFns
+  const locale = resolveDateFnsLocale(localeCode)
   const endInclusive = addDays(endOfDay(addDays(rangeEnd, -1)), 0)
   if (differenceInCalendarDays(endInclusive, rangeStart) <= 1) {
     return format(rangeStart, 'd. MMMM yyyy', { locale })

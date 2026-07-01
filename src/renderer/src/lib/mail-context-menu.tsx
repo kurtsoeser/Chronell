@@ -72,6 +72,10 @@ export interface MailContextHandlers {
 
   openNote?: (message: MailListItem) => void
 
+  sendMailToNewNote?: (message: MailListItem) => void | Promise<void>
+
+  sendMailToExistingNote?: (message: MailListItem) => void | Promise<void>
+
   sendToNotion?: (message: MailListItem) => void | Promise<void>
 
   sendToNotionAsNewPage?: (message: MailListItem) => void | Promise<void>
@@ -635,11 +639,35 @@ export function buildMailContextItems(
       }
 
     },
+    ...(h.sendMailToNewNote
+      ? [
+          {
+            id: 'note-new-page',
+            label: tr ? tr('notes.mailInsert.newPage') : 'In neue Notiz…',
+            icon: StickyNote,
+            onSelect: (): void => {
+              void h.sendMailToNewNote?.(msg)
+            }
+          }
+        ]
+      : []),
+    ...(h.sendMailToExistingNote
+      ? [
+          {
+            id: 'note-append',
+            label: tr ? tr('notes.mailInsert.appendPage') : 'An Notiz anhängen…',
+            icon: StickyNote,
+            onSelect: (): void => {
+              void h.sendMailToExistingNote?.(msg)
+            }
+          }
+        ]
+      : []),
     ...(h.openNote
       ? [
           {
             id: 'note',
-            label: tr ? tr('notes.contextNew') : 'Notiz...',
+            label: tr ? tr('notes.contextNew') : 'Notiz…',
             icon: StickyNote,
             onSelect: (): void => h.openNote?.(msg)
           }

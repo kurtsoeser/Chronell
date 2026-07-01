@@ -1,5 +1,5 @@
 import { format } from 'date-fns'
-import { de as deFns, enUS as enUSFns } from 'date-fns/locale'
+import { resolveDateFnsLocale } from '@/lib/date-fns-locale'
 import type { WorkItem } from '@shared/work-item'
 import type { GanttBarInterval } from '@/app/calendar/calendar-gantt-layout'
 
@@ -8,7 +8,7 @@ export function formatGanttBarTooltip(
   interval: GanttBarInterval,
   localeCode: string
 ): string {
-  const locale = localeCode.startsWith('de') ? deFns : enUSFns
+  const locale = resolveDateFnsLocale(localeCode)
   const title = item.title?.trim() || '—'
   if (interval.allDay) {
     const start = new Date(interval.startMs)

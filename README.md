@@ -5,10 +5,11 @@
 | | |
 |---|---|
 | **Homepage & Download** | [chronell.app](https://chronell.app/) |
-| **Aktuelle Version** | **0.9.23** (26. Mai 2026) |
+| **Aktuelle Version** | **0.9.30** (22. Juni 2026) |
 | **Windows-Installer** | [GitHub Release](https://github.com/kurtsoeser/Chronell/releases/latest) (primär; auch Installer >100 MB via Git LFS im Repo) |
 | **Technischer Repo-Name** | MailClient · **App-ID:** `at.kurtsoeser.chronell` |
 | **Ausführliches Protokoll** | [`docs/FUNKTIONSPROTOKOLL.md`](docs/FUNKTIONSPROTOKOLL.md) |
+| **Architektur (Entwickler)** | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [`CONTRIBUTING.md`](CONTRIBUTING.md) |
 | **Landing Page (Quellen)** | [`docs/`](docs/) · Deploy: [`docs/DEPLOY.md`](docs/DEPLOY.md) |
 
 > **Status:** Funktionsfähige Beta für **Windows 11**. Multi-Account-Synchronisation über **Microsoft Graph** und **Google APIs** (Gmail, Kalender, Kontakte, Tasks). Die Oberfläche ist auf **Deutsch** und **Englisch** verfügbar.
@@ -98,7 +99,7 @@ Die obere Leiste gliedert die App in **zehn Modi** (Reihenfolge anpassbar, einze
 | **Aufgaben** | Microsoft To Do + Google Tasks |
 | **Alle Arbeit** | Mail-ToDos, Cloud-Tasks und Termine in Liste oder Kanban |
 | **Personen** | Kontakte (Graph + Google), lokal gecacht |
-| **Notizen** | Kernnotizen an Mails/Terminen oder freistehend, Markdown, Entity-Links |
+| **Notizen** | Kernnotizen an Mails/Terminen oder freistehend, WYSIWYG, Vorlagen, Entity-Links |
 | **Verbindungen** | Graph aller Verknüpfungen, KI-Scan, Gruppierung, gespeichertes Layout |
 | **Chat** | Microsoft Teams + WhatsApp Web (eingebettet) |
 
@@ -187,7 +188,7 @@ Einstellungen: **Einstellungen → Bookings** (Übersicht, Book with me, Zugriff
 ### Notizen
 
 - An **Mail**, an **Termin** oder **freistehend** (Kernnotizen)
-- Abschnittsbaum, Markdown-Editor, Listen-/Kalenderansicht
+- Abschnittsbaum, WYSIWYG-Editor (TipTap), Seitenvorlagen, Listen-/Kalenderansicht
 - **Entity-Links** (Notiz ↔ Mail ↔ Termin ↔ Task ↔ Kontakt)
 - Anhänge lokal und über M365/OneDrive
 
@@ -352,7 +353,10 @@ Hinweis: `signAndEditExecutable: false` in `electron-builder.yml` — für Verte
 ```powershell
 npm run test
 npm run test:watch
+npm run test:coverage
 ```
+
+Architektur und Mitwirk-Regeln: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ---
 
@@ -383,7 +387,7 @@ src/
     src/stores/
     src/lib/
   shared/         Typen, IPC-Konstanten, app-version
-docs/             Homepage (GitHub Pages), DEPLOY, release/
+docs/             Homepage, ARCHITECTURE, IPC-REFERENCE, DEPLOY, release/
 resources/        Branding, Icons
 scripts/          Build, publish-docs-release, Branding-Sync
 ```

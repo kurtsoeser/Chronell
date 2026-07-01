@@ -9,8 +9,12 @@ import {
   type DragEndEvent
 } from '@dnd-kit/core'
 import {
+  CalendarDays,
+  FileDown,
+  FilePlus2,
   Loader2,
   PanelRightOpen,
+  Printer,
   Trash2,
   X
 } from 'lucide-react'
@@ -23,7 +27,7 @@ import {
   startOfDay,
   startOfMonth
 } from 'date-fns'
-import { de as deFns, enUS as enUSFns } from 'date-fns/locale'
+import { resolveDateFnsLocale } from '@/lib/date-fns-locale'
 import { useTranslation } from 'react-i18next'
 import type { NoteLinksBundle } from '@shared/note-entity-links'
 import type {
@@ -55,23 +59,34 @@ import {
   readNotesActiveShellView
 } from '@/app/notes/notes-active-shell-view-storage'
 import { EntityContextBlock } from '@/components/connections/EntityContextBlock'
-import { NotesAttachmentsPanel } from '@/app/notes/NotesAttachmentsPanel'
-import { NotesPagesPane } from '@/app/notes/NotesPagesPane'
+import { NotesOneNotePageHeader } from '@/app/notes/NotesOneNotePageHeader'
+import { NotesShellEditorPane } from '@/app/notes/NotesShellEditorPane'
+import { noteTitle } from '@/app/notes/notes-display-helpers'
 import {
   readNotesPagesSort,
-  sortNotesPages,
+  compareNotesPagesSibling,
   type NotesPagesSortKey
 } from '@/lib/notes-pages-sort'
-import { NotesNoteScheduleBlock } from '@/app/notes/NotesNoteScheduleBlock'
+import { NoteMeetingInsertDialog, type NoteMeetingInsertResult } from '@/app/notes/NoteMeetingInsertDialog'
+import { NotesPagesPane } from '@/app/notes/NotesPagesPane'
 import { NotesSidebarList } from '@/app/notes/NotesSidebarList'
 import { NotesShellSearch } from '@/app/notes/NotesShellSearch'
 import { NotesShellViewToggle, type NotesShellView } from '@/app/notes/NotesShellViewToggle'
-import { formatNoteDate, noteKindLabel, noteTitle } from '@/app/notes/notes-display-helpers'
-import { NoteDisplayIcon } from '@/components/NoteDisplayIcon'
-import { CalendarEventIconPicker } from '@/components/CalendarEventIconPicker'
-import { IconColorPickerFooter } from '@/components/IconColorPickerFooter'
-import { resolveEntityIconColor } from '@shared/entity-icon-color'
-import { MarkdownNoteEditor } from '@/components/MarkdownNoteEditor'
+import {
+  NotePageTemplateEditDialog,
+  type NotePageTemplateEditorState
+} from '@/components/NotePageTemplateEditDialog'
+import {
+  loadCustomNotePageTemplates,
+  upsertCustomNotePageTemplate
+} from '@/lib/note-page-templates-custom'
+import {
+  normalizeNoteBodyForStorage,
+  prepareNoteBodyForEditor,
+  storedBodyFromEditorHtml
+} from '@/lib/note-body-html'
+import { listAllNotePageTemplates, resolveNotePageTemplate, type NotePageTemplateId } from '@/lib/note-page-templates'
+import { useCustomNotePageTemplates } from '@/hooks/use-custom-note-page-templates'
 import {
   ModuleColumnHeaderIconButton,
   moduleColumnHeaderIconGlyphClass,
@@ -89,7 +104,6 @@ import {
 } from '@/lib/module-nav-column-width'
 import { initialNotesDateRangeFromPrefs } from '@/lib/notes-initial-date-range'
 import { noteKindsForFilter } from '@/lib/notes-settings-prefs'
-import type { NotesEditorPreviewMode } from '@/lib/notes-settings-prefs'
 import {
   defaultNavSelection,
   navSelectionLabel,
@@ -97,8 +111,31 @@ import {
   persistNotesNavSelection,
   readNotesNavSelection,
   sectionIdForNewNote,
-  type NotesNavSelection
+  type NotesNavSelection,
+  type NotesSectionsNavScope
 } from '@/lib/notes-nav-selection'
+import { NotesChildPagesBar } from '@/app/notes/NotesChildPagesBar'
+import {
+  buildNoteBreadcrumb,
+  buildNotesPageRows,
+  listDirectChildNotes
+} from '@/lib/notes-page-tree'
+import {
+  readNotesPageTreeCollapsed,
+  toggleNotesPageTreeCollapsed,
+  persistNotesPageTreeCollapsed
+} from '@/lib/notes-page-collapse-storage'
+import {
+  collectDistinctNoteCategories,
+  resolveNoteCategoryAccountId
+} from '@/lib/note-category-account'
+import {
+  safeMoveNoteToParent,
+  safeSetNoteCategories,
+  safeSetNotePinned
+} from '@/lib/notes-ipc-client'
+import { NoteCategoriesPopover } from '@/components/NoteCategoriesPopover'
+import { NoteSectionPopover } from '@/components/NoteSectionPopover'
 import { parseNoteDragId, parseNoteNavDropId } from '@/lib/notes-sidebar-dnd'
 import {
   readNotesSidebarListMode,
@@ -106,6 +143,7 @@ import {
   persistNotesSidebarListMode
 } from '@/lib/notes-sidebar-storage'
 import { LOCAL_NOTES_ACCOUNT_KEY, buildNoteAccountBuckets } from '@/lib/notes-sidebar-accounts'
+import { runScreenClipCapture } from '@/lib/note-screen-clip'
 import { GLOBAL_CREATE_EVENT, useGlobalCreateNavigateStore } from '@/lib/global-create'
 import { cn } from '@/lib/utils'
 import { ContentCrossfade } from '@/components/motion/ContentCrossfade'
@@ -116,23 +154,16 @@ import { useNotesPendingFocusStore } from '@/stores/notes-pending-focus'
 import { showAppConfirm } from '@/stores/app-dialog'
 import { useUndoStore } from '@/stores/undo'
 import { useNotesSettingsPrefs } from '@/lib/use-notes-settings-prefs'
+import {
+  NOTES_AUTOSAVE_DEBOUNCE_MS,
+  noteEditingHasUnsavedChanges
+} from '@/lib/notes-autosave'
 import { useIdBulkSelection } from '@/lib/id-bulk-selection'
 import { useBulkListKeyboardShortcuts } from '@/lib/use-bulk-list-keyboard-shortcuts'
 
 const NOTES_DETAIL_WIDTH_KEY = 'mailclient.notesShell.detailWidth'
 const NOTES_NAV_WIDTH_KEY = 'mailclient.notesShell.navWidth.v2'
 const NOTES_PREVIEW_DOCK_WIDTH_KEY = 'mailclient.notesShell.previewDockWidth'
-
-function editorPropsFromPreviewMode(mode: NotesEditorPreviewMode, toggleTab: 'edit' | 'preview'): {
-  layout: 'live' | 'toggle'
-  preview: 'live' | 'edit' | 'preview'
-  initialToggleTab: 'edit' | 'preview'
-} {
-  if (mode === 'toggle') {
-    return { layout: 'toggle', preview: 'edit', initialToggleTab: toggleTab }
-  }
-  return { layout: 'live', preview: mode, initialToggleTab: toggleTab }
-}
 type ScheduleDraft = {
   scheduledStartIso: string | null
   scheduledEndIso: string | null
@@ -155,7 +186,7 @@ function notesSelectedRange(dateFrom: string, dateTo: string): MiniMonthSelected
 function notesDateRangeLabel(dateFrom: string, dateTo: string, locale: string): string {
   const range = notesSelectedRange(dateFrom, dateTo)
   if (!range) return ''
-  const dfLocale = locale.startsWith('de') ? deFns : enUSFns
+  const dfLocale = resolveDateFnsLocale(locale)
   const sameDay = range.startInclusive.getTime() === range.endInclusive.getTime()
   if (sameDay) {
     return format(range.startInclusive, 'd. MMM yyyy', { locale: dfLocale })
@@ -212,6 +243,7 @@ type UserNoteScheduleFieldsForSave = {
 export function NotesShell(): JSX.Element {
   const { t, i18n } = useTranslation()
   const notesSettings = useNotesSettingsPrefs()
+  const { customTemplates } = useCustomNotePageTemplates()
   const accounts = useAccountsStore((s) => s.accounts)
   const selectMessageWithThreadPreview = useMailStore((s) => s.selectMessageWithThreadPreview)
   const clearSelectedMessage = useMailStore((s) => s.clearSelectedMessage)
@@ -230,10 +262,20 @@ export function NotesShell(): JSX.Element {
   const scheduledOnlyFilter =
     notesSettings.defaultDateFilterMode === 'scheduled_only'
   const [editing, setEditing] = useState<UserNote | null>(null)
-  const [editTitle, setEditTitle] = useState('')
-  const [editBody, setEditBody] = useState('')
+  const editTitleRef = useRef('')
+  const [editorSeedHtml, setEditorSeedHtml] = useState('')
+  const editBodyRef = useRef('')
+  const editorFlushRef = useRef<(() => void) | null>(null)
+  const editorInsertHtmlRef = useRef<((html: string) => void) | null>(null)
+  const lastSavedTitleRef = useRef('')
+  const lastSavedBodyRef = useRef('')
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [meetingInsertOpen, setMeetingInsertOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [templateFromNoteOpen, setTemplateFromNoteOpen] = useState<NotePageTemplateEditorState | null>(
+    null
+  )
   const [shellView, setShellView] = useState<NotesShellView>(() => readNotesActiveShellView())
   const [sections, setSections] = useState<NoteSection[]>([])
   const [scheduleDraft, setScheduleDraft] = useState<ScheduleDraft | null>(null)
@@ -242,6 +284,12 @@ export function NotesShell(): JSX.Element {
     readNotesNavSelection(readNotesSidebarListMode())
   )
   const [pagesSort, setPagesSort] = useState<NotesPagesSortKey>(() => readNotesPagesSort())
+  const [collapsedParentIds, setCollapsedParentIds] = useState<Set<number>>(() =>
+    readNotesPageTreeCollapsed()
+  )
+  const [categoryColorByName, setCategoryColorByName] = useState(() => new Map<string, string>())
+  const [categoryPopover, setCategoryPopover] = useState<{ x: number; y: number } | null>(null)
+  const [sectionPopover, setSectionPopover] = useState<{ x: number; y: number } | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
@@ -350,18 +398,69 @@ export function NotesShell(): JSX.Element {
     [dateFrom, dateTo, i18n.language]
   )
 
-  const pagesNotes = useMemo(() => {
-    const filtered = notesForNavSelection(notes, navSelection)
-    return sortNotesPages(filtered, pagesSort, t('notes.shell.untitled'))
-  }, [notes, navSelection, pagesSort, t])
+  const pagesNotes = useMemo(
+    () => notesForNavSelection(notes, navSelection),
+    [notes, navSelection]
+  )
+
+  const untitledLabel = t('notes.shell.untitled')
+
+  const pageRows = useMemo(
+    () => buildNotesPageRows(pagesNotes, pagesSort, collapsedParentIds, untitledLabel),
+    [pagesNotes, pagesSort, collapsedParentIds, untitledLabel]
+  )
+
+  const editingChildNotes = useMemo(() => {
+    if (!editing) return []
+    const compare = (a: UserNoteListItem, b: UserNoteListItem): number =>
+      compareNotesPagesSibling(a, b, pagesSort, untitledLabel)
+    return listDirectChildNotes(editing.id, pagesNotes, compare)
+  }, [editing, pagesNotes, pagesSort, untitledLabel])
+
+  const notesById = useMemo(() => new Map(notes.map((n) => [n.id, n])), [notes])
+
+  const editingBreadcrumb = useMemo(() => {
+    if (!editing) return []
+    return buildNoteBreadcrumb(editing.id, notesById)
+  }, [editing, notesById])
+
+  const editingSectionName = useMemo(() => {
+    if (!editing?.sectionId) return null
+    return sections.find((s) => s.id === editing.sectionId)?.name ?? null
+  }, [editing?.sectionId, sections])
+
+  useEffect(() => {
+    const ms = accounts.find((a) => a.provider === 'microsoft')
+    if (!ms) {
+      setCategoryColorByName(new Map())
+      return
+    }
+    let cancelled = false
+    void window.mailClient.mail.listMasterCategories(ms.id).then((cats) => {
+      if (cancelled) return
+      const m = new Map<string, string>()
+      for (const c of cats) m.set(c.displayName, c.color)
+      setCategoryColorByName(m)
+    })
+    return (): void => {
+      cancelled = true
+    }
+  }, [accounts])
 
   const pagesSelection = useIdBulkSelection(
     useMemo(() => pagesNotes.map((n) => n.id), [pagesNotes]),
     useMemo(() => {
-      // Auswahl wird bei Scope-Wechsel zurückgesetzt (z.B. Sortierung/Filter/Navigation).
+      const scopeKey =
+        navSelection.kind === 'sections'
+          ? typeof navSelection.scope === 'object'
+            ? 'sectionId' in navSelection.scope
+              ? `section:${navSelection.scope.sectionId}`
+              : `category:${navSelection.scope.category}`
+            : String(navSelection.scope)
+          : ''
       if (navSelection.kind === 'accounts')
         return `acc:${navSelection.accountKey}:${pagesSort}:${dateFrom}:${dateTo}`
-      return `sec:${navSelection.scope}:${pagesSort}:${dateFrom}:${dateTo}`
+      return `sec:${scopeKey}:${pagesSort}:${dateFrom}:${dateTo}`
     }, [navSelection, pagesSort, dateFrom, dateTo])
   )
 
@@ -374,14 +473,94 @@ export function NotesShell(): JSX.Element {
     return buildNotesPreviewLinkEntries(editing, linksBundle, t)
   }, [editing, linksBundle, t])
 
-  const editorUi = useMemo(
-    () =>
-      editorPropsFromPreviewMode(
-        notesSettings.defaultEditorPreviewMode,
-        notesSettings.defaultEditorToggleTab
-      ),
-    [notesSettings.defaultEditorPreviewMode, notesSettings.defaultEditorToggleTab]
+  const flushAutosaveTimer = useCallback((): void => {
+    if (autosaveTimerRef.current != null) {
+      clearTimeout(autosaveTimerRef.current)
+      autosaveTimerRef.current = null
+    }
+  }, [])
+
+  const handleMeetingInsert = useCallback(
+    async (result: NoteMeetingInsertResult, html: string): Promise<void> => {
+      if (!editing) return
+      editorInsertHtmlRef.current?.(html)
+      if (result.scheduleNote) {
+        setScheduleDraft({
+          scheduledStartIso: result.event.startIso,
+          scheduledEndIso: result.event.endIso,
+          scheduledAllDay: result.event.isAllDay
+        })
+      }
+      if (result.linkToEvent && result.event.graphEventId?.trim()) {
+        try {
+          await window.mailClient.notes.links.add({
+            fromNoteId: editing.id,
+            target: {
+              kind: 'calendar_event',
+              accountId: result.event.accountId,
+              graphEventId: result.event.graphEventId
+            }
+          })
+          const bundle = await window.mailClient.notes.links.list(editing.id)
+          setLinksBundle(bundle)
+        } catch (e) {
+          pushToast({
+            label: e instanceof Error ? e.message : String(e),
+            variant: 'error'
+          })
+        }
+      }
+      pushToast({ label: t('notes.meetingInsert.insertedToast'), variant: 'success' })
+    },
+    [editing, pushToast, t]
   )
+
+  const handleScreenClip = useCallback((): void => {
+    void runScreenClipCapture({
+      activeNoteId: editing?.id ?? null,
+      insertHtml: (html): void => {
+        editorInsertHtmlRef.current?.(html)
+      }
+    })
+  }, [editing?.id])
+
+  const noteExportPayload = useCallback((): { title: string; bodyHtml: string } | null => {
+    if (!editing) return null
+    editorFlushRef.current?.()
+    const title = editTitleRef.current.trim() || t('notes.shell.untitled')
+    return { title, bodyHtml: editBodyRef.current }
+  }, [editing, t])
+
+  const handleExportPdf = useCallback((): void => {
+    const payload = noteExportPayload()
+    if (!payload) return
+    void (async (): Promise<void> => {
+      setError(null)
+      const res = await window.mailClient.notes.exportPdf({
+        ...payload,
+        suggestedFileName: `${payload.title}.pdf`
+      })
+      if (!res.ok && !res.cancelled && res.error) setError(res.error)
+    })()
+  }, [noteExportPayload])
+
+  const handlePrintPage = useCallback((): void => {
+    const payload = noteExportPayload()
+    if (!payload) return
+    void (async (): Promise<void> => {
+      setError(null)
+      const res = await window.mailClient.notes.printPage(payload)
+      if (!res.ok && res.error) setError(res.error)
+    })()
+  }, [noteExportPayload])
+
+  useEffect(() => {
+    const onScreenClip = (): void => {
+      handleScreenClip()
+    }
+    window.addEventListener('notes:screen-clip-request', onScreenClip)
+    return (): void => window.removeEventListener('notes:screen-clip-request', onScreenClip)
+  }, [handleScreenClip])
 
   useEffect(() => {
     if (!editing) {
@@ -432,9 +611,11 @@ export function NotesShell(): JSX.Element {
       typeof navSelection.scope === 'object'
     ) {
       const sectionScope = navSelection.scope
-      const exists = sections.some((s) => s.id === sectionScope.sectionId)
-      if (!exists) {
-        setNavSelection(defaultNavSelection('sections'))
+      if ('sectionId' in sectionScope) {
+        const exists = sections.some((s) => s.id === sectionScope.sectionId)
+        if (!exists) {
+          setNavSelection(defaultNavSelection('sections'))
+        }
       }
       return
     }
@@ -534,12 +715,51 @@ export function NotesShell(): JSX.Element {
           throw new Error(t('notes.shell.invalidNote'))
         }
         applyNotePatch(saved)
-        if (editing?.id === note.id) setEditTitle(title)
+        if (editing?.id === note.id) editTitleRef.current = title
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e))
       }
     },
     [applyNotePatch, editing?.id, t]
+  )
+
+  const persistMigratedBody = useCallback(
+    async (note: UserNote, body: string): Promise<UserNote | null> => {
+      try {
+        if (note.kind === 'standalone') {
+          return await window.mailClient.notes.updateStandalone({ id: note.id, body })
+        }
+        if (note.kind === 'mail' && note.messageId != null) {
+          return await window.mailClient.notes.upsertMail({
+            messageId: note.messageId,
+            title: note.title ?? undefined,
+            body
+          })
+        }
+        if (
+          note.kind === 'calendar' &&
+          note.accountId &&
+          note.calendarSource &&
+          note.calendarRemoteId &&
+          note.eventRemoteId
+        ) {
+          return await window.mailClient.notes.upsertCalendar({
+            accountId: note.accountId,
+            calendarSource: note.calendarSource,
+            calendarRemoteId: note.calendarRemoteId,
+            eventRemoteId: note.eventRemoteId,
+            title: note.title ?? undefined,
+            body,
+            eventTitleSnapshot: note.eventTitleSnapshot,
+            eventStartIsoSnapshot: note.eventStartIsoSnapshot
+          })
+        }
+        return null
+      } catch {
+        return null
+      }
+    },
+    []
   )
 
   const openEdit = useCallback(
@@ -552,10 +772,24 @@ export function NotesShell(): JSX.Element {
         } catch {
           // Liste/Cache nutzen, wenn getById fehlschlaegt.
         }
+        const prepared = prepareNoteBodyForEditor(resolved.body)
+        const editorHtml = prepared.html
+        editBodyRef.current = editorHtml
+        lastSavedTitleRef.current = resolved.title ?? ''
+        lastSavedBodyRef.current = resolved.body
+        editTitleRef.current = resolved.title ?? ''
+        flushAutosaveTimer()
         setEditing(resolved)
-        setEditTitle(resolved.title ?? '')
-        setEditBody(resolved.body)
+        setEditorSeedHtml(editorHtml)
         setScheduleDraft(null)
+        if (prepared.migratedFromMarkdown) {
+          const stored = normalizeNoteBodyForStorage(editorHtml)
+          const saved = await persistMigratedBody(resolved, stored)
+          if (saved) {
+            applyNotePatch(saved)
+            setEditing({ ...resolved, ...saved })
+          }
+        }
         if (resolved.kind === 'mail' && resolved.messageId != null) {
           void selectMessageWithThreadPreview(resolved.messageId)
         } else {
@@ -563,7 +797,7 @@ export function NotesShell(): JSX.Element {
         }
       })()
     },
-    [clearSelectedMessage, selectMessageWithThreadPreview]
+    [applyNotePatch, clearSelectedMessage, flushAutosaveTimer, persistMigratedBody, selectMessageWithThreadPreview]
   )
 
   const openNoteById = useCallback(
@@ -590,15 +824,20 @@ export function NotesShell(): JSX.Element {
     void openNoteById(pendingId)
   }, [pendingNoteId, notes, takePendingNoteId, openNoteById])
 
-  const createStandalone = useCallback(async (): Promise<void> => {
+  const createStandalone = useCallback(
+    async (templateId: NotePageTemplateId = notesSettings.defaultNotePageTemplateId): Promise<void> => {
     setSaving(true)
     setError(null)
     try {
+      const template = resolveNotePageTemplate(templateId, customTemplates, t)
       const sectionId =
         listMode === 'sections' ? sectionIdForNewNote(navSelection) : null
       const note = await window.mailClient.notes.createStandalone({
-        title: t('notes.shell.newStandaloneTitle'),
-        body: '',
+        title:
+          template.id === 'blank'
+            ? t('notes.shell.newStandaloneTitle')
+            : template.title,
+        body: storedBodyFromEditorHtml(template.bodyHtml),
         sectionId
       })
       clearSelectedMessage()
@@ -613,13 +852,16 @@ export function NotesShell(): JSX.Element {
     } finally {
       setSaving(false)
     }
-  }, [
+  },
+    [
     t,
     clearSelectedMessage,
     openEdit,
     listMode,
     navSelection,
     notesSettings.openNoteAfterCreate,
+    notesSettings.defaultNotePageTemplateId,
+    customTemplates,
     load,
     loadSections
   ])
@@ -627,7 +869,7 @@ export function NotesShell(): JSX.Element {
   useEffect(() => {
     const pending = useGlobalCreateNavigateStore.getState().takePendingAfterNavigate()
     if (pending === 'note') {
-      window.setTimeout((): void => void createStandalone(), 0)
+      window.setTimeout((): void => void createStandalone(notesSettings.defaultNotePageTemplateId), 0)
     }
   }, [createStandalone])
 
@@ -635,20 +877,16 @@ export function NotesShell(): JSX.Element {
     function onGlobalCreate(e: Event): void {
       const ce = e as CustomEvent<{ kind?: string }>
       if (ce.detail?.kind !== 'note') return
-      void createStandalone()
+      void createStandalone(notesSettings.defaultNotePageTemplateId)
     }
     window.addEventListener(GLOBAL_CREATE_EVENT, onGlobalCreate as EventListener)
     return (): void => window.removeEventListener(GLOBAL_CREATE_EVENT, onGlobalCreate as EventListener)
   }, [createStandalone])
 
-  const isEditingDirty = useMemo(() => {
-    if (!editing) return false
-    if (scheduleDraft) return true
-    return editTitle !== (editing.title ?? '') || editBody !== editing.body
-  }, [editing, editTitle, editBody, scheduleDraft])
-
   async function saveEditing(opts?: { silent?: boolean }): Promise<void> {
     if (!editing) return
+    editorFlushRef.current?.()
+    const bodyToSave = normalizeNoteBodyForStorage(editBodyRef.current)
     setSaving(true)
     setError(null)
     const schedule = scheduleFieldsFromDraft(scheduleDraft)
@@ -657,8 +895,8 @@ export function NotesShell(): JSX.Element {
       if (editing.kind === 'standalone') {
         saved = await window.mailClient.notes.updateStandalone({
           id: editing.id,
-          title: editTitle,
-          body: editBody,
+          title: editTitleRef.current,
+          body: bodyToSave,
           ...(schedule.clearSchedule ? { clearSchedule: true } : {}),
           ...(!schedule.clearSchedule && scheduleDraft
             ? {
@@ -671,8 +909,8 @@ export function NotesShell(): JSX.Element {
       } else if (editing.kind === 'mail' && editing.messageId != null) {
         saved = await window.mailClient.notes.upsertMail({
           messageId: editing.messageId,
-          title: editTitle,
-          body: editBody,
+          title: editTitleRef.current,
+          body: bodyToSave,
           ...(scheduleDraft
             ? {
                 scheduledStartIso: schedule.scheduledStartIso,
@@ -693,8 +931,8 @@ export function NotesShell(): JSX.Element {
           calendarSource: editing.calendarSource,
           calendarRemoteId: editing.calendarRemoteId,
           eventRemoteId: editing.eventRemoteId,
-          title: editTitle,
-          body: editBody,
+          title: editTitleRef.current,
+          body: bodyToSave,
           eventTitleSnapshot: editing.eventTitleSnapshot,
           eventStartIsoSnapshot: editing.eventStartIsoSnapshot,
           ...(scheduleDraft
@@ -709,14 +947,20 @@ export function NotesShell(): JSX.Element {
         throw new Error(t('notes.shell.invalidNote'))
       }
       setEditing({ ...editing, ...saved })
-      setEditTitle(saved.title ?? '')
-      setEditBody(saved.body)
-      setScheduleDraft(null)
-      if (!opts?.silent) {
+      editTitleRef.current = saved.title ?? ''
+      lastSavedTitleRef.current = saved.title ?? ''
+      lastSavedBodyRef.current = saved.body
+      if (opts?.silent) {
+        applyNotePatch(saved)
+      } else {
+        const editorHtml = prepareNoteBodyForEditor(saved.body).html
+        editBodyRef.current = editorHtml
+        setEditorSeedHtml(editorHtml)
+        await load()
+        await loadSections()
         pushToast({ label: t('notes.editor.saved'), variant: 'success' })
       }
-      await load()
-      await loadSections()
+      setScheduleDraft(null)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -724,14 +968,62 @@ export function NotesShell(): JSX.Element {
     }
   }
 
-  const autosaveRef = useRef({ dirty: false, run: async (): Promise<void> => {} })
+  const autosaveRef = useRef({ run: async (): Promise<void> => {} })
   autosaveRef.current = {
-    dirty: isEditingDirty,
     run: async (): Promise<void> => {
-      if (!isEditingDirty || saving) return
+      if (!editing || saving) return
+      editorFlushRef.current?.()
+      const scheduleNote = scheduleDraft && !scheduleDraft.clearSchedule
+        ? {
+            scheduledStartIso: scheduleDraft.scheduledStartIso,
+            scheduledEndIso: scheduleDraft.scheduledEndIso,
+            scheduledAllDay: scheduleDraft.scheduledAllDay
+          }
+        : editing
+      if (
+        !noteEditingHasUnsavedChanges({
+          editTitle: editTitleRef.current,
+          editBodyHtml: editBodyRef.current,
+          lastSavedTitle: lastSavedTitleRef.current,
+          lastSavedBody: lastSavedBodyRef.current,
+          scheduleDraft,
+          note: scheduleNote
+        })
+      ) {
+        return
+      }
       await saveEditing({ silent: true })
     }
   }
+
+  const scheduleAutosave = useCallback((): void => {
+    if (notesSettings.autosaveMode !== 'on_change' || !editing) return
+    flushAutosaveTimer()
+    autosaveTimerRef.current = setTimeout(() => {
+      autosaveTimerRef.current = null
+      void autosaveRef.current.run()
+    }, NOTES_AUTOSAVE_DEBOUNCE_MS)
+  }, [editing, flushAutosaveTimer, notesSettings.autosaveMode])
+
+  const handleTitleChange = useCallback(
+    (title: string): void => {
+      editTitleRef.current = title
+      scheduleAutosave()
+    },
+    [scheduleAutosave]
+  )
+
+  const handleEditBodyChangeWithAutosave = useCallback(
+    (html: string): void => {
+      editBodyRef.current = html
+      scheduleAutosave()
+    },
+    [scheduleAutosave]
+  )
+
+  useEffect(() => {
+    scheduleAutosave()
+  }, [scheduleDraft, scheduleAutosave])
 
   useEffect(() => {
     if (notesSettings.autosaveMode !== 'interval' || !editing) return
@@ -743,11 +1035,11 @@ export function NotesShell(): JSX.Element {
 
   useEffect(() => {
     return (): void => {
-      if (notesSettings.autosaveMode !== 'on_leave') return
-      if (!autosaveRef.current.dirty) return
+      flushAutosaveTimer()
+      if (notesSettings.autosaveMode === 'off') return
       void autosaveRef.current.run()
     }
-  }, [editing?.id, notesSettings.autosaveMode])
+  }, [editing?.id, flushAutosaveTimer, notesSettings.autosaveMode])
 
   async function deleteNote(note: UserNoteListItem): Promise<void> {
     const title = noteTitle(note, t('notes.shell.untitled'))
@@ -858,6 +1150,15 @@ export function NotesShell(): JSX.Element {
             iconColor: full.iconColor
           })
         }
+        const catAccount = resolveNoteCategoryAccountId(full, accounts)
+        const cats = full.categories ?? []
+        if (catAccount && cats.length > 0) {
+          await safeSetNoteCategories({
+            noteId: created.id,
+            accountId: catAccount,
+            categories: cats
+          })
+        }
         clearSelectedMessage()
         openEdit(created)
         pushToast({ label: t('notes.pagesContextMenu.copied'), variant: 'success' })
@@ -868,7 +1169,63 @@ export function NotesShell(): JSX.Element {
         setSaving(false)
       }
     },
-    [t, clearSelectedMessage, openEdit, pushToast, load]
+    [t, clearSelectedMessage, openEdit, pushToast, load, accounts]
+  )
+
+  const togglePinNote = useCallback(
+    async (note: UserNoteListItem): Promise<void> => {
+      setError(null)
+      try {
+        await safeSetNotePinned({ noteId: note.id, isPinned: !note.isPinned })
+        await load()
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e))
+      }
+    },
+    [load]
+  )
+
+  const createSubPage = useCallback(
+    async (parent: UserNoteListItem): Promise<void> => {
+      setSaving(true)
+      setError(null)
+      try {
+        const note = await window.mailClient.notes.createStandalone({
+          title: t('notes.shell.newSubPageTitle'),
+          sectionId: parent.sectionId ?? null,
+          parentNoteId: parent.id
+        })
+        const nextCollapsed = readNotesPageTreeCollapsed()
+        nextCollapsed.delete(parent.id)
+        persistNotesPageTreeCollapsed(nextCollapsed)
+        setCollapsedParentIds(new Set(nextCollapsed))
+        clearSelectedMessage()
+        openEdit(note)
+        await load()
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e))
+      } finally {
+        setSaving(false)
+      }
+    },
+    [t, clearSelectedMessage, openEdit, load]
+  )
+
+  const togglePageCollapse = useCallback((note: UserNoteListItem): void => {
+    setCollapsedParentIds(toggleNotesPageTreeCollapsed(note.id))
+  }, [])
+
+  const moveNoteToParent = useCallback(
+    async (note: UserNoteListItem, parentNoteId: number | null): Promise<void> => {
+      setError(null)
+      try {
+        await safeMoveNoteToParent({ noteId: note.id, parentNoteId })
+        await load()
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e))
+      }
+    },
+    [load]
   )
 
   const moveNote = useCallback(
@@ -980,8 +1337,9 @@ export function NotesShell(): JSX.Element {
       >
         <NotesPagesPane
           title={pagesColumnTitle}
-          notes={pagesNotes}
+          pageRows={pageRows}
           sections={sections}
+          categoryColorByName={categoryColorByName}
           showSectionLabels={showSectionLabelsInPages}
           loading={loading}
           activeNoteId={editing?.id ?? null}
@@ -1000,7 +1358,11 @@ export function NotesShell(): JSX.Element {
           isNoteExiting={isNoteExiting}
           onCopyNote={copyNote}
           onMoveNote={moveNote}
-          onCreateNote={(): void => void createStandalone()}
+          onTogglePin={togglePinNote}
+          onCreateSubPage={createSubPage}
+          onMoveToParent={moveNoteToParent}
+          onTogglePageCollapse={togglePageCollapse}
+          onCreateNote={(templateId): void => void createStandalone(templateId)}
           creating={saving}
           pagesSort={pagesSort}
           onPagesSortChange={setPagesSort}
@@ -1071,49 +1433,31 @@ export function NotesShell(): JSX.Element {
               </div>
             ) : (
               <ContentCrossfade contentKey={editing.id} className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-                  <div className="flex shrink-0 flex-col gap-3 overflow-y-auto p-4 pb-2">
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                      <NoteDisplayIcon note={editing} className="h-4 w-4" />
-                      <span>{noteKindLabel(editing, t)}</span>
-                      {editing.scheduledStartIso ? (
-                        <span className="text-primary">
-                          {formatNoteDate(editing.scheduledStartIso, i18n.language)}
-                        </span>
-                      ) : null}
-                      <span>{formatNoteDate(editing.updatedAt, i18n.language)}</span>
-                    </div>
-
-                    <div className="flex items-start gap-2">
-                      <CalendarEventIconPicker
-                        layout="compact"
-                        openOn="doubleClick"
-                        iconId={editing.iconId}
-                        iconColorHex={resolveEntityIconColor(editing.iconColor)}
-                        title={editTitle.trim() || noteTitle(editing, t('notes.shell.untitled'))}
-                        disabled={saving}
-                        triggerIcon={<NoteDisplayIcon note={editing} className="h-4 w-4" />}
-                        onIconChange={(iconId): void => void patchNoteDisplay({ iconId: iconId ?? null })}
-                        footer={
-                          <IconColorPickerFooter
-                            iconColor={editing.iconColor}
-                            onIconColorChange={(iconColor): void =>
-                              void patchNoteDisplay({ iconColor })
-                            }
-                          />
-                        }
-                      />
-                      <input
-                        type="text"
-                        value={editTitle}
-                        onChange={(e): void => setEditTitle(e.target.value)}
-                        placeholder={t('notes.shell.titlePlaceholder')}
-                        className="min-w-0 flex-1 rounded-md border border-border bg-background px-3 py-2 text-base font-semibold outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
-                      />
-                    </div>
-
-                    <NotesNoteScheduleBlock
-                      note={
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto bg-muted/15">
+                  <div className="note-onenote-page flex w-full min-w-0 flex-1 flex-col bg-card px-5 py-4 sm:px-6">
+                    <NotesOneNotePageHeader
+                      key={editing.id}
+                      note={editing}
+                      noteId={editing.id}
+                      categories={(editing as UserNoteListItem).categories ?? []}
+                      categoryColorByName={categoryColorByName}
+                      sectionName={editingSectionName}
+                      initialTitle={editing.title ?? ''}
+                      onTitleChange={handleTitleChange}
+                      disabled={saving}
+                      breadcrumb={editingBreadcrumb.map((crumb) => ({
+                        id: crumb.id,
+                        title: noteTitle(crumb, t('notes.shell.untitled'))
+                      }))}
+                      onBreadcrumbNavigate={(id): void => {
+                        const crumb = notesById.get(id)
+                        if (crumb) openEdit(crumb)
+                      }}
+                      onOpenCategories={setCategoryPopover}
+                      onOpenSection={setSectionPopover}
+                      onIconChange={(iconId): void => void patchNoteDisplay({ iconId: iconId ?? null })}
+                      onIconColorChange={(iconColor): void => void patchNoteDisplay({ iconColor })}
+                      scheduleNote={
                         scheduleDraft && !scheduleDraft.clearSchedule
                           ? {
                               scheduledStartIso: scheduleDraft.scheduledStartIso,
@@ -1122,29 +1466,38 @@ export function NotesShell(): JSX.Element {
                             }
                           : editing
                       }
-                      defaultExpanded={notesSettings.scheduleBlockExpandedDefault}
-                      defaultDurationMinutes={notesSettings.defaultScheduleDurationMinutes}
+                      defaultScheduleDurationMinutes={notesSettings.defaultScheduleDurationMinutes}
+                      onScheduleChange={(value): void => setScheduleDraft(value)}
+                    />
+
+                    <NotesChildPagesBar
+                      childNotes={editingChildNotes}
+                      activeNoteId={editing.id}
+                      onOpenNote={(note): void => openEdit(note)}
+                      onCreateSubPage={(): void => void createSubPage(editing as UserNoteListItem)}
                       disabled={saving}
-                      onChange={(value): void => setScheduleDraft(value)}
                     />
 
-                    <NotesAttachmentsPanel noteId={editing.id} />
-                  </div>
-
-                  <div className="flex min-h-0 min-w-0 flex-1 flex-col px-4">
-                    <MarkdownNoteEditor
-                      value={editBody}
-                      onChange={setEditBody}
-                      placeholder={t('notes.editor.placeholder')}
-                      fillHeight
-                      minHeight={200}
-                      className="min-h-0 flex-1"
-                      {...editorUi}
+                    <NotesShellEditorPane
+                      noteId={editing.id}
+                      editorSeedHtml={editorSeedHtml}
+                      onChangeHtml={handleEditBodyChangeWithAutosave}
+                      flushRef={editorFlushRef}
+                      insertHtmlRef={editorInsertHtmlRef}
+                      onOpenLinkedNote={(id): void => void openNoteById(id)}
+                      onOpenMeetingInsert={(): void => setMeetingInsertOpen(true)}
+                      onOpenScreenClip={handleScreenClip}
+                      saving={saving}
                     />
                   </div>
+                </div>
 
-                  <div className="flex shrink-0 flex-col gap-1 px-4 pb-2">
-                    <div className="text-xs text-muted-foreground">{t('notes.editor.markdownHint')}</div>
+                <div className="flex shrink-0 flex-col gap-1 border-t border-border/60 bg-background px-4 pb-2 pt-2">
+                    <div className="text-xs text-muted-foreground">
+                      {notesSettings.autosaveMode === 'on_change'
+                        ? t('notes.editor.autosaveHint')
+                        : t('notes.editor.wysiwygHint')}
+                    </div>
 
                     <EntityContextBlock
                       anchor={{ kind: 'note', noteId: editing.id }}
@@ -1154,16 +1507,72 @@ export function NotesShell(): JSX.Element {
                       className="border-t border-border/60"
                     />
 
-                    <footer className="flex justify-between gap-3 pt-1">
-                      <button
-                        type="button"
-                        onClick={(): void => void deleteNote(editing as UserNoteListItem)}
-                        disabled={saving}
-                        className="inline-flex items-center gap-1.5 rounded-md border border-destructive/40 px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        {t('common.delete')}
-                      </button>
+                    <footer className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={(): void => void deleteNote(editing as UserNoteListItem)}
+                          disabled={saving}
+                          className="inline-flex items-center gap-1.5 rounded-md border border-destructive/40 px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          {t('common.delete')}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={saving}
+                          onClick={(): void =>
+                            setTemplateFromNoteOpen({
+                              mode: 'create',
+                              name: editTitleRef.current.trim() || t('notes.shell.untitled'),
+                              description: '',
+                              bodyHtml: editBodyRef.current
+                            })
+                          }
+                          className={cn(
+                            moduleColumnHeaderOutlineSmClass,
+                            'px-3 py-2 text-sm font-medium'
+                          )}
+                        >
+                          {t('notes.templates.saveFromNote')}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={saving}
+                          onClick={(): void => void createSubPage(editing as UserNoteListItem)}
+                          className={cn(
+                            moduleColumnHeaderOutlineSmClass,
+                            'inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium'
+                          )}
+                        >
+                          <FilePlus2 className="h-4 w-4" />
+                          {t('notes.subPages.create')}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={saving}
+                          onClick={handlePrintPage}
+                          className={cn(
+                            moduleColumnHeaderOutlineSmClass,
+                            'inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium'
+                          )}
+                        >
+                          <Printer className="h-4 w-4" />
+                          {t('notes.export.print')}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={saving}
+                          onClick={handleExportPdf}
+                          className={cn(
+                            moduleColumnHeaderOutlineSmClass,
+                            'inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium'
+                          )}
+                        >
+                          <FileDown className="h-4 w-4" />
+                          {t('notes.export.pdf')}
+                        </button>
+                      </div>
                       <button
                         type="button"
                         onClick={(): void => void saveEditing()}
@@ -1178,7 +1587,6 @@ export function NotesShell(): JSX.Element {
                       </button>
                     </footer>
                   </div>
-                </div>
 
               </ContentCrossfade>
             )}
@@ -1261,6 +1669,63 @@ export function NotesShell(): JSX.Element {
           {notesListWorkspace}
         </DndContext>
       )}
+      {templateFromNoteOpen ? (
+        <NotePageTemplateEditDialog
+          editorState={templateFromNoteOpen}
+          onClose={(): void => setTemplateFromNoteOpen(null)}
+          onSave={(entry): void => {
+            upsertCustomNotePageTemplate(loadCustomNotePageTemplates(), entry)
+            setTemplateFromNoteOpen(null)
+            pushToast({ label: t('notes.templates.savedToast'), variant: 'success' })
+          }}
+        />
+      ) : null}
+      {editing && categoryPopover ? (
+        <NoteCategoriesPopover
+          open
+          anchor={categoryPopover}
+          noteId={editing.id}
+          account={
+            accounts.find(
+              (a) => a.id === resolveNoteCategoryAccountId(editing as UserNoteListItem, accounts)
+            ) ?? null
+          }
+          selectedNames={(editing as UserNoteListItem).categories ?? []}
+          onClose={(): void => setCategoryPopover(null)}
+          onSaved={(): void => {
+            void load().then(() => {
+              void window.mailClient.notes.getById(editing.id).then((fresh) => {
+                if (fresh) setEditing(fresh)
+              })
+            })
+          }}
+        />
+      ) : null}
+      {editing && sectionPopover ? (
+        <NoteSectionPopover
+          open
+          anchor={sectionPopover}
+          noteId={editing.id}
+          sections={sections}
+          currentSectionId={editing.sectionId ?? null}
+          onClose={(): void => setSectionPopover(null)}
+          onMoved={(): void => {
+            void load().then(() => {
+              void window.mailClient.notes.getById(editing.id).then((fresh) => {
+                if (fresh) setEditing(fresh)
+              })
+            })
+          }}
+        />
+      ) : null}
+      {editing && meetingInsertOpen ? (
+        <NoteMeetingInsertDialog
+          open
+          accounts={accounts}
+          onClose={(): void => setMeetingInsertOpen(false)}
+          onInsert={handleMeetingInsert}
+        />
+      ) : null}
     </section>
   )
 }

@@ -1,4 +1,4 @@
-import { de, enUS } from 'date-fns/locale'
+import { resolveDateFnsLocale } from '@/lib/date-fns-locale'
 import type { TFunction } from 'i18next'
 import { ExternalLink, Link2, ListTodo, Sparkles } from 'lucide-react'
 import type { EntityLinkedItem } from '@shared/entity-links'
@@ -306,7 +306,7 @@ async function buildCalendarMenuItems(
       },
       onCopyDetails: (): void => {
         void h.onCopyText(
-          formatCalendarEventClipboardText(ev, h.t, isDe ? de : enUS, isDe)
+          formatCalendarEventClipboardText(ev, h.t, resolveDateFnsLocale(h.localeCode), isDe)
         )
       },
       onCopyWebLink: (): void => {
@@ -504,6 +504,7 @@ export async function buildGraphNodeContextMenuItems(
           t: h.t,
           note: listItem,
           sections,
+          pageRows: [{ note: listItem, depth: 0, hasChildren: false, collapsed: false }],
           onDelete: h.onDeleteNote,
           onCopy: h.onCopyNote,
           onMove: h.onMoveNote,

@@ -8,6 +8,7 @@ import type {
   UserNoteAttachmentAddCloudInput,
   UserNoteAttachmentAddLocalInput
 } from '@shared/types'
+import { logBackgroundError } from '../log-background-error'
 
 interface AttachmentRow {
   id: number
@@ -157,7 +158,9 @@ export async function removeNoteAttachment(
   if (!row) return
   getDb().prepare('DELETE FROM user_note_attachments WHERE id = ?').run(attachmentId)
   if (row.kind === 'local' && row.local_path) {
-    await fs.unlink(row.local_path).catch(() => undefined)
+    await fs.unlink(row.local_path).catch((err) =>
+      logBackgroundError('userNoteAttachments.unlinkLocalFile', err)
+    )
   }
 }
 

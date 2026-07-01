@@ -12,13 +12,13 @@ import {
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { format, parseISO } from 'date-fns'
-import { de as deFns, enUS as enUSFns } from 'date-fns/locale'
+import { resolveDateFnsLocale } from '@/lib/date-fns-locale'
 import type { ConnectedAccount } from '@shared/types'
 import { BOOK_WITH_ME_MANAGE_URL } from '@shared/book-with-me'
 import { buildSchedulingInvitationText } from '@shared/scheduling-invitation'
 import type { SchedulingSlot } from '@shared/scheduling-types'
 import { useLocaleStore } from '@/stores/locale'
-import { openExternalUrl } from '@/lib/open-external'
+import { voidOpenExternalUrl } from '@/lib/open-external'
 import { requestOpenAccountSettings } from '@/lib/open-account-settings'
 import { useAppModeStore } from '@/stores/app-mode'
 import { showAppAlert } from '@/stores/app-dialog'
@@ -70,7 +70,7 @@ export function CalendarSchedulingPanel({
   const setAppMode = useAppModeStore((s) => s.setMode)
   const appLocale = useLocaleStore((s) => s.locale)
   const invitationLocale = appLocale === 'en' ? 'en' : 'de'
-  const dateFnsLoc = invitationLocale === 'de' ? deFns : enUSFns
+  const dateFnsLoc = resolveDateFnsLocale(invitationLocale)
 
   const [copiedInvite, setCopiedInvite] = useState(false)
   const [copiedLink, setCopiedLink] = useState(false)
@@ -477,7 +477,7 @@ export function CalendarSchedulingPanel({
         <button
           type="button"
           onClick={(): void => {
-            void openExternalUrl(BOOK_WITH_ME_MANAGE_URL).catch(() => undefined)
+            voidOpenExternalUrl(BOOK_WITH_ME_MANAGE_URL)
           }}
           className="inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-md bg-primary text-xs font-medium text-primary-foreground hover:bg-primary/90"
         >

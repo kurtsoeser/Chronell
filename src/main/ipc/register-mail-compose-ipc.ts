@@ -47,6 +47,7 @@ import { setWaitingForMessage } from '../waiting-service'
 import { assertAppOnline } from '../network-status'
 import { findFolderByWellKnown } from '../db/folders-repo'
 import { runFolderSync } from '../sync-runner'
+import { logBackgroundError } from '../log-background-error'
 import { disposeComposeDraft } from '../compose-draft-dispose'
 import {
   findRecentSentMessageId,
@@ -232,7 +233,7 @@ export function registerMailComposeIpc(): void {
 
       const draftsFolder = findFolderByWellKnown(input.accountId, 'drafts')
       if (draftsFolder) {
-        void runFolderSync(draftsFolder.id).catch(() => undefined)
+        void runFolderSync(draftsFolder.id).catch((err) => logBackgroundError('mail.runFolderSync', err))
       }
       return result
     }

@@ -9,11 +9,18 @@ import { FontFamily } from '@tiptap/extension-text-style/font-family'
 import { FontSize } from '@tiptap/extension-text-style/font-size'
 import Color from '@tiptap/extension-color'
 import Highlight from '@tiptap/extension-highlight'
+import TaskItem from '@tiptap/extension-task-item'
+import TaskList from '@tiptap/extension-task-list'
 import { TableRow } from '@tiptap/extension-table/row'
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type MutableRefObject, type ReactNode } from 'react'
 import { prepareComposeEditorHtml } from '@/lib/sanitize-compose-html'
 import { safeTiptapGetHtml } from '@/lib/tiptap-editor-html'
-import { MailTable, MailTableCell, MailTableHeader, type MailTableDesign } from '@/components/tiptap-mail-table'
+import { MailTable, MailTableCell, MailTableHeader } from '@/components/tiptap-mail-table'
+import { TableContextToolbar } from '@/components/tiptap/TableContextToolbar'
+import { TableInsertMenu } from '@/components/tiptap/TableInsertMenu'
+import { TIPTAP_HIGHLIGHT_COLORS } from '@/components/tiptap/tiptap-editor-colors'
+import { createNoteWikiLinkExtension } from '@/components/tiptap-note-wiki-link'
+import { isNoteWikiLinkHref, parseNoteWikiLinkHref } from '@shared/note-wiki-link'
 import { showAppPrompt } from '@/stores/app-dialog'
 import {
   AlignCenter,
@@ -33,6 +40,7 @@ import {
   Link as LinkIcon,
   Link2Off,
   List,
+  ListChecks,
   ListOrdered,
   Minus,
   Palette,
@@ -40,15 +48,14 @@ import {
   Quote,
   Redo2,
   Strikethrough,
-  Table2,
-  Trash2,
   Underline as UnderlineIcon,
   Undo2,
 } from 'lucide-react'
 import { listSubtleBorderClass } from '@/lib/chronell-ui-classes'
 import { cn } from '@/lib/utils'
-import { hrefForExternalOpen, openExternalUrl } from '@/lib/open-external'
+import { createTipTapLinkDomEventHandlers } from '@/lib/tiptap-editor-link-click'
 import { COMPOSE_FONT_FAMILIES } from '@/lib/compose-font-families'
+import { ensureComposeBundledFontLoaded } from '@/lib/compose-font-loader'
 import { COMPOSE_FONT_SIZES_PT, composeFontSizePtOptionValue } from '@/lib/compose-font-sizes'
 import {
   applyComposeDefaultTypingMarks,
@@ -62,22 +69,6 @@ import {
 } from '@/stores/compose-editor-scale'
 import { useComposeEditorEffectiveTheme } from '@/stores/compose-editor-theme'
 import { ComposeTextSnippetsMenu } from '@/components/ComposeTextSnippetsMenu'
-
-function handleTipTapExternalLinkMouse(ev: MouseEvent): boolean {
-  if (ev.defaultPrevented) return false
-  if (ev.type === 'auxclick' && ev.button !== 1) return false
-  if (ev.type === 'click' && ev.button !== 0) return false
-  const el = ev.target
-  if (!(el instanceof Element)) return false
-  const a = el.closest('a')
-  if (!a) return false
-  const href = hrefForExternalOpen(a.getAttribute('href'))
-  if (!href) return false
-  void openExternalUrl(href).catch((err) => console.warn('[tiptap] Link extern:', err))
-  ev.preventDefault()
-  ev.stopPropagation()
-  return true
-}
 
 interface Props {
   valueHtml: string
@@ -111,6 +102,21 @@ interface Props {
   fillHeight?: boolean
   /** Toolbar/Rahmen an die dunklere Compose-Flaeche anpassen. */
   inEditorSurface?: boolean
+  /** Optional: aktuellen HTML-Inhalt in den Store schreiben (vor Speichern / Unmount). */
+  flushRef?: MutableRefObject<(() => void) | null>
+  /** Optional: HTML an der Cursor-Position einfügen (z. B. Besprechungsdetails). */
+  insertHtmlRef?: MutableRefObject<((html: string) => void) | null>
+  /** Checklisten in der Toolbar (Notizen-Editor). */
+  enableTaskList?: boolean
+  /** `[[` — interne Notiz-Verknüpfungen mit Autocomplete. */
+  noteWikiLinks?: {
+    currentNoteId?: number
+    onOpenNote: (noteId: number) => void
+  }
+  /** Zeile über der Toolbar (z. B. Notizen-Aktionen). */
+  editorActionBar?: ReactNode
+  /** Aktionszeile + Toolbar beim Scrollen der Seite oben fixieren. */
+  stickyEditorChrome?: boolean
 }
 
 const TEXT_COLORS: Array<{ value: string; label: string }> = [
@@ -125,13 +131,7 @@ const TEXT_COLORS: Array<{ value: string; label: string }> = [
   { value: '#64748b', label: 'Grau' }
 ]
 
-const HIGHLIGHT_COLORS: Array<{ value: string; label: string }> = [
-  { value: '#fef9c3', label: 'Gelb' },
-  { value: '#fee2e2', label: 'Rot' },
-  { value: '#dcfce7', label: 'Grün' },
-  { value: '#dbeafe', label: 'Blau' },
-  { value: '#fae8ff', label: 'Violett' }
-]
+const HIGHLIGHT_COLORS = TIPTAP_HIGHLIGHT_COLORS
 
 export function TipTapBody({
   valueHtml,
@@ -147,7 +147,13 @@ export function TipTapBody({
   attachmentCount = 0,
   onCloudAttach,
   cloudAttachmentCount = 0,
-  inEditorSurface = false
+  inEditorSurface = false,
+  flushRef,
+  insertHtmlRef,
+  enableTaskList = false,
+  noteWikiLinks,
+  editorActionBar,
+  stickyEditorChrome = false
 }: Props): JSX.Element {
   const contentMinHeight =
     editorMinHeightClass ??
@@ -158,25 +164,30 @@ export function TipTapBody({
   const composeScale = useComposeEditorScaleStore((s) => s.scale)
   const composeEditorTheme = useComposeEditorEffectiveTheme()
   const composePrefs = useComposeSettingsPrefs()
+  const lastEmittedHtmlRef = useRef<string | null>(null)
+  const initialEditorHtmlRef = useRef<string | null>(null)
+  if (initialEditorHtmlRef.current === null) {
+    initialEditorHtmlRef.current = prepareComposeEditorHtml(valueHtml) || '<p></p>'
+  }
+  const wikiLinkCurrentNoteId = noteWikiLinks?.currentNoteId
+  const enableWikiLinks = noteWikiLinks != null
   const editorSurfaceStyle = useMemo(
-    () => (inEditorSurface ? composeEditorSurfaceStyle(composePrefs) : null),
-    [composePrefs, inEditorSurface]
-  )
-  const preparedValueHtml = useMemo(
-    () => prepareComposeEditorHtml(valueHtml) || '<p></p>',
-    [valueHtml]
+    () => (inEditorSurface ? composeEditorSurfaceStyle(composePrefs, composeEditorTheme) : null),
+    [composePrefs, composeEditorTheme, inEditorSurface]
   )
 
   const extensions = useMemo(
     () => [
       StarterKit.configure({
         codeBlock: false,
+        link: false,
         heading: { levels: [1, 2, 3] }
       }),
       Link.configure({
         openOnClick: false,
-        autolink: true,
+        autolink: !enableWikiLinks,
         linkOnPaste: true,
+        shouldAutoLink: (url) => !isNoteWikiLinkHref(url),
         HTMLAttributes: { rel: 'noopener noreferrer', target: '_blank' }
       }),
       Placeholder.configure({ placeholder: placeholder ?? 'Nachricht schreiben…' }),
@@ -190,16 +201,40 @@ export function TipTapBody({
       MailTable.configure({ resizable: false, renderWrapper: false }),
       TableRow,
       MailTableHeader,
-      MailTableCell
+      MailTableCell,
+      ...(enableTaskList
+        ? [
+            TaskList.configure({
+              HTMLAttributes: { class: 'note-task-list', 'data-type': 'taskList' }
+            }),
+            TaskItem.configure({
+              nested: true,
+              HTMLAttributes: { class: 'note-task-item', 'data-type': 'taskItem' }
+            })
+          ]
+        : []),
+      ...(enableWikiLinks
+        ? [createNoteWikiLinkExtension({ currentNoteId: wikiLinkCurrentNoteId })]
+        : [])
     ],
-    [placeholder]
+    [placeholder, enableTaskList, enableWikiLinks, wikiLinkCurrentNoteId]
+  )
+
+  const onOpenNoteRef = useRef(noteWikiLinks?.onOpenNote)
+  onOpenNoteRef.current = noteWikiLinks?.onOpenNote
+
+  const linkDomEventHandlers = useMemo(
+    () => createTipTapLinkDomEventHandlers(() => onOpenNoteRef.current),
+    []
   )
 
   const editor = useEditor({
     extensions,
-    content: preparedValueHtml,
+    content: initialEditorHtmlRef.current,
     onCreate({ editor: ed }): void {
-      if (inEditorSurface) applyComposeDefaultTypingMarks(ed, composePrefs)
+      const html = safeTiptapGetHtml(ed)
+      if (html !== null) lastEmittedHtmlRef.current = html
+      if (inEditorSurface) applyComposeDefaultTypingMarks(ed, composePrefs, composeEditorTheme)
     },
     editorProps: {
       attributes: {
@@ -207,7 +242,7 @@ export function TipTapBody({
           'max-w-none px-4 py-3 leading-relaxed text-foreground focus:outline-none',
           !inEditorSurface && 'text-sm',
           contentMinHeight,
-          '[&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5',
+          '[&_ul:not([data-type=taskList])]:list-disc [&_ul:not([data-type=taskList])]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5',
           '[&_h1]:text-2xl [&_h1]:font-bold [&_h1]:mt-3 [&_h1]:mb-2',
           '[&_h2]:text-xl  [&_h2]:font-bold [&_h2]:mt-3 [&_h2]:mb-2',
           '[&_h3]:text-base [&_h3]:font-semibold [&_h3]:mt-2 [&_h3]:mb-1',
@@ -217,32 +252,35 @@ export function TipTapBody({
           '[&_img]:rounded [&_img]:my-2 [&_hr]:my-3 [&_hr]:border-border',
           '[&_table_td>p]:mb-0 [&_table_td>p]:mt-0 [&_table_th>p]:mb-0 [&_table_th>p]:mt-0'
         ),
-        style: editorSurfaceStyle
-          ? `font-family:${editorSurfaceStyle.fontFamily};font-size:${editorSurfaceStyle.fontSize};color:${editorSurfaceStyle.color};line-height:${editorSurfaceStyle.lineHeight}`
-          : undefined
+        ...(editorSurfaceStyle
+          ? {
+              style: `font-family:${editorSurfaceStyle.fontFamily};font-size:${editorSurfaceStyle.fontSize};color:${editorSurfaceStyle.color};line-height:${editorSurfaceStyle.lineHeight}`
+            }
+          : {})
       },
-      handleDOMEvents: {
-        click: (_view, event): boolean => handleTipTapExternalLinkMouse(event as MouseEvent),
-        auxclick: (_view, event): boolean => handleTipTapExternalLinkMouse(event as MouseEvent)
-      }
+      handleDOMEvents: linkDomEventHandlers
     },
     onUpdate({ editor: ed }): void {
       const html = safeTiptapGetHtml(ed)
-      if (html !== null) onChangeHtml(html)
+      if (html !== null) {
+        lastEmittedHtmlRef.current = html
+        onChangeHtml(html)
+      }
     }
   })
 
   useEffect(() => {
     if (!editor || editor.isDestroyed || !inEditorSurface) return
-    const style = composeEditorSurfaceStyle(composePrefs)
+    const style = composeEditorSurfaceStyle(composePrefs, composeEditorTheme)
     editor.setOptions({
       editorProps: {
         ...editor.options.editorProps,
+        handleDOMEvents: linkDomEventHandlers,
         attributes: {
           class: cn(
             'max-w-none px-4 py-3 leading-relaxed text-foreground focus:outline-none',
             contentMinHeight,
-            '[&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5',
+            '[&_ul:not([data-type=taskList])]:list-disc [&_ul:not([data-type=taskList])]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5',
             '[&_h1]:text-2xl [&_h1]:font-bold [&_h1]:mt-3 [&_h1]:mb-2',
             '[&_h2]:text-xl  [&_h2]:font-bold [&_h2]:mt-3 [&_h2]:mb-2',
             '[&_h3]:text-base [&_h3]:font-semibold [&_h3]:mt-2 [&_h3]:mb-1',
@@ -257,22 +295,63 @@ export function TipTapBody({
     })
     const html = safeTiptapGetHtml(editor)
     if (html !== null && isComposeBodyEffectivelyEmpty(html)) {
-      applyComposeDefaultTypingMarks(editor, composePrefs)
+      applyComposeDefaultTypingMarks(editor, composePrefs, composeEditorTheme)
     }
-  }, [editor, inEditorSurface, composePrefs, contentMinHeight])
+  }, [editor, inEditorSurface, composePrefs, composeEditorTheme, contentMinHeight, linkDomEventHandlers])
 
   useEffect(() => {
     if (!editor || editor.isDestroyed) return
+    if (valueHtml === lastEmittedHtmlRef.current) return
+    const prepared = prepareComposeEditorHtml(valueHtml) || '<p></p>'
     const cur = safeTiptapGetHtml(editor)
-    if (cur === null) return
-    if (preparedValueHtml !== cur) {
-      editor.commands.setContent(preparedValueHtml, { emitUpdate: false })
+    if (cur === null || cur === prepared) {
+      lastEmittedHtmlRef.current = prepared
+      return
     }
-  }, [editor, preparedValueHtml])
+    editor.commands.setContent(prepared, { emitUpdate: false })
+    lastEmittedHtmlRef.current = prepared
+  }, [editor, valueHtml])
 
   useEffect(() => {
     if (autoFocus && editor) editor.commands.focus('end')
   }, [autoFocus, editor])
+
+  useEffect(() => {
+    if (!flushRef) return
+    if (!editor || editor.isDestroyed) {
+      flushRef.current = null
+      return
+    }
+    flushRef.current = (): void => {
+      const html = safeTiptapGetHtml(editor)
+      if (html !== null) {
+        lastEmittedHtmlRef.current = html
+        onChangeHtml(html)
+      }
+    }
+    return (): void => {
+      flushRef.current = null
+    }
+  }, [editor, flushRef, onChangeHtml])
+
+  useEffect(() => {
+    if (!insertHtmlRef) return
+    if (!editor || editor.isDestroyed) {
+      insertHtmlRef.current = null
+      return
+    }
+    insertHtmlRef.current = (html: string): void => {
+      editor.chain().focus().insertContent(html).run()
+      const out = safeTiptapGetHtml(editor)
+      if (out !== null) {
+        lastEmittedHtmlRef.current = out
+        onChangeHtml(out)
+      }
+    }
+    return (): void => {
+      insertHtmlRef.current = null
+    }
+  }, [editor, insertHtmlRef, onChangeHtml])
 
   if (!editor) {
     return (
@@ -362,6 +441,41 @@ export function TipTapBody({
 
   const surfaceBorder = inEditorSurface ? '' : 'border-border/40'
 
+  const toolbar = (
+    <Toolbar
+      editor={editor}
+      variant={variant}
+      inEditorSurface={inEditorSurface}
+      enableTaskList={enableTaskList}
+      composeScalePercent={
+        inEditorSurface ? composeEditorScalePercent(composeScale) : undefined
+      }
+      onLink={handleInsertLink}
+      onUnlink={handleRemoveLink}
+      onImage={handleInsertImages}
+      onAttach={onAttachFiles ? handleAttachFiles : undefined}
+      attachmentCount={attachmentCount}
+      onCloudAttach={onCloudAttach}
+      cloudAttachmentCount={cloudAttachmentCount}
+      colorPickerOpen={colorPickerOpen}
+      setColorPickerOpen={setColorPickerOpen}
+    />
+  )
+
+  const editorChrome = stickyEditorChrome ? (
+    <div className="note-editor-sticky-chrome sticky top-0 z-30 shrink-0 shadow-[0_1px_0_hsl(var(--border)/0.45)]">
+      {editorActionBar}
+      {toolbar}
+      {editor ? <TableContextToolbar editor={editor} /> : null}
+    </div>
+  ) : (
+      <>
+        {editorActionBar}
+        {toolbar}
+        {editor ? <TableContextToolbar editor={editor} /> : null}
+      </>
+    )
+
   return (
     <div
       className={cn(
@@ -372,28 +486,13 @@ export function TipTapBody({
         className
       )}
     >
-      <Toolbar
-        editor={editor}
-        variant={variant}
-        inEditorSurface={inEditorSurface}
-        composeScalePercent={
-          inEditorSurface ? composeEditorScalePercent(composeScale) : undefined
-        }
-        onLink={handleInsertLink}
-        onUnlink={handleRemoveLink}
-        onImage={handleInsertImages}
-        onAttach={onAttachFiles ? handleAttachFiles : undefined}
-        attachmentCount={attachmentCount}
-        onCloudAttach={onCloudAttach}
-        cloudAttachmentCount={cloudAttachmentCount}
-        colorPickerOpen={colorPickerOpen}
-        setColorPickerOpen={setColorPickerOpen}
-      />
+      {editorChrome}
       <div
         className={cn(
-          'min-h-0 overflow-y-auto',
+          stickyEditorChrome ? 'overflow-visible' : 'min-h-0 overflow-y-auto',
           inEditorSurface && 'compose-editor-canvas',
-          fillHeight ? 'flex-1' : 'max-h-[13.5rem]'
+          fillHeight && !stickyEditorChrome && 'flex-1',
+          !fillHeight && !stickyEditorChrome && 'max-h-[13.5rem]'
         )}
         data-compose-theme={inEditorSurface ? composeEditorTheme : undefined}
         style={
@@ -429,6 +528,7 @@ function Toolbar({
   editor,
   variant,
   inEditorSurface,
+  enableTaskList = false,
   composeScalePercent: composeZoomPct,
   onLink,
   onUnlink,
@@ -443,6 +543,7 @@ function Toolbar({
   editor: Editor
   variant: 'default' | 'compact'
   inEditorSurface?: boolean
+  enableTaskList?: boolean
   composeScalePercent?: number
   onLink: () => void
   onUnlink: () => void
@@ -465,9 +566,6 @@ function Toolbar({
       : cn('bg-background', listSubtleBorderClass)
   )
 
-  useEffect(() => {
-    if (variant === 'default') void import('@/lib/compose-font-loader')
-  }, [variant])
 
   return (
     <div
@@ -565,7 +663,10 @@ function Toolbar({
               const id = e.target.value
               const entry = COMPOSE_FONT_FAMILIES.find((f) => f.id === id)
               if (!entry) editor.chain().focus().unsetFontFamily().run()
-              else editor.chain().focus().setFontFamily(entry.value).run()
+              else {
+                void ensureComposeBundledFontLoaded(entry.fontsource)
+                editor.chain().focus().setFontFamily(entry.value).run()
+              }
               e.currentTarget.selectedIndex = 0
             }}
           >
@@ -695,6 +796,16 @@ function Toolbar({
         }}
         icon={ListOrdered}
       />
+      {enableTaskList ? (
+        <BarBtn
+          active={editor.isActive('taskList')}
+          label="Checkliste"
+          onClick={(): void => {
+            editor.chain().focus().toggleTaskList().run()
+          }}
+          icon={ListChecks}
+        />
+      ) : null}
       <BarBtn
         active={editor.isActive('blockquote')}
         label="Zitat"
@@ -712,7 +823,7 @@ function Toolbar({
         icon={Minus}
       />
 
-      <TableMenu editor={editor} variant={variant} />
+      <TableInsertMenu editor={editor} />
 
       <Separator />
 
@@ -798,240 +909,6 @@ function Toolbar({
 
 function Separator(): JSX.Element {
   return <span className="mx-1 h-5 w-px bg-border/60" />
-}
-
-function TableMenu({
-  editor,
-  variant
-}: {
-  editor: Editor
-  variant: 'default' | 'compact'
-}): JSX.Element {
-  const [open, setOpen] = useState(false)
-  const inTable = editor.isActive('table')
-  const tableAttrs = editor.getAttributes('table') as {
-    design?: MailTableDesign
-    tableAlign?: 'left' | 'center' | 'right'
-  }
-
-  const close = (): void => setOpen(false)
-
-  const insert = (rows: number, cols: number, withHeaderRow: boolean): void => {
-    editor.chain().focus().insertTable({ rows, cols, withHeaderRow }).run()
-    close()
-  }
-
-  const design = tableAttrs.design ?? 'bordered'
-  const tableAlign = tableAttrs.tableAlign ?? 'left'
-
-  return (
-    <div className="relative">
-      <button
-        type="button"
-        title="Tabelle"
-        aria-label="Tabelle"
-        onClick={(): void => setOpen(!open)}
-        className={cn(
-          'rounded p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground',
-          inTable && 'bg-secondary/80 text-foreground'
-        )}
-      >
-        <Table2 className="h-3.5 w-3.5" />
-      </button>
-      {open && (
-        <>
-          <button
-            type="button"
-            className="fixed inset-0 z-30 cursor-default"
-            aria-label="Schliessen"
-            onClick={close}
-          />
-          <div className="absolute left-0 top-7 z-40 min-w-[228px] max-w-[92vw] rounded-md border border-border bg-card p-2 shadow-xl">
-            <div className="mb-1.5 text-2xs uppercase tracking-wide text-muted-foreground">Einfügen</div>
-            <div className="flex flex-wrap gap-1">
-              <TableTinyBtn label="2×2 + Kopf" onClick={(): void => insert(2, 2, true)} />
-              <TableTinyBtn label="3×3 + Kopf" onClick={(): void => insert(3, 3, true)} />
-              <TableTinyBtn label="2×2" onClick={(): void => insert(2, 2, false)} />
-              <TableTinyBtn label="3×4 + Kopf" onClick={(): void => insert(3, 4, true)} />
-            </div>
-            {inTable && (
-              <>
-                <hr className="my-2 border-border/60" />
-                <div className="mb-1 text-2xs uppercase tracking-wide text-muted-foreground">Struktur</div>
-                <div className="flex flex-wrap gap-1">
-                  {variant === 'default' && (
-                    <>
-                      <TableTinyBtn
-                        label="Zeile oben"
-                        onClick={(): void => {
-                          editor.chain().focus().addRowBefore().run()
-                          close()
-                        }}
-                      />
-                      <TableTinyBtn
-                        label="Zeile unten"
-                        onClick={(): void => {
-                          editor.chain().focus().addRowAfter().run()
-                          close()
-                        }}
-                      />
-                      <TableTinyBtn
-                        label="Spalte links"
-                        onClick={(): void => {
-                          editor.chain().focus().addColumnBefore().run()
-                          close()
-                        }}
-                      />
-                      <TableTinyBtn
-                        label="Spalte rechts"
-                        onClick={(): void => {
-                          editor.chain().focus().addColumnAfter().run()
-                          close()
-                        }}
-                      />
-                      <TableTinyBtn
-                        label="Zeile löschen"
-                        onClick={(): void => {
-                          editor.chain().focus().deleteRow().run()
-                          close()
-                        }}
-                      />
-                      <TableTinyBtn
-                        label="Spalte löschen"
-                        onClick={(): void => {
-                          editor.chain().focus().deleteColumn().run()
-                          close()
-                        }}
-                      />
-                    </>
-                  )}
-                  <TableTinyBtn
-                    label="Kopfzeile"
-                    onClick={(): void => {
-                      editor.chain().focus().toggleHeaderRow().run()
-                    }}
-                  />
-                </div>
-                <div className="mb-1 mt-2 text-2xs uppercase tracking-wide text-muted-foreground">
-                  Tabellen-Stil
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  {(['bordered', 'minimal', 'shadow'] as const).map((d) => (
-                    <button
-                      key={d}
-                      type="button"
-                      onClick={(): void => {
-                        editor.chain().focus().updateAttributes('table', { design: d }).run()
-                      }}
-                      className={cn(
-                        'rounded border px-2 py-0.5 text-2xs',
-                        design === d
-                          ? 'border-primary bg-primary/15 text-foreground'
-                          : 'border-border/60 text-muted-foreground hover:bg-secondary hover:text-foreground'
-                      )}
-                    >
-                      {d === 'bordered' ? 'Rahmen' : d === 'minimal' ? 'Minimal' : 'Schatten'}
-                    </button>
-                  ))}
-                </div>
-                <div className="mb-1 mt-2 text-2xs uppercase tracking-wide text-muted-foreground">
-                  Tabelle ausrichten
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  {(['left', 'center', 'right'] as const).map((a) => (
-                    <button
-                      key={a}
-                      type="button"
-                      onClick={(): void => {
-                        editor.chain().focus().updateAttributes('table', { tableAlign: a }).run()
-                      }}
-                      className={cn(
-                        'rounded border px-2 py-0.5 text-2xs',
-                        tableAlign === a
-                          ? 'border-primary bg-primary/15 text-foreground'
-                          : 'border-border/60 text-muted-foreground hover:bg-secondary hover:text-foreground'
-                      )}
-                    >
-                      {a === 'left' ? 'Links' : a === 'center' ? 'Mitte' : 'Rechts'}
-                    </button>
-                  ))}
-                </div>
-                {variant === 'default' && (
-                  <>
-                    <div className="mb-1 mt-2 text-2xs uppercase tracking-wide text-muted-foreground">
-                      Zelltext
-                    </div>
-                    <div className="mb-1 flex flex-wrap gap-1">
-                      {(['left', 'center', 'right'] as const).map((a) => (
-                        <button
-                          key={a}
-                          type="button"
-                          onClick={(): void => {
-                            editor.chain().focus().setCellAttribute('align', a).run()
-                          }}
-                          className="rounded border border-border/60 px-2 py-0.5 text-2xs text-muted-foreground hover:bg-secondary hover:text-foreground"
-                        >
-                          {a === 'left' ? '←' : a === 'center' ? '↔' : '→'}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="mb-1 text-2xs uppercase tracking-wide text-muted-foreground">
-                      Zellhintergrund
-                    </div>
-                    <div className="grid grid-cols-5 gap-1">
-                      {HIGHLIGHT_COLORS.map((c) => (
-                        <button
-                          key={c.value}
-                          type="button"
-                          title={c.label}
-                          className="h-5 w-5 rounded border border-border/60 hover:scale-110"
-                          style={{ backgroundColor: c.value }}
-                          onClick={(): void => {
-                            editor.chain().focus().setCellAttribute('backgroundColor', c.value).run()
-                          }}
-                        />
-                      ))}
-                    </div>
-                    <button
-                      type="button"
-                      className="mt-1 w-full rounded px-2 py-1 text-2xs text-muted-foreground hover:bg-secondary hover:text-foreground"
-                      onClick={(): void => {
-                        editor.chain().focus().setCellAttribute('backgroundColor', null).run()
-                      }}
-                    >
-                      Zellenfarbe zurücksetzen
-                    </button>
-                  </>
-                )}
-                <button
-                  type="button"
-                  className="mt-2 flex w-full items-center justify-center gap-1 rounded border border-destructive/40 px-2 py-1 text-xs text-destructive hover:bg-destructive/10"
-                  onClick={(): void => {
-                    editor.chain().focus().deleteTable().run()
-                    close()
-                  }}
-                >
-                  <Trash2 className="h-3 w-3 shrink-0" /> Tabelle löschen
-                </button>
-              </>
-            )}
-          </div>
-        </>
-      )}
-    </div>
-  )
-}
-
-function TableTinyBtn({ label, onClick }: { label: string; onClick: () => void }): JSX.Element {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="rounded border border-border/60 px-2 py-0.5 text-2xs text-muted-foreground hover:bg-secondary hover:text-foreground"
-    >
-      {label}
-    </button>
-  )
 }
 
 function BarBtn({

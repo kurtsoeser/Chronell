@@ -8,8 +8,7 @@ import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
 import luxonPlugin from '@fullcalendar/luxon'
-import deLocale from '@fullcalendar/core/locales/de'
-import enGbLocale from '@fullcalendar/core/locales/en-gb'
+import { useCalendarFcLocale } from '@/hooks/use-calendar-fc-locale'
 import type { DateSelectArg, DatesSetArg, EventClickArg } from '@fullcalendar/core'
 import type { CalendarEventView, TaskListRow } from '@shared/types'
 import {
@@ -218,7 +217,7 @@ export function LayoutStudioGraphCalendar({
     [calSettings.defaultTimeGridSlotMinutes]
   )
 
-  const fcLocale = i18n.language.startsWith('de') ? deLocale : enGbLocale
+  const fcLocale = useCalendarFcLocale()
   const setAppMode = useAppModeStore((s) => s.setMode)
 
   const onDatesSet = useCallback(

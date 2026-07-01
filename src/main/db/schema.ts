@@ -1404,5 +1404,32 @@ export const MIGRATIONS: Migration[] = [
     sql: `
       ALTER TABLE cloud_tasks ADD COLUMN categories_json TEXT NULL;
     `
+  },
+  {
+    version: 49,
+    description: 'Notizen Phase 2: Outlook-Kategorien, Unterseiten, Angepinnt',
+    sql: `
+      CREATE TABLE IF NOT EXISTS user_note_category_tags (
+        note_id     INTEGER NOT NULL REFERENCES user_notes(id) ON DELETE CASCADE,
+        account_id  TEXT NOT NULL,
+        tag         TEXT NOT NULL,
+        PRIMARY KEY (note_id, tag)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_user_note_category_tags_tag
+        ON user_note_category_tags(tag COLLATE NOCASE);
+
+      ALTER TABLE user_notes ADD COLUMN parent_note_id INTEGER NULL
+        REFERENCES user_notes(id) ON DELETE SET NULL;
+
+      ALTER TABLE user_notes ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0;
+
+      CREATE INDEX IF NOT EXISTS idx_user_notes_parent
+        ON user_notes(parent_note_id);
+
+      CREATE INDEX IF NOT EXISTS idx_user_notes_pinned
+        ON user_notes(is_pinned)
+        WHERE is_pinned = 1;
+    `
   }
 ]

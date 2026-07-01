@@ -11,6 +11,7 @@ import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { useSearchDropdownPortal } from '@/lib/use-search-dropdown-portal'
 import type { EntityRefKind } from '@shared/entity-ref'
+import { ENTITY_KIND_DOT_COLORS } from '@shared/entity-kind-colors'
 import type { EntityGraphClusterMode } from '@shared/entity-links'
 import {
   type ConnectionsGraphViewSettings,
@@ -22,15 +23,6 @@ import {
 } from '@/components/ModuleColumnHeader'
 import { useAccountsStore } from '@/stores/accounts'
 import { cn } from '@/lib/utils'
-
-const KIND_DOT: Record<EntityRefKind, string> = {
-  mail: '#0ea5e9',
-  mail_todo: '#f59e0b',
-  cloud_task: '#10b981',
-  calendar_event: '#8b5cf6',
-  note: '#ca8a04',
-  people_contact: '#f43f5e'
-}
 
 const KINDS: EntityRefKind[] = [
   'mail',
@@ -363,7 +355,7 @@ export function ConnectionsGraphControls({
                 <span
                   className="h-2 w-2 shrink-0 rounded-full"
                   style={{
-                    background: settings.kindColors[kind] ?? KIND_DOT[kind]
+                    background: settings.kindColors[kind] ?? ENTITY_KIND_DOT_COLORS[kind]
                   }}
                 />
                 {t(`connections.kind.${kind}`)}

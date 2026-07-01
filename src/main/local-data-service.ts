@@ -21,6 +21,7 @@ import {
 } from './attachment-cache'
 import { listAccounts } from './accounts'
 import { closeDb, getDb } from './db/index'
+import { logBackgroundError } from './log-background-error'
 
 const execFileAsync = promisify(execFile)
 
@@ -281,7 +282,9 @@ async function prepareChromiumCacheCleanup(
     await markPendingChromiumCachePurge(userDataPath)
     return { needsRestartPurge: true }
   }
-  await clearPendingChromiumCachePurgeFlag(userDataPath).catch(() => undefined)
+  await clearPendingChromiumCachePurgeFlag(userDataPath).catch((err) =>
+    logBackgroundError('localData.clearChromiumCachePurgeFlag', err)
+  )
   return { needsRestartPurge: false }
 }
 
@@ -301,7 +304,9 @@ export async function applyPendingChromiumCachePurgeOnStartup(): Promise<void> {
   for (const name of CHROMIUM_CACHE_DIR_NAMES) {
     await removeDirectoryBestEffort(join(userDataPath, name))
   }
-  await clearPendingChromiumCachePurgeFlag(userDataPath).catch(() => undefined)
+  await clearPendingChromiumCachePurgeFlag(userDataPath).catch((err) =>
+    logBackgroundError('localData.clearChromiumCachePurgeFlag', err)
+  )
 }
 
 async function vacuumMailDatabase(): Promise<number> {

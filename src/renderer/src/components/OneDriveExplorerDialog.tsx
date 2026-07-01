@@ -10,6 +10,7 @@ import type {
 } from '@shared/types'
 import { listSubtleBorderClass } from '@/lib/chronell-ui-classes'
 import { cn } from '@/lib/utils'
+import { logIpcError } from '@/lib/ipc-error-log'
 import { formatBytes } from '@/lib/format-bytes'
 import {
   OneDriveShareLinkSettingsPanel,
@@ -128,7 +129,7 @@ export function OneDriveExplorerDialog({
       if (hit) {
         void window.mailClient.compose
           .updateDriveExplorerFavoriteCache({ accountId, id: hit.id, entries: list })
-          .catch(() => undefined)
+          .catch((err) => logIpcError('compose.updateDriveExplorerFavoriteCache', err))
         setFavorites((prev) =>
           prev.map((p) =>
             p.id === hit.id

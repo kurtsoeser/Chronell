@@ -10,9 +10,10 @@ import {
 } from '@/components/ModuleColumnHeader'
 import { createPortal } from 'react-dom'
 import type { MailListItem, TodoDueKindOpen } from '@shared/types'
+import { OPEN_TODO_KIND_ORDER } from '@shared/todo-due-kinds'
 import type { MailListKind } from '@/stores/mail'
 
-const TODO_BUCKETS: TodoDueKindOpen[] = ['today', 'tomorrow', 'this_week', 'later']
+const TODO_BUCKETS: TodoDueKindOpen[] = [...OPEN_TODO_KIND_ORDER]
 
 interface Props {
   selectedCount: number

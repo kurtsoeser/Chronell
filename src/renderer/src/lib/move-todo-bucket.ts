@@ -1,7 +1,6 @@
 import type { TodoDueKindList, TodoDueKindOpen } from '@shared/types'
+import { OPEN_TODO_KIND_SET } from '@shared/todo-due-kinds'
 import { dueIsoForOpenTodoBucket, isOpenTodoBucket } from '@/lib/todo-bucket-due-iso'
-
-const OPEN_MAIL_KINDS = new Set<TodoDueKindOpen>(['today', 'tomorrow', 'this_week', 'later'])
 
 function scheduleIsoForDate(date: string, hour: number): string {
   return `${date}T${String(hour).padStart(2, '0')}:00:00`
@@ -27,7 +26,7 @@ export async function moveMailTodoToBucket(
     })
     return
   }
-  if (OPEN_MAIL_KINDS.has(bucket as TodoDueKindOpen)) {
+  if (OPEN_TODO_KIND_SET.has(bucket as TodoDueKindOpen)) {
     await window.mailClient.mail.setTodoForMessage({
       messageId,
       dueKind: bucket as TodoDueKindOpen

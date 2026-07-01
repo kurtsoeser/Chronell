@@ -1,38 +1,66 @@
 import {
   Cloud,
+  Download,
   File as FileIcon,
   FileImage,
   FileText,
+  Mic,
   X
 } from 'lucide-react'
 import type { ComponentType } from 'react'
 import { cn } from '@/lib/utils'
 import { formatAttachmentBytes } from '@/lib/attachment-files'
 
+const ATTACHMENT_CHIP_WIDTH_CLASS = 'w-[248px] max-w-full min-w-0'
+
 export function CloudAttachmentChip({
   name,
   onRemove,
   onOpen,
+  onOpenLink,
+  openLinkLabel,
   removeAriaLabel = 'Cloud-Anhang entfernen'
 }: {
   name: string
   onRemove?: () => void
   onOpen?: () => void
+  onOpenLink?: () => void
+  openLinkLabel?: string
   removeAriaLabel?: string
 }): JSX.Element {
-  const inner = (
-    <>
-      <div className="flex items-center gap-2">
-        <Cloud className="h-4 w-4 shrink-0 text-sky-600 dark:text-sky-400" />
-        <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-foreground">{name}</span>
+  return (
+    <div
+      className={cn(
+        ATTACHMENT_CHIP_WIDTH_CLASS,
+        'flex flex-col gap-1.5 rounded-xl border border-sky-500/30 bg-sky-500/5 px-3 py-2 text-left shadow-sm'
+      )}
+    >
+      <div className="flex min-w-0 items-start gap-2">
+        <Cloud className="mt-0.5 h-4 w-4 shrink-0 text-sky-600 dark:text-sky-400" />
+        {onOpen ? (
+          <button
+            type="button"
+            onClick={onOpen}
+            className="min-w-0 flex-1 rounded-sm text-left transition-colors hover:text-sky-700 dark:hover:text-sky-300"
+            title={name}
+          >
+            <span className="line-clamp-2 break-all text-[11px] font-medium text-foreground">
+              {name}
+            </span>
+          </button>
+        ) : (
+          <span
+            className="min-w-0 flex-1 line-clamp-2 break-all text-[11px] font-medium text-foreground"
+            title={name}
+          >
+            {name}
+          </span>
+        )}
         {onRemove ? (
           <button
             type="button"
-            onClick={(e): void => {
-              e.stopPropagation()
-              onRemove()
-            }}
-            className="rounded p-0.5 text-muted-foreground hover:bg-destructive/20 hover:text-destructive"
+            onClick={onRemove}
+            className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-destructive/20 hover:text-destructive"
             aria-label={removeAriaLabel}
             title="Entfernen"
           >
@@ -40,22 +68,21 @@ export function CloudAttachmentChip({
           </button>
         ) : null}
       </div>
-      <span className="text-[10px] text-muted-foreground">OneDrive / SharePoint</span>
-    </>
+
+      <div className="flex min-w-0 items-center justify-between gap-2 border-t border-sky-500/20 pt-1.5">
+        <span className="shrink-0 text-[10px] text-muted-foreground">OneDrive / SharePoint</span>
+        {onOpenLink && openLinkLabel ? (
+          <button
+            type="button"
+            onClick={onOpenLink}
+            className="inline-flex shrink-0 items-center gap-0.5 text-[10px] font-medium text-primary hover:underline"
+          >
+            {openLinkLabel}
+          </button>
+        ) : null}
+      </div>
+    </div>
   )
-
-  const className =
-    'flex max-w-[260px] flex-col gap-1 rounded-xl border border-sky-500/30 bg-sky-500/5 px-3 py-2 text-left shadow-sm transition-colors hover:bg-sky-500/10'
-
-  if (onOpen) {
-    return (
-      <button type="button" onClick={onOpen} className={className} title={name}>
-        {inner}
-      </button>
-    )
-  }
-
-  return <div className={className}>{inner}</div>
 }
 
 export function LocalAttachmentChip({
@@ -64,6 +91,8 @@ export function LocalAttachmentChip({
   size,
   onRemove,
   onOpen,
+  onSaveAs,
+  saveAsLabel,
   removeAriaLabel = 'Anhang entfernen'
 }: {
   name: string
@@ -71,14 +100,38 @@ export function LocalAttachmentChip({
   size: number | null
   onRemove?: () => void
   onOpen?: () => void
+  onSaveAs?: () => void
+  saveAsLabel?: string
   removeAriaLabel?: string
 }): JSX.Element {
   const Icon = pickAttachmentIcon(contentType, name)
-  const inner = (
-    <>
-      <div className="flex items-center gap-2">
-        <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-        <span className="min-w-0 flex-1 truncate font-medium">{name}</span>
+
+  return (
+    <div
+      className={cn(
+        ATTACHMENT_CHIP_WIDTH_CLASS,
+        'flex flex-col gap-1.5 rounded-xl border border-border/80 bg-card px-3 py-2 text-[11px] text-foreground shadow-sm'
+      )}
+    >
+      <div className="flex min-w-0 items-start gap-2">
+        <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+        {onOpen ? (
+          <button
+            type="button"
+            onClick={onOpen}
+            className="min-w-0 flex-1 rounded-sm text-left transition-colors hover:bg-secondary/40"
+            title={size != null ? `${name} · ${formatAttachmentBytes(size)}` : name}
+          >
+            <span className="line-clamp-2 break-all font-medium text-foreground">{name}</span>
+          </button>
+        ) : (
+          <span
+            className="min-w-0 flex-1 line-clamp-2 break-all font-medium text-foreground"
+            title={name}
+          >
+            {name}
+          </span>
+        )}
         {onRemove ? (
           <button
             type="button"
@@ -86,7 +139,7 @@ export function LocalAttachmentChip({
               e.stopPropagation()
               onRemove()
             }}
-            className="rounded p-0.5 text-muted-foreground hover:bg-destructive/20 hover:text-destructive"
+            className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-destructive/20 hover:text-destructive"
             aria-label={removeAriaLabel}
             title="Entfernen"
           >
@@ -94,37 +147,28 @@ export function LocalAttachmentChip({
           </button>
         ) : null}
       </div>
-      {size != null ? (
-        <span className="text-[10px] text-muted-foreground">{formatAttachmentBytes(size)}</span>
-      ) : null}
-    </>
-  )
 
-  const className = cn(
-    'flex max-w-[260px] flex-col gap-1 rounded-xl border border-border/80 bg-card px-3 py-2',
-    'text-[11px] text-foreground shadow-sm',
-    onOpen && 'text-left transition-colors hover:bg-secondary/30'
-  )
-
-  if (onOpen) {
-    return (
-      <button
-        type="button"
-        onClick={onOpen}
-        className={className}
-        title={`${name}${size != null ? ` · ${formatAttachmentBytes(size)}` : ''}`}
-      >
-        {inner}
-      </button>
-    )
-  }
-
-  return (
-    <div
-      className={className}
-      title={size != null ? `${name} · ${formatAttachmentBytes(size)}` : name}
-    >
-      {inner}
+      {(size != null || onSaveAs) && (
+        <div className="flex min-w-0 items-center justify-between gap-2 border-t border-border/50 pt-1.5">
+          {size != null ? (
+            <span className="shrink-0 text-[10px] text-muted-foreground">
+              {formatAttachmentBytes(size)}
+            </span>
+          ) : (
+            <span />
+          )}
+          {onSaveAs && saveAsLabel ? (
+            <button
+              type="button"
+              onClick={onSaveAs}
+              className="inline-flex shrink-0 items-center gap-0.5 text-[10px] font-medium text-primary hover:underline"
+            >
+              <Download className="h-2.5 w-2.5" />
+              {saveAsLabel}
+            </button>
+          ) : null}
+        </div>
+      )}
     </div>
   )
 }
@@ -134,7 +178,9 @@ function pickAttachmentIcon(
   name: string
 ): ComponentType<{ className?: string }> {
   if (mime.startsWith('image/')) return FileImage
+  if (mime.startsWith('audio/')) return Mic
   const ext = name.split('.').pop()?.toLowerCase() ?? ''
+  if (['webm', 'ogg', 'oga', 'opus', 'mp3', 'm4a', 'wav', 'aac', 'flac'].includes(ext)) return Mic
   if (mime.startsWith('text/') || ['txt', 'md', 'log', 'csv'].includes(ext)) return FileText
   return FileIcon
 }

@@ -142,13 +142,13 @@ export function schedulingPlainTextToHtml(plain: string): string {
       }
 
       const lines = block.split('\n')
-      const bulletLines = lines.every((l) => /^[•\-]\s/.test(l.trim()) || l.trim() === '')
-      if (bulletLines && lines.some((l) => /^[•\-]\s/.test(l.trim()))) {
+      const bulletLines = lines.every((l) => /^[•-]\s/.test(l.trim()) || l.trim() === '')
+      if (bulletLines && lines.some((l) => /^[•-]\s/.test(l.trim()))) {
         const items = lines
-          .filter((l) => /^[•\-]\s/.test(l.trim()))
-          .map((l) => `<li>${plainLineToHtml(l.trim().replace(/^[•\-]\s*/, ''))}</li>`)
+          .filter((l) => /^[•-]\s/.test(l.trim()))
+          .map((l) => `<li>${plainLineToHtml(l.trim().replace(/^[•-]\s*/, ''))}</li>`)
           .join('')
-        const head = lines.find((l) => l.trim() && !/^[•\-]\s/.test(l.trim()))
+        const head = lines.find((l) => l.trim() && !/^[•-]\s/.test(l.trim()))
         return `${head ? `<p>${plainLineToHtml(head)}</p>` : ''}<ul>${items}</ul>`
       }
       return `<p>${lines.map((l) => plainLineToHtml(l)).join('<br>')}</p>`

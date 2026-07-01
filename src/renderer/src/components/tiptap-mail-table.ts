@@ -2,7 +2,7 @@ import { Table } from '@tiptap/extension-table/table'
 import { TableCell } from '@tiptap/extension-table/cell'
 import { TableHeader } from '@tiptap/extension-table/header'
 
-export type MailTableDesign = 'bordered' | 'minimal' | 'shadow'
+export type MailTableDesign = 'bordered' | 'minimal' | 'shadow' | 'borderless'
 
 function parseCellBg(el: HTMLElement): string | null {
   const fromStyle = (el.style.backgroundColor || '').trim()
@@ -19,6 +19,7 @@ function parseCellBg(el: HTMLElement): string | null {
 }
 
 function parseTableDesign(el: HTMLElement): MailTableDesign {
+  if (el.classList.contains('mail-tbl-borderless')) return 'borderless'
   if (el.classList.contains('mail-tbl-shadow')) return 'shadow'
   if (el.classList.contains('mail-tbl-minimal')) return 'minimal'
   return 'bordered'

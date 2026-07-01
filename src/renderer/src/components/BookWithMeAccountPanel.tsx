@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import type { ConnectedAccount } from '@shared/types'
 import { BOOK_WITH_ME_MANAGE_URL, isBookWithMeHost } from '@shared/book-with-me'
 import { useAccountsStore } from '@/stores/accounts'
-import { openExternalUrl } from '@/lib/open-external'
+import { voidOpenExternalUrl } from '@/lib/open-external'
 import { requestOpenAccountSettings } from '@/lib/open-account-settings'
 import { showAppAlert } from '@/stores/app-dialog'
 import { cn } from '@/lib/utils'
@@ -162,7 +162,7 @@ export function BookWithMeAccountPanel({
               type="button"
               disabled={disabled}
               onClick={(): void => {
-                void openExternalUrl(BOOK_WITH_ME_MANAGE_URL).catch(() => undefined)
+                voidOpenExternalUrl(BOOK_WITH_ME_MANAGE_URL)
               }}
               className="inline-flex flex-1 items-center justify-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-[11px] font-medium hover:bg-secondary/80 disabled:opacity-40"
             >
@@ -175,7 +175,7 @@ export function BookWithMeAccountPanel({
             type="button"
             disabled={disabled}
             onClick={(): void => {
-              void openExternalUrl(BOOK_WITH_ME_MANAGE_URL).catch(() => undefined)
+              voidOpenExternalUrl(BOOK_WITH_ME_MANAGE_URL)
             }}
             className="w-full rounded-md px-2 py-1.5 text-left text-[11px] text-primary hover:bg-primary/10 disabled:opacity-40"
           >
@@ -269,7 +269,7 @@ export function BookWithMeAccountPanel({
               type="button"
               disabled={disabled}
               onClick={(): void => {
-                void openExternalUrl(savedUrl).catch(() => undefined)
+                voidOpenExternalUrl(savedUrl)
               }}
               className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-medium hover:bg-secondary/80 disabled:opacity-40"
             >
@@ -281,7 +281,7 @@ export function BookWithMeAccountPanel({
             type="button"
             disabled={disabled}
             onClick={(): void => {
-              void openExternalUrl(BOOK_WITH_ME_MANAGE_URL).catch(() => undefined)
+              voidOpenExternalUrl(BOOK_WITH_ME_MANAGE_URL)
             }}
             className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-medium hover:bg-secondary/80 disabled:opacity-40"
           >

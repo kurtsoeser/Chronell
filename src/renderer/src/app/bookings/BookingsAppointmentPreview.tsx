@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { differenceInMinutes, format, parseISO } from 'date-fns'
-import { de as deFns, enUS as enUSFns } from 'date-fns/locale'
+import { useDateFnsLocale } from '@/lib/date-fns-locale'
 import {
   Building2,
   CalendarClock,
@@ -17,7 +17,7 @@ import type {
   BookingsServiceRow,
   BookingsStaffMemberRow
 } from '@shared/types'
-import { openExternalUrl } from '@/lib/open-external'
+import { voidOpenExternalUrl } from '@/lib/open-external'
 
 const OUTLOOK_BOOKINGS_URL = 'https://outlook.office.com/bookings/calendar'
 
@@ -53,7 +53,7 @@ export function BookingsAppointmentPreview({
   staffMembers: BookingsStaffMemberRow[]
 }): JSX.Element {
   const { t, i18n } = useTranslation()
-  const dateFnsLoc = i18n.language.startsWith('de') ? deFns : enUSFns
+  const dateFnsLoc = useDateFnsLocale()
 
   const start = parseISO(appointment.startIso)
   const end = parseISO(appointment.endIso)
@@ -211,7 +211,7 @@ export function BookingsAppointmentPreview({
         <button
           type="button"
           onClick={(): void => {
-            void openExternalUrl(OUTLOOK_BOOKINGS_URL).catch(() => undefined)
+            voidOpenExternalUrl(OUTLOOK_BOOKINGS_URL)
           }}
           className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90"
         >

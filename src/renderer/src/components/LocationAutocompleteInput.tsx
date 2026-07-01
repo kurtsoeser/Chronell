@@ -111,7 +111,7 @@ export function LocationAutocompleteInput({
     [onChange]
   )
 
-  const useCurrentLocation = useCallback((): void => {
+  const applyCurrentLocation = useCallback((): void => {
     if (!navigator.geolocation) return
     setGeoLoading(true)
     setError(null)
@@ -203,7 +203,7 @@ export function LocationAutocompleteInput({
               disabled={disabled || geoLoading}
               className="flex w-full items-center gap-2 border-b border-white/[0.04] dark:border-white/[0.04] px-3 py-2 text-left text-xs hover:bg-secondary/80 disabled:opacity-50"
               onMouseDown={(e): void => e.preventDefault()}
-              onClick={(): void => useCurrentLocation()}
+              onClick={(): void => applyCurrentLocation()}
             >
               {geoLoading ? (
                 <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground" />

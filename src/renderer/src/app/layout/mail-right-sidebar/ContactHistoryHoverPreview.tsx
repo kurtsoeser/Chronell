@@ -194,7 +194,6 @@ export function ContactHistoryHoverPreview({
           {bodyHtml ? (
             <div
               className="contact-history-preview-body text-foreground/90"
-              // eslint-disable-next-line react/no-dangerously-set-inner-html -- sanitized mail HTML
               dangerouslySetInnerHTML={{ __html: bodyHtml }}
             />
           ) : !loading && !error ? (

@@ -8,18 +8,14 @@ import {
 } from '@/lib/chronell-ui-classes'
 import { cn } from '@/lib/utils'
 import type { ConnectedAccount, MailFolder, MailFull, MailListItem } from '@shared/types'
+import { wellKnownFolderTitle } from '@shared/well-known-folder-title'
 
 function conversationFolderLabel(
   folder: MailFolder | undefined,
   t: (key: string) => string
 ): string {
   if (!folder) return ''
-  const wk = folder.wellKnown
-  if (wk === 'sentitems') return t('mail.conversationPreview.folderSent')
-  if (wk === 'drafts') return t('mail.conversationPreview.folderDrafts')
-  if (wk === 'archive') return t('mail.conversationPreview.folderArchive')
-  if (wk === 'deleteditems') return t('mail.conversationPreview.folderTrash')
-  return folder.name
+  return wellKnownFolderTitle(folder.wellKnown, folder.name, t, 'conversationPreview')
 }
 
 function MailConversationCollapsed({

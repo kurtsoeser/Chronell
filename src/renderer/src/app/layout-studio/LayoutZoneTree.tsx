@@ -115,6 +115,8 @@ function ZoneNodeView({
   onRemoveLeaf: (leafId: string) => void
   onAdjustRatio: (splitId: string, deltaPx: number, containerSizePx: number) => void
 }): JSX.Element {
+  const containerRef = useRef<HTMLDivElement>(null)
+
   if (node.type === 'leaf') {
     return (
       <ZoneLeafView
@@ -137,7 +139,6 @@ function ZoneNodeView({
     )
   }
 
-  const containerRef = useRef<HTMLDivElement>(null)
   const row = node.direction === 'vertical'
 
   return (

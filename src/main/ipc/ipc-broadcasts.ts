@@ -178,3 +178,9 @@ export function broadcastMailReadingPopoutDock(payload: { messageId: number }): 
     win.webContents.send('mail-reading-popout:dock', payload)
   }
 }
+
+export function broadcastNotesScreenClipTrigger(): void {
+  for (const win of BrowserWindow.getAllWindows()) {
+    win.webContents.send('notes:screen-clip-trigger')
+  }
+}

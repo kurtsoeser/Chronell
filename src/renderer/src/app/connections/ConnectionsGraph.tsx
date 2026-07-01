@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { Link2, Loader2, Maximize2, Minus, Plus, RotateCcw } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import type { ChronellEntityRef } from '@shared/entity-ref'
+import type { ChronellEntityRef, EntityRefKind } from '@shared/entity-ref'
 import type { EntityLinkSuggestionCountEntry } from '@shared/entity-link-ai-payload'
 import type { EntityGraphClusterMode, EntityGraphEdge, EntityGraphNode } from '@shared/entity-links'
 import { formatCalendarEventWhenLabel, formatDueIsoWhenLabel } from '@shared/calendar-datetime'
@@ -16,6 +16,7 @@ import { useAccountsStore } from '@/stores/accounts'
 import { graphEdgeQualityStroke } from '@/app/connections/graph-link-quality-colors'
 import { useConnectionsGraphFocusStore } from '@/stores/connections-graph-focus'
 import type { EntityLinkQuality } from '@shared/entity-links'
+import { ENTITY_KIND_DOT_COLORS } from '@shared/entity-kind-colors'
 import type { ConnectionsGraphViewSettings } from '@/app/connections/connections-graph-view-settings'
 import { clusterLabelForKey } from '@/app/connections/connections-graph-labels'
 import { applyConnectionsGraphFilters } from '@/app/connections/connections-graph-filters'
@@ -85,15 +86,6 @@ function withFormattedGraphSubtitles(
     }
     return formatted ? { ...node, subtitle: formatted } : node
   })
-}
-
-const KIND_DOT: Record<string, string> = {
-  mail: '#0ea5e9',
-  mail_todo: '#f59e0b',
-  cloud_task: '#10b981',
-  calendar_event: '#8b5cf6',
-  note: '#ca8a04',
-  people_contact: '#f43f5e'
 }
 
 const CLUSTER_FILL: Record<string, string> = {
@@ -403,7 +395,7 @@ export function ConnectionsGraph({
   const kindDot = useCallback(
     (kind: string): string =>
       viewSettings?.kindColors[kind as keyof typeof viewSettings.kindColors] ??
-      KIND_DOT[kind] ??
+      ENTITY_KIND_DOT_COLORS[kind as EntityRefKind] ??
       '#94a3b8',
     [viewSettings?.kindColors]
   )

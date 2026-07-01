@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next'
 
 import { format, parseISO } from 'date-fns'
 
-import { de, enUS } from 'date-fns/locale'
+import { useDateFnsLocale } from '@/lib/date-fns-locale'
 
 import type { ConnectedAccount } from '@shared/types'
 
@@ -193,7 +193,7 @@ export function TasksGroupedList({
     }
   }, [accounts])
 
-  const dfLocale = i18n.language.startsWith('de') ? de : enUS
+  const dfLocale = useDateFnsLocale()
 
 
 

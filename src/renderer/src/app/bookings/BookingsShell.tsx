@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { addDays, format, parseISO } from 'date-fns'
-import { de as deFns, enUS as enUSFns } from 'date-fns/locale'
+import { resolveDateFnsLocale } from '@/lib/date-fns-locale'
 import {
   Building2,
   CalendarClock,
@@ -46,7 +46,7 @@ import {
 } from '@/components/module-shell-layout'
 import { useAccountsStore } from '@/stores/accounts'
 import { useLocaleStore } from '@/stores/locale'
-import { openExternalUrl } from '@/lib/open-external'
+import { voidOpenExternalUrl } from '@/lib/open-external'
 import { cn } from '@/lib/utils'
 import {
   BOOKINGS_APPOINTMENT_DAYS_CHANGED_EVENT,
@@ -69,7 +69,10 @@ async function copyText(text: string): Promise<boolean> {
 export function BookingsShell(): JSX.Element {
   const { t } = useTranslation()
   const appLocale = useLocaleStore((s) => s.locale)
-  const dateFnsLoc = appLocale === 'en' ? enUSFns : deFns
+  const dateFnsLoc = useMemo(
+    () => resolveDateFnsLocale(appLocale === 'en' ? 'en' : 'de'),
+    [appLocale]
+  )
   const accounts = useAccountsStore((s) => s.accounts)
 
   const microsoftAccounts = useMemo(
@@ -443,7 +446,7 @@ export function BookingsShell(): JSX.Element {
                       <button
                         type="button"
                         onClick={(): void => {
-                          void openExternalUrl(publicBookingUrl).catch(() => undefined)
+                          voidOpenExternalUrl(publicBookingUrl)
                         }}
                         className="inline-flex items-center gap-1.5 rounded-md border border-primary/40 bg-primary/10 px-2.5 py-1.5 text-xs font-medium text-primary hover:bg-primary/15"
                       >
@@ -455,7 +458,7 @@ export function BookingsShell(): JSX.Element {
                   <button
                     type="button"
                     onClick={(): void => {
-                      void openExternalUrl(OUTLOOK_BOOKINGS_URL).catch(() => undefined)
+                      voidOpenExternalUrl(OUTLOOK_BOOKINGS_URL)
                     }}
                     className="inline-flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
                   >

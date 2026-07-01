@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { addDays, addHours, format, parseISO } from 'date-fns'
-import { de as deFns, enUS as enUSFns } from 'date-fns/locale'
 import type { Locale } from 'date-fns'
+import { addDays, addHours, format, parseISO } from 'date-fns'
+import { useDateFnsLocale } from '@/lib/date-fns-locale'
 import { createPortal } from 'react-dom'
 import { Clock, Loader2, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -14,6 +14,7 @@ import {
 } from '@/app/layout/meeting-invitation/MeetingInvitationDayPreview'
 import { eventDatetimeLocalToUtcIso, resolveDefaultEventTimeZone } from '@/lib/calendar-event-timezone'
 import { useAccountsStore } from '@/stores/accounts'
+import { logIpcError } from '@/lib/ipc-error-log'
 
 function toDatetimeLocalValue(iso: string): string {
   const d = new Date(iso)
@@ -62,7 +63,7 @@ export function MeetingProposeTimeDialog({
   }) => void
 }): JSX.Element | null {
   const { t, i18n } = useTranslation()
-  const dfLocale: Locale = i18n.language.startsWith('de') ? deFns : enUSFns
+  const dfLocale = useDateFnsLocale()
   const calendarTz = useAccountsStore((s) =>
     resolveDefaultEventTimeZone(s.config?.calendarTimeZone)
   )
@@ -160,7 +161,9 @@ export function MeetingProposeTimeDialog({
         selfProposedStartIso: res.selfProposedStartIso ?? startIso,
         selfProposedEndIso: res.selfProposedEndIso ?? endIso
       })
-      void window.mailClient.calendar.syncAccount(account.id).catch(() => undefined)
+      void window.mailClient.calendar
+        .syncAccount(account.id)
+        .catch((err) => logIpcError('calendar.syncAccount', err))
       onClose()
     } finally {
       setBusy(false)

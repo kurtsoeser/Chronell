@@ -3,8 +3,7 @@ import { addDays, parseISO, startOfDay } from 'date-fns'
 import FullCalendar from '@fullcalendar/react'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import luxonPlugin from '@fullcalendar/luxon'
-import deLocale from '@fullcalendar/core/locales/de'
-import enGbLocale from '@fullcalendar/core/locales/en-gb'
+import { useCalendarFcLocale } from '@/hooks/use-calendar-fc-locale'
 import type { EventInput } from '@fullcalendar/core'
 import { useTranslation } from 'react-i18next'
 import type { CalendarEventView, MeetingInvitationView } from '@shared/types'
@@ -164,7 +163,7 @@ export function MeetingInvitationDayPreview({
     [calSettings.defaultTimeGridSlotMinutes]
   )
 
-  const fcLocale = i18n.language.startsWith('de') ? deLocale : enGbLocale
+  const fcLocale = useCalendarFcLocale()
 
   if (!startIso || !endIso) return null
 

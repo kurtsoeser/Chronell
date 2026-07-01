@@ -146,6 +146,9 @@ export const IPC = {
     setSchedule: 'notes:set-schedule',
     clearSchedule: 'notes:clear-schedule',
     moveToSection: 'notes:move-to-section',
+    moveToParent: 'notes:move-to-parent',
+    setCategories: 'notes:set-categories',
+    setPinned: 'notes:set-pinned',
     sectionsList: 'notes:sections:list',
     sectionsCreate: 'notes:sections:create',
     sectionsUpdate: 'notes:sections:update',
@@ -162,7 +165,16 @@ export const IPC = {
     attachmentsAddCloud: 'notes:attachments:add-cloud',
     attachmentsRemove: 'notes:attachments:remove',
     attachmentsOpen: 'notes:attachments:open',
-    attachmentsSaveAs: 'notes:attachments:save-as'
+    attachmentsSaveAs: 'notes:attachments:save-as',
+    attachmentsReadLocal: 'notes:attachments:read-local',
+    readClipboardImage: 'notes:read-clipboard-image',
+    exportPdf: 'notes:export-pdf',
+    printPage: 'notes:print-page'
+  },
+  quickCapture: {
+    open: 'quick-capture:open',
+    close: 'quick-capture:close',
+    toggle: 'quick-capture:toggle'
   },
   mail: {
     listFolders: 'mail:list-folders',

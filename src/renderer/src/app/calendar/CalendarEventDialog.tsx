@@ -85,12 +85,13 @@ import { cloudTaskAccountOptionLabel } from '@/lib/cloud-task-accounts'
 import { CalendarEventAttachmentsPanel } from '@/app/calendar/CalendarEventAttachmentsPanel'
 import { useCalendarEventAttachments } from '@/app/calendar/useCalendarEventAttachments'
 import { cn } from '@/lib/utils'
+import { useCollatorLocale } from '@/lib/date-fns-locale'
 import {
   eventDialogPanelSelectClass,
   eventDialogSectionHeadingClass
 } from '@/lib/chronell-ui-classes'
 import { ModalPanel, ModalRoot } from '@/components/motion/Modal'
-import { openExternalUrl } from '@/lib/open-external'
+import { openExternalUrl, voidOpenExternalUrl } from '@/lib/open-external'
 import { useAccountsStore } from '@/stores/accounts'
 import { resolvedAccountColorCss } from '@/lib/avatar-color'
 import { EntityContextBlock } from '@/components/connections/EntityContextBlock'
@@ -353,7 +354,7 @@ export function CalendarEventDialog({
   surface
 }: CalendarEventDialogProps): JSX.Element | null {
   const { t, i18n } = useTranslation()
-  const collatorLocale = i18n.language.startsWith('de') ? 'de' : 'en'
+  const collatorLocale = useCollatorLocale()
 
   /** Konten mit Kalender-Anbindung (Microsoft 365 + Google). */
   const calendarAccounts = useMemo(
@@ -452,6 +453,44 @@ export function CalendarEventDialog({
   const taskTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
   const dragDepthRef = useRef(0)
 
+  // Inhaltsbasierte Signatur der Eingangsdaten. Damit wird die Erstbefuellung
+  // (inkl. setSubject) nur dann erneut ausgefuehrt, wenn sich der tatsaechliche
+  // Inhalt aendert - und nicht, wenn die Eltern-Komponente nur neu rendert und
+  // neue Objekt-/Array-Referenzen fuer Props wie createPrefill/initialRange
+  // uebergibt. Andernfalls wuerde ein gerade eingegebener Titel geloescht.
+  const initSignature = useMemo(() => {
+    if (!open) return '__closed__'
+    if (mode === 'edit') {
+      return [
+        'edit',
+        initialEvent?.accountId ?? '',
+        initialEvent?.graphEventId ?? '',
+        initialEvent?.id ?? '',
+        initialEvent?.startIso ?? ''
+      ].join('|')
+    }
+    return [
+      'create',
+      initialCreateKind ?? 'event',
+      initialGraphCalendarId ?? '',
+      initialTaskListId ?? '',
+      initialRange
+        ? `${initialRange.start.getTime()}-${initialRange.end.getTime()}-${String(initialRange.allDay)}`
+        : 'no-range',
+      createPrefill ? JSON.stringify(createPrefill) : 'no-prefill'
+    ].join('|')
+  }, [
+    open,
+    mode,
+    initialEvent,
+    initialCreateKind,
+    initialGraphCalendarId,
+    initialTaskListId,
+    initialRange,
+    createPrefill
+  ])
+  const initAppliedSignatureRef = useRef<string | null>(null)
+
   function applyTaskScheduleFromRange(range: CalendarCreateRange | null | undefined): void {
     if (!range) {
       setTaskDue('')
@@ -466,8 +505,15 @@ export function CalendarEventDialog({
   }
 
   useEffect(() => {
-    if (!open) return
+    if (!open) {
+      initAppliedSignatureRef.current = null
+      return
+    }
     if (mode === 'edit' && !initialEvent) return
+    // Nur erneut befuellen, wenn sich der Inhalt (Signatur) wirklich geaendert
+    // hat. Verhindert das Loeschen bereits eingegebener Felder bei Re-Renders.
+    if (initAppliedSignatureRef.current === initSignature) return
+    initAppliedSignatureRef.current = initSignature
 
     setLocalError(null)
     setBusy(false)
@@ -608,7 +654,8 @@ export function CalendarEventDialog({
     defaultAccountId,
     calendarAccountIdsKey,
     taskAccounts,
-    defaultEventTimeZone
+    defaultEventTimeZone,
+    initSignature
   ])
 
   useEffect(() => {
@@ -2378,7 +2425,7 @@ export function CalendarEventDialog({
                     type="button"
                     className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground"
                     onClick={(): void => {
-                      void openExternalUrl(initialEvent.webLink!).catch(() => undefined)
+                      voidOpenExternalUrl(initialEvent.webLink!)
                     }}
                   >
                     <ExternalLink className="h-3.5 w-3.5" />
@@ -2390,7 +2437,7 @@ export function CalendarEventDialog({
                     type="button"
                     className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground"
                     onClick={(): void => {
-                      void openExternalUrl(initialEvent.joinUrl!).catch(() => undefined)
+                      voidOpenExternalUrl(initialEvent.joinUrl!)
                     }}
                   >
                     <Video className="h-3.5 w-3.5" />

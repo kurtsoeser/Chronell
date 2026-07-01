@@ -75,14 +75,7 @@ import {
   readSidebarHiddenMailFolderKeysFromStorage,
   filterFoldersForMailSidebar
 } from '@/lib/mail-sidebar-folder-visibility-storage'
-
-function sameStringSet(a: Set<string>, b: Set<string>): boolean {
-  if (a.size !== b.size) return false
-  for (const x of a) {
-    if (!b.has(x)) return false
-  }
-  return true
-}
+import { sameStringSet } from '@/lib/same-string-set'
 
 interface Props {
   onOpenAccountDialog: () => void

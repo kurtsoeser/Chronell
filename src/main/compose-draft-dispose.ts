@@ -7,6 +7,7 @@ import { deleteMessageRemote } from './graph/mail-actions'
 import { isGraphItemNotFound } from './graph/graph-request-errors'
 import { gmailDeleteDraftRemote } from './google/gmail-compose'
 import { runFolderSync } from './sync-runner'
+import { logBackgroundError } from './log-background-error'
 
 function broadcastMailChanged(accountId: string): void {
   for (const win of BrowserWindow.getAllWindows()) {
@@ -75,7 +76,7 @@ export async function disposeComposeDraft(opts: DisposeComposeDraftOpts): Promis
 
   const draftsFolder = findFolderByWellKnown(accountId, 'drafts')
   if (draftsFolder) {
-    void runFolderSync(draftsFolder.id).catch(() => undefined)
+    void runFolderSync(draftsFolder.id).catch((err) => logBackgroundError('mail.runFolderSync', err))
   }
   broadcastMailChanged(accountId)
 }

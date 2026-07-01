@@ -1,4 +1,4 @@
-import { BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import { BrowserWindow, clipboard, dialog, ipcMain, shell } from 'electron'
 import fs from 'node:fs/promises'
 import {
   IPC,
@@ -20,6 +20,9 @@ import {
   type UserNoteMailUpsertInput,
   type UserNotePeopleContactUpsertInput,
   type UserNoteMoveToSectionInput,
+  type UserNoteMoveToParentInput,
+  type UserNoteSetCategoriesInput,
+  type UserNoteSetPinnedInput,
   type UserNoteScheduleInput,
   type UserNoteStandaloneCreateInput,
   type UserNotePatchDisplayInput,
@@ -37,6 +40,8 @@ import {
   removeNoteAttachment
 } from '../db/user-note-attachments-repo'
 import { sanitizeFileName } from './ipc-helpers'
+import { resolveAudioContentType } from '@shared/note-attachment-audio'
+import { normalizeAudioMimeForPlayback } from '@shared/note-attachment-media-url'
 import {
   createNoteSection,
   deleteNoteSection,
@@ -67,6 +72,9 @@ import {
   listNotesInRange,
   searchNotes,
   moveNoteToSection,
+  moveNoteToParent,
+  setNoteCategories,
+  setNotePinned,
   patchNoteDisplay,
   setNoteSchedule,
   updateStandaloneNote,
@@ -79,6 +87,9 @@ import {
   removeEntityEmbeddingsForNote
 } from '../ai/entity-embeddings-queue'
 import { broadcastEntityLinksChanged, broadcastNotesChanged } from './ipc-broadcasts'
+import { exportNotePageToPdf, printNotePage } from '../notes-page-export'
+
+const NOTE_ATTACHMENT_READ_LOCAL_MAX_BYTES = 50 * 1024 * 1024
 
 export function registerNotesIpc(): void {
   ipcMain.handle(IPC.notes.getMail, (_event, messageId: number): UserNote | null =>
@@ -199,6 +210,26 @@ export function registerNotesIpc(): void {
   ipcMain.handle(IPC.notes.moveToSection, (_event, input: UserNoteMoveToSectionInput): UserNote => {
     const note = moveNoteToSection(input)
     queueEntityEmbeddingForNote(note)
+    broadcastNotesChanged({ noteId: note.id, kind: note.kind })
+    return note
+  })
+
+  ipcMain.handle(IPC.notes.moveToParent, (_event, input: UserNoteMoveToParentInput): UserNote => {
+    const note = moveNoteToParent(input)
+    queueEntityEmbeddingForNote(note)
+    broadcastNotesChanged({ noteId: note.id, kind: note.kind })
+    return note
+  })
+
+  ipcMain.handle(IPC.notes.setCategories, (_event, input: UserNoteSetCategoriesInput): UserNote => {
+    const note = setNoteCategories(input.noteId, input.accountId, input.categories)
+    queueEntityEmbeddingForNote(note)
+    broadcastNotesChanged({ noteId: note.id, kind: note.kind })
+    return note
+  })
+
+  ipcMain.handle(IPC.notes.setPinned, (_event, input: UserNoteSetPinnedInput): UserNote => {
+    const note = setNotePinned(input.noteId, input.isPinned)
     broadcastNotesChanged({ noteId: note.id, kind: note.kind })
     return note
   })
@@ -337,6 +368,9 @@ export function registerNotesIpc(): void {
           return { ok: true }
         }
         if (!att.localPath) return { ok: false, error: 'Dateipfad fehlt.' }
+        if (resolveAudioContentType(att).startsWith('audio/')) {
+          return { ok: true }
+        }
         const err = await shell.openPath(att.localPath)
         if (err) return { ok: false, error: err }
         return { ok: true }
@@ -379,6 +413,90 @@ export function registerNotesIpc(): void {
         return { ok: true, path: result.filePath }
       } catch (e) {
         return { ok: false, error: e instanceof Error ? e.message : String(e) }
+      }
+    }
+  )
+
+  ipcMain.handle(
+    IPC.notes.attachmentsReadLocal,
+    async (
+      _event,
+      args: { noteId: number; attachmentId: number }
+    ): Promise<
+      | { ok: true; dataBase64: string; contentType: string }
+      | { ok: false; error: string }
+    > => {
+      const noteId = typeof args?.noteId === 'number' ? args.noteId : 0
+      const attachmentId = typeof args?.attachmentId === 'number' ? args.attachmentId : 0
+      const att = noteId && attachmentId ? getNoteAttachmentById(attachmentId, noteId) : null
+      if (!att) return { ok: false, error: 'Anhang nicht gefunden.' }
+      if (att.kind !== 'local' || !att.localPath) {
+        return { ok: false, error: 'Nur lokale Anhänge können abgespielt werden.' }
+      }
+      try {
+        const stat = await fs.stat(att.localPath)
+        if (stat.size > NOTE_ATTACHMENT_READ_LOCAL_MAX_BYTES) {
+          return { ok: false, error: 'Datei ist zu groß für die Wiedergabe.' }
+        }
+        const buffer = await fs.readFile(att.localPath)
+        const contentType = normalizeAudioMimeForPlayback(
+          att.contentType?.startsWith('audio/')
+            ? att.contentType
+            : resolveAudioContentType({
+                kind: att.kind,
+                name: att.name,
+                contentType: att.contentType
+              })
+        )
+        return {
+          ok: true,
+          dataBase64: buffer.toString('base64'),
+          contentType
+        }
+      } catch (e) {
+        return { ok: false, error: e instanceof Error ? e.message : String(e) }
+      }
+    }
+  )
+
+  ipcMain.handle(
+    IPC.notes.exportPdf,
+    async (
+      event,
+      input: { title: string; bodyHtml: string; suggestedFileName?: string }
+    ): Promise<{ ok: boolean; path?: string; error?: string; cancelled?: boolean }> => {
+      const win = BrowserWindow.fromWebContents(event.sender) ?? undefined
+      return exportNotePageToPdf(win, {
+        title: typeof input?.title === 'string' ? input.title : '',
+        bodyHtml: typeof input?.bodyHtml === 'string' ? input.bodyHtml : '',
+        suggestedFileName: input?.suggestedFileName
+      })
+    }
+  )
+
+  ipcMain.handle(
+    IPC.notes.printPage,
+    async (
+      _event,
+      input: { title: string; bodyHtml: string }
+    ): Promise<{ ok: boolean; error?: string }> => {
+      return printNotePage({
+        title: typeof input?.title === 'string' ? input.title : '',
+        bodyHtml: typeof input?.bodyHtml === 'string' ? input.bodyHtml : ''
+      })
+    }
+  )
+
+  ipcMain.handle(
+    IPC.notes.readClipboardImage,
+    (): { dataBase64: string; contentType: string } | null => {
+      const image = clipboard.readImage()
+      if (image.isEmpty()) return null
+      const png = image.toPNG()
+      if (!png.length) return null
+      return {
+        dataBase64: png.toString('base64'),
+        contentType: 'image/png'
       }
     }
   )

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
+import type { Locale } from 'date-fns'
 import { format, parseISO } from 'date-fns'
-import { de, enUS } from 'date-fns/locale'
+import { useDateFnsLocale } from '@/lib/date-fns-locale'
 import { useTranslation } from 'react-i18next'
 import { Calendar, ChevronRight, Loader2 } from 'lucide-react'
 import type { CalendarEventView } from '@shared/types'
@@ -13,7 +14,7 @@ const MAX_EVENTS = 3
 const PAST_DAYS = 14
 const FUTURE_DAYS = 120
 
-function formatEventWhen(ev: CalendarEventView, locale: typeof de): string {
+function formatEventWhen(ev: CalendarEventView, locale: Locale): string {
   const start = parseISO(ev.startIso)
   const end = parseISO(ev.endIso)
   if (Number.isNaN(start.getTime())) return ''
@@ -32,7 +33,7 @@ interface Props {
 
 export function ContactRelatedStrip({ contactEmails }: Props): JSX.Element | null {
   const { t, i18n } = useTranslation()
-  const dfLocale = i18n.language.startsWith('de') ? de : enUS
+  const dfLocale = useDateFnsLocale()
   const setAppMode = useAppModeStore((s) => s.setMode)
   const queueFocusEvent = useCalendarPendingFocusStore((s) => s.queueFocusEvent)
 

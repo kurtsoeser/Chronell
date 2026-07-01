@@ -7,6 +7,8 @@ import { TeamsChatPopoutShell } from './app/chat/TeamsChatPopoutShell'
 import { isTeamsChatPopoutWindow } from './app/chat/teams-chat-popout-route'
 import { MailReadingPopoutShell } from './app/layout/MailReadingPopoutShell'
 import { isMailReadingPopoutWindow } from './app/layout/mail-reading-popout-route'
+import { QuickCapturePopoutShell } from './app/notes/QuickCapturePopoutShell'
+import { isQuickCapturePopoutWindow } from './app/notes/quick-capture-popout-route'
 import { PanelPopoutShell } from './app/panel-popout/PanelPopoutShell'
 import { isPanelPopoutWindow } from './app/panel-popout/panel-popout-route'
 import '@fontsource/noto-sans/400.css'
@@ -17,6 +19,7 @@ import './stores/ui-scale'
 
 function resolveRootShell(): typeof App {
   if (isMailReadingPopoutWindow()) return MailReadingPopoutShell
+  if (isQuickCapturePopoutWindow()) return QuickCapturePopoutShell
   if (isPanelPopoutWindow()) return PanelPopoutShell
   if (isTeamsChatPopoutWindow()) return TeamsChatPopoutShell
   return App

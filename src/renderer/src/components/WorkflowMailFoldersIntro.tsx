@@ -4,6 +4,7 @@ import type { ConnectedAccount } from '@shared/types'
 import { ListChecks, Loader2, X } from 'lucide-react'
 import { useAccountsStore } from '@/stores/accounts'
 import { useMailStore } from '@/stores/mail'
+import { logIpcError } from '@/lib/ipc-error-log'
 
 interface Props {
   open: boolean
@@ -64,7 +65,9 @@ export function WorkflowMailFoldersIntro({
 
   function handleOpenSettings(): void {
     onOpenMailSettings()
-    void dismissWorkflowMailFoldersIntro().catch(() => undefined)
+    void dismissWorkflowMailFoldersIntro().catch((err) =>
+      logIpcError('mail.dismissWorkflowMailFoldersIntro', err)
+    )
     onClose()
   }
 

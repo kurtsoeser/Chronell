@@ -1,5 +1,6 @@
 import { ACCOUNT_COLOR_PRESET_CLASSES } from '@shared/account-colors'
 import { readJsonSecure, writeJsonSecure } from './secure-store'
+import { logBackgroundError } from './log-background-error'
 import type {
   ConnectedAccount,
   SettingsBackupAccountPreferenceSnapshot
@@ -14,7 +15,7 @@ let accountsWriteChain: Promise<unknown> = Promise.resolve()
 
 function runSerializedAccountsWrite<T>(fn: () => Promise<T>): Promise<T> {
   const next = accountsWriteChain.then(fn, fn)
-  accountsWriteChain = next.catch(() => undefined)
+  accountsWriteChain = next.catch((err) => logBackgroundError('accounts.serializedWrite', err))
   return next
 }
 

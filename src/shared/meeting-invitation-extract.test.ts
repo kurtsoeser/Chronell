@@ -37,4 +37,40 @@ describe('extractMeetingTimesFromText', () => {
     expect(r).not.toBeNull()
     expect(r!.startIso).toContain('2026-08-27')
   })
+
+  it('parses German month name with time range', () => {
+    const r = extractMeetingTimesFromText('Montag, 29. Juni 2026, 13:00 – 14:00 Uhr')
+    expect(r).not.toBeNull()
+    expect(r!.startIso).toContain('2026-06-29')
+  })
+
+  it('parses ISO date with time', () => {
+    const r = extractMeetingTimesFromText('Start: 2026-06-29 09:15 to 10:45')
+    expect(r).not.toBeNull()
+    expect(r!.startIso).toContain('2026-06-29')
+  })
+
+  it('applies default duration for single start time', () => {
+    const r = extractMeetingTimesFromText('Webinar am 29.06.2026 um 13:00 Uhr')
+    expect(r).not.toBeNull()
+    const start = new Date(r!.startIso)
+    const end = new Date(r!.endIso)
+    expect(end.getTime() - start.getTime()).toBe(60 * 60 * 1000)
+  })
+
+  it('does not mistake a date for a time', () => {
+    const r = extractMeetingTimesFromText('Datum 29.06.2026 um 14:30 Uhr')
+    expect(r).not.toBeNull()
+    expect(new Date(r!.startIso).getHours()).toBe(14)
+  })
+
+  it('parses English month-first date with time range', () => {
+    const r = extractMeetingTimesFromText('Meeting on June 29, 2026 from 9:00 to 9:30')
+    expect(r).not.toBeNull()
+    expect(r!.startIso).toContain('2026-06-29')
+  })
+
+  it('returns null when no date present', () => {
+    expect(extractMeetingTimesFromText('Lass uns um 13:00 treffen')).toBeNull()
+  })
 })

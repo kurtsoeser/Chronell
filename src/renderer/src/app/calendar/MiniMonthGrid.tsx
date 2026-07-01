@@ -13,7 +13,7 @@ import {
   startOfMonth,
   startOfWeek
 } from 'date-fns'
-import { de as deFns, enUS as enUSFns } from 'date-fns/locale'
+import { useDateFnsLocale } from '@/lib/date-fns-locale'
 import { useTranslation } from 'react-i18next'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -91,7 +91,7 @@ export function MiniMonthGrid({
   compact = false
 }: MiniMonthGridProps): JSX.Element {
   const { t, i18n } = useTranslation()
-  const dfLocale = i18n.language.startsWith('de') ? deFns : enUSFns
+  const dfLocale = useDateFnsLocale()
   const weekdayLabels = useMemo(() => {
     const ws = startOfWeek(WEEK_REF_MONDAY, { weekStartsOn: 1 })
     return Array.from({ length: 7 }, (_, i) => format(addDays(ws, i), 'EEE', { locale: dfLocale }))

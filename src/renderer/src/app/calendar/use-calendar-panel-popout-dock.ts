@@ -1,21 +1,7 @@
-import { useEffect, useRef, type Dispatch, type SetStateAction } from 'react'
+import { useEffect, useRef } from 'react'
 import type { PanelPopoutDockPayload } from '@shared/panel-popout'
 import type { CalendarEventDialogStash } from '@/app/panel-popout/panel-popout-stash-types'
-import type { CalendarEventView } from '@shared/types'
-import type { CalendarCreateQuickDraft } from '@/app/calendar/CalendarCreateQuickPopover'
-
-type EventDialogState =
-  | null
-  | {
-      mode: 'create'
-      range?: { start: Date; end: Date; allDay: boolean } | null
-      createPrefill?: { subject: string; location: string }
-      createAccountId?: string
-      createKind?: CalendarCreateQuickDraft['createKind']
-      createGraphCalendarId?: string
-      createTaskListId?: string
-    }
-  | { mode: 'edit'; event: CalendarEventView }
+import type { SetCalendarShellEventDialog } from '@/app/calendar/calendar-shell-event-dialog-state'
 import type { CalendarPreviewPopoutStash } from '@/app/panel-popout/panel-popout-stash-types'
 import {
   applyCalendarPreviewPopoutStash,
@@ -34,7 +20,7 @@ export function useCalendarPanelPopoutDock(handlers: ApplyCalendarPreviewPopoutS
   setInboxPlacement: (p: 'dock' | 'float') => void
   setRightPreviewOpen: (open: boolean) => void
   setPreviewPlacement: (p: 'dock' | 'float') => void
-  setEventDialog: Dispatch<SetStateAction<EventDialogState>>
+  setEventDialog: SetCalendarShellEventDialog
 }): void {
   const handlersRef = useRef(handlers)
   handlersRef.current = handlers

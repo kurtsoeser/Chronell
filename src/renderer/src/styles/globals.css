@@ -435,10 +435,19 @@
     color: inherit;
   }
 
+  .compose-editor-canvas[data-compose-theme='dark'] .ProseMirror {
+    color: hsl(0 0% 100%);
+  }
+
+  .compose-editor-canvas[data-compose-theme='dark'] .ProseMirror :is(h1, h2, h3, h4, p, li) {
+    color: inherit;
+  }
+
   /** Links im Editor: dezentes Blau (Dark), nicht knalliges Primary-Gelb durch Invert/Fallback. */
   .compose-editor-canvas .ProseMirror a {
     color: hsl(var(--compose-link));
     text-decoration-color: hsl(var(--compose-link) / 0.45);
+    cursor: pointer;
   }
 
   .compose-editor-canvas[data-compose-theme='dark'] .ProseMirror a[href] {
@@ -460,72 +469,93 @@
     border-color: hsl(var(--compose-surface-border) / 0.45);
   }
 
-  .markdown-note-editor .w-md-editor {
-    border-color: hsl(var(--border));
-    background-color: hsl(var(--background));
-    box-shadow: none;
-  }
-
-  .markdown-note-editor .w-md-editor-toolbar,
-  .markdown-note-editor .w-md-editor-content,
-  .markdown-note-editor .w-md-editor-text,
-  .markdown-note-editor .w-md-editor-preview {
+  /** Notizen-Editor: gleiche Hell/Dunkel-Textfläche wie Mail-Verfassen */
+  .tiptap-note-editor .note-editor-surface {
     background-color: hsl(var(--background));
   }
 
-  .markdown-note-editor .w-md-editor-toolbar {
-    border-color: hsl(var(--border));
+  .tiptap-note-editor .note-editor-action-bar {
+    border-bottom: 1px solid hsl(var(--compose-surface-border) / 0.5);
+  }
+
+  .tiptap-note-editor.note-editor-sticky-chrome-enabled .note-editor-surface.compose-editor-surface {
+    overflow: visible;
+  }
+
+  .tiptap-note-editor .note-editor-sticky-chrome {
+    background-color: hsl(var(--card));
+  }
+
+  .tiptap-note-editor .note-editor-sticky-chrome .note-editor-action-bar {
+    border-top-left-radius: calc(var(--radius-md) - 1px);
+    border-top-right-radius: calc(var(--radius-md) - 1px);
+  }
+
+  .tiptap-note-editor .compose-mail-editor-section .border-b {
+    border-color: hsl(var(--compose-surface-border) / 0.45);
   }
 
   /**
-   * @uiw/react-md-editor: transparente Textarea über Syntax-Highlight-Layer.
-   * font-size/line-height müssen auf .w-md-editor-text und allen Kindern identisch sein,
-   * sonst überlagern sich Zeilen beim Scrollen (v. a. in fillHeight-Sidebars).
+   * TipTap-Checklisten: NodeView setzt data-type nicht automatisch auf li — daher > li / .note-task-*.
    */
-  .markdown-note-editor .w-md-editor-text {
-    font-size: 0.875rem !important;
-    line-height: 1.5 !important;
+  .compose-editor-canvas .ProseMirror :is(ul[data-type='taskList'], ul.note-task-list) {
+    list-style: none;
+    margin: 0.5rem 0;
+    padding: 0;
   }
 
-  .markdown-note-editor .w-md-editor-text-input,
-  .markdown-note-editor .w-md-editor-text-pre,
-  .markdown-note-editor .w-md-editor-text-pre > code {
-    color: hsl(var(--foreground));
-    font-size: inherit !important;
-    line-height: inherit !important;
-    font-family: inherit !important;
-  }
-
-  .markdown-note-editor .w-md-editor-text-pre > code {
-    padding: 0 !important;
-  }
-
-  .markdown-note-editor .w-md-editor-text-pre .token.title,
-  .markdown-note-editor .w-md-editor-text-pre .token.title.important {
-    line-height: inherit !important;
-    font-size: inherit !important;
-  }
-
-  .markdown-note-editor .wmde-markdown {
-    color: hsl(var(--foreground));
-    font-size: 0.875rem;
-    line-height: 1.5;
-  }
-
-  .markdown-note-editor .w-md-editor-text-input::placeholder {
-    color: hsl(var(--muted-foreground));
-  }
-
-  .markdown-note-editor--fill-height {
+  .compose-editor-canvas .ProseMirror :is(ul[data-type='taskList'], ul.note-task-list) > li {
     display: flex;
-    min-height: 0;
-    flex: 1;
-    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin: 0.15rem 0;
+    list-style: none;
   }
 
-  .markdown-note-editor--fill-height .markdown-note-editor__body {
-    min-height: 0;
-    flex: 1;
+  .compose-editor-canvas .ProseMirror :is(ul[data-type='taskList'], ul.note-task-list) > li > label {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: flex-start;
+    margin: 0.15rem 0 0;
+    user-select: none;
+    cursor: default;
+  }
+
+  .compose-editor-canvas .ProseMirror :is(ul[data-type='taskList'], ul.note-task-list) > li > div {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .compose-editor-canvas .ProseMirror :is(ul[data-type='taskList'], ul.note-task-list) > li > label > input[type='checkbox'] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .compose-editor-canvas .ProseMirror :is(ul[data-type='taskList'], ul.note-task-list) > li > label > span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1em;
+    height: 1em;
+    border: 1.5px solid currentColor;
+    border-radius: 0.2rem;
+    flex-shrink: 0;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .compose-editor-canvas .ProseMirror :is(ul[data-type='taskList'], ul.note-task-list) > li[data-checked='true'] > label > span::before {
+    content: '✓';
+    font-size: 0.75em;
+    line-height: 1;
+  }
+
+  .compose-editor-canvas .ProseMirror a.note-wiki-link {
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-underline-offset: 2px;
   }
 
   /** TipTap Composer: skalierbare Bilder (Ziehpunkte an Ecken) */
@@ -640,6 +670,18 @@
 
   .ProseMirror table.mail-tbl-shadow {
     box-shadow: 0 2px 14px hsl(0 0% 0% / 0.2);
+  }
+
+  .ProseMirror table.mail-tbl-borderless th,
+  .ProseMirror table.mail-tbl-borderless td {
+    border: none;
+    padding: 0.35rem 0.55rem;
+    vertical-align: top;
+  }
+
+  .ProseMirror table.mail-tbl-borderless th {
+    font-weight: 600;
+    border-bottom: 1px solid hsl(var(--border) / 0.35);
   }
 
   /**

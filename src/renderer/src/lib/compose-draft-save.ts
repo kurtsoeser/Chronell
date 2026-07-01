@@ -2,7 +2,10 @@ import type { ComposeDraft } from '@/stores/compose'
 import { isComposeBodyEffectivelyEmpty } from '@/lib/compose-default-body'
 
 /** Verzögerung nach der letzten Änderung, bis der Entwurf in «Entwürfe» geschrieben wird. */
-export const COMPOSE_AUTO_SAVE_DELAY_MS = 5_000
+export const COMPOSE_AUTO_SAVE_DELAY_MS = 1_500
+
+/** Kurze Verzögerung nach dem Öffnen einer Antwort, bis der erste Server-Entwurf angelegt wird. */
+export const COMPOSE_REPLY_INITIAL_SAVE_DELAY_MS = 400
 
 export function composeDraftSaveFingerprint(draft: ComposeDraft): string {
   return JSON.stringify({

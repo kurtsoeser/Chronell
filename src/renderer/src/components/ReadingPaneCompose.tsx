@@ -25,28 +25,23 @@ import {
   type ComposeAttachmentFile,
   type ComposeDraft
 } from '@/stores/compose'
-import { useComposeAutoSave } from '@/hooks/useComposeAutoSave'
+import { useComposeAutoSave, useComposeAutoSaveOnHide } from '@/hooks/useComposeAutoSave'
+import { useComposeDraftEditorFlush } from '@/hooks/useComposeDraftEditorFlush'
+import { arrayBufferToBase64 } from '@/lib/attachment-files'
 
 const MAX_ATTACHMENTS_TOTAL_BYTES = 24 * 1024 * 1024
-
-function arrayBufferToBase64(buf: ArrayBuffer): string {
-  let binary = ''
-  const bytes = new Uint8Array(buf)
-  const chunk = 0x8000
-  for (let i = 0; i < bytes.length; i += chunk) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunk))
-  }
-  return btoa(binary)
-}
 
 export function ReadingPaneCompose({
   draft,
   onPopOut,
-  hidePopOutButton = false
+  hidePopOutButton = false,
+  visible = true
 }: {
   draft: ComposeDraft
   onPopOut?: () => void
   hidePopOutButton?: boolean
+  /** False wenn der Entwurf im Hintergrund bleibt (andere Mail gewählt). */
+  visible?: boolean
 }): JSX.Element {
   const { t } = useTranslation()
   const accounts = useAccountsStore((s) => s.accounts)
@@ -58,8 +53,10 @@ export function ReadingPaneCompose({
   const removeAttachment = useComposeStore((s) => s.removeAttachment)
 
   const [attachmentError, setAttachmentError] = useState<string | null>(null)
+  const { bodyFlushRef, signatureFlushRef } = useComposeDraftEditorFlush(draft.id)
 
-  useComposeAutoSave(draft.id, true)
+  useComposeAutoSave(draft.id, visible)
+  useComposeAutoSaveOnHide(draft.id, visible)
 
   const account = accounts.find((a) => a.id === draft.accountId) ?? accounts[0]
   const isMicrosoft = account?.provider === 'microsoft'
@@ -267,6 +264,7 @@ export function ReadingPaneCompose({
                     className="min-h-0 flex-1 border-t-0"
                     valueHtml={draft.prependRichHtml}
                     onChangeHtml={(v): void => update(draft.id, { prependRichHtml: v })}
+                    flushRef={bodyFlushRef}
                     onAttachFiles={(files): void => void addFiles(files)}
                     attachmentCount={draft.attachments.length}
                     onCloudAttach={isMicrosoft ? openDrive : undefined}
@@ -299,6 +297,7 @@ export function ReadingPaneCompose({
                     <SignatureFooterEditor
                       valueHtml={draft.signatureRichHtml}
                       onChangeHtml={(v): void => update(draft.id, { signatureRichHtml: v })}
+                      flushRef={signatureFlushRef}
                     />
                   </ComposeEditorThemedPane>
                 </ComposeCollapsibleSection>

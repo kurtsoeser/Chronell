@@ -4,7 +4,12 @@ import type { NotesSidebarListMode } from '@/lib/notes-sidebar-storage'
 import { readNotesSettingsPrefs } from '@/lib/notes-settings-prefs'
 
 /** Filter in der Sektionen-Ansicht der linken Spalte. */
-export type NotesSectionsNavScope = 'all' | 'ungrouped' | { sectionId: number }
+export type NotesSectionsNavScope =
+  | 'all'
+  | 'ungrouped'
+  | 'pinned'
+  | { sectionId: number }
+  | { category: string }
 
 export type NotesNavSelection =
   | { kind: 'sections'; scope: NotesSectionsNavScope }
@@ -13,11 +18,17 @@ export type NotesNavSelection =
 const NAV_SELECTION_KEY = 'mailclient.notes.navSelection'
 
 function parseSectionsScope(raw: unknown): NotesSectionsNavScope | null {
-  if (raw === 'all' || raw === 'ungrouped') return raw
+  if (raw === 'all' || raw === 'ungrouped' || raw === 'pinned') return raw
   if (raw && typeof raw === 'object' && 'sectionId' in raw) {
     const sectionId = (raw as { sectionId: unknown }).sectionId
     if (typeof sectionId === 'number' && sectionId > 0) {
       return { sectionId }
+    }
+  }
+  if (raw && typeof raw === 'object' && 'category' in raw) {
+    const category = (raw as { category: unknown }).category
+    if (typeof category === 'string' && category.trim()) {
+      return { category: category.trim() }
     }
   }
   return null
@@ -81,12 +92,23 @@ export function notesForNavSelection(
 ): UserNoteListItem[] {
   if (selection.kind === 'sections') {
     if (selection.scope === 'all') return notes
+    if (selection.scope === 'pinned') {
+      return notes.filter((n) => n.isPinned)
+    }
     if (selection.scope === 'ungrouped') {
       return notes.filter((n) => n.sectionId == null)
     }
     if (typeof selection.scope === 'object') {
-      const { sectionId } = selection.scope
-      return notes.filter((n) => n.sectionId === sectionId)
+      if ('sectionId' in selection.scope) {
+        const { sectionId } = selection.scope
+        return notes.filter((n) => n.sectionId === sectionId)
+      }
+      if ('category' in selection.scope) {
+        const cat = selection.scope.category.toLowerCase()
+        return notes.filter((n) =>
+          (n.categories ?? []).some((c) => c.toLowerCase() === cat)
+        )
+      }
     }
     return notes
   }
@@ -115,8 +137,14 @@ export function navSelectionLabel(
   if (selection.kind === 'sections') {
     if (selection.scope === 'all') return t('notes.sections.allNotes')
     if (selection.scope === 'ungrouped') return t('notes.sections.ungrouped')
+    if (selection.scope === 'pinned') return t('notes.sections.pinned')
+    if (typeof selection.scope === 'object' && 'category' in selection.scope) {
+      return selection.scope.category
+    }
     const sectionId =
-      typeof selection.scope === 'object' ? selection.scope.sectionId : undefined
+      typeof selection.scope === 'object' && 'sectionId' in selection.scope
+        ? selection.scope.sectionId
+        : undefined
     const section = sectionId != null ? sections.find((s) => s.id === sectionId) : undefined
     return section?.name ?? t('notes.sections.ungrouped')
   }
@@ -138,7 +166,22 @@ export function isSectionNavSelected(
   if (selection.kind !== 'sections') return false
   if (sectionId == null) return selection.scope === 'ungrouped'
   return (
-    typeof selection.scope === 'object' && selection.scope.sectionId === sectionId
+    typeof selection.scope === 'object' &&
+    'sectionId' in selection.scope &&
+    selection.scope.sectionId === sectionId
+  )
+}
+
+export function isPinnedNavSelected(selection: NotesNavSelection): boolean {
+  return selection.kind === 'sections' && selection.scope === 'pinned'
+}
+
+export function isCategoryNavSelected(category: string, selection: NotesNavSelection): boolean {
+  return (
+    selection.kind === 'sections' &&
+    typeof selection.scope === 'object' &&
+    'category' in selection.scope &&
+    selection.scope.category.toLowerCase() === category.toLowerCase()
   )
 }
 
@@ -149,6 +192,15 @@ export function isAccountNavSelected(accountKey: string, selection: NotesNavSele
 /** Sektion fuer neue Notizen, wenn die aktuelle Ansicht eine konkrete Sektion ist. */
 export function sectionIdForNewNote(selection: NotesNavSelection): number | null {
   if (selection.kind !== 'sections') return null
-  if (selection.scope === 'all' || selection.scope === 'ungrouped') return null
-  return selection.scope.sectionId
+  if (
+    selection.scope === 'all' ||
+    selection.scope === 'ungrouped' ||
+    selection.scope === 'pinned'
+  ) {
+    return null
+  }
+  if (typeof selection.scope === 'object' && 'sectionId' in selection.scope) {
+    return selection.scope.sectionId
+  }
+  return null
 }

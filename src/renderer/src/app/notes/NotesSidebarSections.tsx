@@ -11,10 +11,14 @@ import {
 import {
   countNotesInSection,
   isAllNotesNavSelected,
+  isCategoryNavSelected,
+  isPinnedNavSelected,
   isSectionNavSelected,
   type NotesNavSelection,
   type NotesSectionsNavScope
 } from '@/lib/notes-nav-selection'
+import { collectDistinctNoteCategories, countPinnedNotes } from '@/lib/note-category-account'
+import { outlookCategoryDotClass } from '@/lib/outlook-category-colors'
 import { NOTE_DROP_UNGROUPED, noteSectionDropId } from '@/lib/notes-sidebar-dnd'
 import { NotesDropZone } from '@/app/notes/notes-dnd-ui'
 import { NoteSectionIconColorFooter } from '@/app/notes/NoteSectionIconColorFooter'
@@ -247,8 +251,11 @@ export function NotesSidebarSections({
 
   const tree = useMemo(() => buildNoteSectionTree(sections, notes), [sections, notes])
   const ungroupedCount = tree.ungroupedNotes.length
+  const pinnedCount = countPinnedNotes(notes)
+  const categoryNames = collectDistinctNoteCategories(notes)
   const allNotesSelected = isAllNotesNavSelected(selection)
   const ungroupedSelected = isSectionNavSelected(null, selection)
+  const pinnedSelected = isPinnedNavSelected(selection)
 
   const createSection = useCallback(
     async (parentId: number | null, name: string): Promise<void> => {
@@ -382,6 +389,18 @@ export function NotesSidebarSections({
           </button>
         </NotesDropZone>
 
+        <button
+          type="button"
+          onClick={(): void => onSelectScope('pinned')}
+          className={cn(
+            'mb-1 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs font-medium',
+            pinnedSelected ? 'bg-primary/15 text-foreground' : 'text-muted-foreground hover:bg-secondary/40'
+          )}
+        >
+          <span className="flex-1 truncate">{t('notes.sections.pinned')}</span>
+          <span className="shrink-0 text-2xs tabular-nums">{pinnedCount}</span>
+        </button>
+
         {tree.roots.length === 0 && sections.length === 0 ? (
           <p className="px-2 py-3 text-xs text-muted-foreground">{t('notes.shell.noSectionsYet')}</p>
         ) : (
@@ -420,6 +439,38 @@ export function NotesSidebarSections({
             />
           ))
         )}
+
+        {categoryNames.length > 0 ? (
+          <div className="mt-3 border-t border-border/60 pt-2">
+            <p className="mb-1 px-2 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {t('notes.sections.categories')}
+            </p>
+            {categoryNames.map((name) => {
+              const count = notes.filter((n) =>
+                (n.categories ?? []).some((c) => c.toLowerCase() === name.toLowerCase())
+              ).length
+              const selected = isCategoryNavSelected(name, selection)
+              return (
+                <button
+                  key={name}
+                  type="button"
+                  onClick={(): void => onSelectScope({ category: name })}
+                  className={cn(
+                    'mb-0.5 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs',
+                    selected ? 'bg-primary/15 text-foreground' : 'text-muted-foreground hover:bg-secondary/40'
+                  )}
+                >
+                  <span
+                    className={cn('h-2 w-2 shrink-0 rounded-full', outlookCategoryDotClass(undefined))}
+                    aria-hidden
+                  />
+                  <span className="min-w-0 flex-1 truncate">{name}</span>
+                  <span className="shrink-0 text-2xs tabular-nums">{count}</span>
+                </button>
+              )
+            })}
+          </div>
+        ) : null}
       </div>
     </div>
   )

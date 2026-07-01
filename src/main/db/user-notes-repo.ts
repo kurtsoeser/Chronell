@@ -15,6 +15,7 @@ import type {
   UserNoteMailUpsertInput,
   UserNotePeopleContactUpsertInput,
   UserNoteMoveToSectionInput,
+  UserNoteMoveToParentInput,
   UserNoteScheduleInput,
   UserNoteScheduleFields,
   UserNoteSearchFilters,
@@ -28,6 +29,11 @@ import {
   listNoteLinksBundle,
   replaceAllNoteLinksFromBackup
 } from './user-note-entity-links-repo'
+import {
+  deleteTagsForNote,
+  listTagsGroupedByNoteIds,
+  replaceNoteCategoryTags
+} from './user-note-category-tags-repo'
 
 interface UserNoteRow {
   id: number
@@ -50,6 +56,8 @@ interface UserNoteRow {
   sort_order: number
   icon_id: string | null
   icon_color: string | null
+  parent_note_id: number | null
+  is_pinned: number
 }
 
 interface UserNoteListRow extends UserNoteRow {
@@ -84,14 +92,14 @@ const NOTE_SELECT = `
   id, kind, message_id, account_id, calendar_source, calendar_remote_id, event_remote_id,
   title, body, created_at, updated_at, event_title_snapshot, event_start_iso_snapshot,
   scheduled_start_iso, scheduled_end_iso, scheduled_all_day, section_id, sort_order,
-  icon_id, icon_color
+  icon_id, icon_color, parent_note_id, is_pinned
 `
 
 const NOTE_SELECT_N = `
   n.id, n.kind, n.message_id, n.account_id, n.calendar_source, n.calendar_remote_id, n.event_remote_id,
   n.title, n.body, n.created_at, n.updated_at, n.event_title_snapshot, n.event_start_iso_snapshot,
   n.scheduled_start_iso, n.scheduled_end_iso, n.scheduled_all_day, n.section_id, n.sort_order,
-  n.icon_id, n.icon_color
+  n.icon_id, n.icon_color, n.parent_note_id, n.is_pinned
 `
 
 export type { NoteCalendarSpan } from '@shared/note-calendar-span'
@@ -118,8 +126,19 @@ function rowToNote(row: UserNoteRow): UserNote {
     sectionId: row.section_id,
     sortOrder: row.sort_order ?? 0,
     iconId: row.icon_id?.trim() ? row.icon_id.trim() : null,
-    iconColor: row.icon_color?.trim() ? row.icon_color.trim() : null
+    iconColor: row.icon_color?.trim() ? row.icon_color.trim() : null,
+    parentNoteId: row.parent_note_id ?? null,
+    isPinned: !!row.is_pinned
   }
+}
+
+function attachCategoriesToListItems(items: UserNoteListItem[]): UserNoteListItem[] {
+  if (items.length === 0) return items
+  const tagsByNote = listTagsGroupedByNoteIds(items.map((n) => n.id))
+  return items.map((item) => ({
+    ...item,
+    categories: tagsByNote.get(item.id) ?? []
+  }))
 }
 
 export function patchNoteDisplay(
@@ -179,7 +198,8 @@ function rowToListItem(row: UserNoteListRow): UserNoteListItem {
     mailReceivedAt: row.mail_received_at,
     mailIsRead: row.mail_is_read == null ? null : !!row.mail_is_read,
     mailHasAttachments: row.mail_has_attachments == null ? null : !!row.mail_has_attachments,
-    primaryLinkKind: parsePrimaryLinkKind(row.primary_link_kind)
+    primaryLinkKind: parsePrimaryLinkKind(row.primary_link_kind),
+    categories: []
   }
 }
 
@@ -494,15 +514,23 @@ export function upsertCalendarNote(input: UserNoteCalendarUpsertInput): UserNote
 
 export function createStandaloneNote(input: UserNoteStandaloneCreateInput): UserNote {
   const schedule = normalizeScheduleFields(input)
+  let sectionId = input.sectionId ?? null
+  const parentNoteId = input.parentNoteId ?? null
+  if (parentNoteId != null) {
+    assertPositiveId(parentNoteId, 'Übergeordnete Notiz-ID')
+    const parent = getNoteById(parentNoteId)
+    if (!parent) throw new Error('Übergeordnete Notiz nicht gefunden.')
+    if (sectionId == null) sectionId = parent.sectionId ?? null
+  }
   const info = getDb()
     .prepare(
       `INSERT INTO user_notes (
          kind, title, body, created_at, updated_at,
-         scheduled_start_iso, scheduled_end_iso, scheduled_all_day, section_id, sort_order
+         scheduled_start_iso, scheduled_end_iso, scheduled_all_day, section_id, sort_order, parent_note_id
        )
        VALUES (
          'standalone', ?, ?, datetime('now'), datetime('now'),
-         ?, ?, ?, ?, ?
+         ?, ?, ?, ?, ?, ?
        )`
     )
     .run(
@@ -511,8 +539,9 @@ export function createStandaloneNote(input: UserNoteStandaloneCreateInput): User
       schedule.scheduled_start_iso,
       schedule.scheduled_end_iso,
       schedule.scheduled_all_day,
-      input.sectionId ?? null,
-      input.sortOrder ?? 0
+      sectionId,
+      input.sortOrder ?? 0,
+      parentNoteId
     )
   const note = getNoteById(Number(info.lastInsertRowid))
   if (!note) throw new Error('Notiz konnte nicht gelesen werden.')
@@ -594,7 +623,7 @@ export function getNoteListItemById(id: number): UserNoteListItem | null {
        WHERE n.id = ?`
     )
     .get(id) as UserNoteListRow | undefined
-  return row ? rowToListItem(row) : null
+  return row ? attachCategoriesToListItems([rowToListItem(row)])[0] ?? null : null
 }
 
 export function setNoteSchedule(input: UserNoteScheduleInput): UserNote {
@@ -662,10 +691,98 @@ export function moveNoteToSection(input: UserNoteMoveToSectionInput): UserNote {
   return note
 }
 
+function assertNoNoteParentCycle(noteId: number, parentNoteId: number): void {
+  const db = getDb()
+  let current: number | null = parentNoteId
+  const seen = new Set<number>()
+  while (current != null) {
+    if (current === noteId) {
+      throw new Error('Unterseite kann nicht unter sich selbst oder einer eigenen Unterseite liegen.')
+    }
+    if (seen.has(current)) break
+    seen.add(current)
+    const row = db
+      .prepare<[number], { parent_note_id: number | null }>(
+        'SELECT parent_note_id FROM user_notes WHERE id = ?'
+      )
+      .get(current)
+    current = row?.parent_note_id ?? null
+  }
+}
+
+export function moveNoteToParent(input: UserNoteMoveToParentInput): UserNote {
+  assertPositiveId(input.noteId, 'Notiz-ID')
+  const parentNoteId = input.parentNoteId ?? null
+  if (parentNoteId != null) {
+    assertPositiveId(parentNoteId, 'Übergeordnete Notiz-ID')
+    if (parentNoteId === input.noteId) {
+      throw new Error('Eine Notiz kann nicht ihre eigene Unterseite sein.')
+    }
+    const parent = getNoteById(parentNoteId)
+    if (!parent) throw new Error('Übergeordnete Notiz nicht gefunden.')
+    assertNoNoteParentCycle(input.noteId, parentNoteId)
+  }
+  const sortOrder = input.sortOrder ?? 0
+  getDb()
+    .prepare(
+      `UPDATE user_notes SET parent_note_id = ?, sort_order = ?, updated_at = datetime('now') WHERE id = ?`
+    )
+    .run(parentNoteId, sortOrder, input.noteId)
+  const note = getNoteById(input.noteId)
+  if (!note) throw new Error('Notiz nicht gefunden.')
+  return note
+}
+
+export function setNotePinned(noteId: number, isPinned: boolean): UserNote {
+  assertPositiveId(noteId, 'Notiz-ID')
+  getDb()
+    .prepare(`UPDATE user_notes SET is_pinned = ?, updated_at = datetime('now') WHERE id = ?`)
+    .run(isPinned ? 1 : 0, noteId)
+  const note = getNoteById(noteId)
+  if (!note) throw new Error('Notiz nicht gefunden.')
+  return note
+}
+
+export function setNoteCategories(
+  noteId: number,
+  accountId: string,
+  categories: string[]
+): UserNote {
+  assertPositiveId(noteId, 'Notiz-ID')
+  assertText(accountId, 'Konto')
+  const note = getNoteById(noteId)
+  if (!note) throw new Error('Notiz nicht gefunden.')
+  replaceNoteCategoryTags(noteId, accountId.trim(), categories)
+  getDb()
+    .prepare(`UPDATE user_notes SET updated_at = datetime('now') WHERE id = ?`)
+    .run(noteId)
+  const updated = getNoteById(noteId)
+  if (!updated) throw new Error('Notiz nicht gefunden.')
+  return updated
+}
+
 export function deleteNote(id: number): void {
   assertPositiveId(id, 'Notiz-ID')
   deleteAllLinksForNote(id)
+  deleteTagsForNote(id)
   getDb().prepare('DELETE FROM user_notes WHERE id = ?').run(id)
+}
+
+function appendCategoriesAnyFilter(
+  categoriesAny: string[] | undefined,
+  where: string[],
+  params: unknown[]
+): void {
+  const tags = (categoriesAny ?? []).map((t) => t.trim()).filter(Boolean)
+  if (tags.length === 0) return
+  const ph = tags.map(() => '?').join(', ')
+  where.push(
+    `EXISTS (
+       SELECT 1 FROM user_note_category_tags ct
+       WHERE ct.note_id = n.id AND ct.tag IN (${ph})
+     )`
+  )
+  params.push(...tags)
 }
 
 export function listNotes(filters: UserNoteListFilters = {}): UserNoteListItem[] {
@@ -706,6 +823,12 @@ export function listNotes(filters: UserNoteListFilters = {}): UserNoteListItem[]
     }
   }
 
+  if (filters.pinnedOnly) {
+    where.push('n.is_pinned = 1')
+  }
+
+  appendCategoriesAnyFilter(filters.categoriesAny, where, params)
+
   const limit =
     typeof filters.limit === 'number' && Number.isFinite(filters.limit) && filters.limit > 0
       ? Math.min(Math.floor(filters.limit), 1000)
@@ -728,11 +851,11 @@ export function listNotes(filters: UserNoteListFilters = {}): UserNoteListItem[]
        FROM user_notes n
        LEFT JOIN messages m ON m.id = n.message_id
        ${where.length > 0 ? `WHERE ${where.join(' AND ')}` : ''}
-       ORDER BY COALESCE(n.section_id, 2147483647), n.sort_order ASC, n.updated_at DESC, n.id DESC
+       ORDER BY n.is_pinned DESC, COALESCE(n.section_id, 2147483647), n.sort_order ASC, n.updated_at DESC, n.id DESC
        LIMIT ?`
     )
     .all(...params, limit) as UserNoteListRow[]
-  return rows.map(rowToListItem)
+  return attachCategoriesToListItems(rows.map(rowToListItem))
 }
 
 /**
@@ -758,12 +881,17 @@ export function searchNotes(filters: UserNoteSearchFilters): UserNoteListItem[] 
   const kindClause =
     kinds.length > 0 ? `AND n.kind IN (${kinds.map(() => '?').join(', ')})` : ''
 
+  const categoryWhere: string[] = []
+  const categoryParams: unknown[] = []
+  appendCategoriesAnyFilter(filters.categoriesAny, categoryWhere, categoryParams)
+  const categoryClause = categoryWhere.length > 0 ? `AND ${categoryWhere[0]}` : ''
+
   const limit =
     typeof filters.limit === 'number' && Number.isFinite(filters.limit) && filters.limit > 0
       ? Math.min(Math.floor(filters.limit), 100)
       : 30
 
-  const baseParams: unknown[] = [cleaned, ...(phraseRank?.params ?? [])]
+  const baseParams: unknown[] = [cleaned, ...(phraseRank?.params ?? []), ...categoryParams]
   const rows = getDb()
     .prepare(
       `SELECT
@@ -783,12 +911,13 @@ export function searchNotes(filters: UserNoteSearchFilters): UserNoteListItem[] 
        LEFT JOIN messages m ON m.id = n.message_id
        WHERE user_notes_fts MATCH ?
        ${kindClause}
-       ORDER BY ${orderSql}
+       ${categoryClause}
+       ORDER BY n.is_pinned DESC, ${orderSql}
        LIMIT ?`
     )
     .all(...(kinds.length > 0 ? [...baseParams, ...kinds, limit] : [...baseParams, limit])) as UserNoteListRow[]
 
-  return rows.map(rowToListItem)
+  return attachCategoriesToListItems(rows.map(rowToListItem))
 }
 
 export function listNotesInRange(filters: UserNoteListInRangeFilters): UserNoteListItem[] {

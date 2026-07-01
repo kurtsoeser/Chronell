@@ -19,6 +19,7 @@ import { registerBookingsIpc } from './ipc/register-bookings-ipc'
 import { registerNotionIpc } from './ipc/register-notion-ipc'
 import { registerTeamsChatPopoutIpc } from './ipc/register-teams-chat-popout-ipc'
 import { registerMailReadingPopoutIpc } from './ipc/register-mail-reading-popout-ipc'
+import { registerQuickCaptureIpc } from './ipc/register-quick-capture-ipc'
 import { registerPanelPopoutIpc } from './ipc/register-panel-popout-ipc'
 import { registerMailBodyIndexIpc } from './ipc/register-mail-body-index-ipc'
 import { registerFilesIpc } from './ipc/register-files-ipc'
@@ -47,6 +48,7 @@ export function registerIpcHandlers(): void {
   registerNotionIpc()
   registerTeamsChatPopoutIpc()
   registerMailReadingPopoutIpc()
+  registerQuickCaptureIpc()
   registerPanelPopoutIpc()
   registerMailBodyIndexIpc()
   registerFilesIpc()

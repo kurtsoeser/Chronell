@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType } from 'react'
-import { format, parseISO } from 'date-fns'
-import { de as deFns, enUS as enUSFns } from 'date-fns/locale'
+import { logIpcError } from '@/lib/ipc-error-log'
 import type { Locale } from 'date-fns'
+import { format, parseISO } from 'date-fns'
+import { useDateFnsLocale } from '@/lib/date-fns-locale'
 import {
   Calendar,
   Check,
@@ -39,6 +40,8 @@ import {
   MeetingProposeTimeDialog
 } from '@/app/layout/meeting-invitation/MeetingProposeTimeDialog'
 import '@/app/layout/meeting-invitation/meeting-invitation.css'
+
+const MEETING_PANEL_COLLAPSE_KEY = 'meetingInvitationPanel.collapsed'
 
 function partStatIcon(stat: MeetingAttendeePartStat): JSX.Element {
   switch (stat) {
@@ -116,7 +119,7 @@ export function MeetingInvitationPanel({
   onForward: () => void
 }): JSX.Element | null {
   const { t, i18n } = useTranslation()
-  const dfLocale: Locale = i18n.language.startsWith('de') ? deFns : enUSFns
+  const dfLocale = useDateFnsLocale()
   const [invitation, setInvitation] = useState<MeetingInvitationView | null>(null)
   const [loadWarnings, setLoadWarnings] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
@@ -129,6 +132,25 @@ export function MeetingInvitationPanel({
     y: number
   } | null>(null)
   const moreBtnRef = useRef<HTMLButtonElement | null>(null)
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(MEETING_PANEL_COLLAPSE_KEY) === '1'
+    } catch {
+      return false
+    }
+  })
+
+  const toggleCollapsed = useCallback((): void => {
+    setCollapsed((prev) => {
+      const next = !prev
+      try {
+        localStorage.setItem(MEETING_PANEL_COLLAPSE_KEY, next ? '1' : '0')
+      } catch {
+        /* ignore */
+      }
+      return next
+    })
+  }, [])
 
   const reload = useCallback(async (): Promise<void> => {
     setLoading(true)
@@ -228,7 +250,9 @@ export function MeetingInvitationPanel({
           }
         })
         void reload()
-        void window.mailClient.calendar.syncAccount(account.id).catch(() => undefined)
+        void window.mailClient.calendar
+          .syncAccount(account.id)
+          .catch((err) => logIpcError('calendar.syncAccount', err))
       } finally {
         setResponding(null)
       }
@@ -323,15 +347,28 @@ export function MeetingInvitationPanel({
       className="meeting-invitation-panel mx-6 mt-3 shrink-0 overflow-hidden rounded-xl border border-violet-500/25 bg-gradient-to-b from-violet-500/[0.08] to-secondary/10"
       aria-label={t('mail.meetingInvitation.ariaLabel')}
     >
-      <div className="space-y-4 px-5 py-4">
-        <div className="space-y-1">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+      <button
+        type="button"
+        onClick={toggleCollapsed}
+        aria-expanded={!collapsed}
+        aria-label={collapsed ? t('mail.meetingInvitation.expand') : t('mail.meetingInvitation.collapse')}
+        className="flex w-full items-start gap-2 px-4 py-2.5 text-left transition hover:bg-foreground/[0.03]"
+      >
+        <div className="min-w-0 flex-1 space-y-0.5">
+          <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
             {invitation.isCancelled
               ? t('mail.meetingInvitation.cancelledIntro')
               : t('mail.meetingInvitation.intro')}
           </p>
-          <h2 className="text-lg font-semibold leading-snug text-foreground">{invitation.summary}</h2>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted-foreground">
+          <h2
+            className={cn(
+              'text-[14px] font-semibold leading-snug text-foreground',
+              collapsed && 'truncate'
+            )}
+          >
+            {invitation.summary}
+          </h2>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] text-muted-foreground">
             <span className="inline-flex items-center gap-1.5">
               <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden />
               {formatMeetingRange(invitation, dfLocale, i18n.language, t('mail.meetingInvitation.timeUnknown'))}
@@ -348,7 +385,17 @@ export function MeetingInvitationPanel({
             ) : null}
           </div>
         </div>
+        <ChevronDown
+          className={cn(
+            'mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform',
+            collapsed && '-rotate-90'
+          )}
+          aria-hidden
+        />
+      </button>
 
+      {collapsed ? null : (
+      <div className="space-y-3 px-4 pb-3.5">
         {loadWarnings.length > 0 ? (
           <p className="text-[11px] text-amber-600 dark:text-amber-400">{loadWarnings.join(' · ')}</p>
         ) : null}
@@ -398,7 +445,7 @@ export function MeetingInvitationPanel({
             <button
               ref={moreBtnRef}
               type="button"
-              className="inline-flex h-9 items-center gap-1 rounded-lg border border-border bg-background/60 px-2.5 text-[12px] font-medium text-foreground hover:bg-secondary/60"
+              className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-background/60 px-2.5 text-[12px] font-medium text-foreground hover:bg-secondary/60"
               aria-label={t('mail.meetingInvitation.moreActions')}
               onClick={(e): void => {
                 const r = e.currentTarget.getBoundingClientRect()
@@ -440,10 +487,10 @@ export function MeetingInvitationPanel({
           loading={dayLoading}
         />
 
-        <div className="space-y-2.5 text-[13px]">
+        <div className="space-y-2 text-[12px]">
           {invitation.organizer ? (
             <div className="flex items-start gap-2.5">
-              <User className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+              <User className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
               <div className="min-w-0">
                 <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                   {t('mail.meetingInvitation.organizer')}
@@ -462,7 +509,7 @@ export function MeetingInvitationPanel({
 
           {invitation.location ? (
             <div className="flex items-start gap-2.5">
-              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+              <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
               <div className="min-w-0">
                 <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                   {t('mail.meetingInvitation.location')}
@@ -474,19 +521,19 @@ export function MeetingInvitationPanel({
 
           {invitation.joinUrl ? (
             <div className="flex items-start gap-2.5">
-              <Video className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-              <div className="min-w-0 space-y-2">
+              <Video className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+              <div className="min-w-0 space-y-1.5">
                 <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                   {t('mail.meetingInvitation.onlineMeeting')}
                 </div>
                 <button
                   type="button"
-                  className="inline-flex items-center gap-2 rounded-lg bg-[#5B5FC7] px-4 py-2 text-[13px] font-semibold text-white shadow-sm transition hover:bg-[#4f52b8]"
+                  className="inline-flex items-center gap-2 rounded-lg bg-[#5B5FC7] px-3 py-1.5 text-[12px] font-semibold text-white shadow-sm transition hover:bg-[#4f52b8]"
                   onClick={(): void => {
                     void window.mailClient.app.openExternal(invitation.joinUrl!)
                   }}
                 >
-                  <Video className="h-4 w-4" aria-hidden />
+                  <Video className="h-3.5 w-3.5" aria-hidden />
                   {t('mail.meetingInvitation.joinMeeting')}
                 </button>
               </div>
@@ -495,8 +542,8 @@ export function MeetingInvitationPanel({
 
           {invitation.attendees.length > 0 ? (
             <div className="flex items-start gap-2.5">
-              <Users className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-              <div className="min-w-0 flex-1 space-y-2">
+              <Users className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+              <div className="min-w-0 flex-1 space-y-1.5">
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                     {t('mail.meetingInvitation.attendees')}
@@ -516,7 +563,7 @@ export function MeetingInvitationPanel({
                     ) : null}
                   </div>
                 </div>
-                <ul className="max-h-36 space-y-1.5 overflow-y-auto pr-1">
+                <ul className="max-h-32 space-y-1 overflow-y-auto pr-1">
                   {invitation.attendees.map((a) => {
                     const isSelf = a.email.toLowerCase() === account?.email?.trim().toLowerCase()
                     return (
@@ -553,6 +600,7 @@ export function MeetingInvitationPanel({
           ) : null}
         </div>
       </div>
+      )}
 
       {responseMenu ? (
         <ContextMenu
@@ -634,7 +682,7 @@ function ResponseSplitButton({
   return (
     <div
       className={cn(
-        'inline-flex h-9 overflow-hidden rounded-lg border text-[12px] font-semibold transition disabled:opacity-50',
+        'inline-flex h-8 overflow-hidden rounded-lg border text-[12px] font-semibold transition disabled:opacity-50',
         toneClass,
         disabled ? 'opacity-50' : ''
       )}
@@ -697,7 +745,7 @@ function ResponseButton({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        'inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-[12px] font-semibold transition disabled:opacity-50',
+        'inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-[12px] font-semibold transition disabled:opacity-50',
         toneClass
       )}
     >

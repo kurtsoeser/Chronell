@@ -210,7 +210,8 @@ Das Modul **„Arbeit“** bündelt offene Punkte aus verschiedenen Quellen als 
 
 - **Abschnitte** (`NoteSection`): hierarchischer Baum, Icons, Farben, Drag-and-Drop
 - **Seiten-Panel**: sortierbare Notizliste pro Kontext, Kopieren/Verschieben
-- **Markdown-Editor** (`ObjectNoteEditor` / MD-Komponenten)
+- **WYSIWYG-Editor** (TipTap, wie Mail/Kalender): Formatierung, Checklisten, interne `[[Seitenlinks]]`, Hell/Dunkel
+- **Seitenvorlagen** (Meeting, Projekt, Wochenplan, Checkliste)
 - Listen- und **Kalenderansicht** für Notizen; Mini-Monat zur Datumsfilterung
 - **Terminplanung** pro Notiz (`scheduledStart` / `End`, Ganztag)
 - Volltextsuche in der Notizen-Shell
@@ -416,7 +417,7 @@ Weitere Systemfunktionen:
 | State | Zustand |
 | Listen | react-virtuoso |
 | Kalender | FullCalendar 6 |
-| Editor | TipTap, MD-Editor |
+| Editor | TipTap (Mail, Notizen) |
 | DB | better-sqlite3 |
 | APIs | @azure/msal-node, Microsoft Graph, Google APIs |
 | i18n | i18next (DE, EN) |

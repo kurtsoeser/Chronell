@@ -1,9 +1,5 @@
 import { format, formatDistanceToNow, parseISO } from 'date-fns'
-import { de, enUS, type Locale } from 'date-fns/locale'
-
-export function resolveDateFnsLocale(language: string): Locale {
-  return language.startsWith('de') ? de : enUS
-}
+import { resolveDateFnsLocale } from '@/lib/date-fns-locale'
 
 /** Anzeige fuer «Zuletzt synchronisiert» in den Konten-Einstellungen. */
 export function formatAccountLastSyncLabel(

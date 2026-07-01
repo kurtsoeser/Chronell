@@ -136,6 +136,14 @@ const BookingsShell = lazy(async () => {
   const m = await import('./app/bookings/BookingsShell')
   return { default: m.BookingsShell }
 })
+const NotePickerDialog = lazy(async () => {
+  const m = await import('./app/notes/NotePickerDialog')
+  return { default: m.NotePickerDialog }
+})
+const NoteScreenClipHost = lazy(async () => {
+  const m = await import('./components/NoteScreenClipHost')
+  return { default: m.NoteScreenClipHost }
+})
 const ComposerStack = lazy(async () => {
   const m = await import('./components/Composer')
   return { default: m.ComposerStack }
@@ -390,6 +398,12 @@ export function App(): JSX.Element {
           <NotionDestinationPickerDialog />
         </Suspense>
       ) : null}
+      <Suspense fallback={null}>
+        <NotePickerDialog />
+      </Suspense>
+      <Suspense fallback={null}>
+        <NoteScreenClipHost />
+      </Suspense>
     </div>
   )
 }

@@ -14,21 +14,29 @@ import {
   NOTES_PAGES_SORT_KEYS,
   patchNotesSettingsPrefs,
   resetNotesSettingsPrefs,
+  type NoteAudioRecordingQuality,
   type NotesSettingsPrefsV1
 } from '@/lib/notes-settings-prefs'
+import { NOTE_AUDIO_RECORDING_QUALITIES } from '@shared/note-audio-quality'
 import { useNotesSettingsPrefs } from '@/lib/use-notes-settings-prefs'
 import { notesPagesSortLabelKey } from '@/lib/notes-pages-sort'
+import {
+  useComposeEditorThemeStore,
+  type ComposeEditorTheme
+} from '@/stores/compose-editor-theme'
 import type { NotesSidebarListMode } from '@/lib/notes-sidebar-storage'
 import type { NotesShellView } from '@/app/notes/NotesShellViewToggle'
 import type {
   NotesAutosaveMode,
   NotesDateFilterMode,
-  NotesEditorPreviewMode,
   NotesKindsFilter,
   NotesLinkedPreviewPlacement,
   NotesListLimit,
   NotesSearchLimit
 } from '@/lib/notes-settings-prefs'
+import { listAllNotePageTemplates, type NotePageTemplateId } from '@/lib/note-page-templates'
+import { NotePageTemplatesManager } from '@/components/NotePageTemplatesManager'
+import { useCustomNotePageTemplates } from '@/hooks/use-custom-note-page-templates'
 
 const HOUR_OPTIONS = Array.from({ length: 24 }, (_, h) => {
   const pad = (n: number): string => String(n).padStart(2, '0')
@@ -66,6 +74,11 @@ export default function AccountSetupNotesPanel({
   const { t } = useTranslation()
   const setAppMode = useAppModeStore((s) => s.setMode)
   const prefs = useNotesSettingsPrefs()
+  const { customTemplates } = useCustomNotePageTemplates()
+  const templateOptions = listAllNotePageTemplates(customTemplates, t)
+  const editorThemePref = useComposeEditorThemeStore((s) => s.preference)
+  const setEditorThemePref = useComposeEditorThemeStore((s) => s.setPreference)
+  const editorThemeValue = editorThemePref ?? 'app'
   const [, bump] = useState(0)
   const refresh = useCallback((): void => bump((n) => n + 1), [])
 
@@ -210,35 +223,60 @@ export default function AccountSetupNotesPanel({
             <span className="text-2xs text-muted-foreground">{prefs.defaultEditorHeight} px</span>
           </SettingsField>
 
-          <SettingsField label={t('settings.notesEditorPreviewModeLabel')}>
+          <SettingsField
+            label={t('settings.notesEditorThemeLabel')}
+            hint={t('settings.notesEditorThemeHint')}
+          >
             <select
-              value={prefs.defaultEditorPreviewMode}
-              onChange={(e): void =>
-                apply({ defaultEditorPreviewMode: e.target.value as NotesEditorPreviewMode })
-              }
+              value={editorThemeValue}
+              onChange={(e): void => {
+                const v = e.target.value
+                setEditorThemePref(v === 'app' ? null : (v as ComposeEditorTheme))
+              }}
               className={selectClass}
             >
-              <option value="live">{t('settings.notesEditorModeLive')}</option>
-              <option value="edit">{t('settings.notesEditorModeEdit')}</option>
-              <option value="preview">{t('settings.notesEditorModePreview')}</option>
-              <option value="toggle">{t('settings.notesEditorModeToggle')}</option>
+              <option value="app">{t('settings.mailCompose.editorThemeApp')}</option>
+              <option value="light">{t('settings.mailCompose.editorThemeLight')}</option>
+              <option value="dark">{t('settings.mailCompose.editorThemeDark')}</option>
             </select>
           </SettingsField>
 
-          {prefs.defaultEditorPreviewMode === 'toggle' ? (
-            <SettingsField label={t('settings.notesEditorToggleTabLabel')}>
-              <select
-                value={prefs.defaultEditorToggleTab}
-                onChange={(e): void =>
-                  apply({ defaultEditorToggleTab: e.target.value as 'edit' | 'preview' })
-                }
-                className={selectClass}
-              >
-                <option value="edit">{t('notes.editor.markdownTab')}</option>
-                <option value="preview">{t('notes.editor.previewTab')}</option>
-              </select>
-            </SettingsField>
-          ) : null}
+          <SettingsField label={t('settings.notesDefaultTemplateLabel')}>
+            <select
+              value={prefs.defaultNotePageTemplateId}
+              onChange={(e): void =>
+                apply({ defaultNotePageTemplateId: e.target.value as NotePageTemplateId })
+              }
+              className={selectClass}
+            >
+              {templateOptions.map((template) => (
+                <option key={template.id} value={template.id}>
+                  {template.title}
+                </option>
+              ))}
+            </select>
+          </SettingsField>
+
+          <NotePageTemplatesManager className="rounded-md border border-border/60 bg-muted/10 p-3" />
+
+          <SettingsField
+            label={t('settings.notesAudioQualityLabel')}
+            hint={t('settings.notesAudioQualityHint')}
+          >
+            <select
+              value={prefs.audioRecordingQuality}
+              onChange={(e): void =>
+                apply({ audioRecordingQuality: e.target.value as NoteAudioRecordingQuality })
+              }
+              className={selectClass}
+            >
+              {NOTE_AUDIO_RECORDING_QUALITIES.map((quality) => (
+                <option key={quality} value={quality}>
+                  {t(`settings.notesAudioQuality_${quality}`)}
+                </option>
+              ))}
+            </select>
+          </SettingsField>
 
           <label className="flex cursor-pointer items-start gap-2 text-xs">
             <input
@@ -568,6 +606,7 @@ export default function AccountSetupNotesPanel({
               onChange={(e): void => apply({ autosaveMode: e.target.value as NotesAutosaveMode })}
               className={selectClass}
             >
+              <option value="on_change">{t('settings.notesAutosaveOnChange')}</option>
               <option value="off">{t('settings.notesAutosaveOff')}</option>
               <option value="on_leave">{t('settings.notesAutosaveOnLeave')}</option>
               <option value="interval">{t('settings.notesAutosaveInterval')}</option>

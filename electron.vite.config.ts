@@ -95,7 +95,6 @@ export default defineConfig(({ mode }) => {
               if (id.includes('node_modules/@tiptap') || id.includes('node_modules/prosemirror')) {
                 return 'tiptap'
               }
-              if (id.includes('node_modules/@uiw/react-md-editor')) return 'md-editor'
               if (id.includes('node_modules/lucide-react')) return 'lucide'
               if (id.includes('node_modules/date-fns')) return 'date-fns'
               if (id.includes('node_modules/@dnd-kit')) return 'dnd-kit'

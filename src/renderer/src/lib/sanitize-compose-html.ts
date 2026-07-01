@@ -54,7 +54,9 @@ const SANITIZE: DOMPurify.Config = {
     'bgcolor',
     'color',
     'face',
-    'size'
+    'size',
+    'data-type',
+    'data-checked'
   ],
   ALLOW_DATA_ATTR: false,
   ALLOW_UNKNOWN_PROTOCOLS: false,

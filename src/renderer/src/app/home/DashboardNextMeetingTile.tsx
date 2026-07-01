@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Locale } from 'date-fns'
 import { format, parseISO } from 'date-fns'
-import { de, enUS } from 'date-fns/locale'
+import { useDateFnsLocale } from '@/lib/date-fns-locale'
 import { Loader2, Video } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
@@ -45,7 +45,7 @@ export function DashboardNextMeetingTile({
   hasLinkedCalendars
 }: DashboardNextMeetingTileProps): JSX.Element {
   const { t, i18n } = useTranslation()
-  const dfLocale = i18n.language.startsWith('de') ? de : enUS
+  const dfLocale = useDateFnsLocale()
   const [nowMs, setNowMs] = useState(() => Date.now())
   const [openError, setOpenError] = useState<string | null>(null)
 

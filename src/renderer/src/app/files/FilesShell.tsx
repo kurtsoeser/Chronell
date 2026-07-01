@@ -26,6 +26,7 @@ import type {
 import type { ComposeDriveExplorerNavCrumb, ComposeDriveExplorerScope } from '@shared/types'
 import { OneDriveExplorerDialog } from '@/components/OneDriveExplorerDialog'
 import { useUndoStore } from '@/stores/undo'
+import { logIpcError } from '@/lib/ipc-error-log'
 import type { FilterTabOption } from '@/components/FilterTabs'
 import { FilterTabs } from '@/components/FilterTabs'
 import {
@@ -387,7 +388,9 @@ export function FilesShell(): JSX.Element {
           variant: 'success',
           durationMs: 8000
         })
-        void navigator.clipboard.writeText(res.webUrl).catch(() => undefined)
+        void navigator.clipboard.writeText(res.webUrl).catch((err) =>
+          logIpcError('files.clipboard.writeText', err)
+        )
         setCloudDialogOpen(false)
         setCloudUploadRow(null)
       } else if (res.error) {

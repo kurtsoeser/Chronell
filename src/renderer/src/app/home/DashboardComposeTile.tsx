@@ -19,18 +19,9 @@ import { useComposeCloudDrive } from '@/hooks/useComposeCloudDrive'
 import { useAccountsStore } from '@/stores/accounts'
 import { useComposeStore, type ComposeAttachmentFile } from '@/stores/compose'
 import { useComposeAutoSave } from '@/hooks/useComposeAutoSave'
+import { arrayBufferToBase64 } from '@/lib/attachment-files'
 
 const MAX_ATTACHMENTS_TOTAL_BYTES = 24 * 1024 * 1024
-
-function arrayBufferToBase64(buf: ArrayBuffer): string {
-  let binary = ''
-  const bytes = new Uint8Array(buf)
-  const chunk = 0x8000
-  for (let i = 0; i < bytes.length; i += chunk) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunk))
-  }
-  return btoa(binary)
-}
 
 export function DashboardComposeTile(): JSX.Element {
   const { t } = useTranslation()

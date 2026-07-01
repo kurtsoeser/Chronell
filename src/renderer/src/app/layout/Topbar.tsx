@@ -481,6 +481,19 @@ function TopbarGlobalCreateSplit({
                 </button>
               )
             })}
+            <div className="my-1 border-t border-border" role="separator" />
+            <button
+              type="button"
+              role="menuitem"
+              onClick={(): void => {
+                setMenuOpen(false)
+                void window.mailClient.quickCapture.toggle()
+              }}
+              className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground"
+            >
+              <PenSquare className="h-3.5 w-3.5 shrink-0" />
+              <span className="flex-1">{t('notes.quickCapture.menu')}</span>
+            </button>
           </div>,
           document.body
         )}

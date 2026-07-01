@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { useDraggable } from '@dnd-kit/core'
-import { GripVertical } from 'lucide-react'
+import { ChevronDown, ChevronRight, GripVertical, Pin } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { UserNoteListItem } from '@shared/types'
 import { cn } from '@/lib/utils'
@@ -11,6 +11,7 @@ import { CalendarEventIconPicker } from '@/components/CalendarEventIconPicker'
 import { IconColorPickerFooter } from '@/components/IconColorPickerFooter'
 import { resolveEntityIconColor } from '@shared/entity-icon-color'
 import { noteTitle } from '@/app/notes/notes-display-helpers'
+import { NotesCategoryBadges } from '@/components/NotesCategoryBadges'
 
 function NoteDragHandle({ noteId }: { noteId: number }): JSX.Element {
   const { t } = useTranslation()
@@ -41,6 +42,10 @@ function NoteDragHandle({ noteId }: { noteId: number }): JSX.Element {
 
 export function NotesPageRow({
   note,
+  depth = 0,
+  hasChildren = false,
+  collapsed = false,
+  onToggleCollapse,
   active,
   selected,
   onOpen,
@@ -48,9 +53,14 @@ export function NotesPageRow({
   onPatchDisplay,
   onContextMenu,
   sectionLabel,
+  categoryColorByName,
   isExiting = false
 }: {
   note: UserNoteListItem
+  depth?: number
+  hasChildren?: boolean
+  collapsed?: boolean
+  onToggleCollapse?: (note: UserNoteListItem) => void
   active: boolean
   selected: boolean
   onOpen: (note: UserNoteListItem, event: MouseEvent) => void
@@ -61,6 +71,7 @@ export function NotesPageRow({
   ) => void | Promise<void>
   onContextMenu?: (note: UserNoteListItem, event: MouseEvent) => void
   sectionLabel?: string
+  categoryColorByName?: Map<string, string>
   isExiting?: boolean
 }): JSX.Element {
   const { t } = useTranslation()
@@ -93,6 +104,7 @@ export function NotesPageRow({
         selected ? 'bg-primary/10 ring-1 ring-primary/20 ring-inset' : active ? 'bg-secondary font-medium text-foreground' : 'hover:bg-secondary/60',
         isExiting && motionListItemExit
       )}
+      style={depth > 0 ? { paddingLeft: `${depth * 0.85}rem` } : undefined}
       onContextMenu={
         onContextMenu
           ? (e): void => {
@@ -102,7 +114,30 @@ export function NotesPageRow({
           : undefined
       }
     >
+      {hasChildren ? (
+        <button
+          type="button"
+          onClick={(e): void => {
+            e.stopPropagation()
+            onToggleCollapse?.(note)
+          }}
+          className="flex h-7 w-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
+          aria-label={collapsed ? t('notes.subPages.expand') : t('notes.subPages.collapse')}
+          title={collapsed ? t('notes.subPages.expand') : t('notes.subPages.collapse')}
+        >
+          {collapsed ? (
+            <ChevronRight className="h-3.5 w-3.5" />
+          ) : (
+            <ChevronDown className="h-3.5 w-3.5" />
+          )}
+        </button>
+      ) : (
+        <span className="w-5 shrink-0" aria-hidden />
+      )}
       <NoteDragHandle noteId={note.id} />
+      {note.isPinned ? (
+        <Pin className="h-3 w-3 shrink-0 text-primary/80" aria-label={t('notes.pagesContextMenu.pin')} />
+      ) : null}
       <CalendarEventIconPicker
         layout="compact"
         openOn="doubleClick"
@@ -149,6 +184,14 @@ export function NotesPageRow({
           title={t('notes.sections.renameDoubleClick')}
         >
           <span className="block truncate">{displayTitle}</span>
+          {(note.categories?.length ?? 0) > 0 && categoryColorByName ? (
+            <NotesCategoryBadges
+              names={note.categories ?? []}
+              colorByName={categoryColorByName}
+              className="mt-0.5"
+              maxVisible={2}
+            />
+          ) : null}
           {sectionLabel ? (
             <span className="block truncate text-2xs font-normal text-muted-foreground">
               {sectionLabel}

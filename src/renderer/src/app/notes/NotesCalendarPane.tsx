@@ -13,8 +13,7 @@ import timeGridPlugin from '@fullcalendar/timegrid'
 import listPlugin from '@fullcalendar/list'
 import interactionPlugin from '@fullcalendar/interaction'
 import luxonPlugin from '@fullcalendar/luxon'
-import deLocale from '@fullcalendar/core/locales/de'
-import enGbLocale from '@fullcalendar/core/locales/en-gb'
+import { resolveFullCalendarLocale, deLocale, enGbLocale } from '@/lib/fullcalendar-locale'
 import type { EventDropArg } from '@fullcalendar/core'
 import type { EventResizeDoneArg } from '@fullcalendar/interaction'
 import { useTranslation } from 'react-i18next'
@@ -74,7 +73,7 @@ export function NotesCalendarPane({
     [calDisplay.defaultTimeGridSlotMinutes]
   )
   const calendarFcEventContentRender = useCalendarFcEventContent()
-  const fcLocale = i18n.language.startsWith('de') ? deLocale : enGbLocale
+  const fcLocale = resolveFullCalendarLocale(i18n.language)
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
   const calendarRef = useRef<FullCalendar | null>(null)
   const lastRangeRef = useRef<{ start: Date; end: Date }>({ start: new Date(), end: new Date() })

@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react'
-import type { Locale } from 'date-fns'
 import {
   addDays,
   addMonths,
@@ -12,7 +11,7 @@ import {
   startOfMonth,
   startOfWeek
 } from 'date-fns'
-import { de, enUS } from 'date-fns/locale'
+import { useDateFnsLocale } from '@/lib/date-fns-locale'
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { ContextMenu } from '@/components/ContextMenu'
@@ -24,7 +23,7 @@ export function DashboardMiniMonth(props: {
 }): JSX.Element {
   const { onOpenCalendarDay, onCreateEventOnDay } = props
   const { t, i18n } = useTranslation()
-  const dfLocale: Locale = i18n.language.startsWith('de') ? de : enUS
+  const dfLocale = useDateFnsLocale()
 
   const [monthOffset, setMonthOffset] = useState(0)
   const [contextMenu, setContextMenu] = useState<null | { x: number; y: number; day: Date }>(null)

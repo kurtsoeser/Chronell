@@ -1,13 +1,19 @@
+import { isLikelyNoteHtml, markdownToNoteHtml } from '@/lib/note-body-html'
+
 /**
- * Aufgaben-Notizen (Graph/Google): oft Klartext, manchmal HTML aus Outlook.
- * Fuer die Vorschau: HTML durchreichen oder Klartext mit klickbaren http(s)-Links.
+ * Notiz-Inhalt fuer Vorschau: HTML durchreichen, Legacy-Markdown rendern,
+ * oder Klartext mit klickbaren http(s)-Links.
  */
 export function notesToPreviewHtml(notes: string): string {
   const trimmed = notes.trim()
   if (!trimmed) return ''
 
-  if (/<\s*(a|p|div|br|ul|ol|li|span|strong|em|table|h[1-6])\b/i.test(trimmed)) {
+  if (isLikelyNoteHtml(trimmed)) {
     return trimmed
+  }
+
+  if (/[#*_`[\]>-]/.test(trimmed) || /^\s*[-*+]\s/m.test(trimmed) || /^\s*\d+\.\s/m.test(trimmed)) {
+    return markdownToNoteHtml(trimmed)
   }
 
   const escaped = trimmed

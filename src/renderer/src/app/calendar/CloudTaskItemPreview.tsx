@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { format, parseISO } from 'date-fns'
-import { de as deFns, enUS as enUSFns } from 'date-fns/locale'
 import type { Locale } from 'date-fns'
+import { format, parseISO } from 'date-fns'
+import { useDateFnsLocale } from '@/lib/date-fns-locale'
 import { useTranslation } from 'react-i18next'
 import { CheckSquare, Loader2, Square, StickyNote } from 'lucide-react'
 import type { WorkItemPlannedSchedule } from '@shared/work-item'
@@ -100,7 +100,7 @@ export function CloudTaskItemPreview(props: {
   } = props
   const { t, i18n } = useTranslation()
   const viewerTheme = useThemeStore((s) => s.effective)
-  const dfLocale: Locale = i18n.language.startsWith('de') ? deFns : enUSFns
+  const dfLocale = useDateFnsLocale()
   const untitled = t('tasks.shell.untitled')
 
   const [editingField, setEditingField] = useState<PreviewEditField | null>(null)

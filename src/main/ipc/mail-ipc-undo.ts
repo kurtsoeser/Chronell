@@ -5,6 +5,7 @@ import type { MailActionRecord } from '../db/message-actions-repo'
 import { setMessageFlagged as graphSetFlagged } from '../graph/mail-actions'
 import { microsoftMoveMessage, microsoftSetMessageRead } from '../ews/microsoft-mail-actions-facade'
 import { runFolderSync } from '../sync-runner'
+import { logBackgroundError } from '../log-background-error'
 import { unsnoozeMessage } from '../snooze'
 import { undoAddTodo, undoChangeTodo, undoCompleteTodo } from '../todos-service'
 import { undoAddWaitingFor, undoRemoveWaitingFor, undoChangeWaitingFor } from '../waiting-service'
@@ -49,12 +50,12 @@ export async function applyUndo(action: MailActionRecord): Promise<string> {
       }
       await microsoftMoveMessage(accountId, remoteId, targetRemoteId)
       if (action.payload.previousFolderId != null) {
-        void runFolderSync(action.payload.previousFolderId).catch(() => undefined)
+        void runFolderSync(action.payload.previousFolderId).catch((err) => logBackgroundError('mail.runFolderSync', err))
       }
       const sourceAlias = action.actionType === 'archive' ? 'archive' : 'deleteditems'
       const sourceFolder = findFolderByWellKnown(accountId, sourceAlias)
       if (sourceFolder) {
-        void runFolderSync(sourceFolder.id).catch(() => undefined)
+        void runFolderSync(sourceFolder.id).catch((err) => logBackgroundError('mail.runFolderSync', err))
       }
       return action.actionType === 'archive' ? 'Aus Archiv zurueckgeholt' : 'Aus Papierkorb zurueckgeholt'
     }
@@ -139,11 +140,11 @@ export async function applyUndo(action: MailActionRecord): Promise<string> {
       }
       await microsoftMoveMessage(accountId, remoteId, targetRemoteId)
       if (action.payload.previousFolderId != null) {
-        void runFolderSync(action.payload.previousFolderId).catch(() => undefined)
+        void runFolderSync(action.payload.previousFolderId).catch((err) => logBackgroundError('mail.runFolderSync', err))
       }
       const tf = action.payload.targetFolderId
       if (tf != null) {
-        void runFolderSync(tf).catch(() => undefined)
+        void runFolderSync(tf).catch((err) => logBackgroundError('mail.runFolderSync', err))
       }
       return 'Verschiebung rueckgaengig'
     }

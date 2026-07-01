@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Locale } from 'date-fns'
 import { addDays, addMonths, format, formatDistanceToNow, formatISO, parseISO, startOfDay, startOfMonth, startOfWeek } from 'date-fns'
-import { de, enUS } from 'date-fns/locale'
+import { useDateFnsLocale } from '@/lib/date-fns-locale'
 import { useTranslation } from 'react-i18next'
 import {
   AlarmClock,
@@ -54,6 +54,10 @@ import {
   buildMailContextItems,
   type MailContextHandlers
 } from '@/lib/mail-context-menu'
+import {
+  createMailSendToExistingNoteHandler,
+  createMailSendToNewNoteHandler
+} from '@/lib/mail-to-note'
 import { accountSupportsCloudTasks } from '@/lib/cloud-task-accounts'
 import { useAccountsStore } from '@/stores/accounts'
 import { useInboxCalendarAgendaCacheStore } from '@/stores/inbox-calendar-agenda-cache'
@@ -107,6 +111,7 @@ import {
   pickNextOnlineMeetingFromEvents
 } from '@/lib/calendar-dashboard-range'
 import { CALENDAR_VISIBILITY_CHANGED_EVENT } from '@/lib/calendar-visibility-storage'
+import { DASHBOARD_TODO_MERGE_BUCKETS } from '@shared/todo-due-kinds'
 
 const UNIFIED_STRIPE = 'pointer-events-none absolute left-0 top-0 bottom-0 z-[1] w-[3px] rounded-r opacity-90'
 
@@ -118,13 +123,6 @@ const DASHBOARD_COMPACT_MAX = 12
 /** ToDo-Kacheln: Abruf pro Bucket und max. Zeilen pro Kachel. */
 const DASHBOARD_TODO_FETCH_LIMIT = 120
 const DASHBOARD_TODO_TILE_MAX = 12
-const DASHBOARD_TODO_MERGE_BUCKETS: TodoDueKindList[] = [
-  'overdue',
-  'today',
-  'tomorrow',
-  'this_week',
-  'later'
-]
 
 interface MailContextState {
   x: number
@@ -292,7 +290,7 @@ export function useDashboardTileCatalog(opts?: {
   setNoteTarget: (v: ObjectNoteTarget | null) => void
 } {
   const { t, i18n } = useTranslation()
-  const dfLocale: Locale = i18n.language.startsWith('de') ? de : enUS
+  const dfLocale = useDateFnsLocale()
   const accounts = useAccountsStore((s) => s.accounts)
   const weatherLatitude = useAccountsStore((s) => s.config?.weatherLatitude ?? null)
   const weatherLongitude = useAccountsStore((s) => s.config?.weatherLongitude ?? null)
@@ -538,6 +536,8 @@ export function useDashboardTileCatalog(opts?: {
           title: message.subject || t('common.noSubject')
         })
       },
+      sendMailToNewNote: createMailSendToNewNoteHandler(),
+      sendMailToExistingNote: createMailSendToExistingNoteHandler(),
       setMessageRead: async (messageId, isRead): Promise<void> => {
         try {
           await setMessageRead(messageId, isRead)

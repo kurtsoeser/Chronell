@@ -53,9 +53,50 @@ function compareNullableIso(a: string | null, b: string | null, asc: boolean): n
 }
 
 function compareManual(a: UserNoteListItem, b: UserNoteListItem): number {
+  const aPin = a.isPinned ? 1 : 0
+  const bPin = b.isPinned ? 1 : 0
+  if (aPin !== bPin) return bPin - aPin
   const o = a.sortOrder - b.sortOrder
   if (o !== 0) return o
   return b.updatedAt.localeCompare(a.updatedAt)
+}
+
+export function compareNotesPagesSibling(
+  a: UserNoteListItem,
+  b: UserNoteListItem,
+  sortKey: NotesPagesSortKey,
+  untitledLabel: string
+): number {
+  const aPin = a.isPinned ? 1 : 0
+  const bPin = b.isPinned ? 1 : 0
+  if (aPin !== bPin) return bPin - aPin
+
+  switch (sortKey) {
+    case 'manual':
+      return compareManual(a, b)
+    case 'title_asc':
+      return noteTitle(a, untitledLabel).localeCompare(noteTitle(b, untitledLabel), undefined, {
+        sensitivity: 'base'
+      })
+    case 'title_desc':
+      return noteTitle(b, untitledLabel).localeCompare(noteTitle(a, untitledLabel), undefined, {
+        sensitivity: 'base'
+      })
+    case 'created_asc':
+      return compareIso(a.createdAt, b.createdAt, true)
+    case 'created_desc':
+      return compareIso(a.createdAt, b.createdAt, false)
+    case 'updated_asc':
+      return compareIso(a.updatedAt, b.updatedAt, true)
+    case 'updated_desc':
+      return compareIso(a.updatedAt, b.updatedAt, false)
+    case 'scheduled_asc':
+      return compareNullableIso(a.scheduledStartIso, b.scheduledStartIso, true)
+    case 'scheduled_desc':
+      return compareNullableIso(a.scheduledStartIso, b.scheduledStartIso, false)
+    default:
+      return compareManual(a, b)
+  }
 }
 
 export function sortNotesPages(
@@ -63,47 +104,7 @@ export function sortNotesPages(
   sortKey: NotesPagesSortKey,
   untitledLabel: string
 ): UserNoteListItem[] {
-  const items = [...notes]
-  switch (sortKey) {
-    case 'manual':
-      items.sort(compareManual)
-      break
-    case 'title_asc':
-      items.sort((a, b) =>
-        noteTitle(a, untitledLabel).localeCompare(noteTitle(b, untitledLabel), undefined, {
-          sensitivity: 'base'
-        })
-      )
-      break
-    case 'title_desc':
-      items.sort((a, b) =>
-        noteTitle(b, untitledLabel).localeCompare(noteTitle(a, untitledLabel), undefined, {
-          sensitivity: 'base'
-        })
-      )
-      break
-    case 'created_asc':
-      items.sort((a, b) => compareIso(a.createdAt, b.createdAt, true))
-      break
-    case 'created_desc':
-      items.sort((a, b) => compareIso(a.createdAt, b.createdAt, false))
-      break
-    case 'updated_asc':
-      items.sort((a, b) => compareIso(a.updatedAt, b.updatedAt, true))
-      break
-    case 'updated_desc':
-      items.sort((a, b) => compareIso(a.updatedAt, b.updatedAt, false))
-      break
-    case 'scheduled_asc':
-      items.sort((a, b) => compareNullableIso(a.scheduledStartIso, b.scheduledStartIso, true))
-      break
-    case 'scheduled_desc':
-      items.sort((a, b) => compareNullableIso(a.scheduledStartIso, b.scheduledStartIso, false))
-      break
-    default:
-      items.sort(compareManual)
-  }
-  return items
+  return [...notes].sort((a, b) => compareNotesPagesSibling(a, b, sortKey, untitledLabel))
 }
 
 export function notesPagesSortLabelKey(sortKey: NotesPagesSortKey): string {

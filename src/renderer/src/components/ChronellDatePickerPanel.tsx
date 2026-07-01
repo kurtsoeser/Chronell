@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { format, parseISO, startOfDay } from 'date-fns'
-import { de as deFns, enUS as enUSFns } from 'date-fns/locale'
+import { useDateFnsLocale } from '@/lib/date-fns-locale'
 import { useTranslation } from 'react-i18next'
 import { MiniMonthGrid } from '@/app/calendar/MiniMonthGrid'
 import { cn } from '@/lib/utils'
@@ -40,7 +40,7 @@ export function ChronellDatePickerPanel({
   className
 }: ChronellDatePickerPanelProps): JSX.Element {
   const { t, i18n } = useTranslation()
-  const dfLocale = i18n.language.startsWith('de') ? deFns : enUSFns
+  const dfLocale = useDateFnsLocale()
 
   const selectedDay = useMemo(() => {
     const v = value.trim()

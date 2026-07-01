@@ -45,6 +45,8 @@ export interface NotesNoteScheduleBlockProps {
     scheduledAllDay: boolean
     clearSchedule?: boolean
   }) => void
+  /** `card`: eigener Abschnitt; `inline`: ohne Rahmen (OneNote-Metadaten). */
+  variant?: 'card' | 'inline'
 }
 
 export function NotesNoteScheduleBlock({
@@ -52,7 +54,8 @@ export function NotesNoteScheduleBlock({
   defaultExpanded = false,
   defaultDurationMinutes = 30,
   disabled = false,
-  onChange
+  onChange,
+  variant = 'card'
 }: NotesNoteScheduleBlockProps): JSX.Element {
   const { t } = useTranslation()
   const [blockOpen, setBlockOpen] = useState(defaultExpanded || Boolean(note.scheduledStartIso))
@@ -100,17 +103,12 @@ export function NotesNoteScheduleBlock({
     })
   }
 
-  return (
-    <div className="rounded-lg border border-border bg-background/60 p-3">
-      <button
-        type="button"
-        onClick={(): void => setBlockOpen((o) => !o)}
-        className="flex w-full items-center justify-between gap-2 text-left text-xs font-medium text-foreground"
-      >
-        <span>{t('notes.schedule.sectionTitle')}</span>
-        <span className="text-muted-foreground">{blockOpen ? '▾' : '▸'}</span>
-      </button>
-      {blockOpen ? (
+  const inline = variant === 'inline'
+  const panelOpen = inline || blockOpen
+
+  const fields = (
+    <>
+      {panelOpen ? (
         <label className="mt-2 flex items-center gap-2 text-xs font-medium text-foreground">
           <input
             type="checkbox"
@@ -135,7 +133,7 @@ export function NotesNoteScheduleBlock({
           {t('notes.schedule.enable')}
         </label>
       ) : null}
-      {blockOpen && enabled ? (
+      {panelOpen && enabled ? (
         <div className="mt-3 space-y-2">
           <label className="flex items-center gap-2 text-xs text-muted-foreground">
             <input
@@ -188,6 +186,24 @@ export function NotesNoteScheduleBlock({
           ) : null}
         </div>
       ) : null}
+    </>
+  )
+
+  if (inline) {
+    return <div className="space-y-1">{fields}</div>
+  }
+
+  return (
+    <div className="rounded-lg border border-border bg-background/60 p-3">
+      <button
+        type="button"
+        onClick={(): void => setBlockOpen((o) => !o)}
+        className="flex w-full items-center justify-between gap-2 text-left text-xs font-medium text-foreground"
+      >
+        <span>{t('notes.schedule.sectionTitle')}</span>
+        <span className="text-muted-foreground">{blockOpen ? '▾' : '▸'}</span>
+      </button>
+      {fields}
     </div>
   )
 }

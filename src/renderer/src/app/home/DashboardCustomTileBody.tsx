@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { format, parseISO } from 'date-fns'
-import { de, enUS } from 'date-fns/locale'
+import { useDateFnsLocale } from '@/lib/date-fns-locale'
 import { useTranslation } from 'react-i18next'
 import { Loader2 } from 'lucide-react'
 
@@ -24,7 +24,7 @@ export function DashboardCustomTileBody(props: {
 }): JSX.Element {
   const { entry, accountById, onOpenInApp } = props
   const { t, i18n } = useTranslation()
-  const dfLocale = i18n.language?.startsWith('de') ? de : enUS
+  const dfLocale = useDateFnsLocale()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [lines, setLines] = useState<MailListItem[]>([])

@@ -20,6 +20,7 @@ import type { ConnectionsCanvasCreateAnchor } from '@/app/connections/connection
 import { useAccountsStore } from '@/stores/accounts'
 import { useMailStore } from '@/stores/mail'
 import { hasComposeDraftContent } from '@/lib/compose-draft-save'
+import { flushComposeEditor } from '@/lib/compose-editor-flush'
 import { buildDefaultComposeBodyHtml } from '@/lib/compose-default-body'
 import { readComposeSettingsPrefs } from '@/lib/compose-settings-prefs'
 import { shouldUseOsFloatingPanel } from '@/lib/open-panel-popout'
@@ -273,12 +274,28 @@ function buildComposeOutgoingBundle(draft: ComposeDraft): ComposeOutgoingBundle 
   }
 }
 
-function closeReadingPaneDrafts(get: () => ComposeState, set: (fn: (s: ComposeState) => Partial<ComposeState>) => void): void {
-  const ids = get().drafts.filter((d) => d.embedInReadingPane).map((d) => d.id)
-  if (ids.length === 0) return
+async function saveAndCloseReadingPaneDrafts(
+  get: () => ComposeState,
+  set: (fn: (s: ComposeState) => Partial<ComposeState>) => void
+): Promise<void> {
+  const existing = get().drafts.filter((d) => d.embedInReadingPane)
+  if (existing.length === 0) return
+
+  for (const d of existing) {
+    flushComposeEditor(d.id)
+  }
+
+  for (const d of existing) {
+    const current = get().drafts.find((x) => x.id === d.id)
+    if (current && hasComposeDraftContent(current)) {
+      await get().saveRemoteDraft(current.id)
+    }
+  }
+
+  const ids = new Set(existing.map((d) => d.id))
   set((s) => {
-    const next = s.drafts.filter((d) => !d.embedInReadingPane)
-    const activeId = s.activeId && ids.includes(s.activeId) ? (next[next.length - 1]?.id ?? null) : s.activeId
+    const next = s.drafts.filter((d) => !ids.has(d.id))
+    const activeId = s.activeId && ids.has(s.activeId) ? (next[next.length - 1]?.id ?? null) : s.activeId
     return { drafts: next, activeId }
   })
 }
@@ -288,7 +305,6 @@ function openReadingPaneDraft(
   set: (fn: (s: ComposeState) => Partial<ComposeState>) => void,
   patch: Partial<ComposeDraft> & Pick<ComposeDraft, 'accountId'>
 ): string {
-  closeReadingPaneDrafts(get, set)
   const accountId = patch.accountId
   const draft: ComposeDraft = {
     id: newId(),
@@ -309,6 +325,15 @@ function openReadingPaneDraft(
     ...patch,
     embedInReadingPane: true
   }
+
+  const existing = get().drafts.some((d) => d.embedInReadingPane)
+  if (existing) {
+    void saveAndCloseReadingPaneDrafts(get, set).then(() => {
+      set((s) => ({ drafts: [...s.drafts, draft], activeId: draft.id }))
+    })
+    return draft.id
+  }
+
   set((s) => ({ drafts: [...s.drafts, draft], activeId: draft.id }))
   return draft.id
 }
@@ -479,6 +504,7 @@ export const useComposeStore = create<ComposeState>((set, get) => ({
   },
 
   async closeAndSaveDraft(id: string): Promise<void> {
+    flushComposeEditor(id)
     const draft = get().drafts.find((d) => d.id === id)
     if (!draft) return
     if (hasComposeDraftContent(draft)) {
@@ -516,6 +542,7 @@ export const useComposeStore = create<ComposeState>((set, get) => ({
   },
 
   async saveRemoteDraft(id: string): Promise<void> {
+    flushComposeEditor(id)
     const draft = get().drafts.find((d) => d.id === id)
     if (!draft) return
 
@@ -595,6 +622,7 @@ export const useComposeStore = create<ComposeState>((set, get) => ({
   },
 
   async send(id: string): Promise<void> {
+    flushComposeEditor(id)
     const state = get()
     const draft = state.drafts.find((d) => d.id === id)
     if (!draft) return

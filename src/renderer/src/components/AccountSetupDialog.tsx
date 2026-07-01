@@ -79,6 +79,11 @@ const SettingsMailListHoverActionsSection = lazy(() =>
     default: m.SettingsMailListHoverActionsSection
   }))
 )
+const SettingsMailPreviewMetaFieldsSection = lazy(() =>
+  import('@/components/account-setup/SettingsMailPreviewMetaFieldsSection').then((m) => ({
+    default: m.SettingsMailPreviewMetaFieldsSection
+  }))
+)
 const SettingsQuickStepsSection = lazy(
   () => import('@/components/account-setup/SettingsQuickStepsSection')
 )
@@ -260,13 +265,7 @@ function flattenFolderNodesDepthFirst(nodes: FolderNode[]): FolderNode[] {
   return out
 }
 
-function sameStringSet(a: Set<string>, b: Set<string>): boolean {
-  if (a.size !== b.size) return false
-  for (const x of a) {
-    if (!b.has(x)) return false
-  }
-  return true
-}
+import { sameStringSet } from '@/lib/same-string-set'
 
 interface Props {
   open: boolean
@@ -601,6 +600,7 @@ export function AccountSetupDialog({
         return [
           { id: 'sync', label: t('settings.syncWindowHeading') },
           { id: 'display', label: t('settings.mailDisplayHeading') },
+          { id: 'previewMeta', label: t('settings.mailPreviewMetaHeading') },
           { id: 'compose', label: t('settings.mailCompose.heading') },
           { id: 'listHover', label: t('settings.mailListHoverHeading') },
           { id: 'quickSteps', label: t('settings.quickSteps.heading') },
@@ -918,6 +918,12 @@ export function AccountSetupDialog({
       null,
     [calendarLinkedAccounts, calendarAheadAccountId]
   )
+
+  const {
+    width: settingsDialogWidth,
+    height: settingsDialogHeight,
+    onResizeGripPointerDown
+  } = useSettingsDialogSize(open)
 
   if (!open || typeof document === 'undefined') return null
 
@@ -1476,12 +1482,6 @@ export function AccountSetupDialog({
       setLocalDataBusy(false)
     }
   }
-
-  const {
-    width: settingsDialogWidth,
-    height: settingsDialogHeight,
-    onResizeGripPointerDown
-  } = useSettingsDialogSize(open)
 
   return (
     <>
@@ -2102,6 +2102,12 @@ export function AccountSetupDialog({
               {subNavId.mail === 'listHover' && (
                 <Suspense fallback={null}>
                   <SettingsMailListHoverActionsSection />
+                </Suspense>
+              )}
+
+              {subNavId.mail === 'previewMeta' && (
+                <Suspense fallback={null}>
+                  <SettingsMailPreviewMetaFieldsSection />
                 </Suspense>
               )}
 

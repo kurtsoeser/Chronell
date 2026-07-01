@@ -26,6 +26,22 @@ export function quarterHourTimesForYmd(ymd: string): string[] {
   return out
 }
 
+/** Zeit-Slots für Picker (z. B. alle 15 Minuten); aktuelle Zeit wird ergänzt falls nötig. */
+export function timeOptionsForStep(stepMinutes: number, currentHm?: string): string[] {
+  const step = Math.max(1, Math.min(60, Math.round(stepMinutes)))
+  const out: string[] = []
+  for (let h = 0; h < 24; h++) {
+    for (let m = 0; m < 60; m += step) {
+      out.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`)
+    }
+  }
+  const normalized = currentHm ? normalizeHm(currentHm) : null
+  if (normalized && !out.includes(normalized)) {
+    return [...out, normalized].sort()
+  }
+  return out
+}
+
 export function calendarTimeSelectOptions(ymd: string, currentHm: string): string[] {
   const base = quarterHourTimesForYmd(ymd)
   if (currentHm && !base.includes(currentHm)) {

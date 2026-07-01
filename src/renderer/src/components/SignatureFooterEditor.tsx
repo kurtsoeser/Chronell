@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 export interface SignatureFooterEditorProps {
   valueHtml: string
   onChangeHtml: (html: string) => void
+  flushRef?: React.MutableRefObject<(() => void) | null>
   placeholder?: string
   fillHeight?: boolean
   editorMinHeightClass?: string
@@ -21,6 +22,7 @@ export interface SignatureFooterEditorProps {
 export function SignatureFooterEditor({
   valueHtml,
   onChangeHtml,
+  flushRef,
   placeholder,
   fillHeight = false,
   editorMinHeightClass = 'min-h-[10rem]',
@@ -33,6 +35,7 @@ export function SignatureFooterEditor({
       variant="default"
       valueHtml={valueHtml}
       onChangeHtml={onChangeHtml}
+      flushRef={flushRef}
       placeholder={placeholder}
       fillHeight={fillHeight}
       editorMinHeightClass={editorMinHeightClass}

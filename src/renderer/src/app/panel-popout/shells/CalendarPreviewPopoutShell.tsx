@@ -4,6 +4,8 @@ import type { CalendarEventView } from '@shared/types'
 import type { CloudTaskListItem } from '@/app/tasks/tasks-types'
 import type { WorkItemPlannedSchedule } from '@shared/work-item'
 import { cloudTaskStableKey } from '@shared/work-item-keys'
+import type { TaskListRow } from '@shared/types'
+import { CalendarEventDialog } from '@/app/calendar/CalendarEventDialog'
 import { CalendarEventPreview } from '@/app/calendar/CalendarEventPreview'
 import { CalendarSchedulingPanel } from '@/app/calendar/CalendarSchedulingPanel'
 import { taskItemToWorkItem } from '@/app/work-items/work-item-mapper'
@@ -30,6 +32,7 @@ export function CalendarPreviewPopoutShell(): JSX.Element {
   const [cloudTask, setCloudTask] = useState<CloudTaskListItem | null>(null)
   const [cloudTaskPlanned, setCloudTaskPlanned] = useState<WorkItemPlannedSchedule | null>(null)
   const [taskSaving, setTaskSaving] = useState(false)
+  const [editingEvent, setEditingEvent] = useState(false)
   const [schedulingSlots, setSchedulingSlots] = useState(
     () => (stash?.focus === 'scheduling' ? stash.slots : [])
   )
@@ -210,6 +213,17 @@ export function CalendarPreviewPopoutShell(): JSX.Element {
     return p === 'microsoft' || p === 'google' ? p : undefined
   }, [cloudTask, accounts])
 
+  const calendarLinkedAccounts = useMemo(
+    () => accounts.filter((a) => a.provider === 'microsoft' || a.provider === 'google'),
+    [accounts]
+  )
+
+  const loadTaskListsForAccount = useCallback(
+    async (accountId: string): Promise<TaskListRow[]> =>
+      window.mailClient.tasks.listLists({ accountId }),
+    []
+  )
+
   const savePreviewCloudTask = useCallback(async (draft: CloudTaskSaveDraft): Promise<void> => {
     if (!cloudTask) return
     setTaskSaving(true)
@@ -318,13 +332,29 @@ export function CalendarPreviewPopoutShell(): JSX.Element {
             onDisplayChange={patchPreviewCloudTaskDisplay}
           />
         ) : calendarEvent ? (
-          <CalendarEventPreview
-            event={calendarEvent}
-            calendarName=""
-            onEdit={(): void => undefined}
-            onEventChange={setCalendarEvent}
-            onSaved={(): void => undefined}
-          />
+          <>
+            <CalendarEventPreview
+              event={calendarEvent}
+              calendarName=""
+              onEdit={(): void => setEditingEvent(true)}
+              onEventChange={setCalendarEvent}
+              onSaved={(): void => undefined}
+            />
+            <CalendarEventDialog
+              open={editingEvent && calendarEvent != null}
+              mode="edit"
+              accounts={calendarLinkedAccounts}
+              defaultAccountId={calendarEvent.accountId}
+              initialEvent={calendarEvent}
+              taskAccounts={calendarLinkedAccounts}
+              loadListsForAccount={loadTaskListsForAccount}
+              onClose={(): void => setEditingEvent(false)}
+              onSaved={(updated): void => {
+                setEditingEvent(false)
+                if (updated) setCalendarEvent(updated)
+              }}
+            />
+          </>
         ) : (
           <ReadingPane hideChromeWhenEmpty compactToolbar />
         )}

@@ -1,5 +1,5 @@
 import { format, parseISO } from 'date-fns'
-import { de, enUS } from 'date-fns/locale'
+import { resolveDateFnsLocale } from '@/lib/date-fns-locale'
 import type { WorkItem } from '@shared/work-item'
 import { workItemEffectiveSortIso } from '@/app/work-items/work-item-bucket'
 
@@ -8,15 +8,11 @@ export type MegaItemTimeDisplay =
   | { variant: 'label'; text: string }
   | { variant: 'range'; start: string; end: string }
 
-function dateFnsLocale(localeCode: string) {
-  return localeCode.startsWith('de') ? de : enUS
-}
-
 function formatHm(iso: string, localeCode: string): string | null {
   try {
     const d = parseISO(iso)
     if (Number.isNaN(d.getTime())) return null
-    return format(d, 'HH:mm', { locale: dateFnsLocale(localeCode) })
+    return format(d, 'HH:mm', { locale: resolveDateFnsLocale(localeCode) })
   } catch {
     return null
   }

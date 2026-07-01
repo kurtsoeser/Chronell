@@ -38,6 +38,8 @@ import type { MailTemplate } from '@shared/types'
 import { sanitizeComposeHtmlFragment } from '@/lib/sanitize-compose-html'
 import { applyTemplateVariables } from '@/lib/template-variables'
 import { useComposeAutoSave } from '@/hooks/useComposeAutoSave'
+import { useComposeDraftEditorFlush } from '@/hooks/useComposeDraftEditorFlush'
+import { arrayBufferToBase64 } from '@/lib/attachment-files'
 
 const MAX_ATTACHMENTS_TOTAL_BYTES = 24 * 1024 * 1024 // 24 MB
 const DEFAULT_WINDOW_WIDTH = 760
@@ -115,6 +117,7 @@ function ComposerWindow({
   const isMicrosoft = account?.provider === 'microsoft'
 
   useComposeAutoSave(draft.id, true)
+  const { bodyFlushRef, signatureFlushRef } = useComposeDraftEditorFlush(draft.id)
 
   const attachmentsTotal = draft.attachments.reduce((s, a) => s + a.size, 0)
   const windowState = draft.windowState ?? getInitialWindowState(index)
@@ -470,6 +473,7 @@ function ComposerWindow({
                   className="min-h-0 flex-1 border-t-0"
                   valueHtml={draft.prependRichHtml}
                   onChangeHtml={(v): void => update(draft.id, { prependRichHtml: v })}
+                  flushRef={bodyFlushRef}
                   onAttachFiles={(files): void => void addFilesAsAttachments(files)}
                   attachmentCount={draft.attachments.length}
                   onCloudAttach={isMicrosoft ? openDrive : undefined}
@@ -501,6 +505,7 @@ function ComposerWindow({
                   <SignatureFooterEditor
                     valueHtml={draft.signatureRichHtml}
                     onChangeHtml={(v): void => update(draft.id, { signatureRichHtml: v })}
+                    flushRef={signatureFlushRef}
                   />
                 </ComposeEditorThemedPane>
               </ComposeCollapsibleSection>
@@ -708,15 +713,4 @@ function clampWindowState(
     width,
     height
   }
-}
-
-function arrayBufferToBase64(buf: ArrayBuffer): string {
-  const bytes = new Uint8Array(buf)
-  const chunkSize = 0x8000
-  let binary = ''
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    const sub = bytes.subarray(i, i + chunkSize)
-    binary += String.fromCharCode.apply(null, Array.from(sub) as unknown as number[])
-  }
-  return btoa(binary)
 }

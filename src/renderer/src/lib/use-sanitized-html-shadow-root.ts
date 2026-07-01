@@ -103,15 +103,22 @@ export function useSanitizedHtmlShadowRoot(
       })
     }
 
+    const openFromEventListener: EventListener = (e): void => {
+      openFromEvent(e as MouseEvent)
+    }
+    const keyOpenListener: EventListener = (e): void => {
+      keyOpen(e as KeyboardEvent)
+    }
+
     // Capture auf dem Shadow-Root: zuverlaessiger als Bubble am Host (Electron/Shadow-DOM).
     const capture = true
-    shadow.addEventListener('click', openFromEvent, capture)
-    shadow.addEventListener('auxclick', openFromEvent, capture)
-    shadow.addEventListener('keydown', keyOpen, capture)
+    shadow.addEventListener('click', openFromEventListener, capture)
+    shadow.addEventListener('auxclick', openFromEventListener, capture)
+    shadow.addEventListener('keydown', keyOpenListener, capture)
     return (): void => {
-      shadow.removeEventListener('click', openFromEvent, capture)
-      shadow.removeEventListener('auxclick', openFromEvent, capture)
-      shadow.removeEventListener('keydown', keyOpen, capture)
+      shadow.removeEventListener('click', openFromEventListener, capture)
+      shadow.removeEventListener('auxclick', openFromEventListener, capture)
+      shadow.removeEventListener('keydown', keyOpenListener, capture)
     }
   }, [hostRef, shadowInnerHtml, logPrefix, viewerTheme, previewScale])
 }

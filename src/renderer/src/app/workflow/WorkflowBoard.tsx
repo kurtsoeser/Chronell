@@ -49,6 +49,10 @@ import {
   buildMailCategorySubmenuItems,
   type MailContextHandlers
 } from '@/lib/mail-context-menu'
+import {
+  createMailSendToExistingNoteHandler,
+  createMailSendToNewNoteHandler
+} from '@/lib/mail-to-note'
 import { ContextMenu, type ContextMenuItem } from '@/components/ContextMenu'
 import { ObjectNoteDialog, type ObjectNoteTarget } from '@/components/ObjectNoteEditor'
 import { ReadingPane } from '@/app/layout/ReadingPane'
@@ -391,6 +395,8 @@ export function WorkflowBoard(): JSX.Element {
           title: message.subject || t('common.noSubject')
         })
       },
+      sendMailToNewNote: createMailSendToNewNoteHandler(),
+      sendMailToExistingNote: createMailSendToExistingNoteHandler(),
       setMessageRead,
       toggleMessageFlag,
       archiveMessage,

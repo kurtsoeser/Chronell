@@ -19,6 +19,7 @@ import type {
   GlobalSearchTaskHit,
   SearchHit
 } from '@shared/types'
+import { wellKnownFolderTitle } from '@shared/well-known-folder-title'
 import { resolvedAccountColorCss } from '@/lib/avatar-color'
 import { pushRecentSearch } from '@/app/home/dashboard-recent-searches'
 import { FOCUS_MAIN_SEARCH_EVENT } from '@/lib/search-focus'
@@ -81,12 +82,8 @@ export function TopbarGlobalSearch(): JSX.Element {
 
   const folderLabel = useCallback(
     (hit: SearchHit): string => {
-      if (hit.folderWellKnown === 'inbox') return t('topbar.folderInbox')
-      if (hit.folderWellKnown === 'sentitems') return t('topbar.folderSent')
-      if (hit.folderWellKnown === 'drafts') return t('topbar.folderDrafts')
-      if (hit.folderWellKnown === 'deleteditems') return t('topbar.folderDeleted')
-      if (hit.folderWellKnown === 'archive') return t('topbar.folderArchive')
-      return hit.folderName ?? `(${t('common.folder')})`
+      if (!hit.folderName && !hit.folderWellKnown) return `(${t('common.folder')})`
+      return wellKnownFolderTitle(hit.folderWellKnown, hit.folderName ?? `(${t('common.folder')})`, t)
     },
     [t]
   )

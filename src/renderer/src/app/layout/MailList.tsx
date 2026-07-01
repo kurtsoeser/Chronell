@@ -55,6 +55,10 @@ import {
   createMailSendAsNewNotionPageHandler,
   createMailSendToNotionHandler
 } from '@/lib/notion-ui'
+import {
+  createMailSendToExistingNoteHandler,
+  createMailSendToNewNoteHandler
+} from '@/lib/mail-to-note'
 import { MailMoveSubmenuPanel } from '@/components/MailMoveSubmenuPanel'
 import { MailDestinationFolderDialog } from '@/components/MailDestinationFolderDialog'
 import { ObjectNoteDialog, type ObjectNoteTarget } from '@/components/ObjectNoteEditor'
@@ -79,6 +83,7 @@ import type {
   MailQuickStep,
   TodoDueKindList
 } from '@shared/types'
+import { wellKnownFolderTitle } from '@shared/well-known-folder-title'
 import { EntityLinkSuggestionBadge } from '@/components/connections/EntityLinkSuggestionBadge'
 import { useEntityLinkSuggestionCounts } from '@/hooks/use-entity-link-suggestion-counts'
 import { fetchAiConnectionsSettings } from '@/lib/entity-links-client'
@@ -354,6 +359,8 @@ export function MailList(): JSX.Element {
           title: message.subject || t('common.noSubject')
         })
       },
+      sendMailToNewNote: createMailSendToNewNoteHandler(),
+      sendMailToExistingNote: createMailSendToExistingNoteHandler(),
       setMessageRead,
       toggleMessageFlag,
       archiveMessage,
@@ -1190,17 +1197,6 @@ function findFolderForMessage(
   const fid = message.folderId
   if (fid == null) return null
   return foldersByAccount[message.accountId]?.find((f) => f.id === fid) ?? null
-}
-
-function wellKnownFolderTitle(wellKnown: string | null, fallbackName: string, tr: (k: string) => string): string {
-  const w = (wellKnown ?? '').toLowerCase()
-  if (w === 'inbox') return tr('topbar.folderInbox')
-  if (w === 'sentitems') return tr('topbar.folderSent')
-  if (w === 'drafts') return tr('topbar.folderDrafts')
-  if (w === 'deleteditems') return tr('topbar.folderDeleted')
-  if (w === 'junkemail') return tr('mail.list.folderJunk')
-  if (w === 'archive') return tr('topbar.folderArchive')
-  return fallbackName
 }
 
 const ThreadHeadRow = memo(function ThreadHeadRow({

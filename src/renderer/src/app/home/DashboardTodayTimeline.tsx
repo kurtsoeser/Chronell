@@ -1,7 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { Locale } from 'date-fns'
 import { addDays, format, parseISO, startOfDay } from 'date-fns'
-import { de, enUS } from 'date-fns/locale'
+import { useDateFnsLocale } from '@/lib/date-fns-locale'
 import { Loader2, Plus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { CalendarEventView, ConnectedAccount } from '@shared/types'
@@ -100,7 +99,7 @@ export function DashboardTodayTimeline(props: {
 }): JSX.Element {
   const { events, accounts, loading, hasLinkedCalendars, onOpenEvent, onCreateEventOnDay } = props
   const { t, i18n } = useTranslation()
-  const dfLocale: Locale = i18n.language.startsWith('de') ? de : enUS
+  const dfLocale = useDateFnsLocale()
   const [contextMenu, setContextMenu] = useState<null | { x: number; y: number }>(null)
   const timelineScrollRef = useRef<HTMLDivElement | null>(null)
   const timelineContentRef = useRef<HTMLDivElement | null>(null)

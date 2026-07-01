@@ -4,8 +4,7 @@ import timeGridPlugin from '@fullcalendar/timegrid'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import interactionPlugin from '@fullcalendar/interaction'
 import luxonPlugin from '@fullcalendar/luxon'
-import deLocale from '@fullcalendar/core/locales/de'
-import enGbLocale from '@fullcalendar/core/locales/en-gb'
+import { resolveFullCalendarLocale, deLocale, enGbLocale } from '@/lib/fullcalendar-locale'
 import type { DatesSetArg, EventInput } from '@fullcalendar/core'
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -144,7 +143,7 @@ export function BookingsWeekCalendar({
 }: BookingsWeekCalendarProps): JSX.Element {
   const { i18n } = useTranslation()
   const appLocale = useLocaleStore((s) => s.locale)
-  const fcLocale = appLocale === 'en' ? enGbLocale : deLocale
+  const fcLocale = resolveFullCalendarLocale(appLocale)
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
 
   const calendarRef = useRef<FullCalendar | null>(null)

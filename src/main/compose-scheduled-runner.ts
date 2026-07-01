@@ -12,6 +12,7 @@ import { findFolderByWellKnown } from './db/folders-repo'
 import { runFolderSync } from './sync-runner'
 import { setWaitingForMessage } from './waiting-service'
 import { disposeComposeDraft } from './compose-draft-dispose'
+import { logBackgroundError } from './log-background-error'
 
 function isComposeSendInput(x: unknown): x is ComposeSendInput {
   if (!x || typeof x !== 'object') return false
@@ -79,7 +80,7 @@ async function sendImmediate(input: ComposeSendInput): Promise<void> {
 
   const sentFolder = findFolderByWellKnown(input.accountId, 'sentitems')
   if (sentFolder) {
-    void runFolderSync(sentFolder.id).catch(() => undefined)
+    void runFolderSync(sentFolder.id).catch((err) => logBackgroundError('mail.runFolderSync', err))
   }
 }
 

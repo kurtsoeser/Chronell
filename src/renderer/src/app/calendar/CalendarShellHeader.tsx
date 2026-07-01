@@ -1,6 +1,6 @@
 import { useMemo, type RefObject } from 'react'
 import { format, getWeek } from 'date-fns'
-import { de as deFns, enUS as enFns } from 'date-fns/locale'
+import { useCollatorLocale, useDateFnsLocale } from '@/lib/date-fns-locale'
 import { useTranslation } from 'react-i18next'
 import {
   ChevronDown,
@@ -74,8 +74,8 @@ export interface CalendarShellHeaderProps {
 }
 
 export function CalendarShellHeader(props: CalendarShellHeaderProps): JSX.Element {
-  const { t, i18n } = useTranslation()
-  const dateFnsLocale = i18n.language.startsWith('de') ? deFns : enFns
+  const { t } = useTranslation()
+  const dateFnsLocale = useDateFnsLocale()
   const {
     rangeTitle,
     visibleStart,
@@ -108,7 +108,7 @@ export function CalendarShellHeader(props: CalendarShellHeaderProps): JSX.Elemen
     onImportIcsClick
   } = props
 
-  const collatorLocale = i18n.language.startsWith('de') ? 'de' : 'en'
+  const collatorLocale = useCollatorLocale()
   const sidebarHiddenRestoreGroups = useMemo(() => {
     const entries = calendarSidebarHiddenRestoreEntries ?? []
     if (entries.length === 0) return []

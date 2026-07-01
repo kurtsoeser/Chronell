@@ -1,5 +1,7 @@
-import { useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import type { CalendarEventView, TaskListRow } from '@shared/types'
+import { CalendarEventDialog } from '@/app/calendar/CalendarEventDialog'
 import { CalendarEventPreview } from '@/app/calendar/CalendarEventPreview'
 import { CloudTaskItemPreview } from '@/app/calendar/CloudTaskItemPreview'
 import { ReadingPane } from '@/app/layout/ReadingPane'
@@ -26,6 +28,14 @@ export function LayoutStudioEventPreview(): JSX.Element {
   const setCalendarEvent = useLayoutStudioPreviewStore((s) => s.setCalendarEvent)
   const clearContextPreview = useLayoutStudioPreviewStore((s) => s.clearContextPreview)
   const selectedMessageId = useMailStore((s) => s.selectedMessageId)
+
+  const [editingEvent, setEditingEvent] = useState<CalendarEventView | null>(null)
+
+  const loadTaskListsForAccount = useCallback(
+    async (accountId: string): Promise<TaskListRow[]> =>
+      window.mailClient.tasks.listLists({ accountId }),
+    []
+  )
 
   useEffect(() => {
     if (selectedMessageId != null) clearContextPreview()
@@ -62,8 +72,22 @@ export function LayoutStudioEventPreview(): JSX.Element {
         <CalendarEventPreview
           event={calendarEvent}
           calendarName={calendarName}
-          onEdit={(): void => {}}
+          onEdit={(): void => setEditingEvent(calendarEvent)}
           onEventChange={(updated): void => setCalendarEvent(updated)}
+        />
+        <CalendarEventDialog
+          open={editingEvent != null}
+          mode="edit"
+          accounts={calendarLinkedAccounts}
+          defaultAccountId={editingEvent?.accountId ?? calendarLinkedAccounts[0]?.id}
+          initialEvent={editingEvent}
+          taskAccounts={calendarLinkedAccounts}
+          loadListsForAccount={loadTaskListsForAccount}
+          onClose={(): void => setEditingEvent(null)}
+          onSaved={(updated): void => {
+            setEditingEvent(null)
+            if (updated) setCalendarEvent(updated)
+          }}
         />
       </div>
     )

@@ -20,9 +20,15 @@ import {
 } from './open-external'
 import { closeAllTeamsChatPopouts } from './teams-chat-popout'
 import { closeAllMailReadingPopouts } from './mail-reading-popout'
+import { closeAllQuickCapturePopouts } from './quick-capture-popout'
 import { closeAllPanelPopouts } from './panel-popout/panel-popout-window'
+import {
+  registerNotesGlobalShortcuts,
+  unregisterNotesGlobalShortcuts
+} from './notes-global-shortcuts'
 import { pruneStaleAttachmentCache } from './attachment-cache'
 import { applyPendingChromiumCachePurgeOnStartup } from './local-data-service'
+import { logBackgroundError } from './log-background-error'
 import {
   configureChronellAppPaths,
   migrateLegacyUserDataIfNeeded
@@ -51,8 +57,14 @@ import {
   isIcsFilePath,
   notifyRendererOfPendingIcsFiles
 } from './ics-open-queue'
+import {
+  registerNoteAttachmentMediaProtocol,
+  registerNoteAttachmentMediaScheme
+} from './note-attachment-media-protocol'
 
 configureChronellAppPaths()
+
+registerNoteAttachmentMediaScheme()
 
 for (const icsPath of extractIcsPathsFromArgv(process.argv)) {
   enqueueIcsFilePath(icsPath)
@@ -237,7 +249,9 @@ app.whenReady().then(async () => {
     console.warn('[startup] attachment-cache prune:', e)
   )
   registerIpcHandlers()
+  await registerNoteAttachmentMediaProtocol()
   createMainWindow()
+  registerNotesGlobalShortcuts()
   startConnectivityMonitoring()
 
   try {
@@ -251,7 +265,7 @@ app.whenReady().then(async () => {
     void import('electron-updater')
       .then(({ autoUpdater }) => {
         autoUpdater.setFeedURL({ provider: 'generic', url: process.env.UPDATE_BASE_URL! })
-        void autoUpdater.checkForUpdatesAndNotify().catch(() => undefined)
+        void autoUpdater.checkForUpdatesAndNotify().catch((err) => logBackgroundError('startup.autoUpdater', err))
       })
       .catch((e) => console.warn('[startup] autoUpdater:', e))
   }
@@ -293,8 +307,10 @@ app.whenReady().then(async () => {
 })
 
 app.on('before-quit', () => {
+  unregisterNotesGlobalShortcuts()
   closeAllTeamsChatPopouts()
   closeAllMailReadingPopouts()
+  closeAllQuickCapturePopouts()
   closeAllPanelPopouts()
   stopMailPolling()
   stopCalendarSync()

@@ -16,9 +16,11 @@ import type { ConnectedAccount, TaskItemRow, TaskListRow } from '@shared/types'
 import type { WorkItem, WorkItemPlannedSchedule } from '@shared/work-item'
 import { cloudTaskStableKey } from '@shared/work-item-keys'
 import { useAccountsStore } from '@/stores/accounts'
+import { useShallow } from 'zustand/react/shallow'
 import { useUndoStore } from '@/stores/undo'
 import { buildAccountColorAndNewContextItems } from '@/lib/account-sidebar-context-menu'
 import { cn } from '@/lib/utils'
+import { logIpcError } from '@/lib/ipc-error-log'
 import { useExitingIds } from '@/lib/use-exiting-ids'
 import { useResizableWidth, VerticalSplitter } from '@/components/ResizableSplitter'
 import { modulePaneStackClass, moduleShellClass } from '@/components/module-shell-layout'
@@ -157,9 +159,13 @@ export function TasksShell(): JSX.Element {
       ? `${s.pendingTask.accountId}:${s.pendingTask.listId}:${s.pendingTask.taskId}`
       : null
   )
-  const accounts = useAccountsStore((s) => s.accounts)
-  const accountDisplayAvatarDataUrls = useAccountsStore((s) => s.accountDisplayAvatarDataUrls)
-  const patchAccountColor = useAccountsStore((s) => s.patchAccountColor)
+  const { accounts, accountDisplayAvatarDataUrls, patchAccountColor } = useAccountsStore(
+    useShallow((s) => ({
+      accounts: s.accounts,
+      accountDisplayAvatarDataUrls: s.accountDisplayAvatarDataUrls,
+      patchAccountColor: s.patchAccountColor
+    }))
+  )
   const taskAccounts = useMemo(
     () => accounts.filter((a) => a.provider === 'microsoft' || a.provider === 'google'),
     [accounts]
@@ -279,7 +285,7 @@ export function TasksShell(): JSX.Element {
             .then((fresh) => {
               setListsByAccount((prev) => ({ ...prev, [targetAccountId]: fresh }))
             })
-            .catch(() => undefined)
+            .catch((err) => logIpcError('tasks.listLists', err))
         }
         setSelection((prev) => {
           if (prev?.kind !== 'list' || prev.accountId !== targetAccountId) return prev
@@ -1119,7 +1125,7 @@ export function TasksShell(): JSX.Element {
           source: 'cloud'
         })
       })
-      .catch(() => undefined)
+      .catch((err) => logIpcError('tasks.resolvePendingTask', err))
   }, [pendingTaskKey, listsByAccount])
 
   useEffect(() => {

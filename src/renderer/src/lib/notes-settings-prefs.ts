@@ -1,3 +1,4 @@
+import type { UserNoteKind } from '@shared/types'
 import type { NotesShellView } from '@/app/notes/NotesShellViewToggle'
 import {
   isTimeGridSlotMinutes,
@@ -11,11 +12,16 @@ import {
 } from '@/lib/notes-pages-sort'
 import type { NotesSidebarListMode } from '@/lib/notes-sidebar-storage'
 import type { NotesSectionsNavScope } from '@/lib/notes-nav-selection'
-import type { UserNoteKind } from '@shared/types'
+import type { NotePageTemplateId } from '@/lib/note-page-templates'
+import { normalizeNotePageTemplateId } from '@/lib/note-page-templates-custom'
+import {
+  DEFAULT_NOTE_AUDIO_RECORDING_QUALITY,
+  isNoteAudioRecordingQuality,
+  type NoteAudioRecordingQuality
+} from '@shared/note-audio-quality'
 
 export type NotesLinkedPreviewPlacement = 'dock' | 'float'
-export type NotesEditorPreviewMode = 'live' | 'edit' | 'preview' | 'toggle'
-export type NotesAutosaveMode = 'off' | 'on_leave' | 'interval'
+export type NotesAutosaveMode = 'off' | 'on_change' | 'on_leave' | 'interval'
 export type NotesDateFilterMode = 'none' | 'current_month' | 'scheduled_only'
 export type NotesKindsFilter = 'all' | 'standalone_only'
 export type NotesSearchLimit = 20 | 30 | 50
@@ -51,8 +57,7 @@ export interface NotesSettingsPrefsV1 {
   defaultNavColumnWidth: number
   entityContextCollapsedDefault: boolean
   defaultEditorHeight: number
-  defaultEditorPreviewMode: NotesEditorPreviewMode
-  defaultEditorToggleTab: 'edit' | 'preview'
+  defaultNotePageTemplateId: NotePageTemplateId
   showSectionLabelsInPages: boolean
   defaultAccountsCollapsed: boolean
   searchResultLimit: NotesSearchLimit
@@ -64,6 +69,7 @@ export interface NotesSettingsPrefsV1 {
   openNoteAfterCreate: boolean
   scheduleBlockExpandedDefault: boolean
   defaultScheduleDurationMinutes: number
+  audioRecordingQuality: NoteAudioRecordingQuality
 }
 
 export const NOTES_SETTINGS_PREFS_CHANGED_EVENT = 'mailclient:notes-settings-prefs-changed'
@@ -102,19 +108,19 @@ const DEFAULTS: NotesSettingsPrefsV1 = {
   defaultNavColumnWidth: 256,
   entityContextCollapsedDefault: true,
   defaultEditorHeight: 420,
-  defaultEditorPreviewMode: 'live',
-  defaultEditorToggleTab: 'edit',
+  defaultNotePageTemplateId: 'blank',
   showSectionLabelsInPages: false,
   defaultAccountsCollapsed: false,
   searchResultLimit: 30,
   notesListFetchLimit: 500,
   defaultNoteKindsFilter: 'all',
   defaultDateFilterMode: 'none',
-  autosaveMode: 'off',
+  autosaveMode: 'on_change',
   autosaveIntervalSeconds: 60,
   openNoteAfterCreate: true,
   scheduleBlockExpandedDefault: false,
-  defaultScheduleDurationMinutes: 30
+  defaultScheduleDurationMinutes: 30,
+  audioRecordingQuality: DEFAULT_NOTE_AUDIO_RECORDING_QUALITY
 }
 
 function normalizeTimeHms(raw: unknown, fallback: string): string {
@@ -241,16 +247,8 @@ function parsePrefs(raw: string): NotesSettingsPrefsV1 {
     base.entityContextCollapsedDefault = o.entityContextCollapsedDefault
   }
   base.defaultEditorHeight = clampInt(o.defaultEditorHeight, 240, 800, base.defaultEditorHeight)
-  if (
-    o.defaultEditorPreviewMode === 'live' ||
-    o.defaultEditorPreviewMode === 'edit' ||
-    o.defaultEditorPreviewMode === 'preview' ||
-    o.defaultEditorPreviewMode === 'toggle'
-  ) {
-    base.defaultEditorPreviewMode = o.defaultEditorPreviewMode
-  }
-  if (o.defaultEditorToggleTab === 'edit' || o.defaultEditorToggleTab === 'preview') {
-    base.defaultEditorToggleTab = o.defaultEditorToggleTab
+  if (typeof o.defaultNotePageTemplateId === 'string') {
+    base.defaultNotePageTemplateId = normalizeNotePageTemplateId(o.defaultNotePageTemplateId)
   }
   if (typeof o.showSectionLabelsInPages === 'boolean') {
     base.showSectionLabelsInPages = o.showSectionLabelsInPages
@@ -274,7 +272,12 @@ function parsePrefs(raw: string): NotesSettingsPrefsV1 {
   ) {
     base.defaultDateFilterMode = o.defaultDateFilterMode
   }
-  if (o.autosaveMode === 'off' || o.autosaveMode === 'on_leave' || o.autosaveMode === 'interval') {
+  if (
+    o.autosaveMode === 'off' ||
+    o.autosaveMode === 'on_change' ||
+    o.autosaveMode === 'on_leave' ||
+    o.autosaveMode === 'interval'
+  ) {
     base.autosaveMode = o.autosaveMode
   }
   if (o.autosaveIntervalSeconds === 30 || o.autosaveIntervalSeconds === 60 || o.autosaveIntervalSeconds === 120) {
@@ -290,6 +293,9 @@ function parsePrefs(raw: string): NotesSettingsPrefsV1 {
     480,
     base.defaultScheduleDurationMinutes
   )
+  if (isNoteAudioRecordingQuality(o.audioRecordingQuality)) {
+    base.audioRecordingQuality = o.audioRecordingQuality
+  }
   return base
 }
 
@@ -338,3 +344,4 @@ export const NOTES_CALENDAR_FC_VIEW_OPTIONS = [
 ] as const
 
 export { TIME_GRID_SLOT_MINUTES_OPTIONS, NOTES_PAGES_SORT_KEYS }
+export type { NoteAudioRecordingQuality } from '@shared/note-audio-quality'

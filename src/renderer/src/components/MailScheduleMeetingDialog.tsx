@@ -7,13 +7,12 @@ import {
   startOfDay,
   startOfWeek
 } from 'date-fns'
-import { de as deFns, enUS as enUSFns } from 'date-fns/locale'
+import { useDateFnsLocale } from '@/lib/date-fns-locale'
 import FullCalendar from '@fullcalendar/react'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
 import luxonPlugin from '@fullcalendar/luxon'
-import deLocale from '@fullcalendar/core/locales/de'
-import enGbLocale from '@fullcalendar/core/locales/en-gb'
+import { useCalendarFcLocale } from '@/hooks/use-calendar-fc-locale'
 import type { DateSelectArg, EventInput } from '@fullcalendar/core'
 import {
   AlertTriangle,
@@ -160,7 +159,7 @@ export function MailScheduleMeetingDialog({
   onClose
 }: MailScheduleMeetingDialogProps): JSX.Element | null {
   const { t, i18n } = useTranslation()
-  const dfLocale = i18n.language.startsWith('de') ? deFns : enUSFns
+  const dfLocale = useDateFnsLocale()
   const calSettings = useCalendarSettingsPrefs()
   const calendarRef = useRef<FullCalendar | null>(null)
   const calendarHostRef = useRef<HTMLDivElement | null>(null)
@@ -504,7 +503,7 @@ export function MailScheduleMeetingDialog({
     [calSettings.defaultTimeGridSlotMinutes]
   )
 
-  const fcLocale = i18n.language.startsWith('de') ? deLocale : enGbLocale
+  const fcLocale = useCalendarFcLocale()
 
   async function handleSend(): Promise<void> {
     if (!subject.trim()) {

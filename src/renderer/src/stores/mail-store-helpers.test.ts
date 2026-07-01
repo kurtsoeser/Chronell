@@ -1,39 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import type { MailListItem } from '@shared/types'
 import {
   pickSuccessorMessageId,
   type MailNavigableLayoutState
 } from './mail-store-helpers'
+import { makeMailListItem } from '../../../test-fixtures/mail'
 
-function item(id: number, overrides: Partial<MailListItem> = {}): MailListItem {
-  return {
-    id,
-    accountId: 'acc-1',
-    folderId: 1,
-    remoteId: `r-${id}`,
-    subject: `Mail ${id}`,
-    fromAddr: 'a@example.com',
-    fromName: null,
-    toAddrs: [],
-    ccAddrs: [],
-    receivedAt: `2026-06-${String(id).padStart(2, '0')}T10:00:00.000Z`,
-    sentAt: null,
-    isRead: false,
-    isFlagged: false,
-    hasAttachments: false,
-    preview: '',
-    categories: [],
-    openTodoId: null,
-    openTodoDueKind: null,
-    openTodoDueAt: null,
-    openTodoStartAt: null,
-    openTodoEndAt: null,
-    remoteThreadId: null,
-    ...overrides
-  }
-}
-
-function baseState(messages: MailListItem[]): MailNavigableLayoutState {
+function baseState(messages: ReturnType<typeof makeMailListItem>[]): MailNavigableLayoutState {
   return {
     mailFilter: 'all',
     listKind: 'folder',
@@ -49,11 +21,11 @@ function baseState(messages: MailListItem[]): MailNavigableLayoutState {
           remoteId: 'inbox',
           name: 'Posteingang',
           wellKnown: 'inbox',
-          parentFolderId: null,
+          parentRemoteId: null,
+          path: null,
           unreadCount: 0,
           totalCount: messages.length,
-          isFavorite: false,
-          sortOrder: 0
+          isFavorite: false
         }
       ]
     },
@@ -68,18 +40,18 @@ function baseState(messages: MailListItem[]): MailNavigableLayoutState {
 
 describe('pickSuccessorMessageId', () => {
   it('waehlt die naechste Mail an derselben Listenposition', () => {
-    const state = baseState([item(1), item(2), item(3)])
+    const state = baseState([makeMailListItem(1), makeMailListItem(2), makeMailListItem(3)])
     expect(pickSuccessorMessageId(state, 1)).toBe(2)
     expect(pickSuccessorMessageId(state, 2)).toBe(3)
   })
 
   it('waehlt die vorherige Mail, wenn die letzte entfernt wird', () => {
-    const state = baseState([item(1), item(2), item(3)])
+    const state = baseState([makeMailListItem(1), makeMailListItem(2), makeMailListItem(3)])
     expect(pickSuccessorMessageId(state, 3)).toBe(2)
   })
 
   it('gibt null zurueck, wenn die einzige Mail entfernt wird', () => {
-    const state = baseState([item(1)])
+    const state = baseState([makeMailListItem(1)])
     expect(pickSuccessorMessageId(state, 1)).toBeNull()
   })
 })

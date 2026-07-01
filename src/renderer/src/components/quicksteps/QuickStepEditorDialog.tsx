@@ -17,6 +17,7 @@ import {
 } from '@shared/quicksteps'
 import type { RuleSnoozePreset } from '@shared/mail-rules'
 import type { TodoDueKindOpen } from '@shared/types'
+import { OPEN_TODO_KIND_ORDER } from '@shared/todo-due-kinds'
 
 const SNOOZE_PRESETS: RuleSnoozePreset[] = [
   'in-1-hour',
@@ -28,7 +29,7 @@ const SNOOZE_PRESETS: RuleSnoozePreset[] = [
   'next-week'
 ]
 
-const TODO_KINDS: TodoDueKindOpen[] = ['today', 'tomorrow', 'this_week', 'later']
+const TODO_KINDS: TodoDueKindOpen[] = [...OPEN_TODO_KIND_ORDER]
 
 const CATEGORY_ORDER: QuickStepActionCategory[] = ['filing', 'status', 'categories', 'snooze']
 

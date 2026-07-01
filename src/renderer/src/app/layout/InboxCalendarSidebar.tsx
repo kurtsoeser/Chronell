@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { addMonths, format, isSameDay, isToday, isTomorrow, parseISO, startOfMonth } from 'date-fns'
-import { de as deFns, enUS as enUSFns } from 'date-fns/locale'
-import type { Locale } from 'date-fns'
+import { useDateFnsLocale } from '@/lib/date-fns-locale'
 import { useTranslation } from 'react-i18next'
 import { Loader2, PanelRightClose, SquareArrowOutUpRight } from 'lucide-react'
 import type { MailListItem } from '@shared/types'
@@ -71,7 +70,7 @@ export function InboxCalendarSidebar({
   onRequestClose
 }: InboxCalendarSidebarProps = {}): JSX.Element {
   const { t, i18n } = useTranslation()
-  const dfLocale: Locale = i18n.language.startsWith('de') ? deFns : enUSFns
+  const dfLocale = useDateFnsLocale()
 
   const formatDayHeading = useCallback(
     (date: Date): string => {

@@ -188,7 +188,7 @@ export function sanitizeMailHtml(html: string, options: { loadImages?: boolean }
   const cleaned = DOMPurify.sanitize(upgradeInsecureMailResourceUrls(html), {
     ALLOWED_TAGS,
     ALLOWED_ATTR,
-    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel|data):|(?:[a-z\-]+):|#)/i,
+    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel|data):|(?:[a-z-]+):|#)/i,
     FORBID_TAGS: ['script', 'style', 'iframe', 'object', 'embed', 'link', 'meta', 'form'],
     FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur'],
     KEEP_CONTENT: true,

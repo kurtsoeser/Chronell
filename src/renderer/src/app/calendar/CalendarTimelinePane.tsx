@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { format, isSameDay, parseISO } from 'date-fns'
-import { de as deFns, enUS as enUSFns } from 'date-fns/locale'
+import { useDateFnsLocale } from '@/lib/date-fns-locale'
 import type { WorkItem } from '@shared/work-item'
 import { useAccountsStore } from '@/stores/accounts'
 import { useMailStore } from '@/stores/mail'
@@ -126,7 +126,7 @@ export function CalendarTimelinePane({
 
   const accountById = useMemo(() => new Map(accounts.map((a) => [a.id, a] as const)), [accounts])
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
-  const dfLocale = i18n.language.startsWith('de') ? deFns : enUSFns
+  const dfLocale = useDateFnsLocale()
 
   const arrangeCtx = useMemo((): WorkListArrangeContext => {
     return {

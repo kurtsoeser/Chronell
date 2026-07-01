@@ -1,19 +1,61 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { AlertCircle, Cloud, Download, Loader2, Paperclip } from 'lucide-react'
+import { AlertCircle, Cloud, Loader2, Paperclip } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { UserNoteAttachment } from '@shared/types'
+import { isPlayableAudioAttachment } from '@shared/note-attachment-audio'
 import { cn } from '@/lib/utils'
 import { useAccountsStore } from '@/stores/accounts'
 import { OneDriveExplorerDialog } from '@/components/OneDriveExplorerDialog'
 import { CloudAttachmentChip, LocalAttachmentChip } from '@/components/AttachmentChips'
-import { readFilesAsAttachmentPayload } from '@/lib/attachment-files'
+import { uploadFilesToNote } from '@/lib/note-attachments-upload'
+import { NoteAudioRecorder } from '@/app/notes/NoteAudioRecorder'
+import { NoteInlineAudioAttachment } from '@/app/notes/NoteInlineAudioAttachment'
+
+function renderLocalAttachment(
+  att: UserNoteAttachment,
+  noteId: number,
+  t: (key: string) => string,
+  handleOpen: (att: UserNoteAttachment) => Promise<void>,
+  handleRemove: (attachmentId: number) => Promise<void>,
+  handleSaveAs: (att: UserNoteAttachment) => Promise<void>,
+  setError: (message: string | null) => void
+): JSX.Element {
+  if (isPlayableAudioAttachment(att)) {
+    return (
+      <NoteInlineAudioAttachment
+        key={att.id}
+        noteId={noteId}
+        attachment={att}
+        onRemove={(): void => void handleRemove(att.id)}
+        onSaveAs={(): void => void handleSaveAs(att)}
+        onError={setError}
+      />
+    )
+  }
+
+  return (
+    <LocalAttachmentChip
+      key={att.id}
+      name={att.name}
+      contentType={att.contentType ?? 'application/octet-stream'}
+      size={att.size}
+      onOpen={(): void => void handleOpen(att)}
+      onRemove={(): void => void handleRemove(att.id)}
+      onSaveAs={(): void => void handleSaveAs(att)}
+      saveAsLabel={t('notes.attachments.saveAs')}
+      removeAriaLabel={t('notes.attachments.remove')}
+    />
+  )
+}
 
 export function NotesAttachmentsPanel({
   noteId,
-  className
+  className,
+  variant = 'card'
 }: {
   noteId: number
   className?: string
+  variant?: 'card' | 'onenote'
 }): JSX.Element {
   const { t } = useTranslation()
   const accounts = useAccountsStore((s) => s.accounts)
@@ -53,19 +95,10 @@ export function NotesAttachmentsPanel({
     setError(null)
     setBusy(true)
     try {
-      const parsed = await readFilesAsAttachmentPayload(files)
-      if (!parsed.ok) {
-        setError(parsed.error)
+      const result = await uploadFilesToNote(noteId, files)
+      if (!result.ok) {
+        setError(result.error)
         return
-      }
-      for (const item of parsed.items) {
-        await window.mailClient.notes.attachments.addLocal({
-          noteId,
-          name: item.name,
-          contentType: item.contentType,
-          size: item.size,
-          dataBase64: item.dataBase64
-        })
       }
       await load()
     } catch (e) {
@@ -89,6 +122,7 @@ export function NotesAttachmentsPanel({
   }
 
   const handleOpen = async (att: UserNoteAttachment): Promise<void> => {
+    if (isPlayableAudioAttachment(att)) return
     const res = await window.mailClient.notes.attachments.open({
       noteId,
       attachmentId: att.id
@@ -124,38 +158,58 @@ export function NotesAttachmentsPanel({
     }
   }
 
-  return (
-    <section className={cn('rounded-lg border border-border bg-card/40 px-3 py-2.5', className)}>
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-          <Paperclip className="h-3.5 w-3.5 text-muted-foreground" />
-          {t('notes.attachments.title')}
-          {loading ? <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" /> : null}
-        </div>
-        <div className="flex flex-wrap items-center gap-1">
-          <button
-            type="button"
-            disabled={busy}
-            onClick={(): void => fileInputRef.current?.click()}
-            className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-2xs font-medium text-foreground hover:bg-secondary disabled:opacity-50"
-          >
-            <Paperclip className="h-3 w-3" />
-            {t('notes.attachments.addFile')}
-          </button>
-          {microsoftAccount ? (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={(): void => setDriveOpen(true)}
-              className="inline-flex items-center gap-1 rounded-md border border-sky-500/30 bg-sky-500/5 px-2 py-1 text-2xs font-medium text-foreground hover:bg-sky-500/10 disabled:opacity-50"
-            >
-              <Cloud className="h-3 w-3 text-sky-600 dark:text-sky-400" />
-              {t('notes.attachments.addCloud')}
-            </button>
-          ) : null}
-        </div>
-      </div>
+  const embedded = variant === 'onenote'
 
+  const actionButtons = (
+    <div className="flex shrink-0 flex-wrap items-center gap-1">
+      <button
+        type="button"
+        disabled={busy}
+        onClick={(): void => fileInputRef.current?.click()}
+        className={cn(
+          'inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-2xs font-medium text-foreground hover:bg-secondary disabled:opacity-50',
+          embedded && 'text-xs'
+        )}
+      >
+        <Paperclip className="h-3 w-3" />
+        {t('notes.attachments.addFile')}
+      </button>
+      <NoteAudioRecorder noteId={noteId} disabled={busy} onError={setError} />
+      {microsoftAccount ? (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={(): void => setDriveOpen(true)}
+          className={cn(
+            'inline-flex items-center gap-1 rounded-md border border-sky-500/30 bg-sky-500/5 px-2 py-1 text-2xs font-medium text-foreground hover:bg-sky-500/10 disabled:opacity-50',
+            embedded && 'text-xs'
+          )}
+        >
+          <Cloud className="h-3 w-3 text-sky-600 dark:text-sky-400" />
+          {t('notes.attachments.addCloud')}
+        </button>
+      ) : null}
+    </div>
+  )
+
+  const attachmentItems = items.map((att) =>
+    att.kind === 'cloud' ? (
+      <CloudAttachmentChip
+        key={att.id}
+        name={att.name}
+        onOpen={(): void => void handleOpen(att)}
+        onRemove={(): void => void handleRemove(att.id)}
+        onOpenLink={(): void => void handleOpen(att)}
+        openLinkLabel={t('notes.attachments.openLink')}
+        removeAriaLabel={t('notes.attachments.remove')}
+      />
+    ) : (
+      renderLocalAttachment(att, noteId, t, handleOpen, handleRemove, handleSaveAs, setError)
+    )
+  )
+
+  const body = (
+    <>
       <input
         ref={fileInputRef}
         type="file"
@@ -178,46 +232,7 @@ export function NotesAttachmentsPanel({
       {!loading && items.length === 0 ? (
         <p className="text-xs text-muted-foreground">{t('notes.attachments.empty')}</p>
       ) : (
-        <div className="flex flex-wrap gap-2">
-          {items.map((att) =>
-            att.kind === 'cloud' ? (
-              <div key={att.id} className="flex flex-col gap-0.5">
-                <CloudAttachmentChip
-                  name={att.name}
-                  onOpen={(): void => void handleOpen(att)}
-                  onRemove={(): void => void handleRemove(att.id)}
-                  removeAriaLabel={t('notes.attachments.remove')}
-                />
-                <button
-                  type="button"
-                  onClick={(): void => void handleOpen(att)}
-                  className="self-start px-1 text-2xs text-primary hover:underline"
-                >
-                  {t('notes.attachments.openLink')}
-                </button>
-              </div>
-            ) : (
-              <div key={att.id} className="flex flex-col gap-0.5">
-                <LocalAttachmentChip
-                  name={att.name}
-                  contentType={att.contentType ?? 'application/octet-stream'}
-                  size={att.size}
-                  onOpen={(): void => void handleOpen(att)}
-                  onRemove={(): void => void handleRemove(att.id)}
-                  removeAriaLabel={t('notes.attachments.remove')}
-                />
-                <button
-                  type="button"
-                  onClick={(): void => void handleSaveAs(att)}
-                  className="inline-flex items-center gap-0.5 self-start px-1 text-2xs text-primary hover:underline"
-                >
-                  <Download className="h-2.5 w-2.5" />
-                  {t('notes.attachments.saveAs')}
-                </button>
-              </div>
-            )
-          )}
-        </div>
+        <div className="flex flex-wrap gap-2">{attachmentItems}</div>
       )}
 
       {microsoftAccount ? (
@@ -233,6 +248,74 @@ export function NotesAttachmentsPanel({
       {!microsoftAccount && items.length === 0 ? (
         <p className="mt-1 text-2xs text-muted-foreground">{t('notes.attachments.cloudRequiresM365')}</p>
       ) : null}
+    </>
+  )
+
+  if (embedded) {
+    return (
+      <div className={cn('space-y-2', className)}>
+        {error ? (
+          <div className="flex items-start gap-1.5 text-xs text-destructive">
+            <AlertCircle className="mt-0.5 h-3 w-3 shrink-0" />
+            <span>{error}</span>
+          </div>
+        ) : null}
+
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            {loading ? (
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                <Loader2 className="h-3 w-3 animate-spin" />
+              </div>
+            ) : items.length === 0 ? (
+              <p className="text-xs text-muted-foreground">{t('notes.attachments.empty')}</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">{attachmentItems}</div>
+            )}
+          </div>
+          <div className="shrink-0">{actionButtons}</div>
+        </div>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          className="hidden"
+          onChange={(e): void => {
+            const list = e.target.files
+            if (list?.length) void handleFiles(Array.from(list))
+            e.target.value = ''
+          }}
+        />
+
+        {microsoftAccount ? (
+          <OneDriveExplorerDialog
+            open={driveOpen}
+            accountId={microsoftAccount.id}
+            configureSharingLink={false}
+            onClose={(): void => setDriveOpen(false)}
+            onPickFile={(file): void => void handleCloudPick(file)}
+          />
+        ) : null}
+
+        {!microsoftAccount && items.length === 0 ? (
+          <p className="text-2xs text-muted-foreground">{t('notes.attachments.cloudRequiresM365')}</p>
+        ) : null}
+      </div>
+    )
+  }
+
+  return (
+    <section className={cn('rounded-lg border border-border bg-card/40 px-3 py-2.5', className)}>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+          <Paperclip className="h-3.5 w-3.5 text-muted-foreground" />
+          {t('notes.attachments.title')}
+          {loading ? <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" /> : null}
+        </div>
+        {actionButtons}
+      </div>
+      {body}
     </section>
   )
 }

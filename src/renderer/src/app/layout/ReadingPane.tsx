@@ -18,29 +18,26 @@ import {
   ZoomOut,
   RotateCcw,
   Paperclip,
-  Download,
-  FileText,
-  FileImage,
-  FileSpreadsheet,
-  FileArchive,
   Loader2,
-  Tag,
   ListTodo,
   CheckSquare,
   Unlink,
   SquareArrowOutUpRight,
-  PanelRightClose
+  PanelRightClose,
+  CalendarDays
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useShallow } from 'zustand/react/shallow'
 import { useMailStore } from '@/stores/mail'
-import { formatBytes } from '@/lib/format-bytes'
+import { logIpcError } from '@/lib/ipc-error-log'
 import { useAccountsStore } from '@/stores/accounts'
 import { threadGroupingKey } from '@/lib/thread-group'
 import { dedupeMailListThreadMessagesById } from '@/lib/mail-list-ui'
 import { runMailQuickStep } from '@/lib/run-mail-quickstep'
 import { QUICKSTEPS_CHANGED_EVENT } from '@/lib/quicksteps-changed'
+import { hasComposeDraftContent } from '@/lib/compose-draft-save'
+import { flushComposeEditor } from '@/lib/compose-editor-flush'
 import { useComposeStore } from '@/stores/compose'
 import {
   useComposeEditorEffectiveTheme,
@@ -74,8 +71,18 @@ import { buildMailSenderContextItems } from '@/lib/mail-sender-context-menu'
 import { findContactByEmail } from '@/lib/contact-photo-by-email'
 import { useCreateContactFromMailStore } from '@/stores/create-contact-from-mail'
 import { ContextMenu, type ContextMenuItem } from '@/components/ContextMenu'
+import {
+  openMailSelectionToExistingNote,
+  openMailSelectionToNewNote
+} from '@/lib/mail-to-note'
 import { ReadingPaneCompose } from '@/components/ReadingPaneCompose'
 import { MailCategoriesPopover } from '@/components/MailCategoriesPopover'
+import { NotesCategoryBadges } from '@/components/NotesCategoryBadges'
+import { LocalAttachmentChip } from '@/components/AttachmentChips'
+import { PreviewMetaDot, PreviewMetaRow } from '@/components/preview-meta-chrome'
+import { formatNotePageDateLong } from '@/app/notes/notes-display-helpers'
+import { useDateFnsLocale } from '@/lib/date-fns-locale'
+import { wellKnownFolderTitle } from '@shared/well-known-folder-title'
 import { MailTodoScheduleButton } from '@/components/MailTodoSchedulePopover'
 import { EntityContextBlock } from '@/components/connections/EntityContextBlock'
 import {
@@ -103,7 +110,6 @@ import { useCreateCloudTaskUiStore } from '@/stores/create-cloud-task-ui'
 import { openScheduleMeetingFromMail } from '@/lib/mail-schedule-meeting-action'
 import { accountSupportsCloudTasks } from '@/lib/cloud-task-accounts'
 import type { AttachmentMeta, MailFull, ConnectedAccount, MailQuickStep } from '@shared/types'
-import { outlookCategoryDotClass } from '@/lib/outlook-category-colors'
 import type { IsolatedMailView } from '@/app/layout/use-isolated-mail-view'
 
 /** `datetime-local` im Browser (lokale Zeit) aus ISO-String. */
@@ -226,7 +232,22 @@ export function ReadingPane({
   const openDraftFromMessage = useComposeStore((s) => s.openDraftFromMessage)
   const popOutCompose = useComposeStore((s) => s.popOutToWindow)
   const closeCompose = useComposeStore((s) => s.closeAndSaveDraft)
+  const saveRemoteDraft = useComposeStore((s) => s.saveRemoteDraft)
   const readingPaneDraft = useComposeStore((s) => s.drafts.find((d) => d.embedInReadingPane) ?? null)
+  const visibleComposeDraft = useMemo(() => {
+    if (!readingPaneDraft) return null
+    const isStandalone =
+      readingPaneDraft.linkedMessageId == null && readingPaneDraft.replyToMessageId == null
+    if (isStandalone) return readingPaneDraft
+    if (!selectedMessage) return null
+    if (
+      readingPaneDraft.linkedMessageId === selectedMessage.id ||
+      readingPaneDraft.replyToMessageId === selectedMessage.id
+    ) {
+      return readingPaneDraft
+    }
+    return null
+  }, [readingPaneDraft, selectedMessage])
   const selectedFolderId = useMailStore((s) => s.selectedFolderId)
   const openSnoozePicker = useSnoozeUiStore((s) => s.open)
 
@@ -267,8 +288,17 @@ export function ReadingPane({
     const isStandaloneCompose =
       readingPaneDraft.linkedMessageId == null && readingPaneDraft.replyToMessageId == null
 
-    if (isStandaloneCompose || !tiesToSelection) {
+    if (isStandaloneCompose) {
       void closeCompose(readingPaneDraft.id)
+      return
+    }
+
+    if (!tiesToSelection) {
+      flushComposeEditor(readingPaneDraft.id)
+      const current = useComposeStore.getState().drafts.find((d) => d.id === readingPaneDraft.id)
+      if (current && hasComposeDraftContent(current)) {
+        void saveRemoteDraft(readingPaneDraft.id)
+      }
     }
   }, [
     selectedMessage?.id,
@@ -276,7 +306,8 @@ export function ReadingPane({
     readingPaneDraft?.id,
     readingPaneDraft?.linkedMessageId,
     readingPaneDraft?.replyToMessageId,
-    closeCompose
+    closeCompose,
+    saveRemoteDraft
   ])
 
   useEffect(() => {
@@ -499,7 +530,7 @@ export function ReadingPane({
 
   return (
     <section className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      {!readingPaneDraft && !hideEntityConnections && (
+      {!visibleComposeDraft && !hideEntityConnections && (
       <div ref={toolbarRef} className={moduleColumnHeaderReadingToolbarClass}>
         <div className="flex min-h-0 min-w-0 flex-1 items-center gap-0.5 overflow-x-auto">
         <IconButton
@@ -575,7 +606,9 @@ export function ReadingPane({
                 })
                 return
               }
-              void setTodoScheduleForMessage(selectedMessage.id, s, e).catch(() => undefined)
+              void setTodoScheduleForMessage(selectedMessage.id, s, e).catch((err) =>
+                logIpcError('mail.setTodoScheduleForMessage', err)
+              )
             }}
           />
         ) : null}
@@ -652,11 +685,15 @@ export function ReadingPane({
       )}
 
       {readingPaneDraft ? (
-        <ReadingPaneCompose
-          draft={readingPaneDraft}
-          onPopOut={(): void => popOutCompose(readingPaneDraft.id)}
-        />
-      ) : !selectedMessageId ? (
+        <div className={cn('flex min-h-0 flex-1 flex-col', !visibleComposeDraft && 'hidden')}>
+          <ReadingPaneCompose
+            draft={readingPaneDraft}
+            visible={Boolean(visibleComposeDraft)}
+            onPopOut={(): void => popOutCompose(readingPaneDraft.id)}
+          />
+        </div>
+      ) : null}
+      {visibleComposeDraft ? null : !selectedMessageId ? (
         <EmptyState
           title={emptySelectionTitle ?? t('mail.readingPane.emptyNoSelectionTitle')}
           body={
@@ -802,7 +839,9 @@ function MailReader({
   onForward: () => void
   onScheduleMeeting: () => void
 }): JSX.Element {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
+  const dfLocale = useDateFnsLocale()
+  const foldersByAccount = useMailStore((s) => s.foldersByAccount)
   const {
     imageSrc: senderProfilePhoto,
     useGravatar: senderUseGravatar,
@@ -827,6 +866,11 @@ function MailReader({
     x: number
     y: number
     items: ContextMenuItem[]
+  } | null>(null)
+  const [selectionMenu, setSelectionMenu] = useState<{
+    x: number
+    y: number
+    text: string
   } | null>(null)
   const openContactFromMail = useCreateContactFromMailStore((s) => s.openFromMessage)
   const openContactInPeople = useCreateContactFromMailStore((s) => s.openContactInPeople)
@@ -879,7 +923,7 @@ function MailReader({
         if (realHasAttachments && !message.hasAttachments) {
           void window.mailClient.mail
             .syncAttachmentsFlag(messageId, true)
-            .catch(() => undefined)
+            .catch((err) => logIpcError('mail.syncAttachmentsFlag', err))
         }
 
         // Inline-Bilder fuer cid:-Referenzen im HTML nachladen (Signatur, Logo, …).
@@ -960,10 +1004,28 @@ function MailReader({
   }, [message.id, autoLoadImages])
 
   const sent = message.receivedAt || message.sentAt
-  const dateLabel = sent
-    ? new Date(sent).toLocaleString(i18n.language.startsWith('de') ? 'de-DE' : 'en-GB')
-    : ''
+  const dateTimeLabel = sent ? formatNotePageDateLong(sent, dfLocale) : null
   const categories = message.categories ?? []
+  const folderLabel = ((): string | null => {
+    if (message.folderId == null) return null
+    const folders = foldersByAccount[message.accountId] ?? []
+    const folder = folders.find((f) => f.id === message.folderId)
+    if (!folder) return null
+    return wellKnownFolderTitle(folder.wellKnown, folder.name, t)
+  })()
+  const fromLabel = message.fromName?.trim() || message.fromAddr?.trim() || t('common.unknown')
+  const fromAddrDetail =
+    message.fromAddr?.trim() && message.fromName?.trim() ? message.fromAddr.trim() : null
+  const accountLabel = account?.displayName?.trim() || account?.email?.trim() || null
+  const titleClass = conversationTile ? 'text-xl' : 'text-2xl'
+
+  function openCategoryPicker(e: React.MouseEvent | React.KeyboardEvent): void {
+    if (!account) return
+    const target = e.currentTarget as HTMLElement
+    const r = target.getBoundingClientRect()
+    setCategoryAnchor({ x: Math.max(8, r.left), y: r.bottom + 6 })
+    setCategoryOpen(true)
+  }
 
   return (
     <div
@@ -978,28 +1040,47 @@ function MailReader({
           conversationTile ? 'pb-3' : 'border-b border-border'
         )}
       >
-        <div className="flex items-start gap-3">
-          <div className="min-w-0 flex-1 space-y-1.5">
-            <h1 className="text-base font-semibold leading-snug text-foreground">
+        <div className="flex items-start justify-between gap-3">
+          <div
+            className="flex min-w-0 flex-1 items-start gap-3 border-b border-foreground/20 pb-1"
+            onContextMenu={(e): void => {
+              if (!message.fromAddr?.trim()) return
+              e.preventDefault()
+              e.stopPropagation()
+              void (async (): Promise<void> => {
+                const hit = await findContactByEmail(message.fromAddr, message.accountId)
+                const items = buildMailSenderContextItems(
+                  message,
+                  hit?.id ?? null,
+                  {
+                    onCreateContact: (): void => openContactFromMail(message),
+                    onOpenContact: openContactInPeople
+                  },
+                  t
+                )
+                if (items.length === 0) return
+                setSenderMenu({ x: e.clientX, y: e.clientY, items })
+              })()
+            }}
+          >
+            <Avatar
+              name={message.fromName}
+              email={message.fromAddr}
+              accountColor={account?.color}
+              imageSrc={senderProfilePhoto}
+              useGravatar={senderUseGravatar}
+              useDomainAvatar={senderUseDomainAvatar}
+              size="lg"
+              className="mt-0.5"
+            />
+            <h1
+              className={cn(
+                'min-w-0 flex-1 font-normal leading-snug tracking-tight text-foreground',
+                titleClass
+              )}
+            >
               {message.subject || t('common.noSubject')}
             </h1>
-            {categories.length > 0 && (
-              <div className="flex flex-wrap gap-1">
-                {categories.map((c) => (
-                  <span
-                    key={c}
-                    className="inline-flex max-w-full items-center gap-1 rounded-full border border-border bg-secondary/60 px-2 py-0.5 text-[10px] font-medium text-foreground/90"
-                    title={c}
-                  >
-                    <span
-                      className={cn('h-2 w-2 shrink-0 rounded-full', outlookCategoryDotClass(null))}
-                      aria-hidden
-                    />
-                    <span className="truncate">{c}</span>
-                  </span>
-                ))}
-              </div>
-            )}
           </div>
           <div className="flex shrink-0 items-start gap-1">
             <div
@@ -1029,7 +1110,7 @@ function MailReader({
                 shortcut="L"
                 onClick={onForward}
                 iconClassName="text-sky-500"
-                hoverClassName="hover:bg-sky-500/15 hover:text-sky-400"
+                hoverClassName="hover:bg-sky-500/15 hover:text-violet-400"
               />
               <IconButton
                 icon={CalendarClock}
@@ -1054,26 +1135,6 @@ function MailReader({
                 {t('mail.promoteCloudTask.button')}
               </button>
             ) : null}
-            <button
-              type="button"
-              disabled={!account}
-              onClick={(e): void => {
-                if (!account) return
-                const r = e.currentTarget.getBoundingClientRect()
-                setCategoryAnchor({ x: Math.max(8, r.left), y: r.bottom + 6 })
-                setCategoryOpen(true)
-              }}
-              className={cn(
-                'inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border transition-colors',
-                categories.length > 0
-                  ? 'border-border bg-secondary/40 text-foreground hover:bg-secondary/70'
-                  : 'border-dashed border-border text-muted-foreground hover:bg-secondary/50 hover:text-foreground'
-              )}
-              title={t('mail.readingPane.categoriesTitle')}
-              aria-label={t('mail.readingPane.categories')}
-            >
-              <Tag className="h-3.5 w-3.5" />
-            </button>
             {realAttachmentCount > 0 && (
               <span
                 className="inline-flex shrink-0 items-center gap-1 rounded-full bg-status-flagged/15 px-2 py-0.5 text-[11px] font-medium text-status-flagged"
@@ -1089,6 +1150,127 @@ function MailReader({
             )}
           </div>
         </div>
+
+        <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-sm">
+          {dateTimeLabel ? (
+            <>
+              <CalendarDays className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+              <span className="tabular-nums">{dateTimeLabel}</span>
+              <PreviewMetaDot />
+            </>
+          ) : null}
+          <span className="inline-flex min-w-0 max-w-full items-center gap-1">
+            <span className="shrink-0 text-xs italic text-muted-foreground">
+              {t('mail.readingPane.metaFolder')}:
+            </span>
+            {folderLabel ? (
+              <span className="truncate">{folderLabel}</span>
+            ) : (
+              <span className="text-muted-foreground">—</span>
+            )}
+          </span>
+          <PreviewMetaDot />
+          <span
+            className="inline-flex min-w-0 max-w-full items-center gap-1"
+            onContextMenu={(e): void => {
+              if (!message.fromAddr?.trim()) return
+              e.preventDefault()
+              e.stopPropagation()
+              void (async (): Promise<void> => {
+                const hit = await findContactByEmail(message.fromAddr, message.accountId)
+                const items = buildMailSenderContextItems(
+                  message,
+                  hit?.id ?? null,
+                  {
+                    onCreateContact: (): void => openContactFromMail(message),
+                    onOpenContact: openContactInPeople
+                  },
+                  t
+                )
+                if (items.length === 0) return
+                setSenderMenu({ x: e.clientX, y: e.clientY, items })
+              })()
+            }}
+          >
+            <span className="shrink-0 text-xs italic text-muted-foreground">
+              {t('mail.readingPane.metaFrom')}:
+            </span>
+            <span className="truncate font-medium">{fromLabel}</span>
+            {fromAddrDetail ? (
+              <span className="truncate text-xs text-muted-foreground">&lt;{fromAddrDetail}&gt;</span>
+            ) : null}
+          </span>
+          {message.toAddrs?.trim() ? (
+            <>
+              <PreviewMetaDot />
+              <span className="inline-flex min-w-0 max-w-full items-center gap-1">
+                <span className="shrink-0 text-xs italic text-muted-foreground">
+                  {t('mail.readingPane.metaTo')}:
+                </span>
+                <span className="truncate">{message.toAddrs.trim()}</span>
+              </span>
+            </>
+          ) : null}
+          {message.ccAddrs?.trim() ? (
+            <>
+              <PreviewMetaDot />
+              <span className="inline-flex min-w-0 max-w-full items-center gap-1">
+                <span className="shrink-0 text-xs italic text-muted-foreground">
+                  {t('mail.readingPane.metaCc')}:
+                </span>
+                <span className="truncate">{message.ccAddrs.trim()}</span>
+              </span>
+            </>
+          ) : null}
+          <PreviewMetaDot />
+          <span className="inline-flex min-w-0 max-w-full items-center gap-1">
+            <span className="shrink-0 text-xs italic text-muted-foreground">
+              {t('mail.readingPane.metaCategories')}:
+            </span>
+            <button
+              type="button"
+              disabled={!account}
+              className="min-w-0 text-left disabled:cursor-default"
+              title={t('mail.readingPane.categoriesTitle')}
+              onClick={openCategoryPicker}
+            >
+              {categories.length > 0 ? (
+                <NotesCategoryBadges names={categories} colorByName={new Map()} />
+              ) : (
+                <span className="text-muted-foreground">{t('mail.readingPane.categoriesEmpty')}</span>
+              )}
+            </button>
+          </span>
+          {accountLabel ? (
+            <>
+              <PreviewMetaDot />
+              <span className="inline-flex min-w-0 max-w-full items-center gap-1">
+                <span className="shrink-0 text-xs italic text-muted-foreground">
+                  {t('mail.readingPane.metaAccount')}:
+                </span>
+                <span className="truncate">{accountLabel}</span>
+              </span>
+            </>
+          ) : null}
+          {message.isFlagged ? (
+            <>
+              <PreviewMetaDot />
+              <span className="inline-flex items-center gap-1 text-amber-500">
+                <Star className="h-3 w-3 fill-current" aria-hidden />
+                <span className="text-xs">{t('mail.readingPane.metaFlagged')}</span>
+              </span>
+            </>
+          ) : null}
+          {message.importance === 'high' ? (
+            <>
+              <PreviewMetaDot />
+              <span className="text-xs font-medium text-destructive">
+                {t('mail.readingPane.metaImportanceHigh')}
+              </span>
+            </>
+          ) : null}
+        </div>
+
         <MailCategoriesPopover
           open={categoryOpen}
           anchor={categoryAnchor}
@@ -1097,63 +1279,7 @@ function MailReader({
           selectedNames={categories}
           onClose={(): void => setCategoryOpen(false)}
         />
-        <div
-          className="flex items-start gap-3"
-          onContextMenu={(e): void => {
-            if (!message.fromAddr?.trim()) return
-            e.preventDefault()
-            e.stopPropagation()
-            void (async (): Promise<void> => {
-              const hit = await findContactByEmail(message.fromAddr, message.accountId)
-              const items = buildMailSenderContextItems(
-                message,
-                hit?.id ?? null,
-                {
-                  onCreateContact: (): void => openContactFromMail(message),
-                  onOpenContact: openContactInPeople
-                },
-                t
-              )
-              if (items.length === 0) return
-              setSenderMenu({ x: e.clientX, y: e.clientY, items })
-            })()
-          }}
-        >
-          <Avatar
-            name={message.fromName}
-            email={message.fromAddr}
-            accountColor={account?.color}
-            imageSrc={senderProfilePhoto}
-            useGravatar={senderUseGravatar}
-            useDomainAvatar={senderUseDomainAvatar}
-            size="lg"
-          />
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-baseline gap-x-2">
-              <span className="truncate text-sm font-medium text-foreground">
-                {message.fromName || message.fromAddr || t('common.unknown')}
-              </span>
-              {message.fromAddr && message.fromName && (
-                <span className="truncate text-[11px] text-muted-foreground">
-                  &lt;{message.fromAddr}&gt;
-                </span>
-              )}
-            </div>
-            {message.toAddrs && (
-              <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
-                <span className="font-medium text-foreground/70">{t('mail.readingPane.toPrefix')}</span> {message.toAddrs}
-              </div>
-            )}
-            {message.ccAddrs && (
-              <div className="truncate text-[11px] text-muted-foreground">
-                <span className="font-medium text-foreground/70">{t('mail.readingPane.ccPrefix')}</span> {message.ccAddrs}
-              </div>
-            )}
-          </div>
-          <div className="shrink-0 text-[11px] text-muted-foreground tabular-nums">
-            {dateLabel}
-          </div>
-        </div>
+
         {!loadImages && message.bodyHtml && hasExternalImages(message.bodyHtml) && (
           <button
             type="button"
@@ -1165,14 +1291,12 @@ function MailReader({
           </button>
         )}
 
-        {showAttachmentBar && (
-          <AttachmentBar messageId={message.id} attachments={visibleAttachments} />
-        )}
-        {showAttachmentLoading && (
-          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-            <Loader2 className="h-3 w-3 animate-spin" />
-            {t('mail.readingPane.loadingAttachments')}
-          </div>
+        {(showAttachmentBar || showAttachmentLoading) && (
+          <MailPreviewAttachmentsPanel
+            messageId={message.id}
+            attachments={visibleAttachments}
+            loading={showAttachmentLoading}
+          />
         )}
       </header>
 
@@ -1199,6 +1323,12 @@ function MailReader({
         data-mail-preview-scale={String(previewScale)}
         role="document"
         aria-label={t('mail.readingPane.contentIframeTitle')}
+        onContextMenu={(e): void => {
+          const text = window.getSelection()?.toString().trim()
+          if (!text) return
+          e.preventDefault()
+          setSelectionMenu({ x: e.clientX, y: e.clientY, text })
+        }}
       />
 
       {!hideEntityConnections ? (
@@ -1236,6 +1366,30 @@ function MailReader({
         </>
       ) : null}
 
+      {selectionMenu ? (
+        <ContextMenu
+          x={selectionMenu.x}
+          y={selectionMenu.y}
+          items={[
+            {
+              id: 'selection-new-note',
+              label: t('notes.mailInsert.selectionNewPage'),
+              onSelect: (): void => {
+                openMailSelectionToNewNote(message.id, { text: selectionMenu.text })
+              }
+            },
+            {
+              id: 'selection-append-note',
+              label: t('notes.mailInsert.selectionAppendPage'),
+              onSelect: (): void => {
+                openMailSelectionToExistingNote(message.id, { text: selectionMenu.text })
+              }
+            }
+          ]}
+          onClose={(): void => setSelectionMenu(null)}
+        />
+      ) : null}
+
       {senderMenu ? (
         <ContextMenu
           x={senderMenu.x}
@@ -1249,17 +1403,17 @@ function MailReader({
   )
 }
 
-function AttachmentBar({
+function MailPreviewAttachmentsPanel({
   messageId,
-  attachments
+  attachments,
+  loading
 }: {
   messageId: number
   attachments: AttachmentMeta[]
-}): JSX.Element | null {
+  loading: boolean
+}): JSX.Element {
   const { t } = useTranslation()
   const [busyId, setBusyId] = useState<string | null>(null)
-
-  if (attachments.length === 0) return null
 
   async function open(a: AttachmentMeta): Promise<void> {
     setBusyId(a.id)
@@ -1276,8 +1430,7 @@ function AttachmentBar({
     }
   }
 
-  async function saveAs(a: AttachmentMeta, e: React.MouseEvent): Promise<void> {
-    e.stopPropagation()
+  async function saveAs(a: AttachmentMeta): Promise<void> {
     setBusyId(a.id)
     try {
       const res = await window.mailClient.mail.saveAttachmentAs(messageId, a.id, a.name)
@@ -1292,73 +1445,37 @@ function AttachmentBar({
     }
   }
 
-  const count = attachments.length
+  const attachmentLabel =
+    attachments.length === 1
+      ? t('mail.readingPane.attachment_one')
+      : t('mail.readingPane.attachment_other')
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      <div className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
-        <Paperclip className="h-3 w-3" />
-        {`${count} ${count === 1 ? t('mail.readingPane.attachment_one') : t('mail.readingPane.attachment_other')}`}
-      </div>
-      {attachments.map((a) => {
-        const Icon = pickAttachmentIcon(a)
-        const isBusy = busyId === a.id
-        return (
-          <div
-            key={a.id}
-            className="group flex items-center gap-1.5 overflow-hidden rounded-md border border-border bg-secondary/40 pl-2 pr-1 transition-colors hover:bg-secondary"
-          >
-            <button
-              type="button"
-              onClick={(): void => void open(a)}
-              disabled={isBusy}
-              title={t('mail.readingPane.openAttachmentTitle', {
-                name: a.name,
-                size: a.size != null ? ` (${formatBytes(a.size)})` : ''
-              })}
-              className="flex max-w-[260px] items-center gap-1.5 py-1 text-left text-[11px] text-foreground disabled:opacity-50"
-            >
-              {isBusy ? (
-                <Loader2 className="h-3 w-3 shrink-0 animate-spin" />
-              ) : (
-                <Icon className="h-3 w-3 shrink-0 text-muted-foreground" />
-              )}
-              <span className="truncate font-medium">{a.name}</span>
-              {a.size != null && (
-                <span className="shrink-0 text-[10px] text-muted-foreground">
-                  {formatBytes(a.size)}
-                </span>
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={(e): void => void saveAs(a, e)}
-              disabled={isBusy}
-              title={t('mail.readingPane.saveAttachmentAsTitle')}
-              className="ml-0.5 rounded p-1 text-muted-foreground transition-colors hover:bg-background hover:text-foreground disabled:opacity-50"
-            >
-              <Download className="h-3 w-3" />
-            </button>
+    <div className="mt-1 overflow-hidden rounded-sm border border-border/60 bg-muted/30">
+      <PreviewMetaRow label={attachmentLabel} className="border-b-0">
+        {loading ? (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            {t('mail.readingPane.loadingAttachments')}
           </div>
-        )
-      })}
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {attachments.map((a) => (
+              <LocalAttachmentChip
+                key={a.id}
+                name={a.name}
+                contentType={a.contentType ?? 'application/octet-stream'}
+                size={a.size ?? null}
+                onOpen={busyId === a.id ? undefined : (): void => void open(a)}
+                onSaveAs={busyId === a.id ? undefined : (): void => void saveAs(a)}
+                saveAsLabel={t('mail.readingPane.saveAttachmentAsTitle')}
+              />
+            ))}
+          </div>
+        )}
+      </PreviewMetaRow>
     </div>
   )
-}
-
-function pickAttachmentIcon(a: AttachmentMeta): React.ComponentType<{ className?: string }> {
-  const ct = (a.contentType ?? '').toLowerCase()
-  const ext = (a.name.split('.').pop() ?? '').toLowerCase()
-  if (ct.startsWith('image/') || ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(ext)) {
-    return FileImage
-  }
-  if (ct.includes('spreadsheet') || ['xls', 'xlsx', 'csv', 'ods'].includes(ext)) {
-    return FileSpreadsheet
-  }
-  if (ct.includes('zip') || ['zip', '7z', 'rar', 'tar', 'gz'].includes(ext)) {
-    return FileArchive
-  }
-  return FileText
 }
 
 function IconButton({

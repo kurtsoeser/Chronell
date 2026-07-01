@@ -1,4 +1,5 @@
 import { normalizeExternalOpenUrl } from '@shared/external-open-url'
+import { logIpcError } from '@/lib/ipc-error-log'
 
 /**
  * Oeffnet erlaubte URLs per IPC (`shell.openExternal`); siehe `@shared/external-open-url`.
@@ -32,4 +33,9 @@ export async function openExternalUrl(url: string): Promise<void> {
   // Kein `window.open` fuer http(s): oeffnet eine Electron-WebContents und scheitert
   // oft mit ERR_BLOCKED_BY_CSP (Tracking-Redirects). Preload/IPC ist Pflicht.
   throw new Error('openExternal (Preload) nicht verfuegbar — bitte App neu starten.')
+}
+
+/** Fire-and-forget mit konsistentem Fehlerlogging. */
+export function voidOpenExternalUrl(url: string, context = 'openExternalUrl'): void {
+  void openExternalUrl(url).catch((err) => logIpcError(context, err))
 }

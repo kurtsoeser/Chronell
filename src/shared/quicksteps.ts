@@ -5,6 +5,7 @@
 
 import type { MailQuickStep, TodoDueKindOpen } from './types'
 import type { RuleSnoozePreset } from './mail-rules'
+import { isOpenTodoDueKind } from './todo-due-kinds'
 
 /** Kanonische Aktions-Typen (JSON in `quicksteps.actions_json`). */
 export type QuickStepActionType =
@@ -103,8 +104,6 @@ export const QUICK_STEP_ACTION_CATALOG: QuickStepActionCatalogEntry[] = [
   { type: 'snooze', category: 'snooze', needsSnoozePreset: true }
 ]
 
-const OPEN_TODO_KINDS = new Set<TodoDueKindOpen>(['today', 'tomorrow', 'this_week', 'later'])
-
 const LEGACY_TYPE_MAP: Record<string, QuickStepActionType | null> = {
   markRead: 'mark_read',
   markUnread: 'mark_unread',
@@ -124,7 +123,7 @@ const LEGACY_TYPE_MAP: Record<string, QuickStepActionType | null> = {
 
 function parseTodoDueKind(v: unknown): TodoDueKindOpen | null {
   if (typeof v !== 'string') return null
-  return OPEN_TODO_KINDS.has(v as TodoDueKindOpen) ? (v as TodoDueKindOpen) : null
+  return isOpenTodoDueKind(v) ? v : null
 }
 
 /** Einzelne Roh-Aktion aus JSON in kanonisches Format bringen (inkl. Legacy). */

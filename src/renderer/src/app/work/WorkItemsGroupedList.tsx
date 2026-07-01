@@ -3,7 +3,7 @@ import { Virtuoso } from 'react-virtuoso'
 import { CheckCircle2, ChevronDown, ChevronRight, Circle, Mail } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { format, parseISO } from 'date-fns'
-import { de, enUS } from 'date-fns/locale'
+import { useDateFnsLocale } from '@/lib/date-fns-locale'
 import type { ConnectedAccount } from '@shared/types'
 import type { WorkItem } from '@shared/work-item'
 import { cn } from '@/lib/utils'
@@ -64,7 +64,7 @@ export function WorkItemsGroupedList({
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
   const accountById = useMemo(() => new Map(accounts.map((a) => [a.id, a] as const)), [accounts])
   const itemByKey = useMemo(() => new Map(items.map((i) => [i.stableKey, i] as const)), [items])
-  const dfLocale = i18n.language.startsWith('de') ? de : enUS
+  const dfLocale = useDateFnsLocale()
 
   const arrangeCtx = useMemo((): WorkListArrangeContext => {
     return {
@@ -110,10 +110,6 @@ export function WorkItemsGroupedList({
       else next.add(collapseKey)
       return next
     })
-  }
-
-  if (groups.length === 0) {
-    return <p className="p-4 text-xs text-muted-foreground">{t('work.shell.emptyFiltered')}</p>
   }
 
   const flat = arrange === 'none'
@@ -209,6 +205,10 @@ export function WorkItemsGroupedList({
     },
     [accountById, checkedKeys, onContextMenu, onItemClick, onSelect, onToggleCompleted, selectedKey, t, timeZone, tasksSettings]
   )
+
+  if (groups.length === 0) {
+    return <p className="p-4 text-xs text-muted-foreground">{t('work.shell.emptyFiltered')}</p>
+  }
 
   if (flat && items.length >= GROUPED_LIST_VIRTUALIZE_THRESHOLD) {
     return (

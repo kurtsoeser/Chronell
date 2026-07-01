@@ -15,8 +15,7 @@ import timeGridPlugin from '@fullcalendar/timegrid'
 import listPlugin from '@fullcalendar/list'
 import interactionPlugin from '@fullcalendar/interaction'
 import luxonPlugin from '@fullcalendar/luxon'
-import deLocale from '@fullcalendar/core/locales/de'
-import enGbLocale from '@fullcalendar/core/locales/en-gb'
+import { useCalendarFcLocale } from '@/hooks/use-calendar-fc-locale'
 import type { DateSelectArg, EventDropArg } from '@fullcalendar/core'
 import type { EventResizeDoneArg } from '@fullcalendar/interaction'
 import { appointmentRangeFromCalendarSlot } from '@/lib/zoned-iso-date'
@@ -119,7 +118,7 @@ export function TasksCalendarPane({
 }: TasksCalendarPaneProps): JSX.Element {
   const { i18n } = useTranslation()
   const calendarFcEventContentRender = useCalendarFcEventContent()
-  const fcLocale = i18n.language.startsWith('de') ? deLocale : enGbLocale
+  const fcLocale = useCalendarFcLocale()
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
 
   const calendarRef = useRef<FullCalendar | null>(null)

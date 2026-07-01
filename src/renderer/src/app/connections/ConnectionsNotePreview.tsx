@@ -6,7 +6,12 @@ import { formatNoteDate, noteTitle } from '@/app/notes/notes-display-helpers'
 import { NoteDisplayIcon } from '@/components/NoteDisplayIcon'
 import { CalendarEventIconPicker } from '@/components/CalendarEventIconPicker'
 import { IconColorPickerFooter } from '@/components/IconColorPickerFooter'
-import { MarkdownNoteEditor } from '@/components/MarkdownNoteEditor'
+import { TipTapNoteEditorLazy } from '@/components/TipTapNoteEditorLazy'
+import {
+  noteBodiesEqual,
+  prepareNoteBodyForEditor,
+  storedBodyFromEditorHtml
+} from '@/lib/note-body-html'
 import { resolveEntityIconColor } from '@shared/entity-icon-color'
 import { cn } from '@/lib/utils'
 
@@ -18,7 +23,8 @@ async function persistNote(
   invalidNoteMessage: string
 ): Promise<UserNote> {
   const title = patch.title !== undefined ? patch.title : (note.title?.trim() ?? '')
-  const body = patch.body !== undefined ? patch.body : note.body
+  const body =
+    patch.body !== undefined ? storedBodyFromEditorHtml(patch.body) : note.body
   if (note.kind === 'standalone') {
     return window.mailClient.notes.updateStandalone({
       id: note.id,
@@ -66,28 +72,51 @@ export function ConnectionsNotePreview({
   const displayTitle = noteTitle(note, untitled)
 
   const [titleDraft, setTitleDraft] = useState(displayTitle)
-  const [bodyDraft, setBodyDraft] = useState(note.body)
+  const [editorSeedHtml, setEditorSeedHtml] = useState('')
   const [saving, setSaving] = useState(false)
   const [inlineError, setInlineError] = useState<string | null>(null)
 
+  const bodyRef = useRef('')
+  const editorFlushRef = useRef<(() => void) | null>(null)
   const savedSnapshotRef = useRef({ title: displayTitle, body: note.body, noteId: note.id })
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
+    const prepared = prepareNoteBodyForEditor(note.body)
+    const editorHtml = prepared.html
+    bodyRef.current = editorHtml
+    setEditorSeedHtml(editorHtml)
     savedSnapshotRef.current = { title: displayTitle, body: note.body, noteId: note.id }
     setTitleDraft(displayTitle)
-    setBodyDraft(note.body)
     setInlineError(null)
-  }, [displayTitle, note.body, note.id])
+
+    if (!prepared.migratedFromMarkdown) return
+    void (async (): Promise<void> => {
+      try {
+        const stored = storedBodyFromEditorHtml(editorHtml)
+        const saved = await persistNote(note, { body: stored }, t('notes.shell.invalidNote'))
+        savedSnapshotRef.current = {
+          title: noteTitle(saved, untitled),
+          body: saved.body,
+          noteId: saved.id
+        }
+        onNoteChange(saved)
+      } catch {
+        // Migriertes HTML bleibt im Editor; Speichern beim naechsten Autosave.
+      }
+    })()
+  }, [displayTitle, note, onNoteChange, t, untitled])
 
   const flushSave = useCallback(async (): Promise<void> => {
     if (autosaveTimerRef.current != null) {
       clearTimeout(autosaveTimerRef.current)
       autosaveTimerRef.current = null
     }
+    editorFlushRef.current?.()
     const nextTitle = titleDraft.trim() || untitled
+    const nextBody = storedBodyFromEditorHtml(bodyRef.current)
     const titleChanged = nextTitle !== savedSnapshotRef.current.title
-    const bodyChanged = bodyDraft !== savedSnapshotRef.current.body
+    const bodyChanged = !noteBodiesEqual(nextBody, savedSnapshotRef.current.body)
     if (!titleChanged && !bodyChanged) return
     setSaving(true)
     setInlineError(null)
@@ -96,10 +125,13 @@ export function ConnectionsNotePreview({
         note,
         {
           ...(titleChanged ? { title: nextTitle } : {}),
-          ...(bodyChanged ? { body: bodyDraft } : {})
+          ...(bodyChanged ? { body: bodyRef.current } : {})
         },
         t('notes.shell.invalidNote')
       )
+      const editorHtml = prepareNoteBodyForEditor(saved.body).html
+      bodyRef.current = editorHtml
+      setEditorSeedHtml(editorHtml)
       savedSnapshotRef.current = {
         title: noteTitle(saved, untitled),
         body: saved.body,
@@ -111,7 +143,7 @@ export function ConnectionsNotePreview({
     } finally {
       setSaving(false)
     }
-  }, [bodyDraft, note, onNoteChange, t, titleDraft, untitled])
+  }, [note, onNoteChange, t, titleDraft, untitled])
 
   const scheduleAutosave = useCallback((): void => {
     if (autosaveTimerRef.current != null) clearTimeout(autosaveTimerRef.current)
@@ -121,11 +153,17 @@ export function ConnectionsNotePreview({
     }, AUTOSAVE_MS)
   }, [flushSave])
 
+  const handleBodyChange = useCallback(
+    (html: string): void => {
+      bodyRef.current = html
+      scheduleAutosave()
+    },
+    [scheduleAutosave]
+  )
+
   useEffect(() => {
     const nextTitle = titleDraft.trim() || untitled
-    const dirty =
-      nextTitle !== savedSnapshotRef.current.title || bodyDraft !== savedSnapshotRef.current.body
-    if (!dirty) return
+    if (nextTitle === savedSnapshotRef.current.title) return
     scheduleAutosave()
     return (): void => {
       if (autosaveTimerRef.current != null) {
@@ -133,7 +171,7 @@ export function ConnectionsNotePreview({
         autosaveTimerRef.current = null
       }
     }
-  }, [bodyDraft, scheduleAutosave, titleDraft, untitled])
+  }, [scheduleAutosave, titleDraft, untitled])
 
   const patchDisplay = useCallback(
     async (patch: { iconId?: string | null; iconColor?: string | null }): Promise<void> => {
@@ -199,21 +237,21 @@ export function ConnectionsNotePreview({
       </div>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col px-4 py-3">
-        <MarkdownNoteEditor
-          value={bodyDraft}
-          onChange={setBodyDraft}
+        <TipTapNoteEditorLazy
+          key={note.id}
+          valueHtml={editorSeedHtml}
+          onChangeHtml={handleBodyChange}
           placeholder={t('notes.editor.placeholder')}
           fillHeight
           minHeight={160}
-          layout="live"
-          preview="live"
-          disabled={saving}
+          flushRef={editorFlushRef}
           className="min-h-0 flex-1"
+          currentNoteId={note.id}
         />
       </div>
 
       <p className={cn('shrink-0 px-4 pb-2 text-[11px] text-muted-foreground')}>
-        {t('notes.editor.markdownHint')}
+        {t('notes.editor.wysiwygHint')}
       </p>
     </div>
   )

@@ -1,3 +1,5 @@
+import type { Locale } from 'date-fns'
+import { format } from 'date-fns'
 import type { ComponentType } from 'react'
 import type { TFunction } from 'i18next'
 import { CalendarDays, CheckSquare, Mail, StickyNote, User } from 'lucide-react'
@@ -31,6 +33,13 @@ export function formatNoteDate(value: string, locale: string): string {
   return d.toLocaleString(locale.startsWith('de') ? 'de-DE' : 'en-GB')
 }
 
+/** OneNote-artiges Seitendatum (Wochentag, Datum, Uhrzeit). */
+export function formatNotePageDateLong(value: string, dfLocale: Locale): string {
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return value
+  return format(d, 'PPPP · p', { locale: dfLocale })
+}
+
 export function noteKindLabel(
   note: Pick<UserNote, 'kind'> & Pick<Partial<UserNoteListItem>, 'primaryLinkKind'>,
   t: TFunction
@@ -55,15 +64,4 @@ export function noteTitle(
   return fallback
 }
 
-export function markdownPreviewText(value: string): string {
-  return value
-    .slice(0, 1200)
-    .replace(/```[\s\S]*?```/g, ' ')
-    .replace(/`([^`]+)`/g, '$1')
-    .replace(/!\[[^\]]*\]\([^)]+\)/g, ' ')
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-    .replace(/^\s{0,3}(#{1,6}|[-*+]\s+|\d+\.\s+|>\s?)/gm, '')
-    .replace(/[*_~>#]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
+export { markdownPreviewText, notePreviewText } from '@/lib/note-body-html'

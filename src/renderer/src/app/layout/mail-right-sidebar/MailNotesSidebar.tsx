@@ -3,7 +3,24 @@ import { ExternalLink, Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { NoteSection, UserNote, UserNoteListItem } from '@shared/types'
 import { NotesPagesPane } from '@/app/notes/NotesPagesPane'
-import { sortNotesPages, readNotesPagesSort, type NotesPagesSortKey } from '@/lib/notes-pages-sort'
+import { ComposeEditorThemeToggle } from '@/components/ComposeEditorThemeToggle'
+import { TipTapNoteEditorLazy } from '@/components/TipTapNoteEditorLazy'
+import {
+  noteBodiesEqual,
+  prepareNoteBodyForEditor,
+  storedBodyFromEditorHtml
+} from '@/lib/note-body-html'
+import { readNotesPagesSort, type NotesPagesSortKey } from '@/lib/notes-pages-sort'
+import { buildNotesPageRows } from '@/lib/notes-page-tree'
+import {
+  readNotesPageTreeCollapsed,
+  toggleNotesPageTreeCollapsed,
+  persistNotesPageTreeCollapsed
+} from '@/lib/notes-page-collapse-storage'
+import { safeMoveNoteToParent } from '@/lib/notes-ipc-client'
+import { resolveNotePageTemplate, type NotePageTemplateId } from '@/lib/note-page-templates'
+import { useCustomNotePageTemplates } from '@/hooks/use-custom-note-page-templates'
+import { useNotesSettingsPrefs } from '@/lib/use-notes-settings-prefs'
 import { cn } from '@/lib/utils'
 import { useAppModeStore } from '@/stores/app-mode'
 import { useNotesPendingFocusStore } from '@/stores/notes-pending-focus'
@@ -30,22 +47,21 @@ function userNoteToListItem(note: UserNote): UserNoteListItem {
 async function persistNoteBody(
   note: UserNoteListItem,
   body: string
-): Promise<void> {
+): Promise<UserNote> {
+  const storedBody = storedBodyFromEditorHtml(body)
   if (note.kind === 'standalone') {
-    await window.mailClient.notes.updateStandalone({
+    return window.mailClient.notes.updateStandalone({
       id: note.id,
       title: note.title ?? '',
-      body
+      body: storedBody
     })
-    return
   }
   if (note.kind === 'mail' && note.messageId != null) {
-    await window.mailClient.notes.upsertMail({
+    return window.mailClient.notes.upsertMail({
       messageId: note.messageId,
       title: note.title ?? '',
-      body
+      body: storedBody
     })
-    return
   }
   if (
     note.kind === 'calendar' &&
@@ -54,21 +70,24 @@ async function persistNoteBody(
     note.calendarRemoteId &&
     note.eventRemoteId
   ) {
-    await window.mailClient.notes.upsertCalendar({
+    return window.mailClient.notes.upsertCalendar({
       accountId: note.accountId,
       calendarSource: note.calendarSource,
       calendarRemoteId: note.calendarRemoteId,
       eventRemoteId: note.eventRemoteId,
       title: note.title ?? '',
-      body,
+      body: storedBody,
       eventTitleSnapshot: note.eventTitleSnapshot,
       eventStartIsoSnapshot: note.eventStartIsoSnapshot
     })
   }
+  throw new Error('invalid note')
 }
 
 export function MailNotesSidebar(): JSX.Element {
   const { t } = useTranslation()
+  const notesSettings = useNotesSettingsPrefs()
+  const { customTemplates } = useCustomNotePageTemplates()
   const setAppMode = useAppModeStore((s) => s.setMode)
   const setPendingNoteId = useNotesPendingFocusStore((s) => s.setPendingNoteId)
 
@@ -77,11 +96,16 @@ export function MailNotesSidebar(): JSX.Element {
   const [loading, setLoading] = useState(false)
   const [creating, setCreating] = useState(false)
   const [pagesSort, setPagesSort] = useState<NotesPagesSortKey>(() => readNotesPagesSort())
+  const [collapsedParentIds, setCollapsedParentIds] = useState<Set<number>>(() =>
+    readNotesPageTreeCollapsed()
+  )
   const [activeNoteId, setActiveNoteId] = useState<number | null>(null)
   const [composeNote, setComposeNote] = useState<UserNoteListItem | null>(null)
-  const [bodyDraft, setBodyDraft] = useState('')
+  const [editorSeedHtml, setEditorSeedHtml] = useState('')
   const [savingBody, setSavingBody] = useState(false)
 
+  const bodyRef = useRef('')
+  const editorFlushRef = useRef<(() => void) | null>(null)
   const savedBodyRef = useRef('')
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -126,21 +150,49 @@ export function MailNotesSidebar(): JSX.Element {
     return off
   }, [load, loadSections])
 
-  const pagesNotes = useMemo(() => sortNotesPages(notes, pagesSort, t('notes.shell.untitled')), [notes, pagesSort, t])
+  const pagesNotes = useMemo(() => notes, [notes])
+  const pageRows = useMemo(
+    () => buildNotesPageRows(pagesNotes, pagesSort, collapsedParentIds, t('notes.shell.untitled')),
+    [pagesNotes, pagesSort, collapsedParentIds, t]
+  )
 
   const beginCompose = useCallback((note: UserNoteListItem): void => {
+    const prepared = prepareNoteBodyForEditor(note.body)
+    const editorHtml = prepared.html
+    bodyRef.current = editorHtml
+    savedBodyRef.current = note.body
     setActiveNoteId(note.id)
     setComposeNote(note)
-    setBodyDraft(note.body)
-    savedBodyRef.current = note.body
+    setEditorSeedHtml(editorHtml)
+    if (prepared.migratedFromMarkdown) {
+      void (async (): Promise<void> => {
+        try {
+          const saved = await persistNoteBody(note, editorHtml)
+          const syncedHtml = prepareNoteBodyForEditor(saved.body).html
+          bodyRef.current = syncedHtml
+          savedBodyRef.current = saved.body
+          setEditorSeedHtml(syncedHtml)
+          setComposeNote((prev) => (prev?.id === saved.id ? { ...prev, ...saved } : prev))
+          setNotes((prev) => prev.map((n) => (n.id === saved.id ? { ...n, ...saved } : n)))
+        } catch {
+          // Migriertes HTML bleibt im Editor.
+        }
+      })()
+    }
   }, [])
 
   useEffect(() => {
     if (composeNote == null) return
     const fresh = notes.find((n) => n.id === composeNote.id)
-    if (fresh != null && fresh.body !== composeNote.body && fresh.body === savedBodyRef.current) {
+    if (
+      fresh != null &&
+      fresh.body !== composeNote.body &&
+      fresh.body === savedBodyRef.current
+    ) {
+      const editorHtml = prepareNoteBodyForEditor(fresh.body).html
       setComposeNote(fresh)
-      setBodyDraft(fresh.body)
+      bodyRef.current = editorHtml
+      setEditorSeedHtml(editorHtml)
       savedBodyRef.current = fresh.body
     }
   }, [composeNote, notes])
@@ -150,21 +202,27 @@ export function MailNotesSidebar(): JSX.Element {
       clearTimeout(autosaveTimerRef.current)
       autosaveTimerRef.current = null
     }
-    if (composeNote == null || bodyDraft === savedBodyRef.current) return
+    if (composeNote == null) return
+    editorFlushRef.current?.()
+    const storedDraft = storedBodyFromEditorHtml(bodyRef.current)
+    if (noteBodiesEqual(storedDraft, savedBodyRef.current)) return
     setSavingBody(true)
     try {
-      await persistNoteBody(composeNote, bodyDraft)
-      savedBodyRef.current = bodyDraft
+      const saved = await persistNoteBody(composeNote, bodyRef.current)
+      const editorHtml = prepareNoteBodyForEditor(saved.body).html
+      bodyRef.current = editorHtml
+      savedBodyRef.current = saved.body
+      setEditorSeedHtml(editorHtml)
       setNotes((prev) =>
-        prev.map((n) => (n.id === composeNote.id ? { ...n, body: bodyDraft } : n))
+        prev.map((n) => (n.id === composeNote.id ? { ...n, ...saved } : n))
       )
-      setComposeNote((prev) => (prev != null ? { ...prev, body: bodyDraft } : prev))
+      setComposeNote((prev) => (prev != null ? { ...prev, ...saved } : prev))
     } catch {
       // ignore
     } finally {
       setSavingBody(false)
     }
-  }, [bodyDraft, composeNote])
+  }, [composeNote])
 
   const scheduleBodyAutosave = useCallback((): void => {
     if (autosaveTimerRef.current != null) clearTimeout(autosaveTimerRef.current)
@@ -174,17 +232,13 @@ export function MailNotesSidebar(): JSX.Element {
     }, AUTOSAVE_MS)
   }, [flushBodySave])
 
-  useEffect(() => {
-    if (composeNote == null) return
-    if (bodyDraft === savedBodyRef.current) return
-    scheduleBodyAutosave()
-    return (): void => {
-      if (autosaveTimerRef.current != null) {
-        clearTimeout(autosaveTimerRef.current)
-        autosaveTimerRef.current = null
-      }
-    }
-  }, [bodyDraft, composeNote, scheduleBodyAutosave])
+  const handleBodyChange = useCallback(
+    (html: string): void => {
+      bodyRef.current = html
+      scheduleBodyAutosave()
+    },
+    [scheduleBodyAutosave]
+  )
 
   const openNote = useCallback(
     (note: UserNoteListItem): void => {
@@ -283,13 +337,59 @@ export function MailNotesSidebar(): JSX.Element {
     }
   }, [load, loadSections])
 
-  const createStandalone = useCallback(async (): Promise<void> => {
+  const createSubPage = useCallback(
+    async (parent: UserNoteListItem): Promise<void> => {
+      setCreating(true)
+      try {
+        await flushBodySave()
+        const note = await window.mailClient.notes.createStandalone({
+          title: t('notes.shell.newSubPageTitle'),
+          sectionId: parent.sectionId ?? null,
+          parentNoteId: parent.id
+        })
+        const nextCollapsed = readNotesPageTreeCollapsed()
+        nextCollapsed.delete(parent.id)
+        persistNotesPageTreeCollapsed(nextCollapsed)
+        setCollapsedParentIds(new Set(nextCollapsed))
+        beginCompose(userNoteToListItem(note))
+        void load()
+      } catch {
+        // ignore
+      } finally {
+        setCreating(false)
+      }
+    },
+    [beginCompose, flushBodySave, load, t]
+  )
+
+  const moveNoteToParent = useCallback(
+    async (note: UserNoteListItem, parentNoteId: number | null): Promise<void> => {
+      try {
+        await safeMoveNoteToParent({ noteId: note.id, parentNoteId })
+        void load()
+      } catch {
+        // ignore
+      }
+    },
+    [load]
+  )
+
+  const togglePageCollapse = useCallback((note: UserNoteListItem): void => {
+    setCollapsedParentIds(toggleNotesPageTreeCollapsed(note.id))
+  }, [])
+
+  const createStandalone = useCallback(
+    async (templateId: NotePageTemplateId = notesSettings.defaultNotePageTemplateId): Promise<void> => {
     setCreating(true)
     try {
       await flushBodySave()
+      const template = resolveNotePageTemplate(templateId, customTemplates, t)
       const note = await window.mailClient.notes.createStandalone({
-        title: t('notes.shell.newStandaloneTitle'),
-        body: '',
+        title:
+          template.id === 'blank'
+            ? t('notes.shell.newStandaloneTitle')
+            : template.title,
+        body: storedBodyFromEditorHtml(template.bodyHtml),
         sectionId: null
       })
       beginCompose(userNoteToListItem(note))
@@ -300,24 +400,25 @@ export function MailNotesSidebar(): JSX.Element {
     } finally {
       setCreating(false)
     }
-  }, [beginCompose, flushBodySave, load, loadSections, t])
+  },
+    [beginCompose, customTemplates, flushBodySave, load, loadSections, notesSettings.defaultNotePageTemplateId, t]
+  )
 
   return (
     <div className="flex h-full min-h-0 flex-col">
       {composeNote != null ? (
         <div className="shrink-0 border-b border-border/40 bg-card px-2 py-2">
-          <textarea
-            value={bodyDraft}
-            onChange={(e): void => setBodyDraft(e.target.value)}
-            onBlur={(): void => void flushBodySave()}
+          <TipTapNoteEditorLazy
+            key={composeNote.id}
+            valueHtml={editorSeedHtml}
+            onChangeHtml={handleBodyChange}
             placeholder={t('mail.rightSidebar.quickComposePlaceholder')}
-            rows={4}
-            disabled={savingBody}
-            className={cn(
-              'w-full resize-none rounded-md border border-border/60 bg-background/80 px-2 py-1.5',
-              'text-xs leading-relaxed text-foreground outline-none',
-              'placeholder:text-muted-foreground focus:border-border focus:ring-2 focus:ring-ring/30'
-            )}
+            variant="compact"
+            minHeight={120}
+            flushRef={editorFlushRef}
+            showThemeToggle={false}
+            currentNoteId={composeNote.id}
+            className="w-full"
           />
           <div className="mt-1.5 flex flex-wrap items-center justify-end gap-2">
             {savingBody ? (
@@ -325,7 +426,9 @@ export function MailNotesSidebar(): JSX.Element {
                 <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
                 {t('notes.editor.saving')}
               </span>
-            ) : null}
+            ) : (
+              <ComposeEditorThemeToggle compact className="mr-auto" />
+            )}
             <button
               type="button"
               className={cn(
@@ -344,7 +447,7 @@ export function MailNotesSidebar(): JSX.Element {
       <div className="min-h-0 flex-1">
         <NotesPagesPane
           title={t('notes.sections.allNotes')}
-          notes={pagesNotes}
+          pageRows={pageRows}
           sections={sections}
           showSectionLabels={false}
           loading={loading}
@@ -357,7 +460,10 @@ export function MailNotesSidebar(): JSX.Element {
           isNoteExiting={isNoteExiting}
           onCopyNote={copyNote}
           onMoveNote={moveNote}
-          onCreateNote={(): void => void createStandalone()}
+          onCreateSubPage={createSubPage}
+          onMoveToParent={moveNoteToParent}
+          onTogglePageCollapse={togglePageCollapse}
+          onCreateNote={(templateId): void => void createStandalone(templateId)}
           creating={creating}
           pagesSort={pagesSort}
           onPagesSortChange={setPagesSort}

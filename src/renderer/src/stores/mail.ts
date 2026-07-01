@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { isMailClientRuntimeComplete, warnMailClientMissingOnce } from '@/lib/mail-client-runtime'
+import { logIpcError } from '@/lib/ipc-error-log'
 import type {
   MailFolder,
   MailListItem,
@@ -497,7 +498,7 @@ export const useMailStore = create<MailState>((set, get) => ({
     void window.mailClient.mail
       .listTodoCounts()
       .then((todoCounts) => set({ todoCounts }))
-      .catch(() => undefined)
+      .catch((err) => logIpcError('mail.listTodoCounts', err))
   },
 
   async refreshAccounts(accounts: ConnectedAccount[]): Promise<void> {
@@ -637,7 +638,7 @@ export const useMailStore = create<MailState>((set, get) => ({
       ...mailListViewPrefsFields(scope)
     })
 
-    void window.mailClient.mail.setActiveFolder(folderId).catch(() => undefined)
+    void window.mailClient.mail.setActiveFolder(folderId).catch((err) => logIpcError('mail.setActiveFolder', err))
 
     try {
       const messages = await window.mailClient.mail.listMessages({ folderId })
@@ -703,7 +704,7 @@ export const useMailStore = create<MailState>((set, get) => ({
       ...mailListViewPrefsFields(scope)
     })
 
-    void window.mailClient.mail.setActiveFolder(null).catch(() => undefined)
+    void window.mailClient.mail.setActiveFolder(null).catch((err) => logIpcError('mail.setActiveFolder', err))
 
     try {
       const messages = unified
@@ -756,7 +757,7 @@ export const useMailStore = create<MailState>((set, get) => ({
       ...mailListViewPrefsFields(scope)
     })
 
-    void window.mailClient.mail.setActiveFolder(null).catch(() => undefined)
+    void window.mailClient.mail.setActiveFolder(null).catch((err) => logIpcError('mail.setActiveFolder', err))
 
     try {
       const messages = await window.mailClient.mail.listSnoozed(200)
@@ -806,7 +807,7 @@ export const useMailStore = create<MailState>((set, get) => ({
       ...mailListViewPrefsFields(scope)
     })
 
-    void window.mailClient.mail.setActiveFolder(null).catch(() => undefined)
+    void window.mailClient.mail.setActiveFolder(null).catch((err) => logIpcError('mail.setActiveFolder', err))
 
     try {
       const messages = await window.mailClient.mail.listWaitingMessages({ limit: 200 })
@@ -857,7 +858,7 @@ export const useMailStore = create<MailState>((set, get) => ({
       ...mailListViewPrefsFields(scope)
     })
 
-    void window.mailClient.mail.setActiveFolder(null).catch(() => undefined)
+    void window.mailClient.mail.setActiveFolder(null).catch((err) => logIpcError('mail.setActiveFolder', err))
 
     try {
       const messages = await window.mailClient.mail.listUnifiedInbox(
@@ -914,7 +915,7 @@ export const useMailStore = create<MailState>((set, get) => ({
       ...mailListViewPrefsFields(scope)
     })
 
-    void window.mailClient.mail.setActiveFolder(null).catch(() => undefined)
+    void window.mailClient.mail.setActiveFolder(null).catch((err) => logIpcError('mail.setActiveFolder', err))
 
     try {
       const messages = await window.mailClient.mail.listMetaFolderMessages(metaFolderId)
@@ -973,7 +974,7 @@ export const useMailStore = create<MailState>((set, get) => ({
       ...mailListViewPrefsFields(scope)
     })
 
-    void window.mailClient.mail.setActiveFolder(null).catch(() => undefined)
+    void window.mailClient.mail.setActiveFolder(null).catch((err) => logIpcError('mail.setActiveFolder', err))
 
     try {
       const messages = await window.mailClient.mail.listCategoryMessages({
@@ -1482,7 +1483,7 @@ export const useMailStore = create<MailState>((set, get) => ({
       void window.mailClient.mail
         .listTodoCounts()
         .then((todoCounts) => set({ todoCounts }))
-        .catch(() => undefined)
+        .catch((err) => logIpcError('mail.listTodoCounts', err))
     } catch (e) {
       console.error('[mail-store] setTodoForMessage failed', e)
       set({ error: e instanceof Error ? e.message : String(e) })

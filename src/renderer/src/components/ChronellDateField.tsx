@@ -1,7 +1,8 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { format, parseISO } from 'date-fns'
-import { de as deFns, enUS as enUSFns } from 'date-fns/locale'
+import type { Locale } from 'date-fns'
+import { useDateFnsLocale } from '@/lib/date-fns-locale'
 import { Calendar as CalendarIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { ChronellDatePickerPanel } from '@/components/ChronellDatePickerPanel'
@@ -10,11 +11,13 @@ import { cn } from '@/lib/utils'
 export const chronellDateFieldInputClass =
   'w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60'
 
-function formatYmdForDisplay(ymd: string, locale: typeof deFns): string {
+function formatYmdForDisplay(ymd: string, locale: Locale, variant: 'field' | 'inline'): string {
   try {
     const d = parseISO(`${ymd}T12:00:00`)
     if (Number.isNaN(d.getTime())) return ymd
-    return format(d, 'dd.MM.yyyy', { locale })
+    return variant === 'inline'
+      ? format(d, 'EEEE, d. MMMM yyyy', { locale })
+      : format(d, 'dd.MM.yyyy', { locale })
   } catch {
     return ymd
   }
@@ -30,6 +33,8 @@ export interface ChronellDateFieldProps {
   id?: string
   onKeyDown?: React.KeyboardEventHandler<HTMLButtonElement>
   'aria-label'?: string
+  /** `field`: volles Eingabefeld; `inline`: Textlink (OneNote-Seitendatum). */
+  variant?: 'field' | 'inline'
 }
 
 /**
@@ -44,10 +49,11 @@ export function ChronellDateField({
   className,
   id: idProp,
   onKeyDown,
-  'aria-label': ariaLabel
+  'aria-label': ariaLabel,
+  variant = 'field'
 }: ChronellDateFieldProps): JSX.Element {
   const { t, i18n } = useTranslation()
-  const dfLocale = i18n.language.startsWith('de') ? deFns : enUSFns
+  const dfLocale = useDateFnsLocale()
   const autoId = useId()
   const id = idProp ?? autoId
   const triggerRef = useRef<HTMLButtonElement>(null)
@@ -86,9 +92,11 @@ export function ChronellDateField({
     setOpen(true)
   }
 
+  const inline = variant === 'inline'
+
   const display =
     value.trim().length > 0
-      ? formatYmdForDisplay(value.trim(), dfLocale)
+      ? formatYmdForDisplay(value.trim(), dfLocale, variant)
       : t('calendar.datePicker.placeholder')
 
   return (
@@ -103,9 +111,13 @@ export function ChronellDateField({
         aria-label={ariaLabel}
         onKeyDown={onKeyDown}
         className={cn(
-          chronellDateFieldInputClass,
-          'flex items-center justify-between gap-2 text-left',
-          !value.trim() && 'text-muted-foreground',
+          inline
+            ? 'inline-flex w-auto items-center gap-1 border-0 bg-transparent p-0 text-sm text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-0 disabled:opacity-50'
+            : cn(
+                chronellDateFieldInputClass,
+                'flex items-center justify-between gap-2 text-left',
+                !value.trim() && 'text-muted-foreground'
+              ),
           className
         )}
         onClick={(): void => {
@@ -114,7 +126,9 @@ export function ChronellDateField({
         }}
       >
         <span className="min-w-0 truncate tabular-nums">{display}</span>
-        <CalendarIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+        {!inline ? (
+          <CalendarIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+        ) : null}
       </button>
       {open
         ? createPortal(

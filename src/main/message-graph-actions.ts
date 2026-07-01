@@ -11,6 +11,7 @@ import {
   findFolderById,
   adjustFolderUnread
 } from './db/folders-repo'
+import { logBackgroundError } from './log-background-error'
 import { recordAction } from './db/message-actions-repo'
 import {
   setMessageFlagged as graphSetFlagged,
@@ -221,7 +222,7 @@ export async function applyMoveMessageToWellKnownAlias(
     }
   } catch (e) {
     if (previousFolder) {
-      void runFolderSync(previousFolder.id).catch(() => undefined)
+      void runFolderSync(previousFolder.id).catch((err) => logBackgroundError('mail.runFolderSync', err))
     }
     throw e
   }
@@ -426,14 +427,14 @@ export async function applyPermanentDeleteMessage(messageId: number): Promise<vo
     }
   } catch (e) {
     if (acc?.provider === 'google' && isGoogleInsufficientScopeError(e)) {
-      void runFolderSync(folderId).catch(() => undefined)
+      void runFolderSync(folderId).catch((err) => logBackgroundError('mail.runFolderSync', err))
       throw new Error(googleGmailFullScopeRequiredMessage())
     }
     if (isGraphItemNotFound(e)) {
-      void runFolderSync(folderId).catch(() => undefined)
+      void runFolderSync(folderId).catch((err) => logBackgroundError('mail.runFolderSync', err))
       return
     }
-    void runFolderSync(folderId).catch(() => undefined)
+    void runFolderSync(folderId).catch((err) => logBackgroundError('mail.runFolderSync', err))
     throw e
   }
 
