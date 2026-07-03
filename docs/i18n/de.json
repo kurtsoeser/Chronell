@@ -21,7 +21,7 @@
     "note": "Aktuelle Version für Windows 11."
   },
   "hero": {
-    "badge": "Beta · Windows 11 · gebaut in Österreich",
+    "badge": "Version 1.0 · Windows 11 · gebaut in Österreich",
     "taglineLine1": "Manage deine Zeit -",
     "taglineLine2Prefix": "nicht deine ",
     "taglineLine2Accent": "Inbox",
@@ -306,36 +306,36 @@
     }
   },
   "highlights": {
-    "eyebrow": "Neu ausprobieren",
-    "title": "Vier Schwerpunkte der aktuellen Beta",
-    "lead": "Version 1.0.0 bringt individuelle Ansichten mit Layout-Assistent — plus überarbeitete Mail- und Kalender-Arbeitsbereiche, schwebende Panels und verfeinerte Einstellungen.",
+    "eyebrow": "Version 1.0",
+    "title": "Vier Säulen der Desktop-Arbeitszentrale",
+    "lead": "Mit Version 1.0.0 wird Chronell zur vollständigen Arbeitszentrale: ein eigenes Notizen-Modul, verfeinerte Mail- und Kalender-Arbeitsbereiche sowie sichtbare Zusammenhänge im Verbindungs-Graph — lokal auf Windows 11.",
     "compose": {
-      "title": "Individuelle Ansichten",
-      "desc": "Eigene Arbeitsbereiche aus Mail, Kalender, Aufgaben und mehr — als Tab in der Top-Leiste, Layout per Assistent.",
-      "b1": "Assistent: Vorlage wählen, Zonen befüllen, Icon und Name — fertig als eigener Tab",
-      "b2": "Frei kombinierbar: Mail-Liste, Kalender, Zeitliste, Dashboard-Kacheln und Vorschau-Panels",
-      "b3": "Panels abdocken: Bereiche als schwebendes Fenster — zurück andocken per Klick"
+      "title": "Notizen",
+      "desc": "Notizen-Modul mit Abschnitten, TipTap-Editor, Freihand, Embeds und Verknüpfungen zu Mail, Terminen und Kontakten.",
+      "b1": "Struktur: Abschnitte, Seiten, Vorlagen und Quick Capture vom System-Tray",
+      "b2": "Editor: Formatierung, Tabellen, Wiki-Links, Cloud-Tasks und zahlreiche Embeds",
+      "b3": "Verknüpft: Entity-Links und Kalender-Ansicht für geplante Notiz-Seiten"
     },
     "connections": {
-      "title": "Mail & Kalender",
-      "desc": "Überarbeiteter Mail-Arbeitsbereich und Kalender-Shell — Termin-Dialog, Vorschau und Layout speichern.",
-      "b1": "Mail: Sidebar, Anhänge, Composer und Lesefenster in einem durchgängigen Arbeitsbereich",
-      "b2": "Kalender: Termin-Dialog, Kategorien und gespeichertes Kalender-Layout",
-      "b3": "Kontext-Vorschau: Termin, Aufgabe oder Mail je nach Auswahl in der rechten Spalte"
+      "title": "Mail",
+      "desc": "Multi-Account-Mail für Microsoft 365 und Google — mit EWS, Kontext-Sidebar und verbessertem Composer.",
+      "b1": "EWS als zusätzlicher Transport für Microsoft-Mail — neben Graph",
+      "b2": "Kontext-Sidebar: Kontakt, Historie und Kalender direkt am Lesefenster",
+      "b3": "Anhänge lokal indexieren — schnelleres Suchen ohne Cloud-Upload"
     },
     "ai": {
-      "title": "Schwebende Panels",
-      "desc": "Mail-Lesefenster, Kalender-Vorschau und Composer als eigenes Fenster — ohne den Hauptarbeitsbereich zu verlassen.",
-      "b1": "Panels abdocken und wieder andocken — auch aus individuellen Ansichten",
-      "b2": "Mehrere schwebende Fenster parallel — z. B. Termin und Mail nebeneinander",
-      "b3": "Position und Größe bleiben erhalten — zurück in die Zone per Dock-Button"
+      "title": "Kalender",
+      "desc": "Termine, Mail-ToDos, Cloud-Tasks und Bookings in einer Shell — mit überarbeitetem Dialog und ICS-Import.",
+      "b1": "Termin-Dialog überarbeitet — einheitliche Datumsauswahl und Serien",
+      "b2": "Microsoft Bookings und ICS-Import per Drag & Drop",
+      "b3": "Gespeichertes Layout, Kategorien und Vorschau in der rechten Spalte"
     },
     "cloudSync": {
-      "title": "Einstellungen & Onboarding",
-      "desc": "Konten- und Erscheinungsbild-Einstellungen sowie überarbeiteter Ersteinrichtungs-Assistent.",
-      "b1": "Top-Leiste: Module ein- und ausblenden, Reihenfolge per Drag & Drop",
-      "b2": "Schwebende Panels in den Einstellungen konfigurieren",
-      "b3": "Profil-Sync: individuelle Ansichten und Layouts auf dem zweiten PC mitnehmen"
+      "title": "Verbindungen & Ansichten",
+      "desc": "Zusammenhänge sichtbar machen und Arbeitsbereiche frei zusammenstellen — individuelle Tabs, schwebende Panels, Profil-Sync.",
+      "b1": "Verbindungs-Graph über Mail, Notizen, Tasks, Termine und Kontakte",
+      "b2": "Individuelle Ansichten: Layout-Assistent, Zonen, abdockbare Panels",
+      "b3": "Profil-Sync: Ansichten und Einstellungen auf dem zweiten PC mitnehmen"
     }
   },
   "showcase": {
@@ -523,7 +523,7 @@
   },
   "whatsNew": {
     "label": "Version 1.0.0",
-    "tagline": "Individuelle Ansichten · Layout-Assistent · Schwebende Panels · Mail & Kalender"
+    "tagline": "Notizen · Mail · Kalender · Verbindungs-Graph"
   },
   "cta": {
     "title": "Bereit für das neue Chronell?",

@@ -21,7 +21,7 @@
     "note": "Current release for Windows 11."
   },
   "hero": {
-    "badge": "Beta · Windows 11 · built in Austria",
+    "badge": "Version 1.0 · Windows 11 · built in Austria",
     "taglineLine1": "Manage your time —",
     "taglineLine2Prefix": "not your ",
     "taglineLine2Accent": "inbox",
@@ -306,36 +306,36 @@
     }
   },
   "highlights": {
-    "eyebrow": "Try it now",
-    "title": "Four focus areas in the current beta",
-    "lead": "Version 1.0.0 adds custom views with a layout wizard — plus refined mail and calendar workspaces, floating panels, and improved settings.",
+    "eyebrow": "Version 1.0",
+    "title": "Four pillars of the desktop work hub",
+    "lead": "With version 1.0.0, Chronell becomes a complete work hub: a dedicated notes module, refined mail and calendar workspaces, and visible connections in the graph — locally on Windows 11.",
     "compose": {
-      "title": "Custom views",
-      "desc": "Your own workspaces from mail, calendar, tasks, and more — as a top-bar tab, layout via wizard.",
-      "b1": "Wizard: pick a template, fill zones, choose icon and name — ready as your own tab",
-      "b2": "Mix freely: mail list, calendar, timeline, dashboard tiles, and preview panels",
-      "b3": "Detach panels: open zones in floating windows — dock back with one click"
+      "title": "Notes",
+      "desc": "Notes module with sections, TipTap editor, ink, embeds, and links to mail, events, and contacts.",
+      "b1": "Structure: sections, pages, templates, and quick capture from the system tray",
+      "b2": "Editor: formatting, tables, wiki links, cloud tasks, and many embeds",
+      "b3": "Connected: entity links and calendar view for scheduled note pages"
     },
     "connections": {
-      "title": "Mail & calendar",
-      "desc": "Refined mail workspace and calendar shell — event dialog, preview, and saved layout.",
-      "b1": "Mail: sidebar, attachments, composer, and reading pane in one workspace",
-      "b2": "Calendar: event dialog, categories, and saved calendar layout",
-      "b3": "Context preview: event, task, or mail depending on selection in the right column"
+      "title": "Mail",
+      "desc": "Multi-account mail for Microsoft 365 and Google — with EWS, context sidebar, and an improved composer.",
+      "b1": "EWS as an additional transport for Microsoft mail — alongside Graph",
+      "b2": "Context sidebar: contact, history, and calendar right in the reading pane",
+      "b3": "Index attachments locally — faster search without cloud upload"
     },
     "ai": {
-      "title": "Floating panels",
-      "desc": "Mail reading pane, calendar preview, and composer in their own window — without leaving your main workspace.",
-      "b1": "Detach and dock panels — also from custom views",
-      "b2": "Multiple floating windows in parallel — e.g. event and mail side by side",
-      "b3": "Position and size are preserved — back into the zone via the dock button"
+      "title": "Calendar",
+      "desc": "Events, mail to-dos, cloud tasks, and Bookings in one shell — with a redesigned dialog and ICS import.",
+      "b1": "Redesigned event dialog — unified date picker and recurrence",
+      "b2": "Microsoft Bookings and ICS import via drag & drop",
+      "b3": "Saved layout, categories, and preview in the right column"
     },
     "cloudSync": {
-      "title": "Settings & onboarding",
-      "desc": "Account and appearance settings plus a refined first-run setup wizard.",
-      "b1": "Top bar: show/hide modules, reorder via drag & drop",
-      "b2": "Configure floating panels in settings",
-      "b3": "Profile sync: take custom views and layouts to your second PC"
+      "title": "Connections & views",
+      "desc": "Make relationships visible and compose workspaces freely — custom tabs, floating panels, profile sync.",
+      "b1": "Connection graph across mail, notes, tasks, events, and contacts",
+      "b2": "Custom views: layout wizard, zones, detachable panels",
+      "b3": "Profile sync: take views and settings to your second PC"
     }
   },
   "showcase": {
@@ -523,7 +523,7 @@
   },
   "whatsNew": {
     "label": "Version 1.0.0",
-    "tagline": "Custom views · layout wizard · floating panels · mail & calendar"
+    "tagline": "Notes · mail · calendar · connection graph"
   },
   "cta": {
     "title": "Ready for the new Chronell?",
