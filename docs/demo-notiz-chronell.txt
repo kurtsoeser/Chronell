@@ -1,0 +1,248 @@
+CHRONELL NOTIZEN — FEATURE-DEMO
+Diese Seite zeigt, was der Notizen-Editor alles kann.
+
+═══════════════════════════════════════
+1. ÜBERSCHRIFTEN & ABSÄTZE
+═══════════════════════════════════════
+
+Überschrift Ebene 1 — Seitentitel
+Überschrift Ebene 2 — Abschnitt
+Überschrift Ebene 3 — Unterabschnitt
+
+Normaler Fließtext mit Zeilenumbruch. Chronell speichert automatisch — du siehst unten „Gespeichert: …".
+
+═══════════════════════════════════════
+2. TEXTFORMATIERUNG
+═══════════════════════════════════════
+
+Fett · Kursiv · Unterstrichen · Durchgestrichen
+Kombination: fett und kursiv
+Textfarbe (z. B. Blau) und Textmarker (z. B. Gelb)
+Schriftart wechseln (z. B. Segoe UI, Georgia)
+Schriftgröße anpassen (z. B. 14 pt)
+
+Links ausrichten | Zentriert | Rechts | Blocksatz
+
+═══════════════════════════════════════
+3. LISTEN
+═══════════════════════════════════════
+
+Aufzählung:
+• Erster Punkt — Projektstart
+• Zweiter Punkt — Review-Termin
+• Dritter Punkt — Abschluss
+
+Nummerierte Liste:
+1. Anforderungen sammeln
+2. Prototyp bauen
+3. Feedback einarbeiten
+4. Release vorbereiten
+
+Checkliste (über Toolbar „Aufgabenliste" aktivieren):
+☐ Demo-Notiz anlegen
+☑ Editor-Formatierung testen
+☐ Wiki-Link zu anderer Seite setzen
+☐ Cloud-Aufgabe verknüpfen
+☐ Embed-URL einfügen und Vorschau prüfen
+
+═══════════════════════════════════════
+4. ZITAT, CODE & TRENNLINIE
+═══════════════════════════════════════
+
+„Gute Notizen entstehen dort, wo du ohnehin arbeitest — in Mail, Kalender und Aufgaben."
+
+Inline-Code: npm run dev
+
+───────────────────────────────────────
+
+═══════════════════════════════════════
+5. TABELLE
+═══════════════════════════════════════
+
+Feature          | Status    | Priorität
+-----------------|-----------|----------
+Rich-Text-Editor | Fertig    | Hoch
+Wiki-Links [[    | Fertig    | Hoch
+Embeds (19+)     | Fertig    | Hoch
+Freihand/Ink     | Fertig    | Mittel
+Kalender-Planung | Fertig    | Hoch
+
+(Tabelle über Toolbar „Tabelle einfügen" formatieren — Spalten sind verschiebbar.)
+
+═══════════════════════════════════════
+6. LINKS & VERKNÜPFUNGEN
+═══════════════════════════════════════
+
+Externer Link: https://chronell.app
+
+Interner Seitenlink: Tippe [[ und wähle eine andere Notiz aus der Liste.
+
+Kontakt oder Termin erwähnen: Tippe @ und wähle aus Kontakten/Kalender.
+
+═══════════════════════════════════════
+7. EINGEBETTETE INHALTE (EMBEDS)
+═══════════════════════════════════════
+
+URL einfügen (Strg+V) — Chronell erkennt den Dienst automatisch und zeigt eine Live-Vorschau inline. Kein Embed-Dialog nötig.
+
+So testest du es am schnellsten: Jede Beispiel-URL unten einzeln kopieren und in eine neue Zeile einfügen.
+
+── Video & Audio ──
+
+YouTube:
+https://www.youtube.com/watch?v=jNQXAC9IVRw
+
+Vimeo:
+https://vimeo.com/76979871
+
+Loom (Screencast):
+https://www.loom.com/share/3ccb021eb0bf4039b8d7a45f3bf6cbb1
+
+Spotify (Track):
+https://open.spotify.com/track/4cOdK2wGLETKBW3PvgPWqT
+
+SoundCloud:
+https://soundcloud.com/forss/flickermood
+
+TikTok:
+https://www.tiktok.com/@scout2015/video/6718339390845095170
+
+Teams-Aufzeichnung (Stream/SharePoint-Link aus deinem Tenant einfügen):
+https://web.microsoftstream.com/
+
+── Social & Kommunikation ──
+
+X (Twitter) — passt sich dem Editor-Theme (Hell/Dunkel) an:
+https://x.com/Twitter/status/20
+
+── Karten & Standort ──
+
+Google Maps (volle URL):
+https://www.google.com/maps/@48.2082,16.3738,14z
+
+Google-Maps-Kurzlink (wird automatisch aufgelöst):
+https://maps.app.goo.gl/
+
+OpenStreetMap:
+https://www.openstreetmap.org/#map=15/48.2082/16.3738
+
+── Design, Whiteboards & Prototypen ──
+
+Figma:
+https://www.figma.com/file/xxx/Beispiel
+
+Miro:
+https://miro.com/app/board/o9J_k0xj8Ag=/
+
+── Formulare & Terminbuchung ──
+
+Microsoft Forms (Antwortseite deines Formulars):
+https://forms.office.com/r/xxxxxxxxxx
+
+Typeform:
+https://form.typeform.com/to/DwgKsn
+
+Calendly:
+https://calendly.com/acmesales/30min
+
+── Bildung, Mathe & Code ──
+
+GeoGebra:
+https://www.geogebra.org/m/V3BTJpiVV
+
+Desmos (Graphenrechner):
+https://www.desmos.com/calculator/w9jrdpvsmk
+
+CodePen:
+https://codepen.io/team/codepen/pen/PNaGbb
+
+GitHub Gist:
+https://gist.github.com/octocat/6c5c09476758aa7f0f95
+
+── Hinweise zu Embeds ──
+
+• Unterstützte Dienste: YouTube, Vimeo, Loom, Spotify, SoundCloud, TikTok, X (Twitter), Google Maps, OpenStreetMap, Figma, Miro, Microsoft Forms, Typeform, Calendly, GeoGebra, Desmos, CodePen, GitHub Gist, Teams-Aufzeichnungen
+• Normale Web-Links (z. B. chronell.app) bleiben klickbare Links — nur bekannte Embed-URLs werden zur Vorschau
+• Embed-Blöcke sind verschiebbar, auswählbar und löschbar (wie Bilder)
+• Bei einigen Diensten (z. B. X/Twitter) folgt die Darstellung dem Editor Hell/Dunkel
+
+═══════════════════════════════════════
+8. MEETING-PROTOKOLL (Beispielstruktur)
+═══════════════════════════════════════
+
+Sprint-Review Q3
+Datum: Donnerstag, 2. Juli 2026 · 10:00–11:00
+Ort: Teams-Besprechung
+Teilnehmer: Anna, Ben, Clara
+Online: Link zum Beitritt
+
+Agenda
+• Rückblick letzter Sprint
+• Demo der neuen Notizen-Features (inkl. Embeds)
+• Nächste Schritte
+
+Notizen
+Heute zeigen wir den WYSIWYG-Editor, Checklisten, Wiki-Links, Freihandzeichnung und eingebettete Inhalte.
+
+Nächste Schritte
+☐ Feedback aus dem Team einarbeiten
+☐ Demo für Stakeholder vorbereiten
+
+(Hinweis: Über „Besprechungsdetails einfügen" kommt dieser Block automatisch aus dem Kalender.)
+
+═══════════════════════════════════════
+9. PROJEKTSEITE (Vorlage-Struktur)
+═══════════════════════════════════════
+
+Projekt: Chronell Notizen 2.0
+Ziel: OneNote-ähnliche Notizen im Mail-/Kalender-Workflow
+Status: Embeds & Ink abgeschlossen
+
+Meilensteine
+☑ TipTap WYSIWYG-Editor
+☑ Tags & Unterseiten
+☑ Screen Clip & Audio
+☑ Freihandzeichnung
+☑ Eingebettete Inhalte (19+ Dienste)
+☐ Canvas-Modus (zurückgestellt)
+
+Offene Punkte
+Performance bei Seiten mit vielen Embeds prüfen.
+
+═══════════════════════════════════════
+10. INTERAKTIVE FEATURES — BITTE MANUELL AUSPROBIEREN
+═══════════════════════════════════════
+
+Nach dem Einfügen dieser Demo nacheinander testen:
+
+□ Embed-URL einfügen — z. B. YouTube-Link aus Abschnitt 7
+□ Freihand zeichnen — Stift-Button in der Aktionszeile
+□ Screenshot einfügen — Strg+Shift+Alt+S (oder Button)
+□ Bild aus Zwischenablage — Strg+V
+□ Datei per Drag & Drop auf den Editor ziehen
+□ Audio-Aufnahme — im Anhänge-Bereich
+□ Aufgabe erstellen — Cloud-Task-Button (Microsoft/Google)
+□ Termin erstellen — Kalender-Button
+□ Text markieren → „Auswahl als Aufgabe" / „Auswahl als Termin"
+□ Editor Hell/Dunkel — Toggle oben rechts (wirkt auch auf X/Twitter-Embeds)
+□ Kategorien setzen — im Seitenkopf (Outlook-Kategorien)
+□ Im Kalender planen — Planungsdatum im Seitenkopf
+□ PDF exportieren / Drucken — über Seitenmenü
+□ Schnellnotiz — Strg+Shift+Alt+N
+
+═══════════════════════════════════════
+11. KONTEXT & ORGANISATION (außerhalb des Editors)
+═══════════════════════════════════════
+
+• Abschnitt wählen — Seitenkopf „Abschnitt"
+• Unterseite anlegen — Kontextmenü in der Seitenliste
+• Seite anpinnen — für Schnellzugriff in der Sidebar
+• Kalenderansicht — Notizen nach Planungsdatum anzeigen
+• Volltextsuche — Suchfeld oben
+• Verbindungen-Panel — alle Entity-Links der Seite
+• Mail-Kontextnotiz — Notiz direkt an einer E-Mail
+
+═══════════════════════════════════════
+
+Viel Spaß beim Ausprobieren!
+Chronell — Mail, Kalender, Aufgaben & Notizen in einem Workflow.

@@ -86,3 +86,30 @@ export function sectionHasVisibleContent(node: NoteSectionTreeNode): boolean {
   if (node.notes.length > 0) return true
   return node.children.some(sectionHasVisibleContent)
 }
+
+export function noteSectionParentId(sectionId: number, sections: NoteSection[]): number | null {
+  return sections.find((s) => s.id === sectionId)?.parentId ?? null
+}
+
+export function orderedNoteSectionSiblingIds(
+  parentId: number | null,
+  sections: NoteSection[]
+): number[] {
+  return sections
+    .filter((s) => (s.parentId ?? null) === parentId)
+    .sort(sortSections)
+    .map((s) => s.id)
+}
+
+export function isDescendantNoteSection(
+  sectionId: number,
+  ancestorId: number,
+  sections: NoteSection[]
+): boolean {
+  let cur = noteSectionParentId(sectionId, sections)
+  while (cur != null) {
+    if (cur === ancestorId) return true
+    cur = noteSectionParentId(cur, sections)
+  }
+  return false
+}

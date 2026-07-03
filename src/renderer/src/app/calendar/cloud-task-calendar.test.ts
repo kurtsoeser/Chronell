@@ -1,4 +1,5 @@
 import type { EventApi } from '@fullcalendar/core'
+import { addCalendarDaysIsoDate, zonedLocalDateTimeToUtcIso } from '@shared/zoned-iso-date'
 import { describe, expect, it } from 'vitest'
 import {
   CALENDAR_KIND_CLOUD_TASK,
@@ -109,6 +110,16 @@ describe('dueIsoFromCloudTaskScheduleStart', () => {
   })
 })
 
+const TEST_TZ = 'Europe/Berlin'
+
+/** FullCalendar-Ganztag: Mitternacht in der Kalender-Zeitzone (CI-unabhängig). */
+function allDayFcRange(ymd: string, timeZone: string = TEST_TZ): { start: Date; end: Date } {
+  const start = new Date(zonedLocalDateTimeToUtcIso(ymd, 0, 0, 0, timeZone))
+  const endYmd = addCalendarDaysIsoDate(ymd, 1, timeZone)
+  const end = new Date(zonedLocalDateTimeToUtcIso(endYmd, 0, 0, 0, timeZone))
+  return { start, end }
+}
+
 function mockCloudTaskEvent(
   key: string,
   opts: {
@@ -135,13 +146,14 @@ describe('computePersistTargetForCloudTask', () => {
   it('typ Ganztag → due', () => {
     const task = sampleTask()
     const key = cloudTaskStableKey(task.accountId, task.listId, task.id)
+    const { start, end } = allDayFcRange('2026-05-21')
     const event = mockCloudTaskEvent(key, {
-      start: new Date('2026-05-21T00:00:00'),
-      end: new Date('2026-05-22T00:00:00'),
+      start,
+      end,
       allDay: true
     })
 
-    const target = computePersistTargetForCloudTask(event, null, 'Europe/Berlin')
+    const target = computePersistTargetForCloudTask(event, null, TEST_TZ)
     expect(target?.kind).toBe('due')
     if (target?.kind === 'due') {
       expect(target.dueIso).toContain('2026-05-21')
@@ -151,9 +163,10 @@ describe('computePersistTargetForCloudTask', () => {
   it('Ganztags-Fälligkeit in Zeitleiste → Planung', () => {
     const task = sampleTask()
     const key = cloudTaskStableKey(task.accountId, task.listId, task.id)
+    const allDay = allDayFcRange('2026-05-21')
     const oldEvent = mockCloudTaskEvent(key, {
-      start: new Date('2026-05-21T00:00:00'),
-      end: new Date('2026-05-22T00:00:00'),
+      start: allDay.start,
+      end: allDay.end,
       allDay: true
     })
     const event = mockCloudTaskEvent(key, {
@@ -163,7 +176,7 @@ describe('computePersistTargetForCloudTask', () => {
       spanKind: CLOUD_TASK_SPAN_KIND_DUE
     })
 
-    const target = computePersistTargetForCloudTask(event, oldEvent, 'Europe/Berlin')
+    const target = computePersistTargetForCloudTask(event, oldEvent, TEST_TZ)
     expect(target?.kind).toBe('planned')
     if (target?.kind === 'planned') {
       expect(target.plannedStartIso).toBe(event.start!.toISOString())
@@ -174,9 +187,10 @@ describe('computePersistTargetForCloudTask', () => {
   it('Fälligkeitsmodus: Ganztag in Zeitleiste → Planung', () => {
     const task = sampleTask()
     const key = cloudTaskStableKey(task.accountId, task.listId, task.id)
+    const allDay = allDayFcRange('2026-05-21')
     const oldEvent = mockCloudTaskEvent(key, {
-      start: new Date('2026-05-21T00:00:00'),
-      end: new Date('2026-05-22T00:00:00'),
+      start: allDay.start,
+      end: allDay.end,
       allDay: true
     })
     const event = mockCloudTaskEvent(key, {
@@ -186,7 +200,7 @@ describe('computePersistTargetForCloudTask', () => {
       spanKind: CLOUD_TASK_SPAN_KIND_DUE
     })
 
-    const target = computePersistTargetForCloudTask(event, oldEvent, 'Europe/Berlin', 'due')
+    const target = computePersistTargetForCloudTask(event, oldEvent, TEST_TZ, 'due')
     expect(target?.kind).toBe('planned')
   })
 })

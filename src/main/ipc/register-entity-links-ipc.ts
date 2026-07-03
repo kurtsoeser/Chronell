@@ -102,7 +102,7 @@ function parseEntityRef(value: unknown): ChronellEntityRef | null {
 function broadcastForRefs(...refs: ChronellEntityRef[]): void {
   for (const ref of refs) {
     if (ref.kind === 'note') {
-      broadcastNotesChanged({ noteId: ref.noteId })
+      broadcastNotesChanged({ noteId: ref.noteId, scope: 'links' })
     }
   }
 }

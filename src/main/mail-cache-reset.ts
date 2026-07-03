@@ -29,7 +29,7 @@ export async function clearMailAccountLocalCacheAndResync(
   }
 
   broadcastMailChanged(accountId)
-  broadcastNotesChanged({ accountId, messageId: null })
+  broadcastNotesChanged({ accountId, messageId: null, scope: 'structure' })
 
   if (!isAppOnline()) {
     return { resynced: false }

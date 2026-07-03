@@ -611,6 +611,10 @@ export interface GraphCalendarEventDetail {
   reminderMinutesBeforeStart: number | null
   /** IANA-Zeitzone von Start/Ende (timed events). */
   timeZone: string | null
+  startIso?: string | null
+  endIso?: string | null
+  isAllDay?: boolean
+  webLink?: string | null
 }
 
 function applyGraphReminderToPayload(
@@ -733,7 +737,7 @@ export async function graphGetCalendarEvent(
   const client = await getClientFor(accountId)
   const path = graphEventInstancePath(graphEventId, graphCalendarId)
   const sel = encodeURIComponent(
-    'id,subject,body,attendees,isOnlineMeeting,onlineMeeting,onlineMeetingProvider,start,end,isAllDay,location,organizer,isReminderOn,reminderMinutesBeforeStart'
+    'id,subject,body,attendees,isOnlineMeeting,onlineMeeting,onlineMeetingProvider,start,end,isAllDay,location,organizer,isReminderOn,reminderMinutesBeforeStart,webLink'
   )
   const ev = (await client.api(`${path}?$select=${sel}`).get()) as GraphEvent
   const emails: string[] = []
@@ -752,6 +756,13 @@ export async function graphGetCalendarEvent(
     typeof ev.reminderMinutesBeforeStart === 'number' && Number.isFinite(ev.reminderMinutesBeforeStart)
       ? Math.max(0, Math.round(ev.reminderMinutesBeforeStart))
       : null
+  const allDay = !!ev.isAllDay
+  const startIso = ev.start?.dateTime
+    ? graphDateTimeToIso(ev.start.dateTime, ev.start?.timeZone, allDay)
+    : null
+  const endIso = ev.end?.dateTime
+    ? graphDateTimeToIso(ev.end.dateTime, ev.end?.timeZone, allDay)
+    : null
   return {
     subject: ev.subject ?? null,
     attendeeEmails: emails.slice(0, MAX_GRAPH_EVENT_ATTENDEES),
@@ -764,7 +775,11 @@ export async function graphGetCalendarEvent(
     reminderMinutesBeforeStart: reminderMinutes,
     timeZone: ev.isAllDay
       ? null
-      : graphWindowsZoneToIana(ev.start?.timeZone) || null
+      : graphWindowsZoneToIana(ev.start?.timeZone) || null,
+    startIso,
+    endIso,
+    isAllDay: allDay,
+    webLink: ev.webLink?.trim() || null
   }
 }
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { AlertCircle, Cloud, Loader2, Paperclip } from 'lucide-react'
+import { AlertCircle, Cloud, FilePlus2, Loader2, Paperclip } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { UserNoteAttachment } from '@shared/types'
 import { isPlayableAudioAttachment } from '@shared/note-attachment-audio'
@@ -29,6 +29,7 @@ function renderLocalAttachment(
         onRemove={(): void => void handleRemove(att.id)}
         onSaveAs={(): void => void handleSaveAs(att)}
         onError={setError}
+        compact
       />
     )
   }
@@ -44,6 +45,7 @@ function renderLocalAttachment(
       onSaveAs={(): void => void handleSaveAs(att)}
       saveAsLabel={t('notes.attachments.saveAs')}
       removeAriaLabel={t('notes.attachments.remove')}
+      compact
     />
   )
 }
@@ -51,11 +53,15 @@ function renderLocalAttachment(
 export function NotesAttachmentsPanel({
   noteId,
   className,
-  variant = 'card'
+  variant = 'card',
+  onCreateSubPage,
+  createSubPageDisabled = false
 }: {
   noteId: number
   className?: string
   variant?: 'card' | 'onenote'
+  onCreateSubPage?: () => void
+  createSubPageDisabled?: boolean
 }): JSX.Element {
   const { t } = useTranslation()
   const accounts = useAccountsStore((s) => s.accounts)
@@ -68,14 +74,14 @@ export function NotesAttachmentsPanel({
   const [driveOpen, setDriveOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
-  const load = useCallback(async (): Promise<void> => {
-    setLoading(true)
+  const load = useCallback(async (opts?: { silent?: boolean }): Promise<void> => {
+    if (!opts?.silent) setLoading(true)
     try {
       setItems(await window.mailClient.notes.attachments.list(noteId))
     } catch {
       setItems([])
     } finally {
-      setLoading(false)
+      if (!opts?.silent) setLoading(false)
     }
   }, [noteId])
 
@@ -85,7 +91,9 @@ export function NotesAttachmentsPanel({
 
   useEffect(() => {
     const unsub = window.mailClient.events.onNotesChanged((detail) => {
-      if (detail.noteId == null || detail.noteId === noteId) void load()
+      if (detail.noteId != null && detail.noteId !== noteId) return
+      if (detail.scope != null && detail.scope !== 'attachments') return
+      void load({ silent: true })
     })
     return unsub
   }, [load, noteId])
@@ -174,7 +182,7 @@ export function NotesAttachmentsPanel({
         <Paperclip className="h-3 w-3" />
         {t('notes.attachments.addFile')}
       </button>
-      <NoteAudioRecorder noteId={noteId} disabled={busy} onError={setError} />
+      <NoteAudioRecorder noteId={noteId} disabled={busy} onError={setError} onAdded={(): void => void load({ silent: true })} />
       {microsoftAccount ? (
         <button
           type="button"
@@ -187,6 +195,20 @@ export function NotesAttachmentsPanel({
         >
           <Cloud className="h-3 w-3 text-sky-600 dark:text-sky-400" />
           {t('notes.attachments.addCloud')}
+        </button>
+      ) : null}
+      {onCreateSubPage ? (
+        <button
+          type="button"
+          disabled={busy || createSubPageDisabled}
+          onClick={onCreateSubPage}
+          className={cn(
+            'inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-2xs font-medium text-foreground hover:bg-secondary disabled:opacity-50',
+            embedded && 'text-xs'
+          )}
+        >
+          <FilePlus2 className="h-3 w-3" />
+          {t('notes.subPages.create')}
         </button>
       ) : null}
     </div>
@@ -232,7 +254,7 @@ export function NotesAttachmentsPanel({
       {!loading && items.length === 0 ? (
         <p className="text-xs text-muted-foreground">{t('notes.attachments.empty')}</p>
       ) : (
-        <div className="flex flex-wrap gap-2">{attachmentItems}</div>
+        <div className="flex flex-wrap gap-1.5">{attachmentItems}</div>
       )}
 
       {microsoftAccount ? (
@@ -270,7 +292,7 @@ export function NotesAttachmentsPanel({
             ) : items.length === 0 ? (
               <p className="text-xs text-muted-foreground">{t('notes.attachments.empty')}</p>
             ) : (
-              <div className="flex flex-wrap gap-2">{attachmentItems}</div>
+              <div className="flex flex-wrap gap-1.5">{attachmentItems}</div>
             )}
           </div>
           <div className="shrink-0">{actionButtons}</div>

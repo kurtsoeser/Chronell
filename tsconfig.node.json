@@ -5,6 +5,13 @@
     "src/preload/**/*",
     "src/shared/**/*"
   ],
+  "exclude": [
+    "src/shared/note-audio-playback.ts",
+    "src/shared/note-audio-playback.test.ts",
+    "src/shared/note-meeting-sync.ts",
+    "src/shared/note-meeting-sync.test.ts",
+    "src/shared/note-cloud-task.test.ts"
+  ],
   "compilerOptions": {
     "composite": true,
     "module": "ESNext",

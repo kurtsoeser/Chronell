@@ -14,6 +14,7 @@ import { ComposeCollapsibleSection } from '@/components/ComposeCollapsibleSectio
 import { ComposeQuotedMailPreview } from '@/components/ComposeQuotedMailPreview'
 import { SignatureFooterEditor } from '@/components/SignatureFooterEditor'
 import { ComposeAttachmentsStrip } from '@/components/ComposeAttachmentsStrip'
+import { EditorAttachmentActionBar } from '@/components/EditorAttachmentActionBar'
 import { OneDriveExplorerDialog } from '@/components/OneDriveExplorerDialog'
 import { SignatureTemplateControls } from '@/components/SignatureTemplateControls'
 import { RecipientTokenField } from '@/components/RecipientTokenField'
@@ -258,6 +259,15 @@ export function ReadingPaneCompose({
                     />
                   </div>
                 </div>
+                <EditorAttachmentActionBar
+                  inEditorSurface
+                  disabled={draft.busy}
+                  onError={setAttachmentError}
+                  onAddFiles={addFiles}
+                  onCloudAttach={isMicrosoft ? openDrive : undefined}
+                  attachmentCount={draft.attachments.length}
+                  cloudAttachmentCount={draft.referenceAttachments.length}
+                />
                 <ComposeEditorThemedPane className="compose-mail-editor-section min-h-0 flex-1">
                   <TipTapBody
                     inEditorSurface
@@ -265,10 +275,6 @@ export function ReadingPaneCompose({
                     valueHtml={draft.prependRichHtml}
                     onChangeHtml={(v): void => update(draft.id, { prependRichHtml: v })}
                     flushRef={bodyFlushRef}
-                    onAttachFiles={(files): void => void addFiles(files)}
-                    attachmentCount={draft.attachments.length}
-                    onCloudAttach={isMicrosoft ? openDrive : undefined}
-                    cloudAttachmentCount={draft.referenceAttachments.length}
                     autoFocus
                     fillHeight
                   />

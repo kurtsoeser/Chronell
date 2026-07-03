@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils'
 import { formatAttachmentBytes } from '@/lib/attachment-files'
 
 const ATTACHMENT_CHIP_WIDTH_CLASS = 'w-[248px] max-w-full min-w-0'
+const ATTACHMENT_CHIP_COMPACT_WIDTH_CLASS = 'w-[168px] max-w-full min-w-0'
 
 export function CloudAttachmentChip({
   name,
@@ -93,7 +94,8 @@ export function LocalAttachmentChip({
   onOpen,
   onSaveAs,
   saveAsLabel,
-  removeAriaLabel = 'Anhang entfernen'
+  removeAriaLabel = 'Anhang entfernen',
+  compact = false
 }: {
   name: string
   contentType: string
@@ -103,18 +105,25 @@ export function LocalAttachmentChip({
   onSaveAs?: () => void
   saveAsLabel?: string
   removeAriaLabel?: string
+  compact?: boolean
 }): JSX.Element {
   const Icon = pickAttachmentIcon(contentType, name)
 
   return (
     <div
       className={cn(
-        ATTACHMENT_CHIP_WIDTH_CLASS,
-        'flex flex-col gap-1.5 rounded-xl border border-border/80 bg-card px-3 py-2 text-[11px] text-foreground shadow-sm'
+        compact ? ATTACHMENT_CHIP_COMPACT_WIDTH_CLASS : ATTACHMENT_CHIP_WIDTH_CLASS,
+        'flex flex-col rounded-xl border border-border/80 bg-card text-foreground shadow-sm',
+        compact ? 'gap-1 px-2 py-1.5 text-2xs' : 'gap-1.5 px-3 py-2 text-[11px]'
       )}
     >
-      <div className="flex min-w-0 items-start gap-2">
-        <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+      <div className={cn('flex min-w-0 items-start', compact ? 'gap-1.5' : 'gap-2')}>
+        <Icon
+          className={cn(
+            'shrink-0 text-muted-foreground',
+            compact ? 'mt-0.5 h-3 w-3' : 'mt-0.5 h-4 w-4'
+          )}
+        />
         {onOpen ? (
           <button
             type="button"
@@ -122,11 +131,21 @@ export function LocalAttachmentChip({
             className="min-w-0 flex-1 rounded-sm text-left transition-colors hover:bg-secondary/40"
             title={size != null ? `${name} · ${formatAttachmentBytes(size)}` : name}
           >
-            <span className="line-clamp-2 break-all font-medium text-foreground">{name}</span>
+            <span
+              className={cn(
+                'line-clamp-2 break-all font-medium text-foreground',
+                compact && 'leading-tight'
+              )}
+            >
+              {name}
+            </span>
           </button>
         ) : (
           <span
-            className="min-w-0 flex-1 line-clamp-2 break-all font-medium text-foreground"
+            className={cn(
+              'min-w-0 flex-1 line-clamp-2 break-all font-medium text-foreground',
+              compact && 'leading-tight'
+            )}
             title={name}
           >
             {name}
@@ -143,28 +162,43 @@ export function LocalAttachmentChip({
             aria-label={removeAriaLabel}
             title="Entfernen"
           >
-            <X className="h-3 w-3" />
+            <X className={compact ? 'h-2.5 w-2.5' : 'h-3 w-3'} />
           </button>
         ) : null}
       </div>
 
       {(size != null || onSaveAs) && (
-        <div className="flex min-w-0 items-center justify-between gap-2 border-t border-border/50 pt-1.5">
+        <div
+          className={cn(
+            'flex min-w-0 items-center justify-between gap-2 border-t border-border/50',
+            compact ? 'pt-1' : 'pt-1.5'
+          )}
+        >
           {size != null ? (
-            <span className="shrink-0 text-[10px] text-muted-foreground">
+            <span
+              className={cn(
+                'shrink-0 text-muted-foreground',
+                compact ? 'text-[9px]' : 'text-[10px]'
+              )}
+            >
               {formatAttachmentBytes(size)}
             </span>
           ) : (
             <span />
           )}
-          {onSaveAs && saveAsLabel ? (
+          {onSaveAs ? (
             <button
               type="button"
               onClick={onSaveAs}
-              className="inline-flex shrink-0 items-center gap-0.5 text-[10px] font-medium text-primary hover:underline"
+              className={cn(
+                'inline-flex shrink-0 items-center text-primary hover:text-primary/80',
+                compact ? 'rounded p-0.5 hover:bg-primary/10' : 'gap-0.5 text-[10px] font-medium hover:underline'
+              )}
+              aria-label={saveAsLabel ?? 'Download'}
+              title={saveAsLabel ?? 'Download'}
             >
-              <Download className="h-2.5 w-2.5" />
-              {saveAsLabel}
+              <Download className={compact ? 'h-3 w-3' : 'h-2.5 w-2.5'} />
+              {!compact && saveAsLabel ? saveAsLabel : null}
             </button>
           ) : null}
         </div>

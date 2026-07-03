@@ -169,7 +169,9 @@ export const IPC = {
     attachmentsReadLocal: 'notes:attachments:read-local',
     readClipboardImage: 'notes:read-clipboard-image',
     exportPdf: 'notes:export-pdf',
-    printPage: 'notes:print-page'
+    printPage: 'notes:print-page',
+    resolveEmbedUrl: 'notes:resolve-embed-url',
+    resolveM365Video: 'notes:resolve-m365-video'
   },
   quickCapture: {
     open: 'quick-capture:open',
@@ -288,6 +290,7 @@ export const IPC = {
     createEvent: 'calendar:create-event',
     updateEvent: 'calendar:update-event',
     getEvent: 'calendar:get-event',
+    resolveMeetingRecording: 'calendar:resolve-meeting-recording',
     listEventAttachments: 'calendar:list-event-attachments',
     openEventAttachment: 'calendar:open-event-attachment',
     saveEventAttachmentAs: 'calendar:save-event-attachment-as',

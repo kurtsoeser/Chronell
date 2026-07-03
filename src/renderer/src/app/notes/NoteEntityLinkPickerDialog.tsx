@@ -15,7 +15,7 @@ import type {
   NoteLinkTargetCandidate,
   NoteLinksBundle
 } from '@shared/note-entity-links'
-import { cn } from '@/lib/utils'
+import { EntityLinkFilterTabs } from '@/components/EntityLinkFilterTabs'
 import { ModalPanel, ModalRoot } from '@/components/motion/Modal'
 
 const PICKER_KINDS: NoteEntityLinkTargetKind[] = [
@@ -113,35 +113,7 @@ export function NoteEntityLinkPickerDialog({
         </header>
 
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
-          <div className="flex flex-wrap gap-1">
-            <button
-              type="button"
-              onClick={(): void => setPickerKind('all')}
-              className={cn(
-                'rounded-md border px-2 py-0.5 text-2xs',
-                pickerKind === 'all'
-                  ? 'border-primary bg-primary/10 text-foreground'
-                  : 'border-border text-muted-foreground hover:bg-secondary/60'
-              )}
-            >
-              {t('notes.links.filterAll')}
-            </button>
-            {PICKER_KINDS.map((kind) => (
-              <button
-                key={kind}
-                type="button"
-                onClick={(): void => setPickerKind(kind)}
-                className={cn(
-                  'rounded-md border px-2 py-0.5 text-2xs',
-                  pickerKind === kind
-                    ? 'border-primary bg-primary/10 text-foreground'
-                    : 'border-border text-muted-foreground hover:bg-secondary/60'
-                )}
-              >
-                {t(`notes.links.kind.${kind}`)}
-              </button>
-            ))}
-          </div>
+          <EntityLinkFilterTabs value={pickerKind} onChange={setPickerKind} kinds={PICKER_KINDS} />
 
           <input
             type="search"

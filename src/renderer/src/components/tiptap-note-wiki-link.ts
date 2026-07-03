@@ -3,6 +3,8 @@ import { PluginKey } from '@tiptap/pm/state'
 import { ReactRenderer } from '@tiptap/react'
 import Suggestion, { type SuggestionOptions } from '@tiptap/suggestion'
 import { noteWikiLinkHref } from '@shared/note-wiki-link'
+import { noteWikiReferenceLinkClass } from '@shared/note-entity-mention-link'
+import { linkNoteEntityMention } from '@/lib/note-entity-mention-insert'
 import {
   NoteWikiLinkSuggestionList,
   type NoteWikiLinkSuggestionItem,
@@ -11,6 +13,8 @@ import {
 
 export interface NoteWikiLinkExtensionOptions {
   currentNoteId?: number
+  onLinkAdded?: () => void
+  onLinkError?: (message: string) => void
 }
 
 const NOTE_WIKI_LINK_PLUGIN_KEY = new PluginKey('noteWikiLinkSuggestion')
@@ -91,7 +95,7 @@ function createSuggestionOptions(
               type: 'link',
               attrs: {
                 href: noteWikiLinkHref(props.id),
-                class: 'note-wiki-link',
+                class: noteWikiReferenceLinkClass(),
                 target: null,
                 rel: null
               }
@@ -100,6 +104,13 @@ function createSuggestionOptions(
         })
         .insertContent(' ')
         .run()
+      if (options.currentNoteId != null) {
+        void linkNoteEntityMention(options.currentNoteId, { kind: 'note', noteId: props.id })
+          .then(() => options.onLinkAdded?.())
+          .catch((e) => {
+            options.onLinkError?.(e instanceof Error ? e.message : String(e))
+          })
+      }
     },
     render: () => ({
       onStart: (props): void => {

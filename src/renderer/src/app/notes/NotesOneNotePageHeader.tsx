@@ -6,7 +6,9 @@ import { CalendarEventIconPicker } from '@/components/CalendarEventIconPicker'
 import { IconColorPickerFooter } from '@/components/IconColorPickerFooter'
 import { NoteDisplayIcon } from '@/components/NoteDisplayIcon'
 import { NotesCategoryBadges } from '@/components/NotesCategoryBadges'
+import type { NoteEntityLinkedItem, NoteLinksBundle } from '@shared/note-entity-links'
 import { NotesAttachmentsPanel } from '@/app/notes/NotesAttachmentsPanel'
+import { NotesLinkedObjectsPanel } from '@/app/notes/NotesLinkedObjectsPanel'
 import { ChronellDateField } from '@/components/ChronellDateField'
 import { ChronellTimeField } from '@/components/ChronellTimeField'
 import { noteKindLabel } from '@/app/notes/notes-display-helpers'
@@ -93,6 +95,14 @@ export interface NotesOneNotePageHeaderProps {
     clearSchedule?: boolean
   }) => void
   noteId: number
+  onCreateSubPage?: () => void
+  onOpenNote: (noteId: number) => void
+  linksBodyHtml?: string
+  linkedPreviewKey?: string | null
+  onSelectLinkForPreview?: (item: NoteEntityLinkedItem, direction: 'outgoing' | 'incoming') => void
+  onLinksLoaded?: (bundle: NoteLinksBundle) => void
+  linkedPreviewOpen?: boolean
+  onLinkedPreviewToggle?: () => void
 }
 
 export const NotesOneNotePageHeader = memo(function NotesOneNotePageHeader({
@@ -112,7 +122,15 @@ export const NotesOneNotePageHeader = memo(function NotesOneNotePageHeader({
   scheduleNote,
   defaultScheduleDurationMinutes = 30,
   onScheduleChange,
-  noteId
+  noteId,
+  onCreateSubPage,
+  onOpenNote,
+  linksBodyHtml,
+  linkedPreviewKey,
+  onSelectLinkForPreview,
+  onLinksLoaded,
+  linkedPreviewOpen,
+  onLinkedPreviewToggle
 }: NotesOneNotePageHeaderProps): JSX.Element {
   const { t } = useTranslation()
   const [titleDraft, setTitleDraft] = useState(initialTitle)
@@ -362,8 +380,26 @@ export const NotesOneNotePageHeader = memo(function NotesOneNotePageHeader({
       </div>
 
       <div className="mt-3 overflow-hidden rounded-sm border border-border/60 bg-muted/30">
-        <OneNoteMetaRow label={t('notes.onenote.metaAttachments')} className="border-b-0">
-          <NotesAttachmentsPanel noteId={noteId} variant="onenote" />
+        <OneNoteMetaRow label={t('notes.onenote.metaAttachments')}>
+          <NotesAttachmentsPanel
+            noteId={noteId}
+            variant="onenote"
+            onCreateSubPage={onCreateSubPage}
+            createSubPageDisabled={disabled}
+          />
+        </OneNoteMetaRow>
+        <OneNoteMetaRow label={t('notes.onenote.metaLinks')}>
+          <NotesLinkedObjectsPanel
+            noteId={noteId}
+            variant="onenote"
+            bodyHtml={linksBodyHtml ?? note.body}
+            onOpenNote={onOpenNote}
+            selectedPreviewKey={linkedPreviewKey}
+            onSelectForPreview={onSelectLinkForPreview}
+            onLinksLoaded={onLinksLoaded}
+            previewOpen={linkedPreviewOpen}
+            onTogglePreview={onLinkedPreviewToggle}
+          />
         </OneNoteMetaRow>
       </div>
     </header>

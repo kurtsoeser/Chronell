@@ -586,6 +586,7 @@ export function EntityContextRelations({
                   dense={dense}
                   quality={qualityByLinkId.get(item.linkId)}
                   setAppMode={setAppMode}
+                  openOn="doubleClick"
                   onRemove={(): void => void removeLink(item.linkId)}
                   t={t}
                 />
@@ -663,6 +664,7 @@ function ConnectionLinkRow({
   busy,
   quality,
   dense = false,
+  openOn = 'click',
   setAppMode,
   onRemove,
   t
@@ -671,6 +673,7 @@ function ConnectionLinkRow({
   busy: boolean
   dense?: boolean
   quality?: EntityLinkQualityAssessment
+  openOn?: 'click' | 'doubleClick'
   setAppMode: (mode: AppShellMode) => void
   onRemove: () => void
   t: (key: string) => string
@@ -681,10 +684,19 @@ function ConnectionLinkRow({
   const open = (): void => {
     void openEntityRef(item.peer, setAppMode)
   }
+  const titleOpenHandler =
+    openOn === 'doubleClick'
+      ? { onDoubleClick: open }
+      : { onClick: open }
   return (
     <div className="flex items-center gap-1 rounded-md px-1 py-0.5 hover:bg-secondary/40">
       <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-      <button type="button" onClick={open} className="min-w-0 flex-1 text-left" title={item.title}>
+      <button
+        type="button"
+        {...titleOpenHandler}
+        className="min-w-0 flex-1 text-left"
+        title={item.title}
+      >
         <span className={cn('flex items-center gap-1 truncate', titleClass)}>
           <span className="truncate">{item.title}</span>
           {quality ? (

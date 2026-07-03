@@ -11,7 +11,8 @@ export const MAX_TIME_GRID_SPAN_DAYS = 21
 export function viewIdToLabel(viewId: string, tr: TFunction): string {
   if (viewId === GANTT_TIMELINE_VIEW_ID) return tr('calendar.views.ganttTimeline')
   if (viewId === 'timeGridDay') return tr('calendar.views.day')
-  if (viewId === 'timeGridWeek') return tr('calendar.views.week')
+  if (viewId === 'timeGridWeek') return tr('calendar.views.weekTime')
+  if (viewId === 'dayGridWeek') return tr('calendar.views.week')
   if (viewId === 'dayGridMonth') return tr('calendar.views.month')
   if (viewId === 'multiMonthYear') return tr('calendar.views.year')
   if (viewId === 'multiMonthQuarter') return tr('calendar.views.quarterYear')

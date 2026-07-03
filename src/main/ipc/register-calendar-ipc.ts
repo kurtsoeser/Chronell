@@ -8,6 +8,8 @@ import {
   type CalendarUpdateEventInput,
   type CalendarGetEventInput,
   type CalendarGetEventResult,
+  type CalendarResolveMeetingRecordingInput,
+  type CalendarResolveMeetingRecordingResult,
   type CalendarDeleteEventInput,
   type CalendarPatchEventIconInput,
   type CalendarPatchScheduleInput,
@@ -322,6 +324,60 @@ export function registerCalendarIpc(): void {
         },
         { forceRefresh: input.forceRefresh === true }
       )
+    }
+  )
+
+  ipcMain.removeHandler(IPC.calendar.resolveMeetingRecording)
+  ipcMain.handle(
+    IPC.calendar.resolveMeetingRecording,
+    async (
+      _event,
+      input: CalendarResolveMeetingRecordingInput
+    ): Promise<CalendarResolveMeetingRecordingResult> => {
+      assertAppOnline()
+      const accountId = input?.accountId?.trim()
+      if (!accountId) {
+        return {
+          recordingUrl: null,
+          recapUrl: null,
+          source: null,
+          recapSource: null,
+          hasGraphRecording: false
+        }
+      }
+
+      const { extractMeetingRecapUrl, extractMeetingStreamRecordingUrl } = await import(
+        '@shared/extract-meeting-recording-url'
+      )
+      const { resolveTeamsMeetingRecapUrl } = await import('@shared/note-teams-meeting-recap')
+
+      const joinUrl = input.joinUrl?.trim()
+      const recapResolved = resolveTeamsMeetingRecapUrl({
+        bodyHtml: input.bodyHtml,
+        joinUrl,
+        recapFromBody: extractMeetingRecapUrl(input.bodyHtml)
+      })
+
+      let recordingUrl = extractMeetingStreamRecordingUrl(input.bodyHtml)
+      let source: CalendarResolveMeetingRecordingResult['source'] = recordingUrl ? 'body' : null
+      let hasGraphRecording = false
+
+      if (joinUrl && accountId.startsWith('ms:')) {
+        const { graphResolveMeetingRecording } = await import('../graph/meeting-recording-graph')
+        const fromGraph = await graphResolveMeetingRecording(accountId, joinUrl)
+        hasGraphRecording = fromGraph.hasRecording
+        if (!recordingUrl && fromGraph.hasRecording) {
+          source = 'graph'
+        }
+      }
+
+      return {
+        recordingUrl,
+        recapUrl: recapResolved.url,
+        source,
+        recapSource: recapResolved.source,
+        hasGraphRecording
+      }
     }
   )
 

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('@/lib/sanitize-compose-html', () => ({
-  prepareComposeEditorHtml: (html: string): string => html
+  prepareNoteEditorHtml: (html: string): string => html
 }))
 
 import {

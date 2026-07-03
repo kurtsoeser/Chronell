@@ -23,8 +23,7 @@ import {
   CheckSquare,
   Unlink,
   SquareArrowOutUpRight,
-  PanelRightClose,
-  CalendarDays
+  PanelRightClose
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -77,9 +76,10 @@ import {
 } from '@/lib/mail-to-note'
 import { ReadingPaneCompose } from '@/components/ReadingPaneCompose'
 import { MailCategoriesPopover } from '@/components/MailCategoriesPopover'
-import { NotesCategoryBadges } from '@/components/NotesCategoryBadges'
 import { LocalAttachmentChip } from '@/components/AttachmentChips'
-import { PreviewMetaDot, PreviewMetaRow } from '@/components/preview-meta-chrome'
+import { PreviewMetaRow } from '@/components/preview-meta-chrome'
+import { MailReadingPreviewMetaRow } from '@/components/mail/MailReadingPreviewMetaRow'
+import type { MailReadingPreviewMetaFieldContext } from '@/lib/mail-reading-preview-meta-fields'
 import { formatNotePageDateLong } from '@/app/notes/notes-display-helpers'
 import { useDateFnsLocale } from '@/lib/date-fns-locale'
 import { wellKnownFolderTitle } from '@shared/well-known-folder-title'
@@ -1027,6 +1027,39 @@ function MailReader({
     setCategoryOpen(true)
   }
 
+  function openSenderContextMenu(e: React.MouseEvent): void {
+    if (!message.fromAddr?.trim()) return
+    e.preventDefault()
+    e.stopPropagation()
+    void (async (): Promise<void> => {
+      const hit = await findContactByEmail(message.fromAddr, message.accountId)
+      const items = buildMailSenderContextItems(
+        message,
+        hit?.id ?? null,
+        {
+          onCreateContact: (): void => openContactFromMail(message),
+          onOpenContact: openContactInPeople
+        },
+        t
+      )
+      if (items.length === 0) return
+      setSenderMenu({ x: e.clientX, y: e.clientY, items })
+    })()
+  }
+
+  const previewMetaCtx: MailReadingPreviewMetaFieldContext = {
+    dateTimeLabel,
+    folderLabel,
+    fromLabel,
+    fromAddrDetail,
+    toAddrs: message.toAddrs ?? null,
+    ccAddrs: message.ccAddrs ?? null,
+    categories,
+    accountLabel,
+    isFlagged: message.isFlagged,
+    importance: message.importance
+  }
+
   return (
     <div
       className={cn(
@@ -1043,25 +1076,7 @@ function MailReader({
         <div className="flex items-start justify-between gap-3">
           <div
             className="flex min-w-0 flex-1 items-start gap-3 border-b border-foreground/20 pb-1"
-            onContextMenu={(e): void => {
-              if (!message.fromAddr?.trim()) return
-              e.preventDefault()
-              e.stopPropagation()
-              void (async (): Promise<void> => {
-                const hit = await findContactByEmail(message.fromAddr, message.accountId)
-                const items = buildMailSenderContextItems(
-                  message,
-                  hit?.id ?? null,
-                  {
-                    onCreateContact: (): void => openContactFromMail(message),
-                    onOpenContact: openContactInPeople
-                  },
-                  t
-                )
-                if (items.length === 0) return
-                setSenderMenu({ x: e.clientX, y: e.clientY, items })
-              })()
-            }}
+            onContextMenu={openSenderContextMenu}
           >
             <Avatar
               name={message.fromName}
@@ -1151,125 +1166,13 @@ function MailReader({
           </div>
         </div>
 
-        <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-sm">
-          {dateTimeLabel ? (
-            <>
-              <CalendarDays className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
-              <span className="tabular-nums">{dateTimeLabel}</span>
-              <PreviewMetaDot />
-            </>
-          ) : null}
-          <span className="inline-flex min-w-0 max-w-full items-center gap-1">
-            <span className="shrink-0 text-xs italic text-muted-foreground">
-              {t('mail.readingPane.metaFolder')}:
-            </span>
-            {folderLabel ? (
-              <span className="truncate">{folderLabel}</span>
-            ) : (
-              <span className="text-muted-foreground">—</span>
-            )}
-          </span>
-          <PreviewMetaDot />
-          <span
-            className="inline-flex min-w-0 max-w-full items-center gap-1"
-            onContextMenu={(e): void => {
-              if (!message.fromAddr?.trim()) return
-              e.preventDefault()
-              e.stopPropagation()
-              void (async (): Promise<void> => {
-                const hit = await findContactByEmail(message.fromAddr, message.accountId)
-                const items = buildMailSenderContextItems(
-                  message,
-                  hit?.id ?? null,
-                  {
-                    onCreateContact: (): void => openContactFromMail(message),
-                    onOpenContact: openContactInPeople
-                  },
-                  t
-                )
-                if (items.length === 0) return
-                setSenderMenu({ x: e.clientX, y: e.clientY, items })
-              })()
-            }}
-          >
-            <span className="shrink-0 text-xs italic text-muted-foreground">
-              {t('mail.readingPane.metaFrom')}:
-            </span>
-            <span className="truncate font-medium">{fromLabel}</span>
-            {fromAddrDetail ? (
-              <span className="truncate text-xs text-muted-foreground">&lt;{fromAddrDetail}&gt;</span>
-            ) : null}
-          </span>
-          {message.toAddrs?.trim() ? (
-            <>
-              <PreviewMetaDot />
-              <span className="inline-flex min-w-0 max-w-full items-center gap-1">
-                <span className="shrink-0 text-xs italic text-muted-foreground">
-                  {t('mail.readingPane.metaTo')}:
-                </span>
-                <span className="truncate">{message.toAddrs.trim()}</span>
-              </span>
-            </>
-          ) : null}
-          {message.ccAddrs?.trim() ? (
-            <>
-              <PreviewMetaDot />
-              <span className="inline-flex min-w-0 max-w-full items-center gap-1">
-                <span className="shrink-0 text-xs italic text-muted-foreground">
-                  {t('mail.readingPane.metaCc')}:
-                </span>
-                <span className="truncate">{message.ccAddrs.trim()}</span>
-              </span>
-            </>
-          ) : null}
-          <PreviewMetaDot />
-          <span className="inline-flex min-w-0 max-w-full items-center gap-1">
-            <span className="shrink-0 text-xs italic text-muted-foreground">
-              {t('mail.readingPane.metaCategories')}:
-            </span>
-            <button
-              type="button"
-              disabled={!account}
-              className="min-w-0 text-left disabled:cursor-default"
-              title={t('mail.readingPane.categoriesTitle')}
-              onClick={openCategoryPicker}
-            >
-              {categories.length > 0 ? (
-                <NotesCategoryBadges names={categories} colorByName={new Map()} />
-              ) : (
-                <span className="text-muted-foreground">{t('mail.readingPane.categoriesEmpty')}</span>
-              )}
-            </button>
-          </span>
-          {accountLabel ? (
-            <>
-              <PreviewMetaDot />
-              <span className="inline-flex min-w-0 max-w-full items-center gap-1">
-                <span className="shrink-0 text-xs italic text-muted-foreground">
-                  {t('mail.readingPane.metaAccount')}:
-                </span>
-                <span className="truncate">{accountLabel}</span>
-              </span>
-            </>
-          ) : null}
-          {message.isFlagged ? (
-            <>
-              <PreviewMetaDot />
-              <span className="inline-flex items-center gap-1 text-amber-500">
-                <Star className="h-3 w-3 fill-current" aria-hidden />
-                <span className="text-xs">{t('mail.readingPane.metaFlagged')}</span>
-              </span>
-            </>
-          ) : null}
-          {message.importance === 'high' ? (
-            <>
-              <PreviewMetaDot />
-              <span className="text-xs font-medium text-destructive">
-                {t('mail.readingPane.metaImportanceHigh')}
-              </span>
-            </>
-          ) : null}
-        </div>
+        <MailReadingPreviewMetaRow
+          messageId={message.id}
+          ctx={previewMetaCtx}
+          accountEnabled={Boolean(account)}
+          onOpenCategories={openCategoryPicker}
+          onFromContextMenu={openSenderContextMenu}
+        />
 
         <MailCategoriesPopover
           open={categoryOpen}

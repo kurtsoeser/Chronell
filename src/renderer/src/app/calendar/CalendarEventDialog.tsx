@@ -96,6 +96,7 @@ import { useAccountsStore } from '@/stores/accounts'
 import { resolvedAccountColorCss } from '@/lib/avatar-color'
 import { EntityContextBlock } from '@/components/connections/EntityContextBlock'
 import { TipTapBody } from '@/components/TipTapBody'
+import { EditorAttachmentActionBar } from '@/components/EditorAttachmentActionBar'
 import { sanitizeComposeHtmlFragment } from '@/lib/sanitize-compose-html'
 import { prepareCalendarEventBodyHtml } from '@shared/calendar-event-body-html'
 import { CalendarEventDescriptionPreview } from '@/app/calendar/CalendarEventDescriptionPreview'
@@ -2342,28 +2343,40 @@ export function CalendarEventDialog({
                       onDrop={handleEditorDrop}
                       onPasteCapture={handleEditorPaste}
                     >
+                      {!eventFieldsLocked &&
+                      (eventAttachmentsApi.supportsFileAttachments ||
+                        eventAttachmentsApi.supportsCloudAttachments) ? (
+                        <EditorAttachmentActionBar
+                          compact
+                          disabled={busy}
+                          onError={eventAttachmentsApi.setAttachmentError}
+                          onAddFiles={(files): void => {
+                            void eventAttachmentsApi.addFiles(files)
+                          }}
+                          showMediaActions={eventAttachmentsApi.supportsFileAttachments}
+                          enableFileAttach={eventAttachmentsApi.supportsFileAttachments}
+                          onCloudAttach={
+                            eventAttachmentsApi.supportsCloudAttachments
+                              ? (): void => setDriveOpen(true)
+                              : undefined
+                          }
+                          attachmentCount={eventAttachmentsApi.newFiles.length}
+                          cloudAttachmentCount={eventAttachmentsApi.newReferences.length}
+                          className="rounded-t-md border border-b-0 border-border"
+                        />
+                      ) : null}
                       <TipTapBody
                         valueHtml={descriptionHtml}
                         onChangeHtml={setDescriptionHtml}
                         placeholder={t('calendar.eventDialog.descriptionEditorPlaceholder')}
-                        onAttachFiles={
-                          eventAttachmentsApi.supportsFileAttachments
-                            ? (files): void => {
-                                void eventAttachmentsApi.addFiles(files)
-                              }
-                            : undefined
-                        }
-                        attachmentCount={
-                          eventAttachmentsApi.newFiles.length +
-                          eventAttachmentsApi.newReferences.length
-                        }
-                        onCloudAttach={
-                          eventAttachmentsApi.supportsCloudAttachments
-                            ? (): void => setDriveOpen(true)
-                            : undefined
-                        }
                         editorMinHeightClass="min-h-[220px]"
-                        className="min-h-[260px] rounded-md border border-border bg-background !border-t-0"
+                        className={cn(
+                          'min-h-[260px] rounded-md border border-border bg-background !border-t-0',
+                          !eventFieldsLocked &&
+                            (eventAttachmentsApi.supportsFileAttachments ||
+                              eventAttachmentsApi.supportsCloudAttachments) &&
+                            'rounded-t-none border-t-0'
+                        )}
                       />
                       <CalendarEventAttachmentsPanel
                         attachments={eventAttachmentsApi}

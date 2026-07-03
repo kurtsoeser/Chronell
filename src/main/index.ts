@@ -34,6 +34,10 @@ import {
   migrateLegacyUserDataIfNeeded
 } from './user-data-migration'
 import { APP_ID, APP_PRODUCT_NAME } from '@shared/app-version'
+import {
+  isAllowedNoteEmbedSubFrameUrl,
+  NOTE_EMBED_HTTP_ORIGIN
+} from '@shared/note-embed-frame'
 import { attachChromiumZoomShortcutGuard } from './zoom-shortcut-guard'
 import { resolveAppWindowIcon } from './app-icon'
 import { mainWindowTitleBarOptions } from './window-titlebar'
@@ -61,10 +65,15 @@ import {
   registerNoteAttachmentMediaProtocol,
   registerNoteAttachmentMediaScheme
 } from './note-attachment-media-protocol'
+import {
+  registerNoteM365VideoProtocol,
+  registerNoteM365VideoScheme
+} from './note-m365-video-protocol'
 
 configureChronellAppPaths()
 
 registerNoteAttachmentMediaScheme()
+registerNoteM365VideoScheme()
 
 for (const icsPath of extractIcsPathsFromArgv(process.argv)) {
   enqueueIcsFilePath(icsPath)
@@ -104,6 +113,27 @@ const isDev = !app.isPackaged
 let mainWindow: BrowserWindow | null = null
 
 let mailFrameRedirectRegistered = false
+let noteEmbedHeadersRegistered = false
+
+/**
+ * YouTube/Forms-Embeds in Notizen brauchen einen gültigen HTTP-Referer (YouTube-Fehler 153).
+ * Unter file:// sendet Chromium keinen brauchbaren Referer — daher explizit setzen.
+ */
+function registerNoteEmbedRequestHeaders(): void {
+  if (noteEmbedHeadersRegistered) return
+  noteEmbedHeadersRegistered = true
+  session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
+    if (details.resourceType !== 'subFrame' || !isAllowedNoteEmbedSubFrameUrl(details.url)) {
+      callback({ requestHeaders: details.requestHeaders })
+      return
+    }
+    const requestHeaders = {
+      ...details.requestHeaders,
+      Referer: `${NOTE_EMBED_HTTP_ORIGIN}/`
+    }
+    callback({ requestHeaders })
+  })
+}
 
 /**
  * Blockiert http(s)-Navigation in (Sub-)Frames **bevor** die Renderer-CSP greift
@@ -120,6 +150,10 @@ function registerMailFrameExternalRedirect(): void {
     }
     const url = details.url
     if (isAppInternalNavigationUrl(url)) {
+      callback({})
+      return
+    }
+    if (rt === 'subFrame' && isAllowedNoteEmbedSubFrameUrl(url)) {
       callback({})
       return
     }
@@ -149,6 +183,8 @@ function attachExternalNavigationGuards(contents: WebContents): void {
   contents.on('will-frame-navigate', (event) => {
     const url = event.url
     if (isAppInternalNavigationUrl(url)) return
+
+    if (!event.isMainFrame && isAllowedNoteEmbedSubFrameUrl(url)) return
 
     if (normalizeExternalOpenUrl(url)) {
       event.preventDefault()
@@ -226,6 +262,7 @@ app.whenReady().then(async () => {
   }
 
   registerMailFrameExternalRedirect()
+  registerNoteEmbedRequestHeaders()
   await applyPendingChromiumCachePurgeOnStartup().catch((e) =>
     console.warn('[startup] chromium-cache purge:', e)
   )
@@ -250,6 +287,7 @@ app.whenReady().then(async () => {
   )
   registerIpcHandlers()
   await registerNoteAttachmentMediaProtocol()
+  await registerNoteM365VideoProtocol()
   createMainWindow()
   registerNotesGlobalShortcuts()
   startConnectivityMonitoring()

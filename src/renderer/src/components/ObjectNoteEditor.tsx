@@ -10,7 +10,7 @@ import {
   type PointerEvent as ReactPointerEvent
 } from 'react'
 import { createPortal } from 'react-dom'
-import { GripHorizontal, Loader2, Save, StickyNote, X } from 'lucide-react'
+import { GripHorizontal, Loader2, PenLine, Save, StickyNote, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import {
   IPC,
@@ -32,6 +32,7 @@ import {
 import { useThemeStore } from '@/stores/theme'
 import { useUndoStore } from '@/stores/undo'
 import { NotesAttachmentsPanel } from '@/app/notes/NotesAttachmentsPanel'
+import { useNoteInkDraw } from '@/app/notes/use-note-ink-draw'
 
 export type ObjectNoteTarget =
   | {
@@ -279,6 +280,10 @@ export function ObjectNoteEditor({
   const lastSavedBody = useRef('')
   const bodyRef = useRef('')
   const editorFlushRef = useRef<(() => void) | null>(null)
+  const editorInsertHtmlRef = useRef<((html: string) => void) | null>(null)
+  const editorReplaceInkRef = useRef<((inkJsonAttachmentId: number, html: string) => void) | null>(
+    null
+  )
   const anchorRef = useRef<HTMLButtonElement>(null)
   const popupRef = useRef<HTMLDivElement>(null)
   const popupFrameRef = useRef(popupFrame)
@@ -304,6 +309,18 @@ export function ObjectNoteEditor({
     POPUP_EDITOR_MIN_H,
     popupFrame.h - POPUP_CHROME_H
   )
+
+  const noteInk = useNoteInkDraw({
+    noteId: note?.id,
+    insertHtmlRef: editorInsertHtmlRef,
+    replaceInkSnapshotRef: editorReplaceInkRef,
+    onError: (message): void => {
+      pushToast({ label: message, variant: 'error' })
+    },
+    onSuccess: (message): void => {
+      pushToast({ label: message, variant: 'success' })
+    }
+  })
 
   useLayoutEffect(() => {
     if (open && isPopupVariant && !prevPopupOpenRef.current) {
@@ -571,6 +588,17 @@ export function ObjectNoteEditor({
           </div>
           {variant === 'button' ? (
             <div className="flex shrink-0 items-center gap-0.5">
+              <button
+                type="button"
+                disabled={!noteInk.canUseInk || loading}
+                onClick={noteInk.openNew}
+                onPointerDown={(e): void => e.stopPropagation()}
+                className="rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-40"
+                title={t('notes.ink.button')}
+                aria-label={t('notes.ink.button')}
+              >
+                <PenLine className="h-3.5 w-3.5" aria-hidden />
+              </button>
               <ComposeEditorThemeToggle compact />
               <button
                 type="button"
@@ -583,7 +611,19 @@ export function ObjectNoteEditor({
               </button>
             </div>
           ) : variant === 'section' ? (
-            <ComposeEditorThemeToggle compact />
+            <div className="flex shrink-0 items-center gap-0.5">
+              <button
+                type="button"
+                disabled={!noteInk.canUseInk || loading}
+                onClick={noteInk.openNew}
+                className="rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-40"
+                title={t('notes.ink.button')}
+                aria-label={t('notes.ink.button')}
+              >
+                <PenLine className="h-3.5 w-3.5" aria-hidden />
+              </button>
+              <ComposeEditorThemeToggle compact />
+            </div>
           ) : null}
         </div>
       ) : null}
@@ -610,6 +650,11 @@ export function ObjectNoteEditor({
           fillHeight={fillHeight}
           minHeight={fillHeight ? 120 : isPopupVariant ? popupEditorMinHeight : 180}
           flushRef={editorFlushRef}
+          insertHtmlRef={editorInsertHtmlRef}
+          replaceInkSnapshotRef={editorReplaceInkRef}
+          onInkImageDoubleClick={(attachmentId): void => {
+            void noteInk.openInkEdit(attachmentId)
+          }}
           showThemeToggle={showThemeToggle ?? variant !== 'button'}
           currentNoteId={note?.id}
           placeholder={t('notes.editor.placeholder')}
@@ -655,13 +700,26 @@ export function ObjectNoteEditor({
   )
 
   if (variant === 'panel') {
-    return editor
+    return (
+      <>
+        {editor}
+        {noteInk.inkDialog}
+      </>
+    )
   }
 
   if (variant === 'section') {
-    if (!sectionCollapsedDefault) return editor
+    if (!sectionCollapsedDefault) {
+      return (
+        <>
+          {editor}
+          {noteInk.inkDialog}
+        </>
+      )
+    }
     return (
-      <PreviewFoldSection
+      <>
+        <PreviewFoldSection
         icon={StickyNote}
         title={t('notes.editor.title')}
         expanded={sectionExpanded}
@@ -683,6 +741,8 @@ export function ObjectNoteEditor({
           {editor}
         </div>
       </PreviewFoldSection>
+        {noteInk.inkDialog}
+      </>
     )
   }
 
@@ -707,6 +767,7 @@ export function ObjectNoteEditor({
         {t('notes.editor.shortLabel')}
       </button>
       {portaledEditor ?? (open && !usePopupPortal ? editor : null)}
+      {noteInk.inkDialog}
     </div>
   )
 }

@@ -14,7 +14,7 @@ describe('handleTipTapLinkMouse', () => {
     Object.defineProperty(ev, 'target', { value: a })
     Object.defineProperty(ev, 'composedPath', { value: () => [a, document.body] })
 
-    expect(handleTipTapLinkMouse(ev, onOpenNote)).toBe(true)
+    expect(handleTipTapLinkMouse(ev, { onOpenNote })).toBe(true)
     expect(onOpenNote).toHaveBeenCalledWith(42)
 
     a.remove()
@@ -30,8 +30,58 @@ describe('handleTipTapLinkMouse', () => {
     const ev = new MouseEvent('mousedown', { bubbles: true, button: 0 })
     Object.defineProperty(ev, 'composedPath', { value: () => [a] })
 
-    expect(handleTipTapLinkMouse(ev, onOpenNote)).toBe(true)
+    expect(handleTipTapLinkMouse(ev, { onOpenNote })).toBe(true)
     expect(onOpenNote).toHaveBeenCalledWith(7)
+
+    a.remove()
+  })
+
+  it('öffnet Kontakt-Erwähnungen', () => {
+    const onOpenEntityMention = vi.fn()
+    const a = document.createElement('a')
+    a.href = '#chronell-contact-15'
+    document.body.appendChild(a)
+
+    const ev = new MouseEvent('mousedown', { bubbles: true, button: 0 })
+    Object.defineProperty(ev, 'composedPath', { value: () => [a] })
+
+    expect(handleTipTapLinkMouse(ev, { onOpenEntityMention })).toBe(true)
+    expect(onOpenEntityMention).toHaveBeenCalledWith({ kind: 'people_contact', contactId: 15 })
+
+    a.remove()
+  })
+
+  it('öffnet E-Mail-Erwähnungen', () => {
+    const onOpenEntityMention = vi.fn()
+    const a = document.createElement('a')
+    a.href = '#chronell-mail-99'
+    document.body.appendChild(a)
+
+    const ev = new MouseEvent('mousedown', { bubbles: true, button: 0 })
+    Object.defineProperty(ev, 'composedPath', { value: () => [a] })
+
+    expect(handleTipTapLinkMouse(ev, { onOpenEntityMention })).toBe(true)
+    expect(onOpenEntityMention).toHaveBeenCalledWith({ kind: 'mail', messageId: 99 })
+
+    a.remove()
+  })
+
+  it('öffnet Aufgaben-Erwähnungen', () => {
+    const onOpenEntityMention = vi.fn()
+    const a = document.createElement('a')
+    a.href = '#chronell-task-a1:l1:t1'
+    document.body.appendChild(a)
+
+    const ev = new MouseEvent('mousedown', { bubbles: true, button: 0 })
+    Object.defineProperty(ev, 'composedPath', { value: () => [a] })
+
+    expect(handleTipTapLinkMouse(ev, { onOpenEntityMention })).toBe(true)
+    expect(onOpenEntityMention).toHaveBeenCalledWith({
+      kind: 'cloud_task',
+      accountId: 'a1',
+      listId: 'l1',
+      taskId: 't1'
+    })
 
     a.remove()
   })

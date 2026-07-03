@@ -925,7 +925,8 @@ export function listNotesInRange(filters: UserNoteListInRangeFilters): UserNoteL
   const endIso = filters.endIso?.trim()
   if (!startIso || !endIso) return []
 
-  const where: string[] = ['n.scheduled_start_iso IS NOT NULL']
+  const dateMode = filters.dateMode === 'created' ? 'created' : 'scheduled'
+  const where: string[] = []
   const params: unknown[] = []
 
   const kinds = (filters.kinds ?? []).filter((k) => k === 'mail' || k === 'calendar' || k === 'standalone')
@@ -934,11 +935,20 @@ export function listNotesInRange(filters: UserNoteListInRangeFilters): UserNoteL
     params.push(...kinds)
   }
 
-  where.push(
-    `(n.scheduled_all_day = 1 AND date(n.scheduled_start_iso) < date(?) AND date(COALESCE(n.scheduled_end_iso, n.scheduled_start_iso)) >= date(?))
-     OR (n.scheduled_all_day = 0 AND n.scheduled_start_iso < ? AND COALESCE(n.scheduled_end_iso, datetime(n.scheduled_start_iso, '+30 minutes')) > ?)`
-  )
-  params.push(endIso, startIso, endIso, startIso)
+  if (dateMode === 'created') {
+    where.push(`date(n.created_at) >= date(?) AND date(n.created_at) < date(?)`)
+    params.push(startIso, endIso)
+  } else {
+    where.push('n.scheduled_start_iso IS NOT NULL')
+    where.push(
+      `(n.scheduled_all_day = 1 AND date(n.scheduled_start_iso) < date(?) AND date(COALESCE(n.scheduled_end_iso, n.scheduled_start_iso)) >= date(?))
+       OR (n.scheduled_all_day = 0 AND n.scheduled_start_iso < ? AND COALESCE(n.scheduled_end_iso, datetime(n.scheduled_start_iso, '+30 minutes')) > ?)`
+    )
+    params.push(endIso, startIso, endIso, startIso)
+  }
+
+  const orderSql =
+    dateMode === 'created' ? 'n.created_at ASC, n.id ASC' : 'n.scheduled_start_iso ASC, n.id ASC'
 
   const limit =
     typeof filters.limit === 'number' && Number.isFinite(filters.limit) && filters.limit > 0
@@ -962,7 +972,7 @@ export function listNotesInRange(filters: UserNoteListInRangeFilters): UserNoteL
        FROM user_notes n
        LEFT JOIN messages m ON m.id = n.message_id
        WHERE ${where.join(' AND ')}
-       ORDER BY n.scheduled_start_iso ASC, n.id ASC
+       ORDER BY ${orderSql}
        LIMIT ?`
     )
     .all(...params, limit) as UserNoteListRow[]

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ChevronDown, Loader2, Plus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { listAllNotePageTemplates, type NotePageTemplateId } from '@/lib/note-page-templates'
+import { listBuiltinNotePageTemplateGroups, type NotePageTemplateId } from '@/lib/note-page-templates'
 import { useCustomNotePageTemplates } from '@/hooks/use-custom-note-page-templates'
 import {
   ModuleColumnHeaderIconButton,
@@ -9,6 +9,16 @@ import {
   moduleColumnHeaderOutlineSmClass
 } from '@/components/ModuleColumnHeader'
 import { cn } from '@/lib/utils'
+
+const menuHeadingClass =
+  'border-b border-border/50 px-3 py-2 text-2xs font-semibold uppercase tracking-wider text-muted-foreground'
+const groupHeadingClass = (firstInList: boolean): string =>
+  cn(
+    'px-3 pb-1 text-[0.65rem] font-medium uppercase tracking-wider text-muted-foreground/60',
+    firstInList ? 'pt-1.5' : 'pt-2.5'
+  )
+const templateTitleClass = 'text-xs font-medium leading-tight text-foreground'
+const templateDescriptionClass = 'text-2xs leading-snug text-muted-foreground/85'
 
 export function NotePageCreateMenu({
   onCreate,
@@ -25,9 +35,12 @@ export function NotePageCreateMenu({
 }): JSX.Element {
   const { t } = useTranslation()
   const { customTemplates } = useCustomNotePageTemplates()
-  const templates = listAllNotePageTemplates(customTemplates, t)
-  const builtinTemplates = templates.filter((template) => template.builtin)
-  const customResolved = templates.filter((template) => !template.builtin)
+  const builtinGroups = listBuiltinNotePageTemplateGroups(customTemplates, t)
+  const customResolved = customTemplates.map((template) => ({
+    id: template.id,
+    title: template.name,
+    description: template.description
+  }))
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
 
@@ -45,17 +58,21 @@ export function NotePageCreateMenu({
     onCreate(templateId)
   }
 
-  const renderTemplateButton = (template: (typeof templates)[number]): JSX.Element => (
+  const renderTemplateButton = (template: {
+    id: string
+    title: string
+    description?: string
+  }): JSX.Element => (
     <button
       key={template.id}
       type="button"
       role="menuitem"
-      className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left hover:bg-secondary/60"
+      className="mx-1 flex w-[calc(100%-0.5rem)] flex-col items-start gap-0.5 rounded-sm px-2.5 py-1.5 text-left hover:bg-secondary/60"
       onClick={(): void => pick(template.id)}
     >
-      <span className="text-xs font-medium text-foreground">{template.title}</span>
+      <span className={templateTitleClass}>{template.title}</span>
       {template.description ? (
-        <span className="text-[11px] text-muted-foreground">{template.description}</span>
+        <span className={cn(templateDescriptionClass, 'line-clamp-2')}>{template.description}</span>
       ) : null}
     </button>
   )
@@ -100,21 +117,23 @@ export function NotePageCreateMenu({
       {open ? (
         <div
           className={cn(
-            'absolute z-50 mt-1 max-h-[min(420px,70vh)] min-w-[240px] overflow-y-auto rounded-md border border-border bg-popover py-1 shadow-lg',
+            'absolute z-50 mt-1 max-h-[min(420px,70vh)] min-w-[17.5rem] max-w-[20rem] overflow-y-auto rounded-md border border-border bg-popover py-1 shadow-lg',
             variant === 'icon' ? 'right-0' : 'left-0'
           )}
           role="menu"
         >
-          <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-            {t('notes.templates.menuHeading')}
-          </div>
-          {builtinTemplates.map(renderTemplateButton)}
+          <div className={menuHeadingClass}>{t('notes.templates.menuHeading')}</div>
+          {builtinGroups.map((group, groupIndex) => (
+            <div key={group.key}>
+              {groupIndex > 0 ? <div className="mx-3 my-0.5 border-t border-border/50" /> : null}
+              <div className={groupHeadingClass(groupIndex === 0)}>{group.label}</div>
+              {group.templates.map(renderTemplateButton)}
+            </div>
+          ))}
           {customResolved.length > 0 ? (
             <>
-              <div className="mx-3 my-1 border-t border-border/60" />
-              <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                {t('notes.templates.customSection')}
-              </div>
+              <div className="mx-3 my-0.5 border-t border-border/50" />
+              <div className={groupHeadingClass(false)}>{t('notes.templates.customSection')}</div>
               {customResolved.map(renderTemplateButton)}
             </>
           ) : null}

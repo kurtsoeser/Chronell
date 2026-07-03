@@ -52,13 +52,18 @@ export function SidebarSortableAccountFolderSection({
   const dragHandle = showDragHandle ? (
     <button
       type="button"
-      className="touch-none flex h-5 w-4 shrink-0 cursor-grab items-center justify-center rounded text-muted-foreground/50 hover:bg-secondary/60 hover:text-muted-foreground active:cursor-grabbing"
+      className={cn(
+        'touch-none flex h-5 w-4 shrink-0 cursor-grab items-center justify-center rounded text-muted-foreground/60',
+        'opacity-0 transition-opacity hover:bg-secondary/60 hover:text-foreground active:cursor-grabbing',
+        'group-hover:opacity-100 group-focus-within:opacity-100',
+        isDragging && 'opacity-100'
+      )}
       aria-label="Konto-Reihenfolge aendern"
       title="Ziehen zum Sortieren"
       {...attributes}
       {...listeners}
     >
-      <GripVertical className="h-3 w-3" />
+      <GripVertical className="h-3.5 w-3.5" />
     </button>
   ) : undefined
 

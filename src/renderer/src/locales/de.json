@@ -205,8 +205,23 @@
       "resizeAria": "Größe ändern",
       "moveAria": "Notizfenster verschieben"
     },
+    "embed": {
+      "remove": "Einbettung entfernen",
+      "interact": "Mit Inhalt interagieren",
+      "stopInteract": "Interaktion beenden"
+    },
     "templates": {
       "menuHeading": "Neue Seite aus Vorlage",
+      "groups": {
+        "general": "Allgemein",
+        "meetings": "Meetings & Team",
+        "projects": "Projekte & Planung",
+        "productivity": "Produktivität & Ziele",
+        "lists": "Listen & Sammlungen",
+        "events": "Planung & Events",
+        "people": "Menschen & Kontakte",
+        "tech": "Entwicklung & Technik"
+      },
       "blank": {
         "title": "Leere Seite",
         "description": "Ohne vorgegebenen Inhalt"
@@ -215,17 +230,97 @@
         "title": "Meeting-Protokoll",
         "description": "Agenda, Notizen und nächste Schritte"
       },
+      "oneOnOne": {
+        "title": "1:1-Gespräch",
+        "description": "Regelmäßige Gespräche mit Führungskraft, Team oder Mentor"
+      },
+      "standup": {
+        "title": "Daily Standup",
+        "description": "Kurzes Team-Update: gestern, heute, Blocker"
+      },
+      "workshop": {
+        "title": "Workshop",
+        "description": "Brainstorming mit Agenda, Ideen und Ergebnissen"
+      },
       "project": {
         "title": "Projektseite",
         "description": "Ziel, Status und Meilensteine"
+      },
+      "sprintRetro": {
+        "title": "Sprint-Retrospektive",
+        "description": "Was lief gut, was verbessern, konkrete Actions"
+      },
+      "decisionLog": {
+        "title": "Entscheidungsprotokoll",
+        "description": "Entscheidungen mit Kontext, Optionen und Begründung festhalten"
+      },
+      "riskRegister": {
+        "title": "Risikoregister",
+        "description": "Projektrisiken mit Wahrscheinlichkeit und Gegenmaßnahmen"
       },
       "weekly": {
         "title": "Wochenplan",
         "description": "Prioritäten und Aufgaben der Woche"
       },
+      "dailyReview": {
+        "title": "Tagesrückblick",
+        "description": "Morgen-Intention und Abend-Reflexion für den Tag"
+      },
+      "okr": {
+        "title": "OKR / Quartalsziele",
+        "description": "Objectives und Key Results mit Fortschrittsnotizen"
+      },
+      "habitTracker": {
+        "title": "Gewohnheits-Tracker",
+        "description": "Wöchentliche Gewohnheiten abhaken und reflektieren"
+      },
       "checklist": {
         "title": "Checkliste",
         "description": "Abhakbare Aufgabenliste"
+      },
+      "packingList": {
+        "title": "Packliste",
+        "description": "Reisevorbereitung nach Kategorien sortiert"
+      },
+      "readingNotes": {
+        "title": "Lese-Notizen",
+        "description": "Bücher und Artikel mit Zitaten und Erkenntnissen"
+      },
+      "recipe": {
+        "title": "Rezept",
+        "description": "Zutaten, Zubereitung und Tipps für Lieblingsgerichte"
+      },
+      "tripPlan": {
+        "title": "Reiseplan",
+        "description": "Itinerar, Buchungen und To-dos für die Reise"
+      },
+      "eventPlan": {
+        "title": "Event-Planung",
+        "description": "Timeline, Catering und Checkliste für Veranstaltungen"
+      },
+      "contactProfile": {
+        "title": "Kontaktprofil",
+        "description": "Wichtige Fakten und Gesprächsverlauf zu einer Person"
+      },
+      "interviewNotes": {
+        "title": "Interview-Protokoll",
+        "description": "Bewerbungs- oder Kundengespräch strukturiert dokumentieren"
+      },
+      "feedback360": {
+        "title": "Feedback-Session",
+        "description": "Konstruktives Feedback geben und nächste Schritte vereinbaren"
+      },
+      "bugReport": {
+        "title": "Bug-Report",
+        "description": "Fehler mit Reproduktionsschritten und Umgebung beschreiben"
+      },
+      "apiDesign": {
+        "title": "Feature-Spec / API-Design",
+        "description": "Technische Spezifikation mit Anforderungen und Akzeptanzkriterien"
+      },
+      "incidentReport": {
+        "title": "Incident Postmortem",
+        "description": "Ausfall analysieren: Timeline, Ursache und Action Items"
       },
       "customSection": "Eigene Vorlagen",
       "manageHeading": "Seitenvorlagen verwalten",
@@ -266,9 +361,60 @@
       "fieldAttendees": "Teilnehmer",
       "fieldOnlineMeeting": "Online-Besprechung",
       "joinMeeting": "Beitreten",
+      "fieldMeetingRecap": "Besprechungszusammenfassung",
+      "viewRecap": "In Teams öffnen",
+      "fieldMeetingRecording": "Besprechungsaufzeichnung",
+      "viewRecording": "Aufzeichnung öffnen",
       "agenda": "Agenda",
       "notes": "Notizen",
-      "nextSteps": "Nächste Schritte"
+      "nextSteps": "Nächste Schritte",
+      "embedRecording": "Besprechungsaufzeichnung einbetten",
+      "embedRecap": "Besprechungszusammenfassung einbetten (Teams-Recap)",
+      "recordingSearching": "Aufzeichnung wird gesucht …"
+    },
+    "meetingRefresh": {
+      "button": "Besprechungsdetails aktualisieren",
+      "buttonHint": "Termindaten von Microsoft 365 / Google neu laden und Kopfbereich aktualisieren",
+      "updatedToast": "Besprechungsdetails aktualisiert.",
+      "nothingToUpdate": "Keine Änderungen gefunden oder keine verknüpften Besprechungsblöcke in dieser Notiz."
+    },
+    "embedInsert": {
+      "button": "Inhalte einbetten",
+      "title": "Inhalte einbetten",
+      "subtitle": "Füge Videos, Karten, Formulare und andere Inhalte per Link ein.",
+      "urlLabel": "Link",
+      "urlPlaceholder": "https://…",
+      "pasteHint": "Link einfügen — unterstützte Anbieter werden automatisch erkannt.",
+      "detectedProvider": "Erkannt: {{provider}}",
+      "unsupportedUrl": "Dieser Link wird noch nicht unterstützt oder konnte nicht aufgelöst werden.",
+      "insertFailed": "Einbettung konnte nicht eingefügt werden.",
+      "providerSearchLabel": "Anbieter",
+      "providerSearchPlaceholder": "Anbieter filtern …",
+      "providerSearchHint": "Anbieter antippen, um Beispiel-Links zu sehen — oder direkt eine URL einfügen.",
+      "exampleUrl": "Beispiel: {{url}}",
+      "noProviders": "Kein passender Anbieter.",
+      "insert": "Einbetten",
+      "insertedToast": "Inhalt eingebettet."
+    },
+    "m365Video": {
+      "fallbackTitle": "SharePoint-Video",
+      "openExternal": "In SharePoint öffnen",
+      "connectAccount": "Mit Konto verbinden",
+      "streamTitle": "SharePoint-Stream-Video",
+      "useStreamPlayer": "Stream-Player (Untertitel & Kommentare)",
+      "useNativePlayer": "Einfachen Player verwenden",
+      "openStreamExternal": "Stream mit Untertiteln im Browser öffnen",
+      "streamAuthHint": "Der SharePoint-Stream-Player kann in Chronell nicht angemeldet werden. Verbinde ein Microsoft-Konto und nutze den eingebauten Player — Untertitel und Kommentare öffnest du über ☁ im Browser.",
+      "retryResolve": "Erneut laden",
+      "resolving": "Video wird vorbereitet …",
+      "error": {
+        "no_account": "Kein Microsoft-Konto verbunden. Verbinde ein Konto mit Zugriff auf diese Datei.",
+        "forbidden": "Kein Zugriff auf dieses Video mit den verbundenen Konten.",
+        "not_found": "Video wurde nicht gefunden oder die Freigabe ist abgelaufen.",
+        "not_video": "Der Link verweist nicht auf eine Videodatei.",
+        "offline": "Offline — Wiedergabe nicht möglich.",
+        "unknown": "Wiedergabe nicht möglich."
+      }
     },
     "mailInsert": {
       "title": "Mail in Notiz",
@@ -295,6 +441,57 @@
       "emptyClipboard": "Kein Bild in der Zwischenablage. Zuerst einen Screenshot erstellen (z. B. Win+Shift+S) oder Strg+Shift+Alt+S verwenden.",
       "hint": "Tastenkürzel: Strg+Shift+Alt+S"
     },
+    "ink": {
+      "button": "Freihand zeichnen",
+      "title": "Freihandzeichnung",
+      "insert": "Einfügen",
+      "clear": "Alles löschen",
+      "undo": "Rückgängig",
+      "redo": "Wiederholen",
+      "tool": {
+        "pen": "Stift",
+        "eraser": "Radierer",
+        "highlighter": "Textmarker"
+      },
+      "strokeSize": "Strichstärke",
+      "colors": "Farben",
+      "addCustomColor": "Eigene Farbe hinzufügen",
+      "removeCustomColor": "Eigene Farbe entfernen",
+      "defaultName": "Freihand",
+      "emptyInsert": "Noch nichts gezeichnet.",
+      "insertedToast": "Freihandzeichnung eingefügt.",
+      "missingSource": "Freihand-Quelldatei wurde nicht gefunden.",
+      "reeditHint": "Doppelklick auf die Zeichnung zum Bearbeiten"
+    },
+    "cloudTask": {
+      "button": "Aufgabe erstellen",
+      "title": "Aufgabe in Notiz",
+      "create": "Aufgabe anlegen",
+      "due": "Fällig am",
+      "fromSelection": "Auswahl als Aufgabe",
+      "noAccounts": "Kein Microsoft- oder Google-Konto mit Aufgaben verbunden.",
+      "createdToast": "Aufgabe erstellt und mit der Notiz verknüpft."
+    },
+    "entityMention": {
+      "browseHint": "Notizen, E-Mails, Aufgaben, Kontakte und Termine — tippen zum Filtern",
+      "noResults": "Kein Treffer — anderes Stichwort versuchen",
+      "noResultsInTab": "Keine {{kind}} — anderes Stichwort oder Kategorie",
+      "filterTabsAria": "Kategorie filtern"
+    },
+    "calendarEvent": {
+      "button": "Termin erstellen",
+      "title": "Termin in Notiz",
+      "create": "Termin anlegen",
+      "subject": "Betreff",
+      "start": "Beginn",
+      "end": "Ende",
+      "allDay": "Ganztägig",
+      "location": "Ort",
+      "fromSelection": "Auswahl als Termin",
+      "noAccounts": "Kein Microsoft- oder Google-Konto mit Kalender verbunden.",
+      "createdToast": "Termin erstellt und mit der Notiz verknüpft.",
+      "invalidRange": "Bitte gültigen Beginn und Ende angeben."
+    },
     "quickCapture": {
       "windowTitle": "Schnellnotiz",
       "defaultTitle": "Schnellnotiz",
@@ -313,6 +510,7 @@
       "metaCategories": "Kategorien",
       "metaSchedule": "Planung",
       "metaAttachments": "Anhänge",
+      "metaLinks": "Verknüpfungen",
       "categoriesEmpty": "Klicken, um Kategorien zu setzen …",
       "sectionEmpty": "Klicken, um Abschnitt zu wählen …",
       "sectionPickerAria": "Abschnitt wählen",
@@ -372,6 +570,10 @@
       "unreadMail": "Ungelesen",
       "viewList": "Liste",
       "viewCalendar": "Kalender",
+      "calendarDateModeAria": "Kalender nach Erstellungs- oder Planungsdatum",
+      "calendarDateCreated": "Erstellt",
+      "calendarDateScheduled": "Planung",
+      "calendarPreviewHint": "Doppelklick auf einen Eintrag wechselt zur Listenansicht.",
       "scheduledOnly": "Geplant",
       "miniCalendarHint": "Ziehen für einen Tag oder mehrere Tage (Filter nach Aktualisierung).",
       "dateRangeActive": "{{range}}",
@@ -408,6 +610,8 @@
       "iconColorLabel": "Farbe",
       "iconColorNone": "Standardfarbe",
       "dragHandleAria": "Notiz verschieben",
+      "sectionDragHandleAria": "Sektion verschieben",
+      "contextMenuRename": "Umbenennen",
       "renameDoubleClick": "Doppelklick zum Umbenennen"
     },
     "attachments": {
@@ -2271,6 +2475,26 @@
       "fast": "Schnell (ca. 12 Mails / 45 Sek.)"
     },
     "mailDisplayHeading": "Mail-Anzeige",
+    "mailPreviewMetaHeading": "Vorschau-Metadaten",
+    "mailPreviewMeta": {
+      "heading": "Metadaten in der Mail-Vorschau",
+      "intro": "Felder unter dem Betreff in der Lesevorschau: ein- oder ausblenden und per Drag & Drop sortieren.",
+      "orderHint": "Oben = weiter links in der Metazeile. In der Vorschau: «Anordnen» tippen, Felder ziehen, mit «Fertig» speichern.",
+      "dragAria": "Metafeld verschieben",
+      "dragTitle": "Ziehen zum Sortieren",
+      "reset": "Standard wiederherstellen",
+      "fields": {
+        "dateTime": "Datum und Uhrzeit",
+        "folder": "Ordner",
+        "from": "Von",
+        "to": "An",
+        "cc": "Cc",
+        "categories": "Kategorien",
+        "account": "Konto",
+        "flagged": "Markiert (Stern)",
+        "importance": "Hohe Priorität"
+      }
+    },
     "mailCompose": {
       "heading": "E-Mail verfassen",
       "intro": "Standardformatierung und Verhalten für neue Nachrichten, Antworten und Weiterleitungen.",
@@ -2827,7 +3051,12 @@
       "metaCategories": "Kategorien",
       "categoriesEmpty": "Klicken, um Kategorien zu setzen …",
       "metaImportanceHigh": "Hohe Priorität",
-      "metaFlagged": "Markiert"
+      "metaFlagged": "Markiert",
+      "metaEdit": "Anordnen",
+      "metaEditTitle": "Metafelder anordnen",
+      "metaEditDone": "Fertig",
+      "metaEditDoneTitle": "Anordnung speichern und Bearbeitung beenden",
+      "metaEditHint": "Felder per Griff ziehen. Die Reihenfolge wird als Standard gespeichert."
     },
     "meetingInvitation": {
       "ariaLabel": "Termineinladung",
@@ -3065,6 +3294,7 @@
       "openNotes": "Notizen öffnen",
       "quickComposePlaceholder": "Kurz notieren …",
       "openNoteInModule": "Im Notizen-Modul bearbeiten",
+      "notesEditorSplitterAria": "Höhe des Notizen-Editors anpassen",
       "tasksNoSelection": "Wähle eine Mail aus, um verknüpfte Aufgaben/Kontext zu sehen."
     },
     "inboxCal": {
@@ -3607,6 +3837,7 @@
     "views": {
       "day": "Tag",
       "week": "Woche",
+      "weekTime": "Woche (Zeit)",
       "month": "Monat",
       "year": "Jahr",
       "quarterYear": "3 Monate",
@@ -3893,8 +4124,8 @@
       "listAria": "Uhrzeiten"
     },
     "posteingangUi": {
-      "toggleInboxHide": "Posteingang ausblenden",
-      "toggleInboxShow": "Posteingang einblenden",
+      "toggleInboxHide": "Zeitliste ausblenden",
+      "toggleInboxShow": "Zeitliste einblenden",
       "togglePreviewHide": "Vorschau ausblenden (Mail oder Termin)",
       "togglePreviewShow": "Vorschau einblenden (Mail oder Termin)",
       "toggleContextHide": "Kontext-Leiste ausblenden",

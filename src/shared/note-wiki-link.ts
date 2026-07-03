@@ -1,3 +1,6 @@
+import type { NoteEntityLinkTarget } from '@shared/note-entity-links'
+import { normalizeChronellLinkHref } from './note-entity-mention-link'
+
 /** Hash-Anker für interne Notiz-Verknüpfungen im TipTap-HTML. */
 export const NOTE_WIKI_LINK_PREFIX = '#chronell-note-'
 
@@ -7,7 +10,7 @@ export function noteWikiLinkHref(noteId: number): string {
 
 export function parseNoteWikiLinkHref(href: string | null | undefined): number | null {
   if (!href) return null
-  const trimmed = href.trim()
+  const trimmed = normalizeChronellLinkHref(href.trim())
   const hashMatch = /^#chronell-note-(\d+)$/.exec(trimmed)
   if (hashMatch) {
     const id = Number.parseInt(hashMatch[1], 10)

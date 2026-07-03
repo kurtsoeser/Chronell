@@ -172,9 +172,13 @@ export interface UserNoteLinkRemoveInput {
   direction?: 'outgoing' | 'incoming'
 }
 
+export type UserNoteListInRangeDateMode = 'created' | 'scheduled'
+
 export interface UserNoteListInRangeFilters {
   startIso: string
   endIso: string
+  /** Standard: `scheduled` (Hauptkalender-Overlay). */
+  dateMode?: UserNoteListInRangeDateMode
   kinds?: UserNoteKind[]
   limit?: number
 }
@@ -267,4 +271,15 @@ export interface UserNoteSearchFilters {
   kinds?: UserNoteKind[]
   categoriesAny?: string[]
   limit?: number
+}
+
+/** Welcher Aspekt der Notiz sich geaendert hat — Renderer koennen gezielt neu laden. */
+export type NotesChangedScope = 'content' | 'attachments' | 'links' | 'meta' | 'structure'
+
+export interface NotesChangedPayload {
+  kind?: UserNoteKind
+  noteId?: number
+  messageId?: number | null
+  accountId?: string | null
+  scope?: NotesChangedScope
 }

@@ -12,6 +12,10 @@ const labels = {
   attendees: 'Teilnehmer',
   onlineMeeting: 'Online',
   joinMeeting: 'Beitreten',
+  meetingRecap: 'Zusammenfassung',
+  viewRecap: 'In Teams öffnen',
+  meetingRecording: 'Aufzeichnung',
+  viewRecording: 'Aufzeichnung öffnen',
   agenda: 'Agenda',
   notes: 'Notizen',
   nextSteps: 'Nächste Schritte'
@@ -108,6 +112,40 @@ describe('buildNoteMeetingInsertHtml', () => {
     expect(html).toContain('<h3>Agenda</h3>')
   })
 
+  it('fügt Teams-Recap-Link in den Kopfbereich ein', () => {
+    const recap = 'https://teams.microsoft.com/l/meetingrecap?context=abc'
+    const html = buildNoteMeetingInsertHtml({
+      event: baseEvent,
+      whenLabel: 'Heute',
+      labels,
+      recapUrl: recap,
+      details: null
+    })
+    expect(html).toContain('Zusammenfassung')
+    expect(html).toContain('In Teams öffnen')
+    expect(html).toContain(`href="${recap}"`)
+  })
+
+  it('leitet Recap aus dem Beitrittslink ab', () => {
+    const joinUrl =
+      'https://teams.microsoft.com/l/meetup-join/19%3ameeting_abc%40thread.v2/0?context=%7B%22Tid%22%3A%22tenant-1%22%2C%22Oid%22%3A%22org-1%22%7D'
+    const html = buildNoteMeetingInsertHtml({
+      event: { ...baseEvent, joinUrl },
+      whenLabel: 'Heute',
+      labels,
+      details: {
+        joinUrl,
+        bodyHtml: null,
+        attendeeEmails: [],
+        location: null,
+        organizer: null,
+        isOnlineMeeting: true
+      }
+    })
+    expect(html).toContain('/l/meetingrecap?')
+    expect(html).toContain('Zusammenfassung')
+  })
+
   it('escaped gefährliche Zeichen im Titel', () => {
     const html = buildNoteMeetingInsertHtml({
       event: { ...baseEvent, title: '<script>alert(1)</script>' },
@@ -117,5 +155,19 @@ describe('buildNoteMeetingInsertHtml', () => {
     })
     expect(html).not.toContain('<script>')
     expect(html).toContain('&lt;script&gt;')
+  })
+
+  it('markiert Besprechungsblöcke mit Termin-Metadaten', () => {
+    const html = buildNoteMeetingInsertHtml({
+      event: baseEvent,
+      whenLabel: 'Heute',
+      labels,
+      details: null,
+      metadata: { accountId: 'ms:abc', graphEventId: 'evt-1', graphCalendarId: 'cal-1' }
+    })
+    expect(html).toContain('data-note-meeting-block="true"')
+    expect(html).toContain('data-note-meeting-account-id="ms:abc"')
+    expect(html).toContain('data-note-meeting-graph-event-id="evt-1"')
+    expect(html).toContain('data-note-meeting-header="true"')
   })
 })

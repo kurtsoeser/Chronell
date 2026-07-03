@@ -25,6 +25,7 @@ import { ComposeQuotedMailPreview } from '@/components/ComposeQuotedMailPreview'
 import { SignatureFooterEditor } from '@/components/SignatureFooterEditor'
 import { SignatureTemplateControls } from '@/components/SignatureTemplateControls'
 import { ComposeAttachmentsStrip } from '@/components/ComposeAttachmentsStrip'
+import { EditorAttachmentActionBar } from '@/components/EditorAttachmentActionBar'
 import { OneDriveExplorerDialog } from '@/components/OneDriveExplorerDialog'
 import { RecipientTokenField } from '@/components/RecipientTokenField'
 import { useComposeCloudDrive } from '@/hooks/useComposeCloudDrive'
@@ -467,6 +468,15 @@ function ComposerWindow({
                   />
                 </div>
               </div>
+              <EditorAttachmentActionBar
+                  inEditorSurface
+                  disabled={draft.busy}
+                  onError={setAttachmentError}
+                  onAddFiles={addFilesAsAttachments}
+                  onCloudAttach={isMicrosoft ? openDrive : undefined}
+                  attachmentCount={draft.attachments.length}
+                  cloudAttachmentCount={draft.referenceAttachments.length}
+                />
               <ComposeEditorThemedPane className="compose-mail-editor-section min-h-0 flex-1">
                 <TipTapBody
                   inEditorSurface
@@ -474,10 +484,6 @@ function ComposerWindow({
                   valueHtml={draft.prependRichHtml}
                   onChangeHtml={(v): void => update(draft.id, { prependRichHtml: v })}
                   flushRef={bodyFlushRef}
-                  onAttachFiles={(files): void => void addFilesAsAttachments(files)}
-                  attachmentCount={draft.attachments.length}
-                  onCloudAttach={isMicrosoft ? openDrive : undefined}
-                  cloudAttachmentCount={draft.referenceAttachments.length}
                   autoFocus
                   fillHeight
                 />

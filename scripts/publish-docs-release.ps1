@@ -252,10 +252,15 @@ $ghDownloadUrl = "https://github.com/kurtsoeser/Chronell/releases/download/$ghTa
 $pagesStableUrl = 'release/latest/Chronell-setup.exe'
 $pagesVersionedUrl = "release/$Version/$versionedName"
 
+$isBetaRelease = $true
+if ($Version -match '^(\d+)\.') {
+  $isBetaRelease = [int] $Matches[1] -lt 1
+}
+
 $manifest = [ordered]@{
   version           = $Version
   releasedAt        = $releasedAt
-  beta              = $true
+  beta              = $isBetaRelease
   filename          = $stableName
   downloadUrl       = $ghDownloadUrl
   stableUrl         = $pagesStableUrl
@@ -282,7 +287,7 @@ foreach ($dir in Get-DocsReleaseVersions) {
 
 $versionsManifest = [ordered]@{
   latest            = $Version
-  beta              = $true
+  beta              = $isBetaRelease
   downloadUrl       = $ghDownloadUrl
   stableUrl         = $pagesStableUrl
   githubDownloadUrl = $ghDownloadUrl

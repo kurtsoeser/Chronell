@@ -1,36 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Locale } from 'date-fns'
 import { addDays, format, parseISO, startOfDay } from 'date-fns'
-import { CalendarDays, Loader2, X } from 'lucide-react'
+import { CalendarDays, ChevronLeft, ChevronRight, Loader2, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { CalendarEventView, ConnectedAccount } from '@shared/types'
+import { formatNoteMeetingEventRangeLabel } from '@shared/note-meeting-format'
 import { buildNoteMeetingInsertHtml, resolveNoteMeetingJoinUrl } from '@shared/note-meeting-insert-html'
 import { ChronellDateField } from '@/components/ChronellDateField'
 import { ModalPanel, ModalRoot } from '@/components/motion/Modal'
 import { useDateFnsLocale } from '@/lib/date-fns-locale'
 import { cn } from '@/lib/utils'
-
-function formatEventRangeLabel(
-  ev: CalendarEventView,
-  locale: Locale,
-  allDaySuffix: string
-): string {
-  const start = parseISO(ev.startIso)
-  const end = parseISO(ev.endIso)
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-    return `${ev.startIso} – ${ev.endIso}`
-  }
-  if (ev.isAllDay) {
-    const a = format(start, 'PPP', { locale })
-    const b = format(addDays(end, -1), 'PPP', { locale })
-    if (a === b) return `${a} ${allDaySuffix}`
-    return `${a} – ${b} ${allDaySuffix}`
-  }
-  if (format(start, 'yyyy-MM-dd') === format(end, 'yyyy-MM-dd')) {
-    return `${format(start, 'EEE, d. MMM yyyy', { locale })} · ${format(start, 'HH:mm')} – ${format(end, 'HH:mm')}`
-  }
-  return `${format(start, 'Pp', { locale })} – ${format(end, 'Pp', { locale })}`
-}
 
 function formatEventTimeShort(ev: CalendarEventView, locale: Locale, allDaySuffix: string): string {
   const start = parseISO(ev.startIso)
@@ -43,10 +22,20 @@ function calendarLinkedAccounts(accounts: ConnectedAccount[]): ConnectedAccount[
   return accounts.filter((a) => a.provider === 'microsoft' || a.provider === 'google')
 }
 
+function shiftDayYmd(ymd: string, delta: number): string {
+  const d = parseISO(`${ymd}T12:00:00`)
+  if (Number.isNaN(d.getTime())) return format(addDays(new Date(), delta), 'yyyy-MM-dd')
+  return format(addDays(d, delta), 'yyyy-MM-dd')
+}
+
 export interface NoteMeetingInsertResult {
   event: CalendarEventView
   linkToEvent: boolean
   scheduleNote: boolean
+  embedRecording: boolean
+  recordingUrl: string | null
+  embedRecap: boolean
+  recapUrl: string | null
 }
 
 export function NoteMeetingInsertDialog({
@@ -72,6 +61,11 @@ export function NoteMeetingInsertDialog({
   const [inserting, setInserting] = useState(false)
   const [linkToEvent, setLinkToEvent] = useState(true)
   const [scheduleNote, setScheduleNote] = useState(false)
+  const [embedRecording, setEmbedRecording] = useState(false)
+  const [recordingUrl, setRecordingUrl] = useState<string | null>(null)
+  const [embedRecap, setEmbedRecap] = useState(false)
+  const [recapUrl, setRecapUrl] = useState<string | null>(null)
+  const [recordingLoading, setRecordingLoading] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -83,6 +77,11 @@ export function NoteMeetingInsertDialog({
     setEvents([])
     setLinkToEvent(true)
     setScheduleNote(false)
+    setEmbedRecording(false)
+    setRecordingUrl(null)
+    setEmbedRecap(false)
+    setRecapUrl(null)
+    setRecordingLoading(false)
     setLoadError(null)
   }, [open, linkedAccounts])
 
@@ -139,6 +138,69 @@ export function NoteMeetingInsertDialog({
     })
   }
 
+  useEffect(() => {
+    if (!open || !selectedEvent?.graphEventId?.trim()) {
+      setRecordingUrl(null)
+      setRecapUrl(null)
+      setEmbedRecording(false)
+      setEmbedRecap(false)
+      setRecordingLoading(false)
+      return
+    }
+
+    let cancelled = false
+    setRecordingLoading(true)
+    setRecordingUrl(null)
+    setRecapUrl(null)
+    setEmbedRecording(false)
+    setEmbedRecap(false)
+
+    void (async (): Promise<void> => {
+      try {
+        let details = null
+        try {
+          details = await fetchEventDetails(false)
+        } catch {
+          details = null
+        }
+
+        let joinUrl = resolveNoteMeetingJoinUrl(selectedEvent, details)
+        if (!joinUrl) {
+          try {
+            details = await fetchEventDetails(true)
+            joinUrl = resolveNoteMeetingJoinUrl(selectedEvent, details)
+          } catch {
+            // behalten was wir haben
+          }
+        }
+
+        const resolved = await window.mailClient.calendar.resolveMeetingRecording({
+          accountId: selectedEvent.accountId,
+          joinUrl,
+          bodyHtml: details?.bodyHtml ?? null
+        })
+        if (cancelled) return
+        setRecordingUrl(resolved.recordingUrl)
+        setRecapUrl(resolved.recapUrl)
+        setEmbedRecording(Boolean(resolved.recordingUrl))
+        setEmbedRecap(Boolean(resolved.recapUrl))
+      } catch {
+        if (!cancelled) {
+          setRecordingUrl(null)
+          setRecapUrl(null)
+          setEmbedRecording(false)
+          setEmbedRecap(false)
+        }
+      } finally {
+        if (!cancelled) setRecordingLoading(false)
+      }
+    })()
+
+    return (): void => {
+      cancelled = true
+    }
+  }, [open, selectedEvent])
+
   async function handleInsert(): Promise<void> {
     if (!selectedEvent?.graphEventId?.trim()) return
     setInserting(true)
@@ -158,7 +220,14 @@ export function NoteMeetingInsertDialog({
         }
       }
 
-      const whenLabel = formatEventRangeLabel(
+      const joinUrl = resolveNoteMeetingJoinUrl(selectedEvent, details)
+      const media = await window.mailClient.calendar.resolveMeetingRecording({
+        accountId: selectedEvent.accountId,
+        joinUrl,
+        bodyHtml: details?.bodyHtml ?? null
+      })
+
+      const whenLabel = formatNoteMeetingEventRangeLabel(
         selectedEvent,
         dfLocale,
         t('notes.meetingInsert.allDay')
@@ -167,6 +236,13 @@ export function NoteMeetingInsertDialog({
         event: selectedEvent,
         details,
         whenLabel,
+        metadata: {
+          accountId: selectedEvent.accountId,
+          graphEventId: selectedEvent.graphEventId!,
+          graphCalendarId: selectedEvent.graphCalendarId ?? null
+        },
+        recapUrl: media.recapUrl,
+        recordingLinkUrl: media.recordingUrl,
         labels: {
           date: t('notes.meetingInsert.fieldDate'),
           location: t('notes.meetingInsert.fieldLocation'),
@@ -174,6 +250,10 @@ export function NoteMeetingInsertDialog({
           attendees: t('notes.meetingInsert.fieldAttendees'),
           onlineMeeting: t('notes.meetingInsert.fieldOnlineMeeting'),
           joinMeeting: t('notes.meetingInsert.joinMeeting'),
+          meetingRecap: t('notes.meetingInsert.fieldMeetingRecap'),
+          viewRecap: t('notes.meetingInsert.viewRecap'),
+          meetingRecording: t('notes.meetingInsert.fieldMeetingRecording'),
+          viewRecording: t('notes.meetingInsert.viewRecording'),
           agenda: t('notes.meetingInsert.agenda'),
           notes: t('notes.meetingInsert.notes'),
           nextSteps: t('notes.meetingInsert.nextSteps')
@@ -181,7 +261,15 @@ export function NoteMeetingInsertDialog({
       })
 
       await onInsert(
-        { event: selectedEvent, linkToEvent, scheduleNote },
+        {
+          event: selectedEvent,
+          linkToEvent,
+          scheduleNote,
+          embedRecording: embedRecording && Boolean(media.recordingUrl ?? recordingUrl),
+          recordingUrl: media.recordingUrl ?? recordingUrl,
+          embedRecap: embedRecap && Boolean(media.recapUrl ?? recapUrl),
+          recapUrl: media.recapUrl ?? recapUrl
+        },
         html
       )
       onClose()
@@ -242,11 +330,35 @@ export function NoteMeetingInsertDialog({
                   <span className="font-medium text-muted-foreground">
                     {t('notes.meetingInsert.day')}
                   </span>
-                  <ChronellDateField
-                    value={dayYmd}
-                    onChange={setDayYmd}
-                    disabled={inserting}
-                  />
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      disabled={inserting}
+                      title={t('mail.rightSidebar.dayPrev')}
+                      aria-label={t('mail.rightSidebar.dayPrev')}
+                      onClick={(): void => setDayYmd((ymd) => shiftDayYmd(ymd, -1))}
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary/60 hover:text-foreground disabled:opacity-50"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </button>
+                    <ChronellDateField
+                      className="min-w-0 flex-1"
+                      value={dayYmd}
+                      onChange={setDayYmd}
+                      disabled={inserting}
+                      popoverZIndex={330}
+                    />
+                    <button
+                      type="button"
+                      disabled={inserting}
+                      title={t('mail.rightSidebar.dayNext')}
+                      aria-label={t('mail.rightSidebar.dayNext')}
+                      onClick={(): void => setDayYmd((ymd) => shiftDayYmd(ymd, 1))}
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary/60 hover:text-foreground disabled:opacity-50"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </div>
                 </label>
               </div>
 
@@ -314,6 +426,39 @@ export function NoteMeetingInsertDialog({
                   />
                   <span>{t('notes.meetingInsert.scheduleNote')}</span>
                 </label>
+                {recordingLoading ? (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                    <span>{t('notes.meetingInsert.recordingSearching')}</span>
+                  </div>
+                ) : recordingUrl || recapUrl ? (
+                  <>
+                    {recordingUrl ? (
+                      <label className="flex cursor-pointer items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={embedRecording}
+                          onChange={(e): void => setEmbedRecording(e.target.checked)}
+                          disabled={inserting}
+                          className="rounded border-border"
+                        />
+                        <span>{t('notes.meetingInsert.embedRecording')}</span>
+                      </label>
+                    ) : null}
+                    {recapUrl ? (
+                      <label className="flex cursor-pointer items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={embedRecap}
+                          onChange={(e): void => setEmbedRecap(e.target.checked)}
+                          disabled={inserting}
+                          className="rounded border-border"
+                        />
+                        <span>{t('notes.meetingInsert.embedRecap')}</span>
+                      </label>
+                    ) : null}
+                  </>
+                ) : null}
               </div>
             </>
           )}

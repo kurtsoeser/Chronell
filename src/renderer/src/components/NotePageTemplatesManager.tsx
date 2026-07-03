@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { NotePageTemplateEditDialog, type NotePageTemplateEditorState } from '@/components/NotePageTemplateEditDialog'
 import {
   listAllNotePageTemplates,
-  NOTE_PAGE_TEMPLATES,
+  listBuiltinNotePageTemplateGroups,
   type ResolvedNotePageTemplate
 } from '@/lib/note-page-templates'
 import {
@@ -27,6 +27,7 @@ export function NotePageTemplatesManager({ className }: Props): JSX.Element {
   const [editorOpen, setEditorOpen] = useState<NotePageTemplateEditorState | null>(null)
 
   const allTemplates = listAllNotePageTemplates(customTemplates, t)
+  const builtinGroups = listBuiltinNotePageTemplateGroups(customTemplates, t)
 
   const startCreate = (): void => {
     setEditorOpen({ mode: 'create', name: '', description: '', bodyHtml: '' })
@@ -127,15 +128,14 @@ export function NotePageTemplatesManager({ className }: Props): JSX.Element {
         </div>
         <p className="text-[11px] leading-relaxed text-muted-foreground">{t('notes.templates.manageHint')}</p>
         <div className="space-y-1.5">
-          {NOTE_PAGE_TEMPLATES.map((builtin) =>
-            renderRow(allTemplates.find((row) => row.id === builtin.id) ?? {
-              id: builtin.id,
-              title: t(builtin.titleKey),
-              description: t(builtin.descriptionKey),
-              bodyHtml: builtin.bodyHtml,
-              builtin: true
-            })
-          )}
+          {builtinGroups.map((group) => (
+            <div key={group.key} className="space-y-1.5">
+              <div className="pt-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                {group.label}
+              </div>
+              {group.templates.map((template) => renderRow(template))}
+            </div>
+          ))}
           {customTemplates.length > 0 ? (
             <>
               <div className="pt-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">

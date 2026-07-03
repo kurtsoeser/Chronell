@@ -35,6 +35,8 @@ export interface ChronellDateFieldProps {
   'aria-label'?: string
   /** `field`: volles Eingabefeld; `inline`: Textlink (OneNote-Seitendatum). */
   variant?: 'field' | 'inline'
+  /** z-index des Kalender-Popovers (z. B. über Modals mit zIndex 320). */
+  popoverZIndex?: number
 }
 
 /**
@@ -50,7 +52,8 @@ export function ChronellDateField({
   id: idProp,
   onKeyDown,
   'aria-label': ariaLabel,
-  variant = 'field'
+  variant = 'field',
+  popoverZIndex = 260
 }: ChronellDateFieldProps): JSX.Element {
   const { t, i18n } = useTranslation()
   const dfLocale = useDateFnsLocale()
@@ -136,8 +139,8 @@ export function ChronellDateField({
               ref={popoverRef}
               role="dialog"
               aria-label={t('calendar.datePicker.dialogAria')}
-              className="chronell-acrylic-popover fixed z-[260] overflow-hidden rounded-lg p-1.5 text-popover-foreground shadow-lg"
-              style={{ top: anchor.top, left: anchor.left, width: anchor.width }}
+              className="chronell-acrylic-popover fixed overflow-hidden rounded-lg p-1.5 text-popover-foreground shadow-lg"
+              style={{ top: anchor.top, left: anchor.left, width: anchor.width, zIndex: popoverZIndex }}
               onMouseDown={(e): void => e.stopPropagation()}
             >
               <ChronellDatePickerPanel

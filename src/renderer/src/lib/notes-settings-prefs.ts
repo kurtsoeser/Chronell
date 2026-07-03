@@ -30,6 +30,7 @@ export type NotesListLimit = 200 | 500 | 1000
 const STORAGE_KEY = 'mailclient.notes.settingsPrefs.v1'
 
 export type NotesWeekStart = 0 | 1
+export type NotesCalendarDateMode = 'created' | 'scheduled'
 
 export interface NotesSettingsPrefsV1 {
   defaultShellView: NotesShellView
@@ -39,6 +40,7 @@ export interface NotesSettingsPrefsV1 {
   rememberLastNavSelection: boolean
   defaultPagesSort: NotesPagesSortKey
   defaultCalendarFcView: string
+  defaultCalendarDateMode: NotesCalendarDateMode
   rememberLastCalendarFcView: boolean
   useMainCalendarDisplaySettings: boolean
   weekStartsOn: NotesWeekStart
@@ -76,6 +78,7 @@ export const NOTES_SETTINGS_PREFS_CHANGED_EVENT = 'mailclient:notes-settings-pre
 
 const VALID_FC_VIEWS = new Set([
   'dayGridMonth',
+  'dayGridWeek',
   'timeGridWeek',
   'timeGridDay',
   'listWeek',
@@ -90,6 +93,7 @@ const DEFAULTS: NotesSettingsPrefsV1 = {
   rememberLastNavSelection: true,
   defaultPagesSort: 'manual',
   defaultCalendarFcView: 'dayGridMonth',
+  defaultCalendarDateMode: 'created',
   rememberLastCalendarFcView: true,
   useMainCalendarDisplaySettings: false,
   weekStartsOn: 1,
@@ -157,6 +161,9 @@ function migrateLegacyPrefs(base: NotesSettingsPrefsV1): NotesSettingsPrefsV1 {
     if (sort && isNotesPagesSortKey(sort)) base.defaultPagesSort = sort
     const calView = window.localStorage.getItem('mailclient.notes.calendar.fcView.v1')?.trim()
     if (calView && VALID_FC_VIEWS.has(calView)) base.defaultCalendarFcView = calView
+    const dm = window.localStorage.getItem('mailclient.notes.calendarDateMode.v1')
+    if (dm === 'scheduled') base.defaultCalendarDateMode = 'scheduled'
+    if (dm === 'created') base.defaultCalendarDateMode = 'created'
     if (window.localStorage.getItem('mailclient.notesShell.linkedPreviewOpen') === '1') {
       base.defaultLinkedPreviewOpen = true
     }
@@ -198,6 +205,9 @@ function parsePrefs(raw: string): NotesSettingsPrefsV1 {
   }
   if (typeof o.defaultCalendarFcView === 'string' && VALID_FC_VIEWS.has(o.defaultCalendarFcView)) {
     base.defaultCalendarFcView = o.defaultCalendarFcView
+  }
+  if (o.defaultCalendarDateMode === 'created' || o.defaultCalendarDateMode === 'scheduled') {
+    base.defaultCalendarDateMode = o.defaultCalendarDateMode
   }
   if (typeof o.rememberLastCalendarFcView === 'boolean') {
     base.rememberLastCalendarFcView = o.rememberLastCalendarFcView
@@ -338,6 +348,7 @@ export function noteKindsForFilter(filter: NotesKindsFilter): UserNoteKind[] {
 
 export const NOTES_CALENDAR_FC_VIEW_OPTIONS = [
   'dayGridMonth',
+  'dayGridWeek',
   'timeGridWeek',
   'timeGridDay',
   'listWeek'

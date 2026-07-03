@@ -5,6 +5,7 @@ import {
   useState,
   type ForwardedRef
 } from 'react'
+import { StickyNote } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 
@@ -71,7 +72,7 @@ export const NoteWikiLinkSuggestionList = forwardRef(function NoteWikiLinkSugges
           key={item.id}
           type="button"
           className={cn(
-            'flex w-full items-center px-3 py-1.5 text-left text-xs',
+            'flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs',
             index === selectedIndex ? 'bg-accent text-accent-foreground' : 'hover:bg-secondary/60'
           )}
           onMouseEnter={(): void => setSelectedIndex(index)}
@@ -80,6 +81,7 @@ export const NoteWikiLinkSuggestionList = forwardRef(function NoteWikiLinkSugges
             command(item)
           }}
         >
+          <StickyNote className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden />
           <span className="truncate">{item.title}</span>
         </button>
       ))}

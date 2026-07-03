@@ -4,6 +4,7 @@ import {
   buildNoteSectionTree,
   flattenSectionTree,
   formatSectionOptionLabel,
+  isDescendantNoteSection,
   sectionHasVisibleContent
 } from '@/lib/notes-section-tree'
 
@@ -87,5 +88,14 @@ describe('sectionHasVisibleContent', () => {
     const sections = [section(1, 'A'), section(2, 'B', 1)]
     const tree = buildNoteSectionTree(sections, [note(1, 2)])
     expect(sectionHasVisibleContent(tree.roots[0]!)).toBe(true)
+  })
+})
+
+describe('isDescendantNoteSection', () => {
+  it('detects nested sections', () => {
+    const sections = [section(1, 'A'), section(2, 'B', 1), section(3, 'C', 2)]
+    expect(isDescendantNoteSection(3, 1, sections)).toBe(true)
+    expect(isDescendantNoteSection(2, 1, sections)).toBe(true)
+    expect(isDescendantNoteSection(1, 2, sections)).toBe(false)
   })
 })

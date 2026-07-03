@@ -416,7 +416,7 @@ export async function googleGetCalendarEventDetail(
       calendarId,
       eventId,
       fields:
-        'summary,description,location,hangoutLink,conferenceData,attendees(email),organizer(email,displayName),start(timeZone,dateTime,date),end(timeZone,dateTime,date)'
+        'summary,description,location,hangoutLink,conferenceData,attendees(email),organizer(email,displayName),start(timeZone,dateTime,date),end(timeZone,dateTime,date),htmlLink'
     })
   )
   const ev = res.data
@@ -439,6 +439,10 @@ export async function googleGetCalendarEventDetail(
   )
   const organizer =
     ev.organizer?.email?.trim() || ev.organizer?.displayName?.trim() || null
+  const allDay = Boolean(ev.start?.date && ev.end?.date)
+  const tz = ev.start?.timeZone ?? 'UTC'
+  const startIso = googleDateToIso(ev.start, tz, allDay)
+  const endIso = googleDateToIso(ev.end, tz, allDay)
   return {
     subject: ev.summary ?? null,
     attendeeEmails: emails,
@@ -452,6 +456,10 @@ export async function googleGetCalendarEventDetail(
     timeZone:
       ev.start?.date && ev.end?.date
         ? null
-        : ev.start?.timeZone?.trim() || null
+        : ev.start?.timeZone?.trim() || null,
+    startIso,
+    endIso,
+    isAllDay: allDay,
+    webLink: ev.htmlLink?.trim() || null
   }
 }

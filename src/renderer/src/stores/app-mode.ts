@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { writeActiveCustomViewId } from '@/app/custom-views/custom-views-storage'
+import { flushNotesEditorBeforeLeave } from '@/lib/notes-editor-flush-bridge'
 
 export type AppShellMode =
   | 'home'
@@ -109,13 +110,30 @@ interface AppModeState {
   setCustomView: (viewId: string) => void
 }
 
-export const useAppModeStore = create<AppModeState>((set) => ({
+export const useAppModeStore = create<AppModeState>((set, get) => ({
   mode: readStored(),
   setMode(mode): void {
+    const prev = get().mode
+    if (prev === 'notes' && mode !== 'notes') {
+      void flushNotesEditorBeforeLeave().finally(() => {
+        persist(mode)
+        set({ mode })
+      })
+      return
+    }
     persist(mode)
     set({ mode })
   },
   setCustomView(viewId): void {
+    const prev = get().mode
+    if (prev === 'notes') {
+      void flushNotesEditorBeforeLeave().finally(() => {
+        persist('customView')
+        writeActiveCustomViewId(viewId)
+        set({ mode: 'customView' })
+      })
+      return
+    }
     persist('customView')
     writeActiveCustomViewId(viewId)
     set({ mode: 'customView' })

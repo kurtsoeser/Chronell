@@ -1,5 +1,5 @@
 import { marked } from 'marked'
-import { prepareComposeEditorHtml } from '@/lib/sanitize-compose-html'
+import { prepareNoteEditorHtml } from '@/lib/sanitize-compose-html'
 
 const HTML_ROOT_TAG =
   /^<(p|div|h[1-6]|ul|ol|blockquote|table|hr|br|img|span|strong|em|a)\b/i
@@ -17,7 +17,7 @@ export function markdownToNoteHtml(markdown: string): string {
   const trimmed = markdown.trim()
   if (!trimmed) return ''
   const parsed = marked.parse(trimmed, { async: false, breaks: true, gfm: true })
-  return prepareComposeEditorHtml(typeof parsed === 'string' ? parsed : '')
+  return prepareNoteEditorHtml(typeof parsed === 'string' ? parsed : '')
 }
 
 /** Leeren TipTap-Inhalt fuer die DB normalisieren. */
@@ -40,7 +40,7 @@ export function prepareNoteBodyForEditor(body: string): {
     return { html: '', migratedFromMarkdown: false }
   }
   if (isLikelyNoteHtml(trimmed)) {
-    return { html: prepareComposeEditorHtml(trimmed), migratedFromMarkdown: false }
+    return { html: prepareNoteEditorHtml(trimmed), migratedFromMarkdown: false }
   }
   return { html: markdownToNoteHtml(trimmed), migratedFromMarkdown: true }
 }

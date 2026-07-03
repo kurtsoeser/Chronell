@@ -205,8 +205,23 @@
       "resizeAria": "Resize",
       "moveAria": "Move note window"
     },
+    "embed": {
+      "remove": "Remove embed",
+      "interact": "Interact with content",
+      "stopInteract": "Stop interacting"
+    },
     "templates": {
       "menuHeading": "New page from template",
+      "groups": {
+        "general": "General",
+        "meetings": "Meetings & team",
+        "projects": "Projects & planning",
+        "productivity": "Productivity & goals",
+        "lists": "Lists & collections",
+        "events": "Planning & events",
+        "people": "People & contacts",
+        "tech": "Development & tech"
+      },
       "blank": {
         "title": "Blank page",
         "description": "No preset content"
@@ -215,17 +230,97 @@
         "title": "Meeting notes",
         "description": "Agenda, notes, and next steps"
       },
+      "oneOnOne": {
+        "title": "1:1 conversation",
+        "description": "Recurring check-ins with manager, team, or mentor"
+      },
+      "standup": {
+        "title": "Daily standup",
+        "description": "Quick team update: yesterday, today, blockers"
+      },
+      "workshop": {
+        "title": "Workshop",
+        "description": "Brainstorming with agenda, ideas, and outcomes"
+      },
       "project": {
         "title": "Project page",
         "description": "Goal, status, and milestones"
+      },
+      "sprintRetro": {
+        "title": "Sprint retrospective",
+        "description": "What went well, what to improve, concrete actions"
+      },
+      "decisionLog": {
+        "title": "Decision log",
+        "description": "Capture decisions with context, options, and rationale"
+      },
+      "riskRegister": {
+        "title": "Risk register",
+        "description": "Project risks with likelihood and mitigation"
       },
       "weekly": {
         "title": "Weekly plan",
         "description": "Priorities and tasks for the week"
       },
+      "dailyReview": {
+        "title": "Daily review",
+        "description": "Morning intention and evening reflection for the day"
+      },
+      "okr": {
+        "title": "OKR / quarterly goals",
+        "description": "Objectives and key results with progress notes"
+      },
+      "habitTracker": {
+        "title": "Habit tracker",
+        "description": "Check off weekly habits and reflect on progress"
+      },
       "checklist": {
         "title": "Checklist",
         "description": "Checkable task list"
+      },
+      "packingList": {
+        "title": "Packing list",
+        "description": "Trip prep sorted by category"
+      },
+      "readingNotes": {
+        "title": "Reading notes",
+        "description": "Books and articles with quotes and takeaways"
+      },
+      "recipe": {
+        "title": "Recipe",
+        "description": "Ingredients, steps, and tips for favorite dishes"
+      },
+      "tripPlan": {
+        "title": "Trip plan",
+        "description": "Itinerary, bookings, and to-dos for travel"
+      },
+      "eventPlan": {
+        "title": "Event planning",
+        "description": "Timeline, catering, and checklist for events"
+      },
+      "contactProfile": {
+        "title": "Contact profile",
+        "description": "Key facts and conversation history for a person"
+      },
+      "interviewNotes": {
+        "title": "Interview notes",
+        "description": "Document hiring or client interviews in a structured way"
+      },
+      "feedback360": {
+        "title": "Feedback session",
+        "description": "Give constructive feedback and agree on next steps"
+      },
+      "bugReport": {
+        "title": "Bug report",
+        "description": "Describe issues with repro steps and environment"
+      },
+      "apiDesign": {
+        "title": "Feature spec / API design",
+        "description": "Technical spec with requirements and acceptance criteria"
+      },
+      "incidentReport": {
+        "title": "Incident postmortem",
+        "description": "Analyze outages: timeline, root cause, and action items"
       },
       "customSection": "Custom templates",
       "manageHeading": "Manage page templates",
@@ -266,9 +361,60 @@
       "fieldAttendees": "Attendees",
       "fieldOnlineMeeting": "Online meeting",
       "joinMeeting": "Join",
+      "fieldMeetingRecap": "Meeting recap",
+      "viewRecap": "Open in Teams",
+      "fieldMeetingRecording": "Meeting recording",
+      "viewRecording": "Open recording",
       "agenda": "Agenda",
       "notes": "Notes",
-      "nextSteps": "Next steps"
+      "nextSteps": "Next steps",
+      "embedRecording": "Embed meeting recording",
+      "embedRecap": "Embed meeting recap (Teams summary)",
+      "recordingSearching": "Looking for recording …"
+    },
+    "meetingRefresh": {
+      "button": "Refresh meeting details",
+      "buttonHint": "Reload event data from Microsoft 365 / Google and update the header section",
+      "updatedToast": "Meeting details updated.",
+      "nothingToUpdate": "No changes found or no linked meeting blocks in this note."
+    },
+    "embedInsert": {
+      "button": "Embed content",
+      "title": "Embed content",
+      "subtitle": "Insert videos, maps, forms, and other content via link.",
+      "urlLabel": "Link",
+      "urlPlaceholder": "https://…",
+      "pasteHint": "Paste a link — supported providers are detected automatically.",
+      "detectedProvider": "Detected: {{provider}}",
+      "unsupportedUrl": "This link is not supported yet or could not be resolved.",
+      "insertFailed": "Could not insert embed.",
+      "providerSearchLabel": "Providers",
+      "providerSearchPlaceholder": "Filter providers…",
+      "providerSearchHint": "Pick a provider for example links — or paste a URL directly.",
+      "exampleUrl": "Example: {{url}}",
+      "noProviders": "No matching provider.",
+      "insert": "Embed",
+      "insertedToast": "Content embedded."
+    },
+    "m365Video": {
+      "fallbackTitle": "SharePoint video",
+      "openExternal": "Open in SharePoint",
+      "connectAccount": "Connect account",
+      "streamTitle": "SharePoint Stream video",
+      "useStreamPlayer": "Stream player (captions & comments)",
+      "useNativePlayer": "Use simple player",
+      "openStreamExternal": "Open Stream with captions in browser",
+      "streamAuthHint": "The SharePoint Stream player cannot sign in inside Chronell. Connect a Microsoft account to use the built-in player — open captions and comments via ☁ in your browser.",
+      "retryResolve": "Retry",
+      "resolving": "Preparing video …",
+      "error": {
+        "no_account": "No Microsoft account connected. Connect an account with access to this file.",
+        "forbidden": "No access to this video with the connected accounts.",
+        "not_found": "Video was not found or the sharing link has expired.",
+        "not_video": "The link does not point to a video file.",
+        "offline": "Offline — playback unavailable.",
+        "unknown": "Playback unavailable."
+      }
     },
     "mailInsert": {
       "title": "Mail to note",
@@ -295,6 +441,57 @@
       "emptyClipboard": "No image in clipboard. Take a screenshot first (e.g. Win+Shift+S) or use Ctrl+Shift+Alt+S.",
       "hint": "Shortcut: Ctrl+Shift+Alt+S"
     },
+    "ink": {
+      "button": "Draw ink",
+      "title": "Ink drawing",
+      "insert": "Insert",
+      "clear": "Clear all",
+      "undo": "Undo",
+      "redo": "Redo",
+      "tool": {
+        "pen": "Pen",
+        "eraser": "Eraser",
+        "highlighter": "Highlighter"
+      },
+      "strokeSize": "Stroke size",
+      "colors": "Colors",
+      "addCustomColor": "Add custom color",
+      "removeCustomColor": "Remove custom color",
+      "defaultName": "Ink",
+      "emptyInsert": "Nothing drawn yet.",
+      "insertedToast": "Ink drawing inserted.",
+      "missingSource": "Ink source file was not found.",
+      "reeditHint": "Double-click the drawing to edit"
+    },
+    "cloudTask": {
+      "button": "Create task",
+      "title": "Task in note",
+      "create": "Create task",
+      "due": "Due",
+      "fromSelection": "Selection as task",
+      "noAccounts": "No Microsoft or Google account with tasks connected.",
+      "createdToast": "Task created and linked to the note."
+    },
+    "entityMention": {
+      "browseHint": "Notes, emails, tasks, contacts and events — type to filter",
+      "noResults": "No matches — try another keyword",
+      "noResultsInTab": "No {{kind}} — try another keyword or category",
+      "filterTabsAria": "Filter by category"
+    },
+    "calendarEvent": {
+      "button": "Create event",
+      "title": "Event in note",
+      "create": "Create event",
+      "subject": "Subject",
+      "start": "Start",
+      "end": "End",
+      "allDay": "All day",
+      "location": "Location",
+      "fromSelection": "Selection as event",
+      "noAccounts": "No Microsoft or Google account with calendar connected.",
+      "createdToast": "Event created and linked to the note.",
+      "invalidRange": "Please enter a valid start and end."
+    },
     "quickCapture": {
       "windowTitle": "Quick capture",
       "defaultTitle": "Quick note",
@@ -313,6 +510,7 @@
       "metaCategories": "Categories",
       "metaSchedule": "Schedule",
       "metaAttachments": "Attachments",
+      "metaLinks": "Links",
       "categoriesEmpty": "Click to add categories…",
       "sectionEmpty": "Click to choose a section…",
       "sectionPickerAria": "Choose section",
@@ -372,6 +570,10 @@
       "unreadMail": "Unread",
       "viewList": "List",
       "viewCalendar": "Calendar",
+      "calendarDateModeAria": "Calendar by creation or scheduled date",
+      "calendarDateCreated": "Created",
+      "calendarDateScheduled": "Scheduled",
+      "calendarPreviewHint": "Double-click an entry to switch to list view.",
       "scheduledOnly": "Scheduled",
       "miniCalendarHint": "Drag to select a day or multiple days (filters by last updated).",
       "dateRangeActive": "{{range}}",
@@ -408,6 +610,8 @@
       "iconColorLabel": "Color",
       "iconColorNone": "Default color",
       "dragHandleAria": "Move note",
+      "sectionDragHandleAria": "Move section",
+      "contextMenuRename": "Rename",
       "renameDoubleClick": "Double-click to rename"
     },
     "attachments": {
@@ -2271,6 +2475,26 @@
       "fast": "Fast (about 12 mails / 45 sec)"
     },
     "mailDisplayHeading": "Mail display",
+    "mailPreviewMetaHeading": "Preview metadata",
+    "mailPreviewMeta": {
+      "heading": "Metadata in mail preview",
+      "intro": "Fields below the subject in the reading pane: show or hide and reorder with drag & drop.",
+      "orderHint": "Top = further left in the metadata row. In the preview: tap «Arrange», drag fields, then «Done» to save.",
+      "dragAria": "Move metadata field",
+      "dragTitle": "Drag to reorder",
+      "reset": "Restore defaults",
+      "fields": {
+        "dateTime": "Date and time",
+        "folder": "Folder",
+        "from": "From",
+        "to": "To",
+        "cc": "Cc",
+        "categories": "Categories",
+        "account": "Account",
+        "flagged": "Flagged (star)",
+        "importance": "High importance"
+      }
+    },
     "mailCompose": {
       "heading": "Compose email",
       "intro": "Default formatting and behavior for new messages, replies, and forwards.",
@@ -2827,7 +3051,12 @@
       "metaCategories": "Categories",
       "categoriesEmpty": "Click to set categories…",
       "metaImportanceHigh": "High importance",
-      "metaFlagged": "Flagged"
+      "metaFlagged": "Flagged",
+      "metaEdit": "Arrange",
+      "metaEditTitle": "Arrange metadata fields",
+      "metaEditDone": "Done",
+      "metaEditDoneTitle": "Save order and exit edit mode",
+      "metaEditHint": "Drag fields by the grip. The order is saved as your default."
     },
     "meetingInvitation": {
       "ariaLabel": "Meeting invitation",
@@ -3092,6 +3321,7 @@
       "openNotes": "Open notes",
       "quickComposePlaceholder": "Jot something down…",
       "openNoteInModule": "Edit in Notes module",
+      "notesEditorSplitterAria": "Resize notes editor height",
       "tasksNoSelection": "Select an email to see linked tasks/context."
     },
     "inboxCal": {
@@ -3634,6 +3864,7 @@
     "views": {
       "day": "Day",
       "week": "Week",
+      "weekTime": "Week (time)",
       "month": "Month",
       "year": "Year",
       "quarterYear": "3 months",
@@ -3920,8 +4151,8 @@
       "listAria": "Times"
     },
     "posteingangUi": {
-      "toggleInboxHide": "Hide inbox column",
-      "toggleInboxShow": "Show inbox column",
+      "toggleInboxHide": "Hide time list",
+      "toggleInboxShow": "Show time list",
       "togglePreviewHide": "Hide preview (mail or event)",
       "togglePreviewShow": "Show preview (mail or event)",
       "toggleContextHide": "Hide context sidebar",

@@ -29,6 +29,8 @@ export const MICROSOFT_SCOPES = [
   /** Microsoft-365-Gruppenkalender lesen/schreiben (`/groups/{id}/calendar`, `/groups/{id}/events`). */
   'Group.ReadWrite.All',
   'OnlineMeetings.ReadWrite',
+  /** Teams-Besprechungsaufzeichnungen lesen (`/onlineMeetings/{id}/recordings`). */
+  'OnlineMeetingRecording.Read.All',
   /** Microsoft Teams: Chats lesen/schreiben; neue Chats anlegen (Graph `/me/chats`, `POST /chats`). */
   'Chat.ReadWrite',
   'Chat.Create',

@@ -1,16 +1,14 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   CalendarDays,
   CheckSquare,
-  ExternalLink,
   Eye,
   Link2,
   Loader2,
   Mail,
   Plus,
   StickyNote,
-  User,
-  X
+  User
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type {
@@ -20,9 +18,13 @@ import type {
   NoteLinksBundle,
   NoteEntityLinkTargetKind
 } from '@shared/note-entity-links'
+import { collectNoteEntityMentionsFromHtml } from '@shared/note-entity-mentions-from-html'
 import { cn } from '@/lib/utils'
+import { EntityLinkFilterTabs } from '@/components/EntityLinkFilterTabs'
+import { NoteEntityLinkChip } from '@/components/NoteEntityLinkChip'
 import { noteEntityLinkTargetKey } from '@shared/note-entity-links'
 import { openNoteEntityLinkTarget } from '@/lib/note-entity-link-nav'
+import { subscribeEntityLinksChanged } from '@/lib/entity-links-client'
 import { useAppModeStore } from '@/stores/app-mode'
 
 const PICKER_KINDS: NoteEntityLinkTargetKind[] = [
@@ -32,6 +34,33 @@ const PICKER_KINDS: NoteEntityLinkTargetKind[] = [
   'cloud_task',
   'people_contact'
 ]
+
+function mergeOutgoingWithBodyMentions(
+  outgoing: NoteEntityLinkedItem[],
+  bodyHtml: string | undefined,
+  noteId: number
+): NoteEntityLinkedItem[] {
+  if (!bodyHtml?.trim()) return outgoing
+
+  const seen = new Set(outgoing.map((item) => noteEntityLinkTargetKey(item.target)))
+  const merged = [...outgoing]
+
+  for (const mention of collectNoteEntityMentionsFromHtml(bodyHtml)) {
+    if (mention.target.kind === 'note' && mention.target.noteId === noteId) continue
+    const key = noteEntityLinkTargetKey(mention.target)
+    if (seen.has(key)) continue
+    seen.add(key)
+    merged.push({
+      linkId: 0,
+      target: mention.target,
+      title: mention.title,
+      subtitle: null,
+      createdAt: ''
+    })
+  }
+
+  return merged
+}
 
 function kindIcon(kind: NoteEntityLinkTargetKind): typeof StickyNote {
   if (kind === 'mail') return Mail
@@ -48,7 +77,10 @@ export function NotesLinkedObjectsPanel({
   onSelectForPreview,
   onLinksLoaded,
   previewOpen,
-  onTogglePreview
+  onTogglePreview,
+  variant = 'card',
+  className,
+  bodyHtml
 }: {
   noteId: number
   onOpenNote: (id: number) => void
@@ -57,9 +89,14 @@ export function NotesLinkedObjectsPanel({
   onLinksLoaded?: (bundle: NoteLinksBundle) => void
   previewOpen?: boolean
   onTogglePreview?: () => void
+  variant?: 'card' | 'onenote'
+  className?: string
+  /** Gespeicherter Notiz-HTML-Body – ergänzt @-Erwähnungen (z. B. Kontakte) in der Kachelansicht. */
+  bodyHtml?: string
 }): JSX.Element {
   const { t } = useTranslation()
   const setAppMode = useAppModeStore((s) => s.setMode)
+  const embedded = variant === 'onenote'
   const [bundle, setBundle] = useState<NoteLinksBundle>({ outgoing: [], incoming: [] })
   const [loading, setLoading] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -67,9 +104,13 @@ export function NotesLinkedObjectsPanel({
   const [search, setSearch] = useState('')
   const [candidates, setCandidates] = useState<NoteLinkTargetCandidate[]>([])
   const [busy, setBusy] = useState(false)
+  const outgoingItems = useMemo(
+    () => mergeOutgoingWithBodyMentions(bundle.outgoing, bodyHtml, noteId),
+    [bundle.outgoing, bodyHtml, noteId]
+  )
 
-  const loadLinks = useCallback(async (): Promise<void> => {
-    setLoading(true)
+  const loadLinks = useCallback(async (opts?: { silent?: boolean }): Promise<void> => {
+    if (!opts?.silent) setLoading(true)
     try {
       const next = await window.mailClient.notes.links.list(noteId)
       setBundle(next)
@@ -79,12 +120,18 @@ export function NotesLinkedObjectsPanel({
       setBundle(empty)
       onLinksLoaded?.(empty)
     } finally {
-      setLoading(false)
+      if (!opts?.silent) setLoading(false)
     }
   }, [noteId, onLinksLoaded])
 
   useEffect(() => {
     void loadLinks()
+  }, [loadLinks])
+
+  useEffect(() => {
+    return subscribeEntityLinksChanged(() => {
+      void loadLinks({ silent: true })
+    })
   }, [loadLinks])
 
   useEffect(() => {
@@ -94,7 +141,7 @@ export function NotesLinkedObjectsPanel({
         .searchTargets({ query: search.trim(), excludeNoteId: noteId, limit: 40 })
         .then((rows) => {
           const linkedKeys = new Set(
-            bundle.outgoing.map((item) => JSON.stringify(item.target))
+            outgoingItems.map((item) => JSON.stringify(item.target))
           )
           setCandidates(
             rows.filter((c) => {
@@ -106,7 +153,7 @@ export function NotesLinkedObjectsPanel({
         .catch(() => setCandidates([]))
     }, 150)
     return (): void => window.clearTimeout(handle)
-  }, [pickerOpen, search, noteId, pickerKind, bundle.outgoing])
+  }, [pickerOpen, search, noteId, pickerKind, outgoingItems])
 
   async function addLink(target: NoteEntityLinkTarget): Promise<void> {
     setBusy(true)
@@ -120,10 +167,23 @@ export function NotesLinkedObjectsPanel({
     }
   }
 
-  async function removeOutgoing(linkId: number): Promise<void> {
+  async function removeOutgoing(linkId: number, target?: NoteEntityLinkTarget): Promise<void> {
+    const resolvedLinkId =
+      linkId > 0
+        ? linkId
+        : target
+          ? bundle.outgoing.find(
+              (item) => noteEntityLinkTargetKey(item.target) === noteEntityLinkTargetKey(target)
+            )?.linkId
+          : undefined
+    if (!resolvedLinkId) return
     setBusy(true)
     try {
-      await window.mailClient.notes.links.remove({ fromNoteId: noteId, linkId, direction: 'outgoing' })
+      await window.mailClient.notes.links.remove({
+        fromNoteId: noteId,
+        linkId: resolvedLinkId,
+        direction: 'outgoing'
+      })
       await loadLinks()
     } finally {
       setBusy(false)
@@ -148,199 +208,175 @@ export function NotesLinkedObjectsPanel({
     await openNoteEntityLinkTarget(item.target, setAppMode)
   }
 
-  function renderLinkRow(
+  function renderLinkChip(
     item: NoteEntityLinkedItem,
     direction: 'outgoing' | 'incoming',
-    onRemove: (linkId: number) => void
+    onRemove: (linkId: number, target?: NoteEntityLinkTarget) => void
   ): JSX.Element {
     const kind = item.target.kind
-    const Icon = kindIcon(kind)
     const key = noteEntityLinkTargetKey(item.target)
     const selected = selectedPreviewKey === key
+    const kindLabel = t(`notes.links.kind.${kind}`)
+    const meta =
+      item.subtitle === 'subpage'
+        ? `${kindLabel} · ${t('notes.subPages.create')}`
+        : item.subtitle && kind !== 'note'
+          ? `${kindLabel} · ${item.subtitle}`
+          : kindLabel
+
     return (
-      <div
-        key={item.linkId}
-        className={cn(
-          'flex items-center gap-1 rounded-md px-1 py-0.5',
-          selected ? 'bg-primary/10 ring-1 ring-primary/30' : 'hover:bg-secondary/40'
-        )}
-      >
-        <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+      <NoteEntityLinkChip
+        key={`${direction}-${key}`}
+        kind={kind}
+        title={item.title}
+        meta={meta}
+        selected={selected}
+        busy={busy}
+        previewTitle={t('notes.preview.showInPane')}
+        openTitle={t('notes.preview.openExternal')}
+        removeTitle={t('notes.links.remove')}
+        onSelect={
+          onSelectForPreview ? (): void => onSelectForPreview(item, direction) : undefined
+        }
+        onOpen={(): void => void openLink(item)}
+        onRemove={
+          direction === 'outgoing'
+            ? (): void => void onRemove(item.linkId, item.target)
+            : (): void => void onRemove(item.linkId)
+        }
+      />
+    )
+  }
+
+  const actionButtons = (
+    <div className="flex shrink-0 flex-wrap items-center gap-1">
+      {onTogglePreview ? (
         <button
           type="button"
-          onClick={(): void => onSelectForPreview?.(item, direction)}
-          className="min-w-0 flex-1 text-left"
-          title={t('notes.preview.showInPane')}
-        >
-          <span className="block truncate text-xs text-foreground">{item.title}</span>
-          {item.subtitle ? (
-            <span className="block truncate text-2xs text-muted-foreground">
-              {t(`notes.links.kind.${kind}`)}
-              {kind === 'note' ? '' : ` · ${item.subtitle}`}
-            </span>
-          ) : (
-            <span className="block text-2xs text-muted-foreground">
-              {t(`notes.links.kind.${kind}`)}
-            </span>
+          onClick={onTogglePreview}
+          className={cn(
+            'inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium hover:bg-secondary',
+            previewOpen
+              ? 'border-primary bg-primary/10 text-foreground'
+              : 'border-border text-foreground'
           )}
-        </button>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={(): void => void openLink(item)}
-          className="rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
-          aria-label={t('notes.preview.openExternal')}
-          title={t('notes.preview.openExternal')}
+          title={t('notes.preview.togglePane')}
         >
-          <ExternalLink className="h-3 w-3" />
+          <Eye className="h-3 w-3" />
+          {t('notes.preview.togglePaneShort')}
         </button>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={(): void => void onRemove(item.linkId)}
-          className="rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
-          aria-label={t('notes.links.remove')}
-        >
-          <X className="h-3 w-3" />
-        </button>
+      ) : null}
+      <button
+        type="button"
+        disabled={busy}
+        onClick={(): void => setPickerOpen((v) => !v)}
+        className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs font-medium text-foreground hover:bg-secondary"
+      >
+        <Plus className="h-3 w-3" />
+        {t('notes.links.add')}
+      </button>
+    </div>
+  )
+
+  const picker = pickerOpen ? (
+    <div className="space-y-2">
+      <EntityLinkFilterTabs value={pickerKind} onChange={setPickerKind} kinds={PICKER_KINDS} />
+      <input
+        type="search"
+        value={search}
+        onChange={(e): void => setSearch(e.target.value)}
+        placeholder={t('notes.links.searchPlaceholder')}
+        className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs"
+      />
+      <div className="max-h-44 overflow-y-auto rounded-md border border-border">
+        {candidates.length === 0 ? (
+          <div className="p-2 text-xs text-muted-foreground">{t('notes.links.noCandidates')}</div>
+        ) : (
+          candidates.map((c) => {
+            const Icon = kindIcon(c.target.kind)
+            return (
+              <button
+                key={JSON.stringify(c.target)}
+                type="button"
+                disabled={busy}
+                onClick={(): void => void addLink(c.target)}
+                className="flex w-full items-center gap-2 border-b border-border/50 px-2 py-1.5 text-left text-xs hover:bg-secondary/50 last:border-0"
+              >
+                <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                <span className="min-w-0 flex-1 truncate">{c.title}</span>
+                <span className="shrink-0 text-2xs text-muted-foreground">
+                  {t(`notes.links.kind.${c.target.kind}`)}
+                </span>
+              </button>
+            )
+          })
+        )}
+      </div>
+    </div>
+  ) : null
+
+  const renderLink = renderLinkChip
+  const linkListClass = 'flex flex-wrap gap-1.5'
+
+  const linksBody = loading ? (
+    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+      <Loader2 className="h-3 w-3 animate-spin" />
+      {t('common.loading')}
+    </div>
+  ) : (
+    <>
+      <div>
+        {!embedded ? (
+          <p className="mb-1 text-2xs font-medium uppercase tracking-wide text-muted-foreground">
+            {t('notes.links.outgoing')}
+          </p>
+        ) : null}
+        {outgoingItems.length === 0 ? (
+          <p className="text-xs text-muted-foreground">{t('notes.links.emptyOutgoing')}</p>
+        ) : (
+          <div className={linkListClass}>
+            {outgoingItems.map((item) => renderLink(item, 'outgoing', removeOutgoing))}
+          </div>
+        )}
+      </div>
+      {bundle.incoming.length > 0 ? (
+        <div>
+          <p className="mb-1 text-2xs font-medium uppercase tracking-wide text-muted-foreground">
+            {t('notes.links.incoming')}
+          </p>
+          <div className={linkListClass}>
+            {bundle.incoming.map((item) => renderLink(item, 'incoming', removeIncoming))}
+          </div>
+        </div>
+      ) : null}
+    </>
+  )
+
+  if (embedded) {
+    return (
+      <div className={cn('space-y-2', className)}>
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1 space-y-2">{linksBody}</div>
+          <div className="shrink-0">{actionButtons}</div>
+        </div>
+        {picker}
       </div>
     )
   }
 
   return (
-    <div className="rounded-lg border border-border bg-background/60 p-3">
+    <div className={cn('rounded-lg border border-border bg-background/60 p-3', className)}>
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-xs font-medium text-foreground">
           <Link2 className="h-3.5 w-3.5" />
           {t('notes.links.title')}
         </div>
-        <div className="flex items-center gap-1">
-          {onTogglePreview ? (
-            <button
-              type="button"
-              onClick={onTogglePreview}
-              className={cn(
-                'inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs',
-                previewOpen
-                  ? 'border-primary bg-primary/10 text-foreground'
-                  : 'border-border hover:bg-secondary'
-              )}
-              title={t('notes.preview.togglePane')}
-            >
-              <Eye className="h-3 w-3" />
-              {t('notes.preview.togglePaneShort')}
-            </button>
-          ) : null}
-          <button
-            type="button"
-            disabled={busy}
-            onClick={(): void => setPickerOpen((v) => !v)}
-            className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-secondary"
-          >
-            <Plus className="h-3 w-3" />
-            {t('notes.links.add')}
-          </button>
-        </div>
+        {actionButtons}
       </div>
 
-      {pickerOpen ? (
-        <div className="mt-2 space-y-2">
-          <div className="flex flex-wrap gap-1">
-            <button
-              type="button"
-              onClick={(): void => setPickerKind('all')}
-              className={cn(
-                'rounded-md border px-2 py-0.5 text-2xs',
-                pickerKind === 'all'
-                  ? 'border-primary bg-primary/10 text-foreground'
-                  : 'border-border text-muted-foreground hover:bg-secondary/60'
-              )}
-            >
-              {t('notes.links.filterAll')}
-            </button>
-            {PICKER_KINDS.map((kind) => (
-              <button
-                key={kind}
-                type="button"
-                onClick={(): void => setPickerKind(kind)}
-                className={cn(
-                  'rounded-md border px-2 py-0.5 text-2xs',
-                  pickerKind === kind
-                    ? 'border-primary bg-primary/10 text-foreground'
-                    : 'border-border text-muted-foreground hover:bg-secondary/60'
-                )}
-              >
-                {t(`notes.links.kind.${kind}`)}
-              </button>
-            ))}
-          </div>
-          <input
-            type="search"
-            value={search}
-            onChange={(e): void => setSearch(e.target.value)}
-            placeholder={t('notes.links.searchPlaceholder')}
-            className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs"
-          />
-          <div className="max-h-44 overflow-y-auto rounded-md border border-border">
-            {candidates.length === 0 ? (
-              <div className="p-2 text-xs text-muted-foreground">{t('notes.links.noCandidates')}</div>
-            ) : (
-              candidates.map((c) => {
-                const Icon = kindIcon(c.target.kind)
-                return (
-                  <button
-                    key={JSON.stringify(c.target)}
-                    type="button"
-                    disabled={busy}
-                    onClick={(): void => void addLink(c.target)}
-                    className="flex w-full items-center gap-2 border-b border-border/50 px-2 py-1.5 text-left text-xs hover:bg-secondary/50 last:border-0"
-                  >
-                    <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                    <span className="min-w-0 flex-1 truncate">{c.title}</span>
-                    <span className="shrink-0 text-2xs text-muted-foreground">
-                      {t(`notes.links.kind.${c.target.kind}`)}
-                    </span>
-                  </button>
-                )
-              })
-            )}
-          </div>
-        </div>
-      ) : null}
+      {picker ? <div className="mt-2">{picker}</div> : null}
 
-      <div className="mt-2 space-y-2">
-        {loading ? (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Loader2 className="h-3 w-3 animate-spin" />
-            {t('common.loading')}
-          </div>
-        ) : (
-          <>
-            <div>
-              <p className="mb-1 text-2xs font-medium uppercase tracking-wide text-muted-foreground">
-                {t('notes.links.outgoing')}
-              </p>
-              {bundle.outgoing.length === 0 ? (
-                <p className="text-xs text-muted-foreground">{t('notes.links.emptyOutgoing')}</p>
-              ) : (
-                <div className="space-y-0.5">
-                  {bundle.outgoing.map((item) => renderLinkRow(item, 'outgoing', removeOutgoing))}
-                </div>
-              )}
-            </div>
-            {bundle.incoming.length > 0 ? (
-              <div>
-                <p className="mb-1 text-2xs font-medium uppercase tracking-wide text-muted-foreground">
-                  {t('notes.links.incoming')}
-                </p>
-                <div className="space-y-0.5">
-                  {bundle.incoming.map((item) => renderLinkRow(item, 'incoming', removeIncoming))}
-                </div>
-              </div>
-            ) : null}
-          </>
-        )}
-      </div>
+      <div className="mt-2 space-y-2">{linksBody}</div>
     </div>
   )
 }

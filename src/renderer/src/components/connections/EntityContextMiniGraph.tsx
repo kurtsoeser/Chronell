@@ -116,8 +116,9 @@ export function EntityContextMiniGraph({
           selectedKey={anchorKey}
           clusterMode="kind"
           compact
-          onSelectNode={(): void => {
-            openConnectionsGraphForRef(anchor)
+          onSelectNode={(): void => {}}
+          onNavigateNode={(node): void => {
+            openConnectionsGraphForRef(node.ref)
           }}
         />
       </div>

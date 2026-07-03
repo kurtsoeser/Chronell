@@ -278,21 +278,11 @@ onAccountsChanged: (handler: (accounts: ConnectedAccount[]) => void): (() => voi
       }
     },
     onNotesChanged: (
-      handler: (payload: {
-        kind?: UserNoteKind
-        noteId?: number
-        messageId?: number | null
-        accountId?: string | null
-      }) => void
+      handler: (payload: import('@shared/types').NotesChangedPayload) => void
     ): (() => void) => {
       const listener = (
         _e: IpcRendererEvent,
-        payload: {
-          kind?: UserNoteKind
-          noteId?: number
-          messageId?: number | null
-          accountId?: string | null
-        }
+        payload: import('@shared/types').NotesChangedPayload
       ): void => handler(payload)
       ipcRenderer.on('notes:changed', listener)
       return (): void => {

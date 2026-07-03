@@ -71,17 +71,24 @@ export function searchNoteLinkTargets(
     }
   }
 
-  if (q && out.length < limit) {
+  if (out.length < limit) {
     const mailLimit = limit - out.length
     const mails = db
       .prepare(
-        `SELECT id, subject, from_name, from_addr FROM messages
-         WHERE LOWER(COALESCE(subject,'')) LIKE ?
-            OR LOWER(COALESCE(from_name,'')) LIKE ?
-            OR LOWER(COALESCE(from_addr,'')) LIKE ?
-         ORDER BY received_at DESC LIMIT ?`
+        q
+          ? `SELECT id, subject, from_name, from_addr FROM messages
+             WHERE LOWER(COALESCE(subject,'')) LIKE ?
+                OR LOWER(COALESCE(from_name,'')) LIKE ?
+                OR LOWER(COALESCE(from_addr,'')) LIKE ?
+             ORDER BY received_at DESC LIMIT ?`
+          : `SELECT id, subject, from_name, from_addr FROM messages
+             ORDER BY received_at DESC LIMIT ?`
       )
-      .all(`%${q}%`, `%${q}%`, `%${q}%`, mailLimit) as Array<{
+      .all(
+        ...(q
+          ? [`%${q}%`, `%${q}%`, `%${q}%`, mailLimit]
+          : [mailLimit])
+      ) as Array<{
       id: number
       subject: string | null
       from_name: string | null
@@ -174,15 +181,18 @@ export function searchNoteLinkTargets(
     }
   }
 
-  if (q && out.length < limit) {
+  if (out.length < limit) {
     const taskLimit = limit - out.length
     const tasks = db
       .prepare(
-        `SELECT account_id, list_id, task_id, title, due_iso FROM cloud_tasks
-         WHERE LOWER(title) LIKE ?
-         ORDER BY completed ASC, due_iso IS NULL, due_iso ASC LIMIT ?`
+        q
+          ? `SELECT account_id, list_id, task_id, title, due_iso FROM cloud_tasks
+             WHERE LOWER(title) LIKE ?
+             ORDER BY completed ASC, due_iso IS NULL, due_iso ASC LIMIT ?`
+          : `SELECT account_id, list_id, task_id, title, due_iso FROM cloud_tasks
+             ORDER BY completed ASC, due_iso IS NULL, due_iso ASC LIMIT ?`
       )
-      .all(`%${q}%`, taskLimit) as Array<{
+      .all(...(q ? [`%${q}%`, taskLimit] : [taskLimit])) as Array<{
       account_id: string
       list_id: string
       task_id: string

@@ -99,7 +99,7 @@ export function registerNotesIpc(): void {
   ipcMain.handle(IPC.notes.upsertMail, (_event, input: UserNoteMailUpsertInput): UserNote => {
     const note = upsertMailNote(input)
     queueEntityEmbeddingForNote(note)
-    broadcastNotesChanged({ kind: 'mail', noteId: note.id, messageId: note.messageId })
+    broadcastNotesChanged({ kind: 'mail', noteId: note.id, messageId: note.messageId, scope: 'content' })
     return note
   })
 
@@ -117,7 +117,7 @@ export function registerNotesIpc(): void {
     (_event, input: UserNotePeopleContactUpsertInput): UserNote => {
       const note = upsertPrimaryNoteForPeopleContact(input)
       queueEntityEmbeddingForNote(note)
-      broadcastNotesChanged({ kind: 'standalone', noteId: note.id })
+      broadcastNotesChanged({ kind: 'standalone', noteId: note.id, scope: 'content' })
       return note
     }
   )
@@ -131,7 +131,7 @@ export function registerNotesIpc(): void {
     (_event, input: UserNoteCalendarUpsertInput): UserNote => {
       const note = upsertCalendarNote(input)
       queueEntityEmbeddingForNote(note)
-      broadcastNotesChanged({ kind: 'calendar', noteId: note.id, accountId: note.accountId })
+      broadcastNotesChanged({ kind: 'calendar', noteId: note.id, accountId: note.accountId, scope: 'content' })
       return note
     }
   )
@@ -141,7 +141,7 @@ export function registerNotesIpc(): void {
     (_event, input: UserNoteStandaloneCreateInput): UserNote => {
       const note = createStandaloneNote(input)
       queueEntityEmbeddingForNote(note)
-      broadcastNotesChanged({ kind: 'standalone', noteId: note.id })
+      broadcastNotesChanged({ kind: 'standalone', noteId: note.id, scope: 'structure' })
       return note
     }
   )
@@ -151,7 +151,7 @@ export function registerNotesIpc(): void {
     (_event, input: UserNoteStandaloneUpdateInput): UserNote => {
       const note = updateStandaloneNote(input)
       queueEntityEmbeddingForNote(note)
-      broadcastNotesChanged({ kind: 'standalone', noteId: note.id })
+      broadcastNotesChanged({ kind: 'standalone', noteId: note.id, scope: 'content' })
       return note
     }
   )
@@ -159,7 +159,7 @@ export function registerNotesIpc(): void {
   ipcMain.handle(IPC.notes.delete, (_event, id: number): void => {
     removeEntityEmbeddingsForNote(id)
     deleteNote(id)
-    broadcastNotesChanged({ noteId: id })
+    broadcastNotesChanged({ noteId: id, scope: 'structure' })
   })
 
   ipcMain.handle(IPC.notes.list, (_event, filters?: UserNoteListFilters): UserNoteListItem[] =>
@@ -184,7 +184,7 @@ export function registerNotesIpc(): void {
       iconColor: input.iconColor
     })
     queueEntityEmbeddingForNote(note)
-    broadcastNotesChanged({ noteId: note.id })
+    broadcastNotesChanged({ noteId: note.id, scope: 'meta' })
     return note
   })
 
@@ -196,41 +196,41 @@ export function registerNotesIpc(): void {
   ipcMain.handle(IPC.notes.setSchedule, (_event, input: UserNoteScheduleInput): UserNote => {
     const note = setNoteSchedule(input)
     queueEntityEmbeddingForNote(note)
-    broadcastNotesChanged({ noteId: note.id, kind: note.kind })
+    broadcastNotesChanged({ noteId: note.id, kind: note.kind, scope: 'content' })
     return note
   })
 
   ipcMain.handle(IPC.notes.clearSchedule, (_event, id: number): UserNote => {
     const note = clearNoteSchedule(id)
     queueEntityEmbeddingForNote(note)
-    broadcastNotesChanged({ noteId: note.id, kind: note.kind })
+    broadcastNotesChanged({ noteId: note.id, kind: note.kind, scope: 'content' })
     return note
   })
 
   ipcMain.handle(IPC.notes.moveToSection, (_event, input: UserNoteMoveToSectionInput): UserNote => {
     const note = moveNoteToSection(input)
     queueEntityEmbeddingForNote(note)
-    broadcastNotesChanged({ noteId: note.id, kind: note.kind })
+    broadcastNotesChanged({ noteId: note.id, kind: note.kind, scope: 'meta' })
     return note
   })
 
   ipcMain.handle(IPC.notes.moveToParent, (_event, input: UserNoteMoveToParentInput): UserNote => {
     const note = moveNoteToParent(input)
     queueEntityEmbeddingForNote(note)
-    broadcastNotesChanged({ noteId: note.id, kind: note.kind })
+    broadcastNotesChanged({ noteId: note.id, kind: note.kind, scope: 'meta' })
     return note
   })
 
   ipcMain.handle(IPC.notes.setCategories, (_event, input: UserNoteSetCategoriesInput): UserNote => {
     const note = setNoteCategories(input.noteId, input.accountId, input.categories)
     queueEntityEmbeddingForNote(note)
-    broadcastNotesChanged({ noteId: note.id, kind: note.kind })
+    broadcastNotesChanged({ noteId: note.id, kind: note.kind, scope: 'meta' })
     return note
   })
 
   ipcMain.handle(IPC.notes.setPinned, (_event, input: UserNoteSetPinnedInput): UserNote => {
     const note = setNotePinned(input.noteId, input.isPinned)
-    broadcastNotesChanged({ noteId: note.id, kind: note.kind })
+    broadcastNotesChanged({ noteId: note.id, kind: note.kind, scope: 'meta' })
     return note
   })
 
@@ -238,31 +238,32 @@ export function registerNotesIpc(): void {
 
   ipcMain.handle(IPC.notes.sectionsCreate, (_event, input: NoteSectionCreateInput): NoteSection => {
     const section = createNoteSection(input)
-    broadcastNotesChanged({})
+    broadcastNotesChanged({ scope: 'structure' })
     return section
   })
 
   ipcMain.handle(IPC.notes.sectionsUpdate, (_event, input: NoteSectionUpdateInput): NoteSection => {
     const section = updateNoteSection(input)
-    broadcastNotesChanged({})
+    broadcastNotesChanged({ scope: 'structure' })
     return section
   })
 
   ipcMain.handle(IPC.notes.sectionsDelete, (_event, id: number): void => {
     deleteNoteSection(id)
-    broadcastNotesChanged({})
+    broadcastNotesChanged({ scope: 'structure' })
   })
 
   ipcMain.handle(IPC.notes.sectionsReorder, (_event, input: NoteSectionReorderInput): void => {
     reorderNoteSections(input)
-    broadcastNotesChanged({})
+    broadcastNotesChanged({ scope: 'structure' })
   })
 
   ipcMain.handle(IPC.notes.linksList, (_event, fromNoteId: number): NoteLinksBundle => {
     const id = typeof fromNoteId === 'number' ? fromNoteId : 0
     if (!id) return { outgoing: [], incoming: [] }
     if (tryAutoLinkNoteToContactByTitle(id)) {
-      broadcastNotesChanged({ kind: 'standalone', noteId: id })
+      broadcastNotesChanged({ kind: 'standalone', noteId: id, scope: 'links' })
+      broadcastEntityLinksChanged()
     }
     return listNoteLinksBundle(id)
   })
@@ -274,7 +275,7 @@ export function registerNotesIpc(): void {
       throw new Error('Verknuepfung ungueltig.')
     }
     addNoteEntityLink(fromNoteId, target)
-    broadcastNotesChanged({ noteId: fromNoteId })
+    broadcastNotesChanged({ noteId: fromNoteId, scope: 'links' })
     broadcastEntityLinksChanged()
   })
 
@@ -287,7 +288,7 @@ export function registerNotesIpc(): void {
     } else {
       removeNoteEntityLink(linkId, fromNoteId)
     }
-    broadcastNotesChanged({ noteId: fromNoteId })
+    broadcastNotesChanged({ noteId: fromNoteId, scope: 'links' })
     broadcastEntityLinksChanged()
   })
 
@@ -326,7 +327,7 @@ export function registerNotesIpc(): void {
     IPC.notes.attachmentsAddLocal,
     async (_event, input: UserNoteAttachmentAddLocalInput): Promise<UserNoteAttachment> => {
       const att = await addLocalNoteAttachment(input)
-      broadcastNotesChanged({ noteId: input.noteId })
+      broadcastNotesChanged({ noteId: input.noteId, scope: 'attachments' })
       return att
     }
   )
@@ -335,7 +336,7 @@ export function registerNotesIpc(): void {
     IPC.notes.attachmentsAddCloud,
     (_event, input: UserNoteAttachmentAddCloudInput): UserNoteAttachment => {
       const att = addCloudNoteAttachment(input)
-      broadcastNotesChanged({ noteId: input.noteId })
+      broadcastNotesChanged({ noteId: input.noteId, scope: 'attachments' })
       return att
     }
   )
@@ -347,7 +348,7 @@ export function registerNotesIpc(): void {
       const attachmentId = typeof args?.attachmentId === 'number' ? args.attachmentId : 0
       if (!noteId || !attachmentId) throw new Error('Anhang fehlt.')
       await removeNoteAttachment(attachmentId, noteId)
-      broadcastNotesChanged({ noteId })
+      broadcastNotesChanged({ noteId, scope: 'attachments' })
     }
   )
 
@@ -484,6 +485,48 @@ export function registerNotesIpc(): void {
         title: typeof input?.title === 'string' ? input.title : '',
         bodyHtml: typeof input?.bodyHtml === 'string' ? input.bodyHtml : ''
       })
+    }
+  )
+
+  ipcMain.handle(
+    IPC.notes.resolveEmbedUrl,
+    async (_event, input: unknown): Promise<string | null> => {
+      const url = typeof input === 'string' ? input.trim() : ''
+      if (!url) return null
+      const { resolveNoteEmbedRedirectUrl } = await import('../note-embed-url-resolve')
+      return resolveNoteEmbedRedirectUrl(url)
+    }
+  )
+
+  ipcMain.handle(
+    IPC.notes.resolveM365Video,
+    async (_event, input: unknown) => {
+      const shareUrl =
+        typeof input === 'object' &&
+        input !== null &&
+        'shareUrl' in input &&
+        typeof (input as { shareUrl?: unknown }).shareUrl === 'string'
+          ? (input as { shareUrl: string }).shareUrl.trim()
+          : typeof input === 'string'
+            ? input.trim()
+            : ''
+      const accountId =
+        typeof input === 'object' &&
+        input !== null &&
+        'accountId' in input &&
+        typeof (input as { accountId?: unknown }).accountId === 'string'
+          ? (input as { accountId: string }).accountId.trim()
+          : undefined
+      if (!shareUrl) {
+        return {
+          ok: false,
+          error: 'unknown',
+          message: 'Freigabe-URL fehlt.',
+          ref: { shareUrl: '', error: 'unknown' }
+        }
+      }
+      const { resolveM365VideoEmbed } = await import('../note-m365-video-resolve')
+      return resolveM365VideoEmbed({ shareUrl, accountId })
     }
   )
 

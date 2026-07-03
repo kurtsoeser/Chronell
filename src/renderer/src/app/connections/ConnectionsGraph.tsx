@@ -124,6 +124,7 @@ export function ConnectionsGraph({
   onCanvasContextMenu,
   onNodeContextMenu,
   onSelectNode,
+  onNavigateNode,
   multiSelectedKeys,
   onMultiSelectPointerDown,
   onMarqueeComplete,
@@ -172,6 +173,8 @@ export function ConnectionsGraph({
     anchor: { x: number; y: number }
   ) => void
   onSelectNode: (node: EntityGraphNode | null) => void
+  /** Doppelklick auf einen Knoten (z. B. Mini-Graph im Kontext-Panel). */
+  onNavigateNode?: (node: EntityGraphNode) => void
   multiSelectedKeys?: ReadonlySet<string>
   onMultiSelectPointerDown?: (
     key: string,
@@ -842,6 +845,7 @@ export function ConnectionsGraph({
                   }
                   ev.stopPropagation()
                   setHoverKey(null)
+                  if (onNavigateNode) return
                   if (ev.shiftKey || ev.ctrlKey || ev.metaKey) {
                     onMultiSelectPointerDown?.(
                       n.key,
@@ -856,6 +860,16 @@ export function ConnectionsGraph({
                   }
                   onSelectNode(n.node)
                 }}
+                onDoubleClick={
+                  onNavigateNode
+                    ? (ev): void => {
+                        if (linkDrag || nodeDidDragRef.current) return
+                        ev.stopPropagation()
+                        setHoverKey(null)
+                        onNavigateNode(n.node)
+                      }
+                    : undefined
+                }
                 onContextMenu={
                   !compact && onNodeContextMenu
                     ? (ev): void => {
@@ -1109,6 +1123,8 @@ export function ConnectionsGraphWithFilter(props: {
     anchor: { x: number; y: number }
   ) => void
   onSelectNode: (node: EntityGraphNode | null) => void
+  /** Doppelklick auf einen Knoten (z. B. Mini-Graph im Kontext-Panel). */
+  onNavigateNode?: (node: EntityGraphNode) => void
   multiSelectedKeys?: ReadonlySet<string>
   onMultiSelectPointerDown?: (
     key: string,
@@ -1183,6 +1199,7 @@ export function ConnectionsGraphWithFilter(props: {
       onCanvasContextMenu={props.onCanvasContextMenu}
       onNodeContextMenu={props.onNodeContextMenu}
       onSelectNode={props.onSelectNode}
+      onNavigateNode={props.onNavigateNode}
       multiSelectedKeys={props.multiSelectedKeys}
       onMultiSelectPointerDown={props.onMultiSelectPointerDown}
       onMarqueeComplete={props.onMarqueeComplete}

@@ -182,7 +182,7 @@ export function reorderNoteSections(input: NoteSectionReorderInput): void {
   const ids = input.orderedIds.filter((id) => Number.isFinite(id) && id > 0)
   const db = getDb()
   const stmt = db.prepare(
-    'UPDATE note_sections SET sort_order = ?, updated_at = datetime("now") WHERE id = ?'
+    "UPDATE note_sections SET sort_order = ?, updated_at = datetime('now') WHERE id = ?"
   )
   const tx = db.transaction(() => {
     for (const [index, id] of ids.entries()) {

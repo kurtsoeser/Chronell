@@ -1,27 +1,13 @@
-import { lazy, Suspense, type MutableRefObject, type ReactNode } from 'react'
+import { lazy, Suspense } from 'react'
 import { Loader2 } from 'lucide-react'
+import type { TipTapNoteEditorProps } from './TipTapNoteEditor'
 
 const TipTapNoteEditor = lazy(async () => {
   const m = await import('./TipTapNoteEditor')
   return { default: m.TipTapNoteEditor }
 })
 
-export interface TipTapNoteEditorLazyProps {
-  valueHtml: string
-  onChangeHtml: (html: string) => void
-  placeholder: string
-  fillHeight?: boolean
-  minHeight?: number
-  variant?: 'default' | 'compact'
-  className?: string
-  showThemeToggle?: boolean
-  actionBarStart?: ReactNode
-  stickyEditorChrome?: boolean
-  flushRef?: MutableRefObject<(() => void) | null>
-  insertHtmlRef?: MutableRefObject<((html: string) => void) | null>
-  currentNoteId?: number
-  onOpenLinkedNote?: (noteId: number) => void
-}
+export type TipTapNoteEditorLazyProps = TipTapNoteEditorProps
 
 export function TipTapNoteEditorLazy(props: TipTapNoteEditorLazyProps): JSX.Element {
   const fallbackHeight = props.fillHeight ? props.minHeight ?? 200 : props.minHeight ?? 280

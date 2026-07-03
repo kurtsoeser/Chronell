@@ -1,6 +1,10 @@
 import type { EventApi, EventInput } from '@fullcalendar/core'
 import type { UserNoteListItem } from '@shared/types'
-import { NOTE_DEFAULT_APPOINTMENT_MINUTES, resolveNoteCalendarSpan } from '@shared/note-calendar-span'
+import {
+  NOTE_DEFAULT_APPOINTMENT_MINUTES,
+  type NotesCalendarDateMode,
+  resolveNoteCalendarSpanForMode
+} from '@shared/note-calendar-span'
 import {
   addCalendarDaysIsoDate,
   defaultAppointmentRangeForCalendarDay,
@@ -9,7 +13,10 @@ import {
 
 export const CALENDAR_KIND_USER_NOTE = 'userNote' as const
 
+export type { NotesCalendarDateMode }
+
 const NOTE_EVENT_COLOR = '#a855f7'
+const NOTE_CREATED_EVENT_COLOR = '#8b5cf6'
 
 export function userNoteEventId(noteId: number): string {
   return `user-note:${noteId}`
@@ -31,26 +38,32 @@ function noteDisplayTitle(note: Pick<UserNoteListItem, 'kind' | 'title' | 'event
 
 export function notesToFullCalendarEvents(
   notes: UserNoteListItem[],
-  options?: { defaultTitle?: string }
+  options?: { defaultTitle?: string; dateMode?: NotesCalendarDateMode }
 ): EventInput[] {
   const fallback = options?.defaultTitle ?? 'Notiz'
+  const dateMode = options?.dateMode ?? 'scheduled'
   const out: EventInput[] = []
   for (const note of notes) {
-    const span = resolveNoteCalendarSpan(note)
+    const span = resolveNoteCalendarSpanForMode(note, dateMode)
     if (!span) continue
     const title = noteDisplayTitle(note) || fallback
+    const isCreated = dateMode === 'created'
     out.push({
       id: userNoteEventId(note.id),
       title,
       start: span.startIso,
       end: span.endIso,
       allDay: span.allDay,
-      backgroundColor: NOTE_EVENT_COLOR,
-      borderColor: NOTE_EVENT_COLOR,
+      editable: !isCreated,
+      startEditable: !isCreated,
+      durationEditable: !isCreated,
+      backgroundColor: isCreated ? NOTE_CREATED_EVENT_COLOR : NOTE_EVENT_COLOR,
+      borderColor: isCreated ? NOTE_CREATED_EVENT_COLOR : NOTE_EVENT_COLOR,
       extendedProps: {
         calendarKind: CALENDAR_KIND_USER_NOTE,
         userNote: note,
-        noteKind: note.kind
+        noteKind: note.kind,
+        notesDateMode: dateMode
       }
     })
   }
@@ -66,8 +79,10 @@ export type UserNoteSchedulePersistTarget = {
 
 export function computePersistTargetForUserNote(
   event: EventApi,
-  fcTimeZone: string
+  fcTimeZone: string,
+  dateMode: NotesCalendarDateMode = 'scheduled'
 ): UserNoteSchedulePersistTarget | null {
+  if (dateMode === 'created') return null
   const noteId = parseUserNoteEventId(event.id)
   if (noteId == null) return null
   const start = event.start

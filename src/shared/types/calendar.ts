@@ -237,6 +237,26 @@ export interface CalendarGetEventResult {
   timeZone?: string | null
   /** Vorhandene Termin-Anhaenge (nur wenn frisch von der API geladen). */
   attachments?: CalendarEventAttachmentMeta[]
+  /** Zeitplan (bei Live-Abruf aus Graph/Google). */
+  startIso?: string | null
+  endIso?: string | null
+  isAllDay?: boolean
+  webLink?: string | null
+}
+
+export interface CalendarResolveMeetingRecordingInput {
+  accountId: string
+  joinUrl?: string | null
+  bodyHtml?: string | null
+}
+
+export interface CalendarResolveMeetingRecordingResult {
+  recordingUrl: string | null
+  recapUrl: string | null
+  source: 'body' | 'graph' | null
+  recapSource: 'body' | 'joinUrl' | null
+  /** Graph bestätigt eine Aufzeichnung, auch wenn keine öffentliche Stream-URL vorliegt. */
+  hasGraphRecording?: boolean
 }
 
 /** Termin in anderen Kalender / anderes Konto kopieren oder verschieben. */

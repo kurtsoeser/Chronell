@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils'
 import {
   CALENDAR_KIND_USER_NOTE,
   computePersistTargetForUserNote,
+  type NotesCalendarDateMode,
   notesToFullCalendarEvents,
   userNoteEventId
 } from '@/app/calendar/notes-calendar'
@@ -31,7 +32,10 @@ import { useCalendarFcEventContent } from '@/app/calendar/use-calendar-fc-event-
 import { timeGridFcSnapOptions } from '@/app/calendar/calendar-shell-storage'
 import { useNotesSettingsPrefs } from '@/lib/use-notes-settings-prefs'
 import { resolveNotesCalendarDisplayPrefs } from '@/lib/notes-calendar-display'
+import { NotesCalendarEventHoverPreview } from '@/app/notes/NotesCalendarEventHoverPreview'
 import '@/app/calendar/notion-calendar.css'
+
+const HOVER_PREVIEW_DELAY_MS = 220
 
 function assignMergedFullCalendarRef(
   inst: FullCalendar | null,
@@ -48,18 +52,22 @@ function assignMergedFullCalendarRef(
 }
 
 export function NotesCalendarPane({
-  onSelectNote,
+  onPreviewNote,
+  onOpenNoteInList,
   fcView,
   fullCalendarRef,
   onViewMeta,
-  selectedNoteId,
+  previewNoteId,
+  dateMode,
   className
 }: {
-  onSelectNote: (note: UserNoteListItem) => void
+  onPreviewNote: (note: UserNoteListItem) => void
+  onOpenNoteInList: (note: UserNoteListItem) => void
   fcView: string
   fullCalendarRef?: Ref<FullCalendar | null>
   onViewMeta?: (meta: { title: string; viewType: string; currentStart: Date }) => void
-  selectedNoteId?: number | null
+  previewNoteId?: number | null
+  dateMode: NotesCalendarDateMode
   className?: string
 }): JSX.Element {
   const { t, i18n } = useTranslation()
@@ -81,10 +89,25 @@ export function NotesCalendarPane({
 
   const [rangeNotes, setRangeNotes] = useState<UserNoteListItem[]>([])
   const [loading, setLoading] = useState(false)
+  const [hoverPreview, setHoverPreview] = useState<{
+    note: UserNoteListItem
+    x: number
+    y: number
+  } | null>(null)
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const clearHoverTimer = useCallback((): void => {
+    if (hoverTimerRef.current != null) {
+      clearTimeout(hoverTimerRef.current)
+      hoverTimerRef.current = null
+    }
+  }, [])
+
+  useEffect(() => (): void => clearHoverTimer(), [clearHoverTimer])
 
   const fcEvents = useMemo(
-    () => notesToFullCalendarEvents(rangeNotes, { defaultTitle: t('notes.shell.untitled') }),
-    [rangeNotes, t]
+    () => notesToFullCalendarEvents(rangeNotes, { defaultTitle: t('notes.shell.untitled'), dateMode }),
+    [rangeNotes, t, dateMode]
   )
 
   const multiDayViews = useMemo(() => {
@@ -116,6 +139,7 @@ export function NotesCalendarPane({
       const list = await window.mailClient.notes.listInRange({
         startIso: start.toISOString(),
         endIso: end.toISOString(),
+        dateMode,
         limit: 500
       })
       setRangeNotes(list)
@@ -128,7 +152,7 @@ export function NotesCalendarPane({
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [dateMode])
 
   useEffect(() => {
     const { start, end } = lastRangeRef.current
@@ -141,7 +165,7 @@ export function NotesCalendarPane({
 
   const persistEventChange = useCallback(
     async (info: EventDropArg | EventResizeDoneArg): Promise<void> => {
-      const target = computePersistTargetForUserNote(info.event, timeZone)
+      const target = computePersistTargetForUserNote(info.event, timeZone, dateMode)
       if (!target) {
         info.revert()
         return
@@ -164,7 +188,7 @@ export function NotesCalendarPane({
         info.revert()
       }
     },
-    [loadRange, timeZone]
+    [loadRange, timeZone, dateMode]
   )
 
   return (
@@ -196,16 +220,36 @@ export function NotesCalendarPane({
         slotLabelInterval="01:00:00"
         defaultTimedEventDuration="00:30:00"
         nowIndicator
-        editable
-        eventResizableFromStart
+        editable={dateMode === 'scheduled'}
+        eventResizableFromStart={dateMode === 'scheduled'}
         dayMaxEvents
         events={fcEvents}
         eventContent={calendarFcEventContentRender}
+        eventClassNames={(arg): string[] => {
+          if (arg.event.extendedProps.calendarKind !== CALENDAR_KIND_USER_NOTE) return []
+          const noteId = (arg.event.extendedProps.userNote as UserNoteListItem | undefined)?.id
+          return previewNoteId != null && noteId === previewNoteId ? ['ring-2', 'ring-primary'] : []
+        }}
         eventDidMount={(info): void => {
           if (info.event.extendedProps.calendarKind !== CALENDAR_KIND_USER_NOTE) return
-          const noteId = (info.event.extendedProps.userNote as UserNoteListItem | undefined)?.id
-          if (selectedNoteId != null && noteId === selectedNoteId) {
-            info.el.classList.add('ring-2', 'ring-primary')
+          const note = info.event.extendedProps.userNote as UserNoteListItem | undefined
+          if (!note) return
+          const el = info.el as HTMLElement & { _notesCalDblclick?: (ev: MouseEvent) => void }
+          const onDblclick = (e: MouseEvent): void => {
+            e.preventDefault()
+            e.stopPropagation()
+            clearHoverTimer()
+            setHoverPreview(null)
+            onOpenNoteInList(note)
+          }
+          el._notesCalDblclick = onDblclick
+          info.el.addEventListener('dblclick', onDblclick)
+        }}
+        eventWillUnmount={(info): void => {
+          const el = info.el as HTMLElement & { _notesCalDblclick?: (ev: MouseEvent) => void }
+          if (el._notesCalDblclick) {
+            info.el.removeEventListener('dblclick', el._notesCalDblclick)
+            delete el._notesCalDblclick
           }
         }}
         datesSet={(arg): void => {
@@ -219,7 +263,22 @@ export function NotesCalendarPane({
         eventClick={(info): void => {
           info.jsEvent.preventDefault()
           const note = info.event.extendedProps.userNote as UserNoteListItem | undefined
-          if (note) onSelectNote(note)
+          if (note) onPreviewNote(note)
+        }}
+        eventMouseEnter={(info): void => {
+          if (info.event.extendedProps.calendarKind !== CALENDAR_KIND_USER_NOTE) return
+          const note = info.event.extendedProps.userNote as UserNoteListItem | undefined
+          if (!note) return
+          const { clientX, clientY } = info.jsEvent
+          clearHoverTimer()
+          hoverTimerRef.current = setTimeout(() => {
+            setHoverPreview({ note, x: clientX, y: clientY })
+          }, HOVER_PREVIEW_DELAY_MS)
+        }}
+        eventMouseLeave={(info): void => {
+          if (info.event.extendedProps.calendarKind !== CALENDAR_KIND_USER_NOTE) return
+          clearHoverTimer()
+          setHoverPreview(null)
         }}
         eventDrop={(info): void => {
           void persistEventChange(info)
@@ -227,6 +286,12 @@ export function NotesCalendarPane({
         eventResize={(info): void => {
           void persistEventChange(info)
         }}
+      />
+      <NotesCalendarEventHoverPreview
+        note={hoverPreview?.note ?? null}
+        anchorX={hoverPreview?.x ?? 0}
+        anchorY={hoverPreview?.y ?? 0}
+        visible={hoverPreview != null}
       />
     </div>
   )

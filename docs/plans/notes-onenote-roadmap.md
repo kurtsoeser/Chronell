@@ -139,23 +139,23 @@ Ziel: Notizen dort entstehen lassen, wo man ohnehin arbeitet.
 
 ---
 
-### Phase 5 — Zeichnen / Whiteboard (optional, nur bei Bedarf)
+### Phase 5 — Zeichnen / Whiteboard
 
-Zwei Wege — **nicht** beide gleichzeitig starten:
+**Entscheidung (Juli 2026):** Variante A — **Ink als Block**. Detaillierte Umsetzungs-Spec: [`notes-ink-block-spec.md`](./notes-ink-block-spec.md).
 
-**Variante A — „Ink als Block“ (empfohlen)**  
-- Kleiner Zeichenmodus: Excalidraw/tldraw in Dialog oder eingeklappter Block  
-- Ergebnis: PNG/SVG als Anhang + optional Vorschaubild im Body  
-- Aufwand: ~2–3 Wochen  
-- Passt zum bestehenden Seitenmodell  
+| # | Feature | Status |
+|---|---------|--------|
+| 5A | **Freihand als Block** (`perfect-freehand`, Dialog, PNG inline + `.ink.json`-Anhang) | ✅ Phase 5A abgeschlossen |
+| 5B | **Canvas-Seite** (`body_format: 'canvas'`) | ⏸ Zurückgestellt |
 
-**Variante B — „Canvas-Seite“**  
-- Neuer `body_format: 'canvas'` + JSON-Layout (x, y, w, h pro Block)  
-- Eigener Editor, eigene Suche, eigene Mobile-Story  
-- Aufwand: **Monate**  
-- Nur sinnvoll, wenn Canvas zur Kernanforderung wird  
+**Variante A — Kurzfassung**  
+- Vollbild-Zeichendialog aus der Notizen-Aktionszeile  
+- Ergebnis: PNG inline im HTML + JSON-Quelldatei + PNG-Anhang  
+- Kein DB-/IPC-Change; ~2–3 Wochen  
 
-**Empfehlung:** Variante A oder ganz zurückstellen.
+**Variante B — „Canvas-Seite“** (nicht geplant)  
+- Neuer `body_format: 'canvas'` + JSON-Layout  
+- Aufwand: **Monate** — nur bei expliziter Kernanforderung
 
 ---
 
@@ -193,12 +193,12 @@ Neue Features sollten möglichst **im Repo + IPC + preload** andocken — gleich
 
 ## Nächster konkreter Schritt
 
-**Phase 3 — Erfassung aus dem Workflow** (3.2a Besprechungsdetails ✅; als Nächstes: Mail → Notiz, Screen Clip, Quick Capture).
+**Phase 5A — Freihandzeichnung (Ink als Block)** gemäß [`notes-ink-block-spec.md`](./notes-ink-block-spec.md) umsetzen.
 
 Produktentscheidungen (Juli 2026):
 - **Ein Notizbuch** — Sektionen/Untersektionen reichen; kein separates `notebooks`-Modell.
 - **Tags = Outlook-Kategorien** — global, gleiche Masterliste wie Mail/Kalender/Tasks.
-- **Canvas** — später (optional Ink-Block).
+- **Canvas** — Variante A (Ink-Block) spezifiziert, siehe `notes-ink-block-spec.md`.
 - **Export** — später; Ziel: möglichst OneNote-kompatibles Format.
 
 ---

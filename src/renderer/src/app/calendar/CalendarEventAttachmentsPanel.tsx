@@ -1,4 +1,4 @@
-import { Loader2, Paperclip, X } from 'lucide-react'
+import { Loader2, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { CalendarEventAttachmentMeta } from '@shared/types'
 import { ComposeCloudAttachmentChip } from '@/components/ComposeAttachmentsStrip'
@@ -34,6 +34,7 @@ export function CalendarEventAttachmentsPanel({
     existingLoading,
     attachmentError,
     supportsFileAttachments,
+    addFiles,
     removeNewFile,
     removeNewReference,
     openExisting,

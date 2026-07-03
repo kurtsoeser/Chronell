@@ -9,18 +9,27 @@ import { FontFamily } from '@tiptap/extension-text-style/font-family'
 import { FontSize } from '@tiptap/extension-text-style/font-size'
 import Color from '@tiptap/extension-color'
 import Highlight from '@tiptap/extension-highlight'
-import TaskItem from '@tiptap/extension-task-item'
-import TaskList from '@tiptap/extension-task-list'
+import type { NoteCloudTaskRef } from '@shared/note-cloud-task'
+import { NoteCloudTaskItem, NoteCloudTaskList } from '@/components/tiptap-note-cloud-task-item'
+import { createNoteCloudTaskDomEventHandlers } from '@/lib/note-cloud-task-dom-handlers'
 import { TableRow } from '@tiptap/extension-table/row'
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type MutableRefObject, type ReactNode } from 'react'
-import { prepareComposeEditorHtml } from '@/lib/sanitize-compose-html'
+import { prepareComposeEditorHtml, prepareNoteEditorHtml } from '@/lib/sanitize-compose-html'
 import { safeTiptapGetHtml } from '@/lib/tiptap-editor-html'
 import { MailTable, MailTableCell, MailTableHeader } from '@/components/tiptap-mail-table'
+import { ComposeTextSnippetsMenu } from '@/components/ComposeTextSnippetsMenu'
 import { TableContextToolbar } from '@/components/tiptap/TableContextToolbar'
 import { TableInsertMenu } from '@/components/tiptap/TableInsertMenu'
+import { TableCellHighlight } from '@/components/tiptap/tiptap-table-cell-highlight'
+import { MailResizableTableView } from '@/components/tiptap/mail-resizable-table-view'
 import { TIPTAP_HIGHLIGHT_COLORS } from '@/components/tiptap/tiptap-editor-colors'
 import { createNoteWikiLinkExtension } from '@/components/tiptap-note-wiki-link'
+import { createNoteEntityMentionExtension } from '@/components/tiptap-note-entity-mention'
+import { NOTE_EMBED_TIPTAP_EXTENSIONS } from '@/components/note-embed-tiptap-extensions'
 import { isNoteWikiLinkHref, parseNoteWikiLinkHref } from '@shared/note-wiki-link'
+import { isNoteEntityMentionHref } from '@shared/note-entity-mention-link'
+import { isEmbeddableNoteUrl } from '@shared/note-embed-registry'
+import type { NoteEntityLinkTarget } from '@shared/note-entity-links'
 import { showAppPrompt } from '@/stores/app-dialog'
 import {
   AlignCenter,
@@ -35,12 +44,14 @@ import {
   Heading3,
   Image as ImageIcon,
   Italic,
+  CalendarDays,
   Cloud,
   Paperclip,
   Link as LinkIcon,
   Link2Off,
   List,
   ListChecks,
+  SquareCheckBig,
   ListOrdered,
   Minus,
   Palette,
@@ -54,6 +65,7 @@ import {
 import { listSubtleBorderClass } from '@/lib/chronell-ui-classes'
 import { cn } from '@/lib/utils'
 import { createTipTapLinkDomEventHandlers } from '@/lib/tiptap-editor-link-click'
+import { createNoteInkDomEventHandlers } from '@/lib/note-ink-dom-handlers'
 import { COMPOSE_FONT_FAMILIES } from '@/lib/compose-font-families'
 import { ensureComposeBundledFontLoaded } from '@/lib/compose-font-loader'
 import { COMPOSE_FONT_SIZES_PT, composeFontSizePtOptionValue } from '@/lib/compose-font-sizes'
@@ -68,7 +80,29 @@ import {
   useComposeEditorScaleStore
 } from '@/stores/compose-editor-scale'
 import { useComposeEditorEffectiveTheme } from '@/stores/compose-editor-theme'
-import { ComposeTextSnippetsMenu } from '@/components/ComposeTextSnippetsMenu'
+import { useTranslation } from 'react-i18next'
+
+const TIPTAP_CONTENT_CLASS = cn(
+  'chronell-tiptap-content max-w-none px-4 py-3 leading-relaxed text-foreground focus:outline-none'
+)
+
+const TIPTAP_CONTENT_BLOCK_CLASS = cn(
+  '[&_ul:not([data-type=taskList])]:list-disc [&_ul:not([data-type=taskList])]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5',
+  '[&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground',
+  '[&_a]:underline',
+  '[&_img]:rounded [&_img]:my-2 [&_hr]:my-3 [&_hr]:border-border',
+  '[&_table_td>p]:mb-0 [&_table_td>p]:mt-0 [&_table_th>p]:mb-0 [&_table_th>p]:mt-0'
+)
+
+/** Überschrift anwenden und Compose-Standard-Schriftgröße entfernen (sonst zu klein). */
+function applyTiptapHeading(editor: Editor, level: 1 | 2 | 3): void {
+  editor
+    .chain()
+    .focus()
+    .toggleHeading({ level })
+    .updateAttributes('textStyle', { fontSize: null })
+    .run()
+}
 
 interface Props {
   valueHtml: string
@@ -106,17 +140,44 @@ interface Props {
   flushRef?: MutableRefObject<(() => void) | null>
   /** Optional: HTML an der Cursor-Position einfügen (z. B. Besprechungsdetails). */
   insertHtmlRef?: MutableRefObject<((html: string) => void) | null>
+  /** Optional: Freihand-Vorschaubild anhand der JSON-Anhang-ID ersetzen. */
+  replaceInkSnapshotRef?: MutableRefObject<
+    ((inkJsonAttachmentId: number, html: string) => void) | null
+  >
+  /** Doppelklick auf eingebettete Freihand-Bilder (Re-Edit). */
+  onInkImageDoubleClick?: (inkJsonAttachmentId: number) => void
   /** Checklisten in der Toolbar (Notizen-Editor). */
   enableTaskList?: boolean
+  /** Auswahl als Cloud-Aufgabe anlegen (Notizen). */
+  onCreateCloudTask?: () => void
+  /** Checkbox einer verknüpften Cloud-Aufgabe umschalten. */
+  onCloudTaskToggle?: (ref: NoteCloudTaskRef, completed: boolean) => void | Promise<void>
+  /** Editor-Instanz für übergeordnete Hooks bereitstellen. */
+  editorRef?: MutableRefObject<Editor | null>
   /** `[[` — interne Notiz-Verknüpfungen mit Autocomplete. */
   noteWikiLinks?: {
     currentNoteId?: number
     onOpenNote: (noteId: number) => void
+    onLinkAdded?: () => void
+    onLinkError?: (message: string) => void
   }
+  /** `@` — Kontakte und Kalendertermine verknüpfen. */
+  noteEntityMentions?: {
+    noteId?: number
+    onOpenEntity: (target: NoteEntityLinkTarget) => void
+    onLinkAdded?: () => void
+    onLinkError?: (message: string) => void
+  }
+  /** Auswahl als Termin anlegen (Notizen). */
+  onCreateCalendarEvent?: () => void
   /** Zeile über der Toolbar (z. B. Notizen-Aktionen). */
   editorActionBar?: ReactNode
   /** Aktionszeile + Toolbar beim Scrollen der Seite oben fixieren. */
   stickyEditorChrome?: boolean
+  /** Nur der Editor-Inhalt scrollt; Chrome bleibt im fixen Seitenkopf. */
+  scrollEditorBodyOnly?: boolean
+  /** Inhalt unter dem Editor-Text, innerhalb des Scroll-Bereichs. */
+  scrollFooter?: ReactNode
 }
 
 const TEXT_COLORS: Array<{ value: string; label: string }> = [
@@ -150,11 +211,21 @@ export function TipTapBody({
   inEditorSurface = false,
   flushRef,
   insertHtmlRef,
+  replaceInkSnapshotRef,
+  onInkImageDoubleClick,
   enableTaskList = false,
+  onCreateCloudTask,
+  onCloudTaskToggle,
+  editorRef,
   noteWikiLinks,
+  noteEntityMentions,
+  onCreateCalendarEvent,
   editorActionBar,
-  stickyEditorChrome = false
+  stickyEditorChrome = false,
+  scrollEditorBodyOnly = false,
+  scrollFooter
 }: Props): JSX.Element {
+  const { t } = useTranslation()
   const contentMinHeight =
     editorMinHeightClass ??
     (variant === 'compact' ? 'min-h-[7.5rem]' : 'min-h-[220px]')
@@ -166,11 +237,13 @@ export function TipTapBody({
   const composePrefs = useComposeSettingsPrefs()
   const lastEmittedHtmlRef = useRef<string | null>(null)
   const initialEditorHtmlRef = useRef<string | null>(null)
+  const prepareEditorHtml = enableTaskList ? prepareNoteEditorHtml : prepareComposeEditorHtml
   if (initialEditorHtmlRef.current === null) {
-    initialEditorHtmlRef.current = prepareComposeEditorHtml(valueHtml) || '<p></p>'
+    initialEditorHtmlRef.current = prepareEditorHtml(valueHtml) || '<p></p>'
   }
   const wikiLinkCurrentNoteId = noteWikiLinks?.currentNoteId
   const enableWikiLinks = noteWikiLinks != null
+  const enableEntityMentions = noteEntityMentions != null
   const editorSurfaceStyle = useMemo(
     () => (inEditorSurface ? composeEditorSurfaceStyle(composePrefs, composeEditorTheme) : null),
     [composePrefs, composeEditorTheme, inEditorSurface]
@@ -187,7 +260,10 @@ export function TipTapBody({
         openOnClick: false,
         autolink: !enableWikiLinks,
         linkOnPaste: true,
-        shouldAutoLink: (url) => !isNoteWikiLinkHref(url),
+        shouldAutoLink: (url) =>
+          !isNoteWikiLinkHref(url) &&
+          !isNoteEntityMentionHref(url) &&
+          !isEmbeddableNoteUrl(url),
         HTMLAttributes: { rel: 'noopener noreferrer', target: '_blank' }
       }),
       Placeholder.configure({ placeholder: placeholder ?? 'Nachricht schreiben…' }),
@@ -198,34 +274,88 @@ export function TipTapBody({
       FontSize.configure({ types: ['textStyle'] }),
       Color,
       Highlight.configure({ multicolor: true }),
-      MailTable.configure({ resizable: false, renderWrapper: false }),
+      MailTable.configure({
+        resizable: true,
+        renderWrapper: false,
+        cellMinWidth: 48,
+        handleWidth: 6,
+        lastColumnResizable: true,
+        View: MailResizableTableView
+      }),
       TableRow,
       MailTableHeader,
       MailTableCell,
+      TableCellHighlight,
       ...(enableTaskList
+        ? [NoteCloudTaskList, NoteCloudTaskItem, ...NOTE_EMBED_TIPTAP_EXTENSIONS]
+        : []),
+      ...(enableWikiLinks
         ? [
-            TaskList.configure({
-              HTMLAttributes: { class: 'note-task-list', 'data-type': 'taskList' }
-            }),
-            TaskItem.configure({
-              nested: true,
-              HTMLAttributes: { class: 'note-task-item', 'data-type': 'taskItem' }
+            createNoteWikiLinkExtension({
+              currentNoteId: wikiLinkCurrentNoteId,
+              onLinkAdded: noteWikiLinks?.onLinkAdded,
+              onLinkError: noteWikiLinks?.onLinkError
             })
           ]
         : []),
-      ...(enableWikiLinks
-        ? [createNoteWikiLinkExtension({ currentNoteId: wikiLinkCurrentNoteId })]
+      ...(enableEntityMentions
+        ? [
+            createNoteEntityMentionExtension({
+              noteId: noteEntityMentions?.noteId,
+              onLinkAdded: noteEntityMentions?.onLinkAdded,
+              onLinkError: noteEntityMentions?.onLinkError
+            })
+          ]
         : [])
     ],
-    [placeholder, enableTaskList, enableWikiLinks, wikiLinkCurrentNoteId]
+    [placeholder, enableTaskList, enableWikiLinks, enableEntityMentions, wikiLinkCurrentNoteId, noteWikiLinks, noteEntityMentions]
   )
 
   const onOpenNoteRef = useRef(noteWikiLinks?.onOpenNote)
   onOpenNoteRef.current = noteWikiLinks?.onOpenNote
+  const onInkImageDoubleClickRef = useRef(onInkImageDoubleClick)
+  onInkImageDoubleClickRef.current = onInkImageDoubleClick
+
+  const onOpenEntityRef = useRef(noteEntityMentions?.onOpenEntity)
+  onOpenEntityRef.current = noteEntityMentions?.onOpenEntity
 
   const linkDomEventHandlers = useMemo(
-    () => createTipTapLinkDomEventHandlers(() => onOpenNoteRef.current),
+    () =>
+      createTipTapLinkDomEventHandlers(() => ({
+        onOpenNote: onOpenNoteRef.current,
+        onOpenEntityMention: onOpenEntityRef.current
+      })),
     []
+  )
+
+  const inkDomEventHandlers = useMemo(
+    () => createNoteInkDomEventHandlers(() => onInkImageDoubleClickRef.current),
+    []
+  )
+
+  const onCloudTaskToggleRef = useRef(onCloudTaskToggle)
+  onCloudTaskToggleRef.current = onCloudTaskToggle
+
+  const cloudTaskDomEventHandlers = useMemo(
+    () =>
+      createNoteCloudTaskDomEventHandlers(() => {
+        const handler = onCloudTaskToggleRef.current
+        if (!handler) return undefined
+        return (ref, completed): void => {
+          if (!ref) return
+          void handler(ref, completed)
+        }
+      }),
+    []
+  )
+
+  const domEventHandlers = useMemo(
+    () => ({
+      ...linkDomEventHandlers,
+      ...(onInkImageDoubleClick ? inkDomEventHandlers : {}),
+      ...(onCloudTaskToggle ? cloudTaskDomEventHandlers : {})
+    }),
+    [cloudTaskDomEventHandlers, inkDomEventHandlers, linkDomEventHandlers, onCloudTaskToggle, onInkImageDoubleClick]
   )
 
   const editor = useEditor({
@@ -239,18 +369,11 @@ export function TipTapBody({
     editorProps: {
       attributes: {
         class: cn(
-          'max-w-none px-4 py-3 leading-relaxed text-foreground focus:outline-none',
+          TIPTAP_CONTENT_CLASS,
           !inEditorSurface && 'text-sm',
           contentMinHeight,
-          '[&_ul:not([data-type=taskList])]:list-disc [&_ul:not([data-type=taskList])]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5',
-          '[&_h1]:text-2xl [&_h1]:font-bold [&_h1]:mt-3 [&_h1]:mb-2',
-          '[&_h2]:text-xl  [&_h2]:font-bold [&_h2]:mt-3 [&_h2]:mb-2',
-          '[&_h3]:text-base [&_h3]:font-semibold [&_h3]:mt-2 [&_h3]:mb-1',
-          '[&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground',
-          '[&_a]:underline',
-          !inEditorSurface && '[&_a]:text-primary',
-          '[&_img]:rounded [&_img]:my-2 [&_hr]:my-3 [&_hr]:border-border',
-          '[&_table_td>p]:mb-0 [&_table_td>p]:mt-0 [&_table_th>p]:mb-0 [&_table_th>p]:mt-0'
+          TIPTAP_CONTENT_BLOCK_CLASS,
+          !inEditorSurface && '[&_a]:text-primary'
         ),
         ...(editorSurfaceStyle
           ? {
@@ -258,7 +381,7 @@ export function TipTapBody({
             }
           : {})
       },
-      handleDOMEvents: linkDomEventHandlers
+      handleDOMEvents: domEventHandlers
     },
     onUpdate({ editor: ed }): void {
       const html = safeTiptapGetHtml(ed)
@@ -275,19 +398,12 @@ export function TipTapBody({
     editor.setOptions({
       editorProps: {
         ...editor.options.editorProps,
-        handleDOMEvents: linkDomEventHandlers,
+        handleDOMEvents: domEventHandlers,
         attributes: {
           class: cn(
-            'max-w-none px-4 py-3 leading-relaxed text-foreground focus:outline-none',
+            TIPTAP_CONTENT_CLASS,
             contentMinHeight,
-            '[&_ul:not([data-type=taskList])]:list-disc [&_ul:not([data-type=taskList])]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5',
-            '[&_h1]:text-2xl [&_h1]:font-bold [&_h1]:mt-3 [&_h1]:mb-2',
-            '[&_h2]:text-xl  [&_h2]:font-bold [&_h2]:mt-3 [&_h2]:mb-2',
-            '[&_h3]:text-base [&_h3]:font-semibold [&_h3]:mt-2 [&_h3]:mb-1',
-            '[&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground',
-            '[&_a]:underline',
-            '[&_img]:rounded [&_img]:my-2 [&_hr]:my-3 [&_hr]:border-border',
-            '[&_table_td>p]:mb-0 [&_table_td>p]:mt-0 [&_table_th>p]:mb-0 [&_table_th>p]:mt-0'
+            TIPTAP_CONTENT_BLOCK_CLASS
           ),
           style: `font-family:${style.fontFamily};font-size:${style.fontSize};color:${style.color};line-height:${style.lineHeight}`
         }
@@ -302,7 +418,7 @@ export function TipTapBody({
   useEffect(() => {
     if (!editor || editor.isDestroyed) return
     if (valueHtml === lastEmittedHtmlRef.current) return
-    const prepared = prepareComposeEditorHtml(valueHtml) || '<p></p>'
+    const prepared = prepareEditorHtml(valueHtml) || '<p></p>'
     const cur = safeTiptapGetHtml(editor)
     if (cur === null || cur === prepared) {
       lastEmittedHtmlRef.current = prepared
@@ -310,7 +426,7 @@ export function TipTapBody({
     }
     editor.commands.setContent(prepared, { emitUpdate: false })
     lastEmittedHtmlRef.current = prepared
-  }, [editor, valueHtml])
+  }, [editor, valueHtml, prepareEditorHtml])
 
   useEffect(() => {
     if (autoFocus && editor) editor.commands.focus('end')
@@ -352,6 +468,79 @@ export function TipTapBody({
       insertHtmlRef.current = null
     }
   }, [editor, insertHtmlRef, onChangeHtml])
+
+  useEffect(() => {
+    if (!replaceInkSnapshotRef) return
+    if (!editor || editor.isDestroyed) {
+      replaceInkSnapshotRef.current = null
+      return
+    }
+    replaceInkSnapshotRef.current = (inkJsonAttachmentId: number, html: string): void => {
+      let replaceFrom: number | null = null
+      let replaceTo: number | null = null
+      editor.state.doc.descendants((node, pos) => {
+        if (replaceFrom != null) return false
+        if (
+          node.type.name === 'image' &&
+          String(node.attrs.inkSourceAttachmentId) === String(inkJsonAttachmentId)
+        ) {
+          replaceFrom = pos
+          replaceTo = pos + node.nodeSize
+          return false
+        }
+        return undefined
+      })
+      if (replaceFrom == null || replaceTo == null) {
+        editor.chain().focus().insertContent(html).run()
+      } else {
+        editor
+          .chain()
+          .focus()
+          .deleteRange({ from: replaceFrom, to: replaceTo })
+          .insertContentAt(replaceFrom, html)
+          .run()
+      }
+      const out = safeTiptapGetHtml(editor)
+      if (out !== null) {
+        lastEmittedHtmlRef.current = out
+        onChangeHtml(out)
+      }
+    }
+    return (): void => {
+      replaceInkSnapshotRef.current = null
+    }
+  }, [editor, onChangeHtml, replaceInkSnapshotRef])
+
+  useEffect(() => {
+    if (!editorRef) return
+    if (!editor || editor.isDestroyed) {
+      editorRef.current = null
+      return
+    }
+    editorRef.current = editor
+    return (): void => {
+      editorRef.current = null
+    }
+  }, [editor, editorRef])
+
+  const [hasTextSelection, setHasTextSelection] = useState(false)
+  useEffect(() => {
+    if (!editor || editor.isDestroyed || (!onCreateCloudTask && !onCreateCalendarEvent)) {
+      setHasTextSelection(false)
+      return
+    }
+    const updateSelection = (): void => {
+      const { from, to, empty } = editor.state.selection
+      setHasTextSelection(
+        !empty && editor.state.doc.textBetween(from, to, ' ').trim().length > 0
+      )
+    }
+    updateSelection()
+    editor.on('selectionUpdate', updateSelection)
+    return (): void => {
+      editor.off('selectionUpdate', updateSelection)
+    }
+  }, [editor, onCreateCalendarEvent, onCreateCloudTask])
 
   if (!editor) {
     return (
@@ -457,24 +646,33 @@ export function TipTapBody({
       attachmentCount={attachmentCount}
       onCloudAttach={onCloudAttach}
       cloudAttachmentCount={cloudAttachmentCount}
+      onCreateCloudTask={onCreateCloudTask}
+      onCreateCalendarEvent={onCreateCalendarEvent}
+      hasTextSelection={hasTextSelection}
       colorPickerOpen={colorPickerOpen}
       setColorPickerOpen={setColorPickerOpen}
     />
   )
 
-  const editorChrome = stickyEditorChrome ? (
+  const editorChrome = scrollEditorBodyOnly ? (
+    <div className="note-editor-pinned-chrome shrink-0 shadow-[0_1px_0_hsl(var(--border)/0.45)]">
+      {editorActionBar}
+      {toolbar}
+      {editor ? <TableContextToolbar editor={editor} inEditorSurface={inEditorSurface} /> : null}
+    </div>
+  ) : stickyEditorChrome ? (
     <div className="note-editor-sticky-chrome sticky top-0 z-30 shrink-0 shadow-[0_1px_0_hsl(var(--border)/0.45)]">
       {editorActionBar}
       {toolbar}
-      {editor ? <TableContextToolbar editor={editor} /> : null}
+      {editor ? <TableContextToolbar editor={editor} inEditorSurface={inEditorSurface} /> : null}
     </div>
   ) : (
-      <>
-        {editorActionBar}
-        {toolbar}
-        {editor ? <TableContextToolbar editor={editor} /> : null}
-      </>
-    )
+    <>
+      {editorActionBar}
+      {toolbar}
+      {editor ? <TableContextToolbar editor={editor} inEditorSurface={inEditorSurface} /> : null}
+    </>
+  )
 
   return (
     <div
@@ -489,10 +687,12 @@ export function TipTapBody({
       {editorChrome}
       <div
         className={cn(
-          stickyEditorChrome ? 'overflow-visible' : 'min-h-0 overflow-y-auto',
+          scrollEditorBodyOnly && 'flex min-h-0 flex-1 flex-col overflow-y-auto',
+          stickyEditorChrome && !scrollEditorBodyOnly && 'overflow-visible',
+          !stickyEditorChrome && !scrollEditorBodyOnly && 'min-h-0 overflow-y-auto',
           inEditorSurface && 'compose-editor-canvas',
-          fillHeight && !stickyEditorChrome && 'flex-1',
-          !fillHeight && !stickyEditorChrome && 'max-h-[13.5rem]'
+          fillHeight && !stickyEditorChrome && !scrollEditorBodyOnly && 'flex-1',
+          !fillHeight && !stickyEditorChrome && !scrollEditorBodyOnly && 'max-h-[13.5rem]'
         )}
         data-compose-theme={inEditorSurface ? composeEditorTheme : undefined}
         style={
@@ -501,7 +701,14 @@ export function TipTapBody({
             : undefined
         }
       >
-        <EditorContent editor={editor} />
+        <div className={scrollEditorBodyOnly ? 'min-h-full flex flex-1 flex-col' : undefined}>
+          <div className={scrollEditorBodyOnly ? 'shrink-0' : undefined}>
+            <EditorContent editor={editor} />
+          </div>
+          {scrollFooter ? (
+            <div className={scrollEditorBodyOnly ? 'mt-auto shrink-0' : undefined}>{scrollFooter}</div>
+          ) : null}
+        </div>
       </div>
       <input
         ref={fileInputRef}
@@ -537,6 +744,9 @@ function Toolbar({
   attachmentCount = 0,
   onCloudAttach,
   cloudAttachmentCount = 0,
+  onCreateCloudTask,
+  onCreateCalendarEvent,
+  hasTextSelection = false,
   colorPickerOpen,
   setColorPickerOpen
 }: {
@@ -552,9 +762,13 @@ function Toolbar({
   attachmentCount?: number
   onCloudAttach?: () => void
   cloudAttachmentCount?: number
+  onCreateCloudTask?: () => void
+  onCreateCalendarEvent?: () => void
+  hasTextSelection?: boolean
   colorPickerOpen: 'text' | 'highlight' | null
   setColorPickerOpen: (v: 'text' | 'highlight' | null) => void
 }): JSX.Element {
+  const { t } = useTranslation()
   const toolbarChrome = inEditorSurface
     ? 'compose-editor-toolbar-zone'
     : 'border-border/50 bg-secondary/30'
@@ -587,7 +801,7 @@ function Toolbar({
         active={editor.isActive('heading', { level: 1 })}
         label="Überschrift 1"
         onClick={(): void => {
-          editor.chain().focus().toggleHeading({ level: 1 }).run()
+          applyTiptapHeading(editor, 1)
         }}
         icon={Heading1}
       />
@@ -595,7 +809,7 @@ function Toolbar({
         active={editor.isActive('heading', { level: 2 })}
         label="Überschrift 2"
         onClick={(): void => {
-          editor.chain().focus().toggleHeading({ level: 2 }).run()
+          applyTiptapHeading(editor, 2)
         }}
         icon={Heading2}
       />
@@ -603,7 +817,7 @@ function Toolbar({
         active={editor.isActive('heading', { level: 3 })}
         label="Überschrift 3"
         onClick={(): void => {
-          editor.chain().focus().toggleHeading({ level: 3 }).run()
+          applyTiptapHeading(editor, 3)
         }}
         icon={Heading3}
       />
@@ -804,6 +1018,24 @@ function Toolbar({
             editor.chain().focus().toggleTaskList().run()
           }}
           icon={ListChecks}
+        />
+      ) : null}
+      {onCreateCloudTask ? (
+        <BarBtn
+          active={false}
+          disabled={!hasTextSelection}
+          label={t('notes.cloudTask.fromSelection')}
+          onClick={onCreateCloudTask}
+          icon={SquareCheckBig}
+        />
+      ) : null}
+      {onCreateCalendarEvent ? (
+        <BarBtn
+          active={false}
+          disabled={!hasTextSelection}
+          label={t('notes.calendarEvent.fromSelection')}
+          onClick={onCreateCalendarEvent}
+          icon={CalendarDays}
         />
       ) : null}
       <BarBtn

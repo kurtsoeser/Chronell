@@ -1,0 +1,41 @@
+.note-ink-canvas-surface {
+  touch-action: none;
+  user-select: none;
+  cursor: crosshair;
+}
+
+.note-ink-canvas-surface--eraser {
+  cursor: cell;
+}
+
+.note-ink-canvas-surface--drawing {
+  cursor: none;
+}
+
+.note-ink-canvas-paper {
+  background-color: #f8f9fa;
+  background-image: radial-gradient(circle at 1px 1px, rgb(0 0 0 / 4%) 1px, transparent 0);
+  background-size: 24px 24px;
+}
+
+.note-ink-color-swatch {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 9999px;
+  border: 2px solid transparent;
+}
+
+.note-ink-color-swatch--active {
+  border-color: hsl(var(--primary));
+  box-shadow: 0 0 0 2px hsl(var(--background));
+}
+
+.note-ink-color-swatch--custom {
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 12%);
+}
+
+.note-ink-color-swatch--add {
+  border-style: dashed;
+  border-color: hsl(var(--border));
+  background: hsl(var(--background));
+}

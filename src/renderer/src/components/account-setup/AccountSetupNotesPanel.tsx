@@ -34,7 +34,11 @@ import type {
   NotesListLimit,
   NotesSearchLimit
 } from '@/lib/notes-settings-prefs'
-import { listAllNotePageTemplates, type NotePageTemplateId } from '@/lib/note-page-templates'
+import {
+  listAllNotePageTemplates,
+  listBuiltinNotePageTemplateGroups,
+  type NotePageTemplateId
+} from '@/lib/note-page-templates'
 import { NotePageTemplatesManager } from '@/components/NotePageTemplatesManager'
 import { useCustomNotePageTemplates } from '@/hooks/use-custom-note-page-templates'
 
@@ -76,6 +80,7 @@ export default function AccountSetupNotesPanel({
   const prefs = useNotesSettingsPrefs()
   const { customTemplates } = useCustomNotePageTemplates()
   const templateOptions = listAllNotePageTemplates(customTemplates, t)
+  const builtinTemplateGroups = listBuiltinNotePageTemplateGroups(customTemplates, t)
   const editorThemePref = useComposeEditorThemeStore((s) => s.preference)
   const setEditorThemePref = useComposeEditorThemeStore((s) => s.setPreference)
   const editorThemeValue = editorThemePref ?? 'app'
@@ -249,11 +254,26 @@ export default function AccountSetupNotesPanel({
               }
               className={selectClass}
             >
-              {templateOptions.map((template) => (
-                <option key={template.id} value={template.id}>
-                  {template.title}
-                </option>
+              {builtinTemplateGroups.map((group) => (
+                <optgroup key={group.key} label={group.label}>
+                  {group.templates.map((template) => (
+                    <option key={template.id} value={template.id}>
+                      {template.title}
+                    </option>
+                  ))}
+                </optgroup>
               ))}
+              {templateOptions.some((template) => !template.builtin) ? (
+                <optgroup label={t('notes.templates.customSection')}>
+                  {templateOptions
+                    .filter((template) => !template.builtin)
+                    .map((template) => (
+                      <option key={template.id} value={template.id}>
+                        {template.title}
+                      </option>
+                    ))}
+                </optgroup>
+              ) : null}
             </select>
           </SettingsField>
 

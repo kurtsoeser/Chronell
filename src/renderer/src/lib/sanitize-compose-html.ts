@@ -1,4 +1,8 @@
 import DOMPurify from 'dompurify'
+import { NOTE_INK_HTML_SOURCE_ATTR } from '@shared/note-ink-document'
+import { NOTE_CLOUD_TASK_HTML_ATTRS } from '@shared/note-cloud-task'
+import { noteEmbedSanitizeDataAttrs } from '@shared/note-embed-registry'
+import { isAllowedNoteEmbedIframeSrc } from '@shared/note-embed-frame'
 import { stripUnresolvedCidUrls } from '@/lib/sanitize'
 
 const SANITIZE: DOMPurify.Config = {
@@ -56,7 +60,9 @@ const SANITIZE: DOMPurify.Config = {
     'face',
     'size',
     'data-type',
-    'data-checked'
+    'data-checked',
+    NOTE_INK_HTML_SOURCE_ATTR,
+    ...NOTE_CLOUD_TASK_HTML_ATTRS
   ],
   ALLOW_DATA_ATTR: false,
   ALLOW_UNKNOWN_PROTOCOLS: false,
@@ -64,17 +70,62 @@ const SANITIZE: DOMPurify.Config = {
   FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover']
 }
 
+const NOTE_EDITOR_SANITIZE: DOMPurify.Config = {
+  ...SANITIZE,
+  ALLOWED_TAGS: [...(SANITIZE.ALLOWED_TAGS ?? []), 'iframe'],
+  ALLOWED_ATTR: [
+    ...(SANITIZE.ALLOWED_ATTR ?? []),
+    ...noteEmbedSanitizeDataAttrs(),
+    'allow',
+    'allowfullscreen',
+    'frameborder',
+    'loading',
+    'referrerpolicy',
+    'scrolling',
+    'title',
+    'data-note-embed-width',
+    'data-note-embed-height'
+  ],
+  FORBID_TAGS: ['script', 'object', 'embed', 'form', 'input', 'button', 'style']
+}
+
+function sanitizeHtmlFragment(html: string, config: DOMPurify.Config): string {
+  const trimmed = html.trim()
+  if (!trimmed) return ''
+  const hook = (node: Element): void => {
+    if (node.nodeName.toLowerCase() !== 'iframe') return
+    const src = node.getAttribute('src') ?? ''
+    if (!isAllowedNoteEmbedIframeSrc(src)) {
+      node.remove()
+    }
+  }
+  DOMPurify.addHook('afterSanitizeAttributes', hook)
+  try {
+    return DOMPurify.sanitize(trimmed, config as import('dompurify').Config)
+  } finally {
+    DOMPurify.removeHook('afterSanitizeAttributes', hook)
+  }
+}
+
 /**
  * HTML fuer Compose (Vorlagen, eingefuegte Fragmente) bereinigen.
  * Kein Ersatz fuer serverseitige Pruefung, reduziert aber XSS-Risiken im Renderer.
  */
 export function sanitizeComposeHtmlFragment(html: string): string {
-  const trimmed = html.trim()
-  if (!trimmed) return ''
-  return DOMPurify.sanitize(trimmed, SANITIZE as import('dompurify').Config)
+  return sanitizeHtmlFragment(html, SANITIZE)
+}
+
+/** HTML fuer Notizen-Editor inkl. eingebetteter Medien bereinigen. */
+export function sanitizeNoteEditorHtmlFragment(html: string): string {
+  return sanitizeHtmlFragment(html, NOTE_EDITOR_SANITIZE)
 }
 
 /** HTML fuer TipTap-Compose: bereinigen und unaufloesbare cid:-Bilder neutralisieren. */
 export function prepareComposeEditorHtml(html: string): string {
   return stripUnresolvedCidUrls(sanitizeComposeHtmlFragment(html))
+}
+
+/** HTML fuer TipTap-Notizen: bereinigen und unaufloesbare cid:-Bilder neutralisieren. */
+export function prepareNoteEditorHtml(html: string): string {
+  return stripUnresolvedCidUrls(sanitizeNoteEditorHtmlFragment(html))
 }

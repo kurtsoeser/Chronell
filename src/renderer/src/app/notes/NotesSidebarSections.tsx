@@ -1,11 +1,24 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown, ChevronRight, FolderPlus, Trash2 } from 'lucide-react'
+import {
+  DndContext,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent
+} from '@dnd-kit/core'
+import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { ChevronDown, ChevronRight, FolderPlus, GripVertical } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { NoteSection, UserNoteListItem } from '@shared/types'
 import { cn } from '@/lib/utils'
 import { showAppConfirm } from '@/stores/app-dialog'
 import {
   buildNoteSectionTree,
+  isDescendantNoteSection,
+  noteSectionParentId,
+  orderedNoteSectionSiblingIds,
   type NoteSectionTreeNode
 } from '@/lib/notes-section-tree'
 import {
@@ -19,34 +32,27 @@ import {
 } from '@/lib/notes-nav-selection'
 import { collectDistinctNoteCategories, countPinnedNotes } from '@/lib/note-category-account'
 import { outlookCategoryDotClass } from '@/lib/outlook-category-colors'
-import { NOTE_DROP_UNGROUPED, noteSectionDropId } from '@/lib/notes-sidebar-dnd'
+import {
+  NOTE_DROP_UNGROUPED,
+  createNoteSectionSiblingCollisionDetection,
+  noteSectionDragId,
+  noteSectionDropId,
+  parseNoteSectionDragId,
+  resolveNoteSectionReorderOverId
+} from '@/lib/notes-sidebar-dnd'
+import { buildNotesSectionContextMenuItems } from '@/lib/notes-section-context-menu'
 import { NotesDropZone } from '@/app/notes/notes-dnd-ui'
 import { NoteSectionIconColorFooter } from '@/app/notes/NoteSectionIconColorFooter'
 import { CalendarEventIconPicker } from '@/components/CalendarEventIconPicker'
+import { ContextMenu } from '@/components/ContextMenu'
 import { resolveNoteSectionIconColor } from '@/lib/note-section-icons'
 
-function SectionNavRow({
-  node,
-  notes,
-  selection,
-  onSelect,
-  collapsed,
-  setCollapsed,
-  onRenameSection,
-  onDeleteSection,
-  onUpdateSectionIcon,
-  onAddSubsection,
-  addingSubsectionForId,
-  newSubsectionName,
-  setNewSubsectionName,
-  onCreateSubsection,
-  onCancelSubsection,
-  t
-}: {
-  node: NoteSectionTreeNode
+type SectionNavRowSharedProps = {
+  sections: NoteSection[]
   notes: UserNoteListItem[]
   selection: NotesNavSelection
-  onSelect: (sectionId: number) => void // section row only
+  draggingSectionId: number | null
+  onSelect: (sectionId: number) => void
   collapsed: Partial<Record<string, boolean>>
   setCollapsed: React.Dispatch<React.SetStateAction<Partial<Record<string, boolean>>>>
   onRenameSection: (section: NoteSection, name: string) => void
@@ -61,17 +67,70 @@ function SectionNavRow({
   setNewSubsectionName: (value: string) => void
   onCreateSubsection: (parentId: number) => void
   onCancelSubsection: () => void
+  renamingSectionId: number | null
+  onClearRename: () => void
+  onOpenContextMenu: (section: NoteSection, event: React.MouseEvent) => void
   t: (key: string, options?: Record<string, unknown>) => string
-}): JSX.Element {
+}
+
+function SortableSectionList({
+  nodes,
+  ...rowProps
+}: SectionNavRowSharedProps & { nodes: NoteSectionTreeNode[] }): JSX.Element {
+  const items = useMemo(() => nodes.map((node) => noteSectionDragId(node.section.id)), [nodes])
+  return (
+    <SortableContext items={items} strategy={verticalListSortingStrategy}>
+      {nodes.map((node) => (
+        <SectionNavRow key={node.section.id} node={node} {...rowProps} />
+      ))}
+    </SortableContext>
+  )
+}
+
+function SectionNavRow({
+  node,
+  sections,
+  notes,
+  selection,
+  draggingSectionId,
+  onSelect,
+  collapsed,
+  setCollapsed,
+  onRenameSection,
+  onDeleteSection,
+  onUpdateSectionIcon,
+  onAddSubsection,
+  addingSubsectionForId,
+  newSubsectionName,
+  setNewSubsectionName,
+  onCreateSubsection,
+  onCancelSubsection,
+  renamingSectionId,
+  onClearRename,
+  onOpenContextMenu,
+  t
+}: SectionNavRowSharedProps & { node: NoteSectionTreeNode }): JSX.Element {
   const key = String(node.section.id)
   const expanded = collapsed[key] !== true
   const selected = isSectionNavSelected(node.section.id, selection)
   const count = countNotesInSection(node.section.id, notes)
   const isAddingHere = addingSubsectionForId === node.section.id
   const iconColor = resolveNoteSectionIconColor(node.section.iconColor)
-  const [renaming, setRenaming] = useState(false)
+  const renaming = renamingSectionId === node.section.id
   const [draftName, setDraftName] = useState(node.section.name)
   const renameInputRef = useRef<HTMLInputElement>(null)
+
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: noteSectionDragId(node.section.id),
+    disabled:
+      draggingSectionId != null &&
+      isDescendantNoteSection(node.section.id, draggingSectionId, sections)
+  })
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    ...(isDragging ? { zIndex: 10, position: 'relative' } : {})
+  }
 
   useEffect(() => {
     if (!renaming) setDraftName(node.section.name)
@@ -84,19 +143,64 @@ function SectionNavRow({
   const commitRename = (): void => {
     const name = draftName.trim()
     if (name) void onRenameSection(node.section, name)
-    setRenaming(false)
+    onClearRename()
+  }
+
+  const rowProps = {
+    sections,
+    notes,
+    selection,
+    draggingSectionId,
+    onSelect,
+    collapsed,
+    setCollapsed,
+    onRenameSection,
+    onDeleteSection,
+    onUpdateSectionIcon,
+    onAddSubsection,
+    addingSubsectionForId,
+    newSubsectionName,
+    setNewSubsectionName,
+    onCreateSubsection,
+    onCancelSubsection,
+    renamingSectionId,
+    onClearRename,
+    onOpenContextMenu,
+    t
   }
 
   return (
-    <div className="pb-0.5">
-      <NotesDropZone id={noteSectionDropId(node.section.id)}>
+    <div style={style} className={cn(isDragging && 'z-10 opacity-80 shadow-sm')}>
+      <NotesDropZone
+        id={noteSectionDropId(node.section.id)}
+        disabled={draggingSectionId != null}
+      >
         <div
+          ref={setNodeRef}
           className={cn(
-            'mb-0.5 flex items-center gap-0.5 rounded-md pr-1',
+            'group mb-0.5 flex items-center gap-0.5 rounded-md pr-1',
             selected ? 'bg-primary/15' : 'hover:bg-secondary/40'
           )}
           style={{ paddingLeft: node.depth * 12 }}
+          onContextMenu={(e): void => onOpenContextMenu(node.section, e)}
         >
+          <button
+            type="button"
+            className={cn(
+              'touch-none flex h-6 w-4 shrink-0 cursor-grab items-center justify-center rounded text-muted-foreground/60',
+              'opacity-0 transition-opacity hover:bg-secondary/60 hover:text-foreground active:cursor-grabbing',
+              'group-hover:opacity-100 group-focus-within:opacity-100',
+              isDragging && 'opacity-100'
+            )}
+            aria-label={t('notes.sections.sectionDragHandleAria')}
+            title={t('notes.sections.sectionDragHandleAria')}
+            onClick={(e): void => e.stopPropagation()}
+            onDoubleClick={(e): void => e.stopPropagation()}
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical className="h-3.5 w-3.5" />
+          </button>
           <button
             type="button"
             onClick={(): void => setCollapsed((c) => ({ ...c, [key]: expanded }))}
@@ -132,7 +236,7 @@ function SectionNavRow({
               onKeyDown={(e): void => {
                 if (e.key === 'Escape') {
                   setDraftName(node.section.name)
-                  setRenaming(false)
+                  onClearRename()
                 }
                 if (e.key === 'Enter') commitRename()
               }}
@@ -142,42 +246,21 @@ function SectionNavRow({
             <button
               type="button"
               onClick={(): void => onSelect(node.section.id)}
-              onDoubleClick={(e): void => {
-                e.preventDefault()
-                setRenaming(true)
-              }}
               className={cn(
                 'min-w-0 flex-1 truncate rounded-md px-1 py-0.5 text-left text-xs font-medium',
                 selected ? 'text-foreground' : 'text-muted-foreground hover:bg-secondary/30'
               )}
-              title={t('notes.sections.renameDoubleClick')}
+              title={node.section.name}
             >
               {node.section.name}
             </button>
           )}
           <span className="shrink-0 pr-0.5 text-2xs tabular-nums text-muted-foreground">{count}</span>
-          <button
-            type="button"
-            onClick={(): void => onAddSubsection(node.section.id)}
-            className="rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
-            title={t('notes.sections.addSubsection')}
-            aria-label={t('notes.sections.addSubsection')}
-          >
-            <FolderPlus className="h-3 w-3" />
-          </button>
-          <button
-            type="button"
-            onClick={(): void => void onDeleteSection(node.section)}
-            className="rounded p-1 text-muted-foreground hover:text-destructive"
-            aria-label={t('common.delete')}
-          >
-            <Trash2 className="h-3 w-3" />
-          </button>
         </div>
       </NotesDropZone>
 
       {expanded ? (
-        <>
+        <div className={cn(isDragging && 'pointer-events-none')}>
           {isAddingHere ? (
             <div className="mb-1 flex gap-1 px-2" style={{ paddingLeft: node.depth * 12 + 20 }}>
               <input
@@ -200,28 +283,8 @@ function SectionNavRow({
               </button>
             </div>
           ) : null}
-          {node.children.map((child) => (
-            <SectionNavRow
-              key={child.section.id}
-              node={child}
-              notes={notes}
-              selection={selection}
-              onSelect={onSelect}
-              collapsed={collapsed}
-              setCollapsed={setCollapsed}
-              onRenameSection={onRenameSection}
-              onDeleteSection={onDeleteSection}
-              onUpdateSectionIcon={onUpdateSectionIcon}
-              onAddSubsection={onAddSubsection}
-              addingSubsectionForId={addingSubsectionForId}
-              newSubsectionName={newSubsectionName}
-              setNewSubsectionName={setNewSubsectionName}
-              onCreateSubsection={onCreateSubsection}
-              onCancelSubsection={onCancelSubsection}
-              t={t}
-            />
-          ))}
-        </>
+          {node.children.length > 0 ? <SortableSectionList nodes={node.children} {...rowProps} /> : null}
+        </div>
       ) : null}
     </div>
   )
@@ -248,6 +311,22 @@ export function NotesSidebarSections({
   const [addingSection, setAddingSection] = useState(false)
   const [addingSubsectionForId, setAddingSubsectionForId] = useState<number | null>(null)
   const [newSubsectionName, setNewSubsectionName] = useState('')
+  const [renamingSectionId, setRenamingSectionId] = useState<number | null>(null)
+  const [contextMenu, setContextMenu] = useState<{
+    x: number
+    y: number
+    section: NoteSection
+  } | null>(null)
+  const [draggingSectionId, setDraggingSectionId] = useState<number | null>(null)
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
+  )
+
+  const sectionCollisionDetection = useMemo(
+    () => createNoteSectionSiblingCollisionDetection(sections),
+    [sections]
+  )
 
   const tree = useMemo(() => buildNoteSectionTree(sections, notes), [sections, notes])
   const ungroupedCount = tree.ungroupedNotes.length
@@ -301,6 +380,113 @@ export function NotesSidebarSections({
     },
     [onSectionsChanged, t]
   )
+
+  const reorderSections = useCallback(
+    async (parentId: number | null, orderedIds: number[]): Promise<void> => {
+      await window.mailClient.notes.sections.reorder({ parentId, orderedIds })
+      onSectionsChanged()
+    },
+    [onSectionsChanged]
+  )
+
+  const handleSectionDragStart = useCallback((ev: DragStartEvent): void => {
+    const activeId = parseNoteSectionDragId(String(ev.active.id))
+    if (activeId != null) setDraggingSectionId(activeId)
+  }, [])
+
+  const handleSectionDragEnd = useCallback(
+    (ev: DragEndEvent): void => {
+      setDraggingSectionId(null)
+      const activeId = parseNoteSectionDragId(String(ev.active.id))
+      if (activeId == null || !ev.over) return
+
+      const overId = resolveNoteSectionReorderOverId(String(ev.over.id))
+      if (overId == null || activeId === overId) return
+
+      const parentId = noteSectionParentId(activeId, sections)
+      const overParentId = noteSectionParentId(overId, sections)
+      if (parentId !== overParentId) return
+
+      const ids = orderedNoteSectionSiblingIds(parentId, sections)
+      const oldIndex = ids.indexOf(activeId)
+      const newIndex = ids.indexOf(overId)
+      if (oldIndex < 0 || newIndex < 0) return
+
+      void reorderSections(parentId, arrayMove(ids, oldIndex, newIndex))
+    },
+    [reorderSections, sections]
+  )
+
+  const handleSectionDragCancel = useCallback((): void => {
+    setDraggingSectionId(null)
+  }, [])
+
+  const openContextMenu = useCallback((section: NoteSection, event: React.MouseEvent): void => {
+    event.preventDefault()
+    setContextMenu({ x: event.clientX, y: event.clientY, section })
+  }, [])
+
+  const contextMenuItems = useMemo(
+    () =>
+      contextMenu
+        ? buildNotesSectionContextMenuItems({
+            t,
+            section: contextMenu.section,
+            onRename: (section): void => {
+              setRenamingSectionId(section.id)
+              setContextMenu(null)
+            },
+            onAddSubsection: (sectionId): void => {
+              setAddingSubsectionForId(sectionId)
+              setNewSubsectionName('')
+              setAddingSection(false)
+              setCollapsed((c) => ({ ...c, [String(sectionId)]: false }))
+              setContextMenu(null)
+            },
+            onDelete: (section): void => {
+              setContextMenu(null)
+              void deleteSection(section)
+            }
+          })
+        : [],
+    [contextMenu, deleteSection, t]
+  )
+
+  const sectionRowProps: SectionNavRowSharedProps = {
+    sections,
+    notes,
+    selection,
+    draggingSectionId,
+    onSelect: (sectionId): void => onSelectScope({ sectionId }),
+    collapsed,
+    setCollapsed,
+    onRenameSection: renameSection,
+    onDeleteSection: deleteSection,
+    onUpdateSectionIcon: updateSectionIcon,
+    onAddSubsection: (id): void => {
+      setAddingSubsectionForId(id)
+      setNewSubsectionName('')
+      setAddingSection(false)
+      setCollapsed((c) => ({ ...c, [String(id)]: false }))
+    },
+    addingSubsectionForId,
+    newSubsectionName,
+    setNewSubsectionName,
+    onCreateSubsection: (parentId): void => {
+      void createSection(parentId, newSubsectionName).then(() => {
+        setNewSubsectionName('')
+        setAddingSubsectionForId(null)
+      })
+    },
+    onCancelSubsection: (): void => {
+      setAddingSubsectionForId(null)
+      setNewSubsectionName('')
+    },
+    renamingSectionId,
+    onClearRename: (): void => setRenamingSectionId(null),
+    onOpenContextMenu: openContextMenu,
+    t
+  }
 
   return (
     <div
@@ -375,7 +561,7 @@ export function NotesSidebarSections({
           <span className="shrink-0 text-2xs tabular-nums">{notes.length}</span>
         </button>
 
-        <NotesDropZone id={NOTE_DROP_UNGROUPED}>
+        <NotesDropZone id={NOTE_DROP_UNGROUPED} disabled={draggingSectionId != null}>
           <button
             type="button"
             onClick={(): void => onSelectScope('ungrouped')}
@@ -404,40 +590,15 @@ export function NotesSidebarSections({
         {tree.roots.length === 0 && sections.length === 0 ? (
           <p className="px-2 py-3 text-xs text-muted-foreground">{t('notes.shell.noSectionsYet')}</p>
         ) : (
-          tree.roots.map((node) => (
-            <SectionNavRow
-              key={node.section.id}
-              node={node}
-              notes={notes}
-              selection={selection}
-              onSelect={(sectionId): void => onSelectScope({ sectionId })}
-              collapsed={collapsed}
-              setCollapsed={setCollapsed}
-              onRenameSection={renameSection}
-              onDeleteSection={deleteSection}
-              onUpdateSectionIcon={updateSectionIcon}
-              onAddSubsection={(id): void => {
-                setAddingSubsectionForId(id)
-                setNewSubsectionName('')
-                setAddingSection(false)
-                setCollapsed((c) => ({ ...c, [String(id)]: false }))
-              }}
-              addingSubsectionForId={addingSubsectionForId}
-              newSubsectionName={newSubsectionName}
-              setNewSubsectionName={setNewSubsectionName}
-              onCreateSubsection={(parentId): void => {
-                void createSection(parentId, newSubsectionName).then(() => {
-                  setNewSubsectionName('')
-                  setAddingSubsectionForId(null)
-                })
-              }}
-              onCancelSubsection={(): void => {
-                setAddingSubsectionForId(null)
-                setNewSubsectionName('')
-              }}
-              t={t}
-            />
-          ))
+          <DndContext
+            sensors={sensors}
+            collisionDetection={sectionCollisionDetection}
+            onDragStart={handleSectionDragStart}
+            onDragEnd={handleSectionDragEnd}
+            onDragCancel={handleSectionDragCancel}
+          >
+            <SortableSectionList nodes={tree.roots} {...sectionRowProps} />
+          </DndContext>
         )}
 
         {categoryNames.length > 0 ? (
@@ -472,6 +633,15 @@ export function NotesSidebarSections({
           </div>
         ) : null}
       </div>
+
+      {contextMenu ? (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          items={contextMenuItems}
+          onClose={(): void => setContextMenu(null)}
+        />
+      ) : null}
     </div>
   )
 }

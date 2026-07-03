@@ -1,4 +1,6 @@
 import DOMPurify from 'dompurify'
+import { NOTE_INK_HTML_SOURCE_ATTR } from '@shared/note-ink-document'
+import { NOTE_CLOUD_TASK_HTML_ATTRS } from '@shared/note-cloud-task'
 import { normalizeExternalOpenUrl } from '@shared/external-open-url'
 
 const ALLOWED_TAGS = [
@@ -22,6 +24,10 @@ const ALLOWED_ATTR = [
   'rowspan',
   /** Ziel-URL nach Neutralisierung von `href` (kein Subframe-Load / keine App-CSP). */
   'data-mail-external',
+  NOTE_INK_HTML_SOURCE_ATTR,
+  'data-type',
+  'data-checked',
+  ...NOTE_CLOUD_TASK_HTML_ATTRS,
   'xlink:href'
 ]
 

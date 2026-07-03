@@ -239,6 +239,10 @@ listEvents: (args: CalendarListEventsInput): Promise<CalendarEventView[]> =>
       ipcRenderer.invoke(IPC.calendar.updateEvent, input),
     getEvent: (input: CalendarGetEventInput): Promise<CalendarGetEventResult> =>
       ipcRenderer.invoke(IPC.calendar.getEvent, input),
+    resolveMeetingRecording: (
+      input: import('@shared/types').CalendarResolveMeetingRecordingInput
+    ): Promise<import('@shared/types').CalendarResolveMeetingRecordingResult> =>
+      ipcRenderer.invoke(IPC.calendar.resolveMeetingRecording, input),
     listEventAttachments: (
       input: import('@shared/types').CalendarListEventAttachmentsInput
     ): Promise<import('@shared/types').CalendarEventAttachmentMeta[]> =>

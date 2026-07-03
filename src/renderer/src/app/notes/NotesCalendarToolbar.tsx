@@ -4,11 +4,14 @@ import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { MAX_TIME_GRID_SPAN_DAYS, viewIdToLabel } from '@/app/calendar/calendar-shell-view-helpers'
+import type { NotesCalendarDateMode } from '@/app/calendar/notes-calendar'
 import { persistNotesActiveFcView } from '@/app/notes/notes-active-fc-view-storage'
+import { persistNotesCalendarDateMode } from '@/app/notes/notes-calendar-date-mode-storage'
 import { moduleColumnHeaderDockBarRowClass } from '@/components/ModuleColumnHeader'
 
 const VIEW_OPTIONS = [
   'dayGridMonth',
+  'dayGridWeek',
   'timeGridWeek',
   'timeGridDay',
   'listWeek',
@@ -19,12 +22,16 @@ export function NotesCalendarToolbar({
   calendarRef,
   calendarTitle,
   activeFcView,
-  onActiveFcViewChange
+  onActiveFcViewChange,
+  dateMode,
+  onDateModeChange
 }: {
   calendarRef: RefObject<FullCalendar | null>
   calendarTitle: string
   activeFcView: string
   onActiveFcViewChange: (viewId: string) => void
+  dateMode: NotesCalendarDateMode
+  onDateModeChange: (mode: NotesCalendarDateMode) => void
 }): JSX.Element {
   const { t } = useTranslation()
   const [viewMenuOpen, setViewMenuOpen] = useState(false)
@@ -45,6 +52,11 @@ export function NotesCalendarToolbar({
     onActiveFcViewChange(viewId)
     calendarRef.current?.getApi()?.changeView(viewId)
     setViewMenuOpen(false)
+  }
+
+  const setDateMode = (mode: NotesCalendarDateMode): void => {
+    persistNotesCalendarDateMode(mode)
+    onDateModeChange(mode)
   }
 
   return (
@@ -76,6 +88,36 @@ export function NotesCalendarToolbar({
         <span className="chronell-type-calendar-range-title min-w-0 truncate text-foreground">
           {calendarTitle}
         </span>
+      </div>
+      <div
+        className="flex shrink-0 items-center gap-0.5 rounded-md border border-border p-0.5"
+        role="group"
+        aria-label={t('notes.shell.calendarDateModeAria')}
+      >
+        <button
+          type="button"
+          onClick={(): void => setDateMode('created')}
+          className={cn(
+            'rounded-md px-2 py-1 text-2xs font-medium',
+            dateMode === 'created'
+              ? 'bg-secondary text-foreground'
+              : 'text-muted-foreground hover:bg-secondary/50'
+          )}
+        >
+          {t('notes.shell.calendarDateCreated')}
+        </button>
+        <button
+          type="button"
+          onClick={(): void => setDateMode('scheduled')}
+          className={cn(
+            'rounded-md px-2 py-1 text-2xs font-medium',
+            dateMode === 'scheduled'
+              ? 'bg-secondary text-foreground'
+              : 'text-muted-foreground hover:bg-secondary/50'
+          )}
+        >
+          {t('notes.shell.calendarDateScheduled')}
+        </button>
       </div>
       <div className="relative shrink-0" ref={viewMenuRef}>
         <button

@@ -6,7 +6,7 @@ import type {
   NoteLinksBundle
 } from '@shared/note-entity-links'
 import type { SettingsBackupEntityLinkSnapshot } from '@shared/types'
-import { noteEntityLinkTargetsEqual } from '@shared/note-entity-links'
+import { noteEntityLinkTargetsEqual, noteEntityLinkTargetKey } from '@shared/note-entity-links'
 import {
   addEntityLink,
   deleteAllEntityLinksForRef,
@@ -180,6 +180,31 @@ export function listNoteLinksBundle(fromNoteId: number): NoteLinksBundle {
     subtitle: item.subtitle,
     createdAt: item.createdAt
   }))
+
+  const seen = new Set(outgoing.map((item) => noteEntityLinkTargetKey(item.target)))
+  const db = getDb()
+  const childRows = db
+    .prepare(
+      `SELECT id, title, kind FROM user_notes
+       WHERE parent_note_id = ?
+       ORDER BY sort_order ASC, id ASC`
+    )
+    .all(fromNoteId) as Array<{ id: number; title: string | null; kind: string }>
+
+  for (const row of childRows) {
+    const target: NoteEntityLinkTarget = { kind: 'note', noteId: row.id }
+    const key = noteEntityLinkTargetKey(target)
+    if (seen.has(key)) continue
+    seen.add(key)
+    outgoing.push({
+      linkId: 0,
+      target,
+      title: row.title?.trim() || 'Ohne Titel',
+      subtitle: 'subpage',
+      createdAt: ''
+    })
+  }
+
   return { outgoing, incoming: [] }
 }
 

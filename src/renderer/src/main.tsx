@@ -25,8 +25,6 @@ function resolveRootShell(): typeof App {
   return App
 }
 
-const RootShell = resolveRootShell()
-
 document.title = APP_PRODUCT_NAME
 
 interface ReactRootContainer extends HTMLElement {
@@ -40,12 +38,17 @@ function getOrCreateReactRoot(container: ReactRootContainer): ReturnType<typeof 
   return container.__reactRoot
 }
 
+function AppRoot(): JSX.Element {
+  const Shell = resolveRootShell()
+  return (
+    <React.StrictMode>
+      <Shell />
+    </React.StrictMode>
+  )
+}
+
 void initI18n().then(() => {
   void import('./stores/locale')
   const container = document.getElementById('root') as ReactRootContainer
-  getOrCreateReactRoot(container).render(
-    <React.StrictMode>
-      <RootShell />
-    </React.StrictMode>
-  )
+  getOrCreateReactRoot(container).render(<AppRoot />)
 })

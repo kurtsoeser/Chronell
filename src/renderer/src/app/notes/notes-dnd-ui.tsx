@@ -5,13 +5,15 @@ import { cn } from '@/lib/utils'
 export function NotesDropZone({
   id,
   className,
-  children
+  children,
+  disabled = false
 }: {
   id: string
   className?: string
   children: ReactNode
+  disabled?: boolean
 }): JSX.Element {
-  const { setNodeRef, isOver } = useDroppable({ id })
+  const { setNodeRef, isOver } = useDroppable({ id, disabled })
   return (
     <div
       ref={setNodeRef}

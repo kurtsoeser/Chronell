@@ -111,9 +111,10 @@ function CalDragHandle({ dragId, disabled }: { dragId: string; disabled?: boolea
       {...attributes}
       className={cn(
         'flex h-7 w-6 shrink-0 cursor-grab items-center justify-center rounded-md text-muted-foreground/70',
-        'hover:bg-secondary/60 hover:text-foreground active:cursor-grabbing',
-        disabled && 'pointer-events-none opacity-30',
-        isDragging && 'opacity-50'
+        'opacity-0 transition-opacity hover:bg-secondary/60 hover:text-foreground active:cursor-grabbing',
+        'group-hover:opacity-100 group-focus-within:opacity-100',
+        disabled && 'pointer-events-none !opacity-0 group-hover:!opacity-0 group-focus-within:!opacity-0',
+        isDragging && 'opacity-100'
       )}
       aria-label={label}
       title={label}
@@ -340,7 +341,7 @@ export function CalendarShellSidebarCalendars({
       <li key={`${accountId}:${c.id}`} className="list-none">
         <div
           className={cn(
-            'flex w-full cursor-context-menu items-center gap-0.5 rounded-md px-0.5 py-1.5 text-left text-sm text-muted-foreground'
+            'group flex w-full cursor-context-menu items-center gap-0.5 rounded-md px-0.5 py-1.5 text-left text-sm text-muted-foreground'
           )}
           onContextMenu={(e): void => {
             if (c.id === SIDEBAR_DEFAULT_CAL_ID) {

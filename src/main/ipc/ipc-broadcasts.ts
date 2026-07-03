@@ -1,7 +1,7 @@
 import { BrowserWindow } from 'electron'
 import type { EntityEmbeddingProgress } from '@shared/entity-embeddings'
 import type { MailBodyIndexProgress } from '@shared/mail-body-index'
-import type { ConnectedAccount, MailChangedPayload, UserNoteKind } from '@shared/types'
+import type { ConnectedAccount, MailChangedPayload, NotesChangedPayload } from '@shared/types'
 import { mergeMailChangedPayload } from '@shared/mail-changed-merge'
 import { reconcileAllFolderUnreadForAccount } from '../db/folders-repo'
 import {
@@ -16,6 +16,7 @@ import {
 export { broadcastProfileSyncApplied, broadcastProfileSyncStatus }
 
 const MAIL_CHANGED_COALESCE_MS = 100
+const NOTES_CHANGED_COALESCE_MS = 200
 
 const pendingMailChanged = new Map<string, MailChangedPayload>()
 let mailChangedFlushTimer: ReturnType<typeof setTimeout> | null = null
@@ -101,17 +102,39 @@ export function broadcastTasksChanged(accountId: string): void {
   }
 }
 
-export function broadcastNotesChanged(payload: {
-  kind?: UserNoteKind
-  noteId?: number
-  messageId?: number | null
-  accountId?: string | null
-}): void {
+const pendingNotesChanged = new Map<string, NotesChangedPayload>()
+let notesChangedFlushTimer: ReturnType<typeof setTimeout> | null = null
+
+function notesChangedKey(payload: NotesChangedPayload): string {
+  if (payload.noteId != null) return `note:${payload.noteId}`
+  if (payload.accountId) return `account:${payload.accountId}`
+  return '_global'
+}
+
+function flushNotesChanged(): void {
+  notesChangedFlushTimer = null
+  if (pendingNotesChanged.size === 0) return
+  const batch = [...pendingNotesChanged.values()]
+  pendingNotesChanged.clear()
   for (const win of BrowserWindow.getAllWindows()) {
-    win.webContents.send('notes:changed', payload)
+    for (const payload of batch) {
+      win.webContents.send('notes:changed', payload)
+    }
   }
   void markProfileDataDirty()
   scheduleProfileSyncDebounced()
+}
+
+function scheduleNotesChangedFlush(): void {
+  if (notesChangedFlushTimer != null) return
+  notesChangedFlushTimer = setTimeout(flushNotesChanged, NOTES_CHANGED_COALESCE_MS)
+}
+
+export function broadcastNotesChanged(payload: NotesChangedPayload): void {
+  const key = notesChangedKey(payload)
+  const prev = pendingNotesChanged.get(key)
+  pendingNotesChanged.set(key, prev ? { ...prev, ...payload } : payload)
+  scheduleNotesChangedFlush()
 }
 
 /** Ungerichtete entity_links geaendert — alle ConnectionsPanel-Instanzen neu laden. */

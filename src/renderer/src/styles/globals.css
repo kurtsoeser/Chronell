@@ -1,6 +1,7 @@
 @import './chronell-tokens.css';
 @import './chronell-typography.css';
 @import './chronell-scrollbars.css';
+@import './note-reference-icons.css';
 
 @tailwind base;
 @tailwind components;
@@ -484,6 +485,12 @@
 
   .tiptap-note-editor .note-editor-sticky-chrome {
     background-color: hsl(var(--card));
+    overflow: visible;
+  }
+
+  .tiptap-note-editor.note-editor-scroll-body-enabled .note-editor-pinned-chrome {
+    background-color: hsl(var(--card));
+    z-index: 20;
   }
 
   .tiptap-note-editor .note-editor-sticky-chrome .note-editor-action-bar {
@@ -493,6 +500,42 @@
 
   .tiptap-note-editor .compose-mail-editor-section .border-b {
     border-color: hsl(var(--compose-surface-border) / 0.45);
+  }
+
+  /**
+   * TipTap-Editor: klare Überschriften-Hierarchie (H1 > H2 > H3 > Fließtext).
+   * Compose setzt oft 11pt als inline font-size auf span — ohne inherit wirken Überschriften zu klein.
+   */
+  .chronell-tiptap-content h1 {
+    font-size: 2.25rem;
+    font-weight: 700;
+    line-height: 1.25;
+    margin-top: 0.875rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .chronell-tiptap-content h2 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    line-height: 1.3;
+    margin-top: 0.75rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .chronell-tiptap-content h3 {
+    font-size: 1.375rem;
+    font-weight: 600;
+    line-height: 1.35;
+    margin-top: 0.625rem;
+    margin-bottom: 0.375rem;
+  }
+
+  .chronell-tiptap-content :is(h1, h2, h3) :is(span, a, strong, em, u, s, code) {
+    font-size: inherit !important;
+  }
+
+  .chronell-tiptap-content :is(h1, h2, h3) mark {
+    font-size: inherit;
   }
 
   /**
@@ -552,10 +595,88 @@
     line-height: 1;
   }
 
+  .compose-editor-canvas .ProseMirror :is(ul[data-type='taskList'], ul.note-task-list) > li[data-checked='true'] > div,
+  .compose-editor-canvas .ProseMirror :is(ul[data-type='taskList'], ul.note-task-list) > li[data-checked='true'] > div p,
+  .compose-editor-canvas .ProseMirror :is(ul[data-type='taskList'], ul.note-task-list) > li[data-checked='true'] > div .note-cloud-task-due {
+    text-decoration: line-through;
+    color: hsl(var(--muted-foreground));
+  }
+
+  .compose-editor-canvas .ProseMirror li.note-cloud-task-item > div p .note-cloud-task-due {
+    margin-left: 0.35rem;
+    font-size: 0.75rem;
+    color: hsl(var(--muted-foreground));
+    white-space: nowrap;
+  }
+
   .compose-editor-canvas .ProseMirror a.note-wiki-link {
     text-decoration: underline;
     text-decoration-style: dotted;
     text-underline-offset: 2px;
+  }
+
+  .compose-editor-canvas .ProseMirror a.note-entity-mention {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    font-weight: 500;
+  }
+
+  .compose-editor-canvas .ProseMirror a.note-entity-mention--note,
+  .compose-editor-canvas .ProseMirror a.note-wiki-link {
+    color: hsl(152 42% 30%);
+    text-decoration-color: hsl(152 42% 30% / 0.45);
+  }
+
+  .compose-editor-canvas[data-compose-theme='dark'] .ProseMirror a.note-entity-mention--note,
+  .compose-editor-canvas[data-compose-theme='dark'] .ProseMirror a.note-wiki-link {
+    color: hsl(152 45% 58%) !important;
+    text-decoration-color: hsl(152 45% 58% / 0.45) !important;
+  }
+
+  .compose-editor-canvas[data-compose-theme='dark'] .ProseMirror a.note-entity-mention--note:hover,
+  .compose-editor-canvas[data-compose-theme='dark'] .ProseMirror a.note-wiki-link:hover {
+    color: hsl(152 48% 66%) !important;
+    text-decoration-color: hsl(152 48% 66% / 0.55) !important;
+  }
+
+  .compose-editor-canvas[data-compose-theme='light'] .ProseMirror a.note-entity-mention--note,
+  .compose-editor-canvas[data-compose-theme='light'] .ProseMirror a.note-wiki-link {
+    color: hsl(152 42% 30%) !important;
+    text-decoration-color: hsl(152 42% 30% / 0.45) !important;
+  }
+
+  .compose-editor-canvas .ProseMirror a.note-entity-mention--note:hover,
+  .compose-editor-canvas .ProseMirror a.note-wiki-link:hover {
+    color: hsl(152 42% 24%);
+    text-decoration-color: hsl(152 42% 24% / 0.55);
+  }
+
+  .compose-editor-canvas .ProseMirror a.note-entity-mention--contact {
+    color: hsl(var(--primary));
+  }
+
+  .compose-editor-canvas .ProseMirror a.note-entity-mention--mail {
+    color: hsl(221 83% 45%);
+  }
+
+  .compose-editor-canvas .ProseMirror a.note-entity-mention--task {
+    color: hsl(271 55% 42%);
+  }
+
+  .dark .compose-editor-canvas .ProseMirror a.note-entity-mention--mail {
+    color: hsl(221 80% 68%);
+  }
+
+  .dark .compose-editor-canvas .ProseMirror a.note-entity-mention--task {
+    color: hsl(271 60% 72%);
+  }
+
+  .compose-editor-canvas .ProseMirror a.note-entity-mention--calendar {
+    color: hsl(199 89% 38%);
+  }
+
+  .dark .compose-editor-canvas .ProseMirror a.note-entity-mention--calendar {
+    color: hsl(199 80% 62%);
   }
 
   /** TipTap Composer: skalierbare Bilder (Ziehpunkte an Ecken) */
@@ -635,6 +756,47 @@
     table-layout: auto;
   }
 
+  /** Editor: Spaltenbreite per Drag — Tabellenbreite folgt Spalten, nicht 100 % */
+  .compose-editor-canvas .ProseMirror .tableWrapper {
+    display: block;
+    max-width: 100%;
+    margin: 0.5rem 0;
+    overflow-x: auto;
+  }
+
+  .compose-editor-canvas .ProseMirror .tableWrapper table,
+  .compose-editor-canvas .ProseMirror table.mail-compose-table {
+    width: auto;
+    max-width: none;
+    table-layout: fixed;
+    margin: 0;
+  }
+
+  .compose-editor-canvas .ProseMirror .column-resize-handle {
+    position: absolute;
+    right: -3px;
+    top: 0;
+    bottom: 0;
+    width: 5px;
+    z-index: 25;
+    background-color: hsl(var(--primary) / 0.45);
+    pointer-events: none;
+  }
+
+  .compose-editor-canvas .ProseMirror.resize-cursor,
+  .compose-editor-canvas .ProseMirror.resize-cursor * {
+    cursor: col-resize;
+  }
+
+  .compose-editor-canvas .ProseMirror td.column-resize-dragging,
+  .compose-editor-canvas .ProseMirror th.column-resize-dragging {
+    border-inline-end: 2px solid hsl(var(--primary) / 0.75);
+  }
+
+  .compose-editor-canvas[data-compose-theme='dark'] .ProseMirror .column-resize-handle {
+    background-color: hsl(206 80% 60% / 0.55);
+  }
+
   .ProseMirror table.mail-compose-table[align='center'] {
     margin-left: auto;
     margin-right: auto;
@@ -655,6 +817,41 @@
   .ProseMirror table.mail-tbl-bordered th {
     background-color: hsl(var(--muted) / 0.4);
     font-weight: 600;
+  }
+
+  /**
+   * Notizen-Editor: dezente Punktlinien, damit Tabellenstruktur beim Bearbeiten sichtbar ist.
+   * Gilt nur in der Bearbeitungsansicht — gespeichertes HTML / E-Mail bleibt unverändert.
+   */
+  .tiptap-note-editor .compose-editor-canvas .ProseMirror table.mail-compose-table:not(.mail-tbl-borderless):not(.mail-tbl-lines-dashed) th,
+  .tiptap-note-editor .compose-editor-canvas .ProseMirror table.mail-compose-table:not(.mail-tbl-borderless):not(.mail-tbl-lines-dashed) td {
+    border-style: dotted;
+    border-color: hsl(var(--border) / 0.55);
+  }
+
+  .tiptap-note-editor .compose-editor-canvas[data-compose-theme='light'] .ProseMirror table.mail-compose-table:not(.mail-tbl-borderless):not(.mail-tbl-lines-dashed) th,
+  .tiptap-note-editor .compose-editor-canvas[data-compose-theme='light'] .ProseMirror table.mail-compose-table:not(.mail-tbl-borderless):not(.mail-tbl-lines-dashed) td {
+    border-color: hsl(220 9% 46% / 0.42);
+  }
+
+  .tiptap-note-editor .compose-editor-canvas[data-compose-theme='dark'] .ProseMirror table.mail-compose-table:not(.mail-tbl-borderless):not(.mail-tbl-lines-dashed) th,
+  .tiptap-note-editor .compose-editor-canvas[data-compose-theme='dark'] .ProseMirror table.mail-compose-table:not(.mail-tbl-borderless):not(.mail-tbl-lines-dashed) td {
+    border-color: hsl(0 0% 100% / 0.2);
+  }
+
+  .tiptap-note-editor .compose-editor-canvas .ProseMirror table.mail-tbl-bordered th {
+    background-color: hsl(var(--muted) / 0.22);
+  }
+
+  .tiptap-note-editor .compose-editor-canvas[data-compose-theme='dark'] .ProseMirror table.mail-tbl-bordered th {
+    background-color: hsl(0 0% 100% / 0.06);
+  }
+
+  .tiptap-note-editor .compose-editor-canvas .ProseMirror table:not(.mail-compose-table) th,
+  .tiptap-note-editor .compose-editor-canvas .ProseMirror table:not(.mail-compose-table) td {
+    border: 1px dotted hsl(var(--border) / 0.55);
+    padding: 0.35rem 0.55rem;
+    vertical-align: top;
   }
 
   .ProseMirror table.mail-tbl-minimal th,
@@ -682,6 +879,105 @@
   .ProseMirror table.mail-tbl-borderless th {
     font-weight: 600;
     border-bottom: 1px solid hsl(var(--border) / 0.35);
+  }
+
+  /** Zellauswahl im Editor (aktive Zelle / Mehrfachauswahl) */
+  .compose-editor-canvas .ProseMirror .tableWrapper table td,
+  .compose-editor-canvas .ProseMirror .tableWrapper table th,
+  .compose-editor-canvas .ProseMirror table td,
+  .compose-editor-canvas .ProseMirror table th {
+    position: relative;
+  }
+
+  .compose-editor-canvas .ProseMirror td.mail-tbl-cell-active,
+  .compose-editor-canvas .ProseMirror th.mail-tbl-cell-active,
+  .compose-editor-canvas .ProseMirror td.selectedCell,
+  .compose-editor-canvas .ProseMirror th.selectedCell {
+    background-color: hsl(var(--primary) / 0.16) !important;
+    box-shadow: inset 0 0 0 2px hsl(var(--primary) / 0.72);
+  }
+
+  .compose-editor-canvas[data-compose-theme='dark'] .ProseMirror td.mail-tbl-cell-active,
+  .compose-editor-canvas[data-compose-theme='dark'] .ProseMirror th.mail-tbl-cell-active,
+  .compose-editor-canvas[data-compose-theme='dark'] .ProseMirror td.selectedCell,
+  .compose-editor-canvas[data-compose-theme='dark'] .ProseMirror th.selectedCell {
+    background-color: hsl(206 80% 60% / 0.2) !important;
+    box-shadow: inset 0 0 0 2px hsl(206 80% 60% / 0.82);
+  }
+
+  /** Tabellen-Vorlagen: gebänderte Zeilen */
+  .ProseMirror table.mail-tbl-banded-rows th {
+    background-color: hsl(var(--muted) / 0.55);
+    font-weight: 600;
+  }
+
+  .ProseMirror table.mail-tbl-banded-rows tbody tr:nth-child(even) td {
+    background-color: hsl(var(--muted) / 0.3);
+  }
+
+  /** Tabellen-Vorlagen: gebänderte Spalten */
+  .ProseMirror table.mail-tbl-banded-columns th {
+    background-color: hsl(var(--muted) / 0.5);
+    font-weight: 600;
+  }
+
+  .ProseMirror table.mail-tbl-banded-columns tr > :nth-child(even) {
+    background-color: hsl(var(--muted) / 0.28);
+  }
+
+  /** Tabellen-Vorlagen: akzentuierte Kopfzeile */
+  .ProseMirror table.mail-tbl-header-accent th {
+    background-color: hsl(215 55% 48% / 0.2);
+    font-weight: 600;
+    border-bottom: 2px solid hsl(215 55% 48% / 0.35);
+  }
+
+  .compose-editor-canvas[data-compose-theme='dark'] .ProseMirror table.mail-tbl-header-accent th {
+    background-color: hsl(206 70% 55% / 0.22);
+    border-bottom-color: hsl(206 70% 55% / 0.4);
+  }
+
+  /** Tabellen-Vorlagen: nur äußerer Umriss */
+  .ProseMirror table.mail-tbl-outline {
+    border: 2px solid hsl(var(--border));
+  }
+
+  .ProseMirror table.mail-tbl-outline th,
+  .ProseMirror table.mail-tbl-outline td {
+    border: none;
+    padding: 0.35rem 0.55rem;
+    vertical-align: top;
+  }
+
+  .ProseMirror table.mail-tbl-outline th {
+    font-weight: 600;
+    background-color: hsl(var(--muted) / 0.35);
+  }
+
+  /** Rahmenlinien-Modifikatoren (ergänzen jede Vorlage) */
+  .ProseMirror table.mail-compose-table.mail-tbl-lines-outer {
+    border: 2px solid hsl(var(--border));
+  }
+
+  .ProseMirror table.mail-compose-table.mail-tbl-lines-outer th,
+  .ProseMirror table.mail-compose-table.mail-tbl-lines-outer td {
+    border: none;
+  }
+
+  .ProseMirror table.mail-compose-table.mail-tbl-lines-horizontal th,
+  .ProseMirror table.mail-compose-table.mail-tbl-lines-horizontal td {
+    border: none;
+    border-bottom: 1px solid hsl(var(--border) / 0.65);
+  }
+
+  .ProseMirror table.mail-compose-table.mail-tbl-lines-none th,
+  .ProseMirror table.mail-compose-table.mail-tbl-lines-none td {
+    border: none !important;
+  }
+
+  .ProseMirror table.mail-compose-table.mail-tbl-lines-dashed th,
+  .ProseMirror table.mail-compose-table.mail-tbl-lines-dashed td {
+    border-style: dashed !important;
   }
 
   /**
@@ -849,4 +1145,542 @@
 .contact-history-preview-body ol {
   margin: 0.35em 0;
   padding-left: 1.25em;
+}
+
+.chronell-tiptap-content .note-youtube-embed {
+  position: relative;
+  width: 100%;
+  max-width: 40rem;
+  margin: 0.75rem 0;
+  border-radius: 0.375rem;
+  overflow: hidden;
+  background: hsl(var(--muted) / 0.35);
+}
+
+.chronell-tiptap-content .note-youtube-embed__iframe {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 0;
+}
+
+.chronell-tiptap-content .note-msforms-embed {
+  position: relative;
+  width: 100%;
+  max-width: 48rem;
+  margin: 0.75rem 0;
+  border-radius: 0.375rem;
+  overflow: hidden;
+  background: hsl(var(--muted) / 0.35);
+}
+
+.chronell-tiptap-content .note-msforms-embed__iframe {
+  display: block;
+  width: 100%;
+  min-height: 28rem;
+  height: 70vh;
+  max-height: 42rem;
+  border: 0;
+}
+
+.chronell-tiptap-content .note-geogebra-embed {
+  position: relative;
+  width: 100%;
+  max-width: 48rem;
+  margin: 0.75rem 0;
+  border-radius: 0.375rem;
+  overflow: hidden;
+  background: hsl(var(--muted) / 0.35);
+}
+
+.chronell-tiptap-content .note-geogebra-embed__iframe {
+  display: block;
+  width: 100%;
+  min-height: 32rem;
+  height: 35rem;
+  max-height: 80vh;
+  border: 0;
+}
+
+.chronell-tiptap-content .note-google-maps-embed,
+.chronell-tiptap-content .note-typeform-embed,
+.chronell-tiptap-content .note-twitter-embed,
+.chronell-tiptap-content .note-teams-recording-embed {
+  position: relative;
+  width: 100%;
+  max-width: 48rem;
+  margin: 0.75rem 0;
+  border-radius: 0.375rem;
+  overflow: hidden;
+  background: hsl(var(--muted) / 0.35);
+}
+
+.chronell-tiptap-content .note-google-maps-embed__iframe {
+  display: block;
+  width: 100%;
+  min-height: 20rem;
+  height: 22rem;
+  border: 0;
+}
+
+.chronell-tiptap-content .note-typeform-embed__iframe {
+  display: block;
+  width: 100%;
+  min-height: 28rem;
+  height: 70vh;
+  max-height: 42rem;
+  border: 0;
+}
+
+.chronell-tiptap-content .note-twitter-embed__iframe {
+  display: block;
+  width: 100%;
+  min-height: 14rem;
+  height: 18rem;
+  border: 0;
+}
+
+.chronell-tiptap-content .note-teams-recording-embed__iframe {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  min-height: 16rem;
+  border: 0;
+}
+
+.chronell-tiptap-content .note-spotify-embed,
+.chronell-tiptap-content .note-soundcloud-embed {
+  position: relative;
+  width: 100%;
+  max-width: 48rem;
+  margin: 0.75rem 0;
+  border-radius: 0.375rem;
+  overflow: hidden;
+  background: hsl(var(--muted) / 0.35);
+}
+
+.chronell-tiptap-content .note-vimeo-embed,
+.chronell-tiptap-content .note-tiktok-embed {
+  position: relative;
+  width: 100%;
+  max-width: 32rem;
+  margin: 0.75rem 0;
+  border-radius: 0.375rem;
+  overflow: hidden;
+  background: hsl(var(--muted) / 0.35);
+}
+
+.chronell-tiptap-content .note-spotify-embed__iframe {
+  display: block;
+  width: 100%;
+  min-height: 5.5rem;
+  height: 9.5rem;
+  border: 0;
+}
+
+.chronell-tiptap-content .note-soundcloud-embed__iframe {
+  display: block;
+  width: 100%;
+  min-height: 10rem;
+  height: 10.5rem;
+  border: 0;
+}
+
+.chronell-tiptap-content .note-vimeo-embed__iframe {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  min-height: 16rem;
+  border: 0;
+}
+
+.chronell-tiptap-content .note-tiktok-embed__iframe {
+  display: block;
+  width: 100%;
+  min-height: 28rem;
+  max-height: 42rem;
+  aspect-ratio: 9 / 16;
+  border: 0;
+}
+
+.chronell-tiptap-content .note-desmos-embed,
+.chronell-tiptap-content .note-codepen-embed,
+.chronell-tiptap-content .note-gist-embed {
+  position: relative;
+  width: 100%;
+  max-width: 48rem;
+  margin: 0.75rem 0;
+  border-radius: 0.375rem;
+  overflow: hidden;
+  background: hsl(var(--muted) / 0.35);
+}
+
+.chronell-tiptap-content .note-loom-embed {
+  position: relative;
+  width: 100%;
+  max-width: 48rem;
+  margin: 0.75rem 0;
+  border-radius: 0.375rem;
+  overflow: hidden;
+  background: hsl(var(--muted) / 0.35);
+}
+
+.chronell-tiptap-content .note-figma-embed,
+.chronell-tiptap-content .note-miro-embed {
+  position: relative;
+  width: 100%;
+  max-width: 56rem;
+  margin: 0.75rem 0;
+  border-radius: 0.375rem;
+  overflow: hidden;
+  background: hsl(var(--muted) / 0.35);
+}
+
+.chronell-tiptap-content .note-desmos-embed__iframe {
+  display: block;
+  width: 100%;
+  min-height: 28rem;
+  height: 32rem;
+  max-height: 80vh;
+  border: 0;
+}
+
+.chronell-tiptap-content .note-codepen-embed__iframe {
+  display: block;
+  width: 100%;
+  min-height: 24rem;
+  height: 28rem;
+  border: 0;
+}
+
+.chronell-tiptap-content .note-gist-embed__iframe {
+  display: block;
+  width: 100%;
+  min-height: 12rem;
+  height: 18rem;
+  border: 0;
+}
+
+.chronell-tiptap-content .note-loom-embed__iframe {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  min-height: 16rem;
+  border: 0;
+}
+
+.chronell-tiptap-content .note-figma-embed__iframe {
+  display: block;
+  width: 100%;
+  min-height: 28rem;
+  height: 36rem;
+  max-height: 80vh;
+  border: 0;
+}
+
+.chronell-tiptap-content .note-miro-embed__iframe {
+  display: block;
+  width: 100%;
+  min-height: 28rem;
+  height: 36rem;
+  max-height: 80vh;
+  border: 0;
+}
+
+.chronell-tiptap-content .note-openstreetmap-embed,
+.chronell-tiptap-content .note-calendly-embed {
+  position: relative;
+  width: 100%;
+  max-width: 48rem;
+  margin: 0.75rem 0;
+  border-radius: 0.375rem;
+  overflow: hidden;
+  background: hsl(var(--muted) / 0.35);
+}
+
+.chronell-tiptap-content .note-openstreetmap-embed__iframe {
+  display: block;
+  width: 100%;
+  min-height: 20rem;
+  height: 22rem;
+  border: 0;
+}
+
+.chronell-tiptap-content .note-calendly-embed__iframe {
+  display: block;
+  width: 100%;
+  min-height: 40rem;
+  height: 44rem;
+  max-height: 85vh;
+  border: 0;
+}
+
+/* Note embeds: Auswahl, Größe ändern, Toolbar */
+.chronell-tiptap-content .note-embed-resizable {
+  position: relative;
+  width: 100%;
+  max-width: 48rem;
+  margin: 0.75rem 0;
+  border-radius: 0.375rem;
+  overflow: visible;
+  background: hsl(var(--muted) / 0.35);
+}
+
+.chronell-tiptap-content .note-youtube-embed.note-embed-resizable {
+  max-width: 40rem;
+}
+
+.chronell-tiptap-content .note-vimeo-embed.note-embed-resizable,
+.chronell-tiptap-content .note-tiktok-embed.note-embed-resizable {
+  max-width: 32rem;
+}
+
+.chronell-tiptap-content .note-figma-embed.note-embed-resizable,
+.chronell-tiptap-content .note-miro-embed.note-embed-resizable {
+  max-width: 56rem;
+}
+
+.chronell-tiptap-content .note-embed-resizable__wrapper {
+  width: 100%;
+}
+
+.chronell-tiptap-content .note-embed-resizable.note-embed-resizable--custom-size {
+  width: auto;
+  max-width: 100%;
+}
+
+.chronell-tiptap-content .note-embed-resizable.note-embed-resizable--custom-size .note-embed-resizable__wrapper {
+  width: 100%;
+  height: 100%;
+}
+
+.chronell-tiptap-content .note-embed-resizable.note-embed-resizable--custom-size [class*='-embed__frame'] {
+  aspect-ratio: unset;
+  min-height: 0;
+  max-height: none;
+}
+
+.chronell-tiptap-content [class*='-embed__frame'] {
+  width: 100%;
+  overflow: hidden;
+  border-radius: 0.375rem;
+}
+
+.chronell-tiptap-content [class*='-embed__iframe'] {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  pointer-events: none;
+}
+
+.chronell-tiptap-content .note-embed-resizable.note-embed--interactive [class*='-embed__iframe'] {
+  pointer-events: auto;
+}
+
+.chronell-tiptap-content .note-youtube-embed__frame,
+.chronell-tiptap-content .note-vimeo-embed__frame,
+.chronell-tiptap-content .note-loom-embed__frame,
+.chronell-tiptap-content .note-teams-recording-embed__frame {
+  aspect-ratio: 16 / 9;
+  min-height: 16rem;
+}
+
+.chronell-tiptap-content .note-m365-video-embed__frame {
+  aspect-ratio: 16 / 9;
+  min-height: 16rem;
+  background: hsl(var(--muted) / 0.5);
+}
+
+.chronell-tiptap-content .note-m365-video-embed__video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 0.375rem;
+  background: #000;
+}
+
+.chronell-tiptap-content .note-m365-video-embed__iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 0.375rem;
+  pointer-events: none;
+}
+
+.chronell-tiptap-content .note-m365-video-embed.note-embed--interactive .note-m365-video-embed__iframe {
+  pointer-events: auto;
+}
+
+.chronell-tiptap-content .note-embed-chrome__button[hidden] {
+  display: none !important;
+}
+
+.chronell-tiptap-content .note-m365-video-embed__fallback {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  width: 100%;
+  height: 100%;
+  min-height: 16rem;
+  padding: 1rem;
+  text-align: center;
+}
+
+.chronell-tiptap-content .note-m365-video-embed__thumb {
+  max-width: 12rem;
+  max-height: 7rem;
+  border-radius: 0.375rem;
+  object-fit: cover;
+}
+
+.chronell-tiptap-content .note-m365-video-embed__title {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.chronell-tiptap-content .note-m365-video-embed__message {
+  margin: 0;
+  max-width: 28rem;
+  font-size: 0.8rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.chronell-tiptap-content .note-m365-video-embed__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.chronell-tiptap-content .note-m365-video-embed__button {
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.375rem;
+  background: hsl(var(--background));
+  padding: 0.35rem 0.75rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.chronell-tiptap-content .note-m365-video-embed__button:hover {
+  background: hsl(var(--accent));
+}
+
+.chronell-tiptap-content .note-tiktok-embed__frame {
+  min-height: 28rem;
+  max-height: 42rem;
+  aspect-ratio: 9 / 16;
+}
+
+.chronell-tiptap-content .note-msforms-embed__frame {
+  min-height: 28rem;
+  height: 70vh;
+  max-height: 42rem;
+}
+
+.chronell-tiptap-content .note-geogebra-embed__frame,
+.chronell-tiptap-content .note-desmos-embed__frame {
+  min-height: 28rem;
+  height: 32rem;
+  max-height: 80vh;
+}
+
+.chronell-tiptap-content .note-google-maps-embed__frame,
+.chronell-tiptap-content .note-openstreetmap-embed__frame {
+  min-height: 20rem;
+  height: 22rem;
+}
+
+.chronell-tiptap-content .note-typeform-embed__frame {
+  min-height: 28rem;
+  height: 32rem;
+}
+
+.chronell-tiptap-content .note-twitter-embed__frame {
+  min-height: 14rem;
+  height: 18rem;
+}
+
+.chronell-tiptap-content .note-spotify-embed__frame {
+  min-height: 5.5rem;
+  height: 9.5rem;
+}
+
+.chronell-tiptap-content .note-soundcloud-embed__frame {
+  min-height: 10rem;
+  height: 10.5rem;
+}
+
+.chronell-tiptap-content .note-codepen-embed__frame {
+  min-height: 24rem;
+  height: 28rem;
+}
+
+.chronell-tiptap-content .note-gist-embed__frame {
+  min-height: 12rem;
+  height: 18rem;
+}
+
+.chronell-tiptap-content .note-figma-embed__frame,
+.chronell-tiptap-content .note-miro-embed__frame {
+  min-height: 28rem;
+  height: 36rem;
+  max-height: 80vh;
+}
+
+.chronell-tiptap-content .note-calendly-embed__frame {
+  min-height: 40rem;
+  height: 44rem;
+  max-height: 85vh;
+}
+
+.chronell-tiptap-content .note-embed-chrome {
+  display: none;
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  z-index: 5;
+  gap: 0.25rem;
+}
+
+.chronell-tiptap-content .note-embed-resizable.ProseMirror-selectednode .note-embed-chrome,
+.chronell-tiptap-content .note-embed-resizable[data-resize-state='true'] .note-embed-chrome {
+  display: inline-flex;
+}
+
+.chronell-tiptap-content .note-embed-chrome__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.375rem;
+  background: hsl(var(--background) / 0.92);
+  color: hsl(var(--foreground));
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 1px 2px hsl(var(--foreground) / 0.08);
+}
+
+.chronell-tiptap-content .note-embed-chrome__button:hover {
+  background: hsl(var(--accent));
+}
+
+.ProseMirror .note-embed-resizable.ProseMirror-selectednode,
+.ProseMirror .note-embed-resizable[data-resize-state='true'] {
+  outline: 2px solid hsl(var(--primary) / 0.55);
+  outline-offset: 2px;
+  border-radius: 0.375rem;
+}
+
+.ProseMirror .note-embed-resizable.ProseMirror-selectednode [data-resize-handle],
+.ProseMirror .note-embed-resizable[data-resize-state='true'] [data-resize-handle] {
+  opacity: 1;
 }

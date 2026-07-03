@@ -298,6 +298,13 @@ getMail: (messageId: number): Promise<UserNote | null> =>
       title: string
       bodyHtml: string
     }): Promise<{ ok: boolean; error?: string }> => ipcRenderer.invoke(IPC.notes.printPage, input),
+    resolveEmbedUrl: (input: string): Promise<string | null> =>
+      ipcRenderer.invoke(IPC.notes.resolveEmbedUrl, input),
+    resolveM365Video: (input: {
+      shareUrl: string
+      accountId?: string
+    }): Promise<import('@shared/note-m365-video-resolve').ResolveM365VideoResult> =>
+      ipcRenderer.invoke(IPC.notes.resolveM365Video, input),
     readClipboardImage: (): Promise<{ dataBase64: string; contentType: string } | null> =>
       ipcRenderer.invoke(IPC.notes.readClipboardImage),
     onScreenClipTrigger: (handler: () => void): (() => void) => {

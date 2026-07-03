@@ -71,6 +71,7 @@ export function openQuickCapturePopout(): void {
   }
 
   const { x, y } = nextPosition()
+  const icon = resolveAppWindowIcon()
   const win = new BrowserWindow({
     width: POPOUT_WIDTH,
     height: POPOUT_HEIGHT,
@@ -79,14 +80,17 @@ export function openQuickCapturePopout(): void {
     x,
     y,
     show: false,
+    autoHideMenuBar: true,
+    backgroundColor: '#0e0e12',
     title: 'Schnellnotiz',
-    icon: resolveAppWindowIcon(),
     ...popoutWindowTitleBarOptions(),
+    ...(icon ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.mjs'),
+      sandbox: false,
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: true
+      webSecurity: true
     }
   })
 

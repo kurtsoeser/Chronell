@@ -12,6 +12,10 @@ describe('parseNoteWikiLinkHref', () => {
     expect(parseNoteWikiLinkHref('#chronell-note-7')).toBe(7)
   })
 
+  it('parst Chronell-Hash in vollständiger URL', () => {
+    expect(parseNoteWikiLinkHref('http://localhost:5173/#chronell-note-7')).toBe(7)
+  })
+
   it('parst Legacy-Schema', () => {
     expect(parseNoteWikiLinkHref('chronell-note:3')).toBe(3)
   })
