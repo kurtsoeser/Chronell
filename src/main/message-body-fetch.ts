@@ -14,6 +14,7 @@ import { shouldUseEwsForMicrosoftMail } from './ews/microsoft-mail-transport'
 import { fetchEwsMessageBody } from './ews/mail-body-ews'
 import type { gmail_v1 } from 'googleapis'
 import type { MailFull } from '@shared/types'
+import { isDemoAccount } from './demo/demo-accounts'
 
 /** Hintergrund-Index: kein endloses Warten auf Graph/OAuth (interaktive Anmeldung). */
 const BACKGROUND_BODY_FETCH_TIMEOUT_MS = 90_000
@@ -144,7 +145,7 @@ export async function fetchAndStoreMessageBodyIfMissing(
 
   const accounts = await listAccounts()
   const account = accounts.find((a) => a.id === msg.accountId)
-  if (!account || !msg.remoteId) {
+  if (!account || !msg.remoteId || isDemoAccount(account)) {
     return skipBackgroundBodyIndex(messageId, opts)
   }
 

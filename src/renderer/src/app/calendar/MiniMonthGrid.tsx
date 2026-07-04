@@ -122,7 +122,12 @@ export function MiniMonthGrid({
   }
 
   return (
-    <div className={cn('rounded-md bg-card', compact ? 'p-1.5' : 'border border-border p-3')}>
+    <div
+      className={cn(
+        'rounded-md border',
+        compact ? 'border-border/70 bg-muted/20 p-1.5' : 'border-border bg-card p-3'
+      )}
+    >
       <div className={cn('flex items-center justify-between gap-2', compact ? 'mb-1' : 'mb-2')}>
         <button
           type="button"

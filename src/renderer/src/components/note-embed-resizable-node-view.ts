@@ -97,23 +97,47 @@ export function createNoteEmbedResizableNodeView(
   }
   frame.appendChild(iframe)
 
+  let iframeSrcLoaded = false
+  let lazyObserver: IntersectionObserver | null = null
+
   const applySrc = () => {
     iframe.src = config.buildIframeSrc(
       config.usesEditorTheme ? { theme: readEditorTheme(editor) } : undefined
     )
   }
 
+  const placeholder = document.createElement('div')
+  placeholder.className = 'note-embed-lazy-placeholder'
+  placeholder.setAttribute('aria-hidden', 'true')
+  placeholder.textContent = config.title
+
+  const loadIframeSrc = () => {
+    if (iframeSrcLoaded) {
+      applySrc()
+      return
+    }
+    iframeSrcLoaded = true
+    lazyObserver?.disconnect()
+    lazyObserver = null
+    placeholder.remove()
+    iframe.hidden = false
+    applySrc()
+  }
+
+  iframe.hidden = true
+  frame.insertBefore(placeholder, iframe)
+
   const setInteractive = (next: boolean) => {
     interactive = next
     container.classList.toggle('note-embed--interactive', interactive)
   }
 
-  applySrc()
-
   if (config.usesEditorTheme) {
     const themeRoot = editor.view.dom.closest('[data-compose-theme]')
     if (themeRoot) {
-      themeObserver = new MutationObserver(() => applySrc())
+      themeObserver = new MutationObserver(() => {
+        if (iframeSrcLoaded) applySrc()
+      })
       themeObserver.observe(themeRoot, { attributes: true, attributeFilter: ['data-compose-theme'] })
     }
   }
@@ -146,7 +170,7 @@ export function createNoteEmbedResizableNodeView(
         container.setAttribute(config.dataAttr, currentValue)
         config.syncContainerAttrs?.(container, updatedNode)
         config.onValueChange?.(nextValue)
-        applySrc()
+        loadIframeSrc()
       }
       const width = updatedNode.attrs.width as number | null | undefined
       const height = updatedNode.attrs.height as number | null | undefined
@@ -169,6 +193,17 @@ export function createNoteEmbedResizableNodeView(
   container.setAttribute(config.dataAttr, currentValue)
   config.syncContainerAttrs?.(container, node)
   container.contentEditable = 'false'
+
+  lazyObserver = new IntersectionObserver(
+    (entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        loadIframeSrc()
+      }
+    },
+    { rootMargin: '200px' }
+  )
+  lazyObserver.observe(container)
+
   applyEmbedChromeSize(
     container,
     node.attrs.width as number | null | undefined,
@@ -183,6 +218,7 @@ export function createNoteEmbedResizableNodeView(
     '▶',
     i18n.t('notes.embed.interact', { defaultValue: 'Mit Inhalt interagieren' }),
     () => {
+      loadIframeSrc()
       setInteractive(!interactive)
       const interactLabel = interactive
         ? i18n.t('notes.embed.stopInteract', { defaultValue: 'Interaktion beenden' })
@@ -208,6 +244,7 @@ export function createNoteEmbedResizableNodeView(
 
   const originalDestroy = nodeView.destroy.bind(nodeView)
   nodeView.destroy = () => {
+    lazyObserver?.disconnect()
     themeObserver?.disconnect()
     chrome.remove()
     originalDestroy()

@@ -11,6 +11,7 @@ import {
   noteEmbedUrlLooksInsertable,
   type NoteEmbedProviderId
 } from '@shared/note-embed-insert'
+import type { NoteEmbedInsertTarget } from '@shared/note-embed-insert'
 import { insertNoteEmbedInEditor, resolveNoteEmbedInsertTarget } from '@/lib/note-embed-insert'
 import { ModalPanel, ModalRoot } from '@/components/motion/Modal'
 import { cn } from '@/lib/utils'
@@ -18,6 +19,7 @@ import { cn } from '@/lib/utils'
 export function NoteEmbedInsertDialog({
   open,
   editorRef,
+  insertEmbedRef,
   onClose,
   onInserted,
   onChangeHtml,
@@ -25,6 +27,7 @@ export function NoteEmbedInsertDialog({
 }: {
   open: boolean
   editorRef: MutableRefObject<Editor | null>
+  insertEmbedRef?: MutableRefObject<((target: NoteEmbedInsertTarget) => boolean) | null>
   onClose: () => void
   onInserted: () => void
   onChangeHtml?: (html: string) => void
@@ -68,10 +71,12 @@ export function NoteEmbedInsertDialog({
   const canInsert = noteEmbedUrlLooksInsertable(url) && !inserting
 
   const handleInsert = useCallback(async (): Promise<void> => {
-    const editor = editorRef.current
-    if (!editor || editor.isDestroyed) return
     const trimmed = url.trim()
     if (!trimmed) return
+    if (!insertEmbedRef?.current) {
+      const editor = editorRef.current
+      if (!editor || editor.isDestroyed) return
+    }
 
     setInserting(true)
     setResolveError(null)
@@ -81,7 +86,9 @@ export function NoteEmbedInsertDialog({
         setResolveError(t('notes.embedInsert.unsupportedUrl'))
         return
       }
-      const ok = insertNoteEmbedInEditor(editor, target, onChangeHtml)
+      const ok = insertEmbedRef?.current
+        ? insertEmbedRef.current(target)
+        : insertNoteEmbedInEditor(editorRef.current!, target, onChangeHtml)
       if (!ok) {
         onError?.(t('notes.embedInsert.insertFailed'))
         return
@@ -93,7 +100,7 @@ export function NoteEmbedInsertDialog({
     } finally {
       setInserting(false)
     }
-  }, [editorRef, onChangeHtml, onClose, onError, onInserted, t, url])
+  }, [editorRef, insertEmbedRef, onChangeHtml, onClose, onError, onInserted, t, url])
 
   if (!open) return null
 
@@ -231,7 +238,7 @@ export function NoteEmbedInsertDialog({
           </button>
           <button
             type="button"
-            disabled={!canInsert || !editorRef.current}
+            disabled={!canInsert || (!insertEmbedRef?.current && !editorRef.current)}
             onClick={(): void => {
               void handleInsert()
             }}

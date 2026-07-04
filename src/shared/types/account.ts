@@ -1,7 +1,7 @@
 import type { AccountAvatarIconId, AccountAvatarKind } from '../account-avatar'
 import type { MailRuleDefinition, MailRuleTrigger } from '../mail-rules'
 
-export type Provider = 'microsoft' | 'google'
+export type Provider = 'microsoft' | 'google' | 'demo'
 
 /** Transport fuer Microsoft-Mail-Aktionen (Sync weiterhin Graph). */
 export type MicrosoftMailTransport = 'graph' | 'ews' | 'auto'
@@ -49,6 +49,11 @@ export interface ConnectedAccount {
   avatarIconId?: AccountAvatarIconId | null
   /** Eigenes Bild unter userData/avatars, wenn `avatarKind === 'custom'`. */
   customAvatarFile?: string | null
+  /**
+   * Demo-Konto ohne OAuth/Sync (nur lokale Daten).
+   * `undefined` = echtes Cloud-Konto.
+   */
+  isDemo?: boolean
   /**
    * Kalender-API: maximal wie viele Tage ab heute (Mitternacht lokal) in die Zukunft Termine geladen werden.
    * `null` = keine Begrenzung (bis zum Ende des angefragten Ansichtszeitraums).

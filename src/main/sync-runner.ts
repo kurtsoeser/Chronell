@@ -20,6 +20,7 @@ import {
 import { countMessagesInFolder, listMessageIdsByRemoteIds } from './db/messages-repo'
 import { getFolderSyncState } from './db/sync-state-repo'
 import { listAccounts } from './accounts'
+import { isDemoAccount } from './demo/demo-accounts'
 import { runInboxRulesForNewMessages } from './rule-runner'
 import { broadcastMailChanged } from './ipc/ipc-broadcasts'
 import { queueEntityEmbeddingsAfterMailSync } from './ai/entity-embeddings-queue'
@@ -70,6 +71,11 @@ async function runInitialSyncInner(
   try {
     const accounts = await listAccounts()
     const acc = accounts.find((a) => a.id === accountId)
+    if (acc && isDemoAccount(acc)) {
+      touchAccountMailSyncFinished(accountId)
+      broadcast({ accountId, state: 'idle' })
+      return { folders: 0, inboxMessages: 0 }
+    }
     let result: { folders: number; inboxMessages: number; sentMessages?: number }
     if (acc?.provider === 'google') {
       result = await syncGoogleAccountInitial(accountId)
@@ -302,6 +308,10 @@ export async function runAccountPoll(
   extraFolderIds: number[] = [],
   options?: { allPopulatedFolders?: boolean }
 ): Promise<void> {
+  const accounts = await listAccounts()
+  const acc = accounts.find((a) => a.id === accountId)
+  if (acc && isDemoAccount(acc)) return
+
   const toPoll = collectPollFolderIdsForAccount(accountId, extraFolderIds, options)
   if (toPoll.length === 0) {
     await runInitialSync(accountId)
@@ -347,6 +357,10 @@ export async function runFolderSync(folderId: number, limit = 50): Promise<numbe
   const folder = findFolderById(folderId)
   if (!folder) throw new Error(`Folder ${folderId} not found in DB.`)
 
+  const accounts = await listAccounts()
+  const accSync = accounts.find((a) => a.id === folder.accountId)
+  if (accSync && isDemoAccount(accSync)) return 0
+
   broadcast({ accountId: folder.accountId, state: 'syncing-messages' })
   await yieldToMainThread()
   try {
@@ -391,6 +405,7 @@ export async function runFolderPoll(folderId: number): Promise<number> {
   try {
     const accounts = await listAccounts()
     const acc = accounts.find((a) => a.id === folder.accountId)
+    if (acc && isDemoAccount(acc)) return 0
     const result =
       acc?.provider === 'google'
         ? await pollGoogleFolderIfNeeded(folder.accountId, folder.remoteId)

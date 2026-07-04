@@ -3,6 +3,9 @@ import type { UserNote } from '@shared/types'
 
 export const NOTES_AUTOSAVE_DEBOUNCE_MS = 800
 
+/** Debounce für Verknüpfungs-Panel: HTML-Parsing nur nach Pause im Tippen. */
+export const NOTES_LINKS_BODY_DEBOUNCE_MS = 1000
+
 export type NoteScheduleDraft = {
   scheduledStartIso: string | null
   scheduledEndIso: string | null

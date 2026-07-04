@@ -2,6 +2,7 @@ import { app } from 'electron'
 import { cp, mkdir, readdir, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { APP_PRODUCT_NAME } from '@shared/app-version'
+import { getDemoUserDataDirName, isDemoProfileRequested } from './demo/demo-profile'
 
 /** Früherer Electron-`userData`-Ordner (package.json `name`: mailclient). */
 export const LEGACY_USER_DATA_DIR_NAME = 'mailclient' as const
@@ -138,5 +139,6 @@ export async function migrateLegacyUserDataIfNeeded(): Promise<UserDataMigration
 /** Frühestmöglicher Aufruf: Anzeigename + userData-Pfad (nicht package.json `mailclient`). */
 export function configureChronellAppPaths(): void {
   app.setName(APP_PRODUCT_NAME)
-  app.setPath('userData', join(app.getPath('appData'), APP_PRODUCT_NAME))
+  const dirName = isDemoProfileRequested() ? getDemoUserDataDirName() : APP_PRODUCT_NAME
+  app.setPath('userData', join(app.getPath('appData'), dirName))
 }

@@ -18,7 +18,7 @@ import type {
   NoteLinksBundle,
   NoteEntityLinkTargetKind
 } from '@shared/note-entity-links'
-import { collectNoteEntityMentionsFromHtml } from '@shared/note-entity-mentions-from-html'
+import { mergeNoteLinksWithBodyMentions } from '@/app/notes/notes-link-preview-items'
 import { cn } from '@/lib/utils'
 import { EntityLinkFilterTabs } from '@/components/EntityLinkFilterTabs'
 import { NoteEntityLinkChip } from '@/components/NoteEntityLinkChip'
@@ -34,33 +34,6 @@ const PICKER_KINDS: NoteEntityLinkTargetKind[] = [
   'cloud_task',
   'people_contact'
 ]
-
-function mergeOutgoingWithBodyMentions(
-  outgoing: NoteEntityLinkedItem[],
-  bodyHtml: string | undefined,
-  noteId: number
-): NoteEntityLinkedItem[] {
-  if (!bodyHtml?.trim()) return outgoing
-
-  const seen = new Set(outgoing.map((item) => noteEntityLinkTargetKey(item.target)))
-  const merged = [...outgoing]
-
-  for (const mention of collectNoteEntityMentionsFromHtml(bodyHtml)) {
-    if (mention.target.kind === 'note' && mention.target.noteId === noteId) continue
-    const key = noteEntityLinkTargetKey(mention.target)
-    if (seen.has(key)) continue
-    seen.add(key)
-    merged.push({
-      linkId: 0,
-      target: mention.target,
-      title: mention.title,
-      subtitle: null,
-      createdAt: ''
-    })
-  }
-
-  return merged
-}
 
 function kindIcon(kind: NoteEntityLinkTargetKind): typeof StickyNote {
   if (kind === 'mail') return Mail
@@ -105,7 +78,7 @@ export function NotesLinkedObjectsPanel({
   const [candidates, setCandidates] = useState<NoteLinkTargetCandidate[]>([])
   const [busy, setBusy] = useState(false)
   const outgoingItems = useMemo(
-    () => mergeOutgoingWithBodyMentions(bundle.outgoing, bodyHtml, noteId),
+    () => mergeNoteLinksWithBodyMentions(bundle.outgoing, bodyHtml, noteId),
     [bundle.outgoing, bodyHtml, noteId]
   )
 

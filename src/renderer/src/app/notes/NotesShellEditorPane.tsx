@@ -3,6 +3,7 @@ import { AppWindow, CalendarDays, CalendarPlus, Image, Loader2, PenLine, Refresh
 import { useTranslation } from 'react-i18next'
 import type { Editor } from '@tiptap/react'
 import type { NoteCloudTaskRef } from '@shared/note-cloud-task'
+import type { NoteEmbedInsertTarget } from '@shared/note-embed-insert'
 import { TipTapNoteEditorLazy } from '@/components/TipTapNoteEditorLazy'
 import { moduleColumnHeaderOutlineSmClass } from '@/components/ModuleColumnHeader'
 import { NoteEditorDropZone } from '@/app/notes/NoteEditorDropZone'
@@ -36,6 +37,8 @@ export interface NotesShellEditorPaneProps {
   onEntityMentionLinkAdded?: () => void
   onEntityMentionLinkError?: (message: string) => void
   editorRef: MutableRefObject<Editor | null>
+  editorInsertEmbedRef: MutableRefObject<((target: NoteEmbedInsertTarget) => boolean) | null>
+  editorFocusedRef: MutableRefObject<boolean>
   saving: boolean
   scrollFooter?: ReactNode
 }
@@ -66,6 +69,8 @@ export const NotesShellEditorPane = memo(function NotesShellEditorPane({
   onEntityMentionLinkAdded,
   onEntityMentionLinkError,
   editorRef,
+  editorInsertEmbedRef,
+  editorFocusedRef,
   saving,
   scrollFooter
 }: NotesShellEditorPaneProps): JSX.Element {
@@ -203,7 +208,7 @@ export const NotesShellEditorPane = memo(function NotesShellEditorPane({
         </p>
       ) : null}
       <TipTapNoteEditorLazy
-        key={noteId}
+        documentKey={noteId}
         valueHtml={editorSeedHtml}
         onChangeHtml={onChangeHtml}
         placeholder={t('notes.editor.placeholder')}
@@ -222,6 +227,8 @@ export const NotesShellEditorPane = memo(function NotesShellEditorPane({
         onEntityMentionLinkAdded={onEntityMentionLinkAdded}
         onEntityMentionLinkError={onEntityMentionLinkError}
         editorRef={editorRef}
+        insertEmbedRef={editorInsertEmbedRef}
+        editorFocusedRef={editorFocusedRef}
         actionBarStart={actionBarStart}
         scrollEditorBodyOnly
         scrollFooter={scrollFooter}

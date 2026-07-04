@@ -1,5 +1,5 @@
-import { memo, useEffect, useState, type ReactNode } from 'react'
-import { CalendarDays } from 'lucide-react'
+import { memo, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { CalendarDays, CheckCircle2, Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { UserNote } from '@shared/types'
 import { CalendarEventIconPicker } from '@/components/CalendarEventIconPicker'
@@ -13,7 +13,11 @@ import { ChronellDateField } from '@/components/ChronellDateField'
 import { ChronellTimeField } from '@/components/ChronellTimeField'
 import { noteKindLabel } from '@/app/notes/notes-display-helpers'
 import { resolveEntityIconColor } from '@shared/entity-icon-color'
+import type { NoteEditorSaveStatus } from '@/lib/note-editor-save-status'
+import { noteEditorSaveStatusLabel } from '@/lib/note-editor-save-status'
+import { resolveRendererDisplayTimeZone } from '@/lib/calendar-event-timezone'
 import { cn } from '@/lib/utils'
+import { useAccountsStore } from '@/stores/accounts'
 
 function OneNoteMetaDot(): JSX.Element {
   return (
@@ -103,6 +107,8 @@ export interface NotesOneNotePageHeaderProps {
   onLinksLoaded?: (bundle: NoteLinksBundle) => void
   linkedPreviewOpen?: boolean
   onLinkedPreviewToggle?: () => void
+  saveStatus?: NoteEditorSaveStatus
+  lastSavedAt?: string | null
 }
 
 export const NotesOneNotePageHeader = memo(function NotesOneNotePageHeader({
@@ -130,10 +136,21 @@ export const NotesOneNotePageHeader = memo(function NotesOneNotePageHeader({
   onSelectLinkForPreview,
   onLinksLoaded,
   linkedPreviewOpen,
-  onLinkedPreviewToggle
+  onLinkedPreviewToggle,
+  saveStatus = 'idle',
+  lastSavedAt = null
 }: NotesOneNotePageHeaderProps): JSX.Element {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const calendarTzConfig = useAccountsStore((s) => s.config?.calendarTimeZone)
+  const saveDisplay = useMemo(
+    () => ({
+      timeZone: resolveRendererDisplayTimeZone(calendarTzConfig),
+      localeCode: (i18n.language.startsWith('de') ? 'de' : 'en') as 'de' | 'en'
+    }),
+    [calendarTzConfig, i18n.language]
+  )
   const [titleDraft, setTitleDraft] = useState(initialTitle)
+  const saveStatusLabel = noteEditorSaveStatusLabel(saveStatus, t, lastSavedAt, saveDisplay)
 
   const pageDateIso = scheduleNote.scheduledStartIso ?? note.createdAt
 
@@ -266,6 +283,31 @@ export const NotesOneNotePageHeader = memo(function NotesOneNotePageHeader({
           className="min-w-0 flex-1 border-0 bg-transparent py-1 text-3xl font-normal tracking-tight text-foreground outline-none placeholder:text-muted-foreground/60 focus:ring-0"
           aria-label={t('notes.shell.titlePlaceholder')}
         />
+        {saveStatusLabel ? (
+          <span
+            className={cn(
+              'mt-2 inline-flex shrink-0 items-center gap-1 self-center text-xs',
+              saveStatus === 'error' || saveStatus === 'conflict'
+                ? 'text-destructive'
+                : saveStatus === 'saving'
+                  ? 'text-muted-foreground'
+                  : saveStatus === 'unsaved'
+                    ? 'text-amber-600 dark:text-amber-500'
+                    : 'text-muted-foreground'
+            )}
+            aria-live="polite"
+          >
+            {saveStatus === 'saving' ? (
+              <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden />
+            ) : saveStatus === 'saved' ? (
+              <CheckCircle2
+                className="h-3.5 w-3.5 shrink-0 text-green-600 dark:text-green-500"
+                aria-hidden
+              />
+            ) : null}
+            {saveStatusLabel}
+          </span>
+        ) : null}
       </div>
 
       <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-sm">

@@ -116,6 +116,7 @@ import {
   type UserNoteSearchFilters,
   type UserNoteListInRangeFilters,
   type UserNoteListItem,
+  type UserNoteShellBootstrapResult,
   type UserNoteMailUpsertInput,
   type UserNotePeopleContactUpsertInput,
   type UserNoteMoveToSectionInput,
@@ -215,6 +216,8 @@ getMail: (messageId: number): Promise<UserNote | null> =>
     delete: (id: number): Promise<void> => ipcRenderer.invoke(IPC.notes.delete, id),
     list: (filters?: UserNoteListFilters): Promise<UserNoteListItem[]> =>
       ipcRenderer.invoke(IPC.notes.list, filters ?? {}),
+    listShellBootstrap: (filters?: UserNoteListFilters): Promise<UserNoteShellBootstrapResult> =>
+      ipcRenderer.invoke(IPC.notes.listShellBootstrap, filters ?? {}),
     search: (filters: UserNoteSearchFilters): Promise<UserNoteListItem[]> =>
       ipcRenderer.invoke(IPC.notes.search, filters),
     getById: (id: number): Promise<UserNoteListItem | null> =>

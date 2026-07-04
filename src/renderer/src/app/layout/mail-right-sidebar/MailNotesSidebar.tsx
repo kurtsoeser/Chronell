@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ExternalLink, Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -11,15 +11,13 @@ import {
   MAIL_NOTES_SIDEBAR_EDITOR_HEIGHT_MIN,
   mailNotesSidebarEditorHeightMax
 } from '@/app/layout/mail-right-sidebar/mail-notes-sidebar-storage'
-import type { NoteSection, UserNote, UserNoteListItem } from '@shared/types'
+import type { NoteSection, UserNoteListItem } from '@shared/types'
+import { useNoteBodyEditing } from '@/app/notes/hooks/use-note-body-editing'
 import { NotesPagesPane } from '@/app/notes/NotesPagesPane'
 import { ComposeEditorThemeToggle } from '@/components/ComposeEditorThemeToggle'
 import { TipTapNoteEditorLazy } from '@/components/TipTapNoteEditorLazy'
-import {
-  noteBodiesEqual,
-  prepareNoteBodyForEditor,
-  storedBodyFromEditorHtml
-} from '@/lib/note-body-html'
+import { getNoteByIdCached } from '@/lib/note-get-by-id-cache'
+import { persistNoteListItemBody, userNoteToListItem } from '@/lib/note-body-persist'
 import { readNotesPagesSort, type NotesPagesSortKey } from '@/lib/notes-pages-sort'
 import { buildNotesPageRows } from '@/lib/notes-page-tree'
 import {
@@ -29,70 +27,14 @@ import {
 } from '@/lib/notes-page-collapse-storage'
 import { safeMoveNoteToParent } from '@/lib/notes-ipc-client'
 import { resolveNotePageTemplate, type NotePageTemplateId } from '@/lib/note-page-templates'
+import type { NotePageCreateOverride } from '@/lib/note-page-create'
 import { useCustomNotePageTemplates } from '@/hooks/use-custom-note-page-templates'
 import { useNotesSettingsPrefs } from '@/lib/use-notes-settings-prefs'
 import { cn } from '@/lib/utils'
 import { useAppModeStore } from '@/stores/app-mode'
 import { useNotesPendingFocusStore } from '@/stores/notes-pending-focus'
 
-const AUTOSAVE_MS = 800
 const EMPTY_NOTE_SELECTION: ReadonlySet<number> = new Set()
-
-function userNoteToListItem(note: UserNote): UserNoteListItem {
-  return {
-    ...note,
-    mailSubject: null,
-    mailAccountId: null,
-    mailFromAddr: null,
-    mailFromName: null,
-    mailSnippet: null,
-    mailSentAt: null,
-    mailReceivedAt: null,
-    mailIsRead: null,
-    mailHasAttachments: null,
-    primaryLinkKind: null
-  }
-}
-
-async function persistNoteBody(
-  note: UserNoteListItem,
-  body: string
-): Promise<UserNote> {
-  const storedBody = storedBodyFromEditorHtml(body)
-  if (note.kind === 'standalone') {
-    return window.mailClient.notes.updateStandalone({
-      id: note.id,
-      title: note.title ?? '',
-      body: storedBody
-    })
-  }
-  if (note.kind === 'mail' && note.messageId != null) {
-    return window.mailClient.notes.upsertMail({
-      messageId: note.messageId,
-      title: note.title ?? '',
-      body: storedBody
-    })
-  }
-  if (
-    note.kind === 'calendar' &&
-    note.accountId &&
-    note.calendarSource &&
-    note.calendarRemoteId &&
-    note.eventRemoteId
-  ) {
-    return window.mailClient.notes.upsertCalendar({
-      accountId: note.accountId,
-      calendarSource: note.calendarSource,
-      calendarRemoteId: note.calendarRemoteId,
-      eventRemoteId: note.eventRemoteId,
-      title: note.title ?? '',
-      body: storedBody,
-      eventTitleSnapshot: note.eventTitleSnapshot,
-      eventStartIsoSnapshot: note.eventStartIsoSnapshot
-    })
-  }
-  throw new Error('invalid note')
-}
 
 export function MailNotesSidebar(): JSX.Element {
   const { t } = useTranslation()
@@ -111,13 +53,26 @@ export function MailNotesSidebar(): JSX.Element {
   )
   const [activeNoteId, setActiveNoteId] = useState<number | null>(null)
   const [composeNote, setComposeNote] = useState<UserNoteListItem | null>(null)
-  const [editorSeedHtml, setEditorSeedHtml] = useState('')
-  const [savingBody, setSavingBody] = useState(false)
 
-  const bodyRef = useRef('')
-  const editorFlushRef = useRef<(() => void) | null>(null)
-  const savedBodyRef = useRef('')
-  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const bodyEditing = useNoteBodyEditing({
+    note: composeNote,
+    autosaveMs: 800,
+    persistBody: persistNoteListItemBody,
+    onSaved: (saved): void => {
+      setNotes((prev) => prev.map((n) => (n.id === saved.id ? { ...n, ...saved } : n)))
+      setComposeNote((prev) => (prev != null ? { ...prev, ...saved } : prev))
+    }
+  })
+
+  const {
+    editorFlushRef,
+    editorSeedHtml,
+    saving: savingBody,
+    handleBodyChange,
+    flushSave: flushBodySave,
+    loadNoteBody,
+    savedBodyRef
+  } = bodyEditing
 
   const editorPaneHeightMax = mailNotesSidebarEditorHeightMax()
   const [editorPaneHeight, setEditorPaneHeight] = useResizableHeight({
@@ -141,43 +96,56 @@ export function MailNotesSidebar(): JSX.Element {
   const load = useCallback(async (): Promise<void> => {
     setLoading(true)
     try {
-      const result = await window.mailClient.notes.list({
+      const result = await window.mailClient.notes.listShellBootstrap({
         kinds: [],
         accountIds: [],
         dateFrom: null,
         dateTo: null,
         scheduledOnly: false,
-        limit: 400
+        limit: 400,
+        omitBody: true
       })
-      setNotes(result)
+      setNotes(result.notes)
+      setSections(result.sections)
     } catch {
       setNotes([])
+      try {
+        setSections(await window.mailClient.notes.sections.list())
+      } catch {
+        setSections([])
+      }
     } finally {
       setLoading(false)
     }
   }, [])
 
-  const loadSections = useCallback(async (): Promise<void> => {
-    try {
-      const rows = await window.mailClient.notes.sections.list()
-      setSections(rows)
-    } catch {
-      setSections([])
-    }
-  }, [])
-
   useEffect(() => {
     void load()
-    void loadSections()
-  }, [load, loadSections])
+  }, [load])
 
   useEffect(() => {
-    const off = window.mailClient.events.onNotesChanged(() => {
+    const off = window.mailClient.events.onNotesChanged((detail) => {
+      if (detail.deleted && detail.noteId != null) {
+        setNotes((prev) => prev.filter((n) => n.id !== detail.noteId))
+        return
+      }
+      if (detail.patch && detail.noteId != null) {
+        setNotes((prev) => {
+          const exists = prev.some((n) => n.id === detail.noteId)
+          if (!exists && detail.scope === 'structure') {
+            return [{ ...detail.patch, id: detail.noteId } as UserNoteListItem, ...prev]
+          }
+          if (!exists) return prev
+          return prev.map((n) =>
+            n.id === detail.noteId ? ({ ...n, ...detail.patch, id: detail.noteId! } as UserNoteListItem) : n
+          )
+        })
+        return
+      }
       void load()
-      void loadSections()
     })
     return off
-  }, [load, loadSections])
+  }, [load])
 
   const pagesNotes = useMemo(() => notes, [notes])
   const pageRows = useMemo(
@@ -190,89 +158,29 @@ export function MailNotesSidebar(): JSX.Element {
     const fresh = notes.find((n) => n.id === composeNote.id)
     if (
       fresh != null &&
-      fresh.body !== composeNote.body &&
-      fresh.body === savedBodyRef.current
+      fresh.updatedAt !== composeNote.updatedAt
     ) {
-      const editorHtml = prepareNoteBodyForEditor(fresh.body).html
-      setComposeNote(fresh)
-      bodyRef.current = editorHtml
-      setEditorSeedHtml(editorHtml)
-      savedBodyRef.current = fresh.body
-    }
-  }, [composeNote, notes])
-
-  const flushBodySave = useCallback(async (): Promise<void> => {
-    if (autosaveTimerRef.current != null) {
-      clearTimeout(autosaveTimerRef.current)
-      autosaveTimerRef.current = null
-    }
-    if (composeNote == null) return
-    editorFlushRef.current?.()
-    const storedDraft = storedBodyFromEditorHtml(bodyRef.current)
-    if (noteBodiesEqual(storedDraft, savedBodyRef.current)) return
-    setSavingBody(true)
-    try {
-      const saved = await persistNoteBody(composeNote, bodyRef.current)
-      const editorHtml = prepareNoteBodyForEditor(saved.body).html
-      bodyRef.current = editorHtml
-      savedBodyRef.current = saved.body
-      setEditorSeedHtml(editorHtml)
-      setNotes((prev) =>
-        prev.map((n) => (n.id === composeNote.id ? { ...n, ...saved } : n))
-      )
-      setComposeNote((prev) => (prev != null ? { ...prev, ...saved } : prev))
-    } catch {
-      // ignore
-    } finally {
-      setSavingBody(false)
-    }
-  }, [composeNote])
-
-  const beginCompose = useCallback((note: UserNoteListItem): void => {
-    void (async (): Promise<void> => {
-      if (autosaveTimerRef.current != null) {
-        clearTimeout(autosaveTimerRef.current)
-        autosaveTimerRef.current = null
-      }
-      await flushBodySave()
-
-      const prepared = prepareNoteBodyForEditor(note.body)
-      const editorHtml = prepared.html
-      bodyRef.current = editorHtml
-      savedBodyRef.current = note.body
-      setActiveNoteId(note.id)
-      setComposeNote(note)
-      setEditorSeedHtml(editorHtml)
-      if (prepared.migratedFromMarkdown) {
-        try {
-          const saved = await persistNoteBody(note, editorHtml)
-          const syncedHtml = prepareNoteBodyForEditor(saved.body).html
-          bodyRef.current = syncedHtml
-          savedBodyRef.current = saved.body
-          setEditorSeedHtml(syncedHtml)
-          setComposeNote((prev) => (prev?.id === saved.id ? { ...prev, ...saved } : prev))
-          setNotes((prev) => prev.map((n) => (n.id === saved.id ? { ...n, ...saved } : n)))
-        } catch {
-          // Migriertes HTML bleibt im Editor.
+      void getNoteByIdCached(fresh.id).then((full) => {
+        if (!full || full.updatedAt === composeNote.updatedAt) return
+        if (full.body === savedBodyRef.current) {
+          setComposeNote(full)
+          void loadNoteBody(full)
         }
-      }
-    })()
-  }, [flushBodySave])
+      })
+    }
+  }, [composeNote, loadNoteBody, notes, savedBodyRef])
 
-  const scheduleBodyAutosave = useCallback((): void => {
-    if (autosaveTimerRef.current != null) clearTimeout(autosaveTimerRef.current)
-    autosaveTimerRef.current = setTimeout(() => {
-      autosaveTimerRef.current = null
-      void flushBodySave()
-    }, AUTOSAVE_MS)
-  }, [flushBodySave])
-
-  const handleBodyChange = useCallback(
-    (html: string): void => {
-      bodyRef.current = html
-      scheduleBodyAutosave()
+  const beginCompose = useCallback(
+    (note: UserNoteListItem): void => {
+      void (async (): Promise<void> => {
+        await flushBodySave()
+        const full = (await getNoteByIdCached(note.id)) ?? note
+        setActiveNoteId(full.id)
+        setComposeNote(full)
+        await loadNoteBody(full)
+      })()
     },
-    [scheduleBodyAutosave]
+    [flushBodySave, loadNoteBody]
   )
 
   const openNote = useCallback(
@@ -281,16 +189,6 @@ export function MailNotesSidebar(): JSX.Element {
     },
     [beginCompose]
   )
-
-  useEffect(() => {
-    return (): void => {
-      if (autosaveTimerRef.current != null) {
-        clearTimeout(autosaveTimerRef.current)
-        autosaveTimerRef.current = null
-      }
-      void flushBodySave()
-    }
-  }, [flushBodySave])
 
   const openInNotesModule = useCallback(
     async (noteId?: number): Promise<void> => {
@@ -315,10 +213,14 @@ export function MailNotesSidebar(): JSX.Element {
 
   const renameNoteTitleInList = useCallback(async (note: UserNoteListItem, title: string): Promise<void> => {
     try {
+      const body =
+        composeNote?.id === note.id
+          ? savedBodyRef.current
+          : ((await getNoteByIdCached(note.id)) ?? note).body
       if (note.kind === 'standalone') {
-        await window.mailClient.notes.updateStandalone({ id: note.id, title, body: note.body })
+        await window.mailClient.notes.updateStandalone({ id: note.id, title, body })
       } else if (note.kind === 'mail' && note.messageId != null) {
-        await window.mailClient.notes.upsertMail({ messageId: note.messageId, title, body: note.body })
+        await window.mailClient.notes.upsertMail({ messageId: note.messageId, title, body })
       } else if (
         note.kind === 'calendar' &&
         note.accountId &&
@@ -332,7 +234,7 @@ export function MailNotesSidebar(): JSX.Element {
           calendarRemoteId: note.calendarRemoteId,
           eventRemoteId: note.eventRemoteId,
           title,
-          body: note.body,
+          body,
           eventTitleSnapshot: note.eventTitleSnapshot,
           eventStartIsoSnapshot: note.eventStartIsoSnapshot
         })
@@ -341,7 +243,7 @@ export function MailNotesSidebar(): JSX.Element {
     } catch {
       // ignore
     }
-  }, [load])
+  }, [composeNote?.id, load, savedBodyRef])
 
   const deleteNote = useCallback(async (note: UserNoteListItem): Promise<void> => {
     try {
@@ -376,11 +278,11 @@ export function MailNotesSidebar(): JSX.Element {
     try {
       await window.mailClient.notes.moveToSection({ noteId: note.id, sectionId })
       void load()
-      void loadSections()
+      void load()
     } catch {
       // ignore
     }
-  }, [load, loadSections])
+  }, [load])
 
   const createSubPage = useCallback(
     async (parent: UserNoteListItem): Promise<void> => {
@@ -424,29 +326,34 @@ export function MailNotesSidebar(): JSX.Element {
   }, [])
 
   const createStandalone = useCallback(
-    async (templateId: NotePageTemplateId = notesSettings.defaultNotePageTemplateId): Promise<void> => {
+    async (
+      templateId: NotePageTemplateId = notesSettings.defaultNotePageTemplateId,
+      override?: NotePageCreateOverride
+    ): Promise<void> => {
     setCreating(true)
     try {
       await flushBodySave()
       const template = resolveNotePageTemplate(templateId, customTemplates, t)
+      const title =
+        override?.title ??
+        (template.id === 'blank'
+          ? t('notes.shell.newStandaloneTitle')
+          : template.title)
       const note = await window.mailClient.notes.createStandalone({
-        title:
-          template.id === 'blank'
-            ? t('notes.shell.newStandaloneTitle')
-            : template.title,
-        body: storedBodyFromEditorHtml(template.bodyHtml),
+        title,
+        body: storedBodyFromEditorHtml(override?.bodyHtml ?? template.bodyHtml),
         sectionId: null
       })
       beginCompose(userNoteToListItem(note))
       void load()
-      void loadSections()
+      void load()
     } catch {
       // ignore
     } finally {
       setCreating(false)
     }
   },
-    [beginCompose, customTemplates, flushBodySave, load, loadSections, notesSettings.defaultNotePageTemplateId, t]
+    [beginCompose, customTemplates, flushBodySave, load, notesSettings.defaultNotePageTemplateId, t]
   )
 
   return (
@@ -529,7 +436,7 @@ export function MailNotesSidebar(): JSX.Element {
           onCreateSubPage={createSubPage}
           onMoveToParent={moveNoteToParent}
           onTogglePageCollapse={togglePageCollapse}
-          onCreateNote={(templateId): void => void createStandalone(templateId)}
+          onCreateNote={(templateId, override): void => void createStandalone(templateId, override)}
           creating={creating}
           pagesSort={pagesSort}
           onPagesSortChange={setPagesSort}

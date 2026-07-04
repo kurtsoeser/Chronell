@@ -1,5 +1,6 @@
 import type { AttachmentMeta } from '@shared/types'
 import { listAccounts } from './accounts'
+import { isDemoAccount } from './demo/demo-accounts'
 import { listAttachmentsMeta } from './graph/attachments'
 import {
   downloadEwsAttachmentBytes,
@@ -24,6 +25,7 @@ export async function fetchMailAttachmentsMeta(messageId: number): Promise<Attac
   try {
     const accounts = await listAccounts()
     const acc = accounts.find((a) => a.id === msg.accountId)
+    if (acc && isDemoAccount(acc)) return []
     if (acc?.provider === 'google') {
       return await gmailListAttachmentsMeta(msg.accountId, msg.remoteId)
     }
@@ -49,6 +51,9 @@ export async function downloadMailAttachmentBytes(
   }
   const accounts = await listAccounts()
   const acc = accounts.find((a) => a.id === msg.accountId)
+  if (acc && isDemoAccount(acc)) {
+    throw new Error('Demo-Modus: Anhänge werden nicht vom Provider geladen.')
+  }
   if (acc?.provider === 'google') {
     return gmailDownloadAttachmentBytes(msg.accountId, msg.remoteId, attachmentId)
   }

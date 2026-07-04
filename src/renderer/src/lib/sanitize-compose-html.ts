@@ -1,9 +1,22 @@
 import DOMPurify from 'dompurify'
 import { NOTE_INK_HTML_SOURCE_ATTR } from '@shared/note-ink-document'
 import { NOTE_CLOUD_TASK_HTML_ATTRS } from '@shared/note-cloud-task'
+import { NOTE_FORM_FIELD_SANITIZE_ATTRS } from '@shared/note-form-field'
 import { noteEmbedSanitizeDataAttrs } from '@shared/note-embed-registry'
 import { isAllowedNoteEmbedIframeSrc } from '@shared/note-embed-frame'
 import { stripUnresolvedCidUrls } from '@/lib/sanitize'
+
+const NOTE_MEDIA_SRC_PREFIX = 'note-media://'
+
+function allowNoteMediaSrcHook(
+  node: Element,
+  data: { attrName: string; attrValue: string; forceKeepAttr?: boolean }
+): void {
+  if (data.attrName !== 'src' || node.tagName !== 'IMG') return
+  if (data.attrValue.startsWith(NOTE_MEDIA_SRC_PREFIX)) {
+    data.forceKeepAttr = true
+  }
+}
 
 const SANITIZE: DOMPurify.Config = {
   ALLOWED_TAGS: [
@@ -62,7 +75,8 @@ const SANITIZE: DOMPurify.Config = {
     'data-type',
     'data-checked',
     NOTE_INK_HTML_SOURCE_ATTR,
-    ...NOTE_CLOUD_TASK_HTML_ATTRS
+    ...NOTE_CLOUD_TASK_HTML_ATTRS,
+    ...NOTE_FORM_FIELD_SANITIZE_ATTRS
   ],
   ALLOW_DATA_ATTR: false,
   ALLOW_UNKNOWN_PROTOCOLS: false,
@@ -100,10 +114,12 @@ function sanitizeHtmlFragment(html: string, config: DOMPurify.Config): string {
     }
   }
   DOMPurify.addHook('afterSanitizeAttributes', hook)
+  DOMPurify.addHook('uponSanitizeAttribute', allowNoteMediaSrcHook)
   try {
     return DOMPurify.sanitize(trimmed, config as import('dompurify').Config)
   } finally {
     DOMPurify.removeHook('afterSanitizeAttributes', hook)
+    DOMPurify.removeHook('uponSanitizeAttribute', allowNoteMediaSrcHook)
   }
 }
 

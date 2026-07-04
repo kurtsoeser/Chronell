@@ -69,15 +69,15 @@ describe('strokesToSvgMarkup', () => {
 
 describe('buildNoteInkInsertHtml', () => {
   it('baut img-Tag mit data-Attribut', () => {
-    const html = buildNoteInkInsertHtml('data:image/png;base64,abc', 7)
-    expect(html).toContain('data:image/png;base64,abc')
+    const html = buildNoteInkInsertHtml('note-media://attachment/5/12', 7)
+    expect(html).toContain('note-media://attachment/5/12')
     expect(html).toContain('note-ink-snapshot')
     expect(html).toContain(`${NOTE_INK_HTML_SOURCE_ATTR}="7"`)
   })
 
-  it('escaped Anführungszeichen in data URLs', () => {
-    const html = buildNoteInkInsertHtml('data:image/png;base64,"x"', 1)
-    expect(html).not.toContain('base64,"x"')
+  it('escaped Anführungszeichen in URLs', () => {
+    const html = buildNoteInkInsertHtml('note-media://attachment/1/"x"', 1)
+    expect(html).not.toContain('attachment/1/"x"')
     expect(html).toContain('&quot;')
   })
 })

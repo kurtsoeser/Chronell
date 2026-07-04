@@ -1,3 +1,5 @@
+import { buildNoteDateFieldHtml } from '@shared/note-form-field'
+
 export type BuiltinNotePageTemplateGroupKey =
   | 'general'
   | 'meetings'
@@ -19,6 +21,12 @@ export type BuiltinNotePageTemplateId =
   | 'decisionLog'
   | 'riskRegister'
   | 'weekly'
+  | 'weeklyOverview'
+  | 'monthlyOverview'
+  | 'monthlyFitnessTracker'
+  | 'weeklyTimetable'
+  | 'studentAttendanceList'
+  | 'dailyPlanner'
   | 'dailyReview'
   | 'okr'
   | 'habitTracker'
@@ -34,6 +42,13 @@ export type BuiltinNotePageTemplateId =
   | 'bugReport'
   | 'apiDesign'
   | 'incidentReport'
+
+/** Parametrische Planer-Vorlagen (Woche/Monat/Tag per Dialog). */
+export type NotePlannerTemplateKind =
+  | 'weeklyOverview'
+  | 'monthlyOverview'
+  | 'monthlyFitnessTracker'
+  | 'dailyPlanner'
 
 /** Eingebaute oder benutzerdefinierte Vorlagen-ID (`custom-…`). */
 export type NotePageTemplateId = BuiltinNotePageTemplateId | string
@@ -96,7 +111,7 @@ export const NOTE_PAGE_TEMPLATES: BuiltinNotePageTemplate[] = [
     descriptionKey: 'notes.templates.meeting.description',
     bodyHtml: [
       '<h2>Meeting</h2>',
-      '<p><strong>Datum:</strong> </p>',
+      `<p><strong>Datum:</strong> ${buildNoteDateFieldHtml()}</p>`,
       '<p><strong>Teilnehmer:</strong> </p>',
       '<h3>Agenda</h3>',
       BULLET_LIST('', ''),
@@ -132,7 +147,7 @@ export const NOTE_PAGE_TEMPLATES: BuiltinNotePageTemplate[] = [
     descriptionKey: 'notes.templates.standup.description',
     bodyHtml: [
       '<h2>Daily Standup</h2>',
-      '<p><strong>Datum:</strong> </p>',
+      `<p><strong>Datum:</strong> ${buildNoteDateFieldHtml()}</p>`,
       '<p><strong>Team:</strong> </p>',
       '<h3>Gestern erledigt</h3>',
       BULLET_LIST('', ''),
@@ -261,6 +276,48 @@ export const NOTE_PAGE_TEMPLATES: BuiltinNotePageTemplate[] = [
       '<h3>Notizen</h3>',
       '<p></p>'
     ].join('')
+  },
+  {
+    id: 'weeklyOverview',
+    groupKey: 'productivity',
+    titleKey: 'notes.templates.weeklyOverview.title',
+    descriptionKey: 'notes.templates.weeklyOverview.description',
+    bodyHtml: ''
+  },
+  {
+    id: 'monthlyOverview',
+    groupKey: 'productivity',
+    titleKey: 'notes.templates.monthlyOverview.title',
+    descriptionKey: 'notes.templates.monthlyOverview.description',
+    bodyHtml: ''
+  },
+  {
+    id: 'monthlyFitnessTracker',
+    groupKey: 'productivity',
+    titleKey: 'notes.templates.monthlyFitnessTracker.title',
+    descriptionKey: 'notes.templates.monthlyFitnessTracker.description',
+    bodyHtml: ''
+  },
+  {
+    id: 'weeklyTimetable',
+    groupKey: 'productivity',
+    titleKey: 'notes.templates.weeklyTimetable.title',
+    descriptionKey: 'notes.templates.weeklyTimetable.description',
+    bodyHtml: ''
+  },
+  {
+    id: 'studentAttendanceList',
+    groupKey: 'people',
+    titleKey: 'notes.templates.studentAttendanceList.title',
+    descriptionKey: 'notes.templates.studentAttendanceList.description',
+    bodyHtml: ''
+  },
+  {
+    id: 'dailyPlanner',
+    groupKey: 'productivity',
+    titleKey: 'notes.templates.dailyPlanner.title',
+    descriptionKey: 'notes.templates.dailyPlanner.description',
+    bodyHtml: ''
   },
   {
     id: 'dailyReview',

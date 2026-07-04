@@ -1431,5 +1431,60 @@ export const MIGRATIONS: Migration[] = [
         ON user_notes(is_pinned)
         WHERE is_pinned = 1;
     `
+  },
+  {
+    version: 50,
+    description: 'Notizen: body_fts_text für FTS und Listen-Vorschau',
+    sql: `
+      ALTER TABLE user_notes ADD COLUMN body_fts_text TEXT;
+
+      DROP TRIGGER IF EXISTS user_notes_fts_ai;
+      DROP TRIGGER IF EXISTS user_notes_fts_ad;
+      DROP TRIGGER IF EXISTS user_notes_fts_au;
+      DROP TRIGGER IF EXISTS messages_au_user_notes_fts;
+
+      CREATE TRIGGER user_notes_fts_ai AFTER INSERT ON user_notes BEGIN
+        INSERT INTO user_notes_fts(rowid, title, body, event_title, mail_subject)
+        VALUES (
+          new.id,
+          COALESCE(new.title, ''),
+          COALESCE(new.body_fts_text, ''),
+          COALESCE(new.event_title_snapshot, ''),
+          COALESCE((SELECT subject FROM messages WHERE id = new.message_id), '')
+        );
+      END;
+
+      CREATE TRIGGER user_notes_fts_ad AFTER DELETE ON user_notes BEGIN
+        DELETE FROM user_notes_fts WHERE rowid = old.id;
+      END;
+
+      CREATE TRIGGER user_notes_fts_au AFTER UPDATE ON user_notes BEGIN
+        DELETE FROM user_notes_fts WHERE rowid = old.id;
+        INSERT INTO user_notes_fts(rowid, title, body, event_title, mail_subject)
+        VALUES (
+          new.id,
+          COALESCE(new.title, ''),
+          COALESCE(new.body_fts_text, ''),
+          COALESCE(new.event_title_snapshot, ''),
+          COALESCE((SELECT subject FROM messages WHERE id = new.message_id), '')
+        );
+      END;
+
+      CREATE TRIGGER messages_au_user_notes_fts
+      AFTER UPDATE OF subject ON messages
+      WHEN old.subject IS NOT new.subject BEGIN
+        DELETE FROM user_notes_fts
+        WHERE rowid IN (SELECT id FROM user_notes WHERE message_id = new.id);
+        INSERT INTO user_notes_fts(rowid, title, body, event_title, mail_subject)
+        SELECT
+          n.id,
+          COALESCE(n.title, ''),
+          COALESCE(n.body_fts_text, ''),
+          COALESCE(n.event_title_snapshot, ''),
+          COALESCE(new.subject, '')
+        FROM user_notes n
+        WHERE n.message_id = new.id;
+      END;
+    `
   }
 ]

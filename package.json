@@ -44,7 +44,10 @@
     "validate:knip": "knip",
     "docs:ipc-reference": "node scripts/generate-ipc-reference.mjs",
     "check": "npm run typecheck && npm run test && npm run lint && npm run validate:i18n && npm run validate:version",
-    "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"electron/**/*.ts\""
+    "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"electron/**/*.ts\"",
+    "demo:build-pack": "node scripts/build-demo-pack.mjs",
+    "demo:launch": "cross-env CHRONELL_DEMO=1 npm run dev",
+    "demo:reset": "node scripts/reset-demo-profile.mjs"
   },
   "dependencies": {
     "@azure/msal-node": "^5.2.1",
@@ -146,6 +149,7 @@
     "sharp": "^0.33.5",
     "tailwindcss": "^3.4.15",
     "to-ico": "^1.1.5",
+    "tsx": "^4.22.5",
     "typescript": "^5.6.3",
     "vite": "^5.4.11",
     "vitest": "^3.0.5"

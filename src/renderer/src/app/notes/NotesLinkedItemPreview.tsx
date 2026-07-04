@@ -8,6 +8,7 @@ import { CloudTaskItemPreview } from '@/app/calendar/CloudTaskItemPreview'
 import type { TaskItemWithContext } from '@/app/tasks/tasks-types'
 import { ReadingPane } from '@/app/layout/ReadingPane'
 import { formatNoteDate, noteTitle } from '@/app/notes/notes-display-helpers'
+import { resolvePeopleContactForPreview } from '@/app/notes/resolve-people-contact-for-preview'
 import { NoteDisplayIcon } from '@/components/NoteDisplayIcon'
 import { RichTextNotesPreview } from '@/components/RichTextNotesPreview'
 import { useThemeStore } from '@/stores/theme'
@@ -18,13 +19,17 @@ export function NotesLinkedItemPreview({
   accounts,
   editingNoteId,
   editingMessageId,
-  editingNoteKind
+  editingNoteKind,
+  fallbackLabel,
+  fallbackSubtitle
 }: {
   target: NoteEntityLinkTarget
   accounts: ConnectedAccount[]
   editingNoteId: number
   editingMessageId: number | null
   editingNoteKind: UserNote['kind']
+  fallbackLabel?: string
+  fallbackSubtitle?: string | null
 }): JSX.Element {
   const { t, i18n } = useTranslation()
   const viewerTheme = useThemeStore((s) => s.effective)
@@ -96,7 +101,11 @@ export function NotesLinkedItemPreview({
         }
 
         if (target.kind === 'people_contact') {
-          const contact = await window.mailClient.people.getById(target.contactId)
+          const contact = await resolvePeopleContactForPreview(target.contactId, {
+            label: fallbackLabel,
+            subtitle: fallbackSubtitle,
+            untitledLabel: t('people.shell.linkedNotesUntitledContact')
+          })
           if (!cancelled) setLinkedContact(contact)
           return
         }
@@ -136,7 +145,7 @@ export function NotesLinkedItemPreview({
     return (): void => {
       cancelled = true
     }
-  }, [target, accounts, editingNoteId, t])
+  }, [target, accounts, editingNoteId, fallbackLabel, fallbackSubtitle, t])
 
   const accountLabel = useMemo((): string | null => {
     if (target.kind !== 'calendar_event' && target.kind !== 'cloud_task') return null

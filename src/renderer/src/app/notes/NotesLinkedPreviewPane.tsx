@@ -75,6 +75,8 @@ const NotesLinkedPreviewBody = memo(function NotesLinkedPreviewBody({
       editingNoteId={editing.id}
       editingMessageId={editing.messageId ?? null}
       editingNoteKind={editing.kind}
+      fallbackLabel={entry.label}
+      fallbackSubtitle={entry.subtitle}
     />
   )
 })

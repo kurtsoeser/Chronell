@@ -1,4 +1,5 @@
 import { normalizeEntityIconColor } from '@shared/entity-icon-color'
+import { noteBodyFtsText } from '@shared/note-body-fts-text'
 import { getDb } from './index'
 import {
   buildSqlPhraseRankCaseMulti,
@@ -20,8 +21,10 @@ import type {
   UserNoteScheduleFields,
   UserNoteSearchFilters,
   UserNoteStandaloneCreateInput,
-  UserNoteStandaloneUpdateInput
+  UserNoteStandaloneUpdateInput,
+  UserNoteShellBootstrapResult
 } from '@shared/types'
+import { listNoteSections } from './note-sections-repo'
 import { NOTE_DEFAULT_APPOINTMENT_MINUTES } from '@shared/note-calendar-span'
 import {
   addNoteEntityLink,
@@ -45,6 +48,7 @@ interface UserNoteRow {
   event_remote_id: string | null
   title: string | null
   body: string
+  body_fts_text?: string | null
   created_at: string
   updated_at: string
   event_title_snapshot: string | null
@@ -90,17 +94,26 @@ const NOTE_PRIMARY_LINK_SUBQUERY = `(
 
 const NOTE_SELECT = `
   id, kind, message_id, account_id, calendar_source, calendar_remote_id, event_remote_id,
-  title, body, created_at, updated_at, event_title_snapshot, event_start_iso_snapshot,
+  title, body, body_fts_text, created_at, updated_at, event_title_snapshot, event_start_iso_snapshot,
   scheduled_start_iso, scheduled_end_iso, scheduled_all_day, section_id, sort_order,
   icon_id, icon_color, parent_note_id, is_pinned
 `
 
 const NOTE_SELECT_N = `
   n.id, n.kind, n.message_id, n.account_id, n.calendar_source, n.calendar_remote_id, n.event_remote_id,
-  n.title, n.body, n.created_at, n.updated_at, n.event_title_snapshot, n.event_start_iso_snapshot,
+  n.title, n.body, n.body_fts_text, n.created_at, n.updated_at, n.event_title_snapshot, n.event_start_iso_snapshot,
   n.scheduled_start_iso, n.scheduled_end_iso, n.scheduled_all_day, n.section_id, n.sort_order,
   n.icon_id, n.icon_color, n.parent_note_id, n.is_pinned
 `
+
+function noteListBodyColumns(omitBody: boolean): string {
+  return omitBody ? `'' AS body, n.body_fts_text` : `n.body, n.body_fts_text`
+}
+
+function noteBodyColumnParams(body: string | undefined): { body: string; body_fts_text: string } {
+  const value = body ?? ''
+  return { body: value, body_fts_text: noteBodyFtsText(value) }
+}
 
 export type { NoteCalendarSpan } from '@shared/note-calendar-span'
 export { resolveNoteCalendarSpan } from '@shared/note-calendar-span'
@@ -186,9 +199,15 @@ function parsePrimaryLinkKind(value: string | null): UserNoteListItem['primaryLi
   return null
 }
 
-function rowToListItem(row: UserNoteListRow): UserNoteListItem {
+function rowToListItem(row: UserNoteListRow, options?: { omitBody?: boolean }): UserNoteListItem {
+  const note = rowToNote(row)
+  const bodyPreview = row.body_fts_text ?? (options?.omitBody ? noteBodyFtsText(note.body) : null)
+  if (options?.omitBody) {
+    note.body = ''
+  }
   return {
-    ...rowToNote(row),
+    ...note,
+    bodyPreview,
     mailSubject: row.mail_subject,
     mailAccountId: row.mail_account_id,
     mailFromAddr: row.mail_from_addr,
@@ -254,17 +273,18 @@ export function upsertMailNote(input: UserNoteMailUpsertInput): UserNote {
   const db = getDb()
   db.prepare(
     `INSERT INTO user_notes (
-       kind, message_id, title, body, created_at, updated_at,
+       kind, message_id, title, body, body_fts_text, created_at, updated_at,
        scheduled_start_iso, scheduled_end_iso, scheduled_all_day, section_id, sort_order
      )
      VALUES (
-       'mail', @messageId, @title, @body, datetime('now'), datetime('now'),
+       'mail', @messageId, @title, @body, @body_fts_text, datetime('now'), datetime('now'),
        @scheduled_start_iso, @scheduled_end_iso, @scheduled_all_day, @section_id, @sort_order
      )
      ON CONFLICT(message_id) WHERE kind = 'mail'
      DO UPDATE SET
        title = excluded.title,
        body = excluded.body,
+       body_fts_text = excluded.body_fts_text,
        updated_at = datetime('now'),
        scheduled_start_iso = excluded.scheduled_start_iso,
        scheduled_end_iso = excluded.scheduled_end_iso,
@@ -274,7 +294,7 @@ export function upsertMailNote(input: UserNoteMailUpsertInput): UserNote {
   ).run({
     messageId: Math.floor(input.messageId),
     title: normalizeNullableText(input.title),
-    body: input.body ?? '',
+    ...noteBodyColumnParams(input.body),
     ...schedule,
     section_id: input.sectionId ?? null,
     sort_order: input.sortOrder ?? 0
@@ -474,18 +494,19 @@ export function upsertCalendarNote(input: UserNoteCalendarUpsertInput): UserNote
   db.prepare(
     `INSERT INTO user_notes (
        kind, account_id, calendar_source, calendar_remote_id, event_remote_id,
-       title, body, created_at, updated_at, event_title_snapshot, event_start_iso_snapshot,
+       title, body, body_fts_text, created_at, updated_at, event_title_snapshot, event_start_iso_snapshot,
        scheduled_start_iso, scheduled_end_iso, scheduled_all_day, section_id, sort_order
      )
      VALUES (
        'calendar', @accountId, @calendarSource, @calendarRemoteId, @eventRemoteId,
-       @title, @body, datetime('now'), datetime('now'), @eventTitleSnapshot, @eventStartIsoSnapshot,
+       @title, @body, @body_fts_text, datetime('now'), datetime('now'), @eventTitleSnapshot, @eventStartIsoSnapshot,
        @scheduled_start_iso, @scheduled_end_iso, @scheduled_all_day, @section_id, @sort_order
      )
      ON CONFLICT(account_id, calendar_source, calendar_remote_id, event_remote_id) WHERE kind = 'calendar'
      DO UPDATE SET
        title = excluded.title,
        body = excluded.body,
+       body_fts_text = excluded.body_fts_text,
        updated_at = datetime('now'),
        event_title_snapshot = excluded.event_title_snapshot,
        event_start_iso_snapshot = excluded.event_start_iso_snapshot,
@@ -500,7 +521,7 @@ export function upsertCalendarNote(input: UserNoteCalendarUpsertInput): UserNote
     calendarRemoteId: input.calendarRemoteId,
     eventRemoteId: input.eventRemoteId,
     title: normalizeNullableText(input.title),
-    body: input.body ?? '',
+    ...noteBodyColumnParams(input.body),
     eventTitleSnapshot: normalizeNullableText(input.eventTitleSnapshot),
     eventStartIsoSnapshot: normalizeNullableText(input.eventStartIsoSnapshot),
     ...schedule,
@@ -522,20 +543,22 @@ export function createStandaloneNote(input: UserNoteStandaloneCreateInput): User
     if (!parent) throw new Error('Übergeordnete Notiz nicht gefunden.')
     if (sectionId == null) sectionId = parent.sectionId ?? null
   }
+  const bodyCols = noteBodyColumnParams(input.body)
   const info = getDb()
     .prepare(
       `INSERT INTO user_notes (
-         kind, title, body, created_at, updated_at,
+         kind, title, body, body_fts_text, created_at, updated_at,
          scheduled_start_iso, scheduled_end_iso, scheduled_all_day, section_id, sort_order, parent_note_id
        )
        VALUES (
-         'standalone', ?, ?, datetime('now'), datetime('now'),
+         'standalone', ?, ?, ?, datetime('now'), datetime('now'),
          ?, ?, ?, ?, ?, ?
        )`
     )
     .run(
       normalizeNullableText(input.title),
-      input.body ?? '',
+      bodyCols.body,
+      bodyCols.body_fts_text,
       schedule.scheduled_start_iso,
       schedule.scheduled_end_iso,
       schedule.scheduled_all_day,
@@ -572,17 +595,20 @@ export function updateStandaloneNote(input: UserNoteStandaloneUpdateInput): User
     })
   }
 
+  const nextBody = input.body !== undefined ? input.body : existing.body
+  const bodyCols = noteBodyColumnParams(nextBody)
   getDb()
     .prepare(
       `UPDATE user_notes
-       SET title = ?, body = ?, updated_at = datetime('now'),
+       SET title = ?, body = ?, body_fts_text = ?, updated_at = datetime('now'),
            scheduled_start_iso = ?, scheduled_end_iso = ?, scheduled_all_day = ?,
            section_id = ?, sort_order = ?
        WHERE id = ? AND kind = 'standalone'`
     )
     .run(
       input.title !== undefined ? normalizeNullableText(input.title) : existing.title,
-      input.body !== undefined ? input.body : existing.body,
+      bodyCols.body,
+      bodyCols.body_fts_text,
       schedule.scheduled_start_iso,
       schedule.scheduled_end_iso,
       schedule.scheduled_all_day,
@@ -601,13 +627,20 @@ export function getNoteById(id: number): UserNote | null {
   return row ? rowToNote(row) : null
 }
 
-export function getNoteListItemById(id: number): UserNoteListItem | null {
+export function getNoteListItemById(
+  id: number,
+  options?: { omitBody?: boolean }
+): UserNoteListItem | null {
   assertPositiveId(id, 'Notiz-ID')
   tryAutoLinkNoteToContactByTitle(id)
+  const omitBody = options?.omitBody ?? false
   const row = getDb()
     .prepare(
       `SELECT
-         ${NOTE_SELECT_N},
+         n.id, n.kind, n.message_id, n.account_id, n.calendar_source, n.calendar_remote_id, n.event_remote_id,
+         n.title, ${noteListBodyColumns(omitBody)}, n.created_at, n.updated_at, n.event_title_snapshot, n.event_start_iso_snapshot,
+         n.scheduled_start_iso, n.scheduled_end_iso, n.scheduled_all_day, n.section_id, n.sort_order,
+         n.icon_id, n.icon_color, n.parent_note_id, n.is_pinned,
          m.subject as mail_subject,
          m.account_id as mail_account_id,
          m.from_addr as mail_from_addr,
@@ -623,7 +656,7 @@ export function getNoteListItemById(id: number): UserNoteListItem | null {
        WHERE n.id = ?`
     )
     .get(id) as UserNoteListRow | undefined
-  return row ? attachCategoriesToListItems([rowToListItem(row)])[0] ?? null : null
+  return row ? attachCategoriesToListItems([rowToListItem(row, { omitBody })])[0] ?? null : null
 }
 
 export function setNoteSchedule(input: UserNoteScheduleInput): UserNote {
@@ -788,6 +821,7 @@ function appendCategoriesAnyFilter(
 export function listNotes(filters: UserNoteListFilters = {}): UserNoteListItem[] {
   const where: string[] = []
   const params: unknown[] = []
+  const omitBody = filters.omitBody ?? true
 
   const kinds = (filters.kinds ?? []).filter((k) => k === 'mail' || k === 'calendar' || k === 'standalone')
   if (kinds.length > 0) {
@@ -837,7 +871,10 @@ export function listNotes(filters: UserNoteListFilters = {}): UserNoteListItem[]
   const rows = getDb()
     .prepare(
       `SELECT
-         ${NOTE_SELECT_N},
+         n.id, n.kind, n.message_id, n.account_id, n.calendar_source, n.calendar_remote_id, n.event_remote_id,
+         n.title, ${noteListBodyColumns(omitBody)}, n.created_at, n.updated_at, n.event_title_snapshot, n.event_start_iso_snapshot,
+         n.scheduled_start_iso, n.scheduled_end_iso, n.scheduled_all_day, n.section_id, n.sort_order,
+         n.icon_id, n.icon_color, n.parent_note_id, n.is_pinned,
          m.subject as mail_subject,
          m.account_id as mail_account_id,
          m.from_addr as mail_from_addr,
@@ -855,7 +892,49 @@ export function listNotes(filters: UserNoteListFilters = {}): UserNoteListItem[]
        LIMIT ?`
     )
     .all(...params, limit) as UserNoteListRow[]
-  return attachCategoriesToListItems(rows.map(rowToListItem))
+  return attachCategoriesToListItems(rows.map((row) => rowToListItem(row, { omitBody })))
+}
+
+export function listNotesShellBootstrap(
+  filters: UserNoteListFilters = {}
+): UserNoteShellBootstrapResult {
+  return {
+    notes: listNotes({ ...filters, omitBody: filters.omitBody ?? true }),
+    sections: listNoteSections()
+  }
+}
+
+export function backfillNoteBodyFtsTextIfNeeded(): void {
+  const db = getDb()
+  const pending = db
+    .prepare(
+      `SELECT COUNT(*) AS c FROM user_notes WHERE body_fts_text IS NULL AND TRIM(COALESCE(body, '')) != ''`
+    )
+    .get() as { c: number }
+  if (pending.c === 0) return
+
+  const rows = db
+    .prepare(`SELECT id, body FROM user_notes WHERE body_fts_text IS NULL`)
+    .all() as Array<{ id: number; body: string }>
+  const update = db.prepare(`UPDATE user_notes SET body_fts_text = ? WHERE id = ?`)
+  const tx = db.transaction(() => {
+    for (const row of rows) {
+      update.run(noteBodyFtsText(row.body), row.id)
+    }
+    db.exec(`
+      DELETE FROM user_notes_fts;
+      INSERT INTO user_notes_fts(rowid, title, body, event_title, mail_subject)
+      SELECT
+        n.id,
+        COALESCE(n.title, ''),
+        COALESCE(n.body_fts_text, ''),
+        COALESCE(n.event_title_snapshot, ''),
+        COALESCE(m.subject, '')
+      FROM user_notes n
+      LEFT JOIN messages m ON m.id = n.message_id;
+    `)
+  })
+  tx()
 }
 
 /**
@@ -892,10 +971,14 @@ export function searchNotes(filters: UserNoteSearchFilters): UserNoteListItem[] 
       : 30
 
   const baseParams: unknown[] = [cleaned, ...(phraseRank?.params ?? []), ...categoryParams]
+  const omitBody = true
   const rows = getDb()
     .prepare(
       `SELECT
-         ${NOTE_SELECT_N},
+         n.id, n.kind, n.message_id, n.account_id, n.calendar_source, n.calendar_remote_id, n.event_remote_id,
+         n.title, ${noteListBodyColumns(omitBody)}, n.created_at, n.updated_at, n.event_title_snapshot, n.event_start_iso_snapshot,
+         n.scheduled_start_iso, n.scheduled_end_iso, n.scheduled_all_day, n.section_id, n.sort_order,
+         n.icon_id, n.icon_color, n.parent_note_id, n.is_pinned,
          m.subject as mail_subject,
          m.account_id as mail_account_id,
          m.from_addr as mail_from_addr,
@@ -917,7 +1000,7 @@ export function searchNotes(filters: UserNoteSearchFilters): UserNoteListItem[] 
     )
     .all(...(kinds.length > 0 ? [...baseParams, ...kinds, limit] : [...baseParams, limit])) as UserNoteListRow[]
 
-  return attachCategoriesToListItems(rows.map(rowToListItem))
+  return attachCategoriesToListItems(rows.map((row) => rowToListItem(row, { omitBody })))
 }
 
 export function listNotesInRange(filters: UserNoteListInRangeFilters): UserNoteListItem[] {
@@ -955,10 +1038,14 @@ export function listNotesInRange(filters: UserNoteListInRangeFilters): UserNoteL
       ? Math.min(Math.floor(filters.limit), 500)
       : 500
 
+  const omitBody = true
   const rows = getDb()
     .prepare(
       `SELECT
-         ${NOTE_SELECT_N},
+         n.id, n.kind, n.message_id, n.account_id, n.calendar_source, n.calendar_remote_id, n.event_remote_id,
+         n.title, ${noteListBodyColumns(omitBody)}, n.created_at, n.updated_at, n.event_title_snapshot, n.event_start_iso_snapshot,
+         n.scheduled_start_iso, n.scheduled_end_iso, n.scheduled_all_day, n.section_id, n.sort_order,
+         n.icon_id, n.icon_color, n.parent_note_id, n.is_pinned,
          m.subject as mail_subject,
          m.account_id as mail_account_id,
          m.from_addr as mail_from_addr,
@@ -976,7 +1063,7 @@ export function listNotesInRange(filters: UserNoteListInRangeFilters): UserNoteL
        LIMIT ?`
     )
     .all(...params, limit) as UserNoteListRow[]
-  return rows.map(rowToListItem)
+  return attachCategoriesToListItems(rows.map((row) => rowToListItem(row, { omitBody })))
 }
 
 export function listUserNoteIdsInBackupOrder(): number[] {

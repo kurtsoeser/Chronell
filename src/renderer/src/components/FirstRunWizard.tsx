@@ -8,6 +8,7 @@ import {
   Shield,
   SkipForward,
   Wrench,
+  FlaskConical,
   Maximize2,
   Columns2
 } from 'lucide-react'
@@ -36,7 +37,7 @@ import {
 import { cn } from '@/lib/utils'
 
 type SetupPath = 'custom' | 'standard'
-type AccountChoice = 'skip' | 'microsoft' | 'google'
+type AccountChoice = 'skip' | 'microsoft' | 'google' | 'demo'
 
 type StepId =
   | 'welcome'
@@ -147,12 +148,27 @@ export function FirstRunWizard({ onOpenSettings }: Props): JSX.Element {
     await window.mailClient.app.openExternal(u)
   }, [])
 
+  async function handleEnterDemo(): Promise<void> {
+    setBusy(true)
+    setLocalError(null)
+    try {
+      await window.mailClient.demo.enter()
+    } catch (e) {
+      setLocalError(e instanceof Error ? e.message : String(e))
+      setBusy(false)
+    }
+  }
+
   function goBack(): void {
     if (stepIndex <= 0) return
     setStep(steps[stepIndex - 1]!)
   }
 
   function goNext(): void {
+    if (step === 'account' && accountChoice === 'demo') {
+      void handleEnterDemo()
+      return
+    }
     if (step === 'account') {
       if (accountChoice === 'microsoft' && !hasMicrosoft) {
         setStep('accountMicrosoft')
@@ -443,7 +459,24 @@ export function FirstRunWizard({ onOpenSettings }: Props): JSX.Element {
 
       {step === 'account' && (
         <div className="rounded-xl border border-border bg-background/30 p-4">
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <OnboardingOptionCard
+              layout="column"
+              selected={accountChoice === 'demo'}
+              onSelect={(): void => setAccountChoice('demo')}
+              iconNode={
+                <div className="flex h-16 w-16 items-center justify-center rounded-full border border-amber-500/40 bg-amber-500/10">
+                  <FlaskConical className="h-8 w-8 text-amber-600 dark:text-amber-400" />
+                </div>
+              }
+              title={
+                <>
+                  {t('firstRun.accountDemo')}
+                  <OnboardingRecommendedTag label={recommendedLabel} />
+                </>
+              }
+              description={t('firstRun.accountDemoDesc')}
+            />
             <OnboardingOptionCard
               layout="column"
               selected={accountChoice === 'skip'}

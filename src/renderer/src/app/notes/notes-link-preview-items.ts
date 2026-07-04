@@ -1,6 +1,11 @@
 import type { TFunction } from 'i18next'
-import type { NoteEntityLinkTarget, NoteEntityLinkedItem, NoteLinksBundle } from '@shared/note-entity-links'
+import type {
+  NoteEntityLinkTarget,
+  NoteEntityLinkedItem,
+  NoteLinksBundle
+} from '@shared/note-entity-links'
 import { noteEntityLinkTargetKey } from '@shared/note-entity-links'
+import { collectNoteEntityMentionsFromHtml } from '@shared/note-entity-mentions-from-html'
 import type { UserNote } from '@shared/types'
 import { noteTitle } from '@/app/notes/notes-display-helpers'
 
@@ -8,14 +13,44 @@ export type NotesPreviewLinkEntry = {
   key: string
   target: NoteEntityLinkTarget
   label: string
+  subtitle?: string | null
   kindLabel: string
   direction: 'primary' | 'outgoing' | 'incoming'
+}
+
+/** Ergänzt ausgehende Verknüpfungen um @-Erwähnungen aus dem Notiz-HTML (wie in der Kachelansicht). */
+export function mergeNoteLinksWithBodyMentions(
+  outgoing: NoteEntityLinkedItem[],
+  bodyHtml: string | undefined,
+  noteId: number
+): NoteEntityLinkedItem[] {
+  if (!bodyHtml?.trim()) return outgoing
+
+  const seen = new Set(outgoing.map((item) => noteEntityLinkTargetKey(item.target)))
+  const merged = [...outgoing]
+
+  for (const mention of collectNoteEntityMentionsFromHtml(bodyHtml)) {
+    if (mention.target.kind === 'note' && mention.target.noteId === noteId) continue
+    const key = noteEntityLinkTargetKey(mention.target)
+    if (seen.has(key)) continue
+    seen.add(key)
+    merged.push({
+      linkId: 0,
+      target: mention.target,
+      title: mention.title,
+      subtitle: null,
+      createdAt: ''
+    })
+  }
+
+  return merged
 }
 
 export function buildNotesPreviewLinkEntries(
   editing: UserNote,
   bundle: NoteLinksBundle,
-  t: TFunction
+  t: TFunction,
+  bodyHtml?: string
 ): NotesPreviewLinkEntry[] {
   const out: NotesPreviewLinkEntry[] = []
   const seen = new Set<string>()
@@ -24,12 +59,13 @@ export function buildNotesPreviewLinkEntries(
     target: NoteEntityLinkTarget,
     label: string,
     kindLabel: string,
-    direction: NotesPreviewLinkEntry['direction']
+    direction: NotesPreviewLinkEntry['direction'],
+    subtitle?: string | null
   ): void => {
     const key = noteEntityLinkTargetKey(target)
     if (seen.has(key)) return
     seen.add(key)
-    out.push({ key, target, label, kindLabel, direction })
+    out.push({ key, target, label, subtitle, kindLabel, direction })
   }
 
   if (editing.kind === 'mail' && editing.messageId != null) {
@@ -58,12 +94,13 @@ export function buildNotesPreviewLinkEntries(
     )
   }
 
-  for (const item of bundle.outgoing) {
+  for (const item of mergeNoteLinksWithBodyMentions(bundle.outgoing, bodyHtml, editing.id)) {
     push(
       item.target,
       item.title,
       t(`notes.links.kind.${item.target.kind}`),
-      'outgoing'
+      'outgoing',
+      item.subtitle
     )
   }
 
@@ -72,7 +109,8 @@ export function buildNotesPreviewLinkEntries(
       item.target,
       item.title,
       t(`notes.links.kind.${item.target.kind}`),
-      'incoming'
+      'incoming',
+      item.subtitle
     )
   }
 
@@ -96,6 +134,7 @@ export function linkedItemToPreviewEntry(
     key: noteEntityLinkTargetKey(item.target),
     target: item.target,
     label: item.title,
+    subtitle: item.subtitle,
     kindLabel: t(`notes.links.kind.${item.target.kind}`),
     direction
   }

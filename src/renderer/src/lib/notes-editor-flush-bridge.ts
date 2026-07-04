@@ -1,16 +1,16 @@
 type NotesEditorFlushFn = () => Promise<void>
 
-let activeFlush: NotesEditorFlushFn | null = null
+const activeFlushes = new Set<NotesEditorFlushFn>()
 
-/** NotesShell registriert hier den Speicher-Flush fuer Modulwechsel / App-Exit. */
+/** Notes-Editoren registrieren hier den Speicher-Flush für Modulwechsel / App-Exit. */
 export function registerNotesEditorFlush(fn: NotesEditorFlushFn): () => void {
-  activeFlush = fn
+  activeFlushes.add(fn)
   return (): void => {
-    if (activeFlush === fn) activeFlush = null
+    activeFlushes.delete(fn)
   }
 }
 
 export async function flushNotesEditorBeforeLeave(): Promise<void> {
-  if (!activeFlush) return
-  await activeFlush()
+  if (activeFlushes.size === 0) return
+  await Promise.all([...activeFlushes].map((fn) => fn()))
 }

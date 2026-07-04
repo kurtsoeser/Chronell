@@ -20,12 +20,16 @@ import { MailTable, MailTableCell, MailTableHeader } from '@/components/tiptap-m
 import { ComposeTextSnippetsMenu } from '@/components/ComposeTextSnippetsMenu'
 import { TableContextToolbar } from '@/components/tiptap/TableContextToolbar'
 import { TableInsertMenu } from '@/components/tiptap/TableInsertMenu'
+import { NoteFormFieldInsertMenu } from '@/components/tiptap/NoteFormFieldInsertMenu'
+import { NOTE_FORM_FIELD_TIPTAP_EXTENSIONS } from '@/components/tiptap/tiptap-note-form-fields'
 import { TableCellHighlight } from '@/components/tiptap/tiptap-table-cell-highlight'
 import { MailResizableTableView } from '@/components/tiptap/mail-resizable-table-view'
 import { TIPTAP_HIGHLIGHT_COLORS } from '@/components/tiptap/tiptap-editor-colors'
 import { createNoteWikiLinkExtension } from '@/components/tiptap-note-wiki-link'
 import { createNoteEntityMentionExtension } from '@/components/tiptap-note-entity-mention'
 import { NOTE_EMBED_TIPTAP_EXTENSIONS } from '@/components/note-embed-tiptap-extensions'
+import { insertNoteEmbedInEditor } from '@/lib/note-embed-insert'
+import type { NoteEmbedInsertTarget } from '@shared/note-embed-insert'
 import { isNoteWikiLinkHref, parseNoteWikiLinkHref } from '@shared/note-wiki-link'
 import { isNoteEntityMentionHref } from '@shared/note-entity-mention-link'
 import { isEmbeddableNoteUrl } from '@shared/note-embed-registry'
@@ -178,6 +182,12 @@ interface Props {
   scrollEditorBodyOnly?: boolean
   /** Inhalt unter dem Editor-Text, innerhalb des Scroll-Bereichs. */
   scrollFooter?: ReactNode
+  /** Wechsel der Notiz/Seite — setzt Editor-Zustand ohne Komponenten-Remount zurück. */
+  documentKey?: string | number
+  /** Embed per Extension-Name einfügen (lädt Embed-Extensions bei Bedarf nach). */
+  insertEmbedRef?: MutableRefObject<((target: NoteEmbedInsertTarget) => boolean) | null>
+  /** Optional: Editor-Fokus für übergeordnete Sync-Hooks. */
+  editorFocusedRef?: MutableRefObject<boolean>
 }
 
 const TEXT_COLORS: Array<{ value: string; label: string }> = [
@@ -223,7 +233,10 @@ export function TipTapBody({
   editorActionBar,
   stickyEditorChrome = false,
   scrollEditorBodyOnly = false,
-  scrollFooter
+  scrollFooter,
+  documentKey,
+  insertEmbedRef,
+  editorFocusedRef
 }: Props): JSX.Element {
   const { t } = useTranslation()
   const contentMinHeight =
@@ -237,6 +250,7 @@ export function TipTapBody({
   const composePrefs = useComposeSettingsPrefs()
   const lastEmittedHtmlRef = useRef<string | null>(null)
   const initialEditorHtmlRef = useRef<string | null>(null)
+  const documentKeyRef = useRef(documentKey)
   const prepareEditorHtml = enableTaskList ? prepareNoteEditorHtml : prepareComposeEditorHtml
   if (initialEditorHtmlRef.current === null) {
     initialEditorHtmlRef.current = prepareEditorHtml(valueHtml) || '<p></p>'
@@ -286,9 +300,8 @@ export function TipTapBody({
       MailTableHeader,
       MailTableCell,
       TableCellHighlight,
-      ...(enableTaskList
-        ? [NoteCloudTaskList, NoteCloudTaskItem, ...NOTE_EMBED_TIPTAP_EXTENSIONS]
-        : []),
+      ...(enableTaskList ? [NoteCloudTaskList, NoteCloudTaskItem, ...NOTE_FORM_FIELD_TIPTAP_EXTENSIONS] : []),
+      ...(enableTaskList ? NOTE_EMBED_TIPTAP_EXTENSIONS : []),
       ...(enableWikiLinks
         ? [
             createNoteWikiLinkExtension({
@@ -310,6 +323,15 @@ export function TipTapBody({
     ],
     [placeholder, enableTaskList, enableWikiLinks, enableEntityMentions, wikiLinkCurrentNoteId, noteWikiLinks, noteEntityMentions]
   )
+
+  useEffect(() => {
+    if (documentKey === undefined) return
+    if (documentKeyRef.current === documentKey) return
+    documentKeyRef.current = documentKey
+    const prepared = prepareEditorHtml(valueHtml) || '<p></p>'
+    initialEditorHtmlRef.current = prepared
+    lastEmittedHtmlRef.current = null
+  }, [documentKey, valueHtml, enableTaskList, prepareEditorHtml])
 
   const onOpenNoteRef = useRef(noteWikiLinks?.onOpenNote)
   onOpenNoteRef.current = noteWikiLinks?.onOpenNote
@@ -470,6 +492,21 @@ export function TipTapBody({
   }, [editor, insertHtmlRef, onChangeHtml])
 
   useEffect(() => {
+    if (!insertEmbedRef) return
+    if (!editor || editor.isDestroyed) {
+      insertEmbedRef.current = null
+      return
+    }
+    insertEmbedRef.current = (target: NoteEmbedInsertTarget): boolean => {
+      if (!editor || editor.isDestroyed) return false
+      return insertNoteEmbedInEditor(editor, target, onChangeHtml)
+    }
+    return (): void => {
+      insertEmbedRef.current = null
+    }
+  }, [editor, insertEmbedRef, onChangeHtml])
+
+  useEffect(() => {
     if (!replaceInkSnapshotRef) return
     if (!editor || editor.isDestroyed) {
       replaceInkSnapshotRef.current = null
@@ -522,6 +559,22 @@ export function TipTapBody({
       editorRef.current = null
     }
   }, [editor, editorRef])
+
+  useEffect(() => {
+    if (!editorFocusedRef || !editor || editor.isDestroyed) return
+    const onFocus = (): void => {
+      editorFocusedRef.current = true
+    }
+    const onBlur = (): void => {
+      editorFocusedRef.current = false
+    }
+    editor.on('focus', onFocus)
+    editor.on('blur', onBlur)
+    return (): void => {
+      editor.off('focus', onFocus)
+      editor.off('blur', onBlur)
+    }
+  }, [editor, editorFocusedRef])
 
   const [hasTextSelection, setHasTextSelection] = useState(false)
   useEffect(() => {
@@ -1056,6 +1109,7 @@ function Toolbar({
       />
 
       <TableInsertMenu editor={editor} />
+      {enableTaskList ? <NoteFormFieldInsertMenu editor={editor} /> : null}
 
       <Separator />
 

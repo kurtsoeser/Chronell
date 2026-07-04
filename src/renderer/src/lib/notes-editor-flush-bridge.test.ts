@@ -22,4 +22,20 @@ describe('notes-editor-flush-bridge', () => {
     unregister()
     await expect(flushNotesEditorBeforeLeave()).resolves.toBeUndefined()
   })
+
+  it('ruft mehrere registrierte Flushes auf', async () => {
+    let a = 0
+    let b = 0
+    const unregisterA = registerNotesEditorFlush(async () => {
+      a += 1
+    })
+    const unregisterB = registerNotesEditorFlush(async () => {
+      b += 1
+    })
+    await flushNotesEditorBeforeLeave()
+    expect(a).toBe(1)
+    expect(b).toBe(1)
+    unregisterA()
+    unregisterB()
+  })
 })

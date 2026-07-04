@@ -27,6 +27,8 @@ import {
   type UserNoteStandaloneCreateInput,
   type UserNotePatchDisplayInput,
   type UserNoteStandaloneUpdateInput,
+  type NotesChangedScope,
+  type NotesChangedPayload,
   type UserNoteAttachment,
   type UserNoteAttachmentAddCloudInput,
   type UserNoteAttachmentAddLocalInput,
@@ -70,6 +72,7 @@ import {
   getNoteListItemById,
   listNotes,
   listNotesInRange,
+  listNotesShellBootstrap,
   searchNotes,
   moveNoteToSection,
   moveNoteToParent,
@@ -87,9 +90,18 @@ import {
   removeEntityEmbeddingsForNote
 } from '../ai/entity-embeddings-queue'
 import { broadcastEntityLinksChanged, broadcastNotesChanged } from './ipc-broadcasts'
+import { buildNotesChangedPayload } from '../notes-changed-payload'
 import { exportNotePageToPdf, printNotePage } from '../notes-page-export'
 
 const NOTE_ATTACHMENT_READ_LOCAL_MAX_BYTES = 50 * 1024 * 1024
+
+function broadcastNoteDelta(
+  noteId: number,
+  scope: NotesChangedScope,
+  extra?: Omit<NotesChangedPayload, 'noteId' | 'scope' | 'patch' | 'deleted'>
+): void {
+  broadcastNotesChanged({ ...buildNotesChangedPayload(noteId, scope), ...extra })
+}
 
 export function registerNotesIpc(): void {
   ipcMain.handle(IPC.notes.getMail, (_event, messageId: number): UserNote | null =>
@@ -99,7 +111,7 @@ export function registerNotesIpc(): void {
   ipcMain.handle(IPC.notes.upsertMail, (_event, input: UserNoteMailUpsertInput): UserNote => {
     const note = upsertMailNote(input)
     queueEntityEmbeddingForNote(note)
-    broadcastNotesChanged({ kind: 'mail', noteId: note.id, messageId: note.messageId, scope: 'content' })
+    broadcastNoteDelta(note.id, 'content', { kind: 'mail', messageId: note.messageId })
     return note
   })
 
@@ -117,7 +129,7 @@ export function registerNotesIpc(): void {
     (_event, input: UserNotePeopleContactUpsertInput): UserNote => {
       const note = upsertPrimaryNoteForPeopleContact(input)
       queueEntityEmbeddingForNote(note)
-      broadcastNotesChanged({ kind: 'standalone', noteId: note.id, scope: 'content' })
+      broadcastNoteDelta(note.id, 'content', { kind: 'standalone' })
       return note
     }
   )
@@ -131,7 +143,7 @@ export function registerNotesIpc(): void {
     (_event, input: UserNoteCalendarUpsertInput): UserNote => {
       const note = upsertCalendarNote(input)
       queueEntityEmbeddingForNote(note)
-      broadcastNotesChanged({ kind: 'calendar', noteId: note.id, accountId: note.accountId, scope: 'content' })
+      broadcastNoteDelta(note.id, 'content', { kind: 'calendar', accountId: note.accountId })
       return note
     }
   )
@@ -141,7 +153,7 @@ export function registerNotesIpc(): void {
     (_event, input: UserNoteStandaloneCreateInput): UserNote => {
       const note = createStandaloneNote(input)
       queueEntityEmbeddingForNote(note)
-      broadcastNotesChanged({ kind: 'standalone', noteId: note.id, scope: 'structure' })
+      broadcastNoteDelta(note.id, 'structure', { kind: 'standalone' })
       return note
     }
   )
@@ -151,7 +163,7 @@ export function registerNotesIpc(): void {
     (_event, input: UserNoteStandaloneUpdateInput): UserNote => {
       const note = updateStandaloneNote(input)
       queueEntityEmbeddingForNote(note)
-      broadcastNotesChanged({ kind: 'standalone', noteId: note.id, scope: 'content' })
+      broadcastNoteDelta(note.id, 'content', { kind: 'standalone' })
       return note
     }
   )
@@ -159,8 +171,13 @@ export function registerNotesIpc(): void {
   ipcMain.handle(IPC.notes.delete, (_event, id: number): void => {
     removeEntityEmbeddingsForNote(id)
     deleteNote(id)
-    broadcastNotesChanged({ noteId: id, scope: 'structure' })
+    broadcastNotesChanged(buildNotesChangedPayload(id, 'structure', { deleted: true }))
   })
+
+  ipcMain.handle(
+    IPC.notes.listShellBootstrap,
+    (_event, filters?: UserNoteListFilters) => listNotesShellBootstrap(filters ?? {})
+  )
 
   ipcMain.handle(IPC.notes.list, (_event, filters?: UserNoteListFilters): UserNoteListItem[] =>
     listNotes(filters ?? {})
@@ -173,7 +190,7 @@ export function registerNotesIpc(): void {
 
   ipcMain.handle(
     IPC.notes.getById,
-    (_event, id: number): UserNoteListItem | null => getNoteListItemById(id)
+    (_event, id: number): UserNoteListItem | null => getNoteListItemById(id, { omitBody: false })
   )
 
   ipcMain.handle(IPC.notes.patchDisplay, (_event, input: UserNotePatchDisplayInput): UserNote => {
@@ -184,7 +201,7 @@ export function registerNotesIpc(): void {
       iconColor: input.iconColor
     })
     queueEntityEmbeddingForNote(note)
-    broadcastNotesChanged({ noteId: note.id, scope: 'meta' })
+    broadcastNoteDelta(note.id, 'meta')
     return note
   })
 
@@ -196,41 +213,41 @@ export function registerNotesIpc(): void {
   ipcMain.handle(IPC.notes.setSchedule, (_event, input: UserNoteScheduleInput): UserNote => {
     const note = setNoteSchedule(input)
     queueEntityEmbeddingForNote(note)
-    broadcastNotesChanged({ noteId: note.id, kind: note.kind, scope: 'content' })
+    broadcastNoteDelta(note.id, 'content', { kind: note.kind })
     return note
   })
 
   ipcMain.handle(IPC.notes.clearSchedule, (_event, id: number): UserNote => {
     const note = clearNoteSchedule(id)
     queueEntityEmbeddingForNote(note)
-    broadcastNotesChanged({ noteId: note.id, kind: note.kind, scope: 'content' })
+    broadcastNoteDelta(note.id, 'content', { kind: note.kind })
     return note
   })
 
   ipcMain.handle(IPC.notes.moveToSection, (_event, input: UserNoteMoveToSectionInput): UserNote => {
     const note = moveNoteToSection(input)
     queueEntityEmbeddingForNote(note)
-    broadcastNotesChanged({ noteId: note.id, kind: note.kind, scope: 'meta' })
+    broadcastNoteDelta(note.id, 'meta', { kind: note.kind })
     return note
   })
 
   ipcMain.handle(IPC.notes.moveToParent, (_event, input: UserNoteMoveToParentInput): UserNote => {
     const note = moveNoteToParent(input)
     queueEntityEmbeddingForNote(note)
-    broadcastNotesChanged({ noteId: note.id, kind: note.kind, scope: 'meta' })
+    broadcastNoteDelta(note.id, 'meta', { kind: note.kind })
     return note
   })
 
   ipcMain.handle(IPC.notes.setCategories, (_event, input: UserNoteSetCategoriesInput): UserNote => {
     const note = setNoteCategories(input.noteId, input.accountId, input.categories)
     queueEntityEmbeddingForNote(note)
-    broadcastNotesChanged({ noteId: note.id, kind: note.kind, scope: 'meta' })
+    broadcastNoteDelta(note.id, 'meta', { kind: note.kind })
     return note
   })
 
   ipcMain.handle(IPC.notes.setPinned, (_event, input: UserNoteSetPinnedInput): UserNote => {
     const note = setNotePinned(input.noteId, input.isPinned)
-    broadcastNotesChanged({ noteId: note.id, kind: note.kind, scope: 'meta' })
+    broadcastNoteDelta(note.id, 'meta', { kind: note.kind })
     return note
   })
 

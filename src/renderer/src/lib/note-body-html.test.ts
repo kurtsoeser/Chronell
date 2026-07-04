@@ -72,6 +72,14 @@ describe('noteBodiesEqual', () => {
   it('behandelt leeren Editor und leere DB gleich', () => {
     expect(noteBodiesEqual('<p></p>', '')).toBe(true)
   })
+
+  it('behandelt Ink data:-URL und note-media:// als gleich', () => {
+    const editor =
+      '<p><img data-chronell-ink-source="12" src="data:image/png;base64,abc" /></p>'
+    const stored =
+      '<p><img data-chronell-ink-source="12" src="note-media://attachment/1/99" /></p>'
+    expect(noteBodiesEqual(editor, stored)).toBe(true)
+  })
 })
 
 describe('hasNoteBodyContent', () => {

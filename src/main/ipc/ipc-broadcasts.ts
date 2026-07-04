@@ -133,7 +133,18 @@ function scheduleNotesChangedFlush(): void {
 export function broadcastNotesChanged(payload: NotesChangedPayload): void {
   const key = notesChangedKey(payload)
   const prev = pendingNotesChanged.get(key)
-  pendingNotesChanged.set(key, prev ? { ...prev, ...payload } : payload)
+  const merged: NotesChangedPayload = prev
+    ? {
+        ...prev,
+        ...payload,
+        patch:
+          prev.patch || payload.patch
+            ? { ...prev.patch, ...payload.patch }
+            : undefined,
+        deleted: payload.deleted ?? prev.deleted
+      }
+    : payload
+  pendingNotesChanged.set(key, merged)
   scheduleNotesChangedFlush()
 }
 

@@ -1,9 +1,11 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Loader2, PenLine, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { TipTapNoteEditorLazy } from '@/components/TipTapNoteEditorLazy'
 import { storedBodyFromEditorHtml } from '@/lib/note-body-html'
 import { openCreatedNote } from '@/lib/mail-to-note'
+import { registerNotesEditorFlush } from '@/lib/notes-editor-flush-bridge'
+import { withNoteSaveRetry } from '@/lib/note-save-with-retry'
 import { PopoutTitlebarControls } from '@/app/layout/PopoutTitlebarControls'
 import { useNoteInkDraw } from '@/app/notes/use-note-ink-draw'
 import {
@@ -28,6 +30,44 @@ export function QuickCapturePopoutShell(): JSX.Element {
   const replaceInkSnapshotRef = useRef<((inkJsonAttachmentId: number, html: string) => void) | null>(
     null
   )
+  const titleRef = useRef(title)
+  const bodyHtmlRef = useRef(bodyHtml)
+  const draftNoteIdRef = useRef(draftNoteId)
+
+  titleRef.current = title
+  bodyHtmlRef.current = bodyHtml
+  draftNoteIdRef.current = draftNoteId
+
+  const hasDraftContent = useCallback((): boolean => {
+    return titleRef.current.trim().length > 0 || storedBodyFromEditorHtml(bodyHtmlRef.current).trim().length > 0
+  }, [])
+
+  const persistDraftSilently = useCallback(async (): Promise<void> => {
+    flushRef.current?.()
+    if (!hasDraftContent()) return
+    const payload = {
+      title: titleRef.current.trim() || t('notes.quickCapture.defaultTitle'),
+      body: storedBodyFromEditorHtml(bodyHtmlRef.current)
+    }
+    const existingId = draftNoteIdRef.current
+    if (existingId != null) {
+      await withNoteSaveRetry(() =>
+        window.mailClient.notes.updateStandalone({
+          id: existingId,
+          ...payload
+        })
+      )
+      return
+    }
+    const note = await withNoteSaveRetry(() =>
+      window.mailClient.notes.createStandalone({
+        ...payload,
+        sectionId: null
+      })
+    )
+    setDraftNoteId(note.id)
+    draftNoteIdRef.current = note.id
+  }, [hasDraftContent, t])
 
   useZoomShortcuts()
 
@@ -57,8 +97,19 @@ export function QuickCapturePopoutShell(): JSX.Element {
   })
 
   const handleClose = useCallback((): void => {
-    void window.mailClient.quickCapture.close()
-  }, [])
+    void (async (): Promise<void> => {
+      try {
+        await persistDraftSilently()
+      } catch {
+        // Schliessen trotzdem erlauben.
+      }
+      await window.mailClient.quickCapture.close()
+    })()
+  }, [persistDraftSilently])
+
+  useEffect(() => {
+    return registerNotesEditorFlush(() => persistDraftSilently())
+  }, [persistDraftSilently])
 
   const handleSave = useCallback(async (): Promise<void> => {
     flushRef.current?.()
@@ -69,16 +120,20 @@ export function QuickCapturePopoutShell(): JSX.Element {
         body: storedBodyFromEditorHtml(bodyHtml)
       }
       if (draftNoteId != null) {
-        await window.mailClient.notes.updateStandalone({
-          id: draftNoteId,
-          ...payload
-        })
+        await withNoteSaveRetry(() =>
+          window.mailClient.notes.updateStandalone({
+            id: draftNoteId,
+            ...payload
+          })
+        )
         openCreatedNote(draftNoteId)
       } else {
-        const note = await window.mailClient.notes.createStandalone({
-          ...payload,
-          sectionId: null
-        })
+        const note = await withNoteSaveRetry(() =>
+          window.mailClient.notes.createStandalone({
+            ...payload,
+            sectionId: null
+          })
+        )
         openCreatedNote(note.id)
       }
       await window.mailClient.quickCapture.close()

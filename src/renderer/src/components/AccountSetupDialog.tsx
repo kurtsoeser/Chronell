@@ -138,6 +138,7 @@ import type {
 import { formatBytes } from '@/lib/format-bytes'
 import { AccountSetupBackupSection } from '@/components/account-setup/AccountSetupBackupSection'
 import { AccountSetupCloudSyncSection } from '@/components/account-setup/AccountSetupCloudSyncSection'
+import { SettingsDemoSection } from '@/components/account-setup/SettingsDemoSection'
 import { APP_BRANDING } from '@shared/app-branding'
 import { publicAssetUrl } from '@/lib/public-asset-url'
 import {
@@ -592,6 +593,7 @@ export function AccountSetupDialog({
           { id: 'notion', label: t('settings.notionHeading') },
           { id: 'aiConnections', label: t('settings.aiConnections.nav') },
           { id: 'cloudSync', label: t('settings.cloudSync.heading') },
+          { id: 'demo', label: t('demo.settingsNav') },
           { id: 'backup', label: t('settings.backupHeading') }
         ]
       case 'accounts':
@@ -1865,6 +1867,8 @@ export function AccountSetupDialog({
               )}
 
               {subNavId.general === 'cloudSync' && <AccountSetupCloudSyncSection />}
+
+              {subNavId.general === 'demo' && <SettingsDemoSection />}
 
               {subNavId.general === 'backup' && (
                 <>

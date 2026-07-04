@@ -33,4 +33,14 @@ describe('noteEditingHasUnsavedChanges', () => {
       })
     ).toBe(true)
   })
+
+  it('ignoriert semantisch gleichen Body trotz leerem Absatz', () => {
+    expect(
+      noteEditingHasUnsavedChanges({
+        ...base,
+        editBodyHtml: '<p></p>',
+        lastSavedBody: ''
+      })
+    ).toBe(false)
+  })
 })

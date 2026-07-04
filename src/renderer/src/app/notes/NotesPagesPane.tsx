@@ -3,9 +3,11 @@ import { Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { NoteSection, UserNoteListItem } from '@shared/types'
 import type { NotePageTemplateId } from '@/lib/note-page-templates'
+import type { NotePageCreateOverride } from '@/lib/note-page-create'
 import type { NotesPageFlatRow } from '@/lib/notes-page-tree'
 import { sectionLabelForNote } from '@/lib/notes-nav-selection'
 import { NotesPageRow } from '@/app/notes/NotesPageRow'
+import { NotesPagesVirtualList } from '@/app/notes/NotesPagesVirtualList'
 import { NotesPagesSortMenu } from '@/app/notes/NotesPagesSortMenu'
 import { NoteEntityLinkPickerDialog } from '@/app/notes/NoteEntityLinkPickerDialog'
 import { NotePageCreateMenu } from '@/components/NotePageCreateMenu'
@@ -66,7 +68,7 @@ export function NotesPagesPane({
   onCreateSubPage?: (note: UserNoteListItem) => void | Promise<void>
   onMoveToParent?: (note: UserNoteListItem, parentNoteId: number | null) => void | Promise<void>
   onTogglePageCollapse?: (note: UserNoteListItem) => void
-  onCreateNote: (templateId: NotePageTemplateId) => void
+  onCreateNote: (templateId: NotePageTemplateId, override?: NotePageCreateOverride) => void
   creating?: boolean
   pagesSort: NotesPagesSortKey
   onPagesSortChange: (key: NotesPagesSortKey) => void
@@ -104,6 +106,41 @@ export function NotesPagesPane({
         })
       : []
 
+  const renderPageRow = useCallback(
+    (row: NotesPageFlatRow): JSX.Element => (
+      <NotesPageRow
+        note={row.note}
+        depth={row.depth}
+        hasChildren={row.hasChildren}
+        collapsed={row.collapsed}
+        onToggleCollapse={onTogglePageCollapse}
+        active={activeNoteId === row.note.id}
+        selected={selectedNoteIds.has(row.note.id)}
+        categoryColorByName={categoryColorByName}
+        onOpen={onOpenNote}
+        onRenameTitle={onRenameNoteTitle}
+        onPatchDisplay={onPatchNoteDisplay}
+        onContextMenu={openContextMenu}
+        isExiting={isNoteExiting(row.note.id)}
+        sectionLabel={showSectionLabels ? sectionLabelForNote(row.note, sections, t) : undefined}
+      />
+    ),
+    [
+      activeNoteId,
+      selectedNoteIds,
+      categoryColorByName,
+      onOpenNote,
+      onRenameNoteTitle,
+      onPatchNoteDisplay,
+      openContextMenu,
+      isNoteExiting,
+      showSectionLabels,
+      sections,
+      t,
+      onTogglePageCollapse
+    ]
+  )
+
   return (
     <div className="flex h-full min-h-0 flex-col bg-card">
       <header className={moduleColumnHeaderShellBarClass}>
@@ -120,48 +157,29 @@ export function NotesPagesPane({
         onSortChange={onPagesSortChange}
         disabled={loading && pageRows.length === 0}
       />
-      <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
-        {loading && pageRows.length === 0 ? (
-          <div className="flex items-center gap-2 p-4 text-xs text-muted-foreground">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            {t('common.loading')}
-          </div>
-        ) : pageRows.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 px-2 py-8">
-            <p className="text-center text-xs text-muted-foreground">{t('notes.shell.pagesEmpty')}</p>
-            <NotePageCreateMenu
-              variant="button"
-              onCreate={onCreateNote}
-              creating={creating}
-              buttonLabel={t('notes.shell.newPage')}
-            />
-          </div>
-        ) : (
-          <div className="space-y-0.5">
-            {pageRows.map(({ note, depth, hasChildren, collapsed }) => (
-              <NotesPageRow
-                key={note.id}
-                note={note}
-                depth={depth}
-                hasChildren={hasChildren}
-                collapsed={collapsed}
-                onToggleCollapse={onTogglePageCollapse}
-                active={activeNoteId === note.id}
-                selected={selectedNoteIds.has(note.id)}
-                categoryColorByName={categoryColorByName}
-                onOpen={(n, e): void => onOpenNote(n, e)}
-                onRenameTitle={onRenameNoteTitle}
-                onPatchDisplay={onPatchNoteDisplay}
-                onContextMenu={openContextMenu}
-                isExiting={isNoteExiting(note.id)}
-                sectionLabel={
-                  showSectionLabels ? sectionLabelForNote(note, sections, t) : undefined
-                }
-              />
-            ))}
-          </div>
-        )}
-      </div>
+      {loading && pageRows.length === 0 ? (
+        <div className="flex items-center gap-2 p-4 text-xs text-muted-foreground">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          {t('common.loading')}
+        </div>
+      ) : pageRows.length === 0 ? (
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-2 py-8">
+          <p className="text-center text-xs text-muted-foreground">{t('notes.shell.pagesEmpty')}</p>
+          <NotePageCreateMenu
+            variant="button"
+            onCreate={onCreateNote}
+            creating={creating}
+            buttonLabel={t('notes.shell.newPage')}
+          />
+        </div>
+      ) : (
+        <NotesPagesVirtualList
+          pageRows={pageRows}
+          showSectionLabels={showSectionLabels}
+          activeNoteId={activeNoteId}
+          renderRow={renderPageRow}
+        />
+      )}
 
       {contextMenu ? (
         <ContextMenu

@@ -4,11 +4,8 @@ import { useTranslation } from 'react-i18next'
 import type { UserNoteListItem } from '@shared/types'
 import { cn } from '@/lib/utils'
 import { NoteDisplayIcon } from '@/components/NoteDisplayIcon'
-import {
-  formatNoteDate,
-  markdownPreviewText,
-  noteTitle
-} from '@/app/notes/notes-display-helpers'
+import { noteListPreviewText } from '@/lib/note-list-preview-text'
+import { formatNoteDate, noteTitle } from '@/app/notes/notes-display-helpers'
 import { useAppModeStore } from '@/stores/app-mode'
 import { useNotesPendingFocusStore } from '@/stores/notes-pending-focus'
 
@@ -85,7 +82,7 @@ export function DashboardNotesPreviewTile({ mode }: Props): JSX.Element {
       )
     }
     const title = noteTitle(lastNote, untitled)
-    const preview = markdownPreviewText(lastNote.body)
+    const preview = noteListPreviewText(lastNote)
     return (
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <button

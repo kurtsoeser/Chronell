@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react'
 import type { MutableRefObject } from 'react'
+import { htmlContainsCloudTasks } from '@/lib/note-editor-html-detect'
 import {
   extractNoteCloudTaskRefsFromHtml,
   syncNoteCloudTasksInHtml,
@@ -13,6 +14,8 @@ export interface UseNoteCloudTaskSyncOptions {
   getBodyHtml: () => string
   onApplyHtml: (html: string) => void
   flushRef?: MutableRefObject<(() => void) | null>
+  /** Nur bei Fokus im Editor auf Task-Änderungen reagieren. */
+  editorFocusedRef?: MutableRefObject<boolean>
   enabled?: boolean
 }
 
@@ -21,6 +24,7 @@ export function useNoteCloudTaskSync({
   getBodyHtml,
   onApplyHtml,
   flushRef,
+  editorFocusedRef,
   enabled = true
 }: UseNoteCloudTaskSyncOptions): void {
   const getBodyHtmlRef = useRef(getBodyHtml)
@@ -31,6 +35,7 @@ export function useNoteCloudTaskSync({
     if (!enabled || !noteId) return
     flushRef?.current?.()
     const html = getBodyHtmlRef.current()
+    if (!htmlContainsCloudTasks(html)) return
     const refs = extractNoteCloudTaskRefsFromHtml(html)
     if (refs.length === 0) return
     const byAccount = new Map<string, typeof refs>()
@@ -70,12 +75,19 @@ export function useNoteCloudTaskSync({
   useEffect(() => {
     if (!enabled) return
     const unsub = window.mailClient.events.onTasksChanged(() => {
+      if (!noteId) return
+      if (editorFocusedRef && !editorFocusedRef.current) return
+      const html = getBodyHtmlRef.current()
+      if (!htmlContainsCloudTasks(html)) return
       void refreshFromTasks()
     })
     return unsub
-  }, [enabled, refreshFromTasks])
+  }, [enabled, editorFocusedRef, noteId, refreshFromTasks])
 
   useEffect(() => {
+    if (!enabled || !noteId) return
+    const html = getBodyHtmlRef.current()
+    if (!htmlContainsCloudTasks(html)) return
     void refreshFromTasks()
-  }, [noteId, refreshFromTasks])
+  }, [enabled, noteId, refreshFromTasks])
 }

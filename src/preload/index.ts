@@ -30,6 +30,7 @@ import { vipApi } from './api/vip'
 import { rulesApi } from './api/rules'
 import { eventsApi } from './api/events'
 import { quickCaptureApi } from './api/quick-capture'
+import { demoApi } from './api/demo'
 
 const api = {
   app: appApi,
@@ -62,6 +63,7 @@ const api = {
   rules: rulesApi,
   events: eventsApi,
   quickCapture: quickCaptureApi,
+  demo: demoApi,
   invoke: (channel: string, payload?: unknown): Promise<unknown> =>
     ipcRenderer.invoke(channel, payload)
 }

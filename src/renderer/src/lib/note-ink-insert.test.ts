@@ -55,26 +55,17 @@ describe('appendInkDrawingToNote', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-07-02T14:30:00'))
-    class MockFileReader {
-      result = 'data:image/png;base64,AQID'
-      onload: (() => void) | null = null
-      onerror: (() => void) | null = null
-      readAsDataURL(): void {
-        this.onload?.()
-      }
-    }
-    vi.stubGlobal('FileReader', MockFileReader)
   })
 
   afterEach(() => {
     vi.useRealTimers()
   })
 
-  it('legt JSON- und PNG-Anhang an und fügt HTML ein', async () => {
+  it('legt PNG- und JSON-Anhang an und fügt HTML ein', async () => {
     const addLocal = vi
       .fn()
-      .mockResolvedValueOnce({ id: 11 })
       .mockResolvedValueOnce({ id: 12 })
+      .mockResolvedValueOnce({ id: 11 })
     vi.stubGlobal('window', {
       mailClient: {
         notes: {
@@ -91,14 +82,16 @@ describe('appendInkDrawingToNote', () => {
     expect(addLocal).toHaveBeenCalledTimes(2)
     expect(addLocal.mock.calls[0]?.[0]).toMatchObject({
       noteId: 5,
-      name: 'Freihand 2026-07-02 14-30.ink.json',
-      contentType: NOTE_INK_CONTENT_TYPE
+      name: 'Freihand 2026-07-02 14-30.png',
+      contentType: 'image/png'
     })
     expect(addLocal.mock.calls[1]?.[0]).toMatchObject({
       noteId: 5,
-      contentType: 'image/png'
+      name: 'Freihand 2026-07-02 14-30.ink.json',
+      contentType: NOTE_INK_CONTENT_TYPE
     })
     expect(inserted[0]).toContain('note-ink-snapshot')
+    expect(inserted[0]).toContain('note-media://attachment/5/12')
     expect(inserted[0]).toContain(`${NOTE_INK_HTML_SOURCE_ATTR}="11"`)
   })
 

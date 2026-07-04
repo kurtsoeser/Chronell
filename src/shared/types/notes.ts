@@ -29,6 +29,8 @@ export interface UserNote {
   parentNoteId?: number | null
   /** Angeheftet in der Seitenliste. */
   isPinned?: boolean
+  /** Plain-Text-Vorschau (wenn `body` in Listen nicht geladen wurde). */
+  bodyPreview?: string | null
 }
 
 /** Lokales Notiz-Icon und Farbe setzen/entfernen. */
@@ -264,6 +266,8 @@ export interface UserNoteListFilters {
   categoriesAny?: string[]
   pinnedOnly?: boolean
   limit?: number
+  /** Body nicht serialisieren (Listen/IPC). Standard in `list`: true. */
+  omitBody?: boolean
 }
 
 export interface UserNoteSearchFilters {
@@ -282,4 +286,13 @@ export interface NotesChangedPayload {
   messageId?: number | null
   accountId?: string | null
   scope?: NotesChangedScope
+  /** Gezieltes Listen-Update ohne Full-Reload (ohne Body). */
+  patch?: Partial<UserNoteListItem>
+  /** Notiz wurde gelöscht — aus der Liste entfernen. */
+  deleted?: boolean
+}
+
+export interface UserNoteShellBootstrapResult {
+  notes: UserNoteListItem[]
+  sections: NoteSection[]
 }

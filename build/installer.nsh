@@ -37,4 +37,14 @@
   !endif
 
   WriteRegStr SHELL_CONTEXT "${INSTALL_REGISTRY_KEY}" ShortcutName "${SHORTCUT_NAME}"
+
+  ; Demo-Verknüpfung (separates Profil --demo)
+  CreateShortCut "$DESKTOP\Chronell Demo.lnk" "$appExe" "--demo" "$appExe" 0 "" "" "Chronell Demo-Umgebung"
+  ClearErrors
+  WinShell::SetLnkAUMI "$DESKTOP\Chronell Demo.lnk" "${APP_ID}"
+  !ifdef MENU_FILENAME
+    CreateShortCut "$SMPROGRAMS\${MENU_FILENAME}\Chronell Demo.lnk" "$appExe" "--demo" "$appExe" 0 "" "" "Chronell Demo-Umgebung"
+    ClearErrors
+    WinShell::SetLnkAUMI "$SMPROGRAMS\${MENU_FILENAME}\Chronell Demo.lnk" "${APP_ID}"
+  !endif
 !macroend

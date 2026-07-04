@@ -57,6 +57,23 @@ function pad2(n: number): string {
   return String(n).padStart(2, '0')
 }
 
+/** SQLite-/App-Zeitstempel (UTC) → ISO-UTC für Anzeige in Benutzer-Zeitzone. */
+export function storedTimestampToUtcIso(stored: string): string | null {
+  const trimmed = stored.trim()
+  if (!trimmed) return null
+  if (/Z$/i.test(trimmed) || /[+-]\d{2}:\d{2}$/.test(trimmed)) {
+    const d = new Date(trimmed)
+    return Number.isNaN(d.getTime()) ? null : d.toISOString()
+  }
+  const sqlite = trimmed.match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}:\d{2}(?:\.\d+)?)$/)
+  if (sqlite) {
+    const d = new Date(`${sqlite[1]}T${sqlite[2]}Z`)
+    return Number.isNaN(d.getTime()) ? null : d.toISOString()
+  }
+  const d = new Date(trimmed)
+  return Number.isNaN(d.getTime()) ? null : d.toISOString()
+}
+
 export function calendarZonedPartsFromUtcIso(utcIso: string, timeZone: string): CalendarZonedParts | null {
   const d = new Date(utcIso)
   if (Number.isNaN(d.getTime())) return null

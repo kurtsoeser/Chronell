@@ -85,8 +85,8 @@ export function strokesToSvgMarkup(
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><rect width="100%" height="100%" fill="${background}" />${paths}</svg>`
 }
 
-export function buildNoteInkInsertHtml(pngDataUrl: string, inkJsonAttachmentId: number): string {
-  const safeSrc = pngDataUrl.replace(/"/g, '&quot;')
+export function buildNoteInkInsertHtml(imageSrc: string, inkJsonAttachmentId: number): string {
+  const safeSrc = imageSrc.replace(/"/g, '&quot;')
   return `<p><img src="${safeSrc}" alt="Freihandzeichnung" class="mail-compose-image note-ink-snapshot" ${NOTE_INK_HTML_SOURCE_ATTR}="${inkJsonAttachmentId}" /></p>`
 }
 

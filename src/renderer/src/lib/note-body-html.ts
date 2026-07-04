@@ -1,4 +1,5 @@
 import { marked } from 'marked'
+import { NOTE_INK_HTML_SOURCE_ATTR } from '@shared/note-ink-document'
 import { prepareNoteEditorHtml } from '@/lib/sanitize-compose-html'
 
 const HTML_ROOT_TAG =
@@ -76,9 +77,27 @@ export function storedBodyFromEditorHtml(editorHtml: string): string {
   return normalizeNoteBodyForStorage(editorHtml)
 }
 
+/** Ink-Vorschaubilder: data:-URL im Editor und note-media:// in der DB gelten als gleich. */
+function normalizeInkImageSrcForCompare(html: string): string {
+  if (!html.includes(NOTE_INK_HTML_SOURCE_ATTR)) return html
+  return html.replace(/<img\b[^>]*>/gi, (tag) => {
+    if (!tag.includes(NOTE_INK_HTML_SOURCE_ATTR)) return tag
+    const idMatch = tag.match(new RegExp(`${NOTE_INK_HTML_SOURCE_ATTR}="(\\d+)"`))
+    if (!idMatch) return tag
+    if (/src="[^"]*"/i.test(tag)) {
+      return tag.replace(/src="[^"]*"/i, `src="ink:${idMatch[1]}"`)
+    }
+    return tag
+  })
+}
+
+function storedBodyForEditingCompare(html: string): string {
+  return storedBodyFromEditorHtml(normalizeInkImageSrcForCompare(html))
+}
+
 /** Zwei Notiz-Bodies vergleichen (Editor-HTML oder gespeichert). */
 export function noteBodiesEqual(a: string, b: string): boolean {
-  return storedBodyFromEditorHtml(a) === storedBodyFromEditorHtml(b)
+  return storedBodyForEditingCompare(a) === storedBodyForEditingCompare(b)
 }
 
 /** Hat die Notiz sichtbaren Inhalt? */

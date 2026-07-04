@@ -1,6 +1,7 @@
 import { format } from 'date-fns'
 import i18n from 'i18next'
 import { NOTE_INK_CONTENT_TYPE, type NoteInkDocument } from '@shared/note-ink-document'
+import { noteAttachmentMediaUrl } from '@shared/note-attachment-media-url'
 import { arrayBufferToBase64 } from '@/lib/attachment-files'
 import { findPngAttachmentForInkJson } from '@/lib/note-ink-load'
 import { buildNoteInkInsertHtml, strokesToPngBlob } from '@/lib/note-ink-export'
@@ -13,15 +14,6 @@ async function blobToBase64(blob: Blob): Promise<string> {
   return arrayBufferToBase64(await blob.arrayBuffer())
 }
 
-async function blobToDataUrl(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = (): void => resolve(String(reader.result ?? ''))
-    reader.onerror = (): void => reject(reader.error ?? new Error('PNG konnte nicht gelesen werden.'))
-    reader.readAsDataURL(blob)
-  })
-}
-
 export function buildInkAttachmentBaseName(at = new Date()): string {
   const stamp = format(at, 'yyyy-MM-dd HH-mm')
   return `${i18n.t('notes.ink.defaultName')} ${stamp}`
@@ -31,10 +23,18 @@ async function saveInkDrawingAttachments(
   noteId: number,
   document: NoteInkDocument,
   baseName = buildInkAttachmentBaseName()
-): Promise<{ inkAttachmentId: number; dataUrl: string }> {
+): Promise<{ inkAttachmentId: number; imageSrc: string }> {
   const pngBlob = await strokesToPngBlob(document.strokes, document.canvasWidth, document.canvasHeight)
   const inkJson = JSON.stringify(document)
   const inkJsonBytes = new TextEncoder().encode(inkJson)
+
+  const pngAttachment = await window.mailClient.notes.attachments.addLocal({
+    noteId,
+    name: `${baseName}.png`,
+    contentType: 'image/png',
+    dataBase64: await blobToBase64(pngBlob),
+    size: pngBlob.size
+  })
 
   const inkAttachment = await window.mailClient.notes.attachments.addLocal({
     noteId,
@@ -44,17 +44,9 @@ async function saveInkDrawingAttachments(
     size: inkJsonBytes.length
   })
 
-  await window.mailClient.notes.attachments.addLocal({
-    noteId,
-    name: `${baseName}.png`,
-    contentType: 'image/png',
-    dataBase64: await blobToBase64(pngBlob),
-    size: pngBlob.size
-  })
-
   return {
     inkAttachmentId: inkAttachment.id,
-    dataUrl: await blobToDataUrl(pngBlob)
+    imageSrc: noteAttachmentMediaUrl(noteId, pngAttachment.id)
   }
 }
 
@@ -67,8 +59,8 @@ export async function appendInkDrawingToNote(
     throw new Error(i18n.t('notes.ink.emptyInsert'))
   }
 
-  const { inkAttachmentId, dataUrl } = await saveInkDrawingAttachments(noteId, document)
-  insertHtml(buildNoteInkInsertHtml(dataUrl, inkAttachmentId))
+  const { inkAttachmentId, imageSrc } = await saveInkDrawingAttachments(noteId, document)
+  insertHtml(buildNoteInkInsertHtml(imageSrc, inkAttachmentId))
 }
 
 export async function replaceInkDrawingInNote(
@@ -94,6 +86,6 @@ export async function replaceInkDrawingInNote(
   }
 
   const baseName = inkAttachment.name.replace(/\.ink\.json$/i, '')
-  const { inkAttachmentId, dataUrl } = await saveInkDrawingAttachments(noteId, document, baseName)
-  replaceInkSnapshot(inkJsonAttachmentId, buildNoteInkInsertHtml(dataUrl, inkAttachmentId))
+  const { inkAttachmentId, imageSrc } = await saveInkDrawingAttachments(noteId, document, baseName)
+  replaceInkSnapshot(inkJsonAttachmentId, buildNoteInkInsertHtml(imageSrc, inkAttachmentId))
 }

@@ -8,6 +8,10 @@ export function resolveDefaultEventTimeZone(calendarTzConfig: string | null | un
   return Intl.DateTimeFormat().resolvedOptions().timeZone
 }
 
+export function resolveRendererDisplayTimeZone(calendarTzConfig: string | null | undefined): string {
+  return graphWindowsZoneToIana(resolveDefaultEventTimeZone(calendarTzConfig))
+}
+
 export function normalizeEventTimeZoneHint(hint: string | null | undefined): string | null {
   const raw = hint?.trim()
   if (!raw) return null

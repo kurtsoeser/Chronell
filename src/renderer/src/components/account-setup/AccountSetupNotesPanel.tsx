@@ -155,6 +155,21 @@ export default function AccountSetupNotesPanel({
             </span>
           </label>
 
+          <label className="flex cursor-pointer items-start gap-2 text-xs">
+            <input
+              type="checkbox"
+              checked={prefs.rememberLastOpenNote}
+              onChange={(e): void => apply({ rememberLastOpenNote: e.target.checked })}
+              className="mt-0.5"
+            />
+            <span>
+              <span className="font-medium">{t('settings.notesRememberOpenNoteLabel')}</span>
+              <span className="mt-0.5 block text-muted-foreground">
+                {t('settings.notesRememberOpenNoteHint')}
+              </span>
+            </span>
+          </label>
+
           <SettingsField
             label={t('settings.notesDetailWidthLabel')}
             hint={t('settings.notesDetailWidthHint')}

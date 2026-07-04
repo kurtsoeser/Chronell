@@ -45,6 +45,10 @@ extraResources:
     to: icon.ico
   - from: resources/icon.png
     to: icon.png
+  - from: resources/demo/chronell-demo-pack.zip
+    to: demo/chronell-demo-pack.zip
+  - from: resources/demo/demo-pack-manifest.json
+    to: demo/demo-pack-manifest.json
 
 # signAndEditExecutable: false — vermeidet winCodeSign-7z/Symlink-Fehler ohne Admin/Developer Mode.
 # Icon + EXE-Metadaten: scripts/after-pack-embed-icon.cjs (rcedit, nach dem Packen).

@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import type { UserNoteListItem } from '@shared/types'
-import { notePreviewText, noteTitle } from '@/app/notes/notes-display-helpers'
+import { noteListPreviewText } from '@/lib/note-list-preview-text'
+import { noteTitle } from '@/app/notes/notes-display-helpers'
 import { chronellAcrylicPopoverClass } from '@/lib/chronell-ui-classes'
 import { cn } from '@/lib/utils'
 
@@ -27,7 +28,7 @@ export function NotesCalendarEventHoverPreview({
   if (!mounted || !visible || !note) return null
 
   const title = noteTitle(note, t('notes.shell.untitled'))
-  const excerpt = notePreviewText(note.body)
+  const excerpt = noteListPreviewText(note)
   const pad = 14
   const width = 300
   let left = anchorX + pad

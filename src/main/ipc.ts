@@ -23,6 +23,7 @@ import { registerQuickCaptureIpc } from './ipc/register-quick-capture-ipc'
 import { registerPanelPopoutIpc } from './ipc/register-panel-popout-ipc'
 import { registerMailBodyIndexIpc } from './ipc/register-mail-body-index-ipc'
 import { registerFilesIpc } from './ipc/register-files-ipc'
+import { registerDemoIpc } from './ipc/register-demo-ipc'
 import { ensureAccountProfilePhotosForMissing } from './ipc/ipc-helpers'
 import { broadcastSyncStatus, broadcastMailChanged, broadcastNotesChanged } from './ipc/ipc-broadcasts'
 
@@ -52,6 +53,7 @@ export function registerIpcHandlers(): void {
   registerPanelPopoutIpc()
   registerMailBodyIndexIpc()
   registerFilesIpc()
+  registerDemoIpc()
 
   setImmediate(() => {
     void ensureAccountProfilePhotosForMissing().catch((e) =>

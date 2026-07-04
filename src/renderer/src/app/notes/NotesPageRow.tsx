@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type MouseEvent } from 'react'
+import { memo, useEffect, useRef, useState, type MouseEvent } from 'react'
 import { useDraggable } from '@dnd-kit/core'
 import { ChevronDown, ChevronRight, GripVertical, Pin } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -40,7 +40,7 @@ function NoteDragHandle({ noteId }: { noteId: number }): JSX.Element {
   )
 }
 
-export function NotesPageRow({
+export const NotesPageRow = memo(function NotesPageRow({
   note,
   depth = 0,
   hasChildren = false,
@@ -201,4 +201,4 @@ export function NotesPageRow({
       )}
     </div>
   )
-}
+})

@@ -83,6 +83,10 @@ const MailScheduleMeetingHost = lazy(async () => {
   const m = await import('./components/MailScheduleMeetingHost')
   return { default: m.MailScheduleMeetingHost }
 })
+const DemoModeBanner = lazy(async () => {
+  const m = await import('./components/DemoModeBanner')
+  return { default: m.DemoModeBanner }
+})
 
 const HomeDashboard = lazy(async () => {
   const m = await import('./app/home/HomeDashboard')
@@ -305,6 +309,9 @@ export function App(): JSX.Element {
   return (
     <div className="app-chrome-root flex h-full min-h-0 flex-col text-foreground">
       <ProfileSyncBridge />
+      <Suspense fallback={null}>
+        <DemoModeBanner />
+      </Suspense>
       <Suspense fallback={<TopbarFallback />}>
         <Topbar onOpenAccountDialog={(): void => openAccountSettings('general')} />
       </Suspense>

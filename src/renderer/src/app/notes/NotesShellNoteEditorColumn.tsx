@@ -1,9 +1,11 @@
-import type { ReactNode } from 'react'
+import { memo, useEffect, type ReactNode } from 'react'
 import { FileDown, Loader2, PanelRightOpen, Printer, Trash2, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { NoteEntityLinkedItem, NoteLinksBundle } from '@shared/note-entity-links'
 import type { Editor } from '@tiptap/react'
 import type { NoteCloudTaskRef } from '@shared/note-cloud-task'
+import type { NoteEmbedInsertTarget } from '@shared/note-embed-insert'
+import type { NoteEditorSaveStatus } from '@/lib/note-editor-save-status'
 import type { UserNote, UserNoteListItem } from '@shared/types'
 import { NotesOneNotePageHeader } from '@/app/notes/NotesOneNotePageHeader'
 import { NotesShellEditorPane } from '@/app/notes/NotesShellEditorPane'
@@ -17,7 +19,14 @@ import {
   moduleColumnHeaderTitleClass
 } from '@/components/ModuleColumnHeader'
 import { ContentCrossfade } from '@/components/motion/ContentCrossfade'
+import { HorizontalSplitter, useResizableHeight } from '@/components/ResizableSplitter'
 import { cn } from '@/lib/utils'
+import {
+  NOTES_CALENDAR_EDITOR_HEIGHT_DEFAULT,
+  NOTES_CALENDAR_EDITOR_HEIGHT_KEY,
+  NOTES_CALENDAR_EDITOR_HEIGHT_MIN,
+  notesCalendarEditorHeightMax
+} from '@/app/notes/shell/notes-shell-types'
 type ScheduleDraft = {
   scheduledStartIso: string | null
   scheduledEndIso: string | null
@@ -31,6 +40,9 @@ export type NotesShellNoteEditorColumnProps = {
   editing: UserNote | null
   error: string | null
   saving: boolean
+  openingNote?: boolean
+  saveStatus?: NoteEditorSaveStatus
+  lastSavedAt?: string | null
   editorSeedHtml: string
   linksBodyHtml?: string
   scheduleDraft: ScheduleDraft | null
@@ -85,17 +97,22 @@ export type NotesShellNoteEditorColumnProps = {
   onClose: () => void
   editorFlushRef: React.MutableRefObject<(() => void) | null>
   editorInsertHtmlRef: React.MutableRefObject<((html: string) => void) | null>
+  editorInsertEmbedRef: React.MutableRefObject<((target: NoteEmbedInsertTarget) => boolean) | null>
   editorReplaceInkRef: React.MutableRefObject<
     ((inkJsonAttachmentId: number, html: string) => void) | null
   >
+  editorFocusedRef: React.MutableRefObject<boolean>
 }
 
-export function NotesShellNoteEditorColumn({
+export const NotesShellNoteEditorColumn = memo(function NotesShellNoteEditorColumn({
   layout,
   widthPx,
   editing,
   error,
   saving,
+  openingNote = false,
+  saveStatus = 'idle',
+  lastSavedAt = null,
   editorSeedHtml,
   linksBodyHtml,
   scheduleDraft,
@@ -146,11 +163,32 @@ export function NotesShellNoteEditorColumn({
   onClose,
   editorFlushRef,
   editorInsertHtmlRef,
-  editorReplaceInkRef
+  editorInsertEmbedRef,
+  editorReplaceInkRef,
+  editorFocusedRef
 }: NotesShellNoteEditorColumnProps): JSX.Element {
   const { t } = useTranslation()
   const isCalendar = layout === 'calendar'
   const Tag = isCalendar ? 'aside' : 'main'
+  const calendarEditorHeightMax = notesCalendarEditorHeightMax()
+  const [calendarEditorPaneHeight, setCalendarEditorPaneHeight] = useResizableHeight({
+    storageKey: NOTES_CALENDAR_EDITOR_HEIGHT_KEY,
+    defaultHeight: NOTES_CALENDAR_EDITOR_HEIGHT_DEFAULT,
+    minHeight: NOTES_CALENDAR_EDITOR_HEIGHT_MIN,
+    maxHeight: calendarEditorHeightMax
+  })
+
+  useEffect(() => {
+    if (!isCalendar) return
+    const clamp = (): void => {
+      const max = notesCalendarEditorHeightMax()
+      setCalendarEditorPaneHeight((h) =>
+        Math.min(max, Math.max(NOTES_CALENDAR_EDITOR_HEIGHT_MIN, h))
+      )
+    }
+    window.addEventListener('resize', clamp)
+    return (): void => window.removeEventListener('resize', clamp)
+  }, [isCalendar, setCalendarEditorPaneHeight])
 
   return (
     <Tag
@@ -195,8 +233,30 @@ export function NotesShellNoteEditorColumn({
           {t('notes.shell.selectNoteHint')}
         </div>
       ) : (
-        <ContentCrossfade contentKey={editing.id} className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-muted/15">
+        <ContentCrossfade contentKey={editing.id} className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+          {openingNote ? (
+            <div
+              className="absolute inset-0 z-10 flex items-center justify-center bg-background/70 backdrop-blur-[1px]"
+              aria-busy="true"
+              aria-label={t('notes.editor.opening')}
+            >
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                {t('notes.editor.opening')}
+              </div>
+            </div>
+          ) : null}
+          <div
+            className={cn(
+              'flex min-w-0 flex-col overflow-hidden bg-muted/15',
+              isCalendar ? 'shrink-0' : 'min-h-0 flex-1'
+            )}
+            style={
+              isCalendar
+                ? { height: Math.min(calendarEditorPaneHeight, calendarEditorHeightMax) }
+                : undefined
+            }
+          >
             <div className="note-onenote-page flex min-h-0 w-full min-w-0 flex-1 flex-col bg-card px-5 pb-4 pt-4 sm:px-6">
               <NotesOneNotePageHeader
                 key={editing.id}
@@ -239,6 +299,8 @@ export function NotesShellNoteEditorColumn({
                 onLinksLoaded={onLinksLoaded}
                 linkedPreviewOpen={linkedPreviewOpen}
                 onLinkedPreviewToggle={onLinkedPreviewToggle}
+                saveStatus={saveStatus}
+                lastSavedAt={lastSavedAt}
               />
 
               <NotesShellEditorPane
@@ -267,17 +329,38 @@ export function NotesShellNoteEditorColumn({
                 onEntityMentionLinkAdded={onEntityMentionLinkAdded}
                 onEntityMentionLinkError={onEntityMentionLinkError}
                 editorRef={editorRef}
+                editorInsertEmbedRef={editorInsertEmbedRef}
+                editorFocusedRef={editorFocusedRef}
                 saving={saving}
               />
             </div>
           </div>
 
-          <div className="flex shrink-0 flex-col gap-1 border-t border-border/60 bg-background px-4 pb-2 pt-2">
-            <div className="text-xs text-muted-foreground">
-              {notesSettings.autosaveMode === 'on_change'
-                ? t('notes.editor.autosaveHint')
-                : t('notes.editor.wysiwygHint')}
-            </div>
+          {isCalendar ? (
+            <HorizontalSplitter
+              variant="subtle"
+              ariaLabel={t('notes.shell.contextSplitterAria')}
+              onDrag={(deltaY): void => {
+                setCalendarEditorPaneHeight((h) => {
+                  const max = notesCalendarEditorHeightMax()
+                  return Math.min(
+                    max,
+                    Math.max(NOTES_CALENDAR_EDITOR_HEIGHT_MIN, h + deltaY)
+                  )
+                })
+              }}
+            />
+          ) : null}
+
+          <div
+            className={cn(
+              'flex shrink-0 flex-col gap-1 border-t border-border/60 bg-background px-4 pb-2 pt-2',
+              isCalendar && 'min-h-0 flex-1 overflow-hidden'
+            )}
+          >
+            {notesSettings.autosaveMode !== 'on_change' ? (
+              <div className="text-xs text-muted-foreground">{t('notes.editor.wysiwygHint')}</div>
+            ) : null}
 
             <EntityContextBlock
               anchor={{ kind: 'note', noteId: editing.id }}
@@ -353,4 +436,4 @@ export function NotesShellNoteEditorColumn({
       )}
     </Tag>
   )
-}
+})

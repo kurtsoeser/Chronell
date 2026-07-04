@@ -1,6 +1,7 @@
 import { useCallback, useMemo, type MutableRefObject, type ReactNode } from 'react'
 import type { Editor } from '@tiptap/react'
 import type { NoteCloudTaskRef } from '@shared/note-cloud-task'
+import type { NoteEmbedInsertTarget } from '@shared/note-embed-insert'
 import type { NoteEntityLinkTarget } from '@shared/note-entity-links'
 import { openNoteEntityLinkTarget } from '@/lib/note-entity-link-nav'
 import { ComposeEditorSurface } from '@/components/ComposeEditorSurface'
@@ -44,6 +45,10 @@ export interface TipTapNoteEditorProps {
   onEntityMentionLinkAdded?: () => void
   onEntityMentionLinkError?: (message: string) => void
   editorRef?: MutableRefObject<Editor | null>
+  /** Wechsel der Notiz/Seite — Editor-Inhalt tauschen ohne Remount. */
+  documentKey?: string | number
+  insertEmbedRef?: MutableRefObject<((target: NoteEmbedInsertTarget) => boolean) | null>
+  editorFocusedRef?: MutableRefObject<boolean>
 }
 
 const DEFAULT_MIN_HEIGHT = 200
@@ -73,7 +78,10 @@ export function TipTapNoteEditor({
   onCreateCalendarEventFromSelection,
   onEntityMentionLinkAdded,
   onEntityMentionLinkError,
-  editorRef
+  editorRef,
+  documentKey,
+  insertEmbedRef,
+  editorFocusedRef
 }: TipTapNoteEditorProps): JSX.Element {
   const isCompact = variant === 'compact'
   const resolvedMinHeight = minHeight ?? (isCompact ? COMPACT_MIN_HEIGHT : DEFAULT_MIN_HEIGHT)
@@ -171,6 +179,9 @@ export function TipTapNoteEditor({
             onCreateCalendarEvent={onCreateCalendarEventFromSelection}
             onCloudTaskToggle={onCloudTaskToggle}
             editorRef={editorRef}
+            documentKey={documentKey}
+            insertEmbedRef={insertEmbedRef}
+            editorFocusedRef={editorFocusedRef}
             variant={isCompact ? 'compact' : 'default'}
             editorMinHeightClass={editorMinHeightClass}
             className={cn('!border-t-0', fillHeight && 'min-h-0 flex-1 flex flex-col')}

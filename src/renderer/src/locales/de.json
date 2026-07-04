@@ -201,6 +201,8 @@
       "saving": "Speichert …",
       "saved": "Notiz gespeichert.",
       "saveFailed": "Notiz konnte nicht gespeichert werden.",
+      "conflict": "Die Seite wurde an anderer Stelle geändert. Bitte Seite neu öffnen.",
+      "opening": "Seite wird geladen …",
       "viewSwitcherLabel": "Notizansicht umschalten",
       "resizeAria": "Größe ändern",
       "moveAria": "Notizfenster verschieben"
@@ -210,8 +212,16 @@
       "interact": "Mit Inhalt interagieren",
       "stopInteract": "Interaktion beenden"
     },
+    "formField": {
+      "insertMenuTitle": "Feld einfügen",
+      "insertDate": "Datum",
+      "insertTime": "Uhrzeit",
+      "dateAria": "Datumsfeld",
+      "timeAria": "Uhrzeitfeld"
+    },
     "templates": {
       "menuHeading": "Neue Seite aus Vorlage",
+      "previewAria": "Vorschau: {{name}}",
       "groups": {
         "general": "Allgemein",
         "meetings": "Meetings & Team",
@@ -262,6 +272,26 @@
         "title": "Wochenplan",
         "description": "Prioritäten und Aufgaben der Woche"
       },
+      "weeklyOverview": {
+        "title": "Wochenübersicht",
+        "description": "Strukturierte Wochenplanung mit Notizen, Aufgaben und Stundenraster"
+      },
+      "monthlyOverview": {
+        "title": "Monatsübersicht",
+        "description": "Kalenderblatt mit Tagesfeldern für den ganzen Monat"
+      },
+      "monthlyFitnessTracker": {
+        "title": "Fitness-Tracker (Monat)",
+        "description": "Tagesliste mit Spalten A–Z für Training, Ernährung und Kennzahlen"
+      },
+      "weeklyTimetable": {
+        "title": "Stundenplan",
+        "description": "Wochenraster Mo–Fr mit 10 Unterrichtsstunden zum Ausfüllen"
+      },
+      "dailyPlanner": {
+        "title": "Tagesplaner (3 Spalten)",
+        "description": "Stundenplan, Aufgabenlisten und Notizflächen für einen Tag"
+      },
       "dailyReview": {
         "title": "Tagesrückblick",
         "description": "Morgen-Intention und Abend-Reflexion für den Tag"
@@ -302,6 +332,10 @@
         "title": "Kontaktprofil",
         "description": "Wichtige Fakten und Gesprächsverlauf zu einer Person"
       },
+      "studentAttendanceList": {
+        "title": "Schülerliste / Anwesenheit",
+        "description": "Namensliste mit 25 Zeilen und Datums-Spalten zum Abhaken"
+      },
       "interviewNotes": {
         "title": "Interview-Protokoll",
         "description": "Bewerbungs- oder Kundengespräch strukturiert dokumentieren"
@@ -339,6 +373,50 @@
       "savedToast": "Seitenvorlage gespeichert.",
       "wikiLinkBrowseHint": "Zuletzt bearbeitete Seiten — tippen zum Filtern",
       "wikiLinkNoResults": "Keine passende Seite gefunden"
+    },
+    "plannerDialog": {
+      "weeklyTitle": "Wochenübersicht anlegen",
+      "monthlyTitle": "Monatsübersicht anlegen",
+      "fitnessTitle": "Fitness-Tracker anlegen",
+      "dailyTitle": "Tagesplaner anlegen",
+      "hint": "Wähle Kalenderwoche bzw. Monat — die Seite erhält ein strukturiertes Raster zum Ausfüllen.",
+      "previewLabel": "Seitentitel",
+      "create": "Seite anlegen",
+      "prevWeek": "Vorherige Woche",
+      "nextWeek": "Nächste Woche",
+      "prevDay": "Vorheriger Tag",
+      "nextDay": "Nächster Tag",
+      "weekShort": "KW",
+      "dayColumn": "Tag",
+      "fitnessTitlePrefix": "Fitness",
+      "sectionGeneral": "Allgemein",
+      "sectionNotes": "Notizen",
+      "sectionTasks": "Aufgaben",
+      "sectionSchedule": "Zeitplan",
+      "weekday": {
+        "mon": "Montag",
+        "tue": "Dienstag",
+        "wed": "Mittwoch",
+        "thu": "Donnerstag",
+        "fri": "Freitag",
+        "sat": "Samstag",
+        "sun": "Sonntag"
+      }
+    },
+    "attendanceList": {
+      "nameColumn": "Name",
+      "firstNameColumn": "Vorname"
+    },
+    "dailyPlanner": {
+      "titlePrefix": "Tagesplaner",
+      "scheduleNight": "22:00 – 07:00",
+      "checklist": "Checkliste",
+      "priority": "Prioritäten",
+      "action": "Aktionen",
+      "plainList": "Liste",
+      "gridNotes": "Kästchenpapier",
+      "linedNotes": "Liniert",
+      "quadrantNotes": "4 Felder"
     },
     "meetingInsert": {
       "button": "Besprechungsdetails einfügen",
@@ -581,6 +659,7 @@
       "splitterNavAria": "Breite der Notizenliste ändern",
       "splitterDetailAria": "Breite der Detailspalte ändern",
       "splitterPreviewAria": "Breite der Vorschau ändern",
+      "contextSplitterAria": "Höhe von Notiz und Kontext anpassen",
       "localAccount": "Lokal / ohne Konto",
       "accountExpandAria": "Konto aufklappen",
       "accountCollapseAria": "Konto zuklappen"
@@ -1491,6 +1570,8 @@
       "hidden": "Layout nur mit Nachrichtenliste"
     },
     "accountSkip": "Später einrichten",
+    "accountDemo": "Mit Demo-Daten ausprobieren",
+    "accountDemoDesc": "Fiktives Szenario „Nordlicht Consulting“ — keine echten Konten, nichts wird gesendet. Jederzeit zurücksetzbar.",
     "accountSkipDesc": "Ohne Konto starten und die Verbindung jederzeit unter Einstellungen hinzufügen.",
     "accountMicrosoft": "Microsoft 365",
     "accountMicrosoftDesc": "Outlook, Exchange und Microsoft-Kalender verbinden.",
@@ -1703,6 +1784,8 @@
     "notesDefaultShellViewHint": "Seitenliste mit Editor oder Kalenderansicht beim Öffnen des Moduls.",
     "notesRememberShellViewLabel": "Letzte Ansicht merken",
     "notesRememberShellViewHint": "Beim nächsten Besuch die zuletzt gewählte Listen- oder Kalenderansicht.",
+    "notesRememberOpenNoteLabel": "Zuletzt geöffnete Seite merken",
+    "notesRememberOpenNoteHint": "Beim Wechsel zurück in Notizen die zuletzt bearbeitete Seite wieder öffnen.",
     "notesDetailWidthLabel": "Breite der Seitenliste",
     "notesDetailWidthHint": "Standardbreite der mittleren Spalte (Seitenliste), wenn noch keine eigene Größe gespeichert wurde.",
     "notesEntityContextCollapsedLabel": "Verknüpfungen & Kontext standardmäßig eingeklappt",
@@ -4427,5 +4510,26 @@
       "recurrenceUntilBeforeStart": "Das Serien-Ende darf nicht vor dem Start liegen.",
       "recurrenceCountInvalid": "Anzahl: bitte eine Zahl zwischen 1 und 999 eingeben."
     }
+  },
+  "demo": {
+    "bannerTitle": "Demo-Umgebung",
+    "bannerSubtitle": "Keine echten Daten — nichts wird gesendet",
+    "reset": "Zurücksetzen",
+    "resetting": "Setze zurück …",
+    "exitToProduction": "Produktiv-Profil",
+    "exiting": "Wechsle …",
+    "settingsNav": "Demo-Umgebung",
+    "settingsHeading": "Demo-Umgebung",
+    "settingsIntro": "Probiere Chronell mit kuratierten Beispieldaten aus — getrennt von deinen echten Konten in %AppData%/Chronell.",
+    "statusLabel": "Status",
+    "statusActive": "Aktiv",
+    "statusInactive": "Inaktiv",
+    "scenarioLabel": "Szenario",
+    "packVersionLabel": "Paket-Version",
+    "enter": "Demo starten",
+    "entering": "Starte Demo …",
+    "exportPack": "Paket exportieren",
+    "exportSaved": "Export gespeichert: {{path}}",
+    "docsLink": "Dokumentation"
   }
 }

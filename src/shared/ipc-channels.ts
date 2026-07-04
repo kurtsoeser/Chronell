@@ -140,6 +140,7 @@ export const IPC = {
     updateStandalone: 'notes:update-standalone',
     delete: 'notes:delete',
     list: 'notes:list',
+    listShellBootstrap: 'notes:list-shell-bootstrap',
     search: 'notes:search',
     getById: 'notes:get-by-id',
     listInRange: 'notes:list-in-range',
@@ -420,5 +421,12 @@ export const IPC = {
     createPage: 'notion:create-page',
     createMailPage: 'notion:create-mail-page',
     createEventPage: 'notion:create-event-page'
+  },
+  demo: {
+    getStatus: 'demo:get-status',
+    enter: 'demo:enter',
+    exit: 'demo:exit',
+    reset: 'demo:reset',
+    exportPack: 'demo:export-pack'
   }
 } as const

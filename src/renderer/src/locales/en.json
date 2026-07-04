@@ -201,6 +201,8 @@
       "saving": "Saving…",
       "saved": "Note saved.",
       "saveFailed": "Could not save note.",
+      "conflict": "This page was changed elsewhere. Please reopen the page.",
+      "opening": "Loading page …",
       "viewSwitcherLabel": "Switch note view",
       "resizeAria": "Resize",
       "moveAria": "Move note window"
@@ -210,8 +212,16 @@
       "interact": "Interact with content",
       "stopInteract": "Stop interacting"
     },
+    "formField": {
+      "insertMenuTitle": "Insert field",
+      "insertDate": "Date",
+      "insertTime": "Time",
+      "dateAria": "Date field",
+      "timeAria": "Time field"
+    },
     "templates": {
       "menuHeading": "New page from template",
+      "previewAria": "Preview: {{name}}",
       "groups": {
         "general": "General",
         "meetings": "Meetings & team",
@@ -262,6 +272,26 @@
         "title": "Weekly plan",
         "description": "Priorities and tasks for the week"
       },
+      "weeklyOverview": {
+        "title": "Weekly overview",
+        "description": "Structured week planner with notes, tasks, and time grid"
+      },
+      "monthlyOverview": {
+        "title": "Monthly overview",
+        "description": "Calendar sheet with daily note fields for the whole month"
+      },
+      "monthlyFitnessTracker": {
+        "title": "Fitness tracker (month)",
+        "description": "Daily rows with columns A–Z for workouts, nutrition, and metrics"
+      },
+      "weeklyTimetable": {
+        "title": "Timetable",
+        "description": "Mon–Fri grid with 10 class periods to fill in"
+      },
+      "dailyPlanner": {
+        "title": "Daily planner (3 columns)",
+        "description": "Hourly schedule, task lists, and note areas for one day"
+      },
       "dailyReview": {
         "title": "Daily review",
         "description": "Morning intention and evening reflection for the day"
@@ -302,6 +332,10 @@
         "title": "Contact profile",
         "description": "Key facts and conversation history for a person"
       },
+      "studentAttendanceList": {
+        "title": "Student list / attendance",
+        "description": "Name list with 25 rows and date columns to check off"
+      },
       "interviewNotes": {
         "title": "Interview notes",
         "description": "Document hiring or client interviews in a structured way"
@@ -339,6 +373,50 @@
       "savedToast": "Page template saved.",
       "wikiLinkBrowseHint": "Recently edited pages — type to filter",
       "wikiLinkNoResults": "No matching page found"
+    },
+    "plannerDialog": {
+      "weeklyTitle": "Create weekly overview",
+      "monthlyTitle": "Create monthly overview",
+      "fitnessTitle": "Create fitness tracker",
+      "dailyTitle": "Create daily planner",
+      "hint": "Pick a calendar week, month, or day — the page gets a structured layout to fill in.",
+      "previewLabel": "Page title",
+      "create": "Create page",
+      "prevWeek": "Previous week",
+      "nextWeek": "Next week",
+      "prevDay": "Previous day",
+      "nextDay": "Next day",
+      "weekShort": "W",
+      "dayColumn": "Day",
+      "fitnessTitlePrefix": "Fitness",
+      "sectionGeneral": "General",
+      "sectionNotes": "Notes",
+      "sectionTasks": "Tasks",
+      "sectionSchedule": "Schedule",
+      "weekday": {
+        "mon": "Monday",
+        "tue": "Tuesday",
+        "wed": "Wednesday",
+        "thu": "Thursday",
+        "fri": "Friday",
+        "sat": "Saturday",
+        "sun": "Sunday"
+      }
+    },
+    "attendanceList": {
+      "nameColumn": "Last name",
+      "firstNameColumn": "First name"
+    },
+    "dailyPlanner": {
+      "titlePrefix": "Daily planner",
+      "scheduleNight": "22:00 – 07:00",
+      "checklist": "Checklist",
+      "priority": "Priorities",
+      "action": "Actions",
+      "plainList": "List",
+      "gridNotes": "Grid paper",
+      "linedNotes": "Lined",
+      "quadrantNotes": "4 fields"
     },
     "meetingInsert": {
       "button": "Insert meeting details",
@@ -581,6 +659,7 @@
       "splitterNavAria": "Resize notes list width",
       "splitterDetailAria": "Resize detail column width",
       "splitterPreviewAria": "Resize preview width",
+      "contextSplitterAria": "Resize note and context height",
       "localAccount": "Local / no account",
       "accountExpandAria": "Expand account",
       "accountCollapseAria": "Collapse account"
@@ -1491,6 +1570,8 @@
       "hidden": "Layout with message list only"
     },
     "accountSkip": "Set up later",
+    "accountDemo": "Try with demo data",
+    "accountDemoDesc": "Fictional “Nordlicht Consulting” scenario — no real accounts, nothing is sent. Reset anytime.",
     "accountSkipDesc": "Start without an account and add the connection anytime in Settings.",
     "accountMicrosoft": "Microsoft 365",
     "accountMicrosoftDesc": "Connect Outlook, Exchange, and Microsoft calendars.",
@@ -1703,6 +1784,8 @@
     "notesDefaultShellViewHint": "Page list with editor or calendar when opening the module.",
     "notesRememberShellViewLabel": "Remember last view",
     "notesRememberShellViewHint": "Keep the last list or calendar view on your next visit.",
+    "notesRememberOpenNoteLabel": "Remember last opened page",
+    "notesRememberOpenNoteHint": "Reopen the last edited page when returning to Notes.",
     "notesDetailWidthLabel": "Pages column width",
     "notesDetailWidthHint": "Default width of the middle column when no custom size is stored yet.",
     "notesEntityContextCollapsedLabel": "Links & context collapsed by default",
@@ -4454,5 +4537,26 @@
       "recurrenceUntilBeforeStart": "The series end date cannot be before the start.",
       "recurrenceCountInvalid": "Enter a number between 1 and 999 for the count."
     }
+  },
+  "demo": {
+    "bannerTitle": "Demo environment",
+    "bannerSubtitle": "No real data — nothing is sent",
+    "reset": "Reset",
+    "resetting": "Resetting …",
+    "exitToProduction": "Production profile",
+    "exiting": "Switching …",
+    "settingsNav": "Demo environment",
+    "settingsHeading": "Demo environment",
+    "settingsIntro": "Try Chronell with curated sample data — separate from your real accounts in %AppData%/Chronell.",
+    "statusLabel": "Status",
+    "statusActive": "Active",
+    "statusInactive": "Inactive",
+    "scenarioLabel": "Scenario",
+    "packVersionLabel": "Pack version",
+    "enter": "Start demo",
+    "entering": "Starting demo …",
+    "exportPack": "Export pack",
+    "exportSaved": "Export saved: {{path}}",
+    "docsLink": "Documentation"
   }
 }

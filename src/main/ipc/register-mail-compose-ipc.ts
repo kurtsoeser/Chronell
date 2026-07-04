@@ -18,6 +18,7 @@ import {
   type ComposeDriveSharingLinkScope,
   type ComposeDriveSharingLinkType
 } from '@shared/types'
+import { assertAccountWritable } from '../demo/demo-accounts'
 import { listAccounts } from '../accounts'
 import { gmailSendMail, gmailSaveDraft } from '../google/gmail-compose'
 import { insertScheduledCompose } from '../db/compose-scheduled-repo'
@@ -65,6 +66,7 @@ export function registerMailComposeIpc(): void {
       const accounts = await listAccounts()
       const acc = accounts.find((a) => a.id === input.accountId)
       if (!acc) throw new Error('Konto nicht gefunden.')
+      assertAccountWritable(acc, 'Mail senden')
 
       if (input.referenceAttachments?.length && acc.provider === 'google') {
         throw new Error('Cloud-Anhaenge (OneDrive) sind nur fuer Microsoft 365 verfuegbar.')

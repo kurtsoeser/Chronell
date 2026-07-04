@@ -98,6 +98,24 @@ async function createAttachmentMediaResponse(
   })
 }
 
+function resolveAttachmentMediaContentType(att: {
+  kind: string
+  name: string
+  contentType: string | null
+}): string {
+  const raw = att.contentType?.trim()
+  if (raw?.startsWith('image/')) return raw
+  if (raw?.startsWith('video/')) return raw
+  if (raw?.startsWith('audio/')) return normalizeAudioMimeForPlayback(raw)
+  return normalizeAudioMimeForPlayback(
+    resolveAudioContentType({
+      kind: att.kind as 'local' | 'cloud',
+      name: att.name,
+      contentType: att.contentType
+    })
+  )
+}
+
 export async function registerNoteAttachmentMediaProtocol(): Promise<void> {
   protocol.handle(SCHEME, async (request) => {
     const ids = parseAttachmentIds(request.url)
@@ -120,15 +138,7 @@ export async function registerNoteAttachmentMediaProtocol(): Promise<void> {
       return new Response('Datei nicht gefunden.', { status: 404 })
     }
 
-    const contentType = normalizeAudioMimeForPlayback(
-      att.contentType?.startsWith('audio/')
-        ? att.contentType
-        : resolveAudioContentType({
-            kind: att.kind,
-            name: att.name,
-            contentType: att.contentType
-          })
-    )
+    const contentType = resolveAttachmentMediaContentType(att)
 
     try {
       return await createAttachmentMediaResponse(att.localPath, contentType, request)

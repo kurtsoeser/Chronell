@@ -33,6 +33,9 @@ import {
   configureChronellAppPaths,
   migrateLegacyUserDataIfNeeded
 } from './user-data-migration'
+import { isDemoAccount } from './demo/demo-accounts'
+import { ensureDemoPackInstalled } from './demo/demo-service'
+import { isDemoProfileRequested } from './demo/demo-profile'
 import { APP_ID, APP_PRODUCT_NAME } from '@shared/app-version'
 import {
   isAllowedNoteEmbedSubFrameUrl,
@@ -266,6 +269,15 @@ app.whenReady().then(async () => {
   await applyPendingChromiumCachePurgeOnStartup().catch((e) =>
     console.warn('[startup] chromium-cache purge:', e)
   )
+
+  if (isDemoProfileRequested()) {
+    try {
+      await ensureDemoPackInstalled()
+    } catch (e) {
+      console.error('[demo] Pack-Installation fehlgeschlagen:', e)
+    }
+  }
+
   try {
     getDb()
   } catch (e) {
@@ -312,6 +324,7 @@ app.whenReady().then(async () => {
   if (isAppOnline()) {
     await repairAllMicrosoftMailSyncIfNeeded()
     for (const account of accounts) {
+      if (isDemoAccount(account)) continue
       if (account.provider === 'microsoft') {
         const inbox = findFolderByWellKnown(account.id, 'inbox')
         if (inbox && countMessagesInFolder(inbox.id) > 0) {

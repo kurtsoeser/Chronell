@@ -8,11 +8,12 @@ export * from './calendar'
 export * from './tasks'
 export * from './people'
 export * from './mail'
+export * from './mail-misc'
 export * from './teams'
 export * from './notes'
 export * from './notion'
 export * from './compose'
-export * from './mail-misc'
+export * from './demo'
 
 export type {
   BookingsAppointmentRow,

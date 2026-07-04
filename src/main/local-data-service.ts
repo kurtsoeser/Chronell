@@ -563,7 +563,14 @@ async function copyFileWithStreams(src: string, dest: string): Promise<void> {
   })
 }
 
-async function mergeExtractedIntoUserData(extractDir: string, userDataPath: string): Promise<void> {
+async function mergeExtractedIntoUserData(
+  extractDir: string,
+  userDataPath: string,
+  mode: 'merge' | 'replace' = 'merge'
+): Promise<void> {
+  if (mode === 'replace') {
+    await clearUserDataForReplace(userDataPath)
+  }
   const stack = [extractDir]
   while (stack.length > 0) {
     const cur = stack.pop()!
@@ -586,7 +593,23 @@ async function mergeExtractedIntoUserData(extractDir: string, userDataPath: stri
   }
 }
 
-export async function restoreLocalDataArchive(zipPath: string): Promise<void> {
+export async function clearUserDataForReplace(userDataPath: string): Promise<void> {
+  const { mkdir, readdir } = await import('node:fs/promises')
+  const entries = await readdir(userDataPath, { withFileTypes: true }).catch(() => [])
+  for (const ent of entries) {
+    if (REGENERABLE_DIR_NAMES.includes(ent.name as (typeof REGENERABLE_DIR_NAMES)[number])) {
+      continue
+    }
+    await rm(join(userDataPath, ent.name), { recursive: true, force: true })
+  }
+  await mkdir(join(userDataPath, 'data'), { recursive: true })
+  await mkdir(join(userDataPath, 'secure'), { recursive: true })
+}
+
+export async function restoreLocalDataArchive(
+  zipPath: string,
+  options?: { mode?: 'merge' | 'replace' }
+): Promise<void> {
   const userDataPath = getUserDataPath()
   const extractDir = join(
     tmpdir(),
@@ -601,7 +624,7 @@ export async function restoreLocalDataArchive(zipPath: string): Promise<void> {
   try {
     await execFileAsync('tar', ['-xf', zipPath, '-C', extractDir], { windowsHide: true })
     await validateArchiveManifest(extractDir)
-    await mergeExtractedIntoUserData(extractDir, userDataPath)
+    await mergeExtractedIntoUserData(extractDir, userDataPath, options?.mode ?? 'merge')
     await rm(join(userDataPath, MANIFEST_FILE), { force: true })
   } finally {
     await rm(extractDir, { recursive: true, force: true })

@@ -35,6 +35,8 @@ export type NotesCalendarDateMode = 'created' | 'scheduled'
 export interface NotesSettingsPrefsV1 {
   defaultShellView: NotesShellView
   rememberLastShellView: boolean
+  /** Beim Wechsel zurück in Notizen die zuletzt geöffnete Seite wieder laden. */
+  rememberLastOpenNote: boolean
   defaultSidebarListMode: NotesSidebarListMode
   defaultSectionsNavScope: NotesSectionsNavScope
   rememberLastNavSelection: boolean
@@ -88,6 +90,7 @@ const VALID_FC_VIEWS = new Set([
 const DEFAULTS: NotesSettingsPrefsV1 = {
   defaultShellView: 'list',
   rememberLastShellView: true,
+  rememberLastOpenNote: true,
   defaultSidebarListMode: 'sections',
   defaultSectionsNavScope: 'ungrouped',
   rememberLastNavSelection: true,
@@ -192,6 +195,7 @@ function parsePrefs(raw: string): NotesSettingsPrefsV1 {
     base.defaultShellView = o.defaultShellView
   }
   if (typeof o.rememberLastShellView === 'boolean') base.rememberLastShellView = o.rememberLastShellView
+  if (typeof o.rememberLastOpenNote === 'boolean') base.rememberLastOpenNote = o.rememberLastOpenNote
   if (o.defaultSidebarListMode === 'accounts' || o.defaultSidebarListMode === 'sections') {
     base.defaultSidebarListMode = o.defaultSidebarListMode
   }

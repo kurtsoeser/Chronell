@@ -6,6 +6,7 @@ import { MIGRATIONS } from './schema'
 import { scheduleMessageParticipantsBackfillIfNeeded } from './message-participants-repo'
 import { migrateLegacyLinksToEntityLinks } from './entity-links-migrate'
 import { purgeOrphanedEntityLinks } from './entity-links-repo'
+import { backfillNoteBodyFtsTextIfNeeded } from './user-notes-repo'
 
 let dbInstance: DbType | null = null
 
@@ -102,6 +103,7 @@ export function getDb(): DbType {
   dbInstance = db
   try {
     runMigrations(db)
+    backfillNoteBodyFtsTextIfNeeded()
     migrateLegacyLinksToEntityLinks(db)
     purgeOrphanedEntityLinks()
     scheduleMessageParticipantsBackfillIfNeeded()

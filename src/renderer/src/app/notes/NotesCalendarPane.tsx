@@ -18,6 +18,9 @@ import type { EventDropArg } from '@fullcalendar/core'
 import type { EventResizeDoneArg } from '@fullcalendar/interaction'
 import { useTranslation } from 'react-i18next'
 import type { UserNoteListItem } from '@shared/types'
+import { notesForNavSelection, type NotesNavSelection } from '@/lib/notes-nav-selection'
+import { notesForMiniCalendarRange } from '@/app/notes/shell/notes-shell-date-range'
+import type { MiniMonthSelectedRange } from '@/app/calendar/MiniMonthGrid'
 import { cn } from '@/lib/utils'
 import {
   CALENDAR_KIND_USER_NOTE,
@@ -59,6 +62,8 @@ export function NotesCalendarPane({
   onViewMeta,
   previewNoteId,
   dateMode,
+  navSelection,
+  miniCalendarRange,
   className
 }: {
   onPreviewNote: (note: UserNoteListItem) => void
@@ -68,6 +73,8 @@ export function NotesCalendarPane({
   onViewMeta?: (meta: { title: string; viewType: string; currentStart: Date }) => void
   previewNoteId?: number | null
   dateMode: NotesCalendarDateMode
+  navSelection: NotesNavSelection
+  miniCalendarRange: MiniMonthSelectedRange | null
   className?: string
 }): JSX.Element {
   const { t, i18n } = useTranslation()
@@ -105,9 +112,18 @@ export function NotesCalendarPane({
 
   useEffect(() => (): void => clearHoverTimer(), [clearHoverTimer])
 
+  const filteredRangeNotes = useMemo(() => {
+    const byNav = notesForNavSelection(rangeNotes, navSelection)
+    return notesForMiniCalendarRange(byNav, miniCalendarRange, dateMode)
+  }, [rangeNotes, navSelection, miniCalendarRange, dateMode])
+
   const fcEvents = useMemo(
-    () => notesToFullCalendarEvents(rangeNotes, { defaultTitle: t('notes.shell.untitled'), dateMode }),
-    [rangeNotes, t, dateMode]
+    () =>
+      notesToFullCalendarEvents(filteredRangeNotes, {
+        defaultTitle: t('notes.shell.untitled'),
+        dateMode
+      }),
+    [filteredRangeNotes, t, dateMode]
   )
 
   const multiDayViews = useMemo(() => {
