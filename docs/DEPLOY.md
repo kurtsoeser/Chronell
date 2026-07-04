@@ -79,6 +79,16 @@ npx --yes serve .
 
 Dann im Browser `http://localhost:3000` öffnen.
 
+Demo-Seite: `http://localhost:3000/demo/`
+
+## Online-Demo & Portable ZIP
+
+| Asset | Pfad |
+|-------|------|
+| Demo-Seite | `docs/demo/index.html` → `chronell.app/demo/` |
+| Web-Snapshot | `docs/demo/data/demo-snapshot.json` (`npm run demo:build-snapshot`) |
+| Portable ZIP | `release/<version>/Chronell-*-Demo-Portable.zip` (`npm run demo:package-portable`) |
+
 ## Screenshots
 
 Die Homepage bindet PNGs aus `docs/assets/screenshots/` ein (siehe [`assets/screenshots/README.md`](assets/screenshots/README.md)).

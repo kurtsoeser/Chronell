@@ -248,6 +248,9 @@ if (Test-Path -LiteralPath $appVersionTs) {
 $versionedName = "Chronell-$Version-setup.exe"
 $ghTag = "v$Version"
 $ghDownloadUrl = "https://github.com/kurtsoeser/Chronell/releases/download/$ghTag/$versionedName"
+$demoPortableName = "Chronell-$Version-Demo-Portable.zip"
+$demoPortablePath = Join-Path $versionDir $demoPortableName
+$ghDemoPortableUrl = "https://github.com/kurtsoeser/Chronell/releases/download/$ghTag/$demoPortableName"
 
 $pagesStableUrl = 'release/latest/Chronell-setup.exe'
 $pagesVersionedUrl = "release/$Version/$versionedName"
@@ -266,6 +269,9 @@ $manifest = [ordered]@{
   stableUrl         = $pagesStableUrl
   versionedUrl      = $pagesVersionedUrl
   githubDownloadUrl = $ghDownloadUrl
+}
+if (Test-Path -LiteralPath $demoPortablePath) {
+  $manifest['demoPortableDownloadUrl'] = $ghDemoPortableUrl
 }
 $manifestPath = Join-Path $docsRelease 'latest.json'
 $manifest | ConvertTo-Json | Set-Content -LiteralPath $manifestPath -Encoding UTF8

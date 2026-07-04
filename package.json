@@ -45,7 +45,9 @@
     "docs:ipc-reference": "node scripts/generate-ipc-reference.mjs",
     "check": "npm run typecheck && npm run test && npm run lint && npm run validate:i18n && npm run validate:version",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"electron/**/*.ts\"",
-    "demo:build-pack": "node scripts/build-demo-pack.mjs",
+    "demo:build-pack": "node scripts/build-demo-pack.mjs && node scripts/build-demo-snapshot.mjs",
+    "demo:build-snapshot": "node scripts/build-demo-snapshot.mjs",
+    "demo:package-portable": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/package-demo-portable.ps1",
     "demo:launch": "cross-env CHRONELL_DEMO=1 npm run dev",
     "demo:reset": "node scripts/reset-demo-profile.mjs"
   },

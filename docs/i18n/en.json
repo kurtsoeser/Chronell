@@ -12,6 +12,7 @@
     "features": "Features",
     "modules": "Modules",
     "download": "Download",
+    "demo": "Demo",
     "github": "GitHub",
     "lang": "Language"
   },
@@ -29,6 +30,7 @@
     "positioning": "Chronell is not an email client. It's a system to manage your time.",
     "subline": "Microsoft 365 and Google in one desktop workspace — custom views from mail, calendar, and tasks, floating panels, and a refined mail and calendar workspace. Built for Windows 11.",
     "ctaDownload": "Download for Windows",
+    "ctaDemo": "Try the demo",
     "ctaMethod": "Discover the method",
     "mockup": {
       "inbox": "Inbox",

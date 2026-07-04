@@ -272,6 +272,11 @@ svg {
   color: hsl(var(--foreground));
 }
 
+.nav-desktop a.nav-demo-link {
+  color: var(--brand-sky);
+  font-weight: 600;
+}
+
 .header-actions {
   display: flex;
   align-items: center;

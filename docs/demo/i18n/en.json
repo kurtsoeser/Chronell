@@ -1,0 +1,103 @@
+{
+  "meta": {
+    "title": "Chronell Demo — Try Nordlicht Consulting",
+    "description": "Interactive web demo and portable desktop demo: mail triage, calendar, tasks, and connections graph with fictional sample data."
+  },
+  "nav": {
+    "home": "Back to homepage",
+    "sandbox": "Try interactively",
+    "download": "Download",
+    "github": "GitHub"
+  },
+  "hero": {
+    "badge": "Demo · Nordlicht Consulting scenario",
+    "title": "Try Chronell — no account, no risk",
+    "subline": "Test mail triage, week calendar, tasks, and the connections graph with fictional demo data. Interactive in the browser — or locally as the full desktop demo.",
+    "ctaSandbox": "Start interactive demo",
+    "ctaPortable": "Portable demo (ZIP)",
+    "ctaInstaller": "Windows installer"
+  },
+  "video": {
+    "eyebrow": "Overview",
+    "title": "Chronell in 90 seconds",
+    "hint": "Click play — the tour scrolls to the interactive demo and walks you through four core flows.",
+    "play": "Start tour",
+    "steps": {
+      "mail": "Triage your inbox — select, read, mark done",
+      "calendar": "Week calendar — this week's events with context",
+      "tasks": "Tasks today — cloud tasks and overdue items",
+      "connections": "Connections graph — mail, notes, events, and tasks linked"
+    }
+  },
+  "sandbox": {
+    "eyebrow": "Interactive in browser",
+    "title": "Four core flows — real demo data",
+    "hint": "Changes stay in this browser session only. For the full app experience: portable demo or installer.",
+    "reset": "Reset",
+    "toastRead": "Marked as read",
+    "toastTodo": "Planned as to-do (demo)",
+    "toastDone": "Task completed",
+    "tabs": {
+      "mail": "Mail",
+      "calendar": "Calendar",
+      "tasks": "Tasks",
+      "connections": "Connections"
+    },
+    "mail": {
+      "inbox": "Inbox",
+      "today": "Today",
+      "selected": "{count} selected",
+      "markRead": "Mark read",
+      "planTodo": "As to-do",
+      "previewEmpty": "Select a message to preview",
+      "unread": "Unread",
+      "flagged": "Flagged",
+      "snoozed": "Snoozed",
+      "waiting": "Waiting for"
+    },
+    "calendar": {
+      "week": "This week",
+      "allDay": "All day",
+      "noEvents": "No events on this day",
+      "detailOrganizer": "Organizer",
+      "detailLocation": "Location"
+    },
+    "tasks": {
+      "today": "Today",
+      "overdue": "Overdue",
+      "later": "Later",
+      "noDue": "No due date",
+      "completed": "Done",
+      "empty": "No open tasks in this group"
+    },
+    "connections": {
+      "hint": "Click a node — connected objects are highlighted.",
+      "legendMail": "Mail",
+      "legendNote": "Note",
+      "legendEvent": "Event",
+      "legendTask": "Task",
+      "legendContact": "Contact",
+      "links": "{count} connections"
+    }
+  },
+  "download": {
+    "eyebrow": "Desktop demo",
+    "title": "The full Chronell experience",
+    "installer": {
+      "title": "Windows installer",
+      "desc": "Classic setup. The “Chronell Demo” shortcut starts the Nordlicht scenario with --demo.",
+      "cta": "Download installer"
+    },
+    "portable": {
+      "title": "Portable demo (recommended)",
+      "desc": "Unzip, double-click “Chronell Demo.bat” — no install, isolated demo profile.",
+      "cta": "Portable demo (ZIP)",
+      "badge": "No installation"
+    },
+    "note": "Both use the same demo data. Real accounts stay untouched."
+  },
+  "accounts": {
+    "m365": "Anna Weber · Microsoft 365",
+    "google": "Projekt Alpha · Google"
+  }
+}

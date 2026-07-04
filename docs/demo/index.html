@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      data-i18n="meta.description"
+      content="Interaktive Chronell-Demo: Mail-Triage, Kalender, Aufgaben und Verbindungs-Graph mit fiktiven Nordlicht-Daten."
+    />
+    <title>Chronell Demo</title>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Chronell Demo" />
+    <meta property="og:description" content="Chronell interaktiv ausprobieren — im Browser oder als portable Desktop-Demo." />
+    <link rel="canonical" href="https://chronell.app/demo/" />
+    <meta property="og:url" content="https://chronell.app/demo/" />
+    <meta property="og:image" content="https://chronell.app/assets/chronell-logo.png" />
+    <link rel="icon" href="../assets/favicon.png" type="image/png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../css/site.css" />
+    <link rel="stylesheet" href="css/demo.css" />
+  </head>
+  <body>
+    <div class="mesh-bg" aria-hidden="true">
+      <div class="starfield"></div>
+    </div>
+
+    <header class="site-header">
+      <div class="container">
+        <a href="../" class="brand" aria-label="Chronell">
+          <img src="../assets/chronell-icon.png" alt="" class="brand-logo" width="36" height="36" />
+          <span class="brand-text">Chronell</span>
+        </a>
+        <nav class="nav-desktop" aria-label="Main">
+          <a href="../" data-i18n="nav.home">Zur Homepage</a>
+          <a href="#demo-sandbox" data-i18n="nav.sandbox">Interaktiv testen</a>
+          <a href="#download" data-i18n="nav.download">Herunterladen</a>
+        </nav>
+        <div class="header-actions">
+          <div class="lang-toggle" role="group" aria-label="Language">
+            <button type="button" data-lang="de" class="active">DE</button>
+            <button type="button" data-lang="en">EN</button>
+          </div>
+          <a class="btn btn-ghost nav-github" data-i18n="nav.github" href="https://github.com/kurtsoeser/Chronell" target="_blank" rel="noopener">GitHub</a>
+          <a href="#download" class="btn btn-primary" data-demo-portable data-i18n="hero.ctaPortable">Portable Demo (ZIP)</a>
+          <button type="button" class="nav-toggle" aria-label="Menu" aria-expanded="false">
+            <span></span><span></span><span></span>
+          </button>
+        </div>
+      </div>
+      <nav class="nav-mobile" aria-label="Mobile">
+        <a href="../" data-i18n="nav.home">Zur Homepage</a>
+        <a href="#demo-sandbox" data-i18n="nav.sandbox">Interaktiv testen</a>
+        <a href="#download" data-i18n="nav.download">Herunterladen</a>
+        <a href="#download" data-demo-portable data-i18n="hero.ctaPortable">Portable Demo (ZIP)</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero section demo-hero">
+        <div class="container">
+          <p class="eyebrow reveal" data-i18n="hero.badge">Demo · Szenario Nordlicht Consulting</p>
+          <h1 class="hero-title reveal reveal-delay-1" data-i18n="hero.title">Chronell ausprobieren — ohne Konto, ohne Risiko</h1>
+          <p class="hero-subline reveal reveal-delay-2" data-i18n="hero.subline">
+            Teste Mail-Triage, Wochenkalender, Aufgaben und den Verbindungs-Graph mit fiktiven Demo-Daten.
+          </p>
+          <div class="demo-hero-ctas reveal reveal-delay-3">
+            <a href="#demo-sandbox" class="btn btn-primary" data-i18n="hero.ctaSandbox">Interaktive Demo starten</a>
+            <a href="#download" class="btn btn-ghost btn-portable" data-demo-portable data-i18n="hero.ctaPortable">Portable Demo (ZIP)</a>
+            <a href="#download" class="btn btn-ghost" data-download data-i18n="hero.ctaInstaller">Installer für Windows</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="section demo-video-section">
+        <div class="container">
+          <div class="demo-video-card reveal">
+            <div class="demo-video-poster" data-demo-tour-start role="button" tabindex="0" aria-label="Tour starten">
+              <img src="../assets/screenshots/mail-triage.png" alt="" width="640" height="400" />
+              <div class="demo-video-play">
+                <span class="demo-video-play-btn" data-demo-tour-play>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+                  <span data-i18n="video.play">Tour starten</span>
+                </span>
+              </div>
+            </div>
+            <div>
+              <p class="eyebrow" data-i18n="video.eyebrow">Überblick</p>
+              <h2 class="section-title" data-i18n="video.title">Chronell in 90 Sekunden</h2>
+              <p class="section-lead" data-i18n="video.hint">Klicke auf Play — die Tour führt dich durch die vier Kern-Flows.</p>
+              <ol class="demo-tour-steps">
+                <li class="demo-tour-step active" data-tour-step="mail">
+                  <span class="demo-tour-step-num">1</span>
+                  <span data-i18n="video.steps.mail">Posteingang triagieren</span>
+                </li>
+                <li class="demo-tour-step" data-tour-step="calendar">
+                  <span class="demo-tour-step-num">2</span>
+                  <span data-i18n="video.steps.calendar">Wochenkalender</span>
+                </li>
+                <li class="demo-tour-step" data-tour-step="tasks">
+                  <span class="demo-tour-step-num">3</span>
+                  <span data-i18n="video.steps.tasks">Aufgaben heute</span>
+                </li>
+                <li class="demo-tour-step" data-tour-step="connections">
+                  <span class="demo-tour-step-num">4</span>
+                  <span data-i18n="video.steps.connections">Verbindungs-Graph</span>
+                </li>
+              </ol>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section demo-sandbox-section" id="demo-sandbox">
+        <div class="container">
+          <div class="demo-sandbox-head reveal">
+            <div>
+              <p class="eyebrow" data-i18n="sandbox.eyebrow">Interaktiv im Browser</p>
+              <h2 class="section-title" data-i18n="sandbox.title">Vier Kern-Flows — echte Demo-Daten</h2>
+              <p class="section-lead" data-i18n="sandbox.hint">Änderungen bleiben nur in dieser Browser-Sitzung.</p>
+            </div>
+          </div>
+
+          <div class="demo-sandbox-frame reveal" id="demo-sandbox-root">
+            <div class="demo-sandbox-toolbar">
+              <div class="demo-sandbox-tabs" role="tablist">
+                <button type="button" class="demo-sandbox-tab active" data-sb-tab="mail" role="tab" aria-selected="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><path d="M22 6l-10 7L2 6"/></svg>
+                  <span data-i18n="sandbox.tabs.mail">Mail</span>
+                </button>
+                <button type="button" class="demo-sandbox-tab" data-sb-tab="calendar" role="tab" aria-selected="false">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                  <span data-i18n="sandbox.tabs.calendar">Kalender</span>
+                </button>
+                <button type="button" class="demo-sandbox-tab" data-sb-tab="tasks" role="tab" aria-selected="false">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                  <span data-i18n="sandbox.tabs.tasks">Aufgaben</span>
+                </button>
+                <button type="button" class="demo-sandbox-tab" data-sb-tab="connections" role="tab" aria-selected="false">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                  <span data-i18n="sandbox.tabs.connections">Verbindungen</span>
+                </button>
+              </div>
+              <button type="button" class="demo-sandbox-reset" data-sb-reset data-i18n="sandbox.reset">Zurücksetzen</button>
+            </div>
+
+            <div class="demo-sandbox-panels">
+              <div class="demo-sandbox-panel active" data-sb-panel="mail" role="tabpanel">
+                <div class="sb-mail">
+                  <aside class="sb-mail-sidebar">
+                    <div class="sb-mail-nav-item active" data-i18n="sandbox.mail.inbox">Posteingang</div>
+                    <div class="sb-mail-nav-item" data-i18n="sandbox.mail.today">Heute</div>
+                  </aside>
+                  <div class="sb-mail-list-wrap">
+                    <div class="sb-mail-bulk" data-sb-mail-bulk>
+                      <span data-sb-mail-bulk-count>0 ausgewählt</span>
+                      <div class="sb-mail-bulk-actions">
+                        <button type="button" data-sb-mail-mark-read data-i18n="sandbox.mail.markRead">Gelesen</button>
+                        <button type="button" data-sb-mail-plan-todo data-i18n="sandbox.mail.planTodo">Als ToDo</button>
+                      </div>
+                    </div>
+                    <div class="sb-mail-list" data-sb-mail-list></div>
+                  </div>
+                  <div class="sb-mail-preview" data-sb-mail-preview></div>
+                </div>
+              </div>
+
+              <div class="demo-sandbox-panel" data-sb-panel="calendar" role="tabpanel" hidden>
+                <div class="sb-cal">
+                  <div class="sb-cal-header">
+                    <span data-sb-cal-week data-i18n="sandbox.calendar.week">Diese Woche</span>
+                  </div>
+                  <div class="sb-cal-grid" data-sb-cal-grid></div>
+                  <div class="sb-cal-detail" data-sb-cal-detail></div>
+                </div>
+              </div>
+
+              <div class="demo-sandbox-panel" data-sb-panel="tasks" role="tabpanel" hidden>
+                <div class="sb-tasks" data-sb-tasks-cols></div>
+              </div>
+
+              <div class="demo-sandbox-panel" data-sb-panel="connections" role="tabpanel" hidden>
+                <div class="sb-graph">
+                  <svg data-sb-graph-svg viewBox="0 0 560 400" aria-label="Verbindungs-Graph"></svg>
+                </div>
+                <div class="sb-graph-legend">
+                  <span data-sb-graph-count></span>
+                  <span class="lg-mail" data-i18n="sandbox.connections.legendMail">Mail</span>
+                  <span class="lg-note" data-i18n="sandbox.connections.legendNote">Notiz</span>
+                  <span class="lg-event" data-i18n="sandbox.connections.legendEvent">Termin</span>
+                  <span class="lg-task" data-i18n="sandbox.connections.legendTask">Aufgabe</span>
+                  <span class="lg-contact" data-i18n="sandbox.connections.legendContact">Kontakt</span>
+                </div>
+                <p style="padding:0 0.65rem 0.5rem;font-size:0.72rem;color:hsl(var(--muted))" data-i18n="sandbox.connections.hint">Klicke einen Knoten.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section demo-download-section" id="download">
+        <div class="container">
+          <p class="eyebrow reveal" data-i18n="download.eyebrow">Desktop-Demo</p>
+          <h2 class="section-title reveal" data-i18n="download.title">Die volle Chronell-Erfahrung</h2>
+          <div class="demo-download-grid reveal">
+            <article class="demo-download-card featured">
+              <span class="demo-download-badge" data-i18n="download.portable.badge">Ohne Installation</span>
+              <h3 data-i18n="download.portable.title">Portable Demo (empfohlen)</h3>
+              <p data-i18n="download.portable.desc">ZIP entpacken, „Chronell Demo.bat“ doppelklicken — isoliertes Demo-Profil.</p>
+              <a href="#" class="btn btn-primary" data-demo-portable data-i18n="download.portable.cta">Portable Demo (ZIP)</a>
+            </article>
+            <article class="demo-download-card">
+              <h3 data-i18n="download.installer.title">Windows-Installer</h3>
+              <p data-i18n="download.installer.desc">Klassische Installation mit Verknüpfung „Chronell Demo“.</p>
+              <a href="#" class="btn btn-ghost" data-download data-i18n="download.installer.cta">Installer herunterladen</a>
+            </article>
+          </div>
+          <p class="demo-download-note reveal" data-i18n="download.note">Beide Varianten nutzen dieselben Demo-Daten.</p>
+        </div>
+      </section>
+    </main>
+
+    <div class="demo-toast" id="demo-toast" role="status" aria-live="polite"></div>
+
+    <script type="module" src="js/demo-page.js"></script>
+  </body>
+</html>

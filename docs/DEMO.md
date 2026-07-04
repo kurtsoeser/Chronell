@@ -52,6 +52,34 @@ npm run demo:launch
 npm run generate:homepage-screenshots
 ```
 
+## Online-Demo (chronell.app/demo)
+
+Die interaktive Web-Demo liegt unter `docs/demo/`:
+
+- **Seite:** `https://chronell.app/demo/`
+- **Sandbox:** Mail-Triage, Wochenkalender, Aufgaben, Verbindungs-Graph
+- **Daten:** `docs/demo/data/demo-snapshot.json` (aus dem gleichen Seed wie die Desktop-Demo)
+
+Snapshot neu erzeugen (nach Änderungen an `src/demo/seed-content.ts`):
+
+```bash
+npm run demo:build-snapshot
+```
+
+`demo:build-pack` baut Pack und Snapshot zusammen.
+
+## Portable Desktop-Demo
+
+ZIP ohne Installation — nach `npm run build:win:local`:
+
+```bash
+npm run demo:package-portable
+```
+
+Erzeugt `release/<version>/Chronell-<version>-Demo-Portable.zip` mit `Chronell Demo.bat` (`--demo`).
+
+Download-Link auf der Demo-Seite: `demoPortableDownloadUrl` in `docs/release/latest.json`.
+
 ## Support-Export
 
 Im aktiven Demo-Profil: Einstellungen → Demo → „Paket exportieren“ (`demo:export-pack`).
