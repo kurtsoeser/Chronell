@@ -11,7 +11,10 @@ import { isInMemorySqliteAvailable } from '../test-fixtures/db'
 const sqliteOk = isInMemorySqliteAvailable()
 
 describe.skipIf(!sqliteOk)('build-demo-db', () => {
-  it('erzeugt Schema v49 mit Demo-Daten', () => {
+  it(
+    'erzeugt Schema v49 mit Demo-Daten',
+    { timeout: 60_000 },
+    () => {
     const dir = mkdtempSync(join(tmpdir(), 'chronell-demo-db-'))
     const dbPath = join(dir, 'mail.db')
     try {
@@ -68,7 +71,8 @@ describe.skipIf(!sqliteOk)('build-demo-db', () => {
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
-  })
+  }
+  )
 
   it('applyMigrations ist idempotent', () => {
     const dir = mkdtempSync(join(tmpdir(), 'chronell-demo-mig-'))

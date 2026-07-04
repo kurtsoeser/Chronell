@@ -1,8 +1,9 @@
-import { ipcMain, BrowserWindow, dialog, shell } from 'electron'
+import { ipcMain, BrowserWindow, dialog, shell, type IpcMainInvokeEvent } from 'electron'
 import { promises as fs } from 'node:fs'
 import { IPC } from '@shared/ipc-channels'
 import type {
   FilesListCloudInput,
+  FilesListGoogleDriveInput,
   FilesListMailQuery,
   FilesListMailResult,
   FilesOpenCloudItemResult,
@@ -16,6 +17,7 @@ import { listAccounts } from '../accounts'
 import { graphListDriveExplorer } from '../graph/compose-recipient-graph'
 import { graphDownloadDriveItem } from '../graph/drive-download'
 import { graphUploadDriveFile } from '../graph/drive-upload'
+import { downloadGoogleDriveItem, listGoogleDriveExplorer } from '../google/drive-explorer'
 import {
   countMailFiles,
   getMailFileById,
@@ -36,6 +38,7 @@ export function registerFilesIpc(): void {
   ipcMain.removeHandler(IPC.files.saveMailAttachmentAs)
   ipcMain.removeHandler(IPC.files.saveMailToDrive)
   ipcMain.removeHandler(IPC.files.listCloud)
+  ipcMain.removeHandler(IPC.files.listGoogleDrive)
   ipcMain.removeHandler(IPC.files.saveCloudItemAs)
   ipcMain.removeHandler(IPC.files.openCloudItemExternal)
 
@@ -176,9 +179,24 @@ export function registerFilesIpc(): void {
   )
 
   ipcMain.handle(
+    IPC.files.listGoogleDrive,
+    async (_event, input: FilesListGoogleDriveInput): Promise<ComposeDriveExplorerEntry[]> => {
+      const accountId = input.accountId?.trim()
+      if (!accountId) throw new Error('Kein Konto ausgewählt.')
+      const accounts = await listAccounts()
+      const acc = accounts.find((a) => a.id === accountId)
+      if (!acc) throw new Error('Konto nicht gefunden.')
+      if (acc.provider !== 'google') {
+        throw new Error('Google Drive ist nur für Google-Konten verfügbar.')
+      }
+      return listGoogleDriveExplorer(input)
+    }
+  )
+
+  ipcMain.handle(
     IPC.files.saveCloudItemAs,
     async (
-      event,
+      event: IpcMainInvokeEvent,
       args: FilesSaveCloudItemInput
     ): Promise<FilesSaveCloudItemResult> => {
       const win = BrowserWindow.fromWebContents(event.sender) ?? undefined
@@ -191,11 +209,19 @@ export function registerFilesIpc(): void {
         return { ok: false, cancelled: true }
       }
       try {
-        const file = await graphDownloadDriveItem({
-          accountId: args.accountId,
-          itemId: args.itemId,
-          driveId: args.driveId
-        })
+        const accounts = await listAccounts()
+        const acc = accounts.find((a) => a.id === args.accountId)
+        const file =
+          acc?.provider === 'google'
+            ? await downloadGoogleDriveItem({
+                accountId: args.accountId,
+                itemId: args.itemId
+              })
+            : await graphDownloadDriveItem({
+                accountId: args.accountId,
+                itemId: args.itemId,
+                driveId: args.driveId
+              })
         await fs.writeFile(result.filePath, file.bytes)
         return { ok: true, path: result.filePath }
       } catch (e) {

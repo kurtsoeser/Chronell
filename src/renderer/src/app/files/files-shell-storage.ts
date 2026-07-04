@@ -4,11 +4,15 @@ import type {
   FilesMailViewMode,
   FilesMailSortBy,
   FilesShellSourceId,
-  FilesSortDir
+  FilesSortDir,
+  GoogleDriveExplorerNavCrumb,
+  GoogleDriveExplorerScope
 } from '@shared/files'
 import type { ComposeDriveExplorerNavCrumb, ComposeDriveExplorerScope } from '@shared/types'
 
 const SOURCE_KEY = 'mailclient.filesShell.source.v1'
+const GOOGLE_SCOPE_KEY = 'mailclient.filesShell.googleScope.v1'
+const GOOGLE_CRUMBS_KEY = 'mailclient.filesShell.googleCrumbs.v1'
 const CLOUD_ACCOUNT_KEY = 'mailclient.filesShell.cloudAccountId.v1'
 const CLOUD_SCOPE_KEY = 'mailclient.filesShell.cloudScope.v1'
 const CLOUD_CRUMBS_KEY = 'mailclient.filesShell.cloudCrumbs.v1'
@@ -285,6 +289,50 @@ export function persistFilesShellCloudCrumbs(crumbs: ComposeDriveExplorerNavCrum
   try {
     if (crumbs.length === 0) window.localStorage.removeItem(CLOUD_CRUMBS_KEY)
     else window.localStorage.setItem(CLOUD_CRUMBS_KEY, JSON.stringify(crumbs))
+  } catch {
+    // ignore
+  }
+}
+
+export function readFilesShellGoogleScope(): GoogleDriveExplorerScope {
+  try {
+    const v = window.localStorage.getItem(GOOGLE_SCOPE_KEY)
+    if (v === 'sharedWithMe' || v === 'starred' || v === 'mydrive') return v
+  } catch {
+    // ignore
+  }
+  return 'mydrive'
+}
+
+export function persistFilesShellGoogleScope(scope: GoogleDriveExplorerScope): void {
+  try {
+    window.localStorage.setItem(GOOGLE_SCOPE_KEY, scope)
+  } catch {
+    // ignore
+  }
+}
+
+export function readFilesShellGoogleCrumbs(): GoogleDriveExplorerNavCrumb[] {
+  try {
+    const raw = window.localStorage.getItem(GOOGLE_CRUMBS_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as unknown
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter(
+      (c): c is GoogleDriveExplorerNavCrumb =>
+        c != null &&
+        typeof c === 'object' &&
+        typeof (c as GoogleDriveExplorerNavCrumb).name === 'string'
+    )
+  } catch {
+    return []
+  }
+}
+
+export function persistFilesShellGoogleCrumbs(crumbs: GoogleDriveExplorerNavCrumb[]): void {
+  try {
+    if (crumbs.length === 0) window.localStorage.removeItem(GOOGLE_CRUMBS_KEY)
+    else window.localStorage.setItem(GOOGLE_CRUMBS_KEY, JSON.stringify(crumbs))
   } catch {
     // ignore
   }

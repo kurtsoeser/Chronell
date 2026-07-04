@@ -763,7 +763,7 @@ export function seedDemoEntityLinks(
     calendarEventIds: string[]
   }
 ): void {
-  const { messageIds, noteIds, contactIds, todoIds, calendarEventIds } = ctx
+  const { messageIds, noteIds, contactIds, todoIds } = ctx
   const pairs: Array<[EntityLinkSide, EntityLinkSide]> = [
     [{ kind: 'mail', messageId: messageIds[0]! }, { kind: 'note', noteId: noteIds[1]! }],
     [{ kind: 'note', noteId: noteIds[0]! }, { kind: 'people_contact', contactId: contactIds[0]! }],

@@ -1,8 +1,8 @@
 import type { ChronellEntityRef, EntityRefKind } from '@shared/entity-ref'
-import { entityRefKey, entityRefsEqual } from '@shared/entity-ref'
+import { entityRefKey } from '@shared/entity-ref'
 import type { EntityLinkTargetCandidate } from '@shared/entity-links'
 import { getDb } from '../db/index'
-import { getMailTodoMessageId, listEntityLinksForAnchor } from '../db/entity-links-repo'
+import { listEntityLinksForAnchor } from '../db/entity-links-repo'
 import {
   anchorReferenceIso,
   buildAnchorSnapshot,

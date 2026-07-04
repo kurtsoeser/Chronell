@@ -11,7 +11,6 @@ import type {
   EntityLinkQuality,
   EntityLinkQualityAssessment
 } from '@shared/ai-link-domain'
-import { AiConnectionsError } from '@shared/ai-connections'
 import { listEntityLinksForAnchor } from '../db/entity-links-repo'
 import { assertAiConnectionsReady } from './ai-settings-store'
 import { buildAnchorSnapshot, enrichSnapshotWithTextExcerpt } from './entity-link-ai-context'

@@ -216,6 +216,10 @@ listMail: (
       input: import('@shared/files').FilesListCloudInput
     ): Promise<import('@shared/types').ComposeDriveExplorerEntry[]> =>
       ipcRenderer.invoke(IPC.files.listCloud, input),
+    listGoogleDrive: (
+      input: import('@shared/files').FilesListGoogleDriveInput
+    ): Promise<import('@shared/types').ComposeDriveExplorerEntry[]> =>
+      ipcRenderer.invoke(IPC.files.listGoogleDrive, input),
     saveCloudItemAs: (
       args: import('@shared/files').FilesSaveCloudItemInput
     ): Promise<import('@shared/files').FilesSaveCloudItemResult> =>

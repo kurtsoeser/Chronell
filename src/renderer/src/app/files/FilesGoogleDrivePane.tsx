@@ -1,85 +1,67 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ArrowUp, ChevronRight, Loader2, RefreshCw } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import type { CloudFileRow, FilesMailCategory, FilesMailViewMode } from '@shared/files'
-import { matchesFilesMailCategory } from '@shared/attachment-category'
 import type {
-  ComposeDriveExplorerEntry,
-  ComposeDriveExplorerNavCrumb,
-  ComposeDriveExplorerScope,
-  ConnectedAccount
-} from '@shared/types'
+  CloudFileRow,
+  FilesMailCategory,
+  FilesMailViewMode,
+  GoogleDriveExplorerNavCrumb,
+  GoogleDriveExplorerScope
+} from '@shared/files'
+import { matchesFilesMailCategory } from '@shared/attachment-category'
+import type { ComposeDriveExplorerEntry, ConnectedAccount } from '@shared/types'
 import { FilterTabs, type FilterTabOption } from '@/components/FilterTabs'
 import { listSubtleBorderClass } from '@/lib/chronell-ui-classes'
-import { buildFilesDriveUploadDestination } from '@/lib/drive-explorer-destination'
-import { buildDriveExplorerListParams } from '@/lib/drive-explorer-list-params'
 import { cn } from '@/lib/utils'
 import { FilesCloudTableView } from '@/app/files/FilesCloudTableView'
 import { FilesCloudTilesView } from '@/app/files/FilesCloudTilesView'
 import {
-  persistFilesShellCloudCrumbs,
-  persistFilesShellCloudScope
+  persistFilesShellGoogleCrumbs,
+  persistFilesShellGoogleScope
 } from '@/app/files/files-shell-storage'
 import { useUndoStore } from '@/stores/undo'
 
-const CLOUD_SCOPE_IDS: ComposeDriveExplorerScope[] = [
-  'myfiles',
-  'shared',
-  'sharepoint',
-  'recent'
-]
+const GOOGLE_SCOPE_IDS: GoogleDriveExplorerScope[] = ['mydrive', 'sharedWithMe', 'starred']
+
+function rootLabelForScope(scope: GoogleDriveExplorerScope, t: (key: string) => string): string {
+  return t(`files.cloud.googleScopes.${scope}`)
+}
+
+function buildLocationLabel(
+  scope: GoogleDriveExplorerScope,
+  crumbs: GoogleDriveExplorerNavCrumb[],
+  t: (key: string) => string
+): string {
+  const parts = [rootLabelForScope(scope, t), ...crumbs.map((c) => c.name)]
+  return parts.join(' / ')
+}
 
 function entryToCloudRow(
   entry: ComposeDriveExplorerEntry,
   accountId: string,
-  scope: ComposeDriveExplorerScope,
-  crumbs: ComposeDriveExplorerNavCrumb[]
+  scope: GoogleDriveExplorerScope,
+  crumbs: GoogleDriveExplorerNavCrumb[],
+  t: (key: string) => string
 ): CloudFileRow {
-  const dest = buildFilesDriveUploadDestination(accountId, scope, crumbs)
   return {
-    rowKey: `${accountId}:${entry.driveId ?? ''}:${entry.id}`,
+    rowKey: `${accountId}:google:${entry.id}`,
     accountId,
-    cloudProvider: 'microsoft',
+    cloudProvider: 'google',
     itemId: entry.id,
-    driveId: entry.driveId ?? null,
-    siteId: entry.siteId ?? null,
+    driveId: null,
+    siteId: null,
     name: entry.name,
     webUrl: entry.webUrl,
     mime: entry.mimeType,
     size: entry.size,
     isFolder: entry.isFolder,
     scope,
-    locationLabel: dest.folderLabel,
+    locationLabel: buildLocationLabel(scope, crumbs, t),
     elementType: 'cloud'
   }
 }
 
-function crumbFromFolderRow(
-  row: CloudFileRow,
-  scope: ComposeDriveExplorerScope,
-  crumbs: ComposeDriveExplorerNavCrumb[]
-): ComposeDriveExplorerNavCrumb[] {
-  if (scope === 'sharepoint' && row.siteId) {
-    return [...crumbs, { id: null, name: row.name, siteId: row.siteId, driveId: null }]
-  }
-  if (scope === 'sharepoint' && row.driveId?.trim()) {
-    const d = row.driveId.trim()
-    const i = row.itemId.trim()
-    const isLibraryRoot = !row.siteId && i.length > 0 && i === d
-    return [
-      ...crumbs,
-      {
-        id: isLibraryRoot ? null : row.itemId,
-        name: row.name,
-        driveId: row.driveId ?? null,
-        siteId: null
-      }
-    ]
-  }
-  return [...crumbs, { id: row.itemId, name: row.name, driveId: row.driveId ?? null }]
-}
-
-export interface FilesCloudListStats {
+export interface FilesGoogleCloudListStats {
   shown: number
   total: number
 }
@@ -87,18 +69,18 @@ export interface FilesCloudListStats {
 interface Props {
   accountId: string
   accountsById: Map<string, ConnectedAccount>
-  scope: ComposeDriveExplorerScope
-  crumbs: ComposeDriveExplorerNavCrumb[]
+  scope: GoogleDriveExplorerScope
+  crumbs: GoogleDriveExplorerNavCrumb[]
   category: FilesMailCategory
   search: string
   viewMode: FilesMailViewMode
-  onScopeChange: (scope: ComposeDriveExplorerScope) => void
-  onCrumbsChange: (crumbs: ComposeDriveExplorerNavCrumb[]) => void
+  onScopeChange: (scope: GoogleDriveExplorerScope) => void
+  onCrumbsChange: (crumbs: GoogleDriveExplorerNavCrumb[]) => void
   onSelectionChange: (row: CloudFileRow | null) => void
-  onStatsChange: (stats: FilesCloudListStats) => void
+  onStatsChange: (stats: FilesGoogleCloudListStats) => void
 }
 
-export function FilesCloudPane({
+export function FilesGoogleDrivePane({
   accountId,
   accountsById,
   scope,
@@ -118,21 +100,25 @@ export function FilesCloudPane({
   const [loadError, setLoadError] = useState<string | null>(null)
   const [selected, setSelected] = useState<CloudFileRow | null>(null)
 
-  const scopeTabs = useMemo((): FilterTabOption<ComposeDriveExplorerScope>[] => {
-    return CLOUD_SCOPE_IDS.map((id) => ({
+  const scopeTabs = useMemo((): FilterTabOption<GoogleDriveExplorerScope>[] => {
+    return GOOGLE_SCOPE_IDS.map((id) => ({
       id,
-      label: t(`files.cloud.scopes.${id}`)
+      label: t(`files.cloud.googleScopes.${id}`)
     }))
   }, [t])
+
+  const folderId = crumbs.length > 0 ? (crumbs[crumbs.length - 1]?.id ?? null) : null
 
   const load = useCallback(async (): Promise<void> => {
     if (!accountId) return
     setLoading(true)
     setLoadError(null)
     try {
-      const list = await window.mailClient.files.listCloud(
-        buildDriveExplorerListParams(accountId, scope, crumbs)
-      )
+      const list = await window.mailClient.files.listGoogleDrive({
+        accountId,
+        scope,
+        folderId
+      })
       setEntries(list)
     } catch (e) {
       setEntries([])
@@ -140,7 +126,7 @@ export function FilesCloudPane({
     } finally {
       setLoading(false)
     }
-  }, [accountId, scope, crumbs])
+  }, [accountId, scope, folderId])
 
   useEffect(() => {
     void load()
@@ -148,7 +134,7 @@ export function FilesCloudPane({
 
   const rows = useMemo((): CloudFileRow[] => {
     const q = search.trim().toLowerCase()
-    let list = entries.map((e) => entryToCloudRow(e, accountId, scope, crumbs))
+    let list = entries.map((e) => entryToCloudRow(e, accountId, scope, crumbs, t))
     if (category !== 'all') {
       list = list.filter(
         (r) => r.isFolder || matchesFilesMailCategory(category, r.mime, r.name)
@@ -162,7 +148,7 @@ export function FilesCloudPane({
       return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
     })
     return list
-  }, [entries, accountId, scope, crumbs, category, search])
+  }, [entries, accountId, scope, crumbs, category, search, t])
 
   useEffect(() => {
     onStatsChange({ shown: rows.length, total: entries.length })
@@ -176,24 +162,24 @@ export function FilesCloudPane({
     setSelected(null)
   }, [accountId, scope, crumbs])
 
-  const rootLabel = t(`files.cloud.scopes.${scope}`)
-  const canGoUp = scope !== 'recent' && crumbs.length > 0
+  const rootLabel = rootLabelForScope(scope, t)
+  const canGoUp = crumbs.length > 0
 
-  function setScope(next: ComposeDriveExplorerScope): void {
+  function setScope(next: GoogleDriveExplorerScope): void {
     onScopeChange(next)
     onCrumbsChange([])
-    persistFilesShellCloudScope(next)
-    persistFilesShellCloudCrumbs([])
+    persistFilesShellGoogleScope(next)
+    persistFilesShellGoogleCrumbs([])
   }
 
-  function navigateTo(nextCrumbs: ComposeDriveExplorerNavCrumb[]): void {
+  function navigateTo(nextCrumbs: GoogleDriveExplorerNavCrumb[]): void {
     onCrumbsChange(nextCrumbs)
-    persistFilesShellCloudCrumbs(nextCrumbs)
+    persistFilesShellGoogleCrumbs(nextCrumbs)
     setSelected(null)
   }
 
   function openFolder(row: CloudFileRow): void {
-    navigateTo(crumbFromFolderRow(row, scope, crumbs))
+    navigateTo([...crumbs, { id: row.itemId, name: row.name }])
   }
 
   function goCrumb(index: number): void {
@@ -208,7 +194,7 @@ export function FilesCloudPane({
     if (crumbs.length > 0) {
       const next = crumbs.slice(0, -1)
       onCrumbsChange(next)
-      persistFilesShellCloudCrumbs(next)
+      persistFilesShellGoogleCrumbs(next)
       setSelected(null)
     }
   }, [crumbs, onCrumbsChange])
@@ -268,9 +254,7 @@ export function FilesCloudPane({
   const emptyMessage =
     search.trim() || category !== 'all'
       ? t('files.table.emptyFiltered')
-      : scope === 'recent'
-        ? t('files.cloud.emptyRecent')
-        : t('files.cloud.tableEmpty')
+      : t('files.cloud.tableEmpty')
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -279,7 +263,7 @@ export function FilesCloudPane({
           value={scope}
           options={scopeTabs}
           onChange={setScope}
-          ariaLabel={t('files.cloud.scopesAria')}
+          ariaLabel={t('files.cloud.googleScopesAria')}
           size="compact"
         />
       </div>
@@ -311,10 +295,7 @@ export function FilesCloudPane({
           {rootLabel}
         </button>
         {crumbs.map((c, i) => (
-          <span
-            key={`${c.siteId ?? ''}-${c.driveId ?? ''}-${c.id ?? 'r'}-${i}`}
-            className="flex min-w-0 items-center gap-1"
-          >
+          <span key={`${c.id ?? 'r'}-${i}`} className="flex min-w-0 items-center gap-1">
             <ChevronRight className="h-3 w-3 shrink-0 opacity-60" aria-hidden />
             <button
               type="button"

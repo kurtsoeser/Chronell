@@ -76,9 +76,11 @@
     "sidebar": {
       "source": "Quelle",
       "fromMail": "Aus E-Mails",
-      "fromCloud": "OneDrive / SharePoint",
+      "fromCloud": "Cloud-Speicher",
       "fromMailHint": "Anhänge aus dem lokalen Mail-Index.",
-      "fromCloudHint": "Dateien und Ordner direkt in der Cloud durchsuchen.",
+      "fromCloudHint": "OneDrive, SharePoint oder Google Drive durchsuchen.",
+      "cloudMicrosoft": "Microsoft 365",
+      "cloudGoogle": "Google Drive",
       "accounts": "Konten",
       "allAccounts": "Alle Konten",
       "indexPending": "Index wird aufgebaut … noch {{count}} Mails"
@@ -156,6 +158,12 @@
         "sharepoint": "SharePoint",
         "recent": "Zuletzt"
       },
+      "googleScopesAria": "Google-Drive-Bereich",
+      "googleScopes": {
+        "mydrive": "Meine Ablage",
+        "sharedWithMe": "Für mich freigegeben",
+        "starred": "Markiert"
+      },
       "columnLocation": "Speicherort",
       "tableEmpty": "Keine Einträge in diesem Ordner.",
       "emptyRecent": "Keine kürzlich verwendeten Dateien.",
@@ -169,6 +177,7 @@
       "summaryBrowsing": "Cloud-Durchsicht",
       "searchPlaceholder": "Dateiname filtern …",
       "noMicrosoftAccount": "Kein Microsoft-365-Konto verbunden.",
+      "noCloudAccount": "Kein Cloud-Konto verbunden. Verbinden Sie Microsoft 365 oder Google.",
       "typeFolder": "Ordner",
       "typeFile": "Datei",
       "copyLink": "Link kopieren",

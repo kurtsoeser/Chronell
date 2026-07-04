@@ -76,9 +76,11 @@
     "sidebar": {
       "source": "Source",
       "fromMail": "From email",
-      "fromCloud": "OneDrive / SharePoint",
+      "fromCloud": "Cloud storage",
       "fromMailHint": "Attachments from the local mail index.",
-      "fromCloudHint": "Browse files and folders in the cloud directly.",
+      "fromCloudHint": "Browse OneDrive, SharePoint, or Google Drive.",
+      "cloudMicrosoft": "Microsoft 365",
+      "cloudGoogle": "Google Drive",
       "accounts": "Accounts",
       "allAccounts": "All accounts",
       "indexPending": "Building index … {{count}} messages remaining"
@@ -156,6 +158,12 @@
         "sharepoint": "SharePoint",
         "recent": "Recent"
       },
+      "googleScopesAria": "Google Drive area",
+      "googleScopes": {
+        "mydrive": "My Drive",
+        "sharedWithMe": "Shared with me",
+        "starred": "Starred"
+      },
       "columnLocation": "Location",
       "tableEmpty": "No items in this folder.",
       "emptyRecent": "No recently used files.",
@@ -169,6 +177,7 @@
       "summaryBrowsing": "Cloud browse",
       "searchPlaceholder": "Filter by file name …",
       "noMicrosoftAccount": "No Microsoft 365 account connected.",
+      "noCloudAccount": "No cloud account connected. Connect Microsoft 365 or Google.",
       "typeFolder": "Folder",
       "typeFile": "File",
       "copyLink": "Copy link",

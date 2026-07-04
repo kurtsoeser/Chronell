@@ -94,10 +94,11 @@ export interface FilesMailIndexStatus {
   enabled: boolean
 }
 
-/** Zeile bei Quelle OneDrive / SharePoint. */
+/** Zeile bei Quelle OneDrive / SharePoint / Google Drive. */
 export interface CloudFileRow {
   rowKey: string
   accountId: string
+  cloudProvider: 'microsoft' | 'google'
   itemId: string
   driveId: string | null
   siteId: string | null
@@ -106,7 +107,7 @@ export interface CloudFileRow {
   mime: string | null
   size: number | null
   isFolder: boolean
-  scope: ComposeDriveExplorerScope
+  scope: ComposeDriveExplorerScope | GoogleDriveExplorerScope
   locationLabel: string
   elementType: 'cloud'
 }
@@ -130,4 +131,19 @@ export interface FilesSaveCloudItemResult {
 export interface FilesOpenCloudItemResult {
   ok: boolean
   error?: string
+}
+
+/** Google-Drive-Bereich im Dateien-Modul. */
+export type GoogleDriveExplorerScope = 'mydrive' | 'sharedWithMe' | 'starred'
+
+export interface FilesListGoogleDriveInput {
+  accountId: string
+  scope: GoogleDriveExplorerScope
+  /** Ordner-ID; `null` = Wurzel des Bereichs. */
+  folderId?: string | null
+}
+
+export interface GoogleDriveExplorerNavCrumb {
+  id: string | null
+  name: string
 }

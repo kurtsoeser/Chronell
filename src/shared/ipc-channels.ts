@@ -24,6 +24,7 @@ export const IPC = {
     saveMailAttachmentAs: 'files:save-mail-attachment-as',
     saveMailToDrive: 'files:save-mail-to-drive',
     listCloud: 'files:list-cloud',
+    listGoogleDrive: 'files:list-google-drive',
     saveCloudItemAs: 'files:save-cloud-item-as',
     openCloudItemExternal: 'files:open-cloud-item-external'
   },

@@ -8,7 +8,6 @@ import { canonicalEntityRefPair, entityRefKey } from '@shared/entity-ref'
 import type {
   EntityLinkAiScanInput,
   EntityLinkAiScanItem,
-  EntityLinkAiScanProfile,
   EntityLinkAiScanStatus,
   EntityLinkSuggestion,
   EntityLinkSuggestionChain
@@ -26,8 +25,6 @@ import { appendEntityLinkAiAudit } from '../db/entity-link-ai-audit-repo'
 import { invalidateHeuristicSuggestionCountCache } from './entity-link-suggestion-counts'
 
 const SCAN_PAUSE_MS = 350
-const DEFAULT_MAX_ANCHORS = 50
-const DEFAULT_LOOKBACK_DAYS = 90
 
 interface ScanAnchorRow {
   ref: ChronellEntityRef
@@ -302,15 +299,6 @@ export async function startEntityLinkAiScan(
   }
 
   const { settings } = await assertAiConnectionsReady()
-
-  const maxAnchors =
-    typeof input.maxAnchors === 'number'
-      ? Math.min(Math.max(input.maxAnchors, 1), 50)
-      : settings.scanMaxAnchors
-  const lookbackDays =
-    typeof input.lookbackDays === 'number'
-      ? Math.min(Math.max(input.lookbackDays, 7), 365)
-      : settings.scanLookbackDays
 
   const anchors = resolveScanAnchors(input, settings)
   scanIncludeExcerpt = input.includeExcerpt

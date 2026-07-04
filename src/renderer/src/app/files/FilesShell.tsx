@@ -21,6 +21,8 @@ import type {
   FilesMailSortBy,
   FilesShellSourceId,
   FilesSortDir,
+  GoogleDriveExplorerNavCrumb,
+  GoogleDriveExplorerScope,
   MailFileIndexRow
 } from '@shared/files'
 import type { ComposeDriveExplorerNavCrumb, ComposeDriveExplorerScope } from '@shared/types'
@@ -50,6 +52,7 @@ import { FilesShellSidebar } from '@/app/files/FilesShellSidebar'
 import { FilesTableView } from '@/app/files/FilesTableView'
 import { FilesTilesView } from '@/app/files/FilesTilesView'
 import { FilesCloudPane, type FilesCloudListStats } from '@/app/files/FilesCloudPane'
+import { FilesGoogleDrivePane } from '@/app/files/FilesGoogleDrivePane'
 import {
   persistFilesShellAccountFilter,
   persistFilesShellCategory,
@@ -60,6 +63,8 @@ import {
   persistFilesShellCloudAccountId,
   persistFilesShellCloudCrumbs,
   persistFilesShellCloudScope,
+  persistFilesShellGoogleCrumbs,
+  persistFilesShellGoogleScope,
   persistFilesShellSearch,
   persistFilesShellSort,
   persistFilesShellSource,
@@ -72,6 +77,8 @@ import {
   readFilesShellCloudAccountId,
   readFilesShellCloudCrumbs,
   readFilesShellCloudScope,
+  readFilesShellGoogleCrumbs,
+  readFilesShellGoogleScope,
   readFilesShellSearch,
   readFilesShellSort,
   readFilesShellSource
@@ -95,9 +102,9 @@ function defaultCloudAccountId(
   accounts: { id: string; provider?: string }[],
   stored: string | null
 ): string | null {
-  const ms = accounts.filter((a) => a.provider === 'microsoft')
-  if (stored && ms.some((a) => a.id === stored)) return stored
-  return ms[0]?.id ?? null
+  const cloud = accounts.filter((a) => a.provider === 'microsoft' || a.provider === 'google')
+  if (stored && cloud.some((a) => a.id === stored)) return stored
+  return cloud[0]?.id ?? null
 }
 
 export function FilesShell(): JSX.Element {
@@ -120,6 +127,12 @@ export function FilesShell(): JSX.Element {
   )
   const [cloudCrumbs, setCloudCrumbs] = useState<ComposeDriveExplorerNavCrumb[]>(() =>
     readFilesShellCloudCrumbs()
+  )
+  const [googleScope, setGoogleScope] = useState<GoogleDriveExplorerScope>(() =>
+    readFilesShellGoogleScope()
+  )
+  const [googleCrumbs, setGoogleCrumbs] = useState<GoogleDriveExplorerNavCrumb[]>(() =>
+    readFilesShellGoogleCrumbs()
   )
   const [searchInput, setSearchInput] = useState(() => readFilesShellSearch())
   const [search, setSearch] = useState(() => readFilesShellSearch())
@@ -149,6 +162,9 @@ export function FilesShell(): JSX.Element {
     () => new Map(accounts.map((a) => [a.id, a])),
     [accounts]
   )
+
+  const cloudAccount = cloudAccountId ? accountsById.get(cloudAccountId) : null
+  const cloudProvider = cloudAccount?.provider === 'google' ? 'google' : 'microsoft'
 
   useEffect(() => {
     setCloudAccountId((prev) => defaultCloudAccountId(accounts, prev ?? readFilesShellCloudAccountId()))
@@ -276,6 +292,9 @@ export function FilesShell(): JSX.Element {
     persistFilesShellCloudAccountId(id)
     setCloudCrumbs([])
     persistFilesShellCloudCrumbs([])
+    setGoogleCrumbs([])
+    persistFilesShellGoogleCrumbs([])
+    setSelectedCloud(null)
   }
 
   function toggleGroup(key: string): void {
@@ -626,28 +645,50 @@ export function FilesShell(): JSX.Element {
               />
             )
           ) : cloudAccountId ? (
-            <FilesCloudPane
-              accountId={cloudAccountId}
-              accountsById={accountsById}
-              scope={cloudScope}
-              crumbs={cloudCrumbs}
-              category={category}
-              search={search}
-              viewMode={viewMode}
-              onScopeChange={(s): void => {
-                setCloudScope(s)
-                persistFilesShellCloudScope(s)
-              }}
-              onCrumbsChange={(c): void => {
-                setCloudCrumbs(c)
-                persistFilesShellCloudCrumbs(c)
-              }}
-              onSelectionChange={setSelectedCloud}
-              onStatsChange={setCloudStats}
-            />
+            cloudProvider === 'google' ? (
+              <FilesGoogleDrivePane
+                accountId={cloudAccountId}
+                accountsById={accountsById}
+                scope={googleScope}
+                crumbs={googleCrumbs}
+                category={category}
+                search={search}
+                viewMode={viewMode}
+                onScopeChange={(s): void => {
+                  setGoogleScope(s)
+                  persistFilesShellGoogleScope(s)
+                }}
+                onCrumbsChange={(c): void => {
+                  setGoogleCrumbs(c)
+                  persistFilesShellGoogleCrumbs(c)
+                }}
+                onSelectionChange={setSelectedCloud}
+                onStatsChange={setCloudStats}
+              />
+            ) : (
+              <FilesCloudPane
+                accountId={cloudAccountId}
+                accountsById={accountsById}
+                scope={cloudScope}
+                crumbs={cloudCrumbs}
+                category={category}
+                search={search}
+                viewMode={viewMode}
+                onScopeChange={(s): void => {
+                  setCloudScope(s)
+                  persistFilesShellCloudScope(s)
+                }}
+                onCrumbsChange={(c): void => {
+                  setCloudCrumbs(c)
+                  persistFilesShellCloudCrumbs(c)
+                }}
+                onSelectionChange={setSelectedCloud}
+                onStatsChange={setCloudStats}
+              />
+            )
           ) : (
             <div className="flex flex-1 items-center justify-center p-8 text-sm text-muted-foreground">
-              {t('files.cloud.noMicrosoftAccount')}
+              {t('files.cloud.noCloudAccount')}
             </div>
           )}
         </div>

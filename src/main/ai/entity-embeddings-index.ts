@@ -1,7 +1,5 @@
 import type { ChronellEntityRef } from '@shared/entity-ref'
-import { entityRefKey } from '@shared/entity-ref'
 import type { EntityEmbeddingIndexStatus, EntityEmbeddingRebuildInput } from '@shared/entity-embeddings'
-import { DEFAULT_EMBEDDING_MODEL } from '@shared/entity-embeddings'
 import {
   countEntityEmbeddings,
   getEntityEmbedding,

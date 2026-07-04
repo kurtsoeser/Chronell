@@ -13,13 +13,49 @@ interface Props {
   /** Mail: Mehrfachauswahl (null = alle). */
   selectedMailAccountIds: string[] | null
   onChangeMailAccountIds: (ids: string[] | null) => void
-  /** Cloud: genau ein Microsoft-Konto. */
+  /** Cloud: genau ein Konto (Microsoft oder Google). */
   cloudAccountId: string | null
   onChangeCloudAccountId: (id: string) => void
   cloudScope: ComposeDriveExplorerScope
   cloudCrumbs: ComposeDriveExplorerNavCrumb[]
   onApplyCloudPath: (scope: ComposeDriveExplorerScope, crumbs: ComposeDriveExplorerNavCrumb[]) => void
   indexPending: number
+}
+
+function CloudAccountList({
+  accounts,
+  activeId,
+  onSelect
+}: {
+  accounts: ConnectedAccount[]
+  activeId: string | null
+  onSelect: (id: string) => void
+}): JSX.Element | null {
+  if (accounts.length === 0) return null
+  return (
+    <ul className="space-y-0.5">
+      {accounts.map((acc) => {
+        const active = activeId === acc.id
+        return (
+          <li key={acc.id}>
+            <button
+              type="button"
+              onClick={(): void => onSelect(acc.id)}
+              className={cn(
+                'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors',
+                active
+                  ? 'bg-secondary text-foreground'
+                  : 'text-muted-foreground hover:bg-secondary/50'
+              )}
+            >
+              <AccountAvatarBadge account={acc} className="h-5 w-5 shrink-0 text-[10px]" />
+              <span className="min-w-0 truncate">{acc.displayName || acc.email}</span>
+            </button>
+          </li>
+        )
+      })}
+    </ul>
+  )
 }
 
 export function FilesShellSidebar({
@@ -38,6 +74,11 @@ export function FilesShellSidebar({
   const { t } = useTranslation()
 
   const microsoftAccounts = accounts.filter((a) => a.provider === 'microsoft')
+  const googleAccounts = accounts.filter((a) => a.provider === 'google')
+  const cloudAccounts = [...microsoftAccounts, ...googleAccounts]
+  const selectedCloudAccount = cloudAccountId
+    ? accounts.find((a) => a.id === cloudAccountId)
+    : null
   const mailAllSelected =
     selectedMailAccountIds == null || selectedMailAccountIds.length === 0
 
@@ -135,35 +176,41 @@ export function FilesShellSidebar({
               })}
             </ul>
           </>
-        ) : microsoftAccounts.length === 0 ? (
-          <p className="px-1 text-[11px] text-muted-foreground">{t('files.cloud.noMicrosoftAccount')}</p>
+        ) : cloudAccounts.length === 0 ? (
+          <p className="px-1 text-[11px] text-muted-foreground">{t('files.cloud.noCloudAccount')}</p>
         ) : (
-          <ul className="space-y-0.5">
-            {microsoftAccounts.map((acc) => {
-              const active = cloudAccountId === acc.id
-              return (
-                <li key={acc.id}>
-                  <button
-                    type="button"
-                    onClick={(): void => onChangeCloudAccountId(acc.id)}
-                    className={cn(
-                      'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors',
-                      active
-                        ? 'bg-secondary text-foreground'
-                        : 'text-muted-foreground hover:bg-secondary/50'
-                    )}
-                  >
-                    <AccountAvatarBadge account={acc} className="h-5 w-5 shrink-0 text-[10px]" />
-                    <span className="min-w-0 truncate">{acc.displayName || acc.email}</span>
-                  </button>
-                </li>
-              )
-            })}
-          </ul>
+          <div className="space-y-3">
+            {microsoftAccounts.length > 0 ? (
+              <div>
+                <p className="mb-1 px-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                  {t('files.sidebar.cloudMicrosoft')}
+                </p>
+                <CloudAccountList
+                  accounts={microsoftAccounts}
+                  activeId={cloudAccountId}
+                  onSelect={onChangeCloudAccountId}
+                />
+              </div>
+            ) : null}
+            {googleAccounts.length > 0 ? (
+              <div>
+                <p className="mb-1 px-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                  {t('files.sidebar.cloudGoogle')}
+                </p>
+                <CloudAccountList
+                  accounts={googleAccounts}
+                  activeId={cloudAccountId}
+                  onSelect={onChangeCloudAccountId}
+                />
+              </div>
+            ) : null}
+          </div>
         )}
       </div>
 
-      {source === 'cloud' && cloudAccountId ? (
+      {source === 'cloud' &&
+      cloudAccountId &&
+      selectedCloudAccount?.provider === 'microsoft' ? (
         <FilesCloudFavorites
           accountId={cloudAccountId}
           scope={cloudScope}

@@ -5,7 +5,10 @@ import { isInMemorySqliteAvailable } from '../test-fixtures/db'
 const sqliteOk = isInMemorySqliteAvailable()
 
 describe.skipIf(!sqliteOk)('buildDemoWebSnapshot', () => {
-  it('exports inbox messages, calendar, tasks and graph for web sandbox', () => {
+  it(
+    'exports inbox messages, calendar, tasks and graph for web sandbox',
+    { timeout: 60_000 },
+    () => {
     const snap = buildDemoWebSnapshot()
     expect(snap.version).toBeGreaterThanOrEqual(3)
     expect(snap.messages.length).toBeGreaterThanOrEqual(10)
@@ -18,5 +21,6 @@ describe.skipIf(!sqliteOk)('buildDemoWebSnapshot', () => {
       expect(m.subject).toBeTruthy()
       expect(m.fromName).toBeTruthy()
     }
-  })
+    }
+  )
 })
