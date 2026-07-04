@@ -34,6 +34,7 @@ interface Props {
   collapsedGroups: Set<string>
   onToggleGroup: (key: string) => void
   emptyMessage?: string
+  onContextMenu?: (row: MailFileIndexRow, event: React.MouseEvent) => void
 }
 
 function HeaderCell({
@@ -95,7 +96,8 @@ export function FilesTableView({
   onOpenSource,
   collapsedGroups,
   onToggleGroup,
-  emptyMessage
+  emptyMessage,
+  onContextMenu
 }: Props): JSX.Element {
   const { t, i18n } = useTranslation()
   const { gridTemplate, resizeColumn } = useFilesMailTableColumnWidths()
@@ -203,6 +205,10 @@ export function FilesTableView({
                       role="row"
                       tabIndex={0}
                       onClick={(): void => onSelect(row)}
+                      onContextMenu={(e): void => {
+                        e.preventDefault()
+                        onContextMenu?.(row, e)
+                      }}
                       onDoubleClick={(e): void => {
                         e.preventDefault()
                         e.stopPropagation()

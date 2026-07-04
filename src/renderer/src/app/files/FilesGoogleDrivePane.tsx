@@ -78,6 +78,8 @@ interface Props {
   onCrumbsChange: (crumbs: GoogleDriveExplorerNavCrumb[]) => void
   onSelectionChange: (row: CloudFileRow | null) => void
   onStatsChange: (stats: FilesGoogleCloudListStats) => void
+  refreshToken?: number
+  onContextMenu?: (row: CloudFileRow, event: React.MouseEvent) => void
 }
 
 export function FilesGoogleDrivePane({
@@ -91,7 +93,9 @@ export function FilesGoogleDrivePane({
   onScopeChange,
   onCrumbsChange,
   onSelectionChange,
-  onStatsChange
+  onStatsChange,
+  refreshToken = 0,
+  onContextMenu
 }: Props): JSX.Element {
   const { t } = useTranslation()
   const pushToast = useUndoStore((s) => s.pushToast)
@@ -130,7 +134,7 @@ export function FilesGoogleDrivePane({
 
   useEffect(() => {
     void load()
-  }, [load])
+  }, [load, refreshToken])
 
   const rows = useMemo((): CloudFileRow[] => {
     const q = search.trim().toLowerCase()
@@ -350,6 +354,7 @@ export function FilesGoogleDrivePane({
           onOpenFile={(row): void => void openFile(row)}
           onSaveAs={(row): void => void saveAs(row)}
           onCopyLink={(row): void => void copyLink(row)}
+          onContextMenu={onContextMenu}
         />
       ) : (
         <FilesCloudTableView
@@ -361,6 +366,7 @@ export function FilesGoogleDrivePane({
           onOpenFile={(row): void => void openFile(row)}
           onSaveAs={(row): void => void saveAs(row)}
           onCopyLink={(row): void => void copyLink(row)}
+          onContextMenu={onContextMenu}
         />
       )}
     </div>

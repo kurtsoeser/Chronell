@@ -18,7 +18,7 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --no-fund
 
       - name: Rebuild native modules for tests
         run: npm rebuild better-sqlite3

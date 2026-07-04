@@ -48,6 +48,10 @@ export interface CreateCloudTaskDialogProps {
   initialRange?: CalendarCreateRange | null
   /** Beim Oeffnen dieses Kontos vorschlagen (z. B. Kontextmenue auf Konto-Zeile). */
   preferredAccountIdOnOpen?: string | null
+  /** Vorausgefuellter Titel (z. B. Dateien-Kontextmenue). */
+  initialTitleOnOpen?: string | null
+  /** Vorausgefuellte Notizen/Beschreibung. */
+  initialNotesOnOpen?: string | null
 }
 
 export function CreateCloudTaskDialog({
@@ -58,7 +62,9 @@ export function CreateCloudTaskDialog({
   selection,
   loadListsForAccount,
   initialRange,
-  preferredAccountIdOnOpen
+  preferredAccountIdOnOpen,
+  initialTitleOnOpen,
+  initialNotesOnOpen
 }: CreateCloudTaskDialogProps): JSX.Element | null {
   const { t } = useTranslation()
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
@@ -98,8 +104,8 @@ export function CreateCloudTaskDialog({
         ? preferredAccountIdOnOpen
         : resolvePreferredAccountId(taskAccounts, selection)
     setAccountId(accId)
-    setTitle('')
-    setNotes('')
+    setTitle(initialTitleOnOpen?.trim() ?? '')
+    setNotes(initialNotesOnOpen?.trim() ?? '')
     setError(null)
     setRecurFreq('none')
     setRecurEnd('never')
@@ -118,7 +124,7 @@ export function CreateCloudTaskDialog({
       setPlannedEnd('')
     }
     window.setTimeout(() => titleInputRef.current?.focus(), 0)
-  }, [open, initialRange, selection, taskAccounts, timeZone, preferredAccountIdOnOpen])
+  }, [open, initialRange, selection, taskAccounts, timeZone, preferredAccountIdOnOpen, initialTitleOnOpen, initialNotesOnOpen])
 
   useEffect(() => {
     if (!open || !accountId) {

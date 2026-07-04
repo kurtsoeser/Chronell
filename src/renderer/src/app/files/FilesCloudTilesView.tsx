@@ -11,6 +11,7 @@ interface Props {
   onOpenFile: (row: CloudFileRow) => void
   onSaveAs: (row: CloudFileRow) => void
   onCopyLink: (row: CloudFileRow) => void
+  onContextMenu?: (row: CloudFileRow, event: React.MouseEvent) => void
 }
 
 export function FilesCloudTilesView({
@@ -21,7 +22,8 @@ export function FilesCloudTilesView({
   onOpenFolder,
   onOpenFile,
   onSaveAs,
-  onCopyLink
+  onCopyLink,
+  onContextMenu
 }: Props): JSX.Element {
   return (
     <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
@@ -41,6 +43,7 @@ export function FilesCloudTilesView({
               }}
               onSaveAs={(): void => onSaveAs(row)}
               onCopyLink={(): void => onCopyLink(row)}
+              onContextMenu={(e): void => onContextMenu?.(row, e)}
             />
           )
         })}

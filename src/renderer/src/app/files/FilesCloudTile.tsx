@@ -15,6 +15,7 @@ interface Props {
   onOpen: () => void
   onSaveAs: () => void
   onCopyLink: () => void
+  onContextMenu?: (event: React.MouseEvent) => void
 }
 
 export function FilesCloudTile({
@@ -24,7 +25,8 @@ export function FilesCloudTile({
   onSelect,
   onOpen,
   onSaveAs,
-  onCopyLink
+  onCopyLink,
+  onContextMenu
 }: Props): JSX.Element {
   const { t } = useTranslation()
   const isFolder = row.isFolder
@@ -34,6 +36,10 @@ export function FilesCloudTile({
       role="button"
       tabIndex={0}
       onClick={onSelect}
+      onContextMenu={(e): void => {
+        e.preventDefault()
+        onContextMenu?.(e)
+      }}
       onDoubleClick={(e): void => {
         e.preventDefault()
         e.stopPropagation()

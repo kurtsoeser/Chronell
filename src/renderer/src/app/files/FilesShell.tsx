@@ -27,6 +27,14 @@ import type {
 } from '@shared/files'
 import type { ComposeDriveExplorerNavCrumb, ComposeDriveExplorerScope } from '@shared/types'
 import { OneDriveExplorerDialog } from '@/components/OneDriveExplorerDialog'
+import { ContextMenu } from '@/components/ContextMenu'
+import { CreateCloudTaskDialog } from '@/components/CreateCloudTaskDialog'
+import { buildFilesContextMenuItems } from '@/app/files/files-context-menu'
+import { FilesCreateCalendarEventDialog } from '@/app/files/FilesCreateCalendarEventDialog'
+import { FilesEntityLinkPickerDialog } from '@/app/files/FilesEntityLinkPickerDialog'
+import { FilesNoteAttachPickerDialog } from '@/app/files/FilesNoteAttachPickerDialog'
+import { accountSupportsCloudTasks } from '@/lib/cloud-task-accounts'
+import { useFilesContextUiStore, type FilesContextTarget } from '@/stores/files-context-ui'
 import { useUndoStore } from '@/stores/undo'
 import { logIpcError } from '@/lib/ipc-error-log'
 import type { FilterTabOption } from '@/components/FilterTabs'
@@ -156,7 +164,26 @@ export function FilesShell(): JSX.Element {
   const [cloudUploading, setCloudUploading] = useState(false)
   const [selectedCloud, setSelectedCloud] = useState<CloudFileRow | null>(null)
   const [cloudStats, setCloudStats] = useState<FilesCloudListStats>({ shown: 0, total: 0 })
+  const [cloudRefreshToken, setCloudRefreshToken] = useState(0)
+  const [contextMenu, setContextMenu] = useState<{
+    x: number
+    y: number
+    target: FilesContextTarget
+  } | null>(null)
   const pushToast = useUndoStore((s) => s.pushToast)
+  const openNoteAttach = useFilesContextUiStore((s) => s.openNoteAttach)
+  const createTaskInitial = useFilesContextUiStore((s) => s.createTaskInitial)
+  const closeCreateTask = useFilesContextUiStore((s) => s.closeCreateTask)
+
+  const taskAccounts = useMemo(
+    () => accounts.filter((a) => accountSupportsCloudTasks(a)),
+    [accounts]
+  )
+
+  const loadTaskListsForAccount = useCallback(
+    async (accountId: string) => window.mailClient.tasks.listLists({ accountId }),
+    []
+  )
 
   const accountsById = useMemo(
     () => new Map(accounts.map((a) => [a.id, a])),
@@ -392,6 +419,74 @@ export function FilesShell(): JSX.Element {
     }
   }
 
+  const bumpCloudRefresh = useCallback((): void => {
+    setCloudRefreshToken((n) => n + 1)
+    setSelectedCloud(null)
+  }, [])
+
+  const openCloudFolder = useCallback(
+    (row: CloudFileRow): void => {
+      if (row.cloudProvider === 'google') {
+        const next = [...googleCrumbs, { id: row.itemId, name: row.name }]
+        setGoogleCrumbs(next)
+        persistFilesShellGoogleCrumbs(next)
+        setSelectedCloud(null)
+        return
+      }
+      if (cloudScope === 'sharepoint' && row.siteId) {
+        applyCloudPath(cloudScope, [
+          ...cloudCrumbs,
+          { id: null, name: row.name, siteId: row.siteId, driveId: null }
+        ])
+        return
+      }
+      applyCloudPath(cloudScope, [
+        ...cloudCrumbs,
+        { id: row.itemId, name: row.name, driveId: row.driveId ?? null }
+      ])
+    },
+    [cloudCrumbs, cloudScope, googleCrumbs, applyCloudPath]
+  )
+
+  const openFilesContextMenu = useCallback(
+    (target: FilesContextTarget, event: React.MouseEvent): void => {
+      event.preventDefault()
+      event.stopPropagation()
+      if (target.source === 'mail') setSelected(target.row)
+      else setSelectedCloud(target.row)
+      setContextMenu({ x: event.clientX, y: event.clientY, target })
+    },
+    []
+  )
+
+  const contextMenuItems = useMemo(() => {
+    if (!contextMenu) return []
+    return buildFilesContextMenuItems(contextMenu.target, {
+      t,
+      accounts,
+      onOpenSourceMail: handleOpenSource,
+      onSaveToCloud: beginSaveToCloud,
+      onOpenCloudExternal: (row): void => void openCloudFile(row),
+      onSaveCloudAs: (row): void => void saveCloudFile(row),
+      onCopyCloudLink: (row): void => void copyCloudLink(row),
+      onOpenCloudFolder: openCloudFolder,
+      onNoteAttach: openNoteAttach,
+      onCloudMutated: bumpCloudRefresh
+    })
+  }, [
+    accounts,
+    beginSaveToCloud,
+    bumpCloudRefresh,
+    contextMenu,
+    copyCloudLink,
+    handleOpenSource,
+    openCloudFile,
+    openCloudFolder,
+    openNoteAttach,
+    saveCloudFile,
+    t
+  ])
+
   async function handlePickCloudFolder(dest: FilesDriveUploadDestinationPick): Promise<void> {
     const row = cloudUploadRow
     if (!row) return
@@ -623,6 +718,7 @@ export function FilesShell(): JSX.Element {
                 collapsedGroups={collapsedGroups}
                 onToggleGroup={toggleGroup}
                 emptyMessage={mailEmptyMessage}
+                onContextMenu={(row, e): void => openFilesContextMenu({ source: 'mail', row }, e)}
               />
             ) : (
               <FilesTableView
@@ -642,6 +738,7 @@ export function FilesShell(): JSX.Element {
                 collapsedGroups={collapsedGroups}
                 onToggleGroup={toggleGroup}
                 emptyMessage={mailEmptyMessage}
+                onContextMenu={(row, e): void => openFilesContextMenu({ source: 'mail', row }, e)}
               />
             )
           ) : cloudAccountId ? (
@@ -664,6 +761,8 @@ export function FilesShell(): JSX.Element {
                 }}
                 onSelectionChange={setSelectedCloud}
                 onStatsChange={setCloudStats}
+                refreshToken={cloudRefreshToken}
+                onContextMenu={(row, e): void => openFilesContextMenu({ source: 'cloud', row }, e)}
               />
             ) : (
               <FilesCloudPane
@@ -684,6 +783,8 @@ export function FilesShell(): JSX.Element {
                 }}
                 onSelectionChange={setSelectedCloud}
                 onStatsChange={setCloudStats}
+                refreshToken={cloudRefreshToken}
+                onContextMenu={(row, e): void => openFilesContextMenu({ source: 'cloud', row }, e)}
               />
             )
           ) : (
@@ -718,6 +819,30 @@ export function FilesShell(): JSX.Element {
           onPickFolder={(dest): void => void handlePickCloudFolder(dest)}
         />
       ) : null}
+
+      {contextMenu ? (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          items={contextMenuItems}
+          onClose={(): void => setContextMenu(null)}
+        />
+      ) : null}
+
+      <FilesNoteAttachPickerDialog />
+      <FilesEntityLinkPickerDialog />
+      <FilesCreateCalendarEventDialog accounts={accounts} />
+      <CreateCloudTaskDialog
+        open={createTaskInitial != null}
+        onClose={closeCreateTask}
+        onCreated={closeCreateTask}
+        taskAccounts={taskAccounts}
+        selection={null}
+        loadListsForAccount={loadTaskListsForAccount}
+        preferredAccountIdOnOpen={createTaskInitial?.accountId ?? null}
+        initialTitleOnOpen={createTaskInitial?.title ?? null}
+        initialNotesOnOpen={createTaskInitial?.notes ?? null}
+      />
     </section>
   )
 }

@@ -23,6 +23,7 @@ interface Props {
   collapsedGroups: Set<string>
   onToggleGroup: (key: string) => void
   emptyMessage?: string
+  onContextMenu?: (row: MailFileIndexRow, event: React.MouseEvent) => void
 }
 
 export function FilesTilesView({
@@ -38,7 +39,8 @@ export function FilesTilesView({
   onOpenSource,
   collapsedGroups,
   onToggleGroup,
-  emptyMessage
+  emptyMessage,
+  onContextMenu
 }: Props): JSX.Element {
   const { t, i18n } = useTranslation()
 
@@ -107,6 +109,7 @@ export function FilesTilesView({
                       onSaveAs={(): void => onSaveAs(row)}
                       onSaveToCloud={onSaveToCloud ? (): void => onSaveToCloud(row) : undefined}
                       onOpenSource={(): void => onOpenSource(row)}
+                      onContextMenu={(e): void => onContextMenu?.(row, e)}
                     />
                   )
                 })}

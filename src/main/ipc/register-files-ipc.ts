@@ -2,11 +2,16 @@ import { ipcMain, BrowserWindow, dialog, shell, type IpcMainInvokeEvent } from '
 import { promises as fs } from 'node:fs'
 import { IPC } from '@shared/ipc-channels'
 import type {
+  FilesDeleteCloudItemInput,
   FilesListCloudInput,
   FilesListGoogleDriveInput,
   FilesListMailQuery,
   FilesListMailResult,
   FilesOpenCloudItemResult,
+  FilesReadCloudItemInput,
+  FilesReadCloudItemResult,
+  FilesReadMailAttachmentResult,
+  FilesRenameCloudItemInput,
   FilesSaveCloudItemInput,
   FilesSaveCloudItemResult,
   FilesSaveMailToDriveInput,
@@ -16,8 +21,14 @@ import type { ComposeDriveExplorerEntry } from '@shared/types'
 import { listAccounts } from '../accounts'
 import { graphListDriveExplorer } from '../graph/compose-recipient-graph'
 import { graphDownloadDriveItem } from '../graph/drive-download'
+import { graphDeleteDriveItem, graphRenameDriveItem } from '../graph/drive-item-mutations'
 import { graphUploadDriveFile } from '../graph/drive-upload'
-import { downloadGoogleDriveItem, listGoogleDriveExplorer } from '../google/drive-explorer'
+import {
+  deleteGoogleDriveItem,
+  downloadGoogleDriveItem,
+  listGoogleDriveExplorer,
+  renameGoogleDriveItem
+} from '../google/drive-explorer'
 import {
   countMailFiles,
   getMailFileById,
@@ -39,6 +50,10 @@ export function registerFilesIpc(): void {
   ipcMain.removeHandler(IPC.files.saveMailToDrive)
   ipcMain.removeHandler(IPC.files.listCloud)
   ipcMain.removeHandler(IPC.files.listGoogleDrive)
+  ipcMain.removeHandler(IPC.files.readMailAttachmentBytes)
+  ipcMain.removeHandler(IPC.files.readCloudItemBytes)
+  ipcMain.removeHandler(IPC.files.renameCloudItem)
+  ipcMain.removeHandler(IPC.files.deleteCloudItem)
   ipcMain.removeHandler(IPC.files.saveCloudItemAs)
   ipcMain.removeHandler(IPC.files.openCloudItemExternal)
 
@@ -190,6 +205,112 @@ export function registerFilesIpc(): void {
         throw new Error('Google Drive ist nur für Google-Konten verfügbar.')
       }
       return listGoogleDriveExplorer(input)
+    }
+  )
+
+  ipcMain.handle(
+    IPC.files.readMailAttachmentBytes,
+    async (_event, args: { fileId: number }): Promise<FilesReadMailAttachmentResult> => {
+      const file = getMailFileById(args.fileId)
+      if (!file) return { ok: false, error: 'Datei nicht gefunden.' }
+      try {
+        const downloaded = await downloadMailAttachmentBytes(
+          file.messageId,
+          file.remoteAttachmentId
+        )
+        return {
+          ok: true,
+          name: downloaded.name,
+          contentType: downloaded.contentType ?? file.mime,
+          dataBase64: downloaded.bytes.toString('base64')
+        }
+      } catch (e) {
+        const message = e instanceof Error ? e.message : String(e)
+        return { ok: false, error: message }
+      }
+    }
+  )
+
+  ipcMain.handle(
+    IPC.files.readCloudItemBytes,
+    async (_event, args: FilesReadCloudItemInput): Promise<FilesReadCloudItemResult> => {
+      try {
+        const accounts = await listAccounts()
+        const acc = accounts.find((a) => a.id === args.accountId)
+        const file =
+          acc?.provider === 'google'
+            ? await downloadGoogleDriveItem({
+                accountId: args.accountId,
+                itemId: args.itemId
+              })
+            : await graphDownloadDriveItem({
+                accountId: args.accountId,
+                itemId: args.itemId,
+                driveId: args.driveId
+              })
+        return {
+          ok: true,
+          name: file.name,
+          contentType: file.contentType,
+          dataBase64: file.bytes.toString('base64')
+        }
+      } catch (e) {
+        const message = e instanceof Error ? e.message : String(e)
+        return { ok: false, error: message }
+      }
+    }
+  )
+
+  ipcMain.handle(
+    IPC.files.renameCloudItem,
+    async (_event, args: FilesRenameCloudItemInput): Promise<{ ok: boolean; error?: string }> => {
+      const newName = args.newName?.trim()
+      if (!newName) return { ok: false, error: 'Name darf nicht leer sein.' }
+      try {
+        const accounts = await listAccounts()
+        const acc = accounts.find((a) => a.id === args.accountId)
+        if (acc?.provider === 'google') {
+          await renameGoogleDriveItem({
+            accountId: args.accountId,
+            itemId: args.itemId,
+            newName
+          })
+        } else {
+          await graphRenameDriveItem({
+            accountId: args.accountId,
+            itemId: args.itemId,
+            driveId: args.driveId,
+            newName
+          })
+        }
+        return { ok: true }
+      } catch (e) {
+        const message = e instanceof Error ? e.message : String(e)
+        return { ok: false, error: message }
+      }
+    }
+  )
+
+  ipcMain.handle(
+    IPC.files.deleteCloudItem,
+    async (_event, args: FilesDeleteCloudItemInput): Promise<{ ok: boolean; error?: string }> => {
+      try {
+        const accounts = await listAccounts()
+        const acc = accounts.find((a) => a.id === args.accountId)
+        if (acc?.provider === 'google') {
+          await deleteGoogleDriveItem({ accountId: args.accountId, itemId: args.itemId })
+        } else {
+          await graphDeleteDriveItem({
+            accountId: args.accountId,
+            itemId: args.itemId,
+            driveId: args.driveId
+          })
+        }
+        return { ok: true }
+      } catch (e) {
+        const message = e instanceof Error ? e.message : String(e)
+        return { ok: false, error: message }
+      }
     }
   )
 

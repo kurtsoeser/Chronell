@@ -220,6 +220,22 @@ listMail: (
       input: import('@shared/files').FilesListGoogleDriveInput
     ): Promise<import('@shared/types').ComposeDriveExplorerEntry[]> =>
       ipcRenderer.invoke(IPC.files.listGoogleDrive, input),
+    readMailAttachmentBytes: (args: {
+      fileId: number
+    }): Promise<import('@shared/files').FilesReadMailAttachmentResult> =>
+      ipcRenderer.invoke(IPC.files.readMailAttachmentBytes, args),
+    readCloudItemBytes: (
+      args: import('@shared/files').FilesReadCloudItemInput
+    ): Promise<import('@shared/files').FilesReadCloudItemResult> =>
+      ipcRenderer.invoke(IPC.files.readCloudItemBytes, args),
+    renameCloudItem: (
+      args: import('@shared/files').FilesRenameCloudItemInput
+    ): Promise<{ ok: boolean; error?: string }> =>
+      ipcRenderer.invoke(IPC.files.renameCloudItem, args),
+    deleteCloudItem: (
+      args: import('@shared/files').FilesDeleteCloudItemInput
+    ): Promise<{ ok: boolean; error?: string }> =>
+      ipcRenderer.invoke(IPC.files.deleteCloudItem, args),
     saveCloudItemAs: (
       args: import('@shared/files').FilesSaveCloudItemInput
     ): Promise<import('@shared/files').FilesSaveCloudItemResult> =>

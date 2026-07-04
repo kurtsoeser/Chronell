@@ -17,6 +17,7 @@ interface Props {
   onOpenFile: (row: CloudFileRow) => void
   onSaveAs: (row: CloudFileRow) => void
   onCopyLink: (row: CloudFileRow) => void
+  onContextMenu?: (row: CloudFileRow, event: React.MouseEvent) => void
 }
 
 export function FilesCloudTableView({
@@ -27,7 +28,8 @@ export function FilesCloudTableView({
   onOpenFolder,
   onOpenFile,
   onSaveAs,
-  onCopyLink
+  onCopyLink,
+  onContextMenu
 }: Props): JSX.Element {
   const { t } = useTranslation()
 
@@ -61,6 +63,10 @@ export function FilesCloudTableView({
                 role="row"
                 tabIndex={0}
                 onClick={(): void => onSelect(row)}
+                onContextMenu={(e): void => {
+                  e.preventDefault()
+                  onContextMenu?.(row, e)
+                }}
                 onDoubleClick={(e): void => {
                   e.preventDefault()
                   e.stopPropagation()

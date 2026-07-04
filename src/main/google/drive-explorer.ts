@@ -177,3 +177,25 @@ export async function downloadGoogleDriveItem(input: {
     bytes
   }
 }
+
+export async function renameGoogleDriveItem(input: {
+  accountId: string
+  itemId: string
+  newName: string
+}): Promise<void> {
+  const newName = sanitizeFileName(input.newName.trim())
+  if (!newName) throw new Error('Name darf nicht leer sein.')
+  const drive = await getGoogleDriveClient(input.accountId)
+  await drive.files.update({
+    fileId: input.itemId.trim(),
+    requestBody: { name: newName }
+  })
+}
+
+export async function deleteGoogleDriveItem(input: {
+  accountId: string
+  itemId: string
+}): Promise<void> {
+  const drive = await getGoogleDriveClient(input.accountId)
+  await drive.files.delete({ fileId: input.itemId.trim() })
+}

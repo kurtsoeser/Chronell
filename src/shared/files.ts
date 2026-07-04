@@ -147,3 +147,32 @@ export interface GoogleDriveExplorerNavCrumb {
   id: string | null
   name: string
 }
+
+export interface FilesRenameCloudItemInput {
+  accountId: string
+  itemId: string
+  driveId?: string | null
+  newName: string
+}
+
+export interface FilesDeleteCloudItemInput {
+  accountId: string
+  itemId: string
+  driveId?: string | null
+}
+
+export interface FilesReadMailAttachmentResult {
+  ok: boolean
+  name?: string
+  contentType?: string | null
+  dataBase64?: string
+  error?: string
+}
+
+export interface FilesReadCloudItemInput {
+  accountId: string
+  itemId: string
+  driveId?: string | null
+}
+
+export type FilesReadCloudItemResult = FilesReadMailAttachmentResult

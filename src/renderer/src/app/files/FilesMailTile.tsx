@@ -23,6 +23,7 @@ interface Props {
   onSaveAs: () => void
   onSaveToCloud?: () => void
   onOpenSource: () => void
+  onContextMenu?: (event: React.MouseEvent) => void
 }
 
 export function FilesMailTile({
@@ -36,7 +37,8 @@ export function FilesMailTile({
   onOpen,
   onSaveAs,
   onSaveToCloud,
-  onOpenSource
+  onOpenSource,
+  onContextMenu
 }: Props): JSX.Element {
   const { t } = useTranslation()
   const kind = resolveMailFileVisualKind(row.mime, row.name)
@@ -48,6 +50,10 @@ export function FilesMailTile({
       tabIndex={0}
       title={t('files.table.openHint')}
       onClick={onSelect}
+      onContextMenu={(e): void => {
+        e.preventDefault()
+        onContextMenu?.(e)
+      }}
       onDoubleClick={(e): void => {
         e.preventDefault()
         e.stopPropagation()

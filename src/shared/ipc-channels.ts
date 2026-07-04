@@ -25,6 +25,10 @@ export const IPC = {
     saveMailToDrive: 'files:save-mail-to-drive',
     listCloud: 'files:list-cloud',
     listGoogleDrive: 'files:list-google-drive',
+    readMailAttachmentBytes: 'files:read-mail-attachment-bytes',
+    readCloudItemBytes: 'files:read-cloud-item-bytes',
+    renameCloudItem: 'files:rename-cloud-item',
+    deleteCloudItem: 'files:delete-cloud-item',
     saveCloudItemAs: 'files:save-cloud-item-as',
     openCloudItemExternal: 'files:open-cloud-item-external'
   },
