@@ -10,7 +10,8 @@ import { cn } from '@/lib/utils'
 
 const PROVIDER_ACCOUNT_PORTAL_URL: Record<Provider, string> = {
   microsoft: 'https://myaccount.microsoft.com/',
-  google: 'https://myaccount.google.com/'
+  google: 'https://myaccount.google.com/',
+  demo: 'https://chronell.app/demo/'
 }
 
 const AVATAR_KINDS: AccountAvatarKind[] = ['provider', 'initials', 'icon', 'custom']

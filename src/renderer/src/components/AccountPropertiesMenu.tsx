@@ -10,7 +10,8 @@ import type { Provider } from '@shared/types'
 /** Offizielle Kontoverwaltung im Browser (MSA / Google; Microsoft-Arbeitskonten leiten ggf. weiter). */
 const PROVIDER_ACCOUNT_PORTAL_URL: Record<Provider, string> = {
   microsoft: 'https://myaccount.microsoft.com/',
-  google: 'https://myaccount.google.com/'
+  google: 'https://myaccount.google.com/',
+  demo: 'https://chronell.app/demo/'
 }
 
 interface Props {

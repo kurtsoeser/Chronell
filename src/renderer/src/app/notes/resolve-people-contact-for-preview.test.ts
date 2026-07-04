@@ -24,6 +24,7 @@ const dave: PeopleContactView = {
   categoriesJson: null,
   notes: null,
   photoLocalPath: null,
+  rawJson: null,
   isFavorite: false,
   updatedLocal: '',
   updatedRemote: null

@@ -52,6 +52,7 @@ export function userNoteToListItem(note: UserNote): UserNoteListItem {
     mailSentAt: null,
     mailReceivedAt: null,
     mailHasAttachments: null,
+    mailIsRead: null,
     primaryLinkKind: null
   }
 }

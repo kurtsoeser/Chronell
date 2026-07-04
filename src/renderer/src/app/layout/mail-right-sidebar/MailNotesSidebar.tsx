@@ -18,6 +18,7 @@ import { ComposeEditorThemeToggle } from '@/components/ComposeEditorThemeToggle'
 import { TipTapNoteEditorLazy } from '@/components/TipTapNoteEditorLazy'
 import { getNoteByIdCached } from '@/lib/note-get-by-id-cache'
 import { persistNoteListItemBody, userNoteToListItem } from '@/lib/note-body-persist'
+import { storedBodyFromEditorHtml } from '@/lib/note-body-html'
 import { readNotesPagesSort, type NotesPagesSortKey } from '@/lib/notes-pages-sort'
 import { buildNotesPageRows } from '@/lib/notes-page-tree'
 import {
