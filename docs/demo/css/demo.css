@@ -1,3 +1,14 @@
+/* Demo page: Reveal-Animation (site.css setzt opacity:0 bis .visible) */
+.demo-page .reveal {
+  opacity: 1;
+  transform: none;
+}
+
+.demo-page .reveal.visible {
+  opacity: 1;
+  transform: none;
+}
+
 /* Chronell /demo — interactive sandbox + page chrome */
 
 .demo-hero {

@@ -2,11 +2,11 @@
  * Chronell /demo page — i18n, downloads, tour, sandbox bootstrap.
  */
 
-import { createSandbox } from './sandbox.js'
+import { createSandbox } from '/demo/js/sandbox.js'
 
 const STORAGE_LANG = 'chronell.landing.lang'
 const DEFAULT_LANG = 'de'
-const RELEASE_MANIFEST = '../release/latest.json'
+const RELEASE_MANIFEST = '/release/latest.json'
 const GITHUB_RELEASES = 'https://github.com/kurtsoeser/Chronell/releases/latest'
 
 let strings = {}
@@ -44,7 +44,7 @@ function applyTranslations() {
 }
 
 async function loadLang(lang) {
-  const res = await fetch(`i18n/${lang}.json`)
+  const res = await fetch(`/demo/i18n/${lang}.json`)
   if (!res.ok) throw new Error(`i18n load failed: ${lang}`)
   strings = await res.json()
   currentLang = lang
@@ -119,6 +119,34 @@ function applyDownloadLinks(manifest) {
   })
 }
 
+function setupReveal() {
+  const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  const els = document.querySelectorAll('.reveal')
+  if (prefersReduced) {
+    els.forEach((el) => el.classList.add('visible'))
+    return
+  }
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible')
+          observer.unobserve(entry.target)
+        }
+      })
+    },
+    { rootMargin: '0px 0px -8% 0px', threshold: 0.08 }
+  )
+  els.forEach((el) => observer.observe(el))
+  // Hero sofort sichtbar (oberhalb des Fold)
+  els.forEach((el) => {
+    const rect = el.getBoundingClientRect()
+    if (rect.top < window.innerHeight * 0.92) {
+      el.classList.add('visible')
+    }
+  })
+}
+
 function setupTour() {
   const steps = [
     { tab: 'mail', el: '[data-tour-step="mail"]' },
@@ -172,7 +200,7 @@ async function initSandbox() {
   const root = document.getElementById('demo-sandbox-root')
   if (!root) return
   try {
-    const res = await fetch('data/demo-snapshot.json', { cache: 'no-store' })
+    const res = await fetch('/demo/data/demo-snapshot.json', { cache: 'no-store' })
     if (!res.ok) throw new Error('snapshot load failed')
     const snapshot = await res.json()
     sandboxApi = createSandbox(root, snapshot, strings, currentLang)
@@ -184,6 +212,7 @@ async function initSandbox() {
 
 async function init() {
   currentLang = detectLang()
+  setupReveal()
   setupLangToggle()
   setupMobileNav()
   setupTour()
