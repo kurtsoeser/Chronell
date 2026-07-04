@@ -170,7 +170,10 @@ export async function fetchAndStoreMessageBodyIfMissing(
     updateMessageBodiesLocal(messageId, bodies.bodyHtml, bodies.bodyText)
     return true
   } catch (e) {
-    if (isProviderMessageNotFound(e, account.provider)) {
+    if (
+      (account.provider === 'microsoft' || account.provider === 'google') &&
+      isProviderMessageNotFound(e, account.provider)
+    ) {
       markMessageBodyIndexFallbackLocal(messageId)
       return false
     }
