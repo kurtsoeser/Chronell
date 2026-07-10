@@ -138,6 +138,7 @@ function fullMsg(p: Partial<MailFull> & Pick<MailFull, 'id' | 'accountId' | 'rem
     bodyHtml: '<p>Hi</p>',
     bodyText: null,
     ccAddrs: null,
+    bccAddrs: null,
     toAddrs: 't@t.de',
     openTodoId: null,
     openTodoDueKind: null,

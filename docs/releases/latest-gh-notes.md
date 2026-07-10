@@ -1,8 +1,8 @@
-### 1.0.0 - 3. Juli 2026
+### 1.0.3 - 10. Juli 2026
 
-- **Notizen:** Notizen-Modul mit TipTap-Editor, Abschnitten, Freihand, Embeds, Verknuepfungen und Quick Capture
-- **Kalender:** Kalender mit Bookings, ueberarbeitetem Termin-Dialog, ICS-Import und Cloud-Tasks
-- **Mail:** Multi-Account-Mail mit EWS, Kontext-Sidebar, Composer und lokaler Anhangs-Indexierung
-- **Launch:** Erstes Major-Release — Version 1.0.0, Homepage und Download aktualisiert
+- **Kalender:** Kalender und Termine: Dialog, Vorschau, Kategorien und Shell (ueberarbeiteter Termin-Dialog; Termin-Vorschau)
+- **Mail:** Mail-Arbeitsbereich: Sidebar, Anhaenge, EWS und Aktionen (17 Datei(en) geaendert)
+- **Verbindungen:** Verbindungs-Graph und Objekt-Verknuepfungen (Verbindungs-Graph)
+- **Homepage:** Release-Texte, Homepage-Timeline und Download auf 1.0.3
 
 Download: https://chronell.app/

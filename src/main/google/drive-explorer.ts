@@ -12,7 +12,7 @@ import { getGoogleCredentials } from './google-credentials-store'
 import { sanitizeFileName } from '../ipc/ipc-helpers'
 
 const LIST_FIELDS =
-  'nextPageToken,files(id,name,mimeType,size,webViewLink,shortcutDetails,targetMimeType,trashed)'
+  'nextPageToken,files(id,name,mimeType,size,webViewLink,shortcutDetails/targetMimeType,trashed)'
 
 function assertGoogleDriveReadonlyScope(scope: string | null | undefined): void {
   if (storedGoogleScopeIncludesDriveReadonly(scope)) return

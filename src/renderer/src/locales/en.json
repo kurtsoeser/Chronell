@@ -77,6 +77,8 @@
       "source": "Source",
       "fromMail": "From email",
       "fromCloud": "Cloud storage",
+      "fromMailShort": "Email",
+      "fromCloudShort": "Cloud",
       "fromMailHint": "Attachments from the local mail index.",
       "fromCloudHint": "Browse OneDrive, SharePoint, or Google Drive.",
       "cloudMicrosoft": "Microsoft 365",
@@ -527,6 +529,7 @@
         "not_found": "Video was not found or the sharing link has expired.",
         "not_video": "The link does not point to a video file.",
         "offline": "Offline — playback unavailable.",
+        "playback": "This video format is not supported in the built-in player. Open it via ☁ in your browser.",
         "unknown": "Playback unavailable."
       }
     },
@@ -828,7 +831,9 @@
     },
     "graph": {
       "empty": "No neighborhood yet — add a connection or load AI suggestions."
-    }
+    },
+    "noteSplitterAria": "Resize note section height",
+    "graphSplitterAria": "Resize graph section height"
   },
   "connections": {
     "title": "Connections",
@@ -2964,6 +2969,8 @@
       "account": "Calendar account",
       "subject": "Subject",
       "attendees": "Attendees",
+      "attendeesPickContacts": "Pick from contacts",
+      "attendeesPlaceholder": "Type more email addresses …",
       "teamsMeeting": "Teams meeting",
       "description": "Description",
       "replyInThread": "Send reply in mail thread",

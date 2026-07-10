@@ -372,7 +372,7 @@ export async function runFolderSync(folderId: number, limit = 50): Promise<numbe
         : await syncMessagesInFolder(folder.accountId, folder.remoteId, limit)
     touchAccountMailSyncFinished(folder.accountId)
     broadcast({ accountId: folder.accountId, state: 'idle' })
-    broadcastMailChanged(folder.accountId)
+    broadcastMailChanged(folder.accountId, { kind: 'poll', folderIds: [folder.id] })
     queueEntityEmbeddingsAfterMailSync(folder.accountId)
     queueMailBodyIndexAfterSync(folder.accountId)
     queueMailAttachmentIndexAfterSync(folder.accountId)

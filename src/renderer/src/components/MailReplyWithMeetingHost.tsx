@@ -52,7 +52,8 @@ export function MailReplyWithMeetingHost(): JSX.Element | null {
       subject: suggestion.subject,
       attendeeInput,
       descriptionHtml: suggestion.bodyHtml,
-      teamsMeeting: account?.provider === 'microsoft'
+      teamsMeeting: account?.provider === 'microsoft',
+      attachments: suggestion.mailAttachment ? [suggestion.mailAttachment] : undefined
     }
   }, [suggestion, accounts])
 

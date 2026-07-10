@@ -29,8 +29,15 @@ export function PreviewFoldSection({
   iconClassName?: string
 }): JSX.Element {
   return (
-    <section className={cn('border-t', entityContextDividerClass, className)}>
-      <div className="flex items-center gap-2 px-6 py-2">
+    <section
+      className={cn(
+        'border-t',
+        entityContextDividerClass,
+        expanded && children != null && 'flex min-h-0 flex-col',
+        className
+      )}
+    >
+      <div className="flex shrink-0 items-center gap-2 px-6 py-2">
         <button
           type="button"
           onClick={onToggle}

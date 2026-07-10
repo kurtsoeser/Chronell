@@ -10,6 +10,7 @@ import {
 } from './db/calendar-events-repo'
 import {
   deleteCalendarEventDetails,
+  getCalendarEventDetailsFromCache,
   upsertCalendarEventDetails
 } from './db/calendar-event-details-repo'
 import { registerCreatedCalendarEventGuard } from './calendar-created-event-guard'
@@ -56,11 +57,44 @@ function eventViewFromSaveInput(
     isAllDay: input.isAllDay,
     location: input.location?.trim() || null,
     webLink: result.webLink,
-    joinUrl: null,
+    joinUrl: result.joinUrl?.trim() || null,
     organizer: null,
     categories: input.categories?.filter((c) => c.trim().length > 0),
     calendarCanEdit: true
   }
+}
+
+export function patchCachedCalendarEventMeetingFields(
+  accountId: string,
+  graphEventId: string,
+  graphCalendarId: string | null | undefined,
+  fields: { joinUrl: string | null; isOnlineMeeting: boolean }
+): void {
+  const gid = graphEventId.trim()
+  const existing = getCalendarEventByGraphEventId(accountId, gid)
+  if (existing) {
+    upsertCalendarEvents([{ ...existing, joinUrl: fields.joinUrl }])
+  }
+
+  const cached = getCalendarEventDetailsFromCache(accountId, gid)
+  if (cached) {
+    upsertCalendarEventDetails(accountId, gid, graphCalendarId ?? existing?.graphCalendarId ?? null, {
+      ...cached,
+      joinUrl: fields.joinUrl,
+      isOnlineMeeting: fields.isOnlineMeeting
+    })
+    return
+  }
+
+  if (!fields.isOnlineMeeting && !fields.joinUrl?.trim()) return
+
+  upsertCalendarEventDetails(accountId, gid, graphCalendarId ?? existing?.graphCalendarId ?? null, {
+    subject: existing?.title ?? null,
+    attendeeEmails: [],
+    joinUrl: fields.joinUrl,
+    isOnlineMeeting: fields.isOnlineMeeting,
+    bodyHtml: null
+  })
 }
 
 /** Neuer Termin: in SQLite eintragen, UI per Broadcast aktualisieren — kein Voll-Sync. */
@@ -88,7 +122,7 @@ export async function afterCalendarEventCreated(
       upsertCalendarEventDetails(accountId, eventId, input.graphCalendarId ?? null, {
         subject: input.subject.trim() || null,
         attendeeEmails,
-        joinUrl: null,
+        joinUrl: result.joinUrl?.trim() || null,
         isOnlineMeeting: acc.provider === 'microsoft' && input.teamsMeeting === true && !input.isAllDay,
         bodyHtml: input.bodyHtml?.trim() ? input.bodyHtml.trim() : null
       })

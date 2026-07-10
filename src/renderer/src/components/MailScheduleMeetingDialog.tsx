@@ -19,6 +19,7 @@ import {
   CalendarClock,
   Loader2,
   Send,
+  UserPlus,
   Users,
   Video,
   X
@@ -37,7 +38,11 @@ import {
   calendarSlotHasConflict
 } from '@shared/calendar-free-slots'
 import { ModalPanel, ModalRoot } from '@/components/motion/Modal'
-import { RecipientTokenField } from '@/components/RecipientTokenField'
+import { RecipientTokenField, type RecipientTokenFieldHandle } from '@/components/RecipientTokenField'
+import { TipTapBody } from '@/components/TipTapBody'
+import { sanitizeComposeHtmlFragment } from '@/lib/sanitize-compose-html'
+import { isEffectivelyEmptyDescriptionHtml } from '@/lib/sanitize'
+import { prepareCalendarEventDescriptionFromEditorHtml } from '@shared/calendar-event-body-html'
 import { parseRecipients } from '@/lib/compose-helpers'
 import { openExternalUrl } from '@/lib/open-external'
 import {
@@ -163,6 +168,7 @@ export function MailScheduleMeetingDialog({
   const calSettings = useCalendarSettingsPrefs()
   const calendarRef = useRef<FullCalendar | null>(null)
   const calendarHostRef = useRef<HTMLDivElement | null>(null)
+  const attendeeFieldRef = useRef<RecipientTokenFieldHandle>(null)
 
   const defaultAccountId = useMemo(() => {
     if (accounts.some((a) => a.id === suggestion.accountId)) return suggestion.accountId
@@ -177,9 +183,6 @@ export function MailScheduleMeetingDialog({
     )
   )
   const [descriptionHtml, setDescriptionHtml] = useState(suggestion.bodyHtml)
-  const [descriptionPlain, setDescriptionPlain] = useState(() =>
-    suggestion.bodyHtml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
-  )
   const [teamsMeeting, setTeamsMeeting] = useState(true)
   const [durationMinutes, setDurationMinutes] = useState(() =>
     slotDurationMinutes(new Date(suggestion.startIso), new Date(suggestion.endIso))
@@ -232,9 +235,6 @@ export function MailScheduleMeetingDialog({
       )
     )
     setDescriptionHtml(suggestion.bodyHtml)
-    setDescriptionPlain(
-      suggestion.bodyHtml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
-    )
     setTeamsMeeting(true)
     const start = new Date(suggestion.startIso)
     const end = new Date(suggestion.endIso)
@@ -511,6 +511,12 @@ export function MailScheduleMeetingDialog({
       return
     }
     const attendees = parseRecipients(attendeeInput).map((r) => r.address)
+    const bodyHtml = isEffectivelyEmptyDescriptionHtml(descriptionHtml)
+      ? null
+      : prepareCalendarEventDescriptionFromEditorHtml(
+          descriptionHtml,
+          sanitizeComposeHtmlFragment
+        )
     setBusy(true)
     setError(null)
     try {
@@ -521,9 +527,10 @@ export function MailScheduleMeetingDialog({
         startIso: slotStartIso,
         endIso: slotEndIso,
         isAllDay: false,
-        bodyHtml: descriptionHtml.trim() || null,
+        bodyHtml,
         attendeeEmails: attendees.length > 0 ? attendees : null,
-        teamsMeeting: isMicrosoft && teamsMeeting
+        teamsMeeting: isMicrosoft && teamsMeeting,
+        ...(suggestion.mailAttachment ? { attachments: [suggestion.mailAttachment] } : {})
       })
 
       const graphEventId = created.id?.trim()
@@ -731,16 +738,30 @@ export function MailScheduleMeetingDialog({
             </div>
 
             <div>
-              <label className="text-xs font-medium text-muted-foreground">
-                {t('mail.scheduleMeeting.attendees')}
-              </label>
-              <div className="mt-1">
+              <div className="flex items-center justify-between gap-2">
+                <label className="text-xs font-medium text-muted-foreground">
+                  {t('mail.scheduleMeeting.attendees')}
+                </label>
+                <button
+                  type="button"
+                  className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-0.5 text-[11px] text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  title={t('mail.scheduleMeeting.attendeesPickContacts')}
+                  onClick={(): void => attendeeFieldRef.current?.openContactPicker()}
+                >
+                  <UserPlus className="h-3.5 w-3.5" />
+                  {t('mail.scheduleMeeting.attendeesPickContacts')}
+                </button>
+              </div>
+              <div className="mt-1 rounded-md border border-border bg-background px-2 py-1.5">
                 <RecipientTokenField
+                  ref={attendeeFieldRef}
                   hideLabelColumn
                   label={t('mail.scheduleMeeting.attendees')}
                   value={attendeeInput}
                   onChange={setAttendeeInput}
                   accountId={accountId}
+                  placeholder={t('mail.scheduleMeeting.attendeesPlaceholder')}
+                  className="border-0 px-0 py-0"
                 />
               </div>
             </div>
@@ -762,17 +783,16 @@ export function MailScheduleMeetingDialog({
               <label className="text-xs font-medium text-muted-foreground">
                 {t('mail.scheduleMeeting.description')}
               </label>
-              <textarea
-                className="mt-1 min-h-[72px] w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-                value={descriptionPlain}
-                onChange={(e): void => {
-                  const plain = e.target.value
-                  setDescriptionPlain(plain)
-                  setDescriptionHtml(
-                    `<p>${plain.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')}</p>`
-                  )
-                }}
-              />
+              <div className="mt-1 overflow-hidden rounded-md border border-border bg-background">
+                <TipTapBody
+                  valueHtml={descriptionHtml}
+                  onChangeHtml={setDescriptionHtml}
+                  placeholder={t('calendar.eventDialog.descriptionEditorPlaceholder')}
+                  editorMinHeightClass="min-h-[220px]"
+                  fillHeight={false}
+                  className="min-h-[220px]"
+                />
+              </div>
             </div>
 
             <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">

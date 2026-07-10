@@ -395,10 +395,10 @@ export function EntityContextRelations({
   return (
     <div
       className={cn(
-        'space-y-2 border-t pt-3 pb-3',
+        'space-y-2 border-t pt-3',
         entityContextDividerClass,
         contentPaddingClass,
-        scrollable && 'min-h-0 flex-1 overflow-y-auto'
+        scrollable && 'min-h-0 flex-1 overflow-y-auto pb-4'
       )}
     >
       <div className={cn('flex flex-wrap gap-1 border-b pb-2', entityContextDividerClass)}>

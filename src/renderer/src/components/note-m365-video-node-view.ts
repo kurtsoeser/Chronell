@@ -196,6 +196,7 @@ export function createNoteM365VideoNodeView(context: {
   const syncPlayback = (ref: NoteM365VideoEmbedRef | null): void => {
     video.removeAttribute('src')
     video.hidden = true
+    video.onerror = null
 
     if (!ref) {
       fallback.hidden = true
@@ -209,6 +210,20 @@ export function createNoteM365VideoNodeView(context: {
       fallback.replaceChildren()
       video.src = noteM365VideoUrl(ref.accountId!, ref.driveId!, ref.itemId!)
       video.hidden = false
+      video.onerror = (): void => {
+        video.onerror = null
+        video.hidden = true
+        video.removeAttribute('src')
+        renderFallback(fallback, ref, {
+          onConnect: connectAccount,
+          onRetry: (): void => void resolveRef(ref.shareUrl),
+          messageKey: ref.streamEmbedSrc
+            ? 'notes.m365Video.streamAuthHint'
+            : 'notes.m365Video.error.playback'
+        })
+        fallback.hidden = false
+        updateChromeButtons(ref)
+      }
       updateChromeButtons(ref)
       return
     }

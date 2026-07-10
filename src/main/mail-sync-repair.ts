@@ -52,17 +52,33 @@ export async function repairMicrosoftMailSyncIfNeeded(accountId: string): Promis
 
   try {
     await syncFolders(accountId)
-    const imported = await syncMessagesInFolderGraph(accountId, inbox.remoteId, 250)
+    const inboxFresh = findFolderByWellKnown(accountId, 'inbox')
+    if (!inboxFresh) return true
+
+    const remoteInboxTotal = inboxFresh.totalCount ?? 0
+    const repairOpts = { ignoreSyncWindow: true as const }
+    const imported = await syncMessagesInFolderGraph(
+      accountId,
+      inboxFresh.remoteId,
+      250,
+      repairOpts
+    )
     const sent = findFolderByWellKnown(accountId, 'sentitems')
     if (sent) {
-      await syncMessagesInFolderGraph(accountId, sent.remoteId, 100).catch((e) =>
+      await syncMessagesInFolderGraph(accountId, sent.remoteId, 100, repairOpts).catch((e) =>
         console.warn('[mail-repair] Gesendet:', e)
       )
     }
-    const after = countMessagesInFolder(inbox.id)
-    console.log(
-      `[mail-repair] Nach Graph-Reparatur: ${after} Mails im Posteingang (API meldete ${imported})`
-    )
+    const after = countMessagesInFolder(inboxFresh.id)
+    if (after === 0 && remoteInboxTotal > 0 && imported === 0) {
+      console.warn(
+        `[mail-repair] Konto ${accountId}: Server meldet ${remoteInboxTotal} Mails, aber kein Import — pruefe Sync-Fenster oder Berechtigungen.`
+      )
+    } else {
+      console.log(
+        `[mail-repair] Nach Graph-Reparatur: ${after} Mails im Posteingang (API meldete ${imported})`
+      )
+    }
     touchAccountMailSyncFinished(accountId)
     broadcastMailChanged(accountId)
     return true

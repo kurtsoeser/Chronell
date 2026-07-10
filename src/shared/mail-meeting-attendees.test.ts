@@ -11,14 +11,16 @@ describe('meetingAttendeesFromMailParticipants', () => {
         fromName: 'Judith',
         fromAddr: 'judith@firma.de',
         toAddrs: 'kurt@firma.de, Team <team@firma.de>',
-        ccAddrs: 'cc@extern.com'
+        ccAddrs: 'cc@extern.com',
+        bccAddrs: 'bcc@extern.com'
       },
       ['kurt@firma.de']
     )
     expect(attendees.map((a) => a.address)).toEqual([
       'judith@firma.de',
       'team@firma.de',
-      'cc@extern.com'
+      'cc@extern.com',
+      'bcc@extern.com'
     ])
     expect(formatMeetingAttendeesForComposeInput(attendees)).toContain('Judith <judith@firma.de>')
   })

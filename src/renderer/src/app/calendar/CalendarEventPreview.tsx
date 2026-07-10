@@ -53,7 +53,7 @@ import { CalendarEventDescriptionPreview } from '@/app/calendar/CalendarEventDes
 import { CalendarEventIconPicker } from '@/components/CalendarEventIconPicker'
 import { calendarEventIconIsExplicit, resolveCalendarEventIcon } from '@/lib/calendar-event-icons'
 import { sanitizeComposeHtmlFragment } from '@/lib/sanitize-compose-html'
-import { prepareCalendarEventBodyHtml } from '@shared/calendar-event-body-html'
+import { prepareCalendarEventDescriptionFromEditorHtml } from '@shared/calendar-event-body-html'
 import { useThemeStore } from '@/stores/theme'
 
 function formatEventRange(
@@ -454,7 +454,10 @@ export function CalendarEventPreview(props: {
         isAllDay: ev.isAllDay,
         location: ev.location ?? null,
         bodyHtml: descHtml.trim()
-          ? prepareCalendarEventBodyHtml(sanitizeComposeHtmlFragment(descHtml.trim()))
+          ? prepareCalendarEventDescriptionFromEditorHtml(
+              descHtml,
+              sanitizeComposeHtmlFragment
+            )
           : null,
         categories: ev.categories ?? null
       })

@@ -1923,7 +1923,10 @@ async function reconcileSelectionAfterMessagesReload(
   const sid = priorState.selectedMessageId
   if (sid == null) return
 
-  const stillInList = messages.some((m) => m.id === sid)
+  const stillInList =
+    messages.some((m) => m.id === sid) ||
+    findMailListItemById(messages, priorState.threadMessages, sid) != null
+
   if (stillInList) {
     try {
       const fresh = await window.mailClient.mail.getMessage(sid)
@@ -1934,6 +1937,18 @@ async function reconcileSelectionAfterMessagesReload(
     } catch {
       /* ignore */
     }
+  }
+
+  // Mail kann noch in der DB sein (z. B. Thread-Nachricht aus anderem Ordner), obwohl sie
+  // nicht in der aktuellen Listenansicht vorkommt — Auswahl nicht auf die Thread-Spitze springen.
+  try {
+    const fresh = await window.mailClient.mail.getMessage(sid)
+    if (fresh) {
+      set({ selectedMessage: fresh })
+      return
+    }
+  } catch {
+    /* ignore */
   }
 
   const nextId = pickSuccessorMessageId(priorState, sid)

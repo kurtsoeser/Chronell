@@ -38,6 +38,7 @@ import type {
   CalendarRecurrenceFrequency,
   CalendarRecurrenceRangeEndMode,
   CalendarSaveEventRecurrence,
+  ComposeAttachment,
   ConnectedAccount,
   MailMasterCategory,
   TaskListRow
@@ -98,7 +99,7 @@ import { EntityContextBlock } from '@/components/connections/EntityContextBlock'
 import { TipTapBody } from '@/components/TipTapBody'
 import { EditorAttachmentActionBar } from '@/components/EditorAttachmentActionBar'
 import { sanitizeComposeHtmlFragment } from '@/lib/sanitize-compose-html'
-import { prepareCalendarEventBodyHtml } from '@shared/calendar-event-body-html'
+import { prepareCalendarEventDescriptionFromEditorHtml } from '@shared/calendar-event-body-html'
 import { CalendarEventDescriptionPreview } from '@/app/calendar/CalendarEventDescriptionPreview'
 import { CalendarEventIconPicker } from '@/components/CalendarEventIconPicker'
 import { LocationAutocompleteInput } from '@/components/LocationAutocompleteInput'
@@ -268,6 +269,7 @@ export interface CalendarEventDialogProps {
     attendeeInput?: string
     descriptionHtml?: string
     teamsMeeting?: boolean
+    attachments?: ComposeAttachment[]
   } | null
   initialCreateKind?: CalendarEventDialogCreateKind
   initialGraphCalendarId?: string
@@ -908,10 +910,14 @@ export function CalendarEventDialog({
     void eventAttachmentsApi.addFiles(files)
   }
 
+  const createPrefillAttachments = createPrefill?.attachments
+
   useEffect(() => {
     if (!open) return
-    eventAttachmentsApi.reset()
-  }, [open])
+    eventAttachmentsApi.reset(
+      mode === 'create' && createPrefillAttachments?.length ? createPrefillAttachments : undefined
+    )
+  }, [open, mode, createPrefillAttachments, eventAttachmentsApi.reset])
 
   /** Outlook-Masterkategorien fuer Microsoft-Termine und -Aufgaben. */
   const useOutlookCategories =
@@ -1083,9 +1089,7 @@ export function CalendarEventDialog({
 
   const handleTeamsMeetingChange = useCallback((checked: boolean): void => {
     setTeamsMeeting(checked)
-    if (checked) {
-      setLocation('online')
-    } else if (location.trim().toLowerCase() === 'online') {
+    if (!checked && location.trim().toLowerCase() === 'online') {
       setLocation('')
     }
   }, [location])
@@ -1328,7 +1332,10 @@ export function CalendarEventDialog({
 
     const bodyHtml = isEffectivelyEmptyEditorHtml(descriptionHtml)
       ? null
-      : prepareCalendarEventBodyHtml(sanitizeComposeHtmlFragment(descriptionHtml.trim()))
+      : prepareCalendarEventDescriptionFromEditorHtml(
+          descriptionHtml,
+          sanitizeComposeHtmlFragment
+        )
 
     const parsedAttendees = attendeeEmailsFromField(attendeeInput)
 

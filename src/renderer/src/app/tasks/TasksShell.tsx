@@ -1351,8 +1351,13 @@ export function TasksShell(): JSX.Element {
   const workContextHandlersRef = useRef(workContextHandlers)
   workContextHandlersRef.current = workContextHandlers
 
+type TaskContextMenuEvent = Pick<
+  globalThis.MouseEvent,
+  'clientX' | 'clientY' | 'preventDefault' | 'stopPropagation'
+>
+
   const openTaskContextMenu = useCallback(
-    (task: TasksListItem, event: MouseEvent): void => {
+    (task: TasksListItem, event: TaskContextMenuEvent): void => {
       event.preventDefault()
       event.stopPropagation()
       void (async (): Promise<void> => {
@@ -1682,6 +1687,7 @@ export function TasksShell(): JSX.Element {
                     dateMode={calendarDateMode}
                     onViewMeta={(meta): void => setCalendarTitle(meta.title)}
                     onRequestCreate={openCreateTaskDialog}
+                    onTaskContextMenu={openTaskContextMenu}
                     className="min-h-0 min-w-0 flex-1"
                   />
                 </>

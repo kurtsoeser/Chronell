@@ -225,5 +225,5 @@ export function useCalendarShellMailActions(args: {
 
   useCalendarIcsDrop(calendarDropRootRef, { enabled: true })
 
-  return { mailContextHandlersRef, bumpTodoOverlayAndSideList }
+  return { mailContextHandlers, mailContextHandlersRef, bumpTodoOverlayAndSideList }
 }

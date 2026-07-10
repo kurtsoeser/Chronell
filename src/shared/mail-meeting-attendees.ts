@@ -5,6 +5,7 @@ export type MailMeetingParticipantFields = {
   fromName?: string | null
   toAddrs?: string | null
   ccAddrs?: string | null
+  bccAddrs?: string | null
 }
 
 export type ParsedMailMeetingAttendee = {
@@ -44,7 +45,7 @@ export function meetingAttendeesFromMailParticipants(
       : fields.fromAddr.trim()
     : ''
 
-  const raw = [fromLine, fields.toAddrs ?? '', fields.ccAddrs ?? '']
+  const raw = [fromLine, fields.toAddrs ?? '', fields.ccAddrs ?? '', fields.bccAddrs ?? '']
     .filter((s) => s.trim().length > 0)
     .join(', ')
 

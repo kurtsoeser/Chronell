@@ -10,7 +10,7 @@ import { NoteDisplayIcon } from '@/components/NoteDisplayIcon'
 import { CalendarEventIconPicker } from '@/components/CalendarEventIconPicker'
 import { IconColorPickerFooter } from '@/components/IconColorPickerFooter'
 import { resolveEntityIconColor } from '@shared/entity-icon-color'
-import { noteTitle } from '@/app/notes/notes-display-helpers'
+import { formatNoteDate, noteTitle } from '@/app/notes/notes-display-helpers'
 import { NotesCategoryBadges } from '@/components/NotesCategoryBadges'
 
 function NoteDragHandle({ noteId }: { noteId: number }): JSX.Element {
@@ -26,7 +26,7 @@ function NoteDragHandle({ noteId }: { noteId: number }): JSX.Element {
       {...listeners}
       {...attributes}
       className={cn(
-        'flex h-7 w-5 shrink-0 cursor-grab items-center justify-center rounded text-muted-foreground/60',
+        'mt-0.5 flex h-7 w-5 shrink-0 cursor-grab items-center justify-center rounded text-muted-foreground/60',
         'hover:bg-secondary/60 hover:text-foreground active:cursor-grabbing',
         isDragging && 'opacity-50'
       )}
@@ -74,9 +74,12 @@ export const NotesPageRow = memo(function NotesPageRow({
   categoryColorByName?: Map<string, string>
   isExiting?: boolean
 }): JSX.Element {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const untitled = t('notes.shell.untitled')
   const displayTitle = noteTitle(note, untitled)
+  const formattedDate = formatNoteDate(note.updatedAt, i18n.language)
+  const metadataLine = [sectionLabel, formattedDate].filter(Boolean).join(' · ')
+  const hasCategories = (note.categories?.length ?? 0) > 0 && categoryColorByName != null
 
   const [renaming, setRenaming] = useState(false)
   const [draftTitle, setDraftTitle] = useState(displayTitle)
@@ -100,7 +103,8 @@ export const NotesPageRow = memo(function NotesPageRow({
   return (
     <div
       className={cn(
-        'flex min-w-0 items-center gap-0.5 rounded-md transition-colors',
+        'flex min-w-0 items-start gap-0.5 rounded-md py-0.5 transition-colors',
+        hasCategories && sectionLabel ? 'min-h-[4.25rem]' : hasCategories || sectionLabel ? 'min-h-[3.5rem]' : 'min-h-[2.75rem]',
         selected ? 'bg-primary/10 ring-1 ring-primary/20 ring-inset' : active ? 'bg-secondary font-medium text-foreground' : 'hover:bg-secondary/60',
         isExiting && motionListItemExit
       )}
@@ -121,7 +125,7 @@ export const NotesPageRow = memo(function NotesPageRow({
             e.stopPropagation()
             onToggleCollapse?.(note)
           }}
-          className="flex h-7 w-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
+          className="mt-0.5 flex h-7 w-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
           aria-label={collapsed ? t('notes.subPages.expand') : t('notes.subPages.collapse')}
           title={collapsed ? t('notes.subPages.expand') : t('notes.subPages.collapse')}
         >
@@ -132,11 +136,11 @@ export const NotesPageRow = memo(function NotesPageRow({
           )}
         </button>
       ) : (
-        <span className="w-5 shrink-0" aria-hidden />
+        <span className="mt-0.5 w-5 shrink-0" aria-hidden />
       )}
       <NoteDragHandle noteId={note.id} />
       {note.isPinned ? (
-        <Pin className="h-3 w-3 shrink-0 text-primary/80" aria-label={t('notes.pagesContextMenu.pin')} />
+        <Pin className="mt-2 h-3 w-3 shrink-0 text-primary/80" aria-label={t('notes.pagesContextMenu.pin')} />
       ) : null}
       <CalendarEventIconPicker
         layout="compact"
@@ -144,7 +148,7 @@ export const NotesPageRow = memo(function NotesPageRow({
         iconId={note.iconId}
         iconColorHex={resolveEntityIconColor(note.iconColor)}
         title={displayTitle}
-        compactButtonClassName="h-7 w-7 shrink-0 border-0 bg-transparent shadow-none hover:bg-secondary/60"
+        compactButtonClassName="mt-0.5 h-7 w-7 shrink-0 border-0 bg-transparent shadow-none hover:bg-secondary/60"
         triggerIcon={<NoteDisplayIcon note={note} />}
         onIconChange={(iconId): void => void onPatchDisplay(note, { iconId: iconId ?? null })}
         footer={
@@ -180,21 +184,21 @@ export const NotesPageRow = memo(function NotesPageRow({
             setDraftTitle(note.title?.trim() ?? displayTitle)
             setRenaming(true)
           }}
-          className="min-w-0 flex-1 truncate py-1.5 pr-2 text-left text-xs"
+          className="min-w-0 flex-1 py-1 pr-2 text-left text-xs leading-snug"
           title={t('notes.sections.renameDoubleClick')}
         >
-          <span className="block truncate">{displayTitle}</span>
-          {(note.categories?.length ?? 0) > 0 && categoryColorByName ? (
+          <span className="block truncate font-medium">{displayTitle}</span>
+          {hasCategories ? (
             <NotesCategoryBadges
               names={note.categories ?? []}
-              colorByName={categoryColorByName}
-              className="mt-0.5"
+              colorByName={categoryColorByName!}
+              className="mt-1"
               maxVisible={2}
             />
           ) : null}
-          {sectionLabel ? (
-            <span className="block truncate text-2xs font-normal text-muted-foreground">
-              {sectionLabel}
+          {metadataLine ? (
+            <span className="mt-1 block truncate text-2xs font-normal tabular-nums text-muted-foreground">
+              {metadataLine}
             </span>
           ) : null}
         </button>

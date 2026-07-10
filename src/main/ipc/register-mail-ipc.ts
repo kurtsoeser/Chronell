@@ -163,6 +163,7 @@ import {
 } from './ipc-helpers'
 import { broadcastMailChanged } from './ipc-broadcasts'
 import { applyUndo } from './mail-ipc-undo'
+import { providerAuthUnavailableUserMessage } from '../auth/auth-errors'
 import { listDistinctTagsForAccount } from '../db/message-tags-repo'
 import { ensureMessageBodyLoaded } from '../message-body-fetch'
 import { registerMailComposeIpc } from './register-mail-compose-ipc'
@@ -733,7 +734,7 @@ export function registerMailIpc(): void {
       markUndone(last.id)
       return { ok: true, label: performedLabel }
     } catch (e) {
-      const message = e instanceof Error ? e.message : String(e)
+      const message = providerAuthUnavailableUserMessage(e)
       console.warn('[ipc] undoLast fehlgeschlagen:', e)
       return { ok: false, error: message }
     }

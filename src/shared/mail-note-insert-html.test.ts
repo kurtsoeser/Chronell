@@ -25,6 +25,7 @@ function sampleMail(overrides: Partial<MailFull> = {}): MailFull {
     bodyHtml: '<p>Hallo Team,</p><p>bitte prüfen.</p>',
     bodyText: null,
     ccAddrs: null,
+    bccAddrs: null,
     openTodoId: null,
     openTodoDueKind: null,
     openTodoDueAt: null,

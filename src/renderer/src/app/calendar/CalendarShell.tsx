@@ -167,6 +167,10 @@ import {
   type MailContextHandlers
 } from '@/lib/mail-context-menu'
 import { accountSupportsCloudTasks } from '@/lib/cloud-task-accounts'
+import { confirmDeleteCloudTasks } from '@/app/tasks/confirm-delete-cloud-task'
+import { toggleWorkItemCompleted } from '@/app/work-items/work-item-actions'
+import { openWorkItemInCalendar } from '@/app/work-items/work-item-calendar-nav'
+import type { CalendarOverlayContextMenuOptions } from '@/app/calendar/calendar-overlay-context-menu'
 import { deleteCalendarEventIpc } from '@/lib/calendar-ipc'
 import { applyCalendarEventDomColors } from '@/lib/calendar-event-chip-style'
 import { accountColorToCssBackground } from '@/lib/avatar-color'
@@ -842,7 +846,7 @@ export function CalendarShell(): JSX.Element {
     [applyOptimisticGraphCalendarEvent, reloadVisibleRange]
   )
 
-  const { mailContextHandlersRef } = useCalendarShellMailActions({
+  const { mailContextHandlers, bumpTodoOverlayAndSideList } = useCalendarShellMailActions({
     t,
     fcTimeZone,
     taskAccounts,
@@ -859,6 +863,135 @@ export function CalendarShell(): JSX.Element {
     setMailNoteTarget,
     selectMessage
   })
+
+  const setAppMode = useAppModeStore((s) => s.setMode)
+
+  const reloadCloudTaskOverlay = useCallback((): void => {
+    bumpCloudTaskLayerRevision()
+    timelineReloadRef.current?.()
+    const api = calendarRef.current?.getApi()
+    if (api) {
+      void loadCloudTasksForRange(api.view.activeStart, api.view.activeEnd)
+      return
+    }
+    const range = lastRangeRef.current
+    if (!range) return
+    void loadCloudTasksForRange(range.start, range.end)
+  }, [
+    bumpCloudTaskLayerRevision,
+    calendarRef,
+    lastRangeRef,
+    loadCloudTasksForRange,
+    timelineReloadRef
+  ])
+
+  const overlayContextMenuOptions = useMemo<CalendarOverlayContextMenuOptions>(
+    () => ({
+      t,
+      mailTodoListLabel: t('calendar.shell.mailTodosLabel'),
+      plannedByTaskKey: cloudTaskPlannedByKey,
+      workItemHandlers: {
+        t,
+        mailHandlers: mailContextHandlers,
+        canCreateCloudTask: (accountId): boolean =>
+          taskAccounts.some((a) => a.id === accountId && accountSupportsCloudTasks(a)),
+        onToggleCompleted: async (item): Promise<void> => {
+          try {
+            await toggleWorkItemCompleted(item)
+            if (item.kind === 'cloud_task') {
+              if (
+                previewCloudTask &&
+                cloudTaskStableKey(
+                  previewCloudTask.accountId,
+                  previewCloudTask.listId,
+                  previewCloudTask.id
+                ) === item.stableKey
+              ) {
+                setPreviewCloudTask({ ...previewCloudTask, completed: !item.completed })
+              }
+              reloadCloudTaskOverlay()
+              return
+            }
+            bumpTodoOverlayAndSideList()
+          } catch (err) {
+            setError(err instanceof Error ? err.message : String(err))
+          }
+        },
+        onShowInCalendar: (item): void => {
+          openWorkItemInCalendar(item, setAppMode)
+        },
+        onOpenInMail: (item): void => {
+          void selectMessageWithThreadPreview(item.messageId)
+          setAppMode('mail')
+        },
+        onOpenInTasks: (): void => setAppMode('tasks'),
+        onDeleteCloudTask: async (item): Promise<void> => {
+          if (!(await confirmDeleteCloudTasks(t, 1))) return
+          try {
+            await window.mailClient.tasks.deleteTask({
+              accountId: item.accountId,
+              listId: item.listId,
+              taskId: item.taskId
+            })
+            if (
+              previewCloudTask &&
+              cloudTaskStableKey(
+                previewCloudTask.accountId,
+                previewCloudTask.listId,
+                previewCloudTask.id
+              ) === item.stableKey
+            ) {
+              setPreviewCloudTask(null)
+              setPreviewCloudTaskPlannedFromTimeline(null)
+            }
+            reloadCloudTaskOverlay()
+          } catch (err) {
+            setError(err instanceof Error ? err.message : String(err))
+          }
+        },
+        refreshMailList: bumpTodoOverlayAndSideList
+      },
+      onEditCloudTask: (task): void => {
+        setError(null)
+        setPreviewCalendarEvent(null)
+        clearSelectedMessage()
+        setPreviewCloudTaskPlannedFromTimeline(null)
+        setPreviewCloudTask(task)
+        persistRightPreviewOpen(true)
+        setRightPreviewOpen(true)
+      },
+      onEditMailTodo: (mail): void => {
+        setError(null)
+        setPreviewCalendarEvent(null)
+        setPreviewCloudTask(null)
+        setPreviewCloudTaskPlannedFromTimeline(null)
+        void selectMessageWithThreadPreview(mail.id)
+        persistRightPreviewOpen(true)
+        setRightPreviewOpen(true)
+      }
+    }),
+    [
+      t,
+      cloudTaskPlannedByKey,
+      mailContextHandlers,
+      taskAccounts,
+      reloadCloudTaskOverlay,
+      previewCloudTask,
+      bumpTodoOverlayAndSideList,
+      setAppMode,
+      selectMessageWithThreadPreview,
+      setPreviewCalendarEvent,
+      setPreviewCloudTask,
+      setPreviewCloudTaskPlannedFromTimeline,
+      clearSelectedMessage,
+      persistRightPreviewOpen,
+      setRightPreviewOpen,
+      setError
+    ]
+  )
+
+  const overlayContextMenuOptionsRef = useRef(overlayContextMenuOptions)
+  overlayContextMenuOptionsRef.current = overlayContextMenuOptions
 
   useCalendarShellPendingFocus({
     calendarRef,
@@ -1292,10 +1425,8 @@ export function CalendarShell(): JSX.Element {
                 graphCalendarReconcilingRef={graphCalendarReconcilingRef}
                 calendarFcEventContentRender={calendarFcEventContentRender}
                 cloudTaskElByKeyRef={cloudTaskElByKeyRef}
-                previewCloudTask={previewCloudTask}
-                accounts={accounts}
-                mailContextHandlersRef={mailContextHandlersRef}
                 t={t}
+                overlayContextMenuOptionsRef={overlayContextMenuOptionsRef}
                 reloadVisibleRange={reloadVisibleRange}
                 calendarCollatorLocale={calendarCollatorLocale}
                 isDeCalendar={isDeCalendar}

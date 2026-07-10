@@ -9,6 +9,7 @@ import { countMessagesInFolder } from './db/messages-repo'
 import { runInitialSync } from './sync-runner'
 import { repairAllMicrosoftMailSyncIfNeeded } from './mail-sync-repair'
 import { warnProviderAuthOnce } from './auth/auth-errors'
+import { listMsalAccounts } from './auth/microsoft'
 import { startCalendarSync, stopCalendarSync } from './calendar-sync-runner'
 import { startMailPolling, stopMailPolling } from './mail-poll-runner'
 import { loadConfig } from './config'
@@ -323,6 +324,23 @@ app.whenReady().then(async () => {
   const accounts = await listAccounts()
   if (isAppOnline()) {
     await repairAllMicrosoftMailSyncIfNeeded()
+    try {
+      const cfg = await loadConfig()
+      if (cfg.microsoftClientId) {
+        const msalAccounts = await listMsalAccounts(cfg.microsoftClientId)
+        const msalIds = new Set(msalAccounts.map((a) => `ms:${a.homeAccountId}`))
+        for (const account of accounts) {
+          if (account.provider !== 'microsoft' || msalIds.has(account.id)) continue
+          warnProviderAuthOnce(
+            'startup',
+            account.id,
+            new Error('Konto nicht im MSAL-Cache gefunden.')
+          )
+        }
+      }
+    } catch (e) {
+      console.warn('[startup] MSAL-Kontenpruefung:', e)
+    }
     for (const account of accounts) {
       if (isDemoAccount(account)) continue
       if (account.provider === 'microsoft') {

@@ -6,9 +6,12 @@ import { cn } from '@/lib/utils'
 const ROW_GAP_PX = 2
 
 function estimateNotesPageRowHeight(row: NotesPageFlatRow, showSectionLabels: boolean): number {
-  let height = 32
-  if ((row.note.categories?.length ?? 0) > 0) height += 18
-  if (showSectionLabels) height += 14
+  const hasCategories = (row.note.categories?.length ?? 0) > 0
+  const hasSectionLabel = showSectionLabels
+  let height = 44
+  if (hasCategories) height += 22
+  if (hasCategories && hasSectionLabel) height += 4
+  height += 16
   return height + ROW_GAP_PX
 }
 

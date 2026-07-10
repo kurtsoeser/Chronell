@@ -97,6 +97,7 @@ export interface TasksCalendarPaneProps {
   dateMode: CloudTaskCalendarDateMode
   className?: string
   onRequestCreate?: (range: CalendarCreateRange | null) => void
+  onTaskContextMenu?: (task: CloudTaskListItem, event: globalThis.MouseEvent) => void
 }
 
 export function TasksCalendarPane({
@@ -114,7 +115,8 @@ export function TasksCalendarPane({
   listFilter = 'all',
   dateMode,
   className,
-  onRequestCreate
+  onRequestCreate,
+  onTaskContextMenu
 }: TasksCalendarPaneProps): JSX.Element {
   const { i18n } = useTranslation()
   const calendarFcEventContentRender = useCalendarFcEventContent()
@@ -510,6 +512,21 @@ export function TasksCalendarPane({
             info.el.style.color = '#fafafa'
           } else {
             info.el.style.borderLeft = '4px solid hsl(var(--primary))'
+          }
+          if (task && onTaskContextMenu) {
+            const onCtx = (e: MouseEvent): void => {
+              onTaskContextMenu(task, e)
+            }
+            info.el.addEventListener('contextmenu', onCtx)
+            const el = info.el as HTMLElement & { _tasksCalCtxMenu?: (ev: MouseEvent) => void }
+            el._tasksCalCtxMenu = onCtx
+          }
+        }}
+        eventWillUnmount={(info): void => {
+          const el = info.el as HTMLElement & { _tasksCalCtxMenu?: (ev: MouseEvent) => void }
+          if (el._tasksCalCtxMenu) {
+            info.el.removeEventListener('contextmenu', el._tasksCalCtxMenu)
+            delete el._tasksCalCtxMenu
           }
         }}
         datesSet={(arg): void => {

@@ -95,6 +95,7 @@ import {
   NOTE_TEAMS_RECORDING_EMBED_ATTR,
   NOTE_TEAMS_RECORDING_EMBED_CLASS,
   buildTeamsRecordingEmbedUrl,
+  isAllowedM365EmbedSubFrameRedirectUrl,
   isAllowedTeamsRecordingEmbedSrc,
   parseTeamsRecordingEmbedSrc
 } from './note-teams-recording-embed'
@@ -641,7 +642,7 @@ export function isAllowedNoteEmbedIframeSrc(src: string): boolean {
 
 /** Darf als iframe-Subframe in Notizen geladen werden (Electron Mail-Schutz). */
 export function isAllowedNoteEmbedSubFrameUrl(url: string): boolean {
-  return isAllowedNoteEmbedIframeSrc(url)
+  return isAllowedNoteEmbedIframeSrc(url) || isAllowedM365EmbedSubFrameRedirectUrl(url)
 }
 
 export { isResolvableNoteEmbedUrl }

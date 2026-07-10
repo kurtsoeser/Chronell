@@ -277,7 +277,7 @@ export function TipTapBody({
         shouldAutoLink: (url) =>
           !isNoteWikiLinkHref(url) &&
           !isNoteEntityMentionHref(url) &&
-          !isEmbeddableNoteUrl(url),
+          !(enableTaskList && isEmbeddableNoteUrl(url)),
         HTMLAttributes: { rel: 'noopener noreferrer', target: '_blank' }
       }),
       Placeholder.configure({ placeholder: placeholder ?? 'Nachricht schreiben…' }),
@@ -450,8 +450,15 @@ export function TipTapBody({
     lastEmittedHtmlRef.current = prepared
   }, [editor, valueHtml, prepareEditorHtml])
 
+  const autoFocusedRef = useRef(false)
   useEffect(() => {
-    if (autoFocus && editor) editor.commands.focus('end')
+    autoFocusedRef.current = false
+  }, [documentKey])
+  useEffect(() => {
+    if (!autoFocus || !editor || editor.isDestroyed) return
+    if (autoFocusedRef.current) return
+    autoFocusedRef.current = true
+    editor.commands.focus('end')
   }, [autoFocus, editor])
 
   useEffect(() => {

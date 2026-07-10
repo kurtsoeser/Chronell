@@ -21,6 +21,7 @@ export function EntityContextMiniGraph({
   active,
   className,
   fillHeight = false,
+  constrainedHeight = false,
   onNeighborCountChange
 }: {
   anchor: ChronellEntityRef
@@ -29,6 +30,8 @@ export function EntityContextMiniGraph({
   className?: string
   /** Graph nutzt verfügbare Panel-Höhe (Kalender-Vorschau). */
   fillHeight?: boolean
+  /** Feste Höhe aus Parent-Container (resizable Graph-Bereich). */
+  constrainedHeight?: boolean
   onNeighborCountChange?: (count: number) => void
 }): JSX.Element | null {
   const { t } = useTranslation()
@@ -100,14 +103,24 @@ export function EntityContextMiniGraph({
       : t('connections.localGraph.hint')
 
   return (
-    <div className={cn('flex flex-col gap-1.5', fillHeight && 'min-h-0 flex-1', className)}>
+    <div
+      className={cn(
+        'flex flex-col gap-1.5',
+        (fillHeight || constrainedHeight) && 'min-h-0 flex-1',
+        className
+      )}
+    >
       <div
         className={cn(
           'relative flex flex-col overflow-hidden rounded-md',
           entityContextSectionBgClass,
-          fillHeight ? 'min-h-[200px] flex-1' : 'min-h-[160px]'
+          constrainedHeight
+            ? 'min-h-0 flex-1'
+            : fillHeight
+              ? 'min-h-[200px] flex-1'
+              : 'min-h-[160px]'
         )}
-        style={{ minHeight: MINI_GRAPH_MIN_HEIGHT_PX }}
+        style={constrainedHeight ? undefined : { minHeight: MINI_GRAPH_MIN_HEIGHT_PX }}
       >
         <ConnectionsGraph
           nodes={snap.nodes}

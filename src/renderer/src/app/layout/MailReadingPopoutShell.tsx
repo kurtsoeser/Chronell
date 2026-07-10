@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Pin } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { ReadingPane } from '@/app/layout/ReadingPane'
+import { MailReadingActionHosts } from '@/app/layout/MailReadingActionHosts'
 import { PopoutTitlebarControls } from '@/app/layout/PopoutTitlebarControls'
 import { useIsolatedMailView } from '@/app/layout/use-isolated-mail-view'
 import { parseMailReadingPopoutRoute } from '@/app/layout/mail-reading-popout-route'
@@ -114,6 +115,7 @@ export function MailReadingPopoutShell(): JSX.Element {
           compactToolbar
         />
       </div>
+      <MailReadingActionHosts />
     </div>
   )
 }

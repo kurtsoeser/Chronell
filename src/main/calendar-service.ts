@@ -19,6 +19,7 @@ import {
   type CreateTeamsCalendarEventResult
 } from './graph/calendar-graph'
 import { addCalendarEventAttachments } from './calendar-event-attachment-service'
+import { patchCachedCalendarEventMeetingFields } from './calendar-cache-mutations'
 import {
   googleListCalendars,
   googleListEventsInCalendar,
@@ -30,6 +31,9 @@ import {
 } from './google/calendar-google'
 import { addDays, min as minDate, startOfDay } from 'date-fns'
 import { getMessageById } from './db/messages-repo'
+import { ensureMessageBodyLoaded } from './message-body-fetch'
+import { buildMailEmlAttachment } from './mail-eml-export'
+import { buildMailCalendarEventDescriptionHtml } from '@shared/mail-calendar-event-description'
 import { meetingAttendeesFromMailParticipants } from '@shared/mail-meeting-attendees'
 import { findLocalFreeSlots } from '@shared/calendar-free-slots'
 import type {
@@ -427,7 +431,20 @@ export async function createSimpleCalendarEventForAccount(
       references: input.referenceAttachments
     })
   }
-  return { id: r.id, webLink: r.webLink }
+  return { id: r.id, webLink: r.webLink, joinUrl: r.joinUrl ?? null }
+}
+
+export async function refreshMicrosoftCalendarEventMeetingFields(
+  accountId: string,
+  graphEventId: string,
+  graphCalendarId?: string | null
+): Promise<{ joinUrl: string | null; isOnlineMeeting: boolean }> {
+  const detail = await graphGetCalendarEvent(accountId, graphEventId, graphCalendarId ?? null)
+  patchCachedCalendarEventMeetingFields(accountId, graphEventId, graphCalendarId ?? null, {
+    joinUrl: detail.joinUrl,
+    isOnlineMeeting: detail.isOnlineMeeting
+  })
+  return { joinUrl: detail.joinUrl, isOnlineMeeting: detail.isOnlineMeeting }
 }
 
 export async function updateCalendarEventForAccount(input: CalendarUpdateEventInput): Promise<void> {
@@ -476,6 +493,13 @@ export async function updateCalendarEventForAccount(input: CalendarUpdateEventIn
       files: input.attachments,
       references: input.referenceAttachments
     })
+  }
+  if (acc?.provider === 'microsoft' && typeof input.teamsMeeting === 'boolean' && !input.isAllDay) {
+    await refreshMicrosoftCalendarEventMeetingFields(
+      accountId,
+      graphEventId,
+      input.graphCalendarId ?? null
+    )
   }
 }
 
@@ -528,7 +552,7 @@ export async function patchCalendarEventCategories(
 export async function buildCalendarSuggestionFromMessage(
   messageId: number
 ): Promise<CalendarSuggestionFromMail> {
-  const msg = getMessageById(messageId)
+  const msg = (await ensureMessageBodyLoaded(messageId)) ?? getMessageById(messageId)
   if (!msg) throw new Error('Mail nicht gefunden.')
 
   let start: Date
@@ -565,22 +589,18 @@ export async function buildCalendarSuggestionFromMessage(
       fromAddr: msg.fromAddr,
       fromName: msg.fromName,
       toAddrs: msg.toAddrs,
-      ccAddrs: msg.ccAddrs
+      ccAddrs: msg.ccAddrs,
+      bccAddrs: msg.bccAddrs
     },
     excludeEmails
   )
-
-  const agenda =
-    (msg.bodyText ?? msg.snippet ?? '')
-      .slice(0, 4000)
-      .trim()
-      .replace(/\r\n/g, '\n') || 'Agenda folgt.'
 
   const subjectRaw = msg.subject?.trim() ?? ''
   const meetingSubject =
     subjectRaw.length > 0 && !/^re:\s/i.test(subjectRaw) ? subjectRaw : subjectRaw || 'Besprechung'
 
-  const bodyHtml = `<p><strong>Bezug:</strong> ${escapeHtml(msg.subject ?? '(Kein Betreff)')}</p><p>${escapeHtml(agenda).replace(/\n/g, '<br>')}</p>`
+  const bodyHtml = buildMailCalendarEventDescriptionHtml(msg)
+  const mailAttachment = await buildMailEmlAttachment(messageId)
 
   return {
     accountId: msg.accountId,
@@ -589,7 +609,8 @@ export async function buildCalendarSuggestionFromMessage(
     startIso: start.toISOString(),
     endIso: end.toISOString(),
     bodyHtml,
-    attendeeEmails: attendees.map((a) => a.address)
+    attendeeEmails: attendees.map((a) => a.address),
+    mailAttachment
   }
 }
 
@@ -630,10 +651,3 @@ export async function findMeetingTimesForAccount(
   return graphFindMeetingTimes(input.accountId, input)
 }
 
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-}

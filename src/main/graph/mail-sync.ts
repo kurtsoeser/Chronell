@@ -229,7 +229,20 @@ async function fetchRecentMessagesInFolder(
   const filter = syncWindowFilter(config.syncWindowDays)
   if (filter) request = request.filter(filter)
 
-  const page = (await request.get()) as GraphCollection<GraphMessage>
+  let page: GraphCollection<GraphMessage>
+  try {
+    page = (await request.get()) as GraphCollection<GraphMessage>
+  } catch (e) {
+    if (!isGraphJsonParseError(e)) throw e
+    console.warn('[mail-sync] JSON-Parse-Fehler bei Recent-Fetch, erneuter Abruf mit $top=15')
+    let retry = client
+      .api(`/me/mailFolders/${folderRemoteId}/messages`)
+      .top(15)
+      .orderby('receivedDateTime DESC')
+      .select(MESSAGE_SELECT)
+    if (filter) retry = retry.filter(filter)
+    page = (await retry.get()) as GraphCollection<GraphMessage>
+  }
   if (page.value.length === 0) return { added: 0, remoteIds: [] }
 
   const allRemoteIds = page.value.map((m) => m.id).filter((id): id is string => Boolean(id))
@@ -263,7 +276,6 @@ const MESSAGE_SELECT = [
   'importance',
   'changeKey',
   'parentFolderId',
-  'internetMessageHeaders',
   'categories'
 ].join(',')
 
@@ -380,6 +392,43 @@ function normalizeGraphRequestPath(fullOrRelative: string): string {
   return u.startsWith('/') ? u : `/${u}`
 }
 
+function isGraphJsonParseError(e: unknown): boolean {
+  const err = e as { code?: string }
+  if (err?.code === 'SyntaxError') return true
+  if (e instanceof SyntaxError) return true
+  const msg = e instanceof Error ? e.message : String(e)
+  return /SyntaxError|JSON\.parse/i.test(msg)
+}
+
+function graphUrlWithTop(url: string, top: number): string {
+  const path = normalizeGraphRequestPath(url)
+  const q = path.indexOf('?')
+  const base = q >= 0 ? path.slice(0, q) : path
+  const params = new URLSearchParams(q >= 0 ? path.slice(q + 1) : '')
+  params.set('$top', String(top))
+  const qs = params.toString()
+  return qs ? `${base}?${qs}` : base
+}
+
+type GraphMessageCollectionPage = GraphCollection<GraphMessage> & {
+  ['@odata.deltaLink']?: string
+}
+
+async function graphGetMessageCollection(
+  client: ReturnType<typeof createGraphClient>,
+  url: string
+): Promise<GraphMessageCollectionPage> {
+  try {
+    return (await client.api(url).get()) as GraphMessageCollectionPage
+  } catch (e) {
+    if (!isGraphJsonParseError(e)) throw e
+    const smaller = graphUrlWithTop(url, 15)
+    if (smaller === url) throw e
+    console.warn('[mail-sync] JSON-Parse-Fehler, erneuter Abruf mit $top=15:', url.slice(0, 120))
+    return (await client.api(smaller).get()) as GraphMessageCollectionPage
+  }
+}
+
 function isDeltaRemovedMessageEntry(v: unknown): v is { id: string } {
   if (!v || typeof v !== 'object') return false
   const o = v as Record<string, unknown>
@@ -471,9 +520,7 @@ async function runGraphDeltaPollCycle(
 
   while (url && pages < maxPages) {
     pages += 1
-    const page = (await client.api(url).get()) as GraphCollection<GraphMessage> & {
-      ['@odata.deltaLink']?: string
-    }
+    const page = await graphGetMessageCollection(client, url)
     const raw = Array.isArray(page.value) ? (page.value as unknown[]) : []
     const ing = ingestGraphDeltaPageValues(
       accountId,
@@ -531,7 +578,7 @@ async function bootstrapGraphFolderDelta(accountId: string, folder: {
   const config = await loadConfig()
   const sw = syncWindowFilter(config.syncWindowDays)
   const filterQ = sw ? `&$filter=${encodeURIComponent(sw)}` : ''
-  const initial = `/me/mailFolders/${folder.remoteId}/messages/delta?$select=${encodeURIComponent(MESSAGE_SELECT)}${filterQ}`
+  const initial = `/me/mailFolders/${folder.remoteId}/messages/delta?$top=50&$select=${encodeURIComponent(MESSAGE_SELECT)}${filterQ}`
   const client = await getClientFor(accountId)
   try {
     await runGraphDeltaPollCycle(
@@ -560,7 +607,8 @@ async function bootstrapGraphFolderDelta(accountId: string, folder: {
 export async function syncMessagesInFolder(
   accountId: string,
   folderRemoteId: string,
-  topCount = 50
+  topCount = 50,
+  opts?: { ignoreSyncWindow?: boolean }
 ): Promise<number> {
   const client = await getClientFor(accountId)
   const config = await loadConfig()
@@ -587,7 +635,7 @@ export async function syncMessagesInFolder(
     return 0
   }
 
-  const filter = syncWindowFilter(config.syncWindowDays)
+  const filter = opts?.ignoreSyncWindow ? null : syncWindowFilter(config.syncWindowDays)
   const perPage = Math.min(Math.max(topCount, 50), 100)
   const maxPages = 8
 
@@ -599,7 +647,7 @@ export async function syncMessagesInFolder(
   let pages = 0
   while (url && pages < maxPages) {
     pages += 1
-    const page = (await client.api(url).get()) as GraphCollection<GraphMessage>
+    const page = await graphGetMessageCollection(client, url)
     allValues.push(...page.value)
     const next = page['@odata.nextLink']
     url = next ? next.replace(/^https?:\/\/[^/]+\/v[0-9.]+/, '') : null
@@ -671,7 +719,7 @@ async function pollMessagesByLastModified(
   const remoteIds: string[] = []
 
   while (url && pages < maxPages) {
-    const page = (await client.api(url).get()) as GraphCollection<GraphMessage>
+    const page = await graphGetMessageCollection(client, url)
     pages += 1
 
     if (page.value.length > 0) {

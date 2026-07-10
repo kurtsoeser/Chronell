@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   applyGraphMeetingInviteToPayload,
-  buildGraphAttendees
+  buildGraphAttendees,
+  graphTeamsMeetingPatchFields
 } from './calendar-graph'
 
 describe('buildGraphAttendees', () => {
@@ -27,6 +28,27 @@ describe('buildGraphAttendees', () => {
         type: 'required'
       }
     ])
+  })
+})
+
+describe('graphTeamsMeetingPatchFields', () => {
+  it('setzt Teams nur beim Aktivieren eines bisher offline Termins', () => {
+    expect(graphTeamsMeetingPatchFields(true, false)).toEqual({
+      isOnlineMeeting: true,
+      onlineMeetingProvider: 'teamsForBusiness'
+    })
+  })
+
+  it('laesst bestehende Teams-Besprechungen beim erneuten Speichern unveraendert', () => {
+    expect(graphTeamsMeetingPatchFields(true, true)).toBeNull()
+  })
+
+  it('deaktiviert Teams nur wenn zuvor online', () => {
+    expect(graphTeamsMeetingPatchFields(false, true)).toEqual({
+      isOnlineMeeting: false,
+      onlineMeetingProvider: 'unknown'
+    })
+    expect(graphTeamsMeetingPatchFields(false, false)).toBeNull()
   })
 })
 

@@ -32,7 +32,7 @@ export function useCalendarEventAttachments(opts: {
   removeNewReference: (id: string) => void
   openExisting: (att: CalendarEventAttachmentMeta) => Promise<void>
   saveExistingAs: (att: CalendarEventAttachmentMeta) => Promise<void>
-  reset: () => void
+  reset: (seed?: ComposeAttachment[]) => void
   formatBytes: typeof formatAttachmentBytes
   buildSavePayload: () => {
     attachments?: ComposeAttachment[]
@@ -52,8 +52,8 @@ export function useCalendarEventAttachments(opts: {
   const supportsFileAttachments = provider === 'microsoft' || provider === 'google'
   const supportsCloudAttachments = provider === 'microsoft'
 
-  const reset = useCallback((): void => {
-    setNewFiles([])
+  const reset = useCallback((seed?: ComposeAttachment[]): void => {
+    setNewFiles(seed ?? [])
     setNewReferences([])
     setExisting([])
     setAttachmentError(null)

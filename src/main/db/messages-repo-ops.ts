@@ -344,6 +344,19 @@ export function updateMessageBodiesLocal(
   )
 }
 
+export function updateMessageListUnsubscribeLocal(
+  id: number,
+  listUnsubscribe: string | null,
+  listUnsubscribePost: string | null,
+  listId: string | null
+): void {
+  getDb()
+    .prepare(
+      'UPDATE messages SET list_unsubscribe = ?, list_unsubscribe_post = ?, list_id = ? WHERE id = ?'
+    )
+    .run(listUnsubscribe, listUnsubscribePost, listId, id)
+}
+
 /**
  * Mail existiert beim Provider nicht mehr (404): Snippet/Betreff als body_text,
  * damit die Hintergrund-Indexierung nicht erneut versucht und FTS etwas hat.

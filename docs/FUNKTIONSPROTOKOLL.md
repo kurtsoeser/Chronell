@@ -6,8 +6,8 @@ Dieses Dokument beschreibt den **aktuellen Funktionsumfang** der Desktop-App. Es
 |------|------|
 | **Produktname (UI)** | Chronell |
 | **Technischer Name / Installer** | MailClient |
-| **Version** | **1.0.0** |
-| **Stand** | **3. Juli 2026** |
+| **Version** | **1.0.3** |
+| **Stand** | **10. Juli 2026** |
 | **App-ID** | `at.kurtsoeser.chronell` |
 | **Zielplattform** | Windows 11 (primär) |
 | **Autor** | Kurt Soeser |
@@ -483,6 +483,14 @@ Marker-Datei nach Migration: `%APPDATA%\Chronell\.chronell-migrated-from-mailcli
 ---
 
 ## 20. Versionshistorie
+
+### 1.0.3 - 10. Juli 2026
+
+- **Kalender:** Kalender und Termine: Dialog, Vorschau, Kategorien und Shell (ueberarbeiteter Termin-Dialog; Termin-Vorschau)
+- **Mail:** Mail-Arbeitsbereich: Sidebar, Anhaenge, EWS und Aktionen (17 Datei(en) geaendert)
+- **Verbindungen:** Verbindungs-Graph und Objekt-Verknuepfungen (Verbindungs-Graph)
+- **Homepage:** Release-Texte, Homepage-Timeline und Download auf 1.0.3
+
 
 ### 1.0.0 - 3. Juli 2026
 

@@ -178,6 +178,8 @@ export interface CalendarSaveEventInput {
 export interface CalendarSaveEventResult {
   id: string
   webLink: string | null
+  /** Microsoft 365: Teams-Beitrittslink (`onlineMeeting.joinUrl`), falls vorhanden. */
+  joinUrl?: string | null
   /** Sofort aus lokalem Cache — fuer optimistische Kalender-Aktualisierung in der UI. */
   event?: CalendarEventView
 }
@@ -319,6 +321,8 @@ export interface CalendarSuggestionFromMail {
   endIso: string
   bodyHtml: string
   attendeeEmails: string[]
+  /** Original-Mail als .eml fuer den Termin-Anhang (optional). */
+  mailAttachment?: ComposeAttachment | null
 }
 
 export interface CalendarFreeSlot {

@@ -299,6 +299,7 @@ const M365_GROUP_CALENDAR_FETCH_CONCURRENCY = 2
 
 /** Kurzzeit-Cache: `transitiveMemberOf` bei jeder Seite neu zu holen waere langsam. */
 const m365UnifiedGroupListCache = new Map<string, { at: number; groups: GraphDirectoryObject[] }>()
+const m365GroupMembershipWarnedAccounts = new Set<string>()
 const M365_UNIFIED_GROUP_LIST_CACHE_MS = 5 * 60 * 1000
 
 function isUnifiedMicrosoft365Group(o: GraphDirectoryObject): boolean {
@@ -374,10 +375,13 @@ async function loadUnifiedGroupsSorted(accountId: string): Promise<GraphDirector
         formatGraphMembershipError(e)
       )
     } catch (e2) {
-      console.warn(
-        '[calendar-graph] Gruppenkalender nicht geladen (Arbeits-/Schulkonto und GroupMember.Read.All mit Admin-Zustimmung noetig):',
-        formatGraphMembershipError(e2)
-      )
+      if (!m365GroupMembershipWarnedAccounts.has(accountId)) {
+        m365GroupMembershipWarnedAccounts.add(accountId)
+        console.warn(
+          '[calendar-graph] Gruppenkalender nicht geladen (Arbeits-/Schulkonto und GroupMember.Read.All mit Admin-Zustimmung noetig):',
+          formatGraphMembershipError(e2)
+        )
+      }
       return []
     }
   }
@@ -585,6 +589,54 @@ export function buildGraphAttendees(emails: string[] | null | undefined): {
     if (out.length >= MAX_GRAPH_EVENT_ATTENDEES) break
   }
   return out
+}
+
+export type GraphTeamsMeetingPatchFields = {
+  isOnlineMeeting: boolean
+  onlineMeetingProvider: 'teamsForBusiness' | 'unknown'
+}
+
+/**
+ * Teams-Felder nur mitsenden, wenn sich der Online-Status wirklich aendert.
+ * Verhindert doppelte Teams-Links bei erneutem Speichern.
+ */
+export function graphTeamsMeetingPatchFields(
+  wantTeams: boolean,
+  currentlyOnline: boolean
+): GraphTeamsMeetingPatchFields | null {
+  if (wantTeams) {
+    if (currentlyOnline) return null
+    return { isOnlineMeeting: true, onlineMeetingProvider: 'teamsForBusiness' }
+  }
+  if (currentlyOnline) {
+    return { isOnlineMeeting: false, onlineMeetingProvider: 'unknown' }
+  }
+  return null
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function resolveGraphEventJoinUrlAfterWrite(
+  client: ReturnType<typeof createGraphClient>,
+  eventPath: string,
+  created: GraphEvent,
+  wantTeams: boolean
+): Promise<string | null> {
+  const immediate = created.onlineMeeting?.joinUrl?.trim()
+  if (immediate) return immediate
+  if (!wantTeams) return null
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) await sleep(attempt === 1 ? 400 : 800)
+    const fresh = (await client
+      .api(`${eventPath}?$select=onlineMeeting,isOnlineMeeting`)
+      .get()) as GraphEvent
+    const url = fresh.onlineMeeting?.joinUrl?.trim()
+    if (url) return url
+  }
+  return null
 }
 
 /** Teilnehmer + Einladungs-Flags (unabhaengig von Teams-Besprechung). */
@@ -829,10 +881,12 @@ export async function graphCreateSimpleCalendarEvent(
     Object.assign(payload, recPayload)
   }
   const created = (await client.api(eventPostPath(input.graphCalendarId)).post(payload)) as GraphEvent
+  const eventPath = graphEventInstancePath(created.id, input.graphCalendarId)
+  const joinUrl = await resolveGraphEventJoinUrlAfterWrite(client, eventPath, created, wantTeams)
   return {
     id: created.id,
     webLink: created.webLink ?? null,
-    joinUrl: created.onlineMeeting?.joinUrl ?? null
+    joinUrl
   }
 }
 
@@ -864,19 +918,25 @@ export async function graphUpdateCalendarEvent(
     }
   }
   applyGraphReminderToPayload(payload, input.reminderMinutesBeforeStart)
-  if (typeof input.teamsMeeting === 'boolean' && !core.isAllDay) {
-    if (input.teamsMeeting) {
-      payload.isOnlineMeeting = true
-      payload.onlineMeetingProvider = 'teamsForBusiness'
-    } else {
+  const path = graphEventInstancePath(graphEventId, input.graphCalendarId)
+  if (typeof input.teamsMeeting === 'boolean') {
+    if (core.isAllDay && !input.teamsMeeting) {
       payload.isOnlineMeeting = false
       payload.onlineMeetingProvider = 'unknown'
+    } else if (!core.isAllDay) {
+      const current = (await client
+        .api(`${path}?$select=isOnlineMeeting,onlineMeeting`)
+        .get()) as GraphEvent
+      const teamsPatch = graphTeamsMeetingPatchFields(
+        input.teamsMeeting,
+        !!current.isOnlineMeeting || !!current.onlineMeeting?.joinUrl?.trim()
+      )
+      if (teamsPatch) {
+        payload.isOnlineMeeting = teamsPatch.isOnlineMeeting
+        payload.onlineMeetingProvider = teamsPatch.onlineMeetingProvider
+      }
     }
-  } else if (typeof input.teamsMeeting === 'boolean' && core.isAllDay && !input.teamsMeeting) {
-    payload.isOnlineMeeting = false
-    payload.onlineMeetingProvider = 'unknown'
   }
-  const path = graphEventInstancePath(graphEventId, input.graphCalendarId)
   await client.api(path).patch(payload)
 }
 
@@ -964,10 +1024,12 @@ export async function graphCreateTeamsCalendarEvent(
   applyGraphMeetingInviteToPayload(payload, input.attendeeEmails)
 
   const created = (await client.api(eventPostPath(input.graphCalendarId)).post(payload)) as GraphEvent
+  const eventPath = graphEventInstancePath(created.id, input.graphCalendarId)
+  const joinUrl = await resolveGraphEventJoinUrlAfterWrite(client, eventPath, created, true)
   return {
     id: created.id,
     webLink: created.webLink ?? null,
-    joinUrl: created.onlineMeeting?.joinUrl ?? null
+    joinUrl
   }
 }
 

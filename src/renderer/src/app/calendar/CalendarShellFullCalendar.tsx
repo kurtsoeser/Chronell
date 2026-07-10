@@ -37,12 +37,6 @@ import {
 import { syncFullCalendarWidth } from '@/app/calendar/sync-full-calendar-width'
 import { accountColorToCssBackground } from '@/lib/avatar-color'
 import {
-  buildMailCategorySubmenuItems,
-  buildMailContextItems,
-  type MailContextHandlers
-} from '@/lib/mail-context-menu'
-import { accountSupportsCloudTasks } from '@/lib/cloud-task-accounts'
-import {
   buildCalendarEventCategorySubmenuItems,
   buildCalendarEventTransferSubmenuItems,
   buildCalendarEventContextItems,
@@ -61,13 +55,14 @@ import {
   openMailReadingPopout
 } from '@/lib/open-mail-reading-popout'
 import { showAppConfirm } from '@/stores/app-dialog'
-import { useMailStore } from '@/stores/mail'
 import { useNotesPendingFocusStore } from '@/stores/notes-pending-focus'
 import { useAppModeStore } from '@/stores/app-mode'
 import type { CloudTaskListItem } from '@/app/tasks/tasks-types'
 import { cloudTaskStableKey } from '@shared/work-item-keys'
 import type { Locale } from 'date-fns'
 import type { ContextMenuItem } from '@/components/ContextMenu'
+import type { CalendarOverlayContextMenuOptions } from '@/app/calendar/calendar-overlay-context-menu'
+import { buildCalendarOverlayContextMenuItems } from '@/app/calendar/calendar-overlay-context-menu'
 import type { ObjectNoteTarget } from '@/components/ObjectNoteEditor'
 import { type TimeGridSlotMinutes } from '@/app/calendar/calendar-shell-storage'
 import type { IdBulkSelection } from '@/lib/id-bulk-selection'
@@ -110,9 +105,6 @@ export interface CalendarShellFullCalendarProps {
   graphCalendarReconcilingRef: MutableRefObject<boolean>
   calendarFcEventContentRender: (arg: EventContentArg) => { domNodes: Node[] }
   cloudTaskElByKeyRef: MutableRefObject<Map<string, HTMLElement>>
-  previewCloudTask: CloudTaskListItem | null
-  accounts: ConnectedAccount[]
-  mailContextHandlersRef: MutableRefObject<MailContextHandlers>
   t: TFunction
   reloadVisibleRange: (opts?: { silent?: boolean; forceRefresh?: boolean }) => void
   calendarCollatorLocale: string
@@ -129,6 +121,7 @@ export interface CalendarShellFullCalendarProps {
   setEventContextMenu: Dispatch<
     SetStateAction<{ x: number; y: number; items: ContextMenuItem[] } | null>
   >
+  overlayContextMenuOptionsRef: MutableRefObject<CalendarOverlayContextMenuOptions>
   calendarDropRootRef: RefObject<HTMLDivElement>
   lastDatesSetKeyRef: MutableRefObject<string>
   lastRangeRef: MutableRefObject<{ start: Date; end: Date }>
@@ -160,6 +153,42 @@ export interface CalendarShellFullCalendarProps {
 
 import type { WorkItemPlannedSchedule } from '@shared/work-item'
 
+function attachCalendarOverlayContextMenu(
+  el: HTMLElement,
+  overlay:
+    | { kind: 'cloud_task'; task: CloudTaskListItem }
+    | { kind: 'mail_todo'; mail: MailListItem },
+  opts: {
+    setError: (msg: string | null) => void
+    setCalendarFolderContextMenu: Dispatch<
+      SetStateAction<{ x: number; y: number; items: ContextMenuItem[] } | null>
+    >
+    setEventContextMenu: Dispatch<
+      SetStateAction<{ x: number; y: number; items: ContextMenuItem[] } | null>
+    >
+    overlayContextMenuOptionsRef: MutableRefObject<CalendarOverlayContextMenuOptions>
+  }
+): void {
+  const onCtx = (e: MouseEvent): void => {
+    e.preventDefault()
+    e.stopPropagation()
+    opts.setError(null)
+    opts.setCalendarFolderContextMenu(null)
+    void (async (): Promise<void> => {
+      const anchor = { x: e.clientX, y: e.clientY }
+      const items = await buildCalendarOverlayContextMenuItems(
+        overlay,
+        anchor,
+        opts.overlayContextMenuOptionsRef.current
+      )
+      opts.setEventContextMenu({ x: anchor.x, y: anchor.y, items })
+    })()
+  }
+  el.addEventListener('contextmenu', onCtx)
+  const tagged = el as HTMLElement & { _calCtxMenu?: (ev: MouseEvent) => void }
+  tagged._calCtxMenu = onCtx
+}
+
 export function CalendarShellFullCalendar(props: CalendarShellFullCalendarProps): JSX.Element {
   const {
     fcTimeZone,
@@ -190,9 +219,6 @@ export function CalendarShellFullCalendar(props: CalendarShellFullCalendarProps)
     graphCalendarReconcilingRef,
     calendarFcEventContentRender,
     cloudTaskElByKeyRef,
-    previewCloudTask,
-    accounts,
-    mailContextHandlersRef,
     t,
     reloadVisibleRange,
     calendarCollatorLocale,
@@ -203,6 +229,7 @@ export function CalendarShellFullCalendar(props: CalendarShellFullCalendarProps)
     setEventNoteTarget,
     setCalendarFolderContextMenu,
     setEventContextMenu,
+    overlayContextMenuOptionsRef,
     calendarDropRootRef,
     lastDatesSetKeyRef,
     lastRangeRef,
@@ -340,11 +367,13 @@ export function CalendarShellFullCalendar(props: CalendarShellFullCalendarProps)
         ) {
           return
         }
+        const kind = info.event.extendedProps.calendarKind as string | undefined
         if (isMultiMonthFcView(info.view.type)) {
           applyMultiMonthEventDotMount(info)
-          return
+          if (kind !== CALENDAR_KIND_CLOUD_TASK && kind !== CALENDAR_KIND_MAIL_TODO) {
+            return
+          }
         }
-        const kind = info.event.extendedProps.calendarKind as string | undefined
         if (kind === CALENDAR_KIND_CLOUD_TASK) {
           const el = info.el as HTMLElement & {
             _cloudTaskBaseStyled?: boolean
@@ -360,13 +389,6 @@ export function CalendarShellFullCalendar(props: CalendarShellFullCalendarProps)
             typeof info.event.extendedProps.taskKey === 'string'
               ? info.event.extendedProps.taskKey
               : ''
-          const previewKey = previewCloudTask
-            ? cloudTaskStableKey(
-                previewCloudTask.accountId,
-                previewCloudTask.listId,
-                previewCloudTask.id
-              )
-            : null
           if (!el._cloudTaskBaseStyled) {
             el._cloudTaskBaseStyled = true
             if (bg) {
@@ -378,6 +400,18 @@ export function CalendarShellFullCalendar(props: CalendarShellFullCalendarProps)
             }
           }
           if (key) cloudTaskElByKeyRef.current.set(key, el)
+          if (cloudTask) {
+            attachCalendarOverlayContextMenu(
+              info.el,
+              { kind: 'cloud_task', task: cloudTask },
+              {
+                setError,
+                setCalendarFolderContextMenu,
+                setEventContextMenu,
+                overlayContextMenuOptionsRef
+              }
+            )
+          }
           return
         }
         if (kind === CALENDAR_KIND_MAIL_TODO) {
@@ -392,33 +426,20 @@ export function CalendarShellFullCalendar(props: CalendarShellFullCalendarProps)
           }
           const m = info.event.extendedProps.mailMessage as MailListItem | undefined
           if (m) {
-            const onMailCtx = (e: MouseEvent): void => {
-              e.preventDefault()
-              e.stopPropagation()
-              setError(null)
-              setCalendarFolderContextMenu(null)
-              void (async (): Promise<void> => {
-                const anchor = { x: e.clientX, y: e.clientY }
-                const ui = { snoozeAnchor: anchor }
-                const cat = await buildMailCategorySubmenuItems(m, ui, () =>
-                  useMailStore.getState().refreshNow()
-                )
-                const mailAcc = accounts.find((a) => a.id === m.accountId)
-                const items = buildMailContextItems(m, mailContextHandlersRef.current, {
-                  ...ui,
-                  categorySubmenu: cat.length > 0 ? cat : undefined,
-                  allowsCloudTaskCreate: accountSupportsCloudTasks(mailAcc),
-                  t
-                })
-                setEventContextMenu({ x: anchor.x, y: anchor.y, items })
-              })()
-            }
-            info.el.addEventListener('contextmenu', onMailCtx)
+            attachCalendarOverlayContextMenu(
+              info.el,
+              { kind: 'mail_todo', mail: m },
+              {
+                setError,
+                setCalendarFolderContextMenu,
+                setEventContextMenu,
+                overlayContextMenuOptionsRef
+              }
+            )
             const mailEl = info.el as HTMLElement & {
               _calCtxMenu?: (ev: MouseEvent) => void
               _calMailDblclick?: (ev: MouseEvent) => void
             }
-            mailEl._calCtxMenu = onMailCtx
             const onMailDblclick = (e: MouseEvent): void => {
               e.preventDefault()
               e.stopPropagation()
@@ -429,6 +450,7 @@ export function CalendarShellFullCalendar(props: CalendarShellFullCalendarProps)
           }
           return
         }
+
         if (kind === CALENDAR_KIND_USER_NOTE) {
           info.el.classList.add('fc-user-note-event')
           info.el.style.borderLeft = '4px solid #a855f7'

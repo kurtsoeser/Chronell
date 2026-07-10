@@ -12,6 +12,16 @@ import type {
 } from '@/components/connections/entity-context-types'
 import { EntityContextMiniGraph } from '@/components/connections/EntityContextMiniGraph'
 import {
+  ENTITY_CONTEXT_GRAPH_SECTION_HEIGHT_DEFAULT,
+  ENTITY_CONTEXT_GRAPH_SECTION_HEIGHT_KEY,
+  ENTITY_CONTEXT_GRAPH_SECTION_HEIGHT_MIN,
+  ENTITY_CONTEXT_NOTE_SECTION_HEIGHT_DEFAULT,
+  ENTITY_CONTEXT_NOTE_SECTION_HEIGHT_KEY,
+  ENTITY_CONTEXT_NOTE_SECTION_HEIGHT_MIN,
+  entityContextGraphSectionHeightMax,
+  entityContextNoteSectionHeightMax
+} from '@/components/connections/entity-context-preview-storage'
+import {
   fetchEntityNeighborhood,
   subscribeEntityLinksChanged
 } from '@/lib/entity-links-client'
@@ -22,6 +32,7 @@ import {
   readEntityContextTab
 } from '@/lib/entity-context-storage'
 import { openConnectionsGraphForRef } from '@/lib/open-connections-graph'
+import { HorizontalSplitter, useResizableHeight } from '@/components/ResizableSplitter'
 import { cn } from '@/lib/utils'
 
 export function EntityContextBlock({
@@ -51,6 +62,7 @@ export function EntityContextBlock({
 }): JSX.Element {
   const { t } = useTranslation()
   const anchorKey = useMemo(() => entityRefKey(anchor), [anchor])
+  const resizableSections = contextFillHeight
 
   const [expanded, setExpanded] = useState(() =>
     readEntityContextExpanded(anchorKey, !sectionCollapsedDefault)
@@ -63,6 +75,38 @@ export function EntityContextBlock({
     suggestionCount: 0
   })
   const [summaryLoading, setSummaryLoading] = useState(false)
+  const [noteExpanded, setNoteExpanded] = useState(!sectionCollapsedDefault)
+
+  const noteSectionHeightMax = entityContextNoteSectionHeightMax()
+  const graphSectionHeightMax = entityContextGraphSectionHeightMax()
+  const [noteSectionHeight, setNoteSectionHeight] = useResizableHeight({
+    storageKey: ENTITY_CONTEXT_NOTE_SECTION_HEIGHT_KEY,
+    defaultHeight: ENTITY_CONTEXT_NOTE_SECTION_HEIGHT_DEFAULT,
+    minHeight: ENTITY_CONTEXT_NOTE_SECTION_HEIGHT_MIN,
+    maxHeight: noteSectionHeightMax
+  })
+  const [graphSectionHeight, setGraphSectionHeight] = useResizableHeight({
+    storageKey: ENTITY_CONTEXT_GRAPH_SECTION_HEIGHT_KEY,
+    defaultHeight: ENTITY_CONTEXT_GRAPH_SECTION_HEIGHT_DEFAULT,
+    minHeight: ENTITY_CONTEXT_GRAPH_SECTION_HEIGHT_MIN,
+    maxHeight: graphSectionHeightMax
+  })
+
+  useEffect(() => {
+    if (!resizableSections) return
+    const clamp = (): void => {
+      const noteMax = entityContextNoteSectionHeightMax()
+      const graphMax = entityContextGraphSectionHeightMax()
+      setNoteSectionHeight((h) =>
+        Math.min(noteMax, Math.max(ENTITY_CONTEXT_NOTE_SECTION_HEIGHT_MIN, h))
+      )
+      setGraphSectionHeight((h) =>
+        Math.min(graphMax, Math.max(ENTITY_CONTEXT_GRAPH_SECTION_HEIGHT_MIN, h))
+      )
+    }
+    window.addEventListener('resize', clamp)
+    return (): void => window.removeEventListener('resize', clamp)
+  }, [resizableSections, setGraphSectionHeight, setNoteSectionHeight])
 
   const toggleExpanded = useCallback((): void => {
     setExpanded((v) => {
@@ -119,6 +163,7 @@ export function EntityContextBlock({
   }, [stats, neighborCount, t])
 
   const showNote = showObjectNote && noteTarget != null
+  const resizableNotePane = resizableSections && showNote && noteEditorFillHeight
 
   const summaryNode = (
     <>
@@ -156,6 +201,67 @@ export function EntityContextBlock({
 
   const fillPane = contextFillHeight || noteEditorFillHeight
 
+  const contextGraph = (
+    <EntityContextMiniGraph
+      anchor={anchor}
+      active={expanded}
+      fillHeight={resizableSections}
+      constrainedHeight={resizableSections}
+      className={
+        resizableSections ? 'h-full min-h-0' : contextFillHeight ? 'min-h-[200px] flex-1' : 'max-h-44 shrink-0'
+      }
+      onNeighborCountChange={setNeighborCount}
+    />
+  )
+
+  const contextRelations = (
+    <EntityContextRelations
+      anchor={anchor}
+      expanded={expanded}
+      activeTab={activeTab}
+      onActiveTabChange={handleTabChange}
+      pickerOpen={pickerOpen}
+      onPickerOpenChange={setPickerOpen}
+      contentPaddingClass={contentPaddingClass}
+      onStatsChange={setStats}
+      dense={dense}
+      scrollable={contextFillHeight}
+    />
+  )
+
+  const contextContent =
+    resizableSections && expanded ? (
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div
+          className="flex min-h-0 shrink-0 flex-col overflow-hidden"
+          style={{ height: Math.min(graphSectionHeight, graphSectionHeightMax) }}
+        >
+          <div className={cn('flex min-h-0 flex-1 flex-col overflow-hidden', contentPaddingClass)}>
+            {contextGraph}
+          </div>
+        </div>
+        <HorizontalSplitter
+          variant="subtle"
+          ariaLabel={t('context.graphSplitterAria')}
+          onDrag={(deltaY): void => {
+            setGraphSectionHeight((h) => {
+              const max = entityContextGraphSectionHeightMax()
+              return Math.min(
+                max,
+                Math.max(ENTITY_CONTEXT_GRAPH_SECTION_HEIGHT_MIN, h - deltaY)
+              )
+            })
+          }}
+        />
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{contextRelations}</div>
+      </div>
+    ) : (
+      <>
+        <div className={contentPaddingClass}>{contextGraph}</div>
+        {contextRelations}
+      </>
+    )
+
   return (
     <div
       className={cn(
@@ -165,15 +271,49 @@ export function EntityContextBlock({
       )}
     >
       {showNote ? (
-        <ObjectNoteEditor
-          target={noteTarget}
-          variant="section"
-          sectionCollapsedDefault
-          layout="toggle"
-          fillHeight={noteEditorFillHeight}
-          contentPaddingClass={contentPaddingClass}
-          className={noteEditorFillHeight ? 'min-h-0 flex-1 overflow-hidden' : undefined}
-        />
+        <>
+          <div
+            className={cn(
+              'flex min-h-0 flex-col overflow-hidden',
+              resizableNotePane && noteExpanded ? 'shrink-0' : 'shrink-0'
+            )}
+            style={
+              resizableNotePane && noteExpanded
+                ? { height: Math.min(noteSectionHeight, noteSectionHeightMax) }
+                : undefined
+            }
+          >
+            <ObjectNoteEditor
+              target={noteTarget}
+              variant="section"
+              sectionCollapsedDefault
+              layout="toggle"
+              fillHeight={noteEditorFillHeight}
+              contentPaddingClass={contentPaddingClass}
+              onSectionExpandedChange={setNoteExpanded}
+              className={
+                noteEditorFillHeight && (!resizableSections || noteExpanded)
+                  ? 'min-h-0 flex-1 overflow-hidden'
+                  : undefined
+              }
+            />
+          </div>
+          {resizableNotePane ? (
+            <HorizontalSplitter
+              variant="subtle"
+              ariaLabel={t('context.noteSplitterAria')}
+              onDrag={(deltaY): void => {
+                setNoteSectionHeight((h) => {
+                  const max = entityContextNoteSectionHeightMax()
+                  return Math.min(
+                    max,
+                    Math.max(ENTITY_CONTEXT_NOTE_SECTION_HEIGHT_MIN, h - deltaY)
+                  )
+                })
+              }}
+            />
+          ) : null}
+        </>
       ) : null}
 
       <PreviewFoldSection
@@ -189,31 +329,15 @@ export function EntityContextBlock({
         )}
         contentClassName={cn(
           'min-h-0 space-y-0 !px-0',
-          noteEditorFillHeight && !contextFillHeight && 'max-h-52 overflow-y-auto',
-          contextFillHeight && 'flex min-h-0 flex-1 flex-col overflow-hidden'
+          resizableSections && expanded && '!pb-0 flex min-h-0 flex-1 flex-col overflow-hidden',
+          !resizableSections &&
+            noteEditorFillHeight &&
+            !contextFillHeight &&
+            'max-h-52 overflow-y-auto',
+          !resizableSections && contextFillHeight && 'flex min-h-0 flex-1 flex-col overflow-hidden'
         )}
       >
-        <div className={contentPaddingClass}>
-          <EntityContextMiniGraph
-            anchor={anchor}
-            active={expanded}
-            fillHeight={contextFillHeight}
-            className={contextFillHeight ? 'min-h-[200px] flex-1' : 'max-h-44 shrink-0'}
-            onNeighborCountChange={setNeighborCount}
-          />
-        </div>
-        <EntityContextRelations
-          anchor={anchor}
-          expanded={expanded}
-          activeTab={activeTab}
-          onActiveTabChange={handleTabChange}
-          pickerOpen={pickerOpen}
-          onPickerOpenChange={setPickerOpen}
-          contentPaddingClass={contentPaddingClass}
-          onStatsChange={setStats}
-          dense={dense}
-          scrollable={contextFillHeight}
-        />
+        {contextContent}
       </PreviewFoldSection>
     </div>
   )

@@ -63,6 +63,7 @@ import {
   patchMicrosoftCalendarColor,
   createTeamsMeetingForAccount,
   createSimpleCalendarEventForAccount,
+  refreshMicrosoftCalendarEventMeetingFields,
   updateCalendarEventForAccount,
   deleteCalendarEventForAccount,
   patchCalendarEventScheduleForAccount,
@@ -226,7 +227,7 @@ export function registerCalendarIpc(): void {
           attendeeEmails: args.attendeeEmails ?? null,
           teamsMeeting: true
         },
-        { id: result.id, webLink: result.webLink }
+        { id: result.id, webLink: result.webLink, joinUrl: result.joinUrl }
       )
       return result
     }
@@ -282,8 +283,25 @@ export function registerCalendarIpc(): void {
       }
       assertAppOnline()
       const result = await createSimpleCalendarEventForAccount(input)
-      const event = await afterCalendarEventCreated(input.accountId, input, result)
-      return event ? { ...result, event } : result
+      let event = await afterCalendarEventCreated(input.accountId, input, result)
+      let joinUrl = result.joinUrl ?? null
+      if (input.teamsMeeting === true && !input.isAllDay && input.accountId.trim().startsWith('ms:')) {
+        try {
+          const meeting = await refreshMicrosoftCalendarEventMeetingFields(
+            input.accountId,
+            result.id,
+            input.graphCalendarId ?? null
+          )
+          joinUrl = meeting.joinUrl ?? joinUrl
+          if (event && joinUrl) {
+            event = { ...event, joinUrl }
+          }
+        } catch (e) {
+          console.warn('[calendar] Teams-Meeting-Felder nach Anlegen nicht aktualisiert:', e)
+        }
+      }
+      const out: CalendarSaveEventResult = { ...result, joinUrl, event: event ?? undefined }
+      return out
     }
   )
 

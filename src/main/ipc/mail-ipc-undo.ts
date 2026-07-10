@@ -10,6 +10,17 @@ import { unsnoozeMessage } from '../snooze'
 import { undoAddTodo, undoChangeTodo, undoCompleteTodo } from '../todos-service'
 import { undoAddWaitingFor, undoRemoveWaitingFor, undoChangeWaitingFor } from '../waiting-service'
 import { broadcastMailChanged } from './ipc-broadcasts'
+import {
+  isMicrosoftAuthUnavailable,
+  microsoftAuthUnavailableUserMessage
+} from '../auth/auth-errors'
+
+function rethrowIfMicrosoftAuthUnavailable(e: unknown): never {
+  if (isMicrosoftAuthUnavailable(e)) {
+    throw new Error(microsoftAuthUnavailableUserMessage())
+  }
+  throw e
+}
 
 export async function applyUndo(action: MailActionRecord): Promise<string> {
   switch (action.actionType) {
@@ -24,7 +35,16 @@ export async function applyUndo(action: MailActionRecord): Promise<string> {
         adjustFolderUnread(msg.folderId, action.payload.previousIsRead ? -1 : 1)
       }
       broadcastMailChanged(msg.accountId)
-      await microsoftSetMessageRead(msg.accountId, msg.remoteId, action.payload.previousIsRead)
+      try {
+        await microsoftSetMessageRead(msg.accountId, msg.remoteId, action.payload.previousIsRead)
+      } catch (e) {
+        if (isMicrosoftAuthUnavailable(e)) {
+          return action.payload.previousIsRead
+            ? 'Als gelesen wiederhergestellt (nur lokal — Anmeldung erforderlich)'
+            : 'Als ungelesen wiederhergestellt (nur lokal — Anmeldung erforderlich)'
+        }
+        throw e
+      }
       return action.payload.previousIsRead
         ? 'Als gelesen wiederhergestellt'
         : 'Als ungelesen wiederhergestellt'
@@ -37,7 +57,16 @@ export async function applyUndo(action: MailActionRecord): Promise<string> {
       if (!msg) throw new Error('Mail nicht mehr vorhanden.')
       setMessageFlaggedLocal(action.messageId, action.payload.previousIsFlagged)
       broadcastMailChanged(msg.accountId)
-      await graphSetFlagged(msg.accountId, msg.remoteId, action.payload.previousIsFlagged)
+      try {
+        await graphSetFlagged(msg.accountId, msg.remoteId, action.payload.previousIsFlagged)
+      } catch (e) {
+        if (isMicrosoftAuthUnavailable(e)) {
+          return action.payload.previousIsFlagged
+            ? 'Stern wiederhergestellt (nur lokal — Anmeldung erforderlich)'
+            : 'Stern entfernt (nur lokal — Anmeldung erforderlich)'
+        }
+        throw e
+      }
       return action.payload.previousIsFlagged ? 'Stern wiederhergestellt' : 'Stern entfernt'
     }
     case 'archive':
@@ -48,7 +77,11 @@ export async function applyUndo(action: MailActionRecord): Promise<string> {
       if (!accountId || !remoteId || !targetRemoteId) {
         throw new Error('Aktion enthaelt keine Ziel-Ordner-Information.')
       }
-      await microsoftMoveMessage(accountId, remoteId, targetRemoteId)
+      try {
+        await microsoftMoveMessage(accountId, remoteId, targetRemoteId)
+      } catch (e) {
+        rethrowIfMicrosoftAuthUnavailable(e)
+      }
       if (action.payload.previousFolderId != null) {
         void runFolderSync(action.payload.previousFolderId).catch((err) => logBackgroundError('mail.runFolderSync', err))
       }
@@ -138,7 +171,11 @@ export async function applyUndo(action: MailActionRecord): Promise<string> {
       if (!accountId || !remoteId || !targetRemoteId) {
         throw new Error('Aktion enthaelt keine Ziel-Ordner-Information.')
       }
-      await microsoftMoveMessage(accountId, remoteId, targetRemoteId)
+      try {
+        await microsoftMoveMessage(accountId, remoteId, targetRemoteId)
+      } catch (e) {
+        rethrowIfMicrosoftAuthUnavailable(e)
+      }
       if (action.payload.previousFolderId != null) {
         void runFolderSync(action.payload.previousFolderId).catch((err) => logBackgroundError('mail.runFolderSync', err))
       }

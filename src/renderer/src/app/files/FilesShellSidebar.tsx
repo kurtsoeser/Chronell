@@ -1,3 +1,4 @@
+import { Cloud, Mail } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { FilesShellSourceId } from '@shared/files'
 import type { ComposeDriveExplorerNavCrumb, ComposeDriveExplorerScope, ConnectedAccount } from '@shared/types'
@@ -103,30 +104,40 @@ export function FilesShellSidebar({
         <h2 className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           {t('files.sidebar.source')}
         </h2>
-        <div className="mt-1.5 space-y-0.5">
+        <div
+          className="mt-1.5 flex rounded-lg bg-muted/50 p-0.5"
+          role="group"
+          aria-label={t('files.sidebar.source')}
+        >
           <button
             type="button"
+            aria-pressed={source === 'mail'}
+            title={t('files.sidebar.fromMail')}
             onClick={(): void => onSourceChange('mail')}
             className={cn(
-              'flex w-full rounded-md px-2 py-1.5 text-left text-sm transition-colors',
+              'flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors',
               source === 'mail'
-                ? 'bg-secondary font-medium text-foreground'
-                : 'text-muted-foreground hover:bg-secondary/50'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
             )}
           >
-            {t('files.sidebar.fromMail')}
+            <Mail className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            <span className="truncate">{t('files.sidebar.fromMailShort')}</span>
           </button>
           <button
             type="button"
+            aria-pressed={source === 'cloud'}
+            title={t('files.sidebar.fromCloud')}
             onClick={(): void => onSourceChange('cloud')}
             className={cn(
-              'flex w-full rounded-md px-2 py-1.5 text-left text-sm transition-colors',
+              'flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors',
               source === 'cloud'
-                ? 'bg-secondary font-medium text-foreground'
-                : 'text-muted-foreground hover:bg-secondary/50'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
             )}
           >
-            {t('files.sidebar.fromCloud')}
+            <Cloud className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            <span className="truncate">{t('files.sidebar.fromCloudShort')}</span>
           </button>
         </div>
         <p className="mt-1.5 px-1 text-[11px] text-muted-foreground">

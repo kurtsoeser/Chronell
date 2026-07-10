@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildMsFormsEmbedUrl,
+  buildMsFormsResponseUrl,
   isAllowedMsFormsEmbedSrc,
   isMsFormsResponseUrl,
   parseMsFormsUrl
@@ -31,6 +32,17 @@ describe('parseMsFormsUrl', () => {
     expect(parseMsFormsUrl('https://example.com/Pages/ResponsePage.aspx?id=abc')).toBeNull()
     expect(parseMsFormsUrl('https://forms.office.com/other')).toBeNull()
     expect(parseMsFormsUrl('')).toBeNull()
+  })
+})
+
+describe('buildMsFormsResponseUrl', () => {
+  it('liefert die öffentliche Formular-URL ohne embed=true', () => {
+    expect(
+      buildMsFormsResponseUrl({
+        formId: FORM_ID,
+        host: 'forms.office.com'
+      })
+    ).toBe(OFFICE_URL)
   })
 })
 

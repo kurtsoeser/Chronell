@@ -94,3 +94,30 @@ export function isAllowedTeamsRecordingEmbedSrc(src: string): boolean {
 export function isTeamsRecordingUrl(input: string): boolean {
   return parseTeamsRecordingEmbedSrc(input) != null
 }
+
+/**
+ * SharePoint-/M365-Auth-Redirects innerhalb eingebetteter Stream-/Teams-Iframes.
+ * Ohne diese Freigabe blockiert der Electron-Mail-Schutz `Authenticate.aspx` mit ERR_BLOCKED_BY_CLIENT.
+ */
+export function isAllowedM365EmbedSubFrameRedirectUrl(url: string): boolean {
+  const parsed = parseUrl(url)
+  if (!parsed) return false
+
+  const host = parsed.hostname.toLowerCase().replace(/^www\./, '')
+  const path = parsed.pathname.toLowerCase()
+
+  if (host.endsWith('.sharepoint.com')) {
+    if (path.includes('/_layouts/') && path.endsWith('/authenticate.aspx')) return true
+    if (path.includes('/_forms/')) return true
+  }
+
+  if (host === 'login.microsoftonline.com' || host.endsWith('.login.microsoftonline.com')) {
+    return true
+  }
+
+  if (host === 'login.live.com' || host === 'login.microsoft.com') {
+    return true
+  }
+
+  return false
+}

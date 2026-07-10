@@ -45,9 +45,15 @@ export function parseMsFormsUrl(input: string): MsFormsEmbedRef | null {
   return parseMsFormsUrlObject(url)
 }
 
-export function buildMsFormsEmbedUrl(ref: MsFormsEmbedRef): string {
+/** Öffentliche Formular-URL zum Ausfüllen (ohne embed=true). */
+export function buildMsFormsResponseUrl(ref: MsFormsEmbedRef): string {
   const url = new URL(`https://${ref.host}${MSFORMS_RESPONSE_PATH}`)
   url.searchParams.set('id', ref.formId)
+  return url.toString()
+}
+
+export function buildMsFormsEmbedUrl(ref: MsFormsEmbedRef): string {
+  const url = new URL(buildMsFormsResponseUrl(ref))
   url.searchParams.set('embed', 'true')
   return url.toString()
 }

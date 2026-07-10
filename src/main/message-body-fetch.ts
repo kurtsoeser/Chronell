@@ -2,7 +2,8 @@ import { listAccounts } from './accounts'
 import {
   getMessageById,
   markMessageBodyIndexFallbackLocal,
-  updateMessageBodiesLocal
+  updateMessageBodiesLocal,
+  updateMessageListUnsubscribeLocal
 } from './db/messages-repo'
 import { createGraphClient } from './graph/client'
 import { loadConfig } from './config'
@@ -72,6 +73,26 @@ function messageNeedsBody(msg: MailFull): boolean {
   return !hasHtml && !hasText
 }
 
+function messageNeedsListUnsubscribe(msg: MailFull): boolean {
+  return !msg.listUnsubscribe && !msg.listUnsubscribePost
+}
+
+function extractListUnsubscribeHeaders(
+  headers: { name?: string | null; value?: string | null }[] | null | undefined
+): { list: string | null; post: string | null; listId: string | null } {
+  if (!headers || !Array.isArray(headers)) return { list: null, post: null, listId: null }
+  let list: string | null = null
+  let post: string | null = null
+  let listId: string | null = null
+  for (const h of headers) {
+    const n = (h.name ?? '').toLowerCase()
+    if (n === 'list-unsubscribe') list = h.value ?? null
+    if (n === 'list-unsubscribe-post') post = h.value ?? null
+    if (n === 'list-id') listId = h.value ?? null
+  }
+  return { list, post, listId }
+}
+
 function isProviderMessageNotFound(e: unknown, provider: 'microsoft' | 'google'): boolean {
   if (provider === 'microsoft') return isGraphItemNotFound(e)
   if (e && typeof e === 'object') {
@@ -81,6 +102,65 @@ function isProviderMessageNotFound(e: unknown, provider: 'microsoft' | 'google')
     if (status === 404) return true
   }
   return false
+}
+
+async function fetchGraphListUnsubscribeHeaders(
+  accountId: string,
+  remoteId: string
+): Promise<{ list: string | null; post: string | null; listId: string | null }> {
+  const config = await loadConfig()
+  if (!config.microsoftClientId) {
+    throw new Error('Keine Azure Client-ID konfiguriert.')
+  }
+  const homeAccountId = accountId.replace(/^ms:/, '')
+  const client = createGraphClient(config.microsoftClientId, homeAccountId)
+  const m = await withGraphMailboxSlot(accountId, () =>
+    client.api(`/me/messages/${remoteId}`).select(['internetMessageHeaders']).get()
+  ) as { internetMessageHeaders?: { name?: string | null; value?: string | null }[] | null }
+  return extractListUnsubscribeHeaders(m.internetMessageHeaders)
+}
+
+async function fetchAndStoreListUnsubscribeIfMissing(messageId: number): Promise<void> {
+  const msg = getMessageById(messageId)
+  if (!msg || !messageNeedsListUnsubscribe(msg) || !msg.remoteId) return
+
+  const accounts = await listAccounts()
+  const account = accounts.find((a) => a.id === msg.accountId)
+  if (!account || isDemoAccount(account)) return
+
+  try {
+    if (account.provider === 'google') {
+      const { gmail } = await getGoogleApis(account.id)
+      const full = await gmail.users.messages.get({
+        userId: 'me',
+        id: msg.remoteId,
+        format: 'metadata',
+        metadataHeaders: ['List-Unsubscribe', 'List-Unsubscribe-Post', 'List-Id']
+      })
+      const headerMap = new Map(
+        (full.data.payload?.headers ?? []).map((h) => [
+          (h.name ?? '').toLowerCase(),
+          h.value ?? null
+        ])
+      )
+      updateMessageListUnsubscribeLocal(
+        messageId,
+        headerMap.get('list-unsubscribe') ?? null,
+        headerMap.get('list-unsubscribe-post') ?? null,
+        headerMap.get('list-id') ?? null
+      )
+      return
+    }
+    if (account.provider === 'microsoft' && !(await shouldUseEwsForMicrosoftMail(account.id))) {
+      const headers = await fetchGraphListUnsubscribeHeaders(account.id, msg.remoteId)
+      updateMessageListUnsubscribeLocal(messageId, headers.list, headers.post, headers.listId)
+    }
+  } catch (e) {
+    if (isProviderMessageNotFound(e, account.provider === 'google' ? 'google' : 'microsoft')) {
+      return
+    }
+    console.warn('[message-body-fetch] List-Unsubscribe-Header konnten nicht geladen werden:', messageId, e)
+  }
 }
 
 async function fetchGraphMessageBody(
@@ -193,7 +273,12 @@ export async function fetchAndStoreMessageBodyIfMissing(
 /** Laedt Mail-Body vom Provider nach, wenn lokal noch keiner gespeichert ist. */
 export async function ensureMessageBodyLoaded(messageId: number): Promise<MailFull | null> {
   const msg = getMessageById(messageId)
-  if (!msg || !messageNeedsBody(msg)) return msg
-  await fetchAndStoreMessageBodyIfMissing(messageId)
+  if (!msg) return null
+  await Promise.all([
+    messageNeedsBody(msg) ? fetchAndStoreMessageBodyIfMissing(messageId) : Promise.resolve(),
+    messageNeedsListUnsubscribe(msg)
+      ? fetchAndStoreListUnsubscribeIfMissing(messageId)
+      : Promise.resolve()
+  ])
   return getMessageById(messageId)
 }

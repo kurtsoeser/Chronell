@@ -77,6 +77,8 @@
       "source": "Quelle",
       "fromMail": "Aus E-Mails",
       "fromCloud": "Cloud-Speicher",
+      "fromMailShort": "E-Mails",
+      "fromCloudShort": "Cloud",
       "fromMailHint": "Anhänge aus dem lokalen Mail-Index.",
       "fromCloudHint": "OneDrive, SharePoint oder Google Drive durchsuchen.",
       "cloudMicrosoft": "Microsoft 365",
@@ -527,6 +529,7 @@
         "not_found": "Video wurde nicht gefunden oder die Freigabe ist abgelaufen.",
         "not_video": "Der Link verweist nicht auf eine Videodatei.",
         "offline": "Offline — Wiedergabe nicht möglich.",
+        "playback": "Dieses Videoformat wird im eingebauten Player nicht unterstützt. Öffne es über ☁ im Browser.",
         "unknown": "Wiedergabe nicht möglich."
       }
     },
@@ -828,7 +831,9 @@
     },
     "graph": {
       "empty": "Noch kein Umfeld – Verbindung hinzufügen oder KI-Vorschläge laden."
-    }
+    },
+    "noteSplitterAria": "Höhe des Notiz-Bereichs anpassen",
+    "graphSplitterAria": "Höhe des Graphen-Bereichs anpassen"
   },
   "connections": {
     "title": "Verbindungen",
@@ -2964,6 +2969,8 @@
       "account": "Kalenderkonto",
       "subject": "Betreff",
       "attendees": "Teilnehmer",
+      "attendeesPickContacts": "Aus Kontakten wählen",
+      "attendeesPlaceholder": "Weitere E-Mail-Adressen eingeben …",
       "teamsMeeting": "Teams-Besprechung",
       "description": "Beschreibung",
       "replyInThread": "Antwort im Mail-Thread senden",

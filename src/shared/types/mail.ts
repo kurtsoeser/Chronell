@@ -100,6 +100,7 @@ export interface MailFull extends MailListItem {
   bodyHtml: string | null
   bodyText: string | null
   ccAddrs: string | null
+  bccAddrs: string | null
   /** Lokale offene ToDo zu dieser Mail, falls vorhanden. */
   openTodoId: number | null
   openTodoDueKind: string | null

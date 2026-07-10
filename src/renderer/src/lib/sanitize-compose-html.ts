@@ -1,4 +1,5 @@
 import DOMPurify from 'dompurify'
+import { promoteIframeSourcesToLinksInHtml } from '@shared/calendar-event-body-html'
 import { NOTE_INK_HTML_SOURCE_ATTR } from '@shared/note-ink-document'
 import { NOTE_CLOUD_TASK_HTML_ATTRS } from '@shared/note-cloud-task'
 import { NOTE_FORM_FIELD_SANITIZE_ATTRS } from '@shared/note-form-field'
@@ -138,7 +139,9 @@ export function sanitizeNoteEditorHtmlFragment(html: string): string {
 
 /** HTML fuer TipTap-Compose: bereinigen und unaufloesbare cid:-Bilder neutralisieren. */
 export function prepareComposeEditorHtml(html: string): string {
-  return stripUnresolvedCidUrls(sanitizeComposeHtmlFragment(html))
+  return stripUnresolvedCidUrls(
+    sanitizeComposeHtmlFragment(promoteIframeSourcesToLinksInHtml(html))
+  )
 }
 
 /** HTML fuer TipTap-Notizen: bereinigen und unaufloesbare cid:-Bilder neutralisieren. */

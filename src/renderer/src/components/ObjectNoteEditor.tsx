@@ -115,6 +115,8 @@ interface Props {
   contentPaddingClass?: string
   /** Editor nutzt verfügbare Höhe im Container (z. B. Kalender-Vorschau). */
   fillHeight?: boolean
+  /** Aufklapp-Status bei `variant="section"` (z. B. für resizable Layout). */
+  onSectionExpandedChange?: (expanded: boolean) => void
   /** Ausrichtung des Pop-ups relativ zum Button (nur `variant="button"`). */
   anchorAlign?: 'left' | 'right'
 }
@@ -259,12 +261,17 @@ export function ObjectNoteEditor({
   className,
   contentPaddingClass = 'px-6',
   fillHeight = false,
+  onSectionExpandedChange,
   anchorAlign = 'left'
 }: Props): JSX.Element {
   const { t, i18n } = useTranslation()
   const pushToast = useUndoStore((s) => s.pushToast)
   const [open, setOpen] = useState(variant === 'section')
   const [sectionExpanded, setSectionExpanded] = useState(() => !sectionCollapsedDefault)
+
+  useEffect(() => {
+    onSectionExpandedChange?.(sectionExpanded)
+  }, [onSectionExpandedChange, sectionExpanded])
   const [note, setNote] = useState<UserNote | null>(null)
   const [editorSeedHtml, setEditorSeedHtml] = useState('')
   const [loading, setLoading] = useState(false)
@@ -561,7 +568,7 @@ export function ObjectNoteEditor({
       className={cn(
         'rounded-lg border border-border bg-card shadow-lg',
         isPopupVariant && 'relative flex flex-col overflow-hidden',
-        variant === 'section' && fillHeight && 'flex min-h-0 flex-1 flex-col',
+        variant === 'section' && fillHeight && sectionExpanded && 'flex min-h-0 flex-1 flex-col',
         variant === 'section'
           ? 'rounded-none border-0 bg-transparent shadow-none'
           : variant === 'panel'
@@ -727,10 +734,13 @@ export function ObjectNoteEditor({
         iconClassName={hasContent ? 'fill-amber-300 text-amber-500' : undefined}
         className={cn(
           'border-t-0',
-          fillHeight && 'flex min-h-0 flex-1 flex-col',
+          fillHeight && sectionExpanded && 'flex min-h-0 flex-1 flex-col',
           className
         )}
-        contentClassName={cn('!px-0', fillHeight && 'flex min-h-0 flex-1 flex-col overflow-hidden')}
+        contentClassName={cn(
+          '!px-0',
+          fillHeight && sectionExpanded && 'flex min-h-0 flex-1 flex-col overflow-hidden'
+        )}
       >
         <div
           className={cn(

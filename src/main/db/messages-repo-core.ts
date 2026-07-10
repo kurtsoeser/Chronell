@@ -13,6 +13,7 @@ export interface MessageRow {
   from_name: string | null
   to_addrs: string | null
   cc_addrs: string | null
+  bcc_addrs: string | null
   snippet: string | null
   body_html: string | null
   body_text: string | null
@@ -70,6 +71,7 @@ export function rowToFull(
     bodyHtml: r.body_html,
     bodyText: r.body_text,
     ccAddrs: r.cc_addrs,
+    bccAddrs: r.bcc_addrs,
     openTodoId: openTodo?.id ?? null,
     openTodoDueKind: openTodo?.due_kind ?? null,
     openTodoDueAt: openTodo?.due_at ?? null,
@@ -163,9 +165,9 @@ export function upsertMessages(input: UpsertMessageInput[]): void {
       has_attachments  = excluded.has_attachments,
       importance       = excluded.importance,
       change_key       = excluded.change_key,
-      list_unsubscribe = excluded.list_unsubscribe,
-      list_unsubscribe_post = excluded.list_unsubscribe_post,
-      list_id          = excluded.list_id,
+      list_unsubscribe = COALESCE(excluded.list_unsubscribe, messages.list_unsubscribe),
+      list_unsubscribe_post = COALESCE(excluded.list_unsubscribe_post, messages.list_unsubscribe_post),
+      list_id          = COALESCE(excluded.list_id, messages.list_id),
       last_synced_at   = datetime('now')
   `)
   const tx = db.transaction((items: UpsertMessageInput[]) => {

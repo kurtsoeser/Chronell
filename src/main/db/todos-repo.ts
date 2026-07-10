@@ -1,7 +1,7 @@
 import { getDb } from './index'
 import { deleteAllEntityLinksForRef, mailTodoEntityRef } from './entity-links-repo'
 import type { MailListItem, TodoDueKindList, TodoOpenCounts } from '@shared/types'
-import { rowToListItem } from './messages-repo'
+import { rowToListItem, type MessageRow } from './messages-repo'
 import { computeTodoDisplayBounds, type TodoDisplayBounds } from '../todo-due-buckets'
 
 const TODO_JOIN_SELECT = `
@@ -11,33 +11,6 @@ const TODO_JOIN_SELECT = `
          t.completed_at as todo_completed_at,
          t.todo_start_at as todo_start_at,
          t.todo_end_at as todo_end_at`
-
-interface MessageJoinRow {
-  id: number
-  account_id: string
-  folder_id: number | null
-  thread_id: number | null
-  remote_id: string
-  remote_thread_id: string | null
-  subject: string | null
-  from_addr: string | null
-  from_name: string | null
-  to_addrs: string | null
-  cc_addrs: string | null
-  snippet: string | null
-  body_html: string | null
-  body_text: string | null
-  sent_at: string | null
-  received_at: string | null
-  is_read: number
-  is_flagged: number
-  has_attachments: number
-  importance: string | null
-  snoozed_until: string | null
-  waiting_for_reply_until: string | null
-  list_unsubscribe: string | null
-  list_unsubscribe_post: string | null
-}
 
 export interface OpenTodoRow {
   id: number
@@ -51,7 +24,7 @@ export interface OpenTodoRow {
 
 const M_LIST = `
   m.id, m.account_id, m.folder_id, m.thread_id, m.remote_id, m.remote_thread_id,
-  m.subject, m.from_addr, m.from_name, m.to_addrs, m.cc_addrs, m.snippet,
+  m.subject, m.from_addr, m.from_name, m.to_addrs, m.cc_addrs, m.bcc_addrs, m.snippet,
   NULL as body_html, NULL as body_text,
   m.sent_at, m.received_at, m.is_read, m.is_flagged, m.has_attachments, m.importance,
   m.snoozed_until, m.waiting_for_reply_until, m.list_unsubscribe, m.list_unsubscribe_post
@@ -65,7 +38,7 @@ const M_LIST = `
 const DONE_TODO_MAIL_FOLLOW_UP_SQL = `(m.follow_up_flag_status IS NULL OR m.follow_up_flag_status != 'notFlagged')`
 
 function rowToTodoListItem(
-  r: MessageJoinRow & {
+  r: MessageRow & {
     todo_id: number
     todo_due_kind: string
     todo_due_at: string | null
@@ -353,7 +326,7 @@ function listOpenTodoMessagesByDueAtBucket(
 
   if (accountId != null) {
     const rows = stmt.all(...params, accountId, limit) as Array<
-      MessageJoinRow & {
+      MessageRow & {
         todo_id: number
         todo_due_kind: string
         todo_due_at: string | null
@@ -366,7 +339,7 @@ function listOpenTodoMessagesByDueAtBucket(
   }
 
   const rows = stmt.all(...params, limit) as Array<
-    MessageJoinRow & {
+    MessageRow & {
       todo_id: number
       todo_due_kind: string
       todo_due_at: string | null
@@ -401,7 +374,7 @@ export function listAllOpenTodoMessagesMerged(
   const rows =
     accountId != null
       ? (db.prepare(sql).all(accountId, limit) as Array<
-          MessageJoinRow & {
+          MessageRow & {
             todo_id: number
             todo_due_kind: string
             todo_due_at: string | null
@@ -411,7 +384,7 @@ export function listAllOpenTodoMessagesMerged(
           }
         >)
       : (db.prepare(sql).all(limit) as Array<
-          MessageJoinRow & {
+          MessageRow & {
             todo_id: number
             todo_due_kind: string
             todo_due_at: string | null
@@ -433,7 +406,7 @@ export function listTodoMessagesWithMeta(
   if (dueKind === 'done') {
     if (accountId != null) {
       const rows = db
-        .prepare<[string, number], MessageJoinRow & {
+        .prepare<[string, number], MessageRow & {
           todo_id: number
           todo_due_kind: string
           todo_due_at: string | null
@@ -456,7 +429,7 @@ export function listTodoMessagesWithMeta(
       return rows.map(rowToTodoListItem)
     }
     const rows = db
-      .prepare<[number], MessageJoinRow & {
+      .prepare<[number], MessageRow & {
         todo_id: number
         todo_due_kind: string
         todo_due_at: string | null
@@ -505,7 +478,7 @@ export function listOpenTodoMessagesWithDueAtInRange(
    ORDER BY COALESCE(t.todo_start_at, t.due_at, '') DESC
    LIMIT ?`
 
-  type Row = MessageJoinRow & {
+  type Row = MessageRow & {
     todo_id: number
     todo_due_kind: string
     todo_due_at: string | null
