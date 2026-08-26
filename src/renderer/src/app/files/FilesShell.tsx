@@ -52,6 +52,11 @@ import {
   moduleShellClass
 } from '@/components/module-shell-layout'
 import { useModuleNavColumnWidth } from '@/lib/module-nav-column-width'
+import {
+  FILES_LEFT_SIDEBAR_COLLAPSED_KEY,
+  useModuleLeftSidebarCollapsed
+} from '@/lib/module-left-sidebar-collapsed'
+import { ModuleLeftSidebarToggle } from '@/components/ModuleLeftSidebarToggle'
 import { VerticalSplitter } from '@/components/ResizableSplitter'
 import { useAccountsStore } from '@/stores/accounts'
 import { useAppModeStore } from '@/stores/app-mode'
@@ -120,6 +125,9 @@ export function FilesShell(): JSX.Element {
   const accounts = useAccountsStore((s) => s.accounts)
   const setAppMode = useAppModeStore((s) => s.setMode)
   const [navWidth, setNavWidth] = useModuleNavColumnWidth()
+  const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useModuleLeftSidebarCollapsed(
+    FILES_LEFT_SIDEBAR_COLLAPSED_KEY
+  )
 
   const [source, setSource] = useState<FilesShellSourceId>(() => readFilesShellSource())
   const [category, setCategory] = useState<FilesMailCategory>(() => readFilesShellCategory())
@@ -536,25 +544,35 @@ export function FilesShell(): JSX.Element {
 
   return (
     <section className={moduleShellClass}>
-      <div className={moduleNavColumnClass} style={{ width: navWidth }}>
-        <FilesShellSidebar
-          source={source}
-          onSourceChange={handleSourceChange}
-          accounts={accounts}
-          selectedMailAccountIds={accountFilter}
-          onChangeMailAccountIds={handleAccountFilter}
-          cloudAccountId={cloudAccountId}
-          onChangeCloudAccountId={handleCloudAccount}
-          cloudScope={cloudScope}
-          cloudCrumbs={cloudCrumbs}
-          onApplyCloudPath={applyCloudPath}
-          indexPending={indexPending}
-        />
-      </div>
-      <VerticalSplitter variant="moduleNav" onDrag={setNavWidth} />
+      {!leftSidebarCollapsed ? (
+        <>
+          <div className={moduleNavColumnClass} style={{ width: navWidth }}>
+            <FilesShellSidebar
+              source={source}
+              onSourceChange={handleSourceChange}
+              accounts={accounts}
+              selectedMailAccountIds={accountFilter}
+              onChangeMailAccountIds={handleAccountFilter}
+              cloudAccountId={cloudAccountId}
+              onChangeCloudAccountId={handleCloudAccount}
+              cloudScope={cloudScope}
+              cloudCrumbs={cloudCrumbs}
+              onApplyCloudPath={applyCloudPath}
+              indexPending={indexPending}
+            />
+          </div>
+          <VerticalSplitter variant="moduleNav" onDrag={setNavWidth} />
+        </>
+      ) : null}
       <main className={cn(modulePaneStackClass, 'flex-col')}>
         <header className={cn(moduleColumnHeaderShellBarClass, 'shrink-0 border-b border-border')}>
-          <h1 className={moduleColumnHeaderTitleClass}>{t('files.title')}</h1>
+          <div className="flex min-w-0 items-center gap-2">
+            <ModuleLeftSidebarToggle
+              collapsed={leftSidebarCollapsed}
+              onCollapsedChange={setLeftSidebarCollapsed}
+            />
+            <h1 className={moduleColumnHeaderTitleClass}>{t('files.title')}</h1>
+          </div>
           <div className={cn('ml-auto flex shrink-0 items-center gap-1', moduleColumnHeaderActionsClass)}>
             <span className="mr-1 text-2xs tabular-nums text-muted-foreground">{summaryLabel}</span>
             <div role="group" aria-label={t('files.viewModeAria')} className="flex items-center gap-0.5">

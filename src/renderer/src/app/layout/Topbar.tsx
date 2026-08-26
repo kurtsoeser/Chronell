@@ -1084,7 +1084,7 @@ export function Topbar({ onOpenAccountDialog }: Props): JSX.Element {
         />
       ) : null}
 
-      <div className="min-w-[9rem] max-w-[28rem] flex-[2] basis-0 px-0.5 sm:min-w-[11rem] sm:px-1">
+      <div className="shrink-0 px-0.5 sm:px-1">
         <TopbarGlobalSearch />
       </div>
 

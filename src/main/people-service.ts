@@ -28,6 +28,7 @@ import {
 } from './google/people-google'
 import {
   applyGoogleContactsDelta,
+  applyMicrosoftContactsDelta,
   deletePeopleContactById,
   getPeopleContactById,
   getPeopleNavCounts as repoGetPeopleNavCounts,
@@ -41,6 +42,7 @@ import {
   type PeopleContactInsertRow,
   type PeopleContactLocalPatch
 } from './db/people-repo'
+import { broadcastPeopleChanged } from './ipc/ipc-broadcasts'
 
 export function listPeopleForUi(input: PeopleListInput) {
   return listPeopleContacts(input)
@@ -77,9 +79,24 @@ export async function syncPeopleForAccount(accountId: string): Promise<PeopleSyn
     throw new Error('Konto nicht gefunden.')
   }
   if (acc.provider === 'microsoft') {
-    const rows = await graphFetchContactsForSync(accountId)
-    replaceContactsForAccount(accountId, 'microsoft', rows, null)
-    return { accountId, provider: 'microsoft', imported: rows.length }
+    const cursorBefore = getPeopleSyncCursor(accountId)
+    const pack = await graphFetchContactsForSync(accountId, cursorBefore)
+    if (pack.mode === 'full') {
+      replaceContactsForAccount(accountId, 'microsoft', pack.rows, pack.nextDeltaLink)
+    } else {
+      applyMicrosoftContactsDelta({
+        accountId,
+        rows: pack.rows,
+        deletedRemoteIds: pack.deletedRemoteIds,
+        nextDeltaLink: pack.nextDeltaLink ?? cursorBefore
+      })
+    }
+    broadcastPeopleChanged(accountId)
+    return {
+      accountId,
+      provider: 'microsoft',
+      imported: pack.rows.length + pack.deletedRemoteIds.length
+    }
   }
   if (acc.provider !== 'google') {
     throw new Error('Kontakte: Anbieter nicht unterstuetzt.')
@@ -96,6 +113,7 @@ export async function syncPeopleForAccount(accountId: string): Promise<PeopleSyn
       nextSyncToken: pack.nextSyncToken ?? cursorBefore
     })
   }
+  broadcastPeopleChanged(accountId)
   return {
     accountId,
     provider: 'google',

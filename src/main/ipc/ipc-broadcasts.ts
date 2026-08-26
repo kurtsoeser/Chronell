@@ -102,6 +102,12 @@ export function broadcastTasksChanged(accountId: string): void {
   }
 }
 
+export function broadcastPeopleChanged(accountId: string): void {
+  for (const win of BrowserWindow.getAllWindows()) {
+    win.webContents.send('people:changed', { accountId })
+  }
+}
+
 const pendingNotesChanged = new Map<string, NotesChangedPayload>()
 let notesChangedFlushTimer: ReturnType<typeof setTimeout> | null = null
 

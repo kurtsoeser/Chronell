@@ -7,7 +7,13 @@ export type CalendarShellEventDialogState =
   | {
       mode: 'create'
       range?: { start: Date; end: Date; allDay: boolean } | null
-      createPrefill?: { subject: string; location: string }
+      createPrefill?: {
+        subject?: string
+        location?: string
+        attendeeInput?: string
+        descriptionHtml?: string
+        teamsMeeting?: boolean
+      }
       createAccountId?: string
       createKind?: CalendarCreateQuickDraft['createKind']
       createGraphCalendarId?: string

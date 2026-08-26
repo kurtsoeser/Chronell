@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import { APP_PRODUCT_NAME } from '@shared/app-version'
 import { initI18n } from './i18n'
 import { App } from './App'
+import { AppErrorBoundary } from './components/AppErrorBoundary'
 import { TeamsChatPopoutShell } from './app/chat/TeamsChatPopoutShell'
 import { isTeamsChatPopoutWindow } from './app/chat/teams-chat-popout-route'
 import { MailReadingPopoutShell } from './app/layout/MailReadingPopoutShell'
@@ -42,7 +43,9 @@ function AppRoot(): JSX.Element {
   const Shell = resolveRootShell()
   return (
     <React.StrictMode>
-      <Shell />
+      <AppErrorBoundary>
+        <Shell />
+      </AppErrorBoundary>
     </React.StrictMode>
   )
 }

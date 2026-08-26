@@ -1,5 +1,8 @@
 import type { AccountSignatureTemplate } from '@shared/types'
-import { sanitizeComposeHtmlFragment } from '@/lib/sanitize-compose-html'
+import {
+  prepareComposeEditorHtml,
+  prepareComposeOutgoingHtmlFragment
+} from '@/lib/sanitize-compose-html'
 import { useAccountsStore } from '@/stores/accounts'
 
 export function newSignatureTemplateId(): string {
@@ -26,7 +29,7 @@ export function initialSignatureForAccount(accountId: string): {
   const raw = tpl?.html?.trim() ?? ''
   if (!raw) return { html: '', templateId: null }
   return {
-    html: sanitizeComposeHtmlFragment(raw),
+    html: prepareComposeEditorHtml(raw),
     templateId: defId
   }
 }
@@ -35,7 +38,7 @@ export function upsertSignatureTemplate(
   templates: AccountSignatureTemplate[],
   entry: { id?: string; name: string; html: string }
 ): AccountSignatureTemplate[] {
-  const html = sanitizeComposeHtmlFragment(entry.html)
+  const html = prepareComposeOutgoingHtmlFragment(entry.html)
   const now = new Date().toISOString()
   const id = entry.id ?? newSignatureTemplateId()
   const idx = templates.findIndex((t) => t.id === id)

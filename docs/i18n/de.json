@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Chronell — Manage deine Zeit, nicht deine Inbox",
-    "description": "Chronell 1.0.3: Individuelle Ansichten mit Layout-Assistent, Mail- und Kalender-Arbeitsbereich — Desktop-Arbeitszentrale für Windows 11 mit Microsoft 365 und Google."
+    "description": "Chronell 1.0.4: Individuelle Ansichten mit Layout-Assistent, Mail- und Kalender-Arbeitsbereich — Desktop-Arbeitszentrale für Windows 11 mit Microsoft 365 und Google."
   },
   "nav": {
     "method": "Die Methode",
@@ -180,35 +180,42 @@
     "eyebrow": "Release-Überblick",
     "title": "Was in den letzten Updates passiert ist",
     "lead": "Vom neuen Fluent-Look über den Verbindungs-Graph bis zum Profil-Sync — Chronell wächst schnell, ohne deine Mails in die Cloud zu legen.",
-    "v103": {
+    "v104": {
       "badge": "Aktuell",
+      "date": "August 2026",
+      "title": "Kalender und Mail",
+      "b1": "Kalender: Kalender und Termine: Dialog, Vorschau, Kategorien und Shell (ueberarbeiteter Termin-Dialog)",
+      "b2": "Mail: Mail-Arbeitsbereich: Sidebar, Anhaenge, EWS und Aktionen (Kontext-Sidebar in Mail (Kontakt, Historie, Kalender))",
+      "b3": "Notizen: Notizen und Kalender-Pane (Notizen-Modul)",
+      "b4": "Homepage: Release-Texte, Homepage-Timeline und Download auf 1.0.4"
+    },"v103": {
       "date": "Juli 2026",
       "title": "Kalender und Mail",
       "b1": "Kalender: Kalender und Termine: Dialog, Vorschau, Kategorien und Shell (ueberarbeiteter Termin-Dialog; Termin-Vorschau)",
       "b2": "Mail: Mail-Arbeitsbereich: Sidebar, Anhaenge, EWS und Aktionen (17 Datei(en) geaendert)",
       "b3": "Verbindungen: Verbindungs-Graph und Objekt-Verknuepfungen (Verbindungs-Graph)",
-      "b4": "Homepage: Release-Texte, Homepage-Timeline und Download auf 1.0.3"
+      "b4": "Homepage: Release-Texte, Homepage-Timeline und Download auf 1.0.4"
     },"v100": {
       "date": "Juli 2026",
       "title": "Chronell 1.0 — Desktop-Arbeitszentrale",
       "b1": "Notizen: Notizen-Modul mit TipTap-Editor, Abschnitten, Freihand, Embeds, Verknuepfungen und Quick Capture",
       "b2": "Kalender: Kalender mit Bookings, ueberarbeitetem Termin-Dialog, ICS-Import und Cloud-Tasks",
       "b3": "Mail: Multi-Account-Mail mit EWS, Kontext-Sidebar, Composer und lokaler Anhangs-Indexierung",
-      "b4": "Launch: Erstes Major-Release — Version 1.0.3, Homepage und Download aktualisiert"
+      "b4": "Launch: Erstes Major-Release — Version 1.0.4, Homepage und Download aktualisiert"
     },"v0931": {
       "date": "Juni 2026",
       "title": "Mail und Kalender",
       "b1": "Mail: Mail-Arbeitsbereich: Sidebar, Anhaenge, EWS und Aktionen (Kontext-Sidebar in Mail (Kontakt, Historie, Kalender); Composer und Lesefenster)",
       "b2": "Kalender: Kalender und Termine: Dialog, Vorschau, Kategorien und Shell (ueberarbeiteter Termin-Dialog; Datumsauswahl im Termin-Dialog)",
       "b3": "Verbindungen: Verbindungs-Graph und Objekt-Verknuepfungen (Verbindungs-Graph)",
-      "b4": "Homepage: Release-Texte, Homepage-Timeline und Download auf 1.0.3"
+      "b4": "Homepage: Release-Texte, Homepage-Timeline und Download auf 1.0.4"
     },"v0930": {
       "date": "Juni 2026",
       "title": "Mail und Kalender",
       "b1": "Mail: Mail-Arbeitsbereich: Sidebar, Anhaenge, EWS und Aktionen (Composer und Lesefenster)",
       "b2": "Kalender: Kalender und Termine: Dialog, Vorschau, Kategorien und Shell (ueberarbeiteter Termin-Dialog; Kalender-Layout speichern)",
       "b3": "Einstellungen: Einstellungen, Onboarding und Backup (Konten- und Erscheinungsbild-Einstellungen; ueberarbeiteter Ersteinrichtungs-Assistent)",
-      "b4": "Homepage: Release-Texte, Homepage-Timeline und Download auf 1.0.3"
+      "b4": "Homepage: Release-Texte, Homepage-Timeline und Download auf 1.0.4"
     },"v0929": {
       "date": "Juni 2026",
       "title": "Individuelle Ansichten & Mail/Kalender",
@@ -222,28 +229,28 @@
       "b1": "Mail: Mail-Arbeitsbereich: Sidebar, Anhaenge, EWS und Aktionen (Kontext-Sidebar in Mail (Kontakt, Historie, Kalender); Composer und Lesefenster)",
       "b2": "Kalender: Kalender und Termine: Dialog, Vorschau, Kategorien und Shell (ueberarbeiteter Termin-Dialog; Termin-Vorschau)",
       "b3": "Aufgaben: Aufgaben-Modul und Cloud-Tasks-Sync (Aufgaben-Modul)",
-      "b4": "Homepage: Release-Texte, Homepage-Timeline und Download auf 1.0.3"
+      "b4": "Homepage: Release-Texte, Homepage-Timeline und Download auf 1.0.4"
     },"v0927": {
       "date": "Mai 2026",
       "title": "Mail und Verbindungen",
       "b1": "Mail: Mail-Arbeitsbereich: Sidebar, Anhaenge, EWS und Aktionen (Microsoft-Mail per EWS (zusaetzlicher Transport); QuickSteps erweitert)",
       "b2": "Verbindungen: Verbindungs-Graph und Objekt-Verknuepfungen (Verbindungs-Graph)",
       "b3": "Einstellungen: Einstellungen, Onboarding und Backup (Konten- und Erscheinungsbild-Einstellungen)",
-      "b4": "Homepage: Release-Texte, Homepage-Timeline und Download auf 1.0.3"
+      "b4": "Homepage: Release-Texte, Homepage-Timeline und Download auf 1.0.4"
     },"v0926": {
       "date": "Mai 2026",
       "title": "Mail und Aufgaben",
       "b1": "Mail: Mail-Arbeitsbereich: Sidebar, Anhaenge, EWS und Aktionen (Microsoft-Mail per EWS (zusaetzlicher Transport); QuickSteps erweitert)",
       "b2": "Aufgaben: Aufgaben-Modul und Cloud-Tasks-Sync (Aufgaben-Modul)",
       "b3": "Einstellungen: Einstellungen, Onboarding und Backup (Konten- und Erscheinungsbild-Einstellungen)",
-      "b4": "Homepage: Release-Texte, Homepage-Timeline und Download auf 1.0.3"
+      "b4": "Homepage: Release-Texte, Homepage-Timeline und Download auf 1.0.4"
     },"v0925": {
       "date": "Mai 2026",
       "title": "Mail und Dateien",
       "b1": "Mail: Mail-Arbeitsbereich: Sidebar, Anhaenge, EWS und Aktionen (Microsoft-Mail per EWS (zusaetzlicher Transport); Korrespondenz-Historie pro Kontakt)",
       "b2": "Dateien: Neues Dateien-Modul: Cloud-Dateien, Mail-Anhaenge und Index-Sync (Mail-Anhaenge lokal indexieren; OneDrive- und SharePoint-Upload)",
       "b3": "Kalender: Kalender und Termine: Dialog, Vorschau, Kategorien und Shell (Termin-Kategorien; ueberarbeiteter Termin-Dialog)",
-      "b4": "Homepage: Release-Texte, Homepage-Timeline und Download auf 1.0.3"
+      "b4": "Homepage: Release-Texte, Homepage-Timeline und Download auf 1.0.4"
     },"v0923": {
       "date": "Mai 2026",
       "title": "ICS-Import, Meta-Ordner & Module poliert",
@@ -317,7 +324,7 @@
   "highlights": {
     "eyebrow": "Version 1.0",
     "title": "Vier Säulen der Desktop-Arbeitszentrale",
-    "lead": "Mit Version 1.0.3 wird Chronell zur vollständigen Arbeitszentrale: ein eigenes Notizen-Modul, verfeinerte Mail- und Kalender-Arbeitsbereiche sowie sichtbare Zusammenhänge im Verbindungs-Graph — lokal auf Windows 11.",
+    "lead": "Mit Version 1.0.4 wird Chronell zur vollständigen Arbeitszentrale: ein eigenes Notizen-Modul, verfeinerte Mail- und Kalender-Arbeitsbereiche sowie sichtbare Zusammenhänge im Verbindungs-Graph — lokal auf Windows 11.",
     "compose": {
       "title": "Notizen",
       "desc": "Notizen-Modul mit Abschnitten, TipTap-Editor, Freihand, Embeds und Verknüpfungen zu Mail, Terminen und Kontakten.",
@@ -531,12 +538,12 @@
     "privacy": "Datenschutz"
   },
   "whatsNew": {
-    "label": "Version 1.0.3",
+    "label": "Version 1.0.4",
     "tagline": "Notizen · Mail · Kalender · Verbindungs-Graph"
   },
   "cta": {
     "title": "Bereit für das neue Chronell?",
-    "body": "Lade Version 1.0.3 für Windows 11 — individuelle Ansichten mit Layout-Assistent, schwebende Panels, überarbeiteter Mail- und Kalender-Arbeitsbereich und optional Cloud-Sync. Updates ersetzen deine Version ohne Datenverlust.",
+    "body": "Lade Version 1.0.4 für Windows 11 — individuelle Ansichten mit Layout-Assistent, schwebende Panels, überarbeiteter Mail- und Kalender-Arbeitsbereich und optional Cloud-Sync. Updates ersetzen deine Version ohne Datenverlust.",
     "button": "Jetzt herunterladen"
   }
 }

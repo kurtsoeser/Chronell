@@ -1,8 +1,10 @@
 import type {
   CalendarEventView,
   GlobalSearchContactHit,
+  GlobalSearchKind,
   GlobalSearchResult,
-  SearchHit
+  SearchHit,
+  UserNoteKind
 } from '@shared/types'
 import {
   buildSqlLikeTokenAndClause,
@@ -15,7 +17,6 @@ import { normalizeMessagesFtsMatchQuery } from './db/messages-repo'
 import { searchMessages } from './db/messages-repo'
 import { searchNotes } from './db/user-notes-repo'
 import { getPeopleContactById } from './db/people-repo'
-import type { UserNoteKind } from '@shared/types'
 
 function resolveNoteSearchTitle(note: {
   kind: UserNoteKind
@@ -29,15 +30,22 @@ function resolveNoteSearchTitle(note: {
   return ''
 }
 
+function wantsKind(kinds: ReadonlySet<GlobalSearchKind> | null, kind: GlobalSearchKind): boolean {
+  return kinds == null || kinds.size === 0 || kinds.has(kind)
+}
+
 function searchCalendarEvents(rawQuery: string, limit: number): CalendarEventView[] {
   const params: unknown[] = []
   const where = buildSqlLikeTokenAndClause(
-    ['title', "IFNULL(location, '')"],
+    ['title', "IFNULL(location, '')", "IFNULL(organizer, '')"],
     rawQuery,
     params
   )
   if (!where) return []
-  const phraseRank = buildSqlPhraseRankCaseMulti(['title', "IFNULL(location, '')"], rawQuery)
+  const phraseRank = buildSqlPhraseRankCaseMulti(
+    ['title', "IFNULL(location, '')", "IFNULL(organizer, '')"],
+    rawQuery
+  )
   const orderSql = phraseRank ? `${phraseRank.sql}, start_iso DESC` : `start_iso DESC`
   const rows = getDb()
     .prepare(
@@ -184,9 +192,30 @@ function searchContacts(rawQuery: string, limit: number): GlobalSearchContactHit
     .filter((r): r is GlobalSearchContactHit => r != null)
 }
 
-export function globalSearch(rawQuery: string, limitPerKind = 8): GlobalSearchResult {
+function normalizeKinds(kinds?: readonly GlobalSearchKind[] | null): Set<GlobalSearchKind> | null {
+  if (!kinds || kinds.length === 0) return null
+  const allowed = new Set<GlobalSearchKind>([
+    'mails',
+    'notes',
+    'calendarEvents',
+    'tasks',
+    'contacts'
+  ])
+  const next = new Set<GlobalSearchKind>()
+  for (const k of kinds) {
+    if (allowed.has(k)) next.add(k)
+  }
+  return next.size === 0 ? null : next
+}
+
+export function globalSearch(
+  rawQuery: string,
+  limitPerKind = 8,
+  kinds?: readonly GlobalSearchKind[] | null
+): GlobalSearchResult {
   const query = rawQuery.trim()
   const fts = normalizeMessagesFtsMatchQuery(query)
+  const kindSet = normalizeKinds(kinds)
   const empty: GlobalSearchResult = {
     query,
     mails: [],
@@ -197,22 +226,26 @@ export function globalSearch(rawQuery: string, limitPerKind = 8): GlobalSearchRe
   }
   if (!fts && splitSearchTokens(query).length === 0) return empty
 
-  const mails: SearchHit[] = fts
-    ? decorateMailListLike(searchMessages(query, limitPerKind))
-    : []
+  const mails: SearchHit[] =
+    wantsKind(kindSet, 'mails') && fts
+      ? decorateMailListLike(searchMessages(query, limitPerKind))
+      : []
 
-  const noteItems = fts
-    ? searchNotes({ query, limit: limitPerKind }).map((n) => ({
-        id: n.id,
-        kind: n.kind,
-        title: resolveNoteSearchTitle(n) || 'Ohne Titel',
-        updatedAt: n.updatedAt
-      }))
-    : []
+  const noteItems =
+    wantsKind(kindSet, 'notes') && fts
+      ? searchNotes({ query, limit: limitPerKind }).map((n) => ({
+          id: n.id,
+          kind: n.kind,
+          title: resolveNoteSearchTitle(n) || 'Ohne Titel',
+          updatedAt: n.updatedAt
+        }))
+      : []
 
-  const calendarEvents = searchCalendarEvents(query, limitPerKind)
-  const tasks = searchCloudTasks(query, limitPerKind)
-  const contacts = searchContacts(query, limitPerKind)
+  const calendarEvents = wantsKind(kindSet, 'calendarEvents')
+    ? searchCalendarEvents(query, limitPerKind)
+    : []
+  const tasks = wantsKind(kindSet, 'tasks') ? searchCloudTasks(query, limitPerKind) : []
+  const contacts = wantsKind(kindSet, 'contacts') ? searchContacts(query, limitPerKind) : []
 
   return {
     query,

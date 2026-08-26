@@ -66,6 +66,7 @@ import {
   getMessageById,
   setMessageHasAttachmentsLocal,
   searchMessages,
+  searchMessagesAdvanced,
   listSnoozedMessages,
   listWaitingMessages,
   searchMessageParticipantEmails,
@@ -339,6 +340,17 @@ export function registerMailIpc(): void {
     (_event, args: { query: string; limit?: number }): SearchHit[] => {
       const limit = args.limit ?? 30
       return decorateMailListLike(searchMessages(args.query, limit))
+    }
+  )
+
+  ipcMain.handle(
+    IPC.mail.searchAdvanced,
+    (
+      _event,
+      args: { criteria: import('@shared/types').AdvancedMailSearchCriteria; limit?: number }
+    ): SearchHit[] => {
+      const limit = args.limit ?? 200
+      return decorateMailListLike(searchMessagesAdvanced(args.criteria ?? {}, limit))
     }
   )
   

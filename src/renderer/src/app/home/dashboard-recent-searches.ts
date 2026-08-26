@@ -1,5 +1,5 @@
 const STORAGE_KEY = 'mailclient.dashboard.recentSearches.v1'
-const MAX = 5
+const MAX = 8
 
 export function readRecentSearches(): string[] {
   try {

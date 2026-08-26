@@ -1,5 +1,40 @@
 export type PeoplePhoneEntry = { type: string; value: string }
 
+/** Kanonische Telefontypen — passen zu Microsoft Graph und Google People API. */
+export type PeoplePhoneKind = 'mobile' | 'home' | 'business' | 'other'
+
+export const PEOPLE_PHONE_KINDS: PeoplePhoneKind[] = ['mobile', 'home', 'business', 'other']
+
+export function normalizePhoneKind(type: string): PeoplePhoneKind {
+  const t = type.trim().toLowerCase()
+  if (t.includes('mobile') || t === 'cell' || t.includes('mobil')) return 'mobile'
+  if (t.includes('home') || t.includes('privat')) return 'home'
+  if (t.includes('business') || t.includes('work') || t.includes('geschäft') || t.includes('geschaeft')) {
+    return 'business'
+  }
+  return 'other'
+}
+
+export function sanitizePhoneEntries(entries: PeoplePhoneEntry[]): PeoplePhoneEntry[] {
+  return entries
+    .map((entry) => ({
+      type: normalizePhoneKind(entry.type),
+      value: entry.value.trim()
+    }))
+    .filter((entry) => entry.value)
+}
+
+function phoneEntriesSortKey(entries: PeoplePhoneEntry[]): string {
+  return sanitizePhoneEntries(entries)
+    .map((entry) => `${entry.type}\u0000${entry.value}`)
+    .sort()
+    .join('\u0001')
+}
+
+export function phonesEntriesEqual(a: PeoplePhoneEntry[], b: PeoplePhoneEntry[]): boolean {
+  return phoneEntriesSortKey(a) === phoneEntriesSortKey(b)
+}
+
 export type PeopleEmailEntry = { address: string; name?: string | null }
 
 export type PeopleAddressEntry = {

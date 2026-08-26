@@ -30,6 +30,7 @@ import { ModuleNavMiniMonth } from '@/components/ModuleNavMiniMonth'
 import { CALENDAR_VISIBILITY_CHANGED_EVENT } from '@/lib/calendar-visibility-storage'
 import {
   ModuleColumnHeaderIconButton,
+  moduleColumnHeaderActionsClass,
   moduleColumnHeaderDockBarRowClass,
   moduleColumnHeaderIconGlyphClass,
   moduleColumnHeaderUppercaseLabelClass
@@ -215,20 +216,22 @@ export function InboxCalendarSidebar({
           <span className={moduleColumnHeaderUppercaseLabelClass}>
             {t('mail.inboxCal.chromeTitle')}
           </span>
-          <ModuleColumnHeaderIconButton
-            title={t('mail.inboxCal.undockTitle')}
-            onClick={onRequestUndock}
-          >
-            <SquareArrowOutUpRight className={moduleColumnHeaderIconGlyphClass} />
-          </ModuleColumnHeaderIconButton>
-          {onRequestClose ? (
+          <div className={moduleColumnHeaderActionsClass}>
             <ModuleColumnHeaderIconButton
-              title={t('calendar.posteingangUi.hideColumn')}
-              onClick={onRequestClose}
+              title={t('mail.inboxCal.undockTitle')}
+              onClick={onRequestUndock}
             >
-              <PanelRightClose className={moduleColumnHeaderIconGlyphClass} />
+              <SquareArrowOutUpRight className={moduleColumnHeaderIconGlyphClass} />
             </ModuleColumnHeaderIconButton>
-          ) : null}
+            {onRequestClose ? (
+              <ModuleColumnHeaderIconButton
+                title={t('calendar.posteingangUi.hideColumn')}
+                onClick={onRequestClose}
+              >
+                <PanelRightClose className={moduleColumnHeaderIconGlyphClass} />
+              </ModuleColumnHeaderIconButton>
+            ) : null}
+          </div>
         </div>
       ) : null}
 

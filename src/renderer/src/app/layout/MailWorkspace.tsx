@@ -4,6 +4,10 @@ import { useResizableWidth, VerticalSplitter } from '@/components/ResizableSplit
 import { cn } from '@/lib/utils'
 import { modulePaneStackClass, moduleShellClass } from '@/components/module-shell-layout'
 import { useModuleNavColumnWidth } from '@/lib/module-nav-column-width'
+import {
+  MAIL_LEFT_SIDEBAR_COLLAPSED_KEY,
+  useModuleLeftSidebarCollapsed
+} from '@/lib/module-left-sidebar-collapsed'
 import { Sidebar } from '@/app/layout/Sidebar'
 import { MailList } from '@/app/layout/MailList'
 import { ReadingPane } from '@/app/layout/ReadingPane'
@@ -31,6 +35,9 @@ export function MailWorkspace(props: { onOpenAccountDialog: () => void }): JSX.E
     if (pendingId != null) void openMessageInFolder(pendingId)
   }, [pendingMessageId, takePendingMessageId, openMessageInFolder])
   const [sidebarWidth, setSidebarWidth] = useModuleNavColumnWidth()
+  const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useModuleLeftSidebarCollapsed(
+    MAIL_LEFT_SIDEBAR_COLLAPSED_KEY
+  )
   const [listMaxWidth, setListMaxWidth] = useState(1200)
   useEffect(() => {
     const update = (): void => {
@@ -157,17 +164,24 @@ export function MailWorkspace(props: { onOpenAccountDialog: () => void }): JSX.E
 
   return (
     <div className={moduleShellClass}>
-      <div style={{ width: sidebarWidth }} className="h-full shrink-0">
-        <Sidebar onOpenAccountDialog={props.onOpenAccountDialog} />
-      </div>
-      <VerticalSplitter
-        variant="moduleNav"
-        onDrag={onDragSidebar}
-        ariaLabel={t('common.moduleNavSplitter')}
-      />
+      {!leftSidebarCollapsed ? (
+        <>
+          <div style={{ width: sidebarWidth }} className="h-full shrink-0">
+            <Sidebar onOpenAccountDialog={props.onOpenAccountDialog} />
+          </div>
+          <VerticalSplitter
+            variant="moduleNav"
+            onDrag={onDragSidebar}
+            ariaLabel={t('common.moduleNavSplitter')}
+          />
+        </>
+      ) : null}
       <div className={cn(modulePaneStackClass, 'flex-row')}>
       <div style={{ width: listWidth }} className="h-full shrink-0">
-        <MailList />
+        <MailList
+          leftSidebarCollapsed={leftSidebarCollapsed}
+          onLeftSidebarCollapsedChange={setLeftSidebarCollapsed}
+        />
       </div>
       <VerticalSplitter onDrag={onDragList} ariaLabel={t('mail.workspace.splitterList')} />
       <div className="flex min-w-0 flex-1 overflow-hidden">
@@ -179,14 +193,20 @@ export function MailWorkspace(props: { onOpenAccountDialog: () => void }): JSX.E
               onRequestGlobalPopout={requestReadingGlobalPopout}
             />
           </div>
-        ) : dockedCalendar ? (
-          <div className="min-h-0 min-w-0 flex-1 bg-background" aria-hidden />
         ) : null}
 
         {dockedCalendar ? (
           <>
-            <VerticalSplitter onDrag={onDragCalendarCol} ariaLabel={t('mail.workspace.splitterCalendar')} />
-            <div style={{ width: calendarColWidth }} className="h-full shrink-0">
+            {dockedReading ? (
+              <VerticalSplitter
+                onDrag={onDragCalendarCol}
+                ariaLabel={t('mail.workspace.splitterCalendar')}
+              />
+            ) : null}
+            <div
+              style={dockedReading ? { width: calendarColWidth } : undefined}
+              className={cn('h-full', dockedReading ? 'shrink-0' : 'min-w-0 min-h-0 flex-1')}
+            >
               <MailRightSidebar
                 onRequestUndock={requestCalendarUndock}
                 onRequestClose={(): void => {

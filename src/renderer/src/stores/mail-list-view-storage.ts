@@ -85,6 +85,8 @@ export function mailListViewScopeKey(input: MailListViewScopeInput): string | nu
       return 'snoozed'
     case 'waiting':
       return 'waiting'
+    case 'search':
+      return 'search'
     default:
       return null
   }

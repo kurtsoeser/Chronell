@@ -10,7 +10,7 @@ import {
 } from 'react'
 import type FullCalendar from '@fullcalendar/react'
 import { addMonths, startOfMonth } from 'date-fns'
-import { Loader2, ListTodo, RefreshCw, Trash2, ChevronDown, Eraser } from 'lucide-react'
+import { Loader2, ListTodo, RefreshCw, Trash2, ChevronDown, Eraser, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { ConnectedAccount, TaskItemRow, TaskListRow } from '@shared/types'
 import type { WorkItem, WorkItemPlannedSchedule } from '@shared/work-item'
@@ -26,11 +26,16 @@ import { useResizableWidth, VerticalSplitter } from '@/components/ResizableSplit
 import { modulePaneStackClass, moduleShellClass } from '@/components/module-shell-layout'
 import { useModuleNavColumnWidth } from '@/lib/module-nav-column-width'
 import {
+  TASKS_LEFT_SIDEBAR_COLLAPSED_KEY,
+  useModuleLeftSidebarCollapsed
+} from '@/lib/module-left-sidebar-collapsed'
+import {
   moduleColumnHeaderDockBarRowClass,
   moduleColumnHeaderIconGlyphClass,
   moduleColumnHeaderOutlineSmClass,
   moduleColumnHeaderShellBarClass
 } from '@/components/ModuleColumnHeader'
+import { ModuleLeftSidebarToggle } from '@/components/ModuleLeftSidebarToggle'
 import { TasksListViewMenu } from '@/components/TasksListViewMenu'
 import { TasksShellSidebar } from '@/app/tasks/TasksShellSidebar'
 import { ContextMenu, type ContextMenuItem } from '@/components/ContextMenu'
@@ -118,6 +123,8 @@ import { CreateCloudTaskDialog } from '@/components/CreateCloudTaskDialog'
 import type { CalendarCreateRange } from '@/app/tasks/tasks-calendar-create-range'
 import { GLOBAL_CREATE_EVENT, useGlobalCreateNavigateStore } from '@/lib/global-create'
 import { useTasksPendingFocusStore } from '@/stores/tasks-pending-focus'
+import { useTasksListSearchStore } from '@/stores/tasks-list-search'
+import { filterTasksBySearchQuery } from '@/app/tasks/filter-tasks-by-search-query'
 
 function pickDefaultListId(rows: TaskListRow[]): string | null {
   if (rows.length === 0) return null
@@ -140,6 +147,9 @@ function initialSelection(accounts: { id: string }[]): TasksViewSelection | null
 export function TasksShell(): JSX.Element {
   const { t } = useTranslation()
   const tasksSettings = useTasksSettingsPrefs()
+  const listSearchQuery = useTasksListSearchStore((s) => s.query)
+  const clearListSearch = useTasksListSearchStore((s) => s.clear)
+  const searchActive = listSearchQuery.trim().length >= 2
   const completeTodoForMessage = useMailStore((s) => s.completeTodoForMessage)
   const selectMessage = useMailStore((s) => s.selectMessage)
   const setMessageRead = useMailStore((s) => s.setMessageRead)
@@ -177,6 +187,9 @@ export function TasksShell(): JSX.Element {
   const { isExiting, markExiting } = useExitingIds<string>()
 
   const [sidebarWidth, setSidebarWidth] = useModuleNavColumnWidth()
+  const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useModuleLeftSidebarCollapsed(
+    TASKS_LEFT_SIDEBAR_COLLAPSED_KEY
+  )
   const [listColumnWidth, setListColumnWidth] = useResizableWidth({
     storageKey: 'mailclient.tasksListColumnWidth',
     defaultWidth: 420,
@@ -564,6 +577,11 @@ export function TasksShell(): JSX.Element {
     return cloud
   }, [isUnified, unifiedTasks, listItemsForSingleList, mailTodoItems, tasksSettings.includeMailTodosInList])
 
+  const filteredDisplayItems = useMemo(
+    () => filterTasksBySearchQuery(displayItems, listSearchQuery),
+    [displayItems, listSearchQuery]
+  )
+
   useEffect(() => {
     if (!tasksSettings.dueReminderEnabled) return
     const id = window.setInterval(() => {
@@ -602,16 +620,16 @@ export function TasksShell(): JSX.Element {
   const filterCounts = useMemo(
     () =>
       taskListFilterCounts(
-        displayItems,
+        filteredDisplayItems,
         Intl.DateTimeFormat().resolvedOptions().timeZone,
         tasksSettings.overdueMode
       ),
-    [displayItems, tasksSettings.overdueMode]
+    [filteredDisplayItems, tasksSettings.overdueMode]
   )
 
   const visibleTaskCount = useMemo(() => {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
-    return taskListFilterCounts(displayItems, tz, tasksSettings.overdueMode)[
+    return taskListFilterCounts(filteredDisplayItems, tz, tasksSettings.overdueMode)[
       listViewPrefs.filter === 'all'
         ? 'all'
         : listViewPrefs.filter === 'open'
@@ -620,7 +638,7 @@ export function TasksShell(): JSX.Element {
             ? 'completed'
             : 'overdue'
     ]
-  }, [displayItems, listViewPrefs.filter, tasksSettings.overdueMode])
+  }, [filteredDisplayItems, listViewPrefs.filter, tasksSettings.overdueMode])
 
   const taskArrangeCtx = useMemo((): TaskListArrangeContext => {
     const accountById = new Map(taskAccounts.map((a) => [a.id, a] as const))
@@ -639,7 +657,7 @@ export function TasksShell(): JSX.Element {
   const visibleOrderedItems = useMemo(() => {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
     return flattenVisibleTaskItems(
-      displayItems,
+      filteredDisplayItems,
       listViewPrefs.arrange,
       listViewPrefs.chrono,
       listViewPrefs.filter,
@@ -647,7 +665,7 @@ export function TasksShell(): JSX.Element {
       tz,
       listLayoutOpts
     )
-  }, [displayItems, listViewPrefs, taskArrangeCtx, listLayoutOpts])
+  }, [filteredDisplayItems, listViewPrefs, taskArrangeCtx, listLayoutOpts])
 
   const visibleOrderedKeys = useMemo(
     () => visibleOrderedItems.map((item) => tasksListItemKey(item)),
@@ -1397,38 +1415,62 @@ type TaskContextMenuEvent = Pick<
 
   return (
     <section className={moduleShellClass}>
-      <div style={{ width: sidebarWidth }} className="h-full shrink-0">
-        <TasksShellSidebar
-          taskAccounts={taskAccounts}
-          profilePhotoDataUrls={accountDisplayAvatarDataUrls}
-          listsByAccount={listsByAccount}
-          listsLoadingByAccount={listsLoadingByAccount}
-          listsErrorByAccount={listsErrorByAccount}
-          selection={selection}
-          unifiedLoading={unifiedLoading}
-          onSelectUnified={handleSelectUnified}
-          onSelectList={handleSelectList}
-          onRefreshUnified={(): void => void loadUnifiedTasks({ forceRefresh: true })}
-          onRefreshAccountLists={handleRefreshAccountLists}
-          onAccountExpanded={handleAccountExpanded}
-          onAccountHeaderContextMenu={openTasksAccountContextMenu}
-          miniMonth={miniMonth}
-          onMiniMonthPrev={(): void => setMiniMonth((m) => addMonths(m, -1))}
-          onMiniMonthNext={(): void => setMiniMonth((m) => addMonths(m, 1))}
-          onMiniMonthSelectRange={applyTasksMiniCalendarDayRange}
-        />
-      </div>
-      <VerticalSplitter
-        variant="moduleNav"
-        onDrag={onDragSidebar}
-        ariaLabel={t('common.moduleNavSplitter')}
-      />
+      {!leftSidebarCollapsed ? (
+        <>
+          <div style={{ width: sidebarWidth }} className="h-full shrink-0">
+            <TasksShellSidebar
+              taskAccounts={taskAccounts}
+              profilePhotoDataUrls={accountDisplayAvatarDataUrls}
+              listsByAccount={listsByAccount}
+              listsLoadingByAccount={listsLoadingByAccount}
+              listsErrorByAccount={listsErrorByAccount}
+              selection={selection}
+              unifiedLoading={unifiedLoading}
+              onSelectUnified={handleSelectUnified}
+              onSelectList={handleSelectList}
+              onRefreshUnified={(): void => void loadUnifiedTasks({ forceRefresh: true })}
+              onRefreshAccountLists={handleRefreshAccountLists}
+              onAccountExpanded={handleAccountExpanded}
+              onAccountHeaderContextMenu={openTasksAccountContextMenu}
+              miniMonth={miniMonth}
+              onMiniMonthPrev={(): void => setMiniMonth((m) => addMonths(m, -1))}
+              onMiniMonthNext={(): void => setMiniMonth((m) => addMonths(m, 1))}
+              onMiniMonthSelectRange={applyTasksMiniCalendarDayRange}
+            />
+          </div>
+          <VerticalSplitter
+            variant="moduleNav"
+            onDrag={onDragSidebar}
+            ariaLabel={t('common.moduleNavSplitter')}
+          />
+        </>
+      ) : null}
 
       <main className={cn(modulePaneStackClass, 'flex-col')}>
         <header className={cn(moduleColumnHeaderShellBarClass, 'justify-start gap-3 border-b border-border')}>
+          <ModuleLeftSidebarToggle
+            collapsed={leftSidebarCollapsed}
+            onCollapsedChange={setLeftSidebarCollapsed}
+          />
           <span className="shrink-0 font-semibold text-foreground">{t('tasks.shell.title')}</span>
           {headerTitle ? (
             <span className="min-w-0 truncate text-muted-foreground">· {headerTitle}</span>
+          ) : null}
+          {searchActive ? (
+            <div className="flex min-w-0 max-w-[14rem] items-center gap-1 rounded-md border border-border bg-secondary/60 px-1.5 py-0.5 text-xs text-foreground">
+              <span className="min-w-0 truncate" title={listSearchQuery.trim()}>
+                {listSearchQuery.trim()}
+              </span>
+              <button
+                type="button"
+                className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                onClick={clearListSearch}
+                title={t('tasks.shell.searchClear')}
+                aria-label={t('tasks.shell.searchClear')}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
           ) : null}
           <TasksViewModeSwitcher
             contentViewMode={contentViewMode}
@@ -1521,7 +1563,7 @@ type TaskContextMenuEvent = Pick<
                   </div>
                 ) : (
                   <TasksKanbanPane
-                    items={displayItems}
+                    items={filteredDisplayItems}
                     accounts={taskAccounts}
                     filter={listViewPrefs.filter}
                     chrono={listViewPrefs.chrono}
@@ -1626,7 +1668,7 @@ type TaskContextMenuEvent = Pick<
                     </div>
                   ) : (
                     <TasksGroupedList
-                      items={displayItems}
+                      items={filteredDisplayItems}
                       accounts={taskAccounts}
                       arrange={listViewPrefs.arrange}
                       chrono={listViewPrefs.chrono}
@@ -1684,6 +1726,7 @@ type TaskContextMenuEvent = Pick<
                     onFcViewChange={setCalendarFcView}
                     fullCalendarRef={tasksCalendarRef}
                     listFilter={listViewPrefs.filter}
+                    searchQuery={listSearchQuery}
                     dateMode={calendarDateMode}
                     onViewMeta={(meta): void => setCalendarTitle(meta.title)}
                     onRequestCreate={openCreateTaskDialog}

@@ -59,6 +59,8 @@ export function pickInitialMessageId(
 }
 
 export function snapshotMailNavForPersist(state: MailNavPersistSlice): void {
+  // Suchansicht nicht als letzte Navigation speichern (kein restorable Scope).
+  if (state.listKind === 'search') return
   writeLastMailNav({
     v: 1,
     listKind: state.listKind,

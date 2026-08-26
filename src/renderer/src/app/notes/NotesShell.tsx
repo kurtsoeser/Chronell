@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
-import { DndContext, PointerSensor, closestCorners, useSensor, useSensors } from '@dnd-kit/core'
+import { DndContext } from '@dnd-kit/core'
 import { useTranslation } from 'react-i18next'
 import type { NoteEntityLinkedItem } from '@shared/note-entity-links'
 import type { NotePageTemplateEditorState } from '@/components/NotePageTemplateEditDialog'
@@ -21,10 +21,16 @@ import { useNotesLinkedPreview } from '@/app/notes/shell/use-notes-linked-previe
 import { useNotesListData } from '@/app/notes/shell/use-notes-list-data'
 import { useNotesPageActions } from '@/app/notes/shell/use-notes-page-actions'
 import { useNotesShellLayout } from '@/app/notes/shell/use-notes-shell-layout'
+import { useNotesShellDnd } from '@/app/notes/shell/use-notes-shell-dnd'
 import {
   moduleColumnHeaderShellBarClass,
   moduleColumnHeaderTitleClass
 } from '@/components/ModuleColumnHeader'
+import { ModuleLeftSidebarToggle } from '@/components/ModuleLeftSidebarToggle'
+import {
+  NOTES_LEFT_SIDEBAR_COLLAPSED_KEY,
+  useModuleLeftSidebarCollapsed
+} from '@/lib/module-left-sidebar-collapsed'
 import { useDateFnsLocale } from '@/lib/date-fns-locale'
 import { useCustomNotePageTemplates } from '@/hooks/use-custom-note-page-templates'
 import { useExitingIds } from '@/lib/use-exiting-ids'
@@ -49,6 +55,9 @@ export function NotesShell(): JSX.Element {
 
   const list = useNotesListData(accounts, editingNoteIdRef)
   const layout = useNotesShellLayout(list.notesSettings)
+  const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useModuleLeftSidebarCollapsed(
+    NOTES_LEFT_SIDEBAR_COLLAPSED_KEY
+  )
 
   const editor = useNotesEditorSession({
     notes: list.notes,
@@ -165,7 +174,14 @@ export function NotesShell(): JSX.Element {
     })
   }, [editor, list])
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
+  const shellDnd = useNotesShellDnd({
+    sections: list.sections,
+    notes: list.notes,
+    listMode: list.listMode,
+    setNavSelection: list.setNavSelection,
+    onSectionsChanged: list.onSectionsChanged,
+    load: list.load
+  })
 
   const linkedPreviewPane =
     editor.editing != null ? (
@@ -188,19 +204,30 @@ export function NotesShell(): JSX.Element {
 
   return (
     <section className={moduleShellClass}>
-      <NotesShellNavColumn list={list} layout={layout} accounts={accounts} />
-
-      <VerticalSplitter
-        variant="moduleNav"
-        ariaLabel={t('common.moduleNavSplitter')}
-        onDrag={(delta): void => layout.setNavWidth((w) => w + delta)}
-      />
-
       {layout.shellView === 'calendar' ? (
-        <div className={cn(modulePaneStackClass, 'flex-row')}>
+        <>
+          {!leftSidebarCollapsed ? (
+            <>
+              <NotesShellNavColumn list={list} layout={layout} accounts={accounts} draggingSectionId={null} />
+
+              <VerticalSplitter
+                variant="moduleNav"
+                ariaLabel={t('common.moduleNavSplitter')}
+                onDrag={(delta): void => layout.setNavWidth((w) => w + delta)}
+              />
+            </>
+          ) : null}
+
+          <div className={cn(modulePaneStackClass, 'flex-row')}>
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
             <header className={cn(moduleColumnHeaderShellBarClass, 'shrink-0 border-b border-border')}>
-              <div className={moduleColumnHeaderTitleClass}>{t('notes.shell.selectNote')}</div>
+              <div className="flex min-w-0 items-center gap-2">
+                <ModuleLeftSidebarToggle
+                  collapsed={leftSidebarCollapsed}
+                  onCollapsedChange={setLeftSidebarCollapsed}
+                />
+                <div className={moduleColumnHeaderTitleClass}>{t('notes.shell.selectNote')}</div>
+              </div>
               <div className="flex min-w-0 shrink-0 items-center gap-1.5">
                 <NotesShellSearch
                   sections={list.sections}
@@ -246,12 +273,32 @@ export function NotesShell(): JSX.Element {
           ) : null}
           {linkedPreviewPane}
         </div>
+        </>
       ) : (
         <DndContext
-          sensors={sensors}
-          collisionDetection={closestCorners}
-          onDragEnd={pageActions.handleNoteDragEnd}
+          sensors={shellDnd.sensors}
+          collisionDetection={shellDnd.collisionDetection}
+          onDragStart={shellDnd.onDragStart}
+          onDragEnd={shellDnd.onDragEnd}
+          onDragCancel={shellDnd.onDragCancel}
         >
+          {!leftSidebarCollapsed ? (
+            <>
+              <NotesShellNavColumn
+                list={list}
+                layout={layout}
+                accounts={accounts}
+                draggingSectionId={shellDnd.draggingSectionId}
+              />
+
+              <VerticalSplitter
+                variant="moduleNav"
+                ariaLabel={t('common.moduleNavSplitter')}
+                onDrag={(delta): void => layout.setNavWidth((w) => w + delta)}
+              />
+            </>
+          ) : null}
+
           <div className={cn(modulePaneStackClass, 'flex-row')}>
             <aside
               className="flex min-h-0 shrink-0 flex-col border-r border-border"
@@ -266,6 +313,15 @@ export function NotesShell(): JSX.Element {
                 loading={list.loading}
                 activeNoteId={editor.editing?.id ?? null}
                 selectedNoteIds={list.pagesSelection.selectedIds}
+                searchActive={list.searchActive}
+                onClearSearch={list.clearListSearch}
+                emptyMessage={list.searchActive ? t('notes.shell.emptySearch') : undefined}
+                headerLeading={
+                  <ModuleLeftSidebarToggle
+                    collapsed={leftSidebarCollapsed}
+                    onCollapsedChange={setLeftSidebarCollapsed}
+                  />
+                }
                 onOpenNote={(note, e): void => {
                   list.pagesSelection.handlePointerDown(note.id, {
                     shiftKey: e.shiftKey,

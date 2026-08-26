@@ -1,5 +1,8 @@
 import DOMPurify from 'dompurify'
-import { promoteIframeSourcesToLinksInHtml } from '@shared/calendar-event-body-html'
+import {
+  linkifyBareUrlsInHtmlFragment,
+  promoteIframeSourcesToLinksInHtml
+} from '@shared/calendar-event-body-html'
 import { NOTE_INK_HTML_SOURCE_ATTR } from '@shared/note-ink-document'
 import { NOTE_CLOUD_TASK_HTML_ATTRS } from '@shared/note-cloud-task'
 import { NOTE_FORM_FIELD_SANITIZE_ATTRS } from '@shared/note-form-field'
@@ -132,6 +135,15 @@ export function sanitizeComposeHtmlFragment(html: string): string {
   return sanitizeHtmlFragment(html, SANITIZE)
 }
 
+/** HTML fuer Versand/Entwurf: bereinigen und nackte URLs in klickbare Links umwandeln. */
+export function prepareComposeOutgoingHtmlFragment(html: string): string {
+  const trimmed = html.trim()
+  if (!trimmed) return ''
+  return linkifyBareUrlsInHtmlFragment(
+    sanitizeComposeHtmlFragment(promoteIframeSourcesToLinksInHtml(trimmed))
+  )
+}
+
 /** HTML fuer Notizen-Editor inkl. eingebetteter Medien bereinigen. */
 export function sanitizeNoteEditorHtmlFragment(html: string): string {
   return sanitizeHtmlFragment(html, NOTE_EDITOR_SANITIZE)
@@ -140,7 +152,9 @@ export function sanitizeNoteEditorHtmlFragment(html: string): string {
 /** HTML fuer TipTap-Compose: bereinigen und unaufloesbare cid:-Bilder neutralisieren. */
 export function prepareComposeEditorHtml(html: string): string {
   return stripUnresolvedCidUrls(
-    sanitizeComposeHtmlFragment(promoteIframeSourcesToLinksInHtml(html))
+    linkifyBareUrlsInHtmlFragment(
+      sanitizeComposeHtmlFragment(promoteIframeSourcesToLinksInHtml(html))
+    )
   )
 }
 

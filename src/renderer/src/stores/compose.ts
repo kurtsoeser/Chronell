@@ -14,7 +14,7 @@ import {
   withForwardPrefix,
   withReplyPrefix
 } from '@/lib/compose-helpers'
-import { sanitizeComposeHtmlFragment } from '@/lib/sanitize-compose-html'
+import { prepareComposeOutgoingHtmlFragment } from '@/lib/sanitize-compose-html'
 import { initialSignatureForAccount } from '@/lib/signature-templates'
 import type { ConnectionsCanvasCreateAnchor } from '@/app/connections/connections-canvas-create'
 import { useAccountsStore } from '@/stores/accounts'
@@ -208,22 +208,28 @@ interface ComposeOutgoingBundle {
   referenceAttachments: ComposeReferenceAttachment[] | undefined
 }
 
+function plainComposeToHtml(plain: string): string {
+  return prepareComposeOutgoingHtmlFragment(
+    `<p>${plain
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/\n/g, '<br>')}</p>`
+  )
+}
+
 function buildComposeOutgoingBundle(draft: ComposeDraft): ComposeOutgoingBundle {
   const to = parseRecipients(draft.to)
   const cc = parseRecipients(draft.cc)
   const bcc = parseRecipients(draft.bcc)
 
   const userHtml = draft.prependRichHtml.trim()
-    ? draft.prependRichHtml
+    ? prepareComposeOutgoingHtmlFragment(draft.prependRichHtml)
     : draft.prependPlain
-      ? `<p>${draft.prependPlain
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/\n/g, '<br>')}</p>`
+      ? plainComposeToHtml(draft.prependPlain)
       : ''
   const sigRaw = draft.signatureRichHtml.trim()
-  const sigHtml = sigRaw ? sanitizeComposeHtmlFragment(sigRaw) : ''
+  const sigHtml = sigRaw ? prepareComposeOutgoingHtmlFragment(sigRaw) : ''
   const sigBlock = sigHtml ? `<p></p>${sigHtml}` : ''
   const rawBodyHtml = userHtml + sigBlock + draft.quotedHtml
 

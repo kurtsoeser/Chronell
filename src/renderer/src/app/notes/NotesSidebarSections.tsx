@@ -1,13 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import {
-  DndContext,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-  type DragStartEvent
-} from '@dnd-kit/core'
-import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { ChevronDown, ChevronRight, FolderPlus, GripVertical } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -17,8 +9,6 @@ import { showAppConfirm } from '@/stores/app-dialog'
 import {
   buildNoteSectionTree,
   isDescendantNoteSection,
-  noteSectionParentId,
-  orderedNoteSectionSiblingIds,
   type NoteSectionTreeNode
 } from '@/lib/notes-section-tree'
 import {
@@ -32,14 +22,7 @@ import {
 } from '@/lib/notes-nav-selection'
 import { collectDistinctNoteCategories, countPinnedNotes } from '@/lib/note-category-account'
 import { outlookCategoryDotClass } from '@/lib/outlook-category-colors'
-import {
-  NOTE_DROP_UNGROUPED,
-  createNoteSectionSiblingCollisionDetection,
-  noteSectionDragId,
-  noteSectionDropId,
-  parseNoteSectionDragId,
-  resolveNoteSectionReorderOverId
-} from '@/lib/notes-sidebar-dnd'
+import { NOTE_DROP_UNGROUPED, noteSectionDragId, noteSectionDropId } from '@/lib/notes-sidebar-dnd'
 import { buildNotesSectionContextMenuItems } from '@/lib/notes-section-context-menu'
 import { NotesDropZone } from '@/app/notes/notes-dnd-ui'
 import { NoteSectionIconColorFooter } from '@/app/notes/NoteSectionIconColorFooter'
@@ -296,6 +279,7 @@ export function NotesSidebarSections({
   selection,
   onSelectScope,
   onSectionsChanged,
+  draggingSectionId,
   embedded = false
 }: {
   sections: NoteSection[]
@@ -303,6 +287,7 @@ export function NotesSidebarSections({
   selection: NotesNavSelection
   onSelectScope: (scope: NotesSectionsNavScope) => void
   onSectionsChanged: () => void
+  draggingSectionId: number | null
   embedded?: boolean
 }): JSX.Element {
   const { t } = useTranslation()
@@ -317,17 +302,6 @@ export function NotesSidebarSections({
     y: number
     section: NoteSection
   } | null>(null)
-  const [draggingSectionId, setDraggingSectionId] = useState<number | null>(null)
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
-  )
-
-  const sectionCollisionDetection = useMemo(
-    () => createNoteSectionSiblingCollisionDetection(sections),
-    [sections]
-  )
-
   const tree = useMemo(() => buildNoteSectionTree(sections, notes), [sections, notes])
   const ungroupedCount = tree.ungroupedNotes.length
   const pinnedCount = countPinnedNotes(notes)
@@ -380,46 +354,6 @@ export function NotesSidebarSections({
     },
     [onSectionsChanged, t]
   )
-
-  const reorderSections = useCallback(
-    async (parentId: number | null, orderedIds: number[]): Promise<void> => {
-      await window.mailClient.notes.sections.reorder({ parentId, orderedIds })
-      onSectionsChanged()
-    },
-    [onSectionsChanged]
-  )
-
-  const handleSectionDragStart = useCallback((ev: DragStartEvent): void => {
-    const activeId = parseNoteSectionDragId(String(ev.active.id))
-    if (activeId != null) setDraggingSectionId(activeId)
-  }, [])
-
-  const handleSectionDragEnd = useCallback(
-    (ev: DragEndEvent): void => {
-      setDraggingSectionId(null)
-      const activeId = parseNoteSectionDragId(String(ev.active.id))
-      if (activeId == null || !ev.over) return
-
-      const overId = resolveNoteSectionReorderOverId(String(ev.over.id))
-      if (overId == null || activeId === overId) return
-
-      const parentId = noteSectionParentId(activeId, sections)
-      const overParentId = noteSectionParentId(overId, sections)
-      if (parentId !== overParentId) return
-
-      const ids = orderedNoteSectionSiblingIds(parentId, sections)
-      const oldIndex = ids.indexOf(activeId)
-      const newIndex = ids.indexOf(overId)
-      if (oldIndex < 0 || newIndex < 0) return
-
-      void reorderSections(parentId, arrayMove(ids, oldIndex, newIndex))
-    },
-    [reorderSections, sections]
-  )
-
-  const handleSectionDragCancel = useCallback((): void => {
-    setDraggingSectionId(null)
-  }, [])
 
   const openContextMenu = useCallback((section: NoteSection, event: React.MouseEvent): void => {
     event.preventDefault()
@@ -590,15 +524,7 @@ export function NotesSidebarSections({
         {tree.roots.length === 0 && sections.length === 0 ? (
           <p className="px-2 py-3 text-xs text-muted-foreground">{t('notes.shell.noSectionsYet')}</p>
         ) : (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={sectionCollisionDetection}
-            onDragStart={handleSectionDragStart}
-            onDragEnd={handleSectionDragEnd}
-            onDragCancel={handleSectionDragCancel}
-          >
-            <SortableSectionList nodes={tree.roots} {...sectionRowProps} />
-          </DndContext>
+          <SortableSectionList nodes={tree.roots} {...sectionRowProps} />
         )}
 
         {categoryNames.length > 0 ? (

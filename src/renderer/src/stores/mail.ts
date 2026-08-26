@@ -104,6 +104,10 @@ interface MailState {
   /** Virtuelle Meta-Ordner (Such-/Filteransichten, alle Konten). */
   metaFolders: MetaFolderSummary[]
   selectedMetaFolderId: number | null
+  /** Aktive Volltextsuche (`listKind === 'search'`). */
+  mailSearchQuery: string
+  /** Gesetzt bei Detail-Suche (Outlook-Felder); sonst null. */
+  mailAdvancedSearch: import('@shared/types').AdvancedMailSearchCriteria | null
   /** Kategorie-Ansicht (wie Suchordner, aus `message_tags`). */
   selectedCategoryAccountId: string | null
   selectedCategoryName: string | null
@@ -125,6 +129,18 @@ interface MailState {
   selectWaitingView: (opts?: SelectMailNavOptions) => Promise<void>
   selectUnifiedInbox: (opts?: SelectMailNavOptions) => Promise<void>
   selectMetaFolder: (metaFolderId: number, opts?: SelectMailNavOptions) => Promise<void>
+  /**
+   * Volltextsuche als Listenfilter: zeigt nur Treffer (ueber alle Ordner/Konten).
+   * Query mit weniger als 2 Zeichen wird ignoriert.
+   */
+  selectSearchView: (query: string, opts?: SelectMailNavOptions) => Promise<void>
+  /** Outlook-aehnliche Detail-Suche als Listenfilter. */
+  selectAdvancedSearchView: (
+    criteria: import('@shared/types').AdvancedMailSearchCriteria,
+    opts?: SelectMailNavOptions
+  ) => Promise<void>
+  /** Beendet die Suchansicht und stellt die letzte Navigation wieder her. */
+  clearMailSearch: () => Promise<void>
   selectCategory: (
     accountId: string | null,
     categoryName: string,
@@ -275,6 +291,8 @@ export const useMailStore = create<MailState>((set, get) => ({
   unifiedInboxUnreadDbCount: null,
   metaFolders: [],
   selectedMetaFolderId: null,
+  mailSearchQuery: '',
+  mailAdvancedSearch: null,
   selectedCategoryAccountId: null,
   selectedCategoryName: null,
   selectedMessageId: null,
@@ -324,6 +342,7 @@ export const useMailStore = create<MailState>((set, get) => ({
           state.listKind === 'unified_inbox' ||
           state.listKind === 'meta_folder' ||
           state.listKind === 'category' ||
+          state.listKind === 'search' ||
           state.listKind === 'todo' ||
           state.listKind === 'snoozed' ||
           state.listKind === 'waiting'
@@ -471,6 +490,27 @@ export const useMailStore = create<MailState>((set, get) => ({
             await reconcileSelectionAfterMessagesReload(messages, prior, set, get)
           } catch (e) {
             console.error('[mail-store] category on mail:changed', e)
+          }
+          return
+        }
+
+        if (state.listKind === 'search') {
+          try {
+            const prior = get()
+            const adv = prior.mailAdvancedSearch
+            const hits = adv
+              ? await window.mailClient.mail.searchAdvanced(adv, 200)
+              : prior.mailSearchQuery.trim().length >= 2
+                ? await window.mailClient.mail.search(prior.mailSearchQuery.trim(), 200)
+                : []
+            const messages: MailListItem[] = hits.map(
+              ({ folderName: _fn, folderWellKnown: _fw, ...item }) => item
+            )
+            set({ messages })
+            if (reloadThreads) void loadCrossFolderThreadsUnified(messages, set)
+            await reconcileSelectionAfterMessagesReload(messages, prior, set, get)
+          } catch (e) {
+            console.error('[mail-store] search on mail:changed', e)
           }
           return
         }
@@ -628,6 +668,8 @@ export const useMailStore = create<MailState>((set, get) => ({
       selectedMetaFolderId: null,
       selectedCategoryAccountId: null,
       selectedCategoryName: null,
+      mailSearchQuery: '',
+      mailAdvancedSearch: null,
       selectedMessageId: null,
       selectedMessage: null,
       expandedThreads: new Set<string>(),
@@ -694,6 +736,8 @@ export const useMailStore = create<MailState>((set, get) => ({
       selectedMetaFolderId: null,
       selectedCategoryAccountId: null,
       selectedCategoryName: null,
+      mailSearchQuery: '',
+      mailAdvancedSearch: null,
       selectedMessageId: null,
       selectedMessage: null,
       expandedThreads: new Set<string>(),
@@ -747,6 +791,8 @@ export const useMailStore = create<MailState>((set, get) => ({
       selectedMetaFolderId: null,
       selectedCategoryAccountId: null,
       selectedCategoryName: null,
+      mailSearchQuery: '',
+      mailAdvancedSearch: null,
       selectedMessageId: null,
       selectedMessage: null,
       expandedThreads: new Set<string>(),
@@ -797,6 +843,8 @@ export const useMailStore = create<MailState>((set, get) => ({
       selectedMetaFolderId: null,
       selectedCategoryAccountId: null,
       selectedCategoryName: null,
+      mailSearchQuery: '',
+      mailAdvancedSearch: null,
       selectedMessageId: null,
       selectedMessage: null,
       expandedThreads: new Set<string>(),
@@ -847,6 +895,8 @@ export const useMailStore = create<MailState>((set, get) => ({
       selectedMetaFolderId: null,
       selectedCategoryAccountId: null,
       selectedCategoryName: null,
+      mailSearchQuery: '',
+      mailAdvancedSearch: null,
       selectedMessageId: null,
       selectedMessage: null,
       expandedThreads: new Set<string>(),
@@ -904,6 +954,8 @@ export const useMailStore = create<MailState>((set, get) => ({
       selectedMetaFolderId: metaFolderId,
       selectedCategoryAccountId: null,
       selectedCategoryName: null,
+      mailSearchQuery: '',
+      mailAdvancedSearch: null,
       selectedMessageId: null,
       selectedMessage: null,
       expandedThreads: new Set<string>(),
@@ -963,6 +1015,8 @@ export const useMailStore = create<MailState>((set, get) => ({
       selectedMetaFolderId: null,
       selectedCategoryAccountId: accountId ?? null,
       selectedCategoryName: name,
+      mailSearchQuery: '',
+      mailAdvancedSearch: null,
       selectedMessageId: null,
       selectedMessage: null,
       expandedThreads: new Set<string>(),
@@ -1002,6 +1056,169 @@ export const useMailStore = create<MailState>((set, get) => ({
     } catch (e) {
       set({ loading: false, error: e instanceof Error ? e.message : String(e) })
     }
+  },
+
+  async selectSearchView(query: string, opts?: SelectMailNavOptions): Promise<void> {
+    const q = query.trim()
+    if (q.length < 2) return
+
+    const scope: MailListViewScopeInput = {
+      listKind: 'search',
+      todoDueKind: null,
+      selectedFolderAccountId: null,
+      selectedFolderId: null,
+      selectedMetaFolderId: null
+    }
+    set({
+      listKind: 'search',
+      todoDueKind: null,
+      selectedFolderId: null,
+      selectedFolderAccountId: null,
+      selectedMetaFolderId: null,
+      selectedCategoryAccountId: null,
+      selectedCategoryName: null,
+      mailSearchQuery: q,
+      mailAdvancedSearch: null,
+      selectedMessageId: null,
+      selectedMessage: null,
+      expandedThreads: new Set<string>(),
+      collapsedMailListGroupKeys: new Set<string>(),
+      threadMessages: {},
+      messages: [],
+      loading: true,
+      error: null,
+      ...mailListViewPrefsFields(scope)
+    })
+
+    void window.mailClient.mail.setActiveFolder(null).catch((err) => logIpcError('mail.setActiveFolder', err))
+
+    try {
+      const hits = await window.mailClient.mail.search(q, 200)
+      const messages: MailListItem[] = hits.map(
+        ({ folderName: _folderName, folderWellKnown: _folderWellKnown, ...item }) => item
+      )
+      set({ messages, loading: false })
+      void loadCrossFolderThreadsUnified(messages, set)
+
+      const pick = pickInitialMessageId(messages, opts?.preferredMessageId ?? null)
+      if (pick != null) {
+        await get().selectMessage(pick)
+      }
+    } catch (e) {
+      set({ loading: false, error: e instanceof Error ? e.message : String(e) })
+    }
+  },
+
+  async selectAdvancedSearchView(
+    criteria: import('@shared/types').AdvancedMailSearchCriteria,
+    opts?: SelectMailNavOptions
+  ): Promise<void> {
+    const scope: MailListViewScopeInput = {
+      listKind: 'search',
+      todoDueKind: null,
+      selectedFolderAccountId: null,
+      selectedFolderId: null,
+      selectedMetaFolderId: null
+    }
+    const labelBits = [
+      criteria.fromContains?.trim(),
+      criteria.toContains?.trim(),
+      criteria.subjectContains?.trim(),
+      criteria.keywords?.trim()
+    ].filter(Boolean)
+    const q = labelBits.join(' ') || '…'
+    set({
+      listKind: 'search',
+      todoDueKind: null,
+      selectedFolderId: null,
+      selectedFolderAccountId: null,
+      selectedMetaFolderId: null,
+      selectedCategoryAccountId: null,
+      selectedCategoryName: null,
+      mailSearchQuery: q,
+      mailAdvancedSearch: { ...criteria },
+      selectedMessageId: null,
+      selectedMessage: null,
+      expandedThreads: new Set<string>(),
+      collapsedMailListGroupKeys: new Set<string>(),
+      threadMessages: {},
+      messages: [],
+      loading: true,
+      error: null,
+      ...mailListViewPrefsFields(scope)
+    })
+
+    void window.mailClient.mail.setActiveFolder(null).catch((err) => logIpcError('mail.setActiveFolder', err))
+
+    try {
+      const hits = await window.mailClient.mail.searchAdvanced(criteria, 200)
+      const messages: MailListItem[] = hits.map(
+        ({ folderName: _folderName, folderWellKnown: _folderWellKnown, ...item }) => item
+      )
+      set({ messages, loading: false })
+      void loadCrossFolderThreadsUnified(messages, set)
+
+      const pick = pickInitialMessageId(messages, opts?.preferredMessageId ?? null)
+      if (pick != null) {
+        await get().selectMessage(pick)
+      }
+    } catch (e) {
+      set({ loading: false, error: e instanceof Error ? e.message : String(e) })
+    }
+  },
+
+  async clearMailSearch(): Promise<void> {
+    if (get().listKind !== 'search') {
+      set({ mailSearchQuery: '', mailAdvancedSearch: null })
+      return
+    }
+
+    const knownAccountIds = new Set(Object.keys(get().foldersByAccount))
+    const metaIds = new Set(get().metaFolders.map((m) => m.id))
+    const stored = readLastMailNav()
+    if (stored && lastMailNavIsRestorable(stored, get().foldersByAccount, knownAccountIds, metaIds)) {
+      try {
+        switch (stored.listKind) {
+          case 'folder':
+            if (stored.folderAccountId != null && stored.folderId != null) {
+              await get().selectFolder(stored.folderAccountId, stored.folderId)
+              return
+            }
+            break
+          case 'todo':
+            await get().selectTodoView(stored.todoDueKind)
+            return
+          case 'snoozed':
+            await get().selectSnoozedView()
+            return
+          case 'waiting':
+            await get().selectWaitingView()
+            return
+          case 'unified_inbox':
+            await get().selectUnifiedInbox()
+            return
+          case 'meta_folder':
+            if (stored.metaFolderId != null) {
+              await get().selectMetaFolder(stored.metaFolderId)
+              return
+            }
+            break
+          case 'category': {
+            const name = stored.categoryName?.trim()
+            if (name) {
+              await get().selectCategory(stored.categoryAccountId ?? null, name)
+              return
+            }
+            break
+          }
+          default:
+            break
+        }
+      } catch (e) {
+        console.warn('[mail-store] clearMailSearch restore failed', e)
+      }
+    }
+    await get().selectUnifiedInbox()
   },
 
   async createMetaFolder(input: MetaFolderCreateInput): Promise<MetaFolderSummary> {
@@ -1185,6 +1402,17 @@ export const useMailStore = create<MailState>((set, get) => ({
         await reloadCrossAccountView(() =>
           window.mailClient.mail.listCategoryMessages({ accountId: acc, category: name, limit: 300 })
         )
+      } else if (st.listKind === 'search') {
+        const adv = st.mailAdvancedSearch
+        const q = st.mailSearchQuery.trim()
+        await reloadCrossAccountView(async () => {
+          const hits = adv
+            ? await window.mailClient.mail.searchAdvanced(adv, 200)
+            : q.length >= 2
+              ? await window.mailClient.mail.search(q, 200)
+              : []
+          return hits.map(({ folderName: _fn, folderWellKnown: _fw, ...item }) => item)
+        })
       }
     } catch (e) {
       set({ error: e instanceof Error ? e.message : String(e) })
@@ -1200,7 +1428,12 @@ export const useMailStore = create<MailState>((set, get) => ({
       set({ selectedMessageId: messageId, selectedMessage: full })
       return
     }
-    if (state.listKind === 'unified_inbox' || state.listKind === 'meta_folder' || state.listKind === 'category') {
+    if (
+      state.listKind === 'unified_inbox' ||
+      state.listKind === 'meta_folder' ||
+      state.listKind === 'category' ||
+      state.listKind === 'search'
+    ) {
       await get().selectMessage(messageId)
       return
     }

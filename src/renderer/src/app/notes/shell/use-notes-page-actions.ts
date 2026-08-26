@@ -1,11 +1,9 @@
 import { useCallback } from 'react'
-import type { DragEndEvent } from '@dnd-kit/core'
 import type { ConnectedAccount, UserNote, UserNoteListItem } from '@shared/types'
 import { noteTitle } from '@/app/notes/notes-display-helpers'
 import { clearLastOpenedNoteIdIfMatches } from '@/app/notes/notes-last-opened-note-storage'
 import { resolveNoteCategoryAccountId } from '@/lib/note-category-account'
 import { safeMoveNoteToParent, safeSetNoteCategories, safeSetNotePinned } from '@/lib/notes-ipc-client'
-import { parseNoteDragId, parseNoteNavDropId } from '@/lib/notes-sidebar-dnd'
 import type { NotesNavSelection } from '@/lib/notes-nav-selection'
 import type { NotesSidebarListMode } from '@/lib/notes-sidebar-storage'
 import { showAppConfirm } from '@/stores/app-dialog'
@@ -260,27 +258,6 @@ export function useNotesPageActions({
     [listMode, load, setNavSelection, setError]
   )
 
-  const handleNoteDragEnd = useCallback(
-    (ev: DragEndEvent): void => {
-      if (listMode !== 'sections') return
-      const noteId = parseNoteDragId(String(ev.active.id))
-      if (noteId == null || !ev.over) return
-      const drop = parseNoteNavDropId(String(ev.over.id))
-      if (!drop || !('sectionId' in drop)) return
-      const note = notes.find((n) => n.id === noteId)
-      if (!note) return
-      const targetSectionId = drop.sectionId
-      if ((note.sectionId ?? null) === targetSectionId) return
-      void window.mailClient.notes.moveToSection({ noteId, sectionId: targetSectionId }).then(() => {
-        setNavSelection({
-          kind: 'sections',
-          scope: targetSectionId == null ? 'ungrouped' : { sectionId: targetSectionId }
-        })
-      })
-    },
-    [listMode, notes, setNavSelection]
-  )
-
   return {
     deleteNote,
     deleteCheckedNotes,
@@ -288,7 +265,6 @@ export function useNotesPageActions({
     togglePinNote,
     createSubPage,
     moveNoteToParent,
-    moveNote,
-    handleNoteDragEnd
+    moveNote
   }
 }

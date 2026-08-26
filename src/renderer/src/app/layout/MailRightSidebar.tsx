@@ -13,13 +13,21 @@ import {
 import { cn } from '@/lib/utils'
 import {
   ModuleColumnHeaderIconButton,
+  moduleColumnHeaderActionsClass,
   moduleColumnHeaderDockBarRowClass,
   moduleColumnHeaderIconGlyphClass,
   moduleColumnHeaderUppercaseLabelClass
 } from '@/components/ModuleColumnHeader'
 import { InboxCalendarSidebar } from '@/app/layout/InboxCalendarSidebar'
 import { MailRightSidebarDashboard } from '@/app/layout/mail-right-sidebar/MailRightSidebarDashboard'
-import { MailCalendarDaySidebar } from '@/app/layout/mail-right-sidebar/MailCalendarDaySidebar'
+import { MailCalendarDaySidebar, type MailCalendarSidebarTodayHeaderState } from '@/app/layout/mail-right-sidebar/MailCalendarDaySidebar'
+import { MailCalendarDayViewModeToggle } from '@/app/layout/mail-right-sidebar/MailCalendarDayViewModeToggle'
+import { MailCalendarGoToTodayIconButton } from '@/app/layout/mail-right-sidebar/MailCalendarGoToTodayIconButton'
+import {
+  readMailCalendarSidebarViewMode,
+  writeMailCalendarSidebarViewMode,
+  type MailCalendarSidebarViewMode
+} from '@/app/layout/mail-right-sidebar/mail-right-sidebar-calendar-view-mode'
 import { MailContactDetailsSidebar } from '@/app/layout/mail-right-sidebar/MailContactDetailsSidebar'
 import { MailTasksSidebar } from '@/app/layout/mail-right-sidebar/MailTasksSidebar'
 import { MailNotesSidebar } from '@/app/layout/mail-right-sidebar/MailNotesSidebar'
@@ -75,12 +83,20 @@ export function MailRightSidebar({
   const { t } = useTranslation()
 
   const [activeTab, setActiveTab] = useState<MailRightSidebarTab>(() => readActiveTab())
+  const [dayViewMode, setDayViewMode] = useState<MailCalendarSidebarViewMode>(() =>
+    readMailCalendarSidebarViewMode()
+  )
+  const [dayTodayHeaderState, setDayTodayHeaderState] =
+    useState<MailCalendarSidebarTodayHeaderState | null>(null)
   const [mountedTabs, setMountedTabs] = useState<Set<MailRightSidebarTab>>(
     () => new Set([readActiveTab()])
   )
   useEffect(() => {
     writeActiveTab(activeTab)
   }, [activeTab])
+  useEffect(() => {
+    writeMailCalendarSidebarViewMode(dayViewMode)
+  }, [dayViewMode])
   useEffect(() => {
     setMountedTabs((prev) => {
       if (prev.has(activeTab)) return prev
@@ -96,41 +112,61 @@ export function MailRightSidebar({
         {
           id: 'dashboard' as const,
           icon: LayoutDashboard,
-          label: t('mail.rightSidebar.tabs.dashboard'),
-          content: <MailRightSidebarDashboard />
+          label: t('mail.rightSidebar.tabs.dashboard')
         },
         {
           id: 'agenda' as const,
           icon: CalendarDays,
-          label: t('mail.rightSidebar.tabs.agenda'),
-          content: <InboxCalendarSidebar hideChrome />
+          label: t('mail.rightSidebar.tabs.agenda')
         },
         {
           id: 'day' as const,
           icon: Calendar1,
-          label: t('mail.rightSidebar.tabs.day'),
-          content: <MailCalendarDaySidebar />
+          label: t('mail.rightSidebar.tabs.day')
         },
         {
           id: 'contact' as const,
           icon: UserRound,
-          label: t('mail.rightSidebar.tabs.contact'),
-          content: <MailContactDetailsSidebar />
+          label: t('mail.rightSidebar.tabs.contact')
         },
         {
           id: 'tasks' as const,
           icon: CheckSquare,
-          label: t('mail.rightSidebar.tabs.tasks'),
-          content: <MailTasksSidebar />
+          label: t('mail.rightSidebar.tabs.tasks')
         },
         {
           id: 'notes' as const,
           icon: NotebookPen,
-          label: t('mail.rightSidebar.tabs.notes'),
-          content: <MailNotesSidebar />
+          label: t('mail.rightSidebar.tabs.notes')
         }
       ] as const,
     [t]
+  )
+
+  const renderTabContent = useCallback(
+    (tabId: MailRightSidebarTab): JSX.Element => {
+      switch (tabId) {
+        case 'dashboard':
+          return <MailRightSidebarDashboard />
+        case 'agenda':
+          return <InboxCalendarSidebar hideChrome />
+        case 'day':
+          return (
+            <MailCalendarDaySidebar
+              viewMode={dayViewMode}
+              onViewModeChange={setDayViewMode}
+              onTodayHeaderStateChange={setDayTodayHeaderState}
+            />
+          )
+        case 'contact':
+          return <MailContactDetailsSidebar />
+        case 'tasks':
+          return <MailTasksSidebar />
+        case 'notes':
+          return <MailNotesSidebar />
+      }
+    },
+    [dayViewMode]
   )
 
   const active = useMemo(
@@ -145,6 +181,8 @@ export function MailRightSidebar({
       case 'agenda':
         return t('mail.rightSidebar.titleAgenda')
       case 'day':
+        if (dayViewMode === 'week') return t('mail.rightSidebar.titleWeek')
+        if (dayViewMode === 'month') return t('mail.rightSidebar.titleMonth')
         return t('mail.rightSidebar.titleDay')
       case 'contact':
         return t('mail.rightSidebar.titleContact')
@@ -155,7 +193,7 @@ export function MailRightSidebar({
       default:
         return t('mail.rightSidebar.title')
     }
-  }, [active.id, t])
+  }, [active.id, dayViewMode, t])
 
   const onTabClick = useCallback((tab: MailRightSidebarTab): void => {
     setActiveTab(tab)
@@ -164,23 +202,45 @@ export function MailRightSidebar({
   return (
     <aside className={cn('flex h-full min-h-0 shrink-0 flex-col border-0')}>
       {!hideChrome ? (
-        <div className={moduleColumnHeaderDockBarRowClass}>
-          <span className={moduleColumnHeaderUppercaseLabelClass}>{title}</span>
-          {onRequestUndock ? (
-            <ModuleColumnHeaderIconButton
-              title={t('mail.rightSidebar.undockTitle')}
-              onClick={onRequestUndock}
-            >
-              <SquareArrowOutUpRight className={moduleColumnHeaderIconGlyphClass} />
-            </ModuleColumnHeaderIconButton>
+        <div className={cn(moduleColumnHeaderDockBarRowClass, 'relative')}>
+          <span className={cn(moduleColumnHeaderUppercaseLabelClass, 'relative z-10 min-w-0 shrink')}>
+            {title}
+          </span>
+          {activeTab === 'day' ? (
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-2">
+              <div className="pointer-events-auto">
+                <MailCalendarDayViewModeToggle
+                  viewMode={dayViewMode}
+                  onChange={setDayViewMode}
+                />
+              </div>
+            </div>
           ) : null}
-          {onRequestClose ? (
-            <ModuleColumnHeaderIconButton
-              title={t('mail.rightSidebar.hideTitle')}
-              onClick={onRequestClose}
-            >
-              <PanelRightClose className={moduleColumnHeaderIconGlyphClass} />
-            </ModuleColumnHeaderIconButton>
+          {onRequestUndock || onRequestClose || (activeTab === 'day' && dayTodayHeaderState) ? (
+            <div className={cn(moduleColumnHeaderActionsClass, 'relative z-10 ml-auto')}>
+              {activeTab === 'day' && dayTodayHeaderState ? (
+                <MailCalendarGoToTodayIconButton
+                  disabled={dayTodayHeaderState.isViewingToday}
+                  onClick={dayTodayHeaderState.goToToday}
+                />
+              ) : null}
+              {onRequestUndock ? (
+                <ModuleColumnHeaderIconButton
+                  title={t('mail.rightSidebar.undockTitle')}
+                  onClick={onRequestUndock}
+                >
+                  <SquareArrowOutUpRight className={moduleColumnHeaderIconGlyphClass} />
+                </ModuleColumnHeaderIconButton>
+              ) : null}
+              {onRequestClose ? (
+                <ModuleColumnHeaderIconButton
+                  title={t('mail.rightSidebar.hideTitle')}
+                  onClick={onRequestClose}
+                >
+                  <PanelRightClose className={moduleColumnHeaderIconGlyphClass} />
+                </ModuleColumnHeaderIconButton>
+              ) : null}
+            </div>
           ) : null}
         </div>
       ) : null}
@@ -196,7 +256,7 @@ export function MailRightSidebar({
               )}
               aria-hidden={tab.id !== activeTab}
             >
-              {tab.content}
+              {renderTabContent(tab.id)}
             </div>
           ) : null
         )}

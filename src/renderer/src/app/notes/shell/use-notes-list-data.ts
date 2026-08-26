@@ -31,6 +31,7 @@ import { invalidateNoteGetByIdCache } from '@/lib/note-get-by-id-cache'
 import { LOCAL_NOTES_ACCOUNT_KEY, buildNoteAccountBuckets } from '@/lib/notes-sidebar-accounts'
 import { useIdBulkSelection } from '@/lib/id-bulk-selection'
 import { useNotesSettingsPrefs } from '@/lib/use-notes-settings-prefs'
+import { useNotesListSearchStore } from '@/stores/notes-list-search'
 import {
   applyNotesMiniCalendarRange,
   clearNotesDateRange,
@@ -44,6 +45,8 @@ export function useNotesListData(
 ) {
   const { t, i18n } = useTranslation()
   const notesSettings = useNotesSettingsPrefs()
+  const listSearchQuery = useNotesListSearchStore((s) => s.query)
+  const clearListSearch = useNotesListSearchStore((s) => s.clear)
   const initialDateRange = useMemo(() => initialNotesDateRangeFromPrefs(), [])
 
   const [notes, setNotes] = useState<UserNoteListItem[]>([])
@@ -76,8 +79,24 @@ export function useNotesListData(
   const load = useCallback(async (): Promise<void> => {
     setLoading(true)
     try {
+      const kinds = noteKindsForFilter(notesSettings.defaultNoteKindsFilter)
+      const searchQ = listSearchQuery.trim()
+      if (searchQ.length >= 2) {
+        const hits = await window.mailClient.notes.search({
+          query: searchQ,
+          kinds,
+          limit: 100
+        })
+        setNotes(hits)
+        try {
+          setSections(await window.mailClient.notes.sections.list())
+        } catch {
+          /* keep previous sections */
+        }
+        return
+      }
       const result = await window.mailClient.notes.listShellBootstrap({
-        kinds: noteKindsForFilter(notesSettings.defaultNoteKindsFilter),
+        kinds,
         accountIds: [],
         dateFrom: dateFrom ? startOfDay(parseISO(dateFrom)).toISOString() : null,
         dateTo: dateTo ? endOfDay(parseISO(dateTo)).toISOString() : null,
@@ -97,7 +116,14 @@ export function useNotesListData(
     } finally {
       setLoading(false)
     }
-  }, [dateFrom, dateTo, notesSettings.defaultNoteKindsFilter, notesSettings.notesListFetchLimit, scheduledOnlyFilter])
+  }, [
+    dateFrom,
+    dateTo,
+    listSearchQuery,
+    notesSettings.defaultNoteKindsFilter,
+    notesSettings.notesListFetchLimit,
+    scheduledOnlyFilter
+  ])
 
   const scheduleNotesListReload = useCallback((): void => {
     if (notesChangedReloadTimerRef.current != null) {
@@ -269,9 +295,11 @@ export function useNotesListData(
     [dateFrom, dateTo, i18n.language]
   )
 
+  const searchActive = listSearchQuery.trim().length >= 2
+
   const pagesNotes = useMemo(
-    () => notesForNavSelection(notes, navSelection),
-    [notes, navSelection]
+    () => (searchActive ? notes : notesForNavSelection(notes, navSelection)),
+    [notes, navSelection, searchActive]
   )
 
   const untitledLabel = t('notes.shell.untitled')
@@ -286,6 +314,7 @@ export function useNotesListData(
   const pagesSelection = useIdBulkSelection(
     useMemo(() => pagesNotes.map((n) => n.id), [pagesNotes]),
     useMemo(() => {
+      if (searchActive) return `search:${listSearchQuery.trim()}:${pagesSort}`
       const scopeKey =
         navSelection.kind === 'sections'
           ? typeof navSelection.scope === 'object'
@@ -297,7 +326,7 @@ export function useNotesListData(
       if (navSelection.kind === 'accounts')
         return `acc:${navSelection.accountKey}:${pagesSort}:${dateFrom}:${dateTo}`
       return `sec:${scopeKey}:${pagesSort}:${dateFrom}:${dateTo}`
-    }, [navSelection, pagesSort, dateFrom, dateTo])
+    }, [navSelection, pagesSort, dateFrom, dateTo, searchActive, listSearchQuery])
   )
 
   const showSectionLabelsInPages =
@@ -305,8 +334,11 @@ export function useNotesListData(
     (navSelection.kind === 'sections' && navSelection.scope === 'all')
 
   const pagesColumnTitle = useMemo(
-    () => navSelectionLabel(navSelection, sections, accounts, t),
-    [navSelection, sections, accounts, t]
+    () =>
+      searchActive
+        ? t('notes.shell.searchTitle', { query: listSearchQuery.trim() })
+        : navSelectionLabel(navSelection, sections, accounts, t),
+    [searchActive, listSearchQuery, navSelection, sections, accounts, t]
   )
 
   const togglePageCollapse = useCallback((note: UserNoteListItem): void => {
@@ -356,6 +388,9 @@ export function useNotesListData(
     pagesColumnTitle,
     categoryColorByName,
     togglePageCollapse,
-    expandParentPage
+    expandParentPage,
+    listSearchQuery,
+    searchActive,
+    clearListSearch
   }
 }

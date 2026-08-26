@@ -94,6 +94,8 @@ export interface TasksCalendarPaneProps {
   fullCalendarRef?: Ref<FullCalendar | null>
   onViewMeta?: (meta: { title: string; viewType: string; currentStart: Date }) => void
   listFilter?: TaskListFilter
+  /** Textfilter (Titel/Notizen), analog Listenansicht. */
+  searchQuery?: string
   dateMode: CloudTaskCalendarDateMode
   className?: string
   onRequestCreate?: (range: CalendarCreateRange | null) => void
@@ -113,6 +115,7 @@ export function TasksCalendarPane({
   fullCalendarRef,
   onViewMeta,
   listFilter = 'all',
+  searchQuery = '',
   dateMode,
   className,
   onRequestCreate,
@@ -200,11 +203,29 @@ export function TasksCalendarPane({
 
   const applyRangeFilter = useCallback(
     (items: CloudTaskListItem[], planned: typeof plannedByKey, start: Date, end: Date) => {
+      const q = searchQuery.trim().toLowerCase()
+      const tokens =
+        q.length >= 2 ? q.split(/\s+/).filter((t) => t.length > 0) : ([] as string[])
+      const textFiltered =
+        tokens.length === 0
+          ? items
+          : items.filter((item) => {
+              const hay = `${item.title} ${item.notes ?? ''}`.toLowerCase()
+              return tokens.every((token) => hay.includes(token))
+            })
       setRangeItems(
-        filterCloudTasksInCalendarRange(items, planned, start, end, listFilter, timeZone, dateMode)
+        filterCloudTasksInCalendarRange(
+          textFiltered,
+          planned,
+          start,
+          end,
+          listFilter,
+          timeZone,
+          dateMode
+        )
       )
     },
-    [listFilter, timeZone, dateMode]
+    [listFilter, timeZone, dateMode, searchQuery]
   )
 
   const loadRange = useCallback(

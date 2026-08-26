@@ -280,6 +280,16 @@ export async function googleFetchContactsForSync(
   return googleListConnectionsPages({ accountId, mode: 'full' })
 }
 
+function googlePhoneTypeFromLocal(type: string): string {
+  const kind = type.trim().toLowerCase()
+  if (kind.includes('mobile') || kind === 'cell' || kind.includes('mobil')) return 'mobile'
+  if (kind.includes('home') || kind.includes('privat')) return 'home'
+  if (kind.includes('business') || kind.includes('work') || kind.includes('geschäft') || kind.includes('geschaeft')) {
+    return 'work'
+  }
+  return 'other'
+}
+
 function buildGoogleUpdateBody(patch: PeopleUpdateContactPatch): people_v1.Schema$Person {
   const body: people_v1.Schema$Person = {}
   if (
@@ -308,7 +318,7 @@ function buildGoogleUpdateBody(patch: PeopleUpdateContactPatch): people_v1.Schem
   if (patch.phones !== undefined) {
     body.phoneNumbers = (patch.phones ?? []).map((p) => ({
       value: p.value.trim(),
-      type: p.type || 'mobile'
+      type: googlePhoneTypeFromLocal(p.type)
     }))
   }
   if (

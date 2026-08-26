@@ -96,6 +96,11 @@ const AccountSetupTasksPanel = lazy(
 const AccountSetupCalendarPanel = lazy(
   () => import('@/components/account-setup/AccountSetupCalendarPanel')
 )
+const SettingsCalendarTemplatesSection = lazy(() =>
+  import('@/components/account-setup/SettingsCalendarTemplatesSection').then((m) => ({
+    default: m.SettingsCalendarTemplatesSection
+  }))
+)
 const SettingsAiConnectionsSection = lazy(() =>
   import('@/components/account-setup/SettingsAiConnectionsSection').then((m) => ({
     default: m.SettingsAiConnectionsSection
@@ -619,6 +624,7 @@ export function AccountSetupDialog({
           { id: 'layers', label: t('settings.calendarLayersHeading') },
           { id: 'panels', label: t('settings.calendarPanelsHeading') },
           { id: 'timeline', label: t('settings.calendarTimelineHeading') },
+          { id: 'templates', label: t('settings.calendarTemplates.heading') },
           { id: 'advanced', label: t('settings.calendarAdvancedHeading') },
           { id: 'timezone', label: t('settings.calendarTzHeading') },
           { id: 'bookWithMe', label: t('settings.bookWithMeHeading') },
@@ -2572,6 +2578,12 @@ export function AccountSetupDialog({
 
           {activeTab === 'calendar' && (
             <div role="tabpanel" aria-label={t('settings.tabCalendar')} className="space-y-5">
+              {subNavId.calendar === 'templates' && (
+                <Suspense fallback={<AccountSetupPanelFallback />}>
+                  <SettingsCalendarTemplatesSection />
+                </Suspense>
+              )}
+
               {(subNavId.calendar === 'workspace' ||
                 subNavId.calendar === 'display' ||
                 subNavId.calendar === 'layers' ||

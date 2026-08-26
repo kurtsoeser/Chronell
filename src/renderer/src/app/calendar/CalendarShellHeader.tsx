@@ -8,7 +8,9 @@ import {
   ChevronRight,
   PanelLeft,
   PanelLeftClose,
-  Plus
+  Plus,
+  Search,
+  X
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -71,6 +73,10 @@ export interface CalendarShellHeaderProps {
   newEventDisabled?: boolean
   /** .ics-Datei importieren (Dateidialog). */
   onImportIcsClick?: () => void
+  /** Aktiver Ereignis-Textfilter (Topbar oder /). */
+  eventSearchQuery?: string
+  onClearEventSearch?: () => void
+  onOpenEventSearch?: () => void
 }
 
 export function CalendarShellHeader(props: CalendarShellHeaderProps): JSX.Element {
@@ -105,8 +111,13 @@ export function CalendarShellHeader(props: CalendarShellHeaderProps): JSX.Elemen
     onLeftSidebarCollapsedChange,
     onNewEventClick,
     newEventDisabled,
-    onImportIcsClick
+    onImportIcsClick,
+    eventSearchQuery,
+    onClearEventSearch,
+    onOpenEventSearch
   } = props
+
+  const eventSearchActive = Boolean(eventSearchQuery?.trim())
 
   const collatorLocale = useCollatorLocale()
   const sidebarHiddenRestoreGroups = useMemo(() => {
@@ -254,6 +265,29 @@ export function CalendarShellHeader(props: CalendarShellHeaderProps): JSX.Elemen
         >
           {t('calendar.header.today')}
         </button>
+
+        {eventSearchActive ? (
+          <div className="flex min-w-0 max-w-[14rem] items-center gap-1 rounded-md border border-border bg-secondary/60 px-1.5 py-0.5 text-xs text-foreground">
+            <button
+              type="button"
+              className="flex min-w-0 items-center gap-1 hover:text-foreground"
+              onClick={onOpenEventSearch}
+              title={t('calendar.shell.eventSearchTitle')}
+            >
+              <Search className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden />
+              <span className="min-w-0 truncate">{eventSearchQuery!.trim()}</span>
+            </button>
+            <button
+              type="button"
+              className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
+              onClick={onClearEventSearch}
+              title={t('calendar.shell.eventSearchClear')}
+              aria-label={t('calendar.shell.eventSearchClear')}
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        ) : null}
 
         <div className="relative shrink-0" ref={viewMenuRef}>
           <button

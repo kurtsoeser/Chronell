@@ -58,7 +58,19 @@ export function CalendarEventSearchDialog({
         <p className="text-xs leading-snug text-muted-foreground">
           {t('calendar.shell.eventSearchHint')}
         </p>
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
+          {query.trim() ? (
+            <button
+              type="button"
+              className="rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
+              onClick={(): void => {
+                onQueryChange('')
+                onClose()
+              }}
+            >
+              {t('calendar.shell.eventSearchClear')}
+            </button>
+          ) : null}
           <button
             type="button"
             className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"

@@ -6,18 +6,22 @@ import type { ZoomShortcutIntent } from '@shared/zoom-shortcut-keys'
 const MAIL_CHANGED_RENDERER_DEBOUNCE_MS = 200
 const CALENDAR_CHANGED_RENDERER_DEBOUNCE_MS = 350
 const TASKS_CHANGED_RENDERER_DEBOUNCE_MS = 350
+const PEOPLE_CHANGED_RENDERER_DEBOUNCE_MS = 350
 
 const mailChangedHandlers = new Set<(payload: MailChangedPayload) => void>()
 const calendarChangedHandlers = new Set<(payload: { accountId: string }) => void>()
 const tasksChangedHandlers = new Set<(payload: { accountId: string }) => void>()
+const peopleChangedHandlers = new Set<(payload: { accountId: string }) => void>()
 
 const pendingMailChangedByAccount = new Map<string, MailChangedPayload>()
 const pendingCalendarChangedAccounts = new Set<string>()
 const pendingTasksChangedAccounts = new Set<string>()
+const pendingPeopleChangedAccounts = new Set<string>()
 
 let mailChangedRendererFlushTimer: ReturnType<typeof setTimeout> | null = null
 let calendarChangedRendererFlushTimer: ReturnType<typeof setTimeout> | null = null
 let tasksChangedRendererFlushTimer: ReturnType<typeof setTimeout> | null = null
+let peopleChangedRendererFlushTimer: ReturnType<typeof setTimeout> | null = null
 
 function flushMailChangedToHandlers(): void {
   mailChangedRendererFlushTimer = null
@@ -75,6 +79,25 @@ function scheduleTasksChangedRendererFlush(): void {
   )
 }
 
+function flushPeopleChangedToHandlers(): void {
+  peopleChangedRendererFlushTimer = null
+  if (pendingPeopleChangedAccounts.size === 0) return
+  const accountIds = [...pendingPeopleChangedAccounts]
+  pendingPeopleChangedAccounts.clear()
+  for (const accountId of accountIds) {
+    const payload = { accountId }
+    for (const handler of peopleChangedHandlers) handler(payload)
+  }
+}
+
+function schedulePeopleChangedRendererFlush(): void {
+  if (peopleChangedRendererFlushTimer != null) return
+  peopleChangedRendererFlushTimer = setTimeout(
+    flushPeopleChangedToHandlers,
+    PEOPLE_CHANGED_RENDERER_DEBOUNCE_MS
+  )
+}
+
 ipcRenderer.on('mail:changed', (_e: IpcRendererEvent, payload: MailChangedPayload) => {
   const prev = pendingMailChangedByAccount.get(payload.accountId)
   pendingMailChangedByAccount.set(
@@ -101,6 +124,12 @@ ipcRenderer.on('tasks:changed', (_e: IpcRendererEvent, payload: { accountId: str
   scheduleTasksChangedRendererFlush()
 })
 
+ipcRenderer.on('people:changed', (_e: IpcRendererEvent, payload: { accountId: string }) => {
+  if (!payload?.accountId) return
+  pendingPeopleChangedAccounts.add(payload.accountId)
+  schedulePeopleChangedRendererFlush()
+})
+
 const zoomShortcutHandlers = new Set<
   (intent: import('@shared/zoom-shortcut-keys').ZoomShortcutIntent) => void
 >()
@@ -117,5 +146,6 @@ export {
   mailChangedHandlers,
   calendarChangedHandlers,
   tasksChangedHandlers,
+  peopleChangedHandlers,
   zoomShortcutHandlers
 }

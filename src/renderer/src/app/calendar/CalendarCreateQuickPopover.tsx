@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { addDays, addMinutes, format, parseISO, startOfDay } from 'date-fns'
 import { useTranslation } from 'react-i18next'
 import type { ChronellEntityRef } from '@shared/entity-ref'
-import { Calendar as CalendarIcon, CheckSquare, FileText, Loader2, Paperclip, X } from 'lucide-react'
+import { Calendar as CalendarIcon, CheckSquare, FileText, LayoutTemplate, Loader2, Paperclip, Video, X } from 'lucide-react'
 import type {
   CalendarEventView,
   CalendarGraphCalendarRow,
@@ -43,6 +43,10 @@ import { cloudTaskAccountOptionLabel } from '@/lib/cloud-task-accounts'
 import { CalendarEventAttachmentsPanel } from '@/app/calendar/CalendarEventAttachmentsPanel'
 import { useCalendarEventAttachments } from '@/app/calendar/useCalendarEventAttachments'
 import { cn } from '@/lib/utils'
+import {
+  readCalendarEventTemplates,
+  type CalendarEventTemplate
+} from '@/lib/calendar-event-templates-storage'
 
 export type CalendarCreateQuickKind = 'event' | 'task'
 
@@ -54,6 +58,11 @@ export type CalendarCreateQuickDraft = {
   graphCalendarId: string
   taskListId: string
   isAllDay: boolean
+  createPrefill?: {
+    location?: string
+    descriptionHtml?: string
+    teamsMeeting?: boolean
+  }
 }
 
 function pickDefaultTaskListId(rows: TaskListRow[]): string | null {
@@ -71,6 +80,14 @@ function resolvePreferredTaskAccountId(
   const stored = readTasksCalendarCreateAccountId()
   if (stored && taskAccounts.some((a) => a.id === stored)) return stored
   return taskAccounts[0]?.id ?? ''
+}
+
+function buildWebinarDescriptionHtml(t: (key: string) => string): string {
+  return [
+    `<p><strong>${t('calendar.quickCreate.webinarTemplateHeading')}</strong></p>`,
+    `<ul><li>${t('calendar.quickCreate.webinarTemplateAgenda')}</li><li>${t('calendar.quickCreate.webinarTemplateQa')}</li></ul>`,
+    `<p>${t('calendar.quickCreate.webinarTemplateJoinHint')}</p>`
+  ].join('')
 }
 
 export interface CalendarCreateQuickPopoverProps {
@@ -144,6 +161,20 @@ export function CalendarCreateQuickPopover({
     () => calendarAccounts.find((a) => a.id === accountId),
     [calendarAccounts, accountId]
   )
+  const supportsTeamsWebinar = createKind === 'event' && selectedCalendarAccount?.provider === 'microsoft'
+  const availableTemplates = useMemo(
+    () => (createKind === 'event' ? readCalendarEventTemplates() : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [createKind, accountId]
+  )
+  const [templateDropdownOpen, setTemplateDropdownOpen] = useState(false)
+
+  useEffect(() => {
+    if (!templateDropdownOpen) return
+    function close(): void { setTemplateDropdownOpen(false) }
+    document.addEventListener('mousedown', close)
+    return (): void => document.removeEventListener('mousedown', close)
+  }, [templateDropdownOpen])
 
   const eventAttachmentsApi = useCalendarEventAttachments({
     account: selectedCalendarAccount,
@@ -446,6 +477,31 @@ export function CalendarCreateQuickPopover({
     } finally {
       setBusy(false)
     }
+  }
+
+  function handleOpenDetails(asWebinar: boolean, template?: CalendarEventTemplate): void {
+    onOpenDetails({
+      createKind,
+      subject: subject.trim() || (template?.defaultSubject ?? ''),
+      range: currentRange,
+      accountId: createKind === 'event' ? accountId : taskAccountId,
+      graphCalendarId,
+      taskListId,
+      isAllDay,
+      createPrefill: template
+        ? {
+            location: template.defaultLocation,
+            teamsMeeting: template.teamsMeeting,
+            descriptionHtml: template.descriptionHtml
+          }
+        : asWebinar && supportsTeamsWebinar
+          ? {
+              location: '',
+              teamsMeeting: true,
+              descriptionHtml: buildWebinarDescriptionHtml(t)
+            }
+          : undefined
+    })
   }
 
   const panelW = 320
@@ -792,24 +848,61 @@ export function CalendarCreateQuickPopover({
         {error ? <p className="text-xs text-destructive">{error}</p> : null}
 
         <div className="flex items-center justify-between gap-2 border-t border-border pt-2">
-          <button
-            type="button"
-            disabled={busy}
-            onClick={(): void =>
-              onOpenDetails({
-                createKind,
-                subject: subject.trim(),
-                range: currentRange,
-                accountId: createKind === 'event' ? accountId : taskAccountId,
-                graphCalendarId,
-                taskListId,
-                isAllDay
-              })
-            }
-            className="text-sm font-medium text-primary hover:underline disabled:opacity-50"
-          >
-            {t('calendar.quickCreate.detailsLink')}
-          </button>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={(): void => handleOpenDetails(false)}
+              className="text-sm font-medium text-primary hover:underline disabled:opacity-50"
+            >
+              {t('calendar.quickCreate.detailsLink')}
+            </button>
+            {/* Template-Dropdown */}
+            {availableTemplates.length > 0 && (
+              <div className="relative" onMouseDown={(e): void => e.stopPropagation()}>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={(): void => setTemplateDropdownOpen((p) => !p)}
+                  className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
+                >
+                  <LayoutTemplate className="h-3.5 w-3.5" />
+                  {t('calendar.quickCreate.templateButton')}
+                </button>
+                {templateDropdownOpen && (
+                  <div className="absolute bottom-9 left-0 z-30 min-w-[190px] rounded-md border border-border bg-popover shadow-lg">
+                    {availableTemplates.map((tpl) => (
+                      <button
+                        key={tpl.id}
+                        type="button"
+                        onMouseDown={(e): void => e.stopPropagation()}
+                        onClick={(): void => handleOpenDetails(false, tpl)}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs hover:bg-secondary"
+                      >
+                        <span className="shrink-0 text-sm leading-none">{tpl.emoji || '📅'}</span>
+                        <span className="min-w-0 flex-1 truncate font-medium">{tpl.name}</span>
+                        {tpl.teamsMeeting && <Video className="h-3 w-3 shrink-0 text-blue-500" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            {supportsTeamsWebinar ? (
+              <button
+                type="button"
+                disabled={busy || isAllDay}
+                onClick={(): void => handleOpenDetails(true)}
+                className={cn(
+                  'inline-flex items-center gap-1 rounded-md border border-blue-500/30 bg-blue-500/10 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-500/15 dark:text-blue-300',
+                  (busy || isAllDay) && 'cursor-not-allowed opacity-50'
+                )}
+              >
+                <Video className="h-3.5 w-3.5" />
+                {t('calendar.quickCreate.webinarButton')}
+              </button>
+            ) : null}
+          </div>
           <button
             type="button"
             disabled={!canSave}

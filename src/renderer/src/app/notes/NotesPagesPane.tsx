@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { Loader2 } from 'lucide-react'
+import { Loader2, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { NoteSection, UserNoteListItem } from '@shared/types'
 import type { NotePageTemplateId } from '@/lib/note-page-templates'
@@ -45,7 +45,11 @@ export function NotesPagesPane({
   pagesSort,
   onPagesSortChange,
   showSectionLabels = false,
-  headerTrailing
+  headerLeading,
+  headerTrailing,
+  searchActive = false,
+  onClearSearch,
+  emptyMessage
 }: {
   title: string
   pageRows: NotesPageFlatRow[]
@@ -73,7 +77,11 @@ export function NotesPagesPane({
   pagesSort: NotesPagesSortKey
   onPagesSortChange: (key: NotesPagesSortKey) => void
   showSectionLabels?: boolean
+  headerLeading?: React.ReactNode
   headerTrailing?: React.ReactNode
+  searchActive?: boolean
+  onClearSearch?: () => void
+  emptyMessage?: string
 }): JSX.Element {
   const { t } = useTranslation()
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; note: UserNoteListItem } | null>(
@@ -144,7 +152,21 @@ export function NotesPagesPane({
   return (
     <div className="flex h-full min-h-0 flex-col bg-card">
       <header className={moduleColumnHeaderShellBarClass}>
-        <div className={cn(moduleColumnHeaderTitleClass, 'min-w-0 truncate')}>{title}</div>
+        <div className="flex min-w-0 items-center gap-2">
+          {headerLeading}
+          <div className={cn(moduleColumnHeaderTitleClass, 'min-w-0 truncate')}>{title}</div>
+        </div>
+        {searchActive && onClearSearch ? (
+          <button
+            type="button"
+            className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
+            title={t('notes.shell.searchClear')}
+            aria-label={t('notes.shell.searchClear')}
+            onClick={onClearSearch}
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        ) : null}
         {headerTrailing}
         <NotePageCreateMenu
           onCreate={onCreateNote}
@@ -164,13 +186,17 @@ export function NotesPagesPane({
         </div>
       ) : pageRows.length === 0 ? (
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-2 py-8">
-          <p className="text-center text-xs text-muted-foreground">{t('notes.shell.pagesEmpty')}</p>
-          <NotePageCreateMenu
-            variant="button"
-            onCreate={onCreateNote}
-            creating={creating}
-            buttonLabel={t('notes.shell.newPage')}
-          />
+          <p className="text-center text-xs text-muted-foreground">
+            {emptyMessage ?? t('notes.shell.pagesEmpty')}
+          </p>
+          {!searchActive ? (
+            <NotePageCreateMenu
+              variant="button"
+              onCreate={onCreateNote}
+              creating={creating}
+              buttonLabel={t('notes.shell.newPage')}
+            />
+          ) : null}
         </div>
       ) : (
         <NotesPagesVirtualList

@@ -106,7 +106,7 @@ export function useGraphNodeContextMenu(refreshGraph: () => void | Promise<void>
         openNewTo(accountId, to)
       },
       onEditContact: async (contact): Promise<void> => {
-        usePeoplePendingFocusStore.getState().setPendingContactId(contact.id)
+        usePeoplePendingFocusStore.getState().setPendingContactFocus(contact.id, { startEdit: true })
         setAppMode('people')
       },
       onDeleteContact: async (contact): Promise<void> => {

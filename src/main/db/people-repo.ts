@@ -159,7 +159,7 @@ export function applyGoogleContactsDelta(args: {
       addresses_json = excluded.addresses_json,
       categories_json = excluded.categories_json,
       notes = excluded.notes,
-      photo_local_path = excluded.photo_local_path,
+      photo_local_path = COALESCE(excluded.photo_local_path, people_contacts.photo_local_path),
       raw_json = excluded.raw_json,
       updated_remote = excluded.updated_remote,
       updated_local = datetime('now'),
@@ -210,6 +210,105 @@ export function applyGoogleContactsDelta(args: {
          sync_cursor = excluded.sync_cursor,
          last_synced_at = excluded.last_synced_at`
     ).run(args.accountId, args.nextSyncToken)
+  })
+  tx()
+}
+
+/** Inkrementeller Microsoft-Sync: Loeschen, Upsert (Favorit bleibt erhalten), Delta-Link speichern. */
+export function applyMicrosoftContactsDelta(args: {
+  accountId: string
+  rows: PeopleContactInsertRow[]
+  deletedRemoteIds: string[]
+  nextDeltaLink: string | null
+}): void {
+  const db = getDb()
+  const favoriteRemoteIds = collectFavoriteRemoteIds(args.accountId, 'microsoft')
+
+  const upsert = db.prepare(`
+    INSERT INTO people_contacts (
+      account_id, provider, remote_id, change_key,
+      display_name, given_name, surname, company, job_title,
+      department, office_location, birthday_iso, web_page,
+      primary_email,
+      emails_json, phones_json, addresses_json, categories_json, notes,
+      photo_local_path, raw_json, updated_remote, updated_local, is_favorite
+    ) VALUES (
+      @account_id, @provider, @remote_id, @change_key,
+      @display_name, @given_name, @surname, @company, @job_title,
+      @department, @office_location, @birthday_iso, @web_page,
+      @primary_email,
+      @emails_json, @phones_json, @addresses_json, @categories_json, @notes,
+      @photo_local_path, @raw_json, @updated_remote, datetime('now'),
+      @is_favorite
+    )
+    ON CONFLICT(account_id, provider, remote_id) DO UPDATE SET
+      change_key = excluded.change_key,
+      display_name = excluded.display_name,
+      given_name = excluded.given_name,
+      surname = excluded.surname,
+      company = excluded.company,
+      job_title = excluded.job_title,
+      department = excluded.department,
+      office_location = excluded.office_location,
+      birthday_iso = excluded.birthday_iso,
+      web_page = excluded.web_page,
+      primary_email = excluded.primary_email,
+      emails_json = excluded.emails_json,
+      phones_json = excluded.phones_json,
+      addresses_json = excluded.addresses_json,
+      categories_json = excluded.categories_json,
+      notes = excluded.notes,
+      photo_local_path = COALESCE(excluded.photo_local_path, people_contacts.photo_local_path),
+      raw_json = excluded.raw_json,
+      updated_remote = excluded.updated_remote,
+      updated_local = datetime('now'),
+      is_favorite = MAX(people_contacts.is_favorite, excluded.is_favorite)
+  `)
+
+  const del = db.prepare(
+    `DELETE FROM people_contacts WHERE account_id = ? AND provider = 'microsoft' AND remote_id = ?`
+  )
+
+  const tx = db.transaction(() => {
+    for (const rid of args.deletedRemoteIds) {
+      const id = rid.trim()
+      if (id) del.run(args.accountId, id)
+    }
+    for (const r of args.rows) {
+      upsert.run({
+        account_id: r.accountId,
+        provider: 'microsoft',
+        remote_id: r.remoteId,
+        change_key: r.changeKey,
+        display_name: r.displayName,
+        given_name: r.givenName,
+        surname: r.surname,
+        company: r.company,
+        job_title: r.jobTitle,
+        department: r.department,
+        office_location: r.officeLocation,
+        birthday_iso: r.birthdayIso,
+        web_page: r.webPage,
+        primary_email: r.primaryEmail,
+        emails_json: r.emailsJson,
+        phones_json: r.phonesJson,
+        addresses_json: r.addressesJson,
+        categories_json: r.categoriesJson,
+        notes: r.notes,
+        photo_local_path: r.photoLocalPath,
+        raw_json: r.rawJson,
+        updated_remote: r.updatedRemote,
+        is_favorite: favoriteRemoteIds.has(r.remoteId) ? 1 : 0
+      })
+    }
+    db.prepare(
+      `INSERT INTO people_sync_state (account_id, provider, sync_cursor, last_synced_at)
+       VALUES (?, 'microsoft', ?, datetime('now'))
+       ON CONFLICT(account_id) DO UPDATE SET
+         provider = excluded.provider,
+         sync_cursor = excluded.sync_cursor,
+         last_synced_at = excluded.last_synced_at`
+    ).run(args.accountId, args.nextDeltaLink)
   })
   tx()
 }

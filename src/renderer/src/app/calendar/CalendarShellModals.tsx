@@ -101,7 +101,12 @@ export function CalendarShellModals({
               setEventDialog({
                 mode: 'create',
                 range: draft.range,
-                createPrefill: { subject: draft.subject, location: '' },
+                createPrefill: {
+                  subject: draft.subject,
+                  location: draft.createPrefill?.location ?? '',
+                  descriptionHtml: draft.createPrefill?.descriptionHtml,
+                  teamsMeeting: draft.createPrefill?.teamsMeeting
+                },
                 createAccountId: draft.accountId,
                 createKind: draft.createKind,
                 createGraphCalendarId: draft.graphCalendarId || undefined,
@@ -166,7 +171,6 @@ export function CalendarShellModals({
         onQueryChange={setCalendarEventSearchQuery}
         onClose={(): void => {
           setCalendarEventSearchOpen(false)
-          setCalendarEventSearchQuery('')
         }}
       />
     </>

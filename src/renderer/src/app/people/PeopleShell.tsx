@@ -39,6 +39,11 @@ import { cn } from '@/lib/utils'
 
 import { VerticalSplitter, useResizableWidth } from '@/components/ResizableSplitter'
 import { useModuleNavColumnWidth } from '@/lib/module-nav-column-width'
+import {
+  PEOPLE_LEFT_SIDEBAR_COLLAPSED_KEY,
+  useModuleLeftSidebarCollapsed
+} from '@/lib/module-left-sidebar-collapsed'
+import { ModuleLeftSidebarToggle } from '@/components/ModuleLeftSidebarToggle'
 
 import { PeopleContactDetailPanel, type PeopleContactDetailPanelHandle } from '@/app/people/PeopleContactDetailPanel'
 import { PeopleContactListAvatar } from '@/app/people/PeopleContactListAvatar'
@@ -159,6 +164,7 @@ export function PeopleShell(): JSX.Element {
   const [selected, setSelected] = useState<PeopleContactView | null>(null)
   const pendingContactId = usePeoplePendingFocusStore((s) => s.pendingContactId)
   const takePendingContactId = usePeoplePendingFocusStore((s) => s.takePendingContactId)
+  const takePendingStartEdit = usePeoplePendingFocusStore((s) => s.takePendingStartEdit)
 
   const detailPanelRef = useRef<PeopleContactDetailPanelHandle | null>(null)
 
@@ -225,6 +231,9 @@ export function PeopleShell(): JSX.Element {
 
 
   const [navWidth, setNavWidth] = useModuleNavColumnWidth()
+  const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useModuleLeftSidebarCollapsed(
+    PEOPLE_LEFT_SIDEBAR_COLLAPSED_KEY
+  )
 
   const [listColumnWidth, setListColumnWidth] = useResizableWidth({
     storageKey: 'mailclient.peopleShell.listWidth',
@@ -424,6 +433,11 @@ export function PeopleShell(): JSX.Element {
 
   }, [])
 
+  const focusContactForEdit = useCallback((contact: PeopleContactView): void => {
+    setSelected(contact)
+    window.setTimeout(() => detailPanelRef.current?.startEdit(), 0)
+  }, [])
+
   const copyContactText = useCallback(
     async (text: string): Promise<void> => {
       if (!navigator.clipboard?.writeText) {
@@ -476,10 +490,7 @@ export function PeopleShell(): JSX.Element {
           sortBy,
           onEdit: async (c): Promise<void> => {
             setContactContextMenu(null)
-            await commitDetailThen(() => {
-              setSelected(c)
-              window.setTimeout(() => detailPanelRef.current?.startEdit(), 0)
-            })
+            await commitDetailThen(() => focusContactForEdit(c))
           },
           onEmail: (c): void => {
             setContactContextMenu(null)
@@ -544,18 +555,30 @@ export function PeopleShell(): JSX.Element {
   }, [loadList])
 
   useEffect(() => {
+    const off = window.mailClient.events.onPeopleChanged(() => {
+      void loadCounts()
+      void loadList({ skipFlush: true })
+    })
+    return off
+  }, [loadCounts, loadList])
+
+  useEffect(() => {
     if (pendingContactId == null) return
     const pendingId = takePendingContactId()
+    const startEdit = takePendingStartEdit()
     if (pendingId == null) return
     const fromRows = rows.find((r) => r.id === pendingId)
     if (fromRows) {
       setSelected(fromRows)
+      if (startEdit) window.setTimeout(() => detailPanelRef.current?.startEdit(), 0)
       return
     }
     void window.mailClient.people.getById(pendingId).then((contact) => {
-      if (contact) setSelected(contact)
+      if (!contact) return
+      setSelected(contact)
+      if (startEdit) window.setTimeout(() => detailPanelRef.current?.startEdit(), 0)
     })
-  }, [pendingContactId, rows, takePendingContactId])
+  }, [pendingContactId, rows, takePendingContactId, takePendingStartEdit])
 
 
 
@@ -983,7 +1006,13 @@ export function PeopleShell(): JSX.Element {
 
   const renderContactsColumnHeader = (): JSX.Element => (
     <header className={moduleColumnHeaderShellBarClass}>
-      <div className={cn(moduleColumnHeaderTitleClass, 'min-w-0 truncate')}>{listColumnTitle}</div>
+      <div className="flex min-w-0 items-center gap-2">
+        <ModuleLeftSidebarToggle
+          collapsed={leftSidebarCollapsed}
+          onCollapsedChange={setLeftSidebarCollapsed}
+        />
+        <div className={cn(moduleColumnHeaderTitleClass, 'min-w-0 truncate')}>{listColumnTitle}</div>
+      </div>
       <div className="flex shrink-0 items-center gap-2">
         <span className="tabular-nums text-muted-foreground">
           {t('people.shell.listCount', { count: rows.length })}
@@ -1279,6 +1308,8 @@ export function PeopleShell(): JSX.Element {
 
       <div className={moduleShellClass}>
 
+        {!leftSidebarCollapsed ? (
+          <>
         <div style={{ width: navWidth }} className="h-full shrink-0">
           <aside className={cn(moduleNavColumnClass, 'h-full w-full')}>
             <div className={cn(moduleNavColumnScrollClass, 'space-y-4')}>
@@ -1448,9 +1479,11 @@ export function PeopleShell(): JSX.Element {
           ariaLabel={t('common.moduleNavSplitter')}
           onDrag={(delta): void => setNavWidth((w) => w + delta)}
         />
+          </>
+        ) : null}
 
         <div className={cn(modulePaneStackClass, 'flex-row')}>
-        {viewMode === 'list' ? (
+        {viewMode === 'list' || selected != null ? (
           <>
             <div
               style={{ width: listColumnWidth }}

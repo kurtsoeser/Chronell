@@ -4,7 +4,7 @@ import {
   mailEntityRef,
   purgeOrphanedEntityLinks
 } from './entity-links-repo'
-import type { MailFull, MailListItem } from '@shared/types'
+import type { AdvancedMailSearchCriteria, MailFull, MailListItem, SearchHit } from '@shared/types'
 import { rowToListItem, rowToFull, type MessageRow } from './messages-repo-core'
 import {
   buildSqlPhraseRankCase,
@@ -235,12 +235,6 @@ export function setMessageWaitingForReplyUntilLocal(id: number, untilIso: string
   db.prepare('UPDATE messages SET waiting_for_reply_until = ? WHERE id = ?').run(untilIso, id)
 }
 
-export interface SearchHit extends MailListItem {
-  /** Folder-Name fuer die Anzeige im Ergebnis. */
-  folderName: string | null
-  folderWellKnown: string | null
-}
-
 /**
  * FTS5-Volltextsuche ueber `subject`, `from_*`, `snippet` und `body_text` aller Mails.
  * Eingabe-Query wird zu einer Prefix-Suche pro Token gewandelt
@@ -275,6 +269,143 @@ export function searchMessages(rawQuery: string, limit = 30): SearchHit[] {
     .all(cleaned, ...(phraseRank?.params ?? []), limit) as Array<
       MessageRow & { folder_name: string | null; folder_well_known: string | null }
     >
+
+  return rows.map((r) => ({
+    ...rowToListItem(r),
+    folderName: r.folder_name,
+    folderWellKnown: r.folder_well_known
+  }))
+}
+
+function likeContainsParam(raw: string): string | null {
+  const t = raw.trim()
+  if (t.length < 2) return null
+  return `%${t.replace(/%/g, '').replace(/_/g, '')}%`
+}
+
+function dayBoundIso(raw: string, endOfDay: boolean): string | null {
+  const t = raw.trim()
+  if (!t) return null
+  const day = t.slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return null
+  return endOfDay ? `${day}T23:59:59.999Z` : `${day}T00:00:00.000Z`
+}
+
+export function advancedMailSearchCriteriaHasFilter(c: AdvancedMailSearchCriteria): boolean {
+  if (likeContainsParam(c.fromContains ?? '')) return true
+  if (likeContainsParam(c.toContains ?? '')) return true
+  if (likeContainsParam(c.ccContains ?? '')) return true
+  if (likeContainsParam(c.subjectContains ?? '')) return true
+  if (normalizeFtsTokenOrPhraseMatchQuery(c.keywords ?? '')) return true
+  if (dayBoundIso(c.dateFrom ?? '', false)) return true
+  if (dayBoundIso(c.dateTo ?? '', true)) return true
+  if (c.readStatus === 'unread' || c.readStatus === 'read') return true
+  if (c.hasAttachmentsOnly) return true
+  if ((c.scopeFolderIds ?? []).some((id) => Number.isFinite(id) && id > 0)) return true
+  return false
+}
+
+/**
+ * Outlook-aehnliche Detail-Suche: Feldfilter + optionale FTS-Schluesselwoerter.
+ */
+export function searchMessagesAdvanced(
+  criteria: AdvancedMailSearchCriteria,
+  limit = 200
+): SearchHit[] {
+  if (!advancedMailSearchCriteriaHasFilter(criteria)) return []
+
+  const clauses: string[] = []
+  const params: unknown[] = []
+  const scope = (criteria.scopeFolderIds ?? []).filter((id) => Number.isFinite(id) && id > 0)
+
+  if (scope.length > 0) {
+    clauses.push(`m.folder_id IN (${scope.map(() => '?').join(',')})`)
+    params.push(...scope)
+  } else {
+    clauses.push(
+      `(f.well_known IS NULL OR (f.well_known != 'deleteditems' AND f.well_known != 'junkemail'))`
+    )
+  }
+
+  const fromLike = likeContainsParam(criteria.fromContains ?? '')
+  if (fromLike) {
+    clauses.push(`(IFNULL(m.from_addr, '') LIKE ? OR IFNULL(m.from_name, '') LIKE ?)`)
+    params.push(fromLike, fromLike)
+  }
+  const toLike = likeContainsParam(criteria.toContains ?? '')
+  if (toLike) {
+    clauses.push(`IFNULL(m.to_addrs, '') LIKE ?`)
+    params.push(toLike)
+  }
+  const ccLike = likeContainsParam(criteria.ccContains ?? '')
+  if (ccLike) {
+    clauses.push(`IFNULL(m.cc_addrs, '') LIKE ?`)
+    params.push(ccLike)
+  }
+  const subjectLike = likeContainsParam(criteria.subjectContains ?? '')
+  if (subjectLike) {
+    clauses.push(`IFNULL(m.subject, '') LIKE ?`)
+    params.push(subjectLike)
+  }
+
+  const dateFrom = dayBoundIso(criteria.dateFrom ?? '', false)
+  if (dateFrom) {
+    clauses.push(`m.received_at IS NOT NULL AND m.received_at >= ?`)
+    params.push(dateFrom)
+  }
+  const dateTo = dayBoundIso(criteria.dateTo ?? '', true)
+  if (dateTo) {
+    clauses.push(`m.received_at IS NOT NULL AND m.received_at <= ?`)
+    params.push(dateTo)
+  }
+
+  if (criteria.readStatus === 'unread') {
+    clauses.push(`m.is_read = 0`)
+  } else if (criteria.readStatus === 'read') {
+    clauses.push(`m.is_read = 1`)
+  }
+
+  if (criteria.hasAttachmentsOnly) {
+    clauses.push(`m.has_attachments = 1`)
+  }
+
+  const fts = normalizeFtsTokenOrPhraseMatchQuery(criteria.keywords ?? '')
+  let fromSql = `FROM messages m
+       LEFT JOIN folders f ON f.id = m.folder_id`
+  if (fts) {
+    fromSql = `FROM messages_fts fts
+       JOIN messages m ON m.id = fts.rowid
+       LEFT JOIN folders f ON f.id = m.folder_id`
+    clauses.push(`messages_fts MATCH ?`)
+    params.push(fts)
+  }
+
+  const lim = Number.isFinite(limit) && limit > 0 ? Math.min(Math.floor(limit), 500) : 200
+
+  const phraseRank = fts
+    ? buildSqlPhraseRankCase('m.subject', "IFNULL(m.snippet, '')", criteria.keywords ?? '')
+    : null
+  const orderSql = phraseRank
+    ? `${phraseRank.sql}, m.received_at DESC NULLS LAST, m.id DESC`
+    : `m.received_at DESC NULLS LAST, m.id DESC`
+
+  const rows = getDb()
+    .prepare(
+      `SELECT
+         m.id, m.account_id, m.folder_id, m.thread_id, m.remote_id, m.remote_thread_id,
+         m.subject, m.from_addr, m.from_name, m.to_addrs, m.cc_addrs, m.snippet,
+         NULL as body_html, NULL as body_text,
+         m.sent_at, m.received_at, m.is_read, m.is_flagged, m.has_attachments, m.importance,
+         m.snoozed_until, m.waiting_for_reply_until, m.list_unsubscribe, m.list_unsubscribe_post,
+         f.name as folder_name, f.well_known as folder_well_known
+       ${fromSql}
+       WHERE ${clauses.join(' AND ')}
+       ORDER BY ${orderSql}
+       LIMIT ?`
+    )
+    .all(...params, ...(phraseRank?.params ?? []), lim) as Array<
+    MessageRow & { folder_name: string | null; folder_well_known: string | null }
+  >
 
   return rows.map((r) => ({
     ...rowToListItem(r),

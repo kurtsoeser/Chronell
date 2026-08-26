@@ -1,4 +1,4 @@
-import { sanitizeComposeHtmlFragment } from '@/lib/sanitize-compose-html'
+import { sanitizeComposeHtmlFragment, prepareComposeOutgoingHtmlFragment } from '@/lib/sanitize-compose-html'
 
 const STORAGE_KEY = 'mailclient.composeTextSnippets.v1'
 
@@ -206,17 +206,19 @@ export function textToComposeSnippetHtml(text: string): string {
   const trimmed = text.trim()
   if (!trimmed) return '<p></p>'
   if (/<[a-z][\s\S]*>/i.test(trimmed)) {
-    return sanitizeComposeHtmlFragment(trimmed)
+    return prepareComposeOutgoingHtmlFragment(trimmed)
   }
   const paras = trimmed.split(/\n\n+/).filter(Boolean)
   if (paras.length === 0) return '<p></p>'
-  return paras
-    .map((p) => {
-      const inner = p
-        .split('\n')
-        .map((line) => line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'))
-        .join('<br>')
-      return `<p>${inner}</p>`
-    })
-    .join('')
+  return prepareComposeOutgoingHtmlFragment(
+    paras
+      .map((p) => {
+        const inner = p
+          .split('\n')
+          .map((line) => line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'))
+          .join('<br>')
+        return `<p>${inner}</p>`
+      })
+      .join('')
+  )
 }

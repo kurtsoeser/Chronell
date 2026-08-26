@@ -1,16 +1,27 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { Locale } from 'date-fns'
-import { addDays, format, isToday, parseISO, startOfDay } from 'date-fns'
+import {
+  addDays,
+  addMonths,
+  format,
+  isToday,
+  parseISO,
+  startOfDay,
+  startOfMonth,
+  startOfWeek
+} from 'date-fns'
 import { useDateFnsLocale } from '@/lib/date-fns-locale'
 import { useTranslation } from 'react-i18next'
 import { ChevronLeft, ChevronRight, CalendarClock, Loader2 } from 'lucide-react'
 import FullCalendar from '@fullcalendar/react'
+import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
 import luxonPlugin from '@fullcalendar/luxon'
 import { useCalendarFcLocale } from '@/hooks/use-calendar-fc-locale'
 import type { DateSelectArg, EventClickArg, EventInput } from '@fullcalendar/core'
+import type { DateClickArg } from '@fullcalendar/interaction'
 import type { CalendarEventView, MailListItem, TaskListRow } from '@shared/types'
 import {
   CalendarCreateQuickPopover,
@@ -44,9 +55,18 @@ import { applyCalendarEventDomColors } from '@/lib/calendar-event-chip-style'
 import { useCalendarListByAccount } from '@/lib/use-calendar-list-by-account'
 import { useMailStore } from '@/stores/mail'
 import { openScheduleMeetingFromMail } from '@/lib/mail-schedule-meeting-action'
+import {
+  readMailCalendarSidebarViewMode,
+  writeMailCalendarSidebarViewMode,
+  type MailCalendarSidebarViewMode
+} from '@/app/layout/mail-right-sidebar/mail-right-sidebar-calendar-view-mode'
+import { MailCalendarDayViewModeToggle } from '@/app/layout/mail-right-sidebar/MailCalendarDayViewModeToggle'
+import { MailCalendarGoToTodayIconButton } from '@/app/layout/mail-right-sidebar/MailCalendarGoToTodayIconButton'
 import '@/app/calendar/notion-calendar.css'
 
 const K_DAY_ISO = 'mailclient.mailRightSidebar.dayIso'
+
+type SidebarViewMode = MailCalendarSidebarViewMode
 
 function readDay(): Date {
   try {
@@ -73,7 +93,37 @@ function formatDayTitle(d: Date, locale: Locale): string {
   return format(d, 'PPPP', { locale })
 }
 
-export function MailCalendarDaySidebar(): JSX.Element {
+function formatWeekTitle(weekStart: Date, weekEndExcl: Date, locale: Locale): string {
+  const weekEnd = addDays(weekEndExcl, -1)
+  const sameMonth = weekStart.getMonth() === weekEnd.getMonth()
+  if (sameMonth) {
+    return `${format(weekStart, 'd.', { locale })}–${format(weekEnd, 'd. MMM yyyy', { locale })}`
+  }
+  return `${format(weekStart, 'd. MMM', { locale })} – ${format(weekEnd, 'd. MMM yyyy', { locale })}`
+}
+
+function sidebarFcViewId(mode: SidebarViewMode): string {
+  if (mode === 'week') return 'timeGridWeek'
+  if (mode === 'month') return 'dayGridMonth'
+  return 'timeGridDay'
+}
+
+export type MailCalendarDaySidebarProps = {
+  viewMode?: SidebarViewMode
+  onViewModeChange?: (mode: SidebarViewMode) => void
+  onTodayHeaderStateChange?: (state: MailCalendarSidebarTodayHeaderState | null) => void
+}
+
+export type MailCalendarSidebarTodayHeaderState = {
+  isViewingToday: boolean
+  goToToday: () => void
+}
+
+export function MailCalendarDaySidebar({
+  viewMode: viewModeProp,
+  onViewModeChange,
+  onTodayHeaderStateChange
+}: MailCalendarDaySidebarProps = {}): JSX.Element {
   const { t, i18n } = useTranslation()
   const dfLocale = useDateFnsLocale()
   const calSettings = useCalendarSettingsPrefs()
@@ -114,8 +164,89 @@ export function MailCalendarDaySidebar(): JSX.Element {
   const setAppMode = useAppModeStore((s) => s.setMode)
   const selectedMessage = useMailStore((s) => s.selectedMessage)
 
-  const [day, setDay] = useState(() => readDay())
-  useEffect(() => writeDay(day), [day])
+  const [anchorDay, setAnchorDay] = useState(() => readDay())
+  const [internalViewMode, setInternalViewMode] = useState<SidebarViewMode>(() =>
+    readMailCalendarSidebarViewMode()
+  )
+  const isViewModeControlled = viewModeProp != null && onViewModeChange != null
+  const viewMode = viewModeProp ?? internalViewMode
+  useEffect(() => writeDay(anchorDay), [anchorDay])
+  useEffect(() => {
+    if (!isViewModeControlled) writeMailCalendarSidebarViewMode(internalViewMode)
+  }, [internalViewMode, isViewModeControlled])
+  useEffect(() => {
+    if (isViewModeControlled && viewModeProp != null) {
+      writeMailCalendarSidebarViewMode(viewModeProp)
+    }
+  }, [isViewModeControlled, viewModeProp])
+
+  const setViewModePersisted = useCallback(
+    (mode: SidebarViewMode): void => {
+      if (onViewModeChange) onViewModeChange(mode)
+      else setInternalViewMode(mode)
+    },
+    [onViewModeChange]
+  )
+
+  const rangeStart = useMemo(() => {
+    if (viewMode === 'week') {
+      return startOfWeek(anchorDay, { weekStartsOn: calSettings.weekStartsOn })
+    }
+    if (viewMode === 'month') return startOfMonth(anchorDay)
+    return startOfDay(anchorDay)
+  }, [anchorDay, viewMode, calSettings.weekStartsOn])
+
+  const rangeEndExcl = useMemo(() => {
+    if (viewMode === 'week') return addDays(rangeStart, 7)
+    if (viewMode === 'month') return addMonths(rangeStart, 1)
+    return addDays(rangeStart, 1)
+  }, [rangeStart, viewMode])
+
+  const isViewingToday = useMemo(() => {
+    const today = startOfDay(new Date())
+    if (viewMode === 'day') return isToday(rangeStart)
+    if (viewMode === 'week') {
+      const weekStart = startOfWeek(today, { weekStartsOn: calSettings.weekStartsOn })
+      return weekStart.getTime() === rangeStart.getTime()
+    }
+    return startOfMonth(today).getTime() === rangeStart.getTime()
+  }, [viewMode, rangeStart, calSettings.weekStartsOn])
+
+  const headerTitle = useMemo(() => {
+    if (viewMode === 'week') return formatWeekTitle(rangeStart, rangeEndExcl, dfLocale)
+    if (viewMode === 'month') {
+      return format(rangeStart, 'MMMM yyyy', { locale: dfLocale })
+    }
+    return formatDayTitle(rangeStart, dfLocale)
+  }, [viewMode, rangeStart, rangeEndExcl, dfLocale])
+
+  const shiftRange = useCallback(
+    (delta: number): void => {
+      setAnchorDay((d) => {
+        if (viewMode === 'week') return addDays(d, delta * 7)
+        if (viewMode === 'month') return addMonths(d, delta)
+        return addDays(d, delta)
+      })
+    },
+    [viewMode]
+  )
+
+  const goToToday = useCallback((): void => {
+    setAnchorDay(startOfDay(new Date()))
+  }, [])
+
+  useEffect(() => {
+    onTodayHeaderStateChange?.({ isViewingToday, goToToday })
+  }, [isViewingToday, goToToday, onTodayHeaderStateChange])
+
+  useEffect(() => {
+    return (): void => {
+      onTodayHeaderStateChange?.(null)
+    }
+  }, [onTodayHeaderStateChange])
+
+  const isTimeGridView = viewMode === 'day' || viewMode === 'week'
+  const fcViewId = sidebarFcViewId(viewMode)
 
   const [quickCreate, setQuickCreate] = useState<{
     anchor: { x: number; y: number }
@@ -149,8 +280,8 @@ export function MailCalendarDaySidebar(): JSX.Element {
     void loadAgendaFromCache(calendarLinkedAccounts)
   }, [calendarLinkedAccounts, loadAgendaFromCache])
 
-  const dayStart = useMemo(() => startOfDay(day), [day])
-  const dayEndExcl = useMemo(() => addDays(dayStart, 1), [dayStart])
+  const dayStart = rangeStart
+  const dayEndExcl = rangeEndExcl
 
   useEffect(() => {
     let cancelled = false
@@ -208,8 +339,14 @@ export function MailCalendarDaySidebar(): JSX.Element {
   }, [ensureEventRangeInCache])
 
   useEffect(() => {
-    calendarRef.current?.getApi()?.gotoDate(dayStart)
-  }, [dayStart])
+    const api = calendarRef.current?.getApi()
+    if (!api) return
+    if (api.view.type !== fcViewId) {
+      api.changeView(fcViewId, rangeStart)
+      return
+    }
+    api.gotoDate(rangeStart)
+  }, [fcViewId, rangeStart])
 
   useEffect(() => {
     const host = calendarHostRef.current
@@ -349,31 +486,71 @@ export function MailCalendarDaySidebar(): JSX.Element {
     [openCalendarEvent]
   )
 
+  const onMonthDateClick = useCallback((info: DateClickArg): void => {
+    setAnchorDay(startOfDay(info.date))
+    setViewModePersisted('day')
+  }, [setViewModePersisted])
+
+  const dayGridMonthView = useMemo(
+    () => ({
+      dayGridMonth: {
+        moreLinkClick: 'popover' as const
+      }
+    }),
+    []
+  )
+
+  const navPrevTitle =
+    viewMode === 'week'
+      ? t('calendar.eventDialog.dayColumnWeekPrev')
+      : viewMode === 'month'
+        ? t('mail.rightSidebar.dayPrevMonth')
+        : t('mail.rightSidebar.dayPrev')
+
+  const navNextTitle =
+    viewMode === 'week'
+      ? t('calendar.eventDialog.dayColumnWeekNext')
+      : viewMode === 'month'
+        ? t('mail.rightSidebar.dayNextMonth')
+        : t('mail.rightSidebar.dayNext')
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="shrink-0 border-b border-border px-3 py-2">
-        <div className="flex items-center justify-between gap-2">
+        {!isViewModeControlled ? (
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <MailCalendarDayViewModeToggle viewMode={viewMode} onChange={setViewModePersisted} />
+            <MailCalendarGoToTodayIconButton
+              variant="compact"
+              disabled={isViewingToday}
+              onClick={goToToday}
+            />
+          </div>
+        ) : null}
+        <div className="grid grid-cols-[2rem_1fr_2rem] items-center gap-1">
           <button
             type="button"
             className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
-            title={t('mail.rightSidebar.dayPrev')}
-            onClick={(): void => setDay((d) => addDays(d, -1))}
+            title={navPrevTitle}
+            onClick={(): void => shiftRange(-1)}
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
-          <div className="min-w-0 flex-1 text-center">
-            <div className="truncate text-xs font-semibold text-foreground">
-              {formatDayTitle(dayStart, dfLocale)}
-            </div>
+          <div className="min-w-0 text-center">
+            <div className="truncate text-xs font-semibold text-foreground">{headerTitle}</div>
             <div className="text-[11px] text-muted-foreground">
-              {isToday(dayStart) ? t('mail.rightSidebar.dayToday') : format(dayStart, 'yyyy-MM-dd')}
+              {viewMode === 'day' && isToday(rangeStart)
+                ? t('mail.rightSidebar.dayToday')
+                : viewMode === 'day'
+                  ? format(rangeStart, 'yyyy-MM-dd')
+                  : null}
             </div>
           </div>
           <button
             type="button"
             className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
-            title={t('mail.rightSidebar.dayNext')}
-            onClick={(): void => setDay((d) => addDays(d, 1))}
+            title={navNextTitle}
+            onClick={(): void => shiftRange(1)}
           >
             <ChevronRight className="h-4 w-4" />
           </button>
@@ -410,30 +587,36 @@ export function MailCalendarDaySidebar(): JSX.Element {
             className="calendar-notion-shell calendar-notion-shell--mail-day h-full min-h-0 flex-1"
           >
             <FullCalendar
-              key={`${i18n.language}-${calSettings.defaultTimeGridSlotMinutes}-${calSettings.slotMinTime}-${calSettings.slotMaxTime}-${calSettings.scrollTime}`}
+              key={`${i18n.language}-${viewMode}-${calSettings.defaultTimeGridSlotMinutes}-${calSettings.slotMinTime}-${calSettings.slotMaxTime}-${calSettings.scrollTime}-${calSettings.weekStartsOn}-${calSettings.hideWeekends}`}
               ref={(inst): void => {
                 calendarRef.current = inst
               }}
-              plugins={[timeGridPlugin, interactionPlugin, luxonPlugin]}
+              plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, luxonPlugin]}
               locale={fcLocale}
               height="100%"
               timeZone="local"
               headerToolbar={false}
-              initialView="timeGridDay"
-              initialDate={dayStart}
-              slotMinTime={calSettings.slotMinTime}
-              slotMaxTime={calSettings.slotMaxTime}
-              scrollTime={calSettings.scrollTime}
-              slotDuration={timeGridFcSlotOpts.slotDuration}
-              snapDuration={timeGridFcSlotOpts.snapDuration}
-              slotLabelInterval="01:00:00"
-              nowIndicator
+              initialView={fcViewId}
+              initialDate={rangeStart}
+              firstDay={calSettings.weekStartsOn}
+              weekends={!calSettings.hideWeekends}
+              slotMinTime={isTimeGridView ? calSettings.slotMinTime : undefined}
+              slotMaxTime={isTimeGridView ? calSettings.slotMaxTime : undefined}
+              scrollTime={isTimeGridView ? calSettings.scrollTime : undefined}
+              slotDuration={isTimeGridView ? timeGridFcSlotOpts.slotDuration : undefined}
+              snapDuration={isTimeGridView ? timeGridFcSlotOpts.snapDuration : undefined}
+              slotLabelInterval={isTimeGridView ? '01:00:00' : undefined}
+              nowIndicator={isTimeGridView}
+              allDaySlot={viewMode !== 'month'}
+              dayMaxEvents={viewMode === 'month'}
+              views={dayGridMonthView}
               editable={false}
               selectable={canInteractInTimeGrid}
               selectMirror={false}
               selectLongPressDelay={380}
               selectAllow={(): boolean => canInteractInTimeGrid}
               select={onSelect}
+              dateClick={viewMode === 'month' ? onMonthDateClick : undefined}
               events={fcEvents}
               eventContent={calendarFcEventContentRender}
               eventDidMount={(info): void => {

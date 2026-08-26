@@ -15,11 +15,13 @@ type Layout = ReturnType<typeof useNotesShellLayout>
 export function NotesShellNavColumn({
   list,
   layout,
-  accounts
+  accounts,
+  draggingSectionId
 }: {
   list: ListData
   layout: Layout
   accounts: ConnectedAccount[]
+  draggingSectionId: number | null
 }): JSX.Element {
   const { t } = list
 
@@ -71,6 +73,7 @@ export function NotesShellNavColumn({
               list.setNavSelection({ kind: 'accounts', accountKey })
             }
             onSectionsChanged={list.onSectionsChanged}
+            draggingSectionId={draggingSectionId}
           />
         )}
       </div>

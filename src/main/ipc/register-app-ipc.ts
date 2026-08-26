@@ -1,6 +1,6 @@
 import { ipcMain, app, BrowserWindow, Notification, type IpcMainInvokeEvent } from 'electron'
 import { APP_PRODUCT_NAME } from '@shared/app-version'
-import { IPC, type AppConnectivityState, type GlobalSearchResult } from '@shared/types'
+import { IPC, type AppConnectivityState, type GlobalSearchKind, type GlobalSearchResult } from '@shared/types'
 import { globalSearch } from '../global-search'
 import { updateConfig } from '../config'
 import { normalizeExternalOpenUrl, openExternalDeduped } from '../open-external'
@@ -20,13 +20,17 @@ export function registerAppIpc(): void {
 
   ipcMain.handle(
     IPC.app.globalSearch,
-    (_event, args: { query: string; limitPerKind?: number }): GlobalSearchResult => {
+    (
+      _event,
+      args: { query: string; limitPerKind?: number; kinds?: GlobalSearchKind[] }
+    ): GlobalSearchResult => {
       const query = typeof args?.query === 'string' ? args.query : ''
       const limitPerKind =
         typeof args?.limitPerKind === 'number' && Number.isFinite(args.limitPerKind)
           ? args.limitPerKind
           : 8
-      return globalSearch(query, limitPerKind)
+      const kinds = Array.isArray(args?.kinds) ? args.kinds : undefined
+      return globalSearch(query, limitPerKind, kinds)
     }
   )
 

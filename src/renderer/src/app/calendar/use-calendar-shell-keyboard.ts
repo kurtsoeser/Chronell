@@ -20,7 +20,6 @@ export interface UseCalendarShellKeyboardOptions {
   setGotoDateDraft: (draft: string) => void
   calendarEventSearchOpen: boolean
   setCalendarEventSearchOpen: (open: boolean) => void
-  setCalendarEventSearchQuery: (q: string) => void
   schedulingOpen: boolean
   closeSchedulingPanel: () => void
   quickCreate: { anchor: { x: number; y: number }; range: CalendarCreateRange } | null
@@ -74,7 +73,6 @@ export function useCalendarShellNavigationKeyboard(opts: UseCalendarShellKeyboar
     setGotoDateDraft,
     calendarEventSearchOpen,
     setCalendarEventSearchOpen,
-    setCalendarEventSearchQuery,
     schedulingOpen,
     closeSchedulingPanel,
     quickCreate,
@@ -104,7 +102,6 @@ export function useCalendarShellNavigationKeyboard(opts: UseCalendarShellKeyboar
         if (calendarEventSearchOpen) {
           e.preventDefault()
           setCalendarEventSearchOpen(false)
-          setCalendarEventSearchQuery('')
           return
         }
         if (schedulingOpen) {
@@ -219,7 +216,6 @@ export function useCalendarShellNavigationKeyboard(opts: UseCalendarShellKeyboar
     setGotoDateOpen,
     setGotoDateDraft,
     setCalendarEventSearchOpen,
-    setCalendarEventSearchQuery,
     setMiniMonth
   ])
 }

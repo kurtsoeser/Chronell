@@ -3,7 +3,7 @@ import { BookmarkPlus, ChevronDown, Save, Settings2, Star, Trash2 } from 'lucide
 import type { AccountSignatureTemplate } from '@shared/types'
 import { useAccountsStore } from '@/stores/accounts'
 import { showAppAlert, showAppConfirm, showAppPrompt } from '@/stores/app-dialog'
-import { sanitizeComposeHtmlFragment } from '@/lib/sanitize-compose-html'
+import { prepareComposeEditorHtml, prepareComposeOutgoingHtmlFragment } from '@/lib/sanitize-compose-html'
 import {
   newSignatureTemplateId,
   removeSignatureTemplate,
@@ -54,7 +54,7 @@ export function SignatureTemplateControls({
   const applyById = (id: string): void => {
     const tpl = templates.find((t) => t.id === id)
     if (!tpl) return
-    onSignatureHtmlChange(sanitizeComposeHtmlFragment(tpl.html))
+    onSignatureHtmlChange(prepareComposeEditorHtml(tpl.html))
     setActiveId(id)
     setApplyKey((k) => k + 1)
   }
@@ -85,7 +85,7 @@ export function SignatureTemplateControls({
       if (name === null) return
       const trimmed = name.trim()
       if (!trimmed) return
-      const html = sanitizeComposeHtmlFragment(raw)
+      const html = prepareComposeOutgoingHtmlFragment(raw)
       const id = newSignatureTemplateId()
       const next = upsertSignatureTemplate(templates, { id, name: trimmed, html })
       await persistTemplates(next)

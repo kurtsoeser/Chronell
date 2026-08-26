@@ -270,6 +270,10 @@ listFolders: (accountId: string): Promise<MailFolder[]> =>
       ipcRenderer.invoke(IPC.mail.setActiveFolder, { folderId }),
     search: (query: string, limit?: number): Promise<SearchHit[]> =>
       ipcRenderer.invoke(IPC.mail.search, { query, limit }),
+    searchAdvanced: (
+      criteria: import('@shared/types').AdvancedMailSearchCriteria,
+      limit?: number
+    ): Promise<SearchHit[]> => ipcRenderer.invoke(IPC.mail.searchAdvanced, { criteria, limit }),
     syncAccount: (accountId: string): Promise<{ folders: number; inboxMessages: number }> =>
       ipcRenderer.invoke(IPC.mail.syncAccount, accountId),
     getAccountSyncMeta: (): Promise<import('@shared/types').AccountMailSyncMeta[]> =>

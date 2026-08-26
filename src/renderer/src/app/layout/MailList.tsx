@@ -71,6 +71,7 @@ import { useCreateContactFromMailStore } from '@/stores/create-contact-from-mail
 import { StatusDot } from '@/components/StatusDot'
 import { MailListViewMenu } from '@/components/MailListViewMenu'
 import { moduleColumnHeaderMailListRowClass } from '@/components/ModuleColumnHeader'
+import { ModuleLeftSidebarToggle } from '@/components/ModuleLeftSidebarToggle'
 import { TodoDueBucketBadge } from '@/components/TodoDueBucketBadge'
 import { parseOpenTodoDueKind } from '@/lib/todo-due-bucket'
 import type { ChronellEntityRef } from '@shared/entity-ref'
@@ -104,7 +105,8 @@ import {
   MailOpen,
   Mail,
   CheckSquare,
-  Columns3
+  Columns3,
+  X
 } from 'lucide-react'
 import { resolveQuickStepHoverIcon } from '@/lib/mail-quickstep-hover-icon'
 import { runMailQuickStep } from '@/lib/run-mail-quickstep'
@@ -175,7 +177,11 @@ interface MailRowHandlers {
   ) => void
 }
 
-export function MailList(): JSX.Element {
+export function MailList(props: {
+  leftSidebarCollapsed?: boolean
+  onLeftSidebarCollapsedChange?: (collapsed: boolean) => void
+}): JSX.Element {
+  const { leftSidebarCollapsed = false, onLeftSidebarCollapsedChange } = props
   const { t } = useTranslation()
   const { ref: listPanelRef, width: listPanelWidth } = useContainerWidth<HTMLElement>()
   const tableMode = listPanelWidth >= MAIL_LIST_TABLE_BREAKPOINT_PX
@@ -201,7 +207,10 @@ export function MailList(): JSX.Element {
     syncByAccount,
     metaFolders,
     selectedMetaFolderId,
-    selectedCategoryName
+    selectedCategoryName,
+    mailSearchQuery,
+    mailAdvancedSearch,
+    clearMailSearch
   } = useMailStore(
     useShallow((s) => ({
       messages: s.messages,
@@ -216,7 +225,10 @@ export function MailList(): JSX.Element {
       syncByAccount: s.syncByAccount,
       metaFolders: s.metaFolders,
       selectedMetaFolderId: s.selectedMetaFolderId,
-      selectedCategoryName: s.selectedCategoryName
+      selectedCategoryName: s.selectedCategoryName,
+      mailSearchQuery: s.mailSearchQuery,
+      mailAdvancedSearch: s.mailAdvancedSearch,
+      clearMailSearch: s.clearMailSearch
     }))
   )
   const [aiHintsEnabled, setAiHintsEnabled] = useState(false)
@@ -516,6 +528,10 @@ export function MailList(): JSX.Element {
             ? selectedCategoryName?.trim() || 'Kategorie'
           : listKind === 'meta_folder'
             ? metaFolderTitle
+            : listKind === 'search'
+              ? mailAdvancedSearch
+                ? t('mail.list.advancedSearchTitle')
+                : t('mail.list.searchTitle', { query: mailSearchQuery })
             : listKind === 'todo'
               ? todoDueKind
                 ? t(`mail.todoViewTitle.${todoDueKind}`)
@@ -650,7 +666,7 @@ export function MailList(): JSX.Element {
     ]
   )
 
-  const listScopeKey = `${listKind}:${selectFolderId ?? ''}:${selectFolderAccountId ?? ''}:${selectedMetaFolderId ?? ''}:${selectedCategoryName ?? ''}:${todoDueKind ?? ''}:${filter}`
+  const listScopeKey = `${listKind}:${selectFolderId ?? ''}:${selectFolderAccountId ?? ''}:${selectedMetaFolderId ?? ''}:${selectedCategoryName ?? ''}:${todoDueKind ?? ''}:${mailSearchQuery}:${filter}`
   const bulkSelection = useMailListBulkSelection(visibleFlatRows, listScopeKey)
   const bulkSelectionMode = bulkSelection.selectionUiActive
 
@@ -869,6 +885,12 @@ export function MailList(): JSX.Element {
     >
       <div className={moduleColumnHeaderMailListRowClass}>
         <div className="flex min-w-0 shrink-0 items-center gap-2">
+          {onLeftSidebarCollapsedChange ? (
+            <ModuleLeftSidebarToggle
+              collapsed={leftSidebarCollapsed}
+              onCollapsedChange={onLeftSidebarCollapsedChange}
+            />
+          ) : null}
           {bulkSelectionMode ? (
             <MailListRowCheckbox
               checked={bulkSelection.allVisibleSelected}
@@ -905,6 +927,19 @@ export function MailList(): JSX.Element {
             />
           ) : null}
           <span className="shrink-0 font-semibold text-foreground">{folderTitle}</span>
+          {listKind === 'search' ? (
+            <button
+              type="button"
+              className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
+              title={t('mail.list.searchClear')}
+              aria-label={t('mail.list.searchClear')}
+              onClick={(): void => {
+                void clearMailSearch()
+              }}
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          ) : null}
           {listKind === 'unified_inbox' && unifiedInboxUnread > 0 && (
             <span className="shrink-0 rounded-full bg-primary/15 px-1.5 text-[10px] font-semibold tabular-nums text-primary">
               {unifiedInboxUnread > 999 ? '999+' : unifiedInboxUnread}
@@ -2149,6 +2184,8 @@ function EmptyHint({
             ? t('mail.list.emptyMeta')
             : listKind === 'category'
               ? 'Keine Mails in dieser Kategorie.'
+            : listKind === 'search'
+              ? t('mail.list.emptySearch')
             : t('mail.list.emptyFolder')}
       </div>
     </div>

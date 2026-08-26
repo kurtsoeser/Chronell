@@ -14,8 +14,31 @@ import { isMultiMonthFcView, multiMonthFcEventContent } from '@/app/calendar/cal
 import { appendCalendarEventIconSvg } from '@/lib/calendar-event-icon-markup'
 import { calendarEventIconIsExplicit } from '@/lib/calendar-event-icons'
 
+const SVG_NS = 'http://www.w3.org/2000/svg'
+
 const DAY_GRID_MONTH_ICON_PX = 9
 const TIME_GRID_ICON_PX = 10
+
+/** Lucide Video-Icon Pfad (24×24) – für Teams-Meeting-Marker */
+const TEAMS_VIDEO_PATH =
+  'M15 10l4.553-2.276A1 1 0 0 1 21 8.723v6.554a1 1 0 0 1-1.447.894L15 14M3 8a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8z'
+
+function createTeamsIcon(): SVGSVGElement {
+  const svg = document.createElementNS(SVG_NS, 'svg')
+  svg.setAttribute('viewBox', '0 0 24 24')
+  svg.setAttribute('class', 'fc-cal-event-teams-icon')
+  svg.setAttribute('aria-label', 'Teams Meeting')
+  svg.setAttribute('focusable', 'false')
+  const path = document.createElementNS(SVG_NS, 'path')
+  path.setAttribute('d', TEAMS_VIDEO_PATH)
+  path.setAttribute('fill', 'none')
+  path.setAttribute('stroke', 'currentColor')
+  path.setAttribute('stroke-width', '2')
+  path.setAttribute('stroke-linecap', 'round')
+  path.setAttribute('stroke-linejoin', 'round')
+  svg.appendChild(path)
+  return svg
+}
 
 export type CalendarFcEntryKind = 'appointment' | 'mail' | 'task' | 'note'
 
@@ -25,8 +48,6 @@ export type CalendarFcEventContentLabels = {
   task: string
   note: string
 }
-
-const SVG_NS = 'http://www.w3.org/2000/svg'
 
 /** Lucide-ähnliche Pfade (24×24). */
 const KIND_ICON_PATH: Record<CalendarFcEntryKind, string> = {
@@ -85,6 +106,9 @@ export function calendarFcEventContent(
   const timeGridLayout = isTimeGridFcView(arg.view.type)
   const inlineIconLayout = monthLayout || timeGridLayout
 
+  const calEvForTeams = arg.event.extendedProps.calendarEvent as CalendarEventView | undefined
+  const isTeamsMeeting = Boolean(calEvForTeams?.joinUrl)
+
   const root = document.createElement('div')
   root.className = taskCompleted
     ? 'fc-cal-event-custom fc-cal-event-custom--completed'
@@ -99,7 +123,16 @@ export function calendarFcEventContent(
   titleEl.className = taskCompleted
     ? 'fc-cal-event-custom-title fc-cal-event-custom-title--completed'
     : 'fc-cal-event-custom-title'
-  titleEl.textContent = arg.event.title ?? ''
+
+  if (isTeamsMeeting) {
+    const titleInner = document.createElement('span')
+    titleInner.className = 'fc-cal-event-custom-title-text'
+    titleInner.textContent = arg.event.title ?? ''
+    titleEl.appendChild(titleInner)
+    titleEl.appendChild(createTeamsIcon())
+  } else {
+    titleEl.textContent = arg.event.title ?? ''
+  }
 
   const iconClass = inlineIconLayout
     ? 'fc-cal-event-kind-icon fc-cal-event-kind-icon--inline'

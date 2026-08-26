@@ -201,6 +201,7 @@ export const IPC = {
     refreshNow: 'mail:refresh-now',
     setActiveFolder: 'mail:set-active-folder',
     search: 'mail:search',
+    searchAdvanced: 'mail:search-advanced',
     getMessage: 'mail:get-message',
     syncAccount: 'mail:sync-account',
     getAccountSyncMeta: 'mail:get-account-sync-meta',

@@ -64,17 +64,28 @@ function primaryEmailFromGraph(emails: GraphEmailAddress[] | null | undefined): 
   return addr || null
 }
 
+function readGraphPhoneValue(value: unknown): string {
+  if (typeof value === 'string') return value.trim()
+  if (value && typeof value === 'object') {
+    const o = value as { number?: unknown; phoneNumber?: unknown; value?: unknown }
+    for (const candidate of [o.number, o.phoneNumber, o.value]) {
+      if (typeof candidate === 'string' && candidate.trim()) return candidate.trim()
+    }
+  }
+  return ''
+}
+
 function phonesJsonFromGraph(c: GraphContact): string | null {
   const phones: Array<{ type: string; value: string }> = []
   for (const p of c.businessPhones ?? []) {
-    const v = typeof p === 'string' ? p.trim() : ''
+    const v = readGraphPhoneValue(p)
     if (v) phones.push({ type: 'business', value: v })
   }
   for (const p of c.homePhones ?? []) {
-    const v = typeof p === 'string' ? p.trim() : ''
+    const v = readGraphPhoneValue(p)
     if (v) phones.push({ type: 'home', value: v })
   }
-  const m = typeof c.mobilePhone === 'string' ? c.mobilePhone.trim() : ''
+  const m = readGraphPhoneValue(c.mobilePhone)
   if (m) phones.push({ type: 'mobile', value: m })
   return phones.length > 0 ? JSON.stringify(phones) : null
 }
@@ -143,42 +154,131 @@ export function rowFromGraph(accountId: string, c: GraphContact): PeopleContactI
   }
 }
 
-async function paginateContacts(accountId: string): Promise<GraphContact[]> {
+interface GraphContactFolder {
+  id: string
+  childFolderCount?: number | null
+}
+
+interface GraphDeltaContact extends GraphContact {
+  '@removed'?: { reason?: string }
+}
+
+export type GraphContactsSyncFetch = {
+  mode: 'full' | 'incremental'
+  rows: PeopleContactInsertRow[]
+  deletedRemoteIds: string[]
+  nextDeltaLink: string | null
+}
+
+function graphApiPathFromNextLink(nextLink: string): string {
+  return nextLink.replace(/^https?:\/\/[^/]+\/v[0-9.]+/, '')
+}
+
+function isGraphDeltaTokenExpired(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err)
+  return /410|sync state|resync|Expired|expired/i.test(msg)
+}
+
+async function paginateGraphCollection<T>(
+  accountId: string,
+  initialPath: string
+): Promise<T[]> {
   const client = await getClientFor(accountId)
-  const select = [
-    'id',
-    'displayName',
-    'givenName',
-    'surname',
-    'companyName',
-    'jobTitle',
-    'department',
-    'officeLocation',
-    'businessHomePage',
-    'birthday',
-    'emailAddresses',
-    'businessPhones',
-    'homePhones',
-    'mobilePhone',
-    'businessAddress',
-    'homeAddress',
-    'otherAddress',
-    'categories',
-    'personalNotes',
-    'lastModifiedDateTime'
-  ].join(',')
-  const initialPath = `/me/contacts?$select=${select}&$top=200`
-  const out: GraphContact[] = []
+  const out: T[] = []
   let url: string | null = initialPath
   while (url) {
-    const page = (await client.api(url).get()) as ODataCollection<GraphContact>
-    for (const v of page.value) {
-      out.push(v)
+    const page = (await client.api(url).get()) as ODataCollection<T> & {
+      '@odata.nextLink'?: string
+    }
+    for (const item of page.value) {
+      out.push(item)
     }
     const next = page['@odata.nextLink']
-    url = next ? next.replace(/^https?:\/\/[^/]+\/v[0-9.]+/, '') : null
+    url = next ? graphApiPathFromNextLink(next) : null
   }
   return out
+}
+
+async function listExtraContactFolderIds(accountId: string): Promise<string[]> {
+  const ids: string[] = []
+  const client = await getClientFor(accountId)
+
+  async function walk(path: string): Promise<void> {
+    let url: string | null = path
+    while (url) {
+      const page = (await client.api(url).get()) as ODataCollection<GraphContactFolder> & {
+        '@odata.nextLink'?: string
+      }
+      for (const folder of page.value) {
+        if (!folder.id) continue
+        ids.push(folder.id)
+        if ((folder.childFolderCount ?? 0) > 0) {
+          await walk(`/me/contactFolders/${encodeURIComponent(folder.id)}/childFolders?$top=100`)
+        }
+      }
+      const next = page['@odata.nextLink']
+      url = next ? graphApiPathFromNextLink(next) : null
+    }
+  }
+
+  await walk('/me/contactFolders?$top=100')
+  return ids
+}
+
+async function graphContactsDeltaFetch(
+  accountId: string,
+  deltaLink: string | null
+): Promise<{
+  mode: 'full' | 'incremental'
+  contacts: GraphContact[]
+  deletedRemoteIds: string[]
+  nextDeltaLink: string | null
+}> {
+  const client = await getClientFor(accountId)
+  const contacts: GraphContact[] = []
+  const deletedRemoteIds: string[] = []
+  let url: string | null = deltaLink ?? '/me/contacts/delta?$top=200'
+  let nextDeltaLink: string | null = null
+
+  while (url) {
+    const page = (await client.api(url).get()) as ODataCollection<GraphDeltaContact> & {
+      '@odata.deltaLink'?: string
+      '@odata.nextLink'?: string
+    }
+    for (const item of page.value) {
+      if (item['@removed']) {
+        if (item.id) deletedRemoteIds.push(item.id)
+        continue
+      }
+      if (item.id) contacts.push(item)
+    }
+    if (page['@odata.deltaLink']) {
+      nextDeltaLink = graphApiPathFromNextLink(page['@odata.deltaLink'])
+      break
+    }
+    const next = page['@odata.nextLink']
+    url = next ? graphApiPathFromNextLink(next) : null
+  }
+
+  return {
+    mode: deltaLink ? 'incremental' : 'full',
+    contacts,
+    deletedRemoteIds,
+    nextDeltaLink
+  }
+}
+
+async function rowsFromGraphContacts(
+  accountId: string,
+  contacts: GraphContact[]
+): Promise<PeopleContactInsertRow[]> {
+  const rows: PeopleContactInsertRow[] = []
+  for (const c of contacts) {
+    const row = rowFromGraph(accountId, c)
+    if (row) rows.push(row)
+  }
+  await attachGraphContactPhotos(accountId, rows)
+  return rows
 }
 
 async function fetchGraphContactPhotoBytes(accountId: string, contactId: string): Promise<Buffer | null> {
@@ -222,18 +322,51 @@ async function attachGraphContactPhotos(accountId: string, rows: PeopleContactIn
 }
 
 /**
- * Liest alle Outlook-Kontakte (`/me/contacts`) und liefert Zeilen fuer den lokalen Cache.
- * MVP: vollstaendiger Abruf ohne Delta.
+ * Liest Outlook-Kontakte (Delta + zusaetzliche Ordner) und liefert Zeilen fuer den lokalen Cache.
  */
-export async function graphFetchContactsForSync(accountId: string): Promise<PeopleContactInsertRow[]> {
-  const raw = await paginateContacts(accountId)
-  const rows: PeopleContactInsertRow[] = []
-  for (const c of raw) {
-    const row = rowFromGraph(accountId, c)
-    if (row) rows.push(row)
+export async function graphFetchContactsForSync(
+  accountId: string,
+  storedDeltaLink: string | null
+): Promise<GraphContactsSyncFetch> {
+  const deltaCursor = storedDeltaLink?.trim() || null
+  if (deltaCursor) {
+    try {
+      const pack = await graphContactsDeltaFetch(accountId, deltaCursor)
+      return {
+        mode: 'incremental',
+        rows: await rowsFromGraphContacts(accountId, pack.contacts),
+        deletedRemoteIds: pack.deletedRemoteIds,
+        nextDeltaLink: pack.nextDeltaLink
+      }
+    } catch (e) {
+      if (!isGraphDeltaTokenExpired(e)) throw e
+      console.warn('[people-graph] Delta abgelaufen, Vollsync.')
+    }
   }
-  await attachGraphContactPhotos(accountId, rows)
-  return rows
+
+  const byId = new Map<string, GraphContact>()
+  const defaultPack = await graphContactsDeltaFetch(accountId, null)
+  for (const c of defaultPack.contacts) {
+    if (c.id) byId.set(c.id, c)
+  }
+
+  const extraFolderIds = await listExtraContactFolderIds(accountId)
+  for (const folderId of extraFolderIds) {
+    const folderContacts = await paginateGraphCollection<GraphContact>(
+      accountId,
+      `/me/contactFolders/${encodeURIComponent(folderId)}/contacts?$top=200`
+    )
+    for (const c of folderContacts) {
+      if (c.id) byId.set(c.id, c)
+    }
+  }
+
+  return {
+    mode: 'full',
+    rows: await rowsFromGraphContacts(accountId, [...byId.values()]),
+    deletedRemoteIds: defaultPack.deletedRemoteIds,
+    nextDeltaLink: defaultPack.nextDeltaLink
+  }
 }
 
 function graphBodyFromPatch(patch: PeopleUpdateContactPatch): Record<string, unknown> {

@@ -42,7 +42,8 @@ import { bgToRingClass, resolvedAccountColorCss } from '@/lib/avatar-color'
 import { isGravatarEnabled } from '@shared/avatar-preferences'
 import { useAccountsStore } from '@/stores/accounts'
 import { peopleListPrimaryLabel } from '@/app/people/people-display-label'
-import { parsePhonesJson } from '@/app/people/people-contact-json'
+import { parsePhonesJson, phonesEntriesEqual, sanitizePhoneEntries, normalizePhoneKind, type PeoplePhoneEntry } from '@/app/people/people-contact-json'
+import { PeoplePhoneFieldsEditor } from '@/app/people/PeoplePhoneFieldsEditor'
 import { EntityContextBlock } from '@/components/connections/EntityContextBlock'
 
 export type PeopleContactDetailPanelHandle = {
@@ -64,23 +65,59 @@ type PeopleEditForm = {
   webPage: string
   primaryEmail: string
   notes: string
+  phones: PeoplePhoneEntry[]
 }
 
-function buildPatchFromForm(form: PeopleEditForm): PeopleUpdateContactPatch {
-  const primary = form.primaryEmail.trim() || null
-  return {
-    displayName: form.displayName.trim() || null,
-    givenName: form.givenName.trim() || null,
-    surname: form.surname.trim() || null,
-    company: form.company.trim() || null,
-    jobTitle: form.jobTitle.trim() || null,
-    department: form.department.trim() || null,
-    officeLocation: form.officeLocation.trim() || null,
-    birthdayIso: form.birthdayIso.trim() || null,
-    webPage: form.webPage.trim() || null,
-    primaryEmail: primary,
-    notes: form.notes.trim() || null
+function normalizeEditField(value: string): string | null {
+  const trimmed = value.trim()
+  return trimmed || null
+}
+
+type PeopleEditPatchField =
+  | 'displayName'
+  | 'givenName'
+  | 'surname'
+  | 'company'
+  | 'jobTitle'
+  | 'department'
+  | 'officeLocation'
+  | 'birthdayIso'
+  | 'webPage'
+  | 'primaryEmail'
+  | 'notes'
+
+function buildPatchFromForm(form: PeopleEditForm, original: PeopleContactView): PeopleUpdateContactPatch {
+  const patch: PeopleUpdateContactPatch = {}
+  const assignIfChanged = (
+    key: PeopleEditPatchField,
+    next: string | null,
+    prev: string | null | undefined
+  ): void => {
+    const previous = prev?.trim() || null
+    if (next !== previous) {
+      patch[key] = next
+    }
   }
+
+  assignIfChanged('displayName', normalizeEditField(form.displayName), original.displayName)
+  assignIfChanged('givenName', normalizeEditField(form.givenName), original.givenName)
+  assignIfChanged('surname', normalizeEditField(form.surname), original.surname)
+  assignIfChanged('company', normalizeEditField(form.company), original.company)
+  assignIfChanged('jobTitle', normalizeEditField(form.jobTitle), original.jobTitle)
+  assignIfChanged('department', normalizeEditField(form.department), original.department)
+  assignIfChanged('officeLocation', normalizeEditField(form.officeLocation), original.officeLocation)
+  assignIfChanged('birthdayIso', normalizeEditField(form.birthdayIso), original.birthdayIso)
+  assignIfChanged('webPage', normalizeEditField(form.webPage), original.webPage)
+  assignIfChanged('primaryEmail', normalizeEditField(form.primaryEmail), original.primaryEmail)
+  assignIfChanged('notes', normalizeEditField(form.notes), original.notes)
+
+  const originalPhones = sanitizePhoneEntries(parsePhonesJson(original.phonesJson))
+  const nextPhones = sanitizePhoneEntries(form.phones)
+  if (!phonesEntriesEqual(originalPhones, nextPhones)) {
+    patch.phones = nextPhones
+  }
+
+  return patch
 }
 
 interface PeopleContactDetailPanelProps {
@@ -118,7 +155,8 @@ export const PeopleContactDetailPanel = forwardRef<PeopleContactDetailPanelHandl
     birthdayIso: '',
     webPage: '',
     primaryEmail: '',
-    notes: ''
+    notes: '',
+    phones: []
   })
 
   const editingRef = useRef(editing)
@@ -146,7 +184,8 @@ export const PeopleContactDetailPanel = forwardRef<PeopleContactDetailPanelHandl
       birthdayIso: selected.birthdayIso ?? '',
       webPage: selected.webPage ?? '',
       primaryEmail: selected.primaryEmail ?? '',
-      notes: selected.notes ?? ''
+      notes: selected.notes ?? '',
+      phones: parsePhonesJson(selected.phonesJson)
     })
   }, [selected])
 
@@ -172,7 +211,11 @@ export const PeopleContactDetailPanel = forwardRef<PeopleContactDetailPanelHandl
       flushEditBeforeLeave: async (): Promise<boolean> => {
         if (!editingRef.current) return true
         const sel = selectedRef.current
-        const patch = buildPatchFromForm(formRef.current)
+        const patch = buildPatchFromForm(formRef.current, sel)
+        if (Object.keys(patch).length === 0) {
+          setEditing(false)
+          return true
+        }
         setSaveBusy(true)
         try {
           await window.mailClient.people.updateContact({ id: sel.id, patch })
@@ -196,13 +239,31 @@ export const PeopleContactDetailPanel = forwardRef<PeopleContactDetailPanelHandl
 
   const phonesDisplay = useMemo(() => parsePhonesJson(selected.phonesJson), [selected.phonesJson])
 
+  const phoneTypeLabel = useCallback(
+    (type: string): string => {
+      const kind = normalizePhoneKind(type)
+      if (kind === 'mobile') return t('people.shell.phoneTypeMobile')
+      if (kind === 'home') return t('people.shell.phoneTypeHome')
+      if (kind === 'business') return t('people.shell.phoneTypeBusiness')
+      return t('people.shell.phoneTypeOther')
+    },
+    [t]
+  )
+
   async function saveEdit(): Promise<void> {
-    const patch = buildPatchFromForm(form)
+    const patch = buildPatchFromForm(form, selected)
+    if (Object.keys(patch).length === 0) {
+      setEditing(false)
+      return
+    }
     setSaveBusy(true)
     try {
       await window.mailClient.people.updateContact({ id: selected.id, patch })
       setEditing(false)
       await onUpdated()
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      await showAppAlert(msg, { title: t('people.shell.saveContactErrorTitle') })
     } finally {
       setSaveBusy(false)
     }
@@ -492,6 +553,11 @@ export const PeopleContactDetailPanel = forwardRef<PeopleContactDetailPanelHandl
                 />
               </label>
             </div>
+            <PeoplePhoneFieldsEditor
+              phones={form.phones}
+              disabled={saveBusy}
+              onChange={(phones): void => setForm((f) => ({ ...f, phones }))}
+            />
             <label className="block">
               <span className="text-xs text-muted-foreground">{t('people.shell.notes')}</span>
               <textarea
@@ -570,7 +636,7 @@ export const PeopleContactDetailPanel = forwardRef<PeopleContactDetailPanelHandl
                   <ul className="space-y-1 text-foreground">
                     {phonesDisplay.map((p) => (
                       <li key={`${p.type}:${p.value}`}>
-                        <span className="text-muted-foreground">{p.type}: </span>
+                        <span className="text-muted-foreground">{phoneTypeLabel(p.type)}: </span>
                         {p.value}
                       </li>
                     ))}

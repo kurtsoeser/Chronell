@@ -210,10 +210,12 @@ export function withForwardPrefix(subject: string | null): string {
   return /^fwd?:/i.test(s) ? s : `Fwd: ${s}`
 }
 
+import { linkifyBareUrlsInHtmlFragment } from '@shared/calendar-event-body-html'
+
 /**
  * Wandelt einen Plain-Text-Body in einfaches HTML (mit Zeilenumbruch),
  * damit Graph ihn als HTML akzeptiert.
  */
 export function plainToHtml(plain: string): string {
-  return `<p>${escapeHtml(plain).replace(/\n/g, '<br>')}</p>`
+  return linkifyBareUrlsInHtmlFragment(`<p>${escapeHtml(plain).replace(/\n/g, '<br>')}</p>`)
 }

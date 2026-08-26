@@ -19,7 +19,8 @@ export function NotesSidebarList({
   navSelection,
   onSelectScope,
   onSelectAccount,
-  onSectionsChanged
+  onSectionsChanged,
+  draggingSectionId
 }: {
   accounts: ConnectedAccount[]
   sections: NoteSection[]
@@ -30,6 +31,7 @@ export function NotesSidebarList({
   onSelectScope: (scope: NotesSectionsNavScope) => void
   onSelectAccount: (accountKey: string) => void
   onSectionsChanged: () => void
+  draggingSectionId: number | null
 }): JSX.Element {
   const { t } = useTranslation()
 
@@ -89,6 +91,7 @@ export function NotesSidebarList({
             selection={navSelection}
             onSelectScope={onSelectScope}
             onSectionsChanged={onSectionsChanged}
+            draggingSectionId={draggingSectionId}
           />
         )}
       </div>

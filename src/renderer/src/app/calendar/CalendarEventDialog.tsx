@@ -22,6 +22,7 @@ import {
   ExternalLink,
   Globe,
   LayoutPanelLeft,
+  LayoutTemplate,
   Loader2,
   MapPin,
   Repeat2,
@@ -99,6 +100,11 @@ import { EntityContextBlock } from '@/components/connections/EntityContextBlock'
 import { TipTapBody } from '@/components/TipTapBody'
 import { EditorAttachmentActionBar } from '@/components/EditorAttachmentActionBar'
 import { sanitizeComposeHtmlFragment } from '@/lib/sanitize-compose-html'
+import { useUndoStore } from '@/stores/undo'
+import {
+  readCalendarEventTemplates,
+  type CalendarEventTemplate
+} from '@/lib/calendar-event-templates-storage'
 import { prepareCalendarEventDescriptionFromEditorHtml } from '@shared/calendar-event-body-html'
 import { CalendarEventDescriptionPreview } from '@/app/calendar/CalendarEventDescriptionPreview'
 import { CalendarEventIconPicker } from '@/components/CalendarEventIconPicker'
@@ -358,6 +364,10 @@ export function CalendarEventDialog({
 }: CalendarEventDialogProps): JSX.Element | null {
   const { t, i18n } = useTranslation()
   const collatorLocale = useCollatorLocale()
+  const systemTimeZone = useMemo(
+    () => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+    []
+  )
 
   /** Konten mit Kalender-Anbindung (Microsoft 365 + Google). */
   const calendarAccounts = useMemo(
@@ -392,6 +402,11 @@ export function CalendarEventDialog({
   const [dtStart, setDtStart] = useState('')
   const [dtEnd, setDtEnd] = useState('')
   const [eventTimeZone, setEventTimeZone] = useState(defaultEventTimeZone)
+  const [secondaryTimeZone, setSecondaryTimeZone] = useState<string>(
+    () => (systemTimeZone !== defaultEventTimeZone ? systemTimeZone : '')
+  )
+  const [templates, setTemplates] = useState<CalendarEventTemplate[]>([])
+  const [templateDropdownOpen, setTemplateDropdownOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [localError, setLocalError] = useState<string | null>(null)
   const [driveOpen, setDriveOpen] = useState(false)
@@ -452,7 +467,6 @@ export function CalendarEventDialog({
   const [taskDue, setTaskDue] = useState('')
   const [taskPlannedStart, setTaskPlannedStart] = useState('')
   const [taskPlannedEnd, setTaskPlannedEnd] = useState('')
-
   const taskTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
   const dragDepthRef = useRef(0)
 
@@ -526,6 +540,9 @@ export function CalendarEventDialog({
     setReminderEnabled(false)
     setReminderMinutesBefore(CAL_EVENT_REMINDER_DEFAULT_MINUTES)
     setEventTimeZone(defaultEventTimeZone)
+    setSecondaryTimeZone(systemTimeZone !== defaultEventTimeZone ? systemTimeZone : '')
+    setTemplates(readCalendarEventTemplates())
+    setTemplateDropdownOpen(false)
 
     if (mode === 'edit' && initialEvent) {
       setAccountId(initialEvent.accountId)
@@ -570,6 +587,7 @@ export function CalendarEventDialog({
           setReminderMinutesBefore(CAL_EVENT_REMINDER_DEFAULT_MINUTES)
         }
       }
+      // Details (Beschreibung, Teilnehmer, Teams) werden im getEvent-Effekt geladen.
       return
     }
 
@@ -1057,19 +1075,56 @@ export function CalendarEventDialog({
     return (): void => {
       cancelled = true
     }
-  }, [open, mode, initialEvent])
+  }, [open, mode, initialEvent, t])
 
   const eventTimeZoneOptions = useMemo(() => {
     const opts = [...CALENDAR_TIMEZONE_UI_OPTIONS]
     const seen = new Set(opts.map((o) => o.iana))
-    for (const tz of [eventTimeZone, defaultEventTimeZone]) {
+    for (const tz of [eventTimeZone, defaultEventTimeZone, secondaryTimeZone, systemTimeZone]) {
       if (tz && !seen.has(tz)) {
         opts.push({ iana: tz, label: tz })
         seen.add(tz)
       }
     }
     return opts
-  }, [eventTimeZone, defaultEventTimeZone])
+  }, [eventTimeZone, defaultEventTimeZone, secondaryTimeZone, systemTimeZone])
+
+  const secondaryTimeZonePreview = useMemo(() => {
+    if (isTaskCreate || isAllDay || !secondaryTimeZone || secondaryTimeZone === eventTimeZone) return null
+    if (!dtStart.trim() || !dtEnd.trim()) return null
+    try {
+      const invalid = t('calendar.eventDialog.invalidDate')
+      const startIso = eventDatetimeLocalToUtcIso(dtStart, eventTimeZone, invalid)
+      const endIso = eventDatetimeLocalToUtcIso(dtEnd, eventTimeZone, invalid)
+      const formatter = new Intl.DateTimeFormat(i18n.language, {
+        weekday: 'short',
+        day: '2-digit',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: secondaryTimeZone
+      })
+      const label =
+        eventTimeZoneOptions.find((opt) => opt.iana === secondaryTimeZone)?.label ?? secondaryTimeZone
+      return {
+        label,
+        startText: formatter.format(new Date(startIso)),
+        endText: formatter.format(new Date(endIso))
+      }
+    } catch {
+      return null
+    }
+  }, [
+    dtEnd,
+    dtStart,
+    eventTimeZone,
+    eventTimeZoneOptions,
+    i18n.language,
+    isAllDay,
+    isTaskCreate,
+    secondaryTimeZone,
+    t
+  ])
 
   const handleEventTimeZoneChange = useCallback(
     (nextTz: string): void => {
@@ -1093,6 +1148,28 @@ export function CalendarEventDialog({
       setLocation('')
     }
   }, [location])
+
+  useEffect(() => {
+    if (!templateDropdownOpen) return
+    function close(): void { setTemplateDropdownOpen(false) }
+    document.addEventListener('mousedown', close)
+    return (): void => document.removeEventListener('mousedown', close)
+  }, [templateDropdownOpen])
+
+  const applyTemplate = useCallback((tpl: CalendarEventTemplate): void => {
+    if (tpl.defaultSubject.trim()) setSubject(tpl.defaultSubject.trim())
+    if (tpl.defaultLocation.trim()) setLocation(tpl.defaultLocation.trim())
+    if (tpl.descriptionHtml.trim()) setDescriptionHtml(tpl.descriptionHtml)
+    if (tpl.teamsMeeting && !isAllDay) setTeamsMeeting(true)
+    if (tpl.reminderMinutes >= 0) {
+      setReminderEnabled(true)
+      setReminderMinutesBefore(tpl.reminderMinutes)
+    }
+    if (tpl.durationMinutes > 0 && dtStart.trim()) {
+      setDtEnd(addMinutesInEventZone(dtStart, tpl.durationMinutes, eventTimeZone))
+    }
+    setTemplateDropdownOpen(false)
+  }, [dtStart, eventTimeZone, isAllDay])
 
   const msTeamsUiLocked = useMemo(
     () =>
@@ -1506,6 +1583,17 @@ export function CalendarEventDialog({
           })
         }
       }
+      const invitedCount = parsedAttendees.length
+      if (invitedCount > 0) {
+        const names = attendeeEmailsFromField(attendeeInput)
+          .slice(0, 3)
+          .join(', ')
+        const moreCount = invitedCount > 3 ? invitedCount - 3 : 0
+        const label = moreCount > 0
+          ? t('calendar.eventDialog.invitationSentWithMore', { names, count: moreCount })
+          : t('calendar.eventDialog.invitationSent', { names })
+        useUndoStore.getState().pushToast({ label, variant: 'success', durationMs: 6000 })
+      }
       onSaved(createdForSaved)
       onClose()
     } catch (err) {
@@ -1714,6 +1802,40 @@ export function CalendarEventDialog({
             ) : null}
           </div>
           <div className="flex items-center gap-0.5">
+            {/* Template-Auswahl – nur beim Erstellen von Events mit vorhandenen Templates */}
+            {mode === 'create' && !isTaskCreate && templates.length > 0 && (
+              <div className="relative">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={(): void => setTemplateDropdownOpen((p) => !p)}
+                  className="inline-flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  title={t('calendar.eventDialog.applyTemplateTitle')}
+                >
+                  <LayoutTemplate className="h-3.5 w-3.5" />
+                  {t('calendar.eventDialog.applyTemplateBtn')}
+                </button>
+                {templateDropdownOpen && (
+                  <div className="absolute right-0 top-9 z-30 min-w-[200px] rounded-md border border-border bg-popover shadow-lg">
+                    <p className="px-3 py-1.5 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      {t('calendar.eventDialog.applyTemplateTitle')}
+                    </p>
+                    {templates.map((tpl) => (
+                      <button
+                        key={tpl.id}
+                        type="button"
+                        onClick={(): void => applyTemplate(tpl)}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-secondary"
+                      >
+                        <span className="shrink-0 text-base leading-none">{tpl.emoji || '📅'}</span>
+                        <span className="min-w-0 flex-1 truncate">{tpl.name}</span>
+                        {tpl.teamsMeeting && <Video className="h-3.5 w-3.5 shrink-0 text-blue-500" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             {headerDockButton}
             <button
               type="button"
@@ -1773,6 +1895,48 @@ export function CalendarEventDialog({
                 </div>
               ) : null}
             </div>
+
+            {/* Teams-Meeting Toggle – prominent nach dem Titel für schnellen Webinar-Workflow */}
+            {(mode !== 'create' || createKind === 'event') && isMicrosoftEventAccount ? (
+              <div className={cn(
+                'border-b border-border py-2',
+                teamsMeeting && 'bg-blue-500/5'
+              )}>
+                <label className={cn(
+                  'flex cursor-pointer items-center gap-3 px-1 py-1 rounded-md transition-colors',
+                  teamsMeeting
+                    ? 'text-blue-600 dark:text-blue-400'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}>
+                  <Video className={cn('h-4 w-4 shrink-0', teamsMeeting && 'text-blue-500')} />
+                  <input
+                    type="checkbox"
+                    checked={teamsMeeting}
+                    disabled={isAllDay || msTeamsUiLocked || eventFieldsLocked}
+                    onChange={(e): void => handleTeamsMeetingChange(e.target.checked)}
+                    className="h-4 w-4 shrink-0 rounded border-border accent-blue-500"
+                  />
+                  <span className="text-sm font-medium leading-snug">
+                    {t('calendar.eventDialog.teamsMeetingToggle')}
+                  </span>
+                  {teamsMeeting && !isAllDay && (
+                    <span className="ml-auto rounded-full bg-blue-500/15 px-2 py-0.5 text-xs font-medium text-blue-600 dark:text-blue-400">
+                      {t('calendar.eventDialog.teamsMeetingActive')}
+                    </span>
+                  )}
+                  {isAllDay && (
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      {t('calendar.eventDialog.teamsDisabledAllDay')}
+                    </span>
+                  )}
+                </label>
+                {msEventDetailsError ? (
+                  <p className="mt-1 px-1 text-2xs text-destructive" role="status">
+                    {msEventDetailsError}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
 
             {/* Zielkalender / Aufgabenliste ist im Header (Create). */}
 
@@ -2072,6 +2236,38 @@ export function CalendarEventDialog({
                       </option>
                     ))}
                   </select>
+                  <div className="mt-2 space-y-2">
+                    <select
+                      value={secondaryTimeZone}
+                      disabled={eventFieldsLocked || isAllDay}
+                      onChange={(e): void => setSecondaryTimeZone(e.target.value)}
+                      aria-label={t('calendar.eventDialog.secondaryTimezoneSelectAria')}
+                      title={t('calendar.eventDialog.secondaryTimezoneTitle')}
+                      className={eventDialogPanelSelectClass}
+                    >
+                      <option value="">{t('calendar.eventDialog.secondaryTimezoneNone')}</option>
+                      {eventTimeZoneOptions
+                        .filter((opt) => opt.iana !== eventTimeZone)
+                        .map((opt) => (
+                          <option key={opt.iana} value={opt.iana}>
+                            {opt.label}
+                          </option>
+                        ))}
+                    </select>
+                    {secondaryTimeZonePreview ? (
+                      <p className="text-2xs leading-snug text-muted-foreground">
+                        {t('calendar.eventDialog.secondaryTimezonePreview', {
+                          zone: secondaryTimeZonePreview.label,
+                          start: secondaryTimeZonePreview.startText,
+                          end: secondaryTimeZonePreview.endText
+                        })}
+                      </p>
+                    ) : !isAllDay && secondaryTimeZone ? (
+                      <p className="text-2xs leading-snug text-muted-foreground">
+                        {t('calendar.eventDialog.secondaryTimezoneHint')}
+                      </p>
+                    ) : null}
+                  </div>
                     </>
                   )}
                 </div>
@@ -2292,32 +2488,7 @@ export function CalendarEventDialog({
                     inputClassName={eventDialogPanelSelectClass}
                   />
                 </PropertyRow>
-                {isMicrosoftEventAccount ? (
-                  <PropertyRow icon={Video} label={t('calendar.eventDialog.teamsMeetingRowLabel')}>
-                    <div className="space-y-1.5">
-                      <label className="flex h-9 cursor-pointer items-center gap-2.5 text-sm">
-                        <input
-                          type="checkbox"
-                          checked={teamsMeeting}
-                          disabled={isAllDay || msTeamsUiLocked || eventFieldsLocked}
-                          onChange={(e): void => handleTeamsMeetingChange(e.target.checked)}
-                          className="h-4 w-4 shrink-0 rounded border-border"
-                        />
-                        <span className="leading-snug">{t('calendar.eventDialog.teamsMeetingToggle')}</span>
-                      </label>
-                      {isAllDay ? (
-                        <p className="text-2xs text-muted-foreground">
-                          {t('calendar.eventDialog.teamsDisabledAllDay')}
-                        </p>
-                      ) : null}
-                      {msEventDetailsError ? (
-                        <p className="text-2xs text-destructive" role="status">
-                          {msEventDetailsError}
-                        </p>
-                      ) : null}
-                    </div>
-                  </PropertyRow>
-                ) : null}
+                {/* Teams-Toggle wurde nach oben (unter Titel) verschoben */}
               </div>
               <PropertyRow icon={AlignLeft} label={t('calendar.eventDialog.description')}>
                 <div className="mt-1 min-w-0 space-y-2">

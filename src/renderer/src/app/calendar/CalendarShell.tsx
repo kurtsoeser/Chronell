@@ -25,6 +25,7 @@ import {
 import { useTranslation } from 'react-i18next'
 import { useAccountsStore } from '@/stores/accounts'
 import { useCalendarPendingFocusStore } from '@/stores/calendar-pending-focus'
+import { useCalendarEventSearchStore } from '@/stores/calendar-event-search'
 import { useCalendarIcsImportStore } from '@/stores/calendar-ics-import'
 import { useMailStore } from '@/stores/mail'
 import {
@@ -301,7 +302,9 @@ export function CalendarShell(): JSX.Element {
   const [gotoDateOpen, setGotoDateOpen] = useState(false)
   const [gotoDateDraft, setGotoDateDraft] = useState(() => format(new Date(), 'yyyy-MM-dd'))
   const [calendarEventSearchOpen, setCalendarEventSearchOpen] = useState(false)
-  const [calendarEventSearchQuery, setCalendarEventSearchQuery] = useState('')
+  const calendarEventSearchQuery = useCalendarEventSearchStore((s) => s.query)
+  const setCalendarEventSearchQuery = useCalendarEventSearchStore((s) => s.setQuery)
+  const clearCalendarEventSearch = useCalendarEventSearchStore((s) => s.clear)
   const viewMenuRef = useRef<HTMLDivElement>(null)
   const calendarSearchInputRef = useRef<HTMLInputElement>(null)
 
@@ -1219,7 +1222,6 @@ export function CalendarShell(): JSX.Element {
     setGotoDateDraft,
     calendarEventSearchOpen,
     setCalendarEventSearchOpen,
-    setCalendarEventSearchQuery,
     schedulingOpen,
     closeSchedulingPanel,
     quickCreate,
@@ -1380,6 +1382,9 @@ export function CalendarShell(): JSX.Element {
                   onImportIcsClick={(): void => {
                     void useCalendarIcsImportStore.getState().openFromPicker()
                   }}
+                  eventSearchQuery={calendarEventSearchQuery}
+                  onClearEventSearch={clearCalendarEventSearch}
+                  onOpenEventSearch={(): void => setCalendarEventSearchOpen(true)}
                 />
               </div>
           <div ref={calendarViewZoomHostRef} className="flex min-h-0 min-w-0 flex-1 flex-col">

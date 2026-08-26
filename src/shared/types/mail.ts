@@ -172,6 +172,17 @@ export interface GlobalSearchContactHit {
   company: string | null
 }
 
+/** Arten der globalen Suche (API-Filter und Ergebnis-Tabs). */
+export type GlobalSearchKind = 'mails' | 'notes' | 'calendarEvents' | 'tasks' | 'contacts'
+
+export const GLOBAL_SEARCH_KINDS: readonly GlobalSearchKind[] = [
+  'mails',
+  'notes',
+  'calendarEvents',
+  'tasks',
+  'contacts'
+] as const
+
 export interface GlobalSearchResult {
   query: string
   mails: SearchHit[]
@@ -179,6 +190,30 @@ export interface GlobalSearchResult {
   calendarEvents: CalendarEventView[]
   tasks: GlobalSearchTaskHit[]
   contacts: GlobalSearchContactHit[]
+}
+
+/** Felder der Outlook-aehnlichen Detail-Suche (Mails). */
+export interface AdvancedMailSearchCriteria {
+  /** Teilstring Absender (Name/Adresse). */
+  fromContains?: string
+  /** Teilstring Empfaenger (to_addrs). */
+  toContains?: string
+  /** Teilstring Cc. */
+  ccContains?: string
+  /** Teilstring Betreff. */
+  subjectContains?: string
+  /** FTS-Schluesselwoerter (Body/Betreff/Absender wie globale Suche). */
+  keywords?: string
+  /** Empfangsdatum ab (YYYY-MM-DD oder ISO). */
+  dateFrom?: string
+  /** Empfangsdatum bis (YYYY-MM-DD oder ISO). */
+  dateTo?: string
+  /** Lesestatus: alle | ungelesen | gelesen. */
+  readStatus?: 'all' | 'unread' | 'read'
+  /** Nur Mails mit Anlagen. */
+  hasAttachmentsOnly?: boolean
+  /** Optional: Ordner-IDs; leer = alle ausser Papierkorb/Junk. */
+  scopeFolderIds?: number[]
 }
 
 /**

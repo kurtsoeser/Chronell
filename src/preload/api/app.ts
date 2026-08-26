@@ -204,6 +204,7 @@ getVersion: (): Promise<string> => ipcRenderer.invoke(IPC.app.getVersion),
     globalSearch: (args: {
       query: string
       limitPerKind?: number
+      kinds?: import('@shared/types').GlobalSearchKind[]
     }): Promise<GlobalSearchResult> => ipcRenderer.invoke(IPC.app.globalSearch, args),
     windowMinimize: (): Promise<void> => ipcRenderer.invoke(IPC.app.windowMinimize),
     windowToggleMaximize: (): Promise<void> => ipcRenderer.invoke(IPC.app.windowToggleMaximize),

@@ -8,10 +8,17 @@ export type MailListKind =
   | 'unified_inbox'
   | 'meta_folder'
   | 'category'
+  /** Globale Volltextsuche: Liste zeigt nur Treffer. */
+  | 'search'
 
 /** Thread-Keys pro Konto trennen (Unified-Inbox und Meta-Ordner). */
 export function mailListUsesCrossAccountThreadScope(kind: MailListKind): boolean {
-  return kind === 'unified_inbox' || kind === 'meta_folder' || kind === 'category'
+  return (
+    kind === 'unified_inbox' ||
+    kind === 'meta_folder' ||
+    kind === 'category' ||
+    kind === 'search'
+  )
 }
 
 export interface AccountListMetaEntry {

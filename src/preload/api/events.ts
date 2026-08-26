@@ -195,6 +195,7 @@ import {
   mailChangedHandlers,
   calendarChangedHandlers,
   tasksChangedHandlers,
+  peopleChangedHandlers,
   zoomShortcutHandlers
 } from '../ipc-listeners'
 
@@ -275,6 +276,12 @@ onAccountsChanged: (handler: (accounts: ConnectedAccount[]) => void): (() => voi
       tasksChangedHandlers.add(handler)
       return (): void => {
         tasksChangedHandlers.delete(handler)
+      }
+    },
+    onPeopleChanged: (handler: (payload: { accountId: string }) => void): (() => void) => {
+      peopleChangedHandlers.add(handler)
+      return (): void => {
+        peopleChangedHandlers.delete(handler)
       }
     },
     onNotesChanged: (

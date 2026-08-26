@@ -422,11 +422,35 @@
   font-weight: 500;
   line-height: 1.35;
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+
+/* Wenn kein Teams-Icon: Titel-Text direkt als TextNode – kein extra Wrapper nötig */
+.calendar-notion-shell .fc-cal-event-custom-title-text {
+  overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   min-width: 0;
   flex: 1;
+}
+
+.calendar-notion-shell .fc-cal-event-teams-icon {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  opacity: 0.8;
+  color: inherit;
+  pointer-events: none;
+}
+
+.calendar-notion-shell .fc-cal-event-custom--month .fc-cal-event-teams-icon {
+  width: 9px;
+  height: 9px;
 }
 
 .calendar-notion-shell .fc-cal-event-custom-title--completed,
@@ -1088,3 +1112,4 @@
 .bookings-embedded-calendar.calendar-notion-shell .fc {
   height: 100%;
 }
+
