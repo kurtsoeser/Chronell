@@ -60,7 +60,10 @@ function eventViewFromSaveInput(
     joinUrl: result.joinUrl?.trim() || null,
     organizer: null,
     categories: input.categories?.filter((c) => c.trim().length > 0),
-    calendarCanEdit: true
+    calendarCanEdit: true,
+    showAs: input.showAs ?? null,
+    sensitivity: input.sensitivity ?? null,
+    isSeries: Boolean(input.recurrence)
   }
 }
 
@@ -214,6 +217,23 @@ export function afterCalendarEventSchedulePatched(input: CalendarPatchScheduleIn
 export function afterCalendarEventIconPatched(input: CalendarPatchEventIconInput): void {
   const trimmed = input.iconId?.trim()
   patchCachedCalendarEventIcon(input.accountId, input.graphEventId, trimmed || null)
+  broadcastCalendarChanged(input.accountId)
+}
+
+export function afterCalendarEventStatusPatched(
+  input: import('@shared/types').CalendarPatchEventStatusInput
+): void {
+  const graphEventId = input.graphEventId.trim()
+  const existing = getCalendarEventByGraphEventId(input.accountId, graphEventId)
+  if (existing) {
+    upsertCalendarEvents([
+      {
+        ...existing,
+        ...(input.showAs != null ? { showAs: input.showAs } : {}),
+        ...(input.sensitivity != null ? { sensitivity: input.sensitivity } : {})
+      }
+    ])
+  }
   broadcastCalendarChanged(input.accountId)
 }
 

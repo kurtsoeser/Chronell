@@ -17,6 +17,7 @@ import { mailReadingPopoutApi } from './api/mail-reading-popout'
 import { panelPopoutApi } from './api/panel-popout'
 import { entityLinksApi } from './api/entity-links'
 import { aiConnectionsApi } from './api/ai-connections'
+import { copilotApi } from './api/copilot'
 import { notesApi } from './api/notes'
 import { mailApi } from './api/mail'
 import { folderApi } from './api/folder'
@@ -50,6 +51,7 @@ const api = {
   panelPopout: panelPopoutApi,
   entityLinks: entityLinksApi,
   aiConnections: aiConnectionsApi,
+  copilot: copilotApi,
   notes: notesApi,
   mail: mailApi,
   folder: folderApi,

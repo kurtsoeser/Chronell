@@ -8,6 +8,7 @@ import { registerMailIpc } from './ipc/register-mail-ipc'
 import { registerNotesIpc } from './ipc/register-notes-ipc'
 import { registerEntityLinksIpc } from './ipc/register-entity-links-ipc'
 import { registerAiConnectionsIpc } from './ipc/register-ai-connections-ipc'
+import { registerCopilotIpc } from './ipc/register-copilot-ipc'
 import { registerWorkflowVipRulesIpc } from './ipc/register-workflow-vip-rules-ipc'
 import { registerSettingsBackupIpc } from './ipc/register-settings-backup-ipc'
 import { registerProfileSyncIpc } from './ipc/register-profile-sync-ipc'
@@ -38,6 +39,7 @@ export function registerIpcHandlers(): void {
   registerNotesIpc()
   registerEntityLinksIpc()
   registerAiConnectionsIpc()
+  registerCopilotIpc()
   registerWorkflowVipRulesIpc()
   registerSettingsBackupIpc()
   registerProfileSyncIpc()

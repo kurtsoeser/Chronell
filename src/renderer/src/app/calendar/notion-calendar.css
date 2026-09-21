@@ -448,9 +448,63 @@
   pointer-events: none;
 }
 
-.calendar-notion-shell .fc-cal-event-custom--month .fc-cal-event-teams-icon {
+.calendar-notion-shell .fc-cal-event-private-icon {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  opacity: 0.95;
+  color: inherit;
+  pointer-events: none;
+}
+
+.calendar-notion-shell .fc-cal-event-tentative-icon,
+.calendar-notion-shell .fc-cal-event-elsewhere-icon,
+.calendar-notion-shell .fc-cal-event-series-icon {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  opacity: 0.95;
+  color: inherit;
+  pointer-events: none;
+}
+
+.calendar-notion-shell .fc-cal-event-custom--month .fc-cal-event-teams-icon,
+.calendar-notion-shell .fc-cal-event-custom--month .fc-cal-event-private-icon,
+.calendar-notion-shell .fc-cal-event-custom--month .fc-cal-event-tentative-icon,
+.calendar-notion-shell .fc-cal-event-custom--month .fc-cal-event-elsewhere-icon,
+.calendar-notion-shell .fc-cal-event-custom--month .fc-cal-event-series-icon {
   width: 9px;
   height: 9px;
+}
+
+/* Frei (showAs=free): transparenter / gestreifter Block wie in Outlook */
+.calendar-notion-shell .fc-event.fc-cal-event--free {
+  opacity: 0.72;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+
+.dark .calendar-notion-shell .fc-event.fc-cal-event--free {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+}
+
+.calendar-notion-shell .fc-event.fc-cal-event--free .fc-event-main {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 4px,
+    rgba(255, 255, 255, 0.14) 4px,
+    rgba(255, 255, 255, 0.14) 8px
+  );
+}
+
+.dark .calendar-notion-shell .fc-event.fc-cal-event--free .fc-event-main {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 4px,
+    rgba(255, 255, 255, 0.08) 4px,
+    rgba(255, 255, 255, 0.08) 8px
+  );
 }
 
 .calendar-notion-shell .fc-cal-event-custom-title--completed,

@@ -17,6 +17,7 @@ import { SignatureTemplateControls } from '@/components/SignatureTemplateControl
 import { RecipientTokenField } from '@/components/RecipientTokenField'
 import { cn } from '@/lib/utils'
 import { useComposeCloudDrive } from '@/hooks/useComposeCloudDrive'
+import { useComposeDraftEditorFlush } from '@/hooks/useComposeDraftEditorFlush'
 import { useAccountsStore } from '@/stores/accounts'
 import { useComposeStore, type ComposeAttachmentFile } from '@/stores/compose'
 import { useComposeAutoSave } from '@/hooks/useComposeAutoSave'
@@ -51,6 +52,7 @@ export function DashboardComposeTile(): JSX.Element {
   const cloudDrive = useComposeCloudDrive(draft?.id ?? '')
 
   useComposeAutoSave(draft?.id ?? '', Boolean(draft))
+  const { bodyFlushRef, signatureFlushRef } = useComposeDraftEditorFlush(draft?.id ?? '')
 
   const addFiles = useCallback(
     async (files: File[]): Promise<void> => {
@@ -227,6 +229,7 @@ export function DashboardComposeTile(): JSX.Element {
                 inEditorSurface
                 valueHtml={draft.prependRichHtml}
                 onChangeHtml={(v): void => update(draft.id, { prependRichHtml: v })}
+                flushRef={bodyFlushRef}
                 className="min-h-0 flex-1 border-t-0"
                 fillHeight
               />
@@ -250,6 +253,7 @@ export function DashboardComposeTile(): JSX.Element {
               <SignatureFooterEditor
                 valueHtml={draft.signatureRichHtml}
                 onChangeHtml={(v): void => update(draft.id, { signatureRichHtml: v })}
+                flushRef={signatureFlushRef}
               />
             </ComposeEditorThemedPane>
           </ComposeMailBodyTile>

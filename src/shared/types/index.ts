@@ -13,6 +13,7 @@ export * from './teams'
 export * from './notes'
 export * from './notion'
 export * from './compose'
+export * from './copilot'
 export * from './demo'
 
 export type {

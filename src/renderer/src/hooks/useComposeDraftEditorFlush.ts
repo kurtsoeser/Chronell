@@ -10,6 +10,7 @@ export function useComposeDraftEditorFlush(draftId: string): {
   const signatureFlushRef = useRef<(() => void) | null>(null)
 
   useEffect(() => {
+    if (!draftId) return
     return registerComposeEditorFlush(draftId, () => {
       bodyFlushRef.current?.()
       signatureFlushRef.current?.()

@@ -1,5 +1,6 @@
 import type { EventContentArg } from '@fullcalendar/core'
 import type { CalendarEventView, TaskItemRow, UserNoteListItem } from '@shared/types'
+import { calendarEventSensitivityIsPrivate } from '@shared/calendar-event-status'
 import { resolveEntityIconColor } from '@shared/entity-icon-color'
 import { QUICK_CREATE_PLACEHOLDER_EVENT_ID } from '@/app/calendar/calendar-quick-create-placeholder'
 import { CALENDAR_KIND_CLOUD_TASK } from '@/app/calendar/cloud-task-calendar'
@@ -23,21 +24,101 @@ const TIME_GRID_ICON_PX = 10
 const TEAMS_VIDEO_PATH =
   'M15 10l4.553-2.276A1 1 0 0 1 21 8.723v6.554a1 1 0 0 1-1.447.894L15 14M3 8a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8z'
 
-function createTeamsIcon(): SVGSVGElement {
+/** Lucide Lock-Icon Pfad (24×24) – private Termine */
+const PRIVATE_LOCK_PATH =
+  'M7 11V7a5 5 0 0 1 10 0v4M5 11h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2z'
+
+/** Lucide CircleHelp – Mit Vorbehalt (circle + question paths) */
+const TENTATIVE_HELP_PATHS = ['M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3', 'M12 17h.01']
+
+/** Lucide ExternalLink – Woanders arbeiten */
+const WORKING_ELSEWHERE_PATHS = [
+  'M15 3h6v6',
+  'M10 14 21 3',
+  'M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6'
+]
+
+/** Lucide Repeat2 – Serientermin */
+const SERIES_REPEAT_PATHS = [
+  'm2 9 3-3 3 3',
+  'M13 18H7a2 2 0 0 1-2-2V6',
+  'm22 15-3 3-3-3',
+  'M11 6h6a2 2 0 0 1 2 2v10'
+]
+
+function createStrokeIcon(args: {
+  className: string
+  ariaLabel: string
+  paths: string[]
+  circle?: { cx: number; cy: number; r: number }
+}): SVGSVGElement {
   const svg = document.createElementNS(SVG_NS, 'svg')
   svg.setAttribute('viewBox', '0 0 24 24')
-  svg.setAttribute('class', 'fc-cal-event-teams-icon')
-  svg.setAttribute('aria-label', 'Teams Meeting')
+  svg.setAttribute('class', args.className)
+  svg.setAttribute('aria-label', args.ariaLabel)
   svg.setAttribute('focusable', 'false')
-  const path = document.createElementNS(SVG_NS, 'path')
-  path.setAttribute('d', TEAMS_VIDEO_PATH)
-  path.setAttribute('fill', 'none')
-  path.setAttribute('stroke', 'currentColor')
-  path.setAttribute('stroke-width', '2')
-  path.setAttribute('stroke-linecap', 'round')
-  path.setAttribute('stroke-linejoin', 'round')
-  svg.appendChild(path)
+  if (args.circle) {
+    const circle = document.createElementNS(SVG_NS, 'circle')
+    circle.setAttribute('cx', String(args.circle.cx))
+    circle.setAttribute('cy', String(args.circle.cy))
+    circle.setAttribute('r', String(args.circle.r))
+    circle.setAttribute('fill', 'none')
+    circle.setAttribute('stroke', 'currentColor')
+    circle.setAttribute('stroke-width', '2')
+    svg.appendChild(circle)
+  }
+  for (const d of args.paths) {
+    const path = document.createElementNS(SVG_NS, 'path')
+    path.setAttribute('d', d)
+    path.setAttribute('fill', 'none')
+    path.setAttribute('stroke', 'currentColor')
+    path.setAttribute('stroke-width', '2')
+    path.setAttribute('stroke-linecap', 'round')
+    path.setAttribute('stroke-linejoin', 'round')
+    svg.appendChild(path)
+  }
   return svg
+}
+
+function createTeamsIcon(): SVGSVGElement {
+  return createStrokeIcon({
+    className: 'fc-cal-event-teams-icon',
+    ariaLabel: 'Teams Meeting',
+    paths: [TEAMS_VIDEO_PATH]
+  })
+}
+
+function createPrivateLockIcon(): SVGSVGElement {
+  return createStrokeIcon({
+    className: 'fc-cal-event-private-icon',
+    ariaLabel: 'Private',
+    paths: [PRIVATE_LOCK_PATH]
+  })
+}
+
+function createTentativeIcon(): SVGSVGElement {
+  return createStrokeIcon({
+    className: 'fc-cal-event-tentative-icon',
+    ariaLabel: 'Tentative',
+    paths: TENTATIVE_HELP_PATHS,
+    circle: { cx: 12, cy: 12, r: 10 }
+  })
+}
+
+function createWorkingElsewhereIcon(): SVGSVGElement {
+  return createStrokeIcon({
+    className: 'fc-cal-event-elsewhere-icon',
+    ariaLabel: 'Working elsewhere',
+    paths: WORKING_ELSEWHERE_PATHS
+  })
+}
+
+function createSeriesIcon(): SVGSVGElement {
+  return createStrokeIcon({
+    className: 'fc-cal-event-series-icon',
+    ariaLabel: 'Recurring',
+    paths: SERIES_REPEAT_PATHS
+  })
 }
 
 export type CalendarFcEntryKind = 'appointment' | 'mail' | 'task' | 'note'
@@ -108,6 +189,10 @@ export function calendarFcEventContent(
 
   const calEvForTeams = arg.event.extendedProps.calendarEvent as CalendarEventView | undefined
   const isTeamsMeeting = Boolean(calEvForTeams?.joinUrl)
+  const isPrivate = calendarEventSensitivityIsPrivate(calEvForTeams?.sensitivity)
+  const isTentative = calEvForTeams?.showAs === 'tentative'
+  const isWorkingElsewhere = calEvForTeams?.showAs === 'workingElsewhere'
+  const isSeries = calEvForTeams?.isSeries === true
 
   const root = document.createElement('div')
   root.className = taskCompleted
@@ -115,6 +200,11 @@ export function calendarFcEventContent(
     : 'fc-cal-event-custom'
   if (monthLayout) root.classList.add('fc-cal-event-custom--month')
   if (timeGridLayout) root.classList.add('fc-cal-event-custom--timegrid')
+  if (calEvForTeams?.showAs === 'free') root.classList.add('fc-cal-event-custom--free')
+  if (isPrivate) root.classList.add('fc-cal-event-custom--private')
+  if (isTentative) root.classList.add('fc-cal-event-custom--tentative')
+  if (isWorkingElsewhere) root.classList.add('fc-cal-event-custom--elsewhere')
+  if (isSeries) root.classList.add('fc-cal-event-custom--series')
 
   const body = document.createElement('div')
   body.className = 'fc-cal-event-custom-body'
@@ -124,12 +214,19 @@ export function calendarFcEventContent(
     ? 'fc-cal-event-custom-title fc-cal-event-custom-title--completed'
     : 'fc-cal-event-custom-title'
 
-  if (isTeamsMeeting) {
+  const statusIcons: SVGSVGElement[] = []
+  if (isSeries) statusIcons.push(createSeriesIcon())
+  if (isTentative) statusIcons.push(createTentativeIcon())
+  if (isWorkingElsewhere) statusIcons.push(createWorkingElsewhereIcon())
+  if (isPrivate) statusIcons.push(createPrivateLockIcon())
+  if (isTeamsMeeting) statusIcons.push(createTeamsIcon())
+
+  if (statusIcons.length > 0) {
     const titleInner = document.createElement('span')
     titleInner.className = 'fc-cal-event-custom-title-text'
     titleInner.textContent = arg.event.title ?? ''
     titleEl.appendChild(titleInner)
-    titleEl.appendChild(createTeamsIcon())
+    for (const icon of statusIcons) titleEl.appendChild(icon)
   } else {
     titleEl.textContent = arg.event.title ?? ''
   }

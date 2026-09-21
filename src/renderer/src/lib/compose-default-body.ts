@@ -3,11 +3,28 @@ import type { Editor } from '@tiptap/react'
 import { resolveComposeFontFamilyValue } from '@/lib/compose-font-families'
 import { composeFontSizePtOptionValue } from '@/lib/compose-font-sizes'
 import {
+  COMPOSE_DEFAULT_TEXT_COLOR,
   readComposeSettingsPrefs,
   type ComposeSettingsPrefsV1
 } from '@/lib/compose-settings-prefs'
 
 export const COMPOSE_EDITOR_DARK_TEXT_COLOR = '#ffffff'
+
+/**
+ * Dark-Compose-Theme schreibt `color:#ffffff` in TextStyle-Spans.
+ * Empfaenger mit hellem Hintergrund sehen dann unsichtbaren Text/Links —
+ * vor dem Versand auf die Standard-Hellfarbe umbiegen.
+ */
+export function neutralizeComposeEditorDarkTextColorsInHtml(
+  html: string,
+  lightTextColor: string = COMPOSE_DEFAULT_TEXT_COLOR
+): string {
+  if (!html) return html
+  const safe = lightTextColor.trim() || COMPOSE_DEFAULT_TEXT_COLOR
+  return html
+    .replace(/color\s*:\s*#fff(?:fff)?\b/gi, `color:${safe}`)
+    .replace(/color\s*:\s*rgb\(\s*255\s*,\s*255\s*,\s*255\s*\)/gi, `color:${safe}`)
+}
 
 function escapeHtmlAttr(value: string): string {
   return value

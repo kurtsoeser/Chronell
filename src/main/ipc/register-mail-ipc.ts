@@ -35,9 +35,17 @@ import {
   type MailBulkUnflagResult,
   type RemoveMailTodoRecordsResult
 } from '@shared/types'
-import { writeAttachmentCacheFile } from '../attachment-cache'
+import {
+  attachmentDragCacheDirectory,
+  writeAttachmentCacheFile,
+  writeAttachmentDragFile
+} from '../attachment-cache'
+import { resolveDragFileIcon } from '../app-icon'
 import { getSenderDomainAvatarDataUrl } from '../sender-domain-avatar'
-import { fetchMailAttachmentsMeta } from '../mail-attachment-fetch'
+import {
+  downloadMailAttachmentBytes,
+  fetchMailAttachmentsMeta
+} from '../mail-attachment-fetch'
 import { scheduleIndexMessageAttachmentsIfNeeded } from './register-files-ipc'
 import { loadConfig } from '../config'
 import { listAccounts } from '../accounts'
@@ -302,6 +310,43 @@ export function registerMailIpc(): void {
       }
     }
   )
+
+  ipcMain.handle(
+    IPC.mail.prepareAttachmentDrag,
+    async (
+      _event,
+      args: { messageId: number; attachmentId: string }
+    ): Promise<{ ok: boolean; filePath?: string; error?: string }> => {
+      try {
+        const file = await downloadMailAttachmentBytes(args.messageId, args.attachmentId)
+        const safeName = sanitizeFileName(file.name)
+        const filePath = await writeAttachmentDragFile(args.attachmentId, safeName, file.bytes)
+        return { ok: true, filePath }
+      } catch (e) {
+        const message = e instanceof Error ? e.message : String(e)
+        return { ok: false, error: message }
+      }
+    }
+  )
+
+  ipcMain.on(IPC.mail.startAttachmentDrag, (event, filePath: unknown) => {
+    if (typeof filePath !== 'string' || !filePath.trim()) return
+    const resolved = path.resolve(filePath)
+    const dragRoot = path.resolve(attachmentDragCacheDirectory())
+    const rel = path.relative(dragRoot, resolved)
+    if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) {
+      console.warn('[ipc] startAttachmentDrag: Pfad ausserhalb Drag-Cache:', resolved)
+      return
+    }
+    try {
+      event.sender.startDrag({
+        file: resolved,
+        icon: resolveDragFileIcon()
+      })
+    } catch (e) {
+      console.warn('[ipc] startAttachmentDrag fehlgeschlagen:', e)
+    }
+  })
   
   ipcMain.handle(IPC.mail.syncAccount, async (_event, accountId: string) => {
     assertAppOnline()
@@ -524,8 +569,13 @@ export function registerMailIpc(): void {
   ipcMain.handle(
     IPC.mail.setTodoForMessage,
     async (_event, args: { messageId: number; dueKind: TodoDueKindOpen }): Promise<void> => {
-      setTodoForMessage(args.messageId, args.dueKind)
-      await routeToWipAfterTodoIfConfigured(args.messageId)
+      // Broadcast erst nach lokalem WIP-Move (sonst laedt die Inbox die Mail sofort wieder).
+      setTodoForMessage(args.messageId, args.dueKind, { skipBroadcast: true })
+      const moved = await routeToWipAfterTodoIfConfigured(args.messageId)
+      if (!moved) {
+        const msg = getMessageById(args.messageId)
+        if (msg) broadcastMailChanged(msg.accountId)
+      }
     }
   )
   
@@ -535,14 +585,24 @@ export function registerMailIpc(): void {
       _event,
       args: { messageId: number; startIso: string; endIso: string }
     ): Promise<void> => {
-      setTodoScheduleForMessage(args.messageId, args.startIso, args.endIso)
-      await routeToWipAfterTodoIfConfigured(args.messageId)
+      setTodoScheduleForMessage(args.messageId, args.startIso, args.endIso, {
+        skipBroadcast: true
+      })
+      const moved = await routeToWipAfterTodoIfConfigured(args.messageId)
+      if (!moved) {
+        const msg = getMessageById(args.messageId)
+        if (msg) broadcastMailChanged(msg.accountId)
+      }
     }
   )
   
   ipcMain.handle(IPC.mail.completeTodoForMessage, async (_event, messageId: number): Promise<void> => {
-    completeTodoForMessage(messageId)
-    await routeToDoneFolderAfterCompleteIfConfigured(messageId)
+    completeTodoForMessage(messageId, { skipBroadcast: true })
+    const moved = await routeToDoneFolderAfterCompleteIfConfigured(messageId)
+    if (!moved) {
+      const msg = getMessageById(messageId)
+      if (msg) broadcastMailChanged(msg.accountId)
+    }
   })
 
   ipcMain.handle(

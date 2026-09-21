@@ -7,6 +7,7 @@ import type {
   PeopleUpdateContactInput
 } from '@shared/types'
 import { listAccounts } from './accounts'
+import { warnProviderAuthOnce } from './auth/auth-errors'
 import { deleteContactPhotoFileIfExists, saveContactPhotoBytes } from './contact-photo'
 import {
   graphCreateContactRow,
@@ -129,8 +130,8 @@ export async function syncPeopleForAllAccounts(): Promise<PeopleSyncAccountResul
     try {
       results.push(await syncPeopleForAccount(a.id))
     } catch (e) {
+      warnProviderAuthOnce('people', a.id, e)
       const msg = e instanceof Error ? e.message : String(e)
-      console.warn(`[people] Sync fuer ${a.id} fehlgeschlagen:`, msg)
       results.push({
         accountId: a.id,
         provider: a.provider,

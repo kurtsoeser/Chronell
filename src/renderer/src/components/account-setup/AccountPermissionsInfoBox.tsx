@@ -16,7 +16,7 @@ const MICROSOFT_GROUPS: PermissionGroup[] = [
   { id: 'calendar', items: ['calendars', 'calendarsShared', 'groups'] },
   { id: 'tasks', items: ['tasks'] },
   { id: 'contacts', items: ['contacts', 'people', 'directory'] },
-  { id: 'teams', items: ['chat', 'meetings'] },
+  { id: 'teams', items: ['chat', 'meetings', 'meetingInsights', 'meetingTranscript', 'channelMessages', 'externalItem', 'peopleReadAll'] },
   { id: 'files', items: ['onedrive', 'sharepoint'] },
   { id: 'bookings', items: ['bookings'] },
   { id: 'ews', items: ['ews'] }

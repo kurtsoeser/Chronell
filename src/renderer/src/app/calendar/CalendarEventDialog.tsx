@@ -19,11 +19,13 @@ import {
   Bell,
   Calendar as CalendarIcon,
   CheckSquare,
+  CircleDot,
   ExternalLink,
   Globe,
   LayoutPanelLeft,
   LayoutTemplate,
   Loader2,
+  Lock,
   MapPin,
   Repeat2,
   Send,
@@ -34,6 +36,7 @@ import {
 } from 'lucide-react'
 import type { ChronellEntityRef } from '@shared/entity-ref'
 import type {
+  CalendarEventShowAs,
   CalendarEventView,
   CalendarGraphCalendarRow,
   CalendarRecurrenceFrequency,
@@ -44,6 +47,12 @@ import type {
   MailMasterCategory,
   TaskListRow
 } from '@shared/types'
+import {
+  CALENDAR_EVENT_SHOW_AS_OPTIONS,
+  DEFAULT_CALENDAR_EVENT_SHOW_AS,
+  calendarEventSensitivityFromPrivate,
+  calendarEventSensitivityIsPrivate
+} from '@shared/calendar-event-status'
 import { CALENDAR_TIMEZONE_UI_OPTIONS } from '@shared/microsoft-timezones'
 import { dueIsoFromClientInput } from '@shared/calendar-datetime'
 import { cloudTaskStableKey } from '@shared/work-item-keys'
@@ -107,6 +116,10 @@ import {
 } from '@/lib/calendar-event-templates-storage'
 import { prepareCalendarEventDescriptionFromEditorHtml } from '@shared/calendar-event-body-html'
 import { CalendarEventDescriptionPreview } from '@/app/calendar/CalendarEventDescriptionPreview'
+import {
+  calendarEventScheduleChanged,
+  confirmEventDialogMeetingReschedule
+} from '@/app/calendar/calendar-meeting-schedule-change'
 import { CalendarEventIconPicker } from '@/components/CalendarEventIconPicker'
 import { LocationAutocompleteInput } from '@/components/LocationAutocompleteInput'
 import { ChronellDateField } from '@/components/ChronellDateField'
@@ -449,6 +462,15 @@ export function CalendarEventDialog({
   const attendeeFieldRef = useRef<RecipientTokenFieldHandle>(null)
   const [msEventDetailsLoading, setMsEventDetailsLoading] = useState(false)
   const [msEventDetailsError, setMsEventDetailsError] = useState<string | null>(null)
+  /** Nach getEvent: Einzeltermin → Serie möglich; Serie/Vorkommen → Muster bearbeiten. */
+  const [editEventType, setEditEventType] = useState<
+    'singleInstance' | 'occurrence' | 'exception' | 'seriesMaster' | null
+  >(null)
+  const [editEventTypeLoaded, setEditEventTypeLoaded] = useState(false)
+  /** Bei Vorkommen/Ausnahme: Master-ID fuer Serien-PATCH. */
+  const [editSeriesMasterId, setEditSeriesMasterId] = useState<string | null>(null)
+  /** Geladenes Serienmuster (Dirty-Check beim Speichern). */
+  const [loadedRecurrence, setLoadedRecurrence] = useState<CalendarSaveEventRecurrence | null>(null)
 
   const [recurFreq, setRecurFreq] = useState<RecurrenceUiFrequency>('none')
   const [recurEnd, setRecurEnd] = useState<CalendarRecurrenceRangeEndMode>('never')
@@ -457,6 +479,8 @@ export function CalendarEventDialog({
   const [recurWeekdays, setRecurWeekdays] = useState<
     Array<'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday'>
   >([])
+  const [eventShowAs, setEventShowAs] = useState<CalendarEventShowAs>(DEFAULT_CALENDAR_EVENT_SHOW_AS)
+  const [eventIsPrivate, setEventIsPrivate] = useState(false)
 
   const [createKind, setCreateKind] = useState<CalendarEventDialogCreateKind>('event')
   const [taskAccountId, setTaskAccountId] = useState('')
@@ -567,11 +591,17 @@ export function CalendarEventDialog({
       setTeamsMeeting(false)
       setAttendeeInput('')
       setMsEventDetailsError(null)
+      setEditEventType(null)
+      setEditEventTypeLoaded(false)
+      setEditSeriesMasterId(null)
+      setLoadedRecurrence(null)
       setRecurFreq('none')
       setRecurEnd('never')
       setRecurUntilDate('')
       setRecurCount('10')
       setRecurWeekdays([])
+      setEventShowAs(DEFAULT_CALENDAR_EVENT_SHOW_AS)
+      setEventIsPrivate(false)
       const calId = initialEvent.graphCalendarId?.trim() ?? ''
       setGraphCalendarId(calId)
       setDestinationSelectValue(calendarDestinationKey(initialEvent.accountId, calId))
@@ -638,6 +668,8 @@ export function CalendarEventDialog({
       setAttendeeInput(createPrefill?.attendeeInput?.trim() ? createPrefill.attendeeInput : '')
       setMsEventDetailsError(null)
       setMsEventDetailsLoading(false)
+      setEditEventType(null)
+      setEditEventTypeLoaded(false)
       setRecurFreq('none')
       setRecurEnd('never')
       const anchorForUntil = initialRange
@@ -650,6 +682,9 @@ export function CalendarEventDialog({
           })()
       setRecurUntilDate(format(addMonths(anchorForUntil, 6), 'yyyy-MM-dd'))
       setRecurCount('10')
+      setRecurWeekdays([])
+      setEventShowAs(DEFAULT_CALENDAR_EVENT_SHOW_AS)
+      setEventIsPrivate(false)
       const preferTaskAcc = resolvePreferredTaskAccountId(
         taskAccounts,
         defaultAccountId && taskAccounts.some((a) => a.id === defaultAccountId)
@@ -819,6 +854,37 @@ export function CalendarEventDialog({
   )
 
   const isTaskCreate = mode === 'create' && createKind === 'task'
+
+  /** Einzeltermin → Serie, oder bestehende Serie/Vorkommen bearbeiten. */
+  const canEditRecurrenceOnEvent =
+    mode === 'edit' &&
+    (!editEventTypeLoaded ||
+      editEventType === 'singleInstance' ||
+      editEventType === 'seriesMaster' ||
+      editEventType === 'occurrence' ||
+      editEventType === 'exception' ||
+      editEventType == null)
+
+  const showEventRecurrenceEditor =
+    (mode === 'create' && createKind === 'event') || canEditRecurrenceOnEvent
+
+  const isExistingSeriesEdit =
+    mode === 'edit' &&
+    editEventTypeLoaded &&
+    (editEventType === 'seriesMaster' ||
+      editEventType === 'occurrence' ||
+      editEventType === 'exception')
+
+  /** Speichern mit Serie: Anlegen, Einzel→Serie, oder bestehende Serie aktualisieren. */
+  const canSaveRecurrence =
+    mode === 'create' ||
+    (mode === 'edit' &&
+      editEventTypeLoaded &&
+      (editEventType === 'singleInstance' ||
+        editEventType === 'seriesMaster' ||
+        editEventType === 'occurrence' ||
+        editEventType === 'exception' ||
+        editEventType == null))
 
   const taskTimedDisplay = useMemo(() => {
     if (!isTaskCreate || !taskPlannedStart || !taskPlannedEnd) return null
@@ -1018,24 +1084,31 @@ export function CalendarEventDialog({
     if (!eventId) {
       setMsEventDetailsLoading(false)
       setMsEventDetailsError(null)
+      setEditEventType(null)
+      setEditEventTypeLoaded(false)
       return
     }
     if (initialEvent.source === 'google' && !initialEvent.graphCalendarId?.trim()) {
       setMsEventDetailsLoading(false)
       setMsEventDetailsError(t('calendar.eventDialog.googleCalendarIdMissing'))
       setAttendeeInput('')
+      setEditEventType(null)
+      setEditEventTypeLoaded(false)
       return
     }
 
     let cancelled = false
     setMsEventDetailsLoading(true)
     setMsEventDetailsError(null)
+    setEditEventType(null)
+    setEditEventTypeLoaded(false)
     setTeamsMeeting(!!initialEvent.joinUrl && !initialEvent.isAllDay)
     void window.mailClient.calendar
       .getEvent({
         accountId: initialEvent.accountId,
         graphEventId: eventId,
-        graphCalendarId: initialEvent.graphCalendarId ?? null
+        graphCalendarId: initialEvent.graphCalendarId ?? null,
+        forceRefresh: true
       })
       .then((d) => {
         if (cancelled) return
@@ -1062,12 +1135,36 @@ export function CalendarEventDialog({
         }
         const raw = d.bodyHtml?.trim() ? d.bodyHtml.trim() : ''
         setDescriptionHtml(raw ? sanitizeComposeHtmlFragment(raw) : '')
+        setEditEventType(d.eventType ?? 'singleInstance')
+        setEditEventTypeLoaded(true)
+        setEditSeriesMasterId(d.seriesMasterId?.trim() || null)
+        setEventShowAs(d.showAs ?? DEFAULT_CALENDAR_EVENT_SHOW_AS)
+        setEventIsPrivate(calendarEventSensitivityIsPrivate(d.sensitivity))
+        const rec = d.recurrence ?? null
+        setLoadedRecurrence(rec)
+        if (rec) {
+          setRecurFreq(rec.frequency)
+          setRecurEnd(rec.rangeEnd)
+          setRecurUntilDate(rec.untilDate?.trim() || '')
+          setRecurCount(rec.count != null ? String(rec.count) : '10')
+          setRecurWeekdays(rec.weekdays?.length ? [...rec.weekdays] : [])
+        } else {
+          setRecurFreq('none')
+          setRecurEnd('never')
+          setRecurUntilDate('')
+          setRecurCount('10')
+          setRecurWeekdays([])
+        }
       })
       .catch((err) => {
         if (cancelled) return
         setMsEventDetailsError(err instanceof Error ? err.message : String(err))
         setAttendeeInput('')
         setDescriptionHtml('')
+        setEditEventType(null)
+        setEditEventTypeLoaded(false)
+        setEditSeriesMasterId(null)
+        setLoadedRecurrence(null)
       })
       .finally(() => {
         if (!cancelled) setMsEventDetailsLoading(false)
@@ -1416,8 +1513,29 @@ export function CalendarEventDialog({
 
     const parsedAttendees = attendeeEmailsFromField(attendeeInput)
 
+    let didRescheduleMeeting = false
+    if (mode === 'edit' && initialEvent) {
+      const previous = {
+        startIso: initialEvent.startIso,
+        endIso: initialEvent.endIso,
+        isAllDay: initialEvent.isAllDay
+      }
+      const next = { startIso, endIso, isAllDay }
+      didRescheduleMeeting = calendarEventScheduleChanged(previous, next)
+      const proceed = await confirmEventDialogMeetingReschedule({
+        t,
+        source: initialEvent.source,
+        previous,
+        next,
+        attendeeEmails: parsedAttendees,
+        teamsMeeting: !isAllDay && teamsMeeting,
+        joinUrl: initialEvent.joinUrl
+      })
+      if (!proceed) return
+    }
+
     let recurrence: CalendarSaveEventRecurrence | undefined
-    if (mode === 'create' && recurFreq !== 'none') {
+    if (canSaveRecurrence && recurFreq !== 'none') {
       const startYmd = isAllDay ? dayStart : dtStart.slice(0, 10)
       if (!/^\d{4}-\d{2}-\d{2}$/.test(startYmd)) {
         setLocalError(t('calendar.eventDialog.invalidDate'))
@@ -1449,7 +1567,19 @@ export function CalendarEventDialog({
         ...(recurEnd === 'until' ? { untilDate: recurUntilDate } : {}),
         ...(recurEnd === 'count' ? { count: parseInt(recurCount, 10) } : {})
       }
+    } else if (isExistingSeriesEdit && recurFreq === 'none' && loadedRecurrence) {
+      setLocalError(t('calendar.eventDialog.recurrenceSeriesClearUnsupported'))
+      return
     }
+
+    const recurrenceDirty =
+      recurrence != null &&
+      (loadedRecurrence == null ||
+        loadedRecurrence.frequency !== recurrence.frequency ||
+        loadedRecurrence.rangeEnd !== recurrence.rangeEnd ||
+        (loadedRecurrence.untilDate ?? '') !== (recurrence.untilDate ?? '') ||
+        (loadedRecurrence.count ?? null) !== (recurrence.count ?? null) ||
+        (loadedRecurrence.weekdays ?? []).join(',') !== (recurrence.weekdays ?? []).join(','))
 
     setBusy(true)
     try {
@@ -1475,6 +1605,8 @@ export function CalendarEventDialog({
             : {}),
           ...eventAttachmentsApi.buildSavePayload(),
           ...(recurrence ? { recurrence } : {}),
+          showAs: eventShowAs,
+          sensitivity: calendarEventSensitivityFromPrivate(eventIsPrivate),
           ...graphReminderPayload(selectedAccount?.provider, reminderEnabled, reminderMinutesBefore),
           ...(!isAllDay ? { timeZone: eventTimeZone } : {})
         })
@@ -1539,6 +1671,8 @@ export function CalendarEventDialog({
             : {})
           ,
           ...eventAttachmentsApi.buildSavePayload(),
+          showAs: eventShowAs,
+          sensitivity: calendarEventSensitivityFromPrivate(eventIsPrivate),
           ...graphReminderPayload(initialEvent.source, reminderEnabled, reminderMinutesBefore),
           ...(!isAllDay ? { timeZone: eventTimeZone } : {})
         }
@@ -1559,14 +1693,32 @@ export function CalendarEventDialog({
             targetAccountId: parsedDest.accountId,
             targetGraphCalendarId: parsedDest.graphCalendarId,
             mode: 'move',
-            payloadOverride
+            payloadOverride: {
+              ...payloadOverride,
+              ...(recurrence ? { recurrence } : {})
+            }
           })
         } else {
+          const masterId = editSeriesMasterId?.trim() || null
+          const patchRecurrenceOntoSeries =
+            recurrence != null &&
+            (editEventType === 'singleInstance' ||
+              editEventType === 'seriesMaster' ||
+              (recurrenceDirty &&
+                (editEventType === 'occurrence' || editEventType === 'exception') &&
+                Boolean(masterId)))
+          const updateTargetId =
+            patchRecurrenceOntoSeries &&
+            (editEventType === 'occurrence' || editEventType === 'exception') &&
+            masterId
+              ? masterId
+              : gid
           await window.mailClient.calendar.updateEvent({
             accountId,
-            graphEventId: gid,
+            graphEventId: updateTargetId,
             graphCalendarId: initialEvent.graphCalendarId ?? null,
-            ...payloadOverride
+            ...payloadOverride,
+            ...(patchRecurrenceOntoSeries && recurrence ? { recurrence } : {})
           })
         }
         writeCalendarEventReminder(
@@ -1589,9 +1741,14 @@ export function CalendarEventDialog({
           .slice(0, 3)
           .join(', ')
         const moreCount = invitedCount > 3 ? invitedCount - 3 : 0
-        const label = moreCount > 0
-          ? t('calendar.eventDialog.invitationSentWithMore', { names, count: moreCount })
-          : t('calendar.eventDialog.invitationSent', { names })
+        const label =
+          didRescheduleMeeting && mode === 'edit'
+            ? moreCount > 0
+              ? t('calendar.eventDialog.rescheduleUpdateSentWithMore', { names, count: moreCount })
+              : t('calendar.eventDialog.rescheduleUpdateSent', { names })
+            : moreCount > 0
+              ? t('calendar.eventDialog.invitationSentWithMore', { names, count: moreCount })
+              : t('calendar.eventDialog.invitationSent', { names })
         useUndoStore.getState().pushToast({ label, variant: 'success', durationMs: 6000 })
       }
       onSaved(createdForSaved)
@@ -1941,7 +2098,7 @@ export function CalendarEventDialog({
             {/* Zielkalender / Aufgabenliste ist im Header (Create). */}
 
             <div className="border-b border-border py-3">
-              <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-5">
+              <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-6">
                 <div className="min-w-0 lg:col-span-2">
                   <div className={eventDialogSectionHeadingClass}>
                     <CalendarIcon className="h-3.5 w-3.5 shrink-0" />
@@ -2299,7 +2456,7 @@ export function CalendarEventDialog({
                       embedded
                     />
                   </div>
-                ) : mode === 'create' && createKind === 'event' ? (
+                ) : showEventRecurrenceEditor ? (
                   <div className="min-w-0">
                     <CalendarEventRecurrenceSection
                       recurFreq={recurFreq}
@@ -2312,7 +2469,9 @@ export function CalendarEventDialog({
                       setRecurCount={setRecurCount}
                       recurWeekdays={recurWeekdays}
                       setRecurWeekdays={setRecurWeekdays}
-                      eventFieldsLocked={eventFieldsLocked}
+                      eventFieldsLocked={
+                        eventFieldsLocked || (mode === 'edit' && !editEventTypeLoaded)
+                      }
                       embedded
                     />
                   </div>
@@ -2325,6 +2484,69 @@ export function CalendarEventDialog({
                     <p className="text-xs text-muted-foreground">{t('calendar.eventDialog.summaryDash')}</p>
                   </div>
                 )}
+
+                <div className="min-w-0">
+                  <div className={eventDialogSectionHeadingClass}>
+                    <CircleDot className="h-3.5 w-3.5 shrink-0" />
+                    {t('calendar.eventDialog.statusHeading')}
+                  </div>
+                  {isTaskCreate ? (
+                    <p className={cn(eventDialogPanelSelectClass, 'flex items-center text-muted-foreground')}>
+                      {t('calendar.eventDialog.summaryDash')}
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      <select
+                        aria-label={t('calendar.eventDialog.statusShowAsAria')}
+                        value={eventShowAs}
+                        disabled={eventFieldsLocked || (mode === 'edit' && msEventDetailsLoading)}
+                        onChange={(e): void => {
+                          const v = e.target.value
+                          if (
+                            v === 'free' ||
+                            v === 'tentative' ||
+                            v === 'busy' ||
+                            v === 'oof' ||
+                            v === 'workingElsewhere'
+                          ) {
+                            setEventShowAs(v)
+                          }
+                        }}
+                        className={eventDialogPanelSelectClass}
+                      >
+                        {CALENDAR_EVENT_SHOW_AS_OPTIONS.map((opt) => (
+                          <option key={opt} value={opt}>
+                            {t(`calendar.eventDialog.statusShowAs.${opt}`)}
+                          </option>
+                        ))}
+                      </select>
+                      <label
+                        className={cn(
+                          'flex cursor-pointer items-center gap-2 text-xs font-medium',
+                          (eventFieldsLocked || (mode === 'edit' && msEventDetailsLoading)) &&
+                            'cursor-not-allowed opacity-50'
+                        )}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={eventIsPrivate}
+                          disabled={eventFieldsLocked || (mode === 'edit' && msEventDetailsLoading)}
+                          onChange={(e): void => setEventIsPrivate(e.target.checked)}
+                          className="rounded border-border"
+                        />
+                        <Lock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+                        <span className={cn(eventIsPrivate ? 'text-foreground' : 'text-muted-foreground')}>
+                          {t('calendar.eventDialog.statusPrivate')}
+                        </span>
+                      </label>
+                      {selectedAccount?.provider === 'google' ? (
+                        <p className="text-2xs leading-snug text-muted-foreground">
+                          {t('calendar.eventDialog.statusGoogleHint')}
+                        </p>
+                      ) : null}
+                    </div>
+                  )}
+                </div>
 
                 <div className="min-w-0">
                   <div className={eventDialogSectionHeadingClass}>

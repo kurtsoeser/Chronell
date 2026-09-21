@@ -87,6 +87,9 @@ const SettingsMailPreviewMetaFieldsSection = lazy(() =>
 const SettingsQuickStepsSection = lazy(
   () => import('@/components/account-setup/SettingsQuickStepsSection')
 )
+const SettingsTextSnippetsSection = lazy(
+  () => import('@/components/account-setup/SettingsTextSnippetsSection')
+)
 const AccountSetupNotesPanel = lazy(
   () => import('@/components/account-setup/AccountSetupNotesPanel')
 )
@@ -154,6 +157,10 @@ import {
 } from '@shared/app-version'
 import { openExternalUrl } from '@/lib/open-external'
 import {
+  searchSettingsCatalog,
+  type SettingsSearchHit
+} from '@/lib/settings-search-catalog'
+import {
   Building2,
   Calendar,
   Cloud,
@@ -175,6 +182,7 @@ import {
   PanelLeft,
   HardDrive,
   FileSearch,
+  Search,
   Settings,
   StickyNote,
   Users,
@@ -500,6 +508,22 @@ export function AccountSetupDialog({
   const [weatherBusy, setWeatherBusy] = useState(false)
   const [weatherMsg, setWeatherMsg] = useState<string | null>(null)
   const [bulkUnflagOpen, setBulkUnflagOpen] = useState(false)
+  const [settingsSearchQuery, setSettingsSearchQuery] = useState('')
+  const [settingsSearchOpen, setSettingsSearchOpen] = useState(false)
+
+  const settingsSearchHits = useMemo((): SettingsSearchHit[] => {
+    const q = settingsSearchQuery.trim()
+    if (q.length < 1) return []
+    return searchSettingsCatalog(q, (key) => t(key))
+  }, [settingsSearchQuery, t])
+
+  const navigateToSettingsEntry = useCallback((hit: SettingsSearchHit): void => {
+    const tab = hit.tab as SettingsTab
+    setActiveTab(tab)
+    setSubNavId((prev) => ({ ...prev, [tab]: hit.subNav }))
+    setSettingsSearchQuery('')
+    setSettingsSearchOpen(false)
+  }, [])
 
   const calendarLinkedAccounts = useMemo(
     () => accounts.filter((a) => a.provider === 'microsoft' || a.provider === 'google'),
@@ -537,6 +561,8 @@ export function AccountSetupDialog({
     if (initialTab === 'bookings' && initialBookingsSubNav) {
       setSubNavId((prev) => ({ ...prev, bookings: initialBookingsSubNav }))
     }
+    setSettingsSearchQuery('')
+    setSettingsSearchOpen(false)
   }, [open, initialTab, initialMailSubNav, initialBookingsSubNav])
 
   useEffect(() => {
@@ -611,6 +637,7 @@ export function AccountSetupDialog({
           { id: 'compose', label: t('settings.mailCompose.heading') },
           { id: 'listHover', label: t('settings.mailListHoverHeading') },
           { id: 'quickSteps', label: t('settings.quickSteps.heading') },
+          { id: 'textSnippets', label: t('settings.textSnippets.heading') },
           { id: 'sidebarFolders', label: t('settings.mailSidebarFoldersHeading') },
           { id: 'triage', label: t('settings.triageHeading') },
           { id: 'categories', label: t('settings.categoriesHeading') },
@@ -1499,14 +1526,89 @@ export function AccountSetupDialog({
         style={{ width: settingsDialogWidth, height: settingsDialogHeight }}
         className="account-setup-dialog relative flex max-h-[92vh] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-xl border border-border bg-card text-foreground shadow-2xl"
       >
-        <div className="flex items-center justify-between border-b border-white/[0.04] px-5 py-3.5 dark:border-white/[0.04]">
-          <h2 id="settings-dialog-title" className="text-sm font-semibold">
+        <div className="flex items-center gap-3 border-b border-white/[0.04] px-5 py-3.5 dark:border-white/[0.04]">
+          <h2 id="settings-dialog-title" className="shrink-0 text-sm font-semibold">
             {t('settings.title')}
           </h2>
+          <div className="relative min-w-0 flex-1">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="search"
+              value={settingsSearchQuery}
+              onChange={(e): void => {
+                setSettingsSearchQuery(e.target.value)
+                setSettingsSearchOpen(true)
+              }}
+              onFocus={(): void => setSettingsSearchOpen(true)}
+              onKeyDown={(e): void => {
+                if (e.key === 'Escape') {
+                  setSettingsSearchQuery('')
+                  setSettingsSearchOpen(false)
+                  ;(e.target as HTMLInputElement).blur()
+                }
+                if (e.key === 'Enter' && settingsSearchHits[0]) {
+                  e.preventDefault()
+                  navigateToSettingsEntry(settingsSearchHits[0])
+                }
+              }}
+              placeholder={t('settings.searchPlaceholder')}
+              aria-label={t('settings.searchAria')}
+              aria-expanded={settingsSearchOpen && settingsSearchQuery.trim().length > 0}
+              aria-controls="settings-search-results"
+              className="w-full rounded-md border border-border bg-background py-1.5 pl-8 pr-8 text-xs outline-none focus:border-ring"
+            />
+            {settingsSearchQuery ? (
+              <button
+                type="button"
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                aria-label={t('settings.searchClearAria')}
+                onClick={(): void => {
+                  setSettingsSearchQuery('')
+                  setSettingsSearchOpen(false)
+                }}
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            ) : null}
+            {settingsSearchOpen && settingsSearchQuery.trim().length > 0 ? (
+              <>
+                <button
+                  type="button"
+                  className="fixed inset-0 z-40 cursor-default"
+                  aria-label={t('settings.closeAria')}
+                  onClick={(): void => setSettingsSearchOpen(false)}
+                />
+                <div
+                  id="settings-search-results"
+                  role="listbox"
+                  className="absolute left-0 right-0 top-[calc(100%+0.35rem)] z-50 max-h-[min(320px,50vh)] overflow-y-auto rounded-md border border-border bg-card p-1 shadow-xl"
+                >
+                  {settingsSearchHits.length === 0 ? (
+                    <div className="px-2.5 py-2 text-xs text-muted-foreground">
+                      {t('settings.searchNoResults')}
+                    </div>
+                  ) : (
+                    settingsSearchHits.map((hit) => (
+                      <button
+                        key={hit.id}
+                        type="button"
+                        role="option"
+                        className="flex w-full flex-col gap-0.5 rounded-md px-2.5 py-1.5 text-left hover:bg-secondary"
+                        onClick={(): void => navigateToSettingsEntry(hit)}
+                      >
+                        <span className="text-xs font-medium text-foreground">{hit.label}</span>
+                        <span className="text-[11px] text-muted-foreground">{hit.tabLabel}</span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </>
+            ) : null}
+          </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            className="shrink-0 rounded p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
             aria-label={t('settings.closeAria')}
           >
             <X className="h-4 w-4" />
@@ -2124,6 +2226,12 @@ export function AccountSetupDialog({
               {subNavId.mail === 'quickSteps' && (
                 <Suspense fallback={<AccountSetupPanelFallback />}>
                   <SettingsQuickStepsSection />
+                </Suspense>
+              )}
+
+              {subNavId.mail === 'textSnippets' && (
+                <Suspense fallback={<AccountSetupPanelFallback />}>
+                  <SettingsTextSnippetsSection />
                 </Suspense>
               )}
 

@@ -9,6 +9,7 @@ import { FontFamily } from '@tiptap/extension-text-style/font-family'
 import { FontSize } from '@tiptap/extension-text-style/font-size'
 import Color from '@tiptap/extension-color'
 import Highlight from '@tiptap/extension-highlight'
+import Underline from '@tiptap/extension-underline'
 import type { NoteCloudTaskRef } from '@shared/note-cloud-task'
 import { NoteCloudTaskItem, NoteCloudTaskList } from '@/components/tiptap-note-cloud-task-item'
 import { createNoteCloudTaskDomEventHandlers } from '@/lib/note-cloud-task-dom-handlers'
@@ -18,6 +19,15 @@ import { prepareComposeEditorHtml, prepareNoteEditorHtml } from '@/lib/sanitize-
 import { safeTiptapGetHtml } from '@/lib/tiptap-editor-html'
 import { MailTable, MailTableCell, MailTableHeader } from '@/components/tiptap-mail-table'
 import { ComposeTextSnippetsMenu } from '@/components/ComposeTextSnippetsMenu'
+import {
+  ComposeTextSnippetEditorDialog,
+  type ComposeTextSnippetEditorState
+} from '@/components/ComposeTextSnippetEditorDialog'
+import { TipTapEditorContextMenu } from '@/components/TipTapEditorContextMenu'
+import {
+  getEditorSelectionSnippetHtml,
+  snippetHtmlToPlain
+} from '@/lib/compose-text-snippet-selection'
 import { TableContextToolbar } from '@/components/tiptap/TableContextToolbar'
 import { TableInsertMenu } from '@/components/tiptap/TableInsertMenu'
 import { NoteFormFieldInsertMenu } from '@/components/tiptap/NoteFormFieldInsertMenu'
@@ -34,7 +44,7 @@ import { isNoteWikiLinkHref, parseNoteWikiLinkHref } from '@shared/note-wiki-lin
 import { isNoteEntityMentionHref } from '@shared/note-entity-mention-link'
 import { isEmbeddableNoteUrl } from '@shared/note-embed-registry'
 import type { NoteEntityLinkTarget } from '@shared/note-entity-links'
-import { showAppPrompt } from '@/stores/app-dialog'
+import { showAppPrompt, showAppAlert } from '@/stores/app-dialog'
 import {
   AlignCenter,
   AlignJustify,
@@ -69,6 +79,7 @@ import {
 import { listSubtleBorderClass } from '@/lib/chronell-ui-classes'
 import { cn } from '@/lib/utils'
 import { createTipTapLinkDomEventHandlers } from '@/lib/tiptap-editor-link-click'
+import { normalizeComposeLinkHref } from '@shared/compose-link-href'
 import { createNoteInkDomEventHandlers } from '@/lib/note-ink-dom-handlers'
 import { COMPOSE_FONT_FAMILIES } from '@/lib/compose-font-families'
 import { ensureComposeBundledFontLoaded } from '@/lib/compose-font-loader'
@@ -245,6 +256,16 @@ export function TipTapBody({
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const attachmentInputRef = useRef<HTMLInputElement | null>(null)
   const [colorPickerOpen, setColorPickerOpen] = useState<'text' | 'highlight' | null>(null)
+  const [editorContextMenu, setEditorContextMenu] = useState<{ x: number; y: number } | null>(
+    null
+  )
+  const [snippetEditorOpen, setSnippetEditorOpen] = useState<ComposeTextSnippetEditorState | null>(
+    null
+  )
+  const openEditorContextMenuRef = useRef<(x: number, y: number) => void>(() => {})
+  openEditorContextMenuRef.current = (x, y): void => {
+    setEditorContextMenu({ x, y })
+  }
   const composeScale = useComposeEditorScaleStore((s) => s.scale)
   const composeEditorTheme = useComposeEditorEffectiveTheme()
   const composePrefs = useComposeSettingsPrefs()
@@ -274,6 +295,7 @@ export function TipTapBody({
         openOnClick: false,
         autolink: !enableWikiLinks,
         linkOnPaste: true,
+        defaultProtocol: 'https',
         shouldAutoLink: (url) =>
           !isNoteWikiLinkHref(url) &&
           !isNoteEntityMentionHref(url) &&
@@ -288,6 +310,7 @@ export function TipTapBody({
       FontSize.configure({ types: ['textStyle'] }),
       Color,
       Highlight.configure({ multicolor: true }),
+      Underline,
       MailTable.configure({
         resizable: true,
         renderWrapper: false,
@@ -375,7 +398,13 @@ export function TipTapBody({
     () => ({
       ...linkDomEventHandlers,
       ...(onInkImageDoubleClick ? inkDomEventHandlers : {}),
-      ...(onCloudTaskToggle ? cloudTaskDomEventHandlers : {})
+      ...(onCloudTaskToggle ? cloudTaskDomEventHandlers : {}),
+      contextmenu: (_view: unknown, event: Event): boolean => {
+        if (!(event instanceof MouseEvent)) return false
+        event.preventDefault()
+        openEditorContextMenuRef.current(event.clientX, event.clientY)
+        return true
+      }
     }),
     [cloudTaskDomEventHandlers, inkDomEventHandlers, linkDomEventHandlers, onCloudTaskToggle, onInkImageDoubleClick]
   )
@@ -415,7 +444,16 @@ export function TipTapBody({
   })
 
   useEffect(() => {
-    if (!editor || editor.isDestroyed || !inEditorSurface) return
+    if (!editor || editor.isDestroyed) return
+    if (!inEditorSurface) {
+      editor.setOptions({
+        editorProps: {
+          ...editor.options.editorProps,
+          handleDOMEvents: domEventHandlers
+        }
+      })
+      return
+    }
     const style = composeEditorSurfaceStyle(composePrefs, composeEditorTheme)
     editor.setOptions({
       editorProps: {
@@ -435,7 +473,7 @@ export function TipTapBody({
     if (html !== null && isComposeBodyEffectivelyEmpty(html)) {
       applyComposeDefaultTypingMarks(editor, composePrefs, composeEditorTheme)
     }
-  }, [editor, inEditorSurface, composePrefs, composeEditorTheme, contentMinHeight, linkDomEventHandlers])
+  }, [editor, inEditorSurface, composePrefs, composeEditorTheme, contentMinHeight, domEventHandlers])
 
   useEffect(() => {
     if (!editor || editor.isDestroyed) return
@@ -616,17 +654,37 @@ export function TipTapBody({
   const handleInsertLink = (): void => {
     void (async (): Promise<void> => {
       const prev = editor.getAttributes('link').href as string | undefined
-      const url = await showAppPrompt('Link-URL eingeben:', {
-        title: 'Link',
+      const url = await showAppPrompt(t('editorLink.prompt'), {
+        title: t('editorLink.title'),
         defaultValue: prev ?? 'https://',
-        placeholder: 'https://…'
+        placeholder: t('editorLink.placeholder')
       })
       if (url === null) return
       if (url === '') {
         editor.chain().focus().extendMarkRange('link').unsetLink().run()
         return
       }
-      editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
+      const href = normalizeComposeLinkHref(url)
+      if (!href) {
+        await showAppAlert(t('editorLink.invalid'), { title: t('editorLink.title') })
+        return
+      }
+      const { empty } = editor.state.selection
+      const inLink = Boolean(editor.getAttributes('link').href)
+      if (!empty || inLink) {
+        editor.chain().focus().extendMarkRange('link').setLink({ href }).run()
+        return
+      }
+      // Ohne Auswahl: URL als klickbaren Link einfuegen (nicht nur als stored mark).
+      editor
+        .chain()
+        .focus()
+        .insertContent({
+          type: 'text',
+          text: href,
+          marks: [{ type: 'link', attrs: { href } }]
+        })
+        .run()
     })()
   }
 
@@ -785,6 +843,35 @@ export function TipTapBody({
           multiple
           className="hidden"
           onChange={handleAttachmentInputChange}
+        />
+      ) : null}
+      {editor && editorContextMenu ? (
+        <TipTapEditorContextMenu
+          editor={editor}
+          x={editorContextMenu.x}
+          y={editorContextMenu.y}
+          onClose={(): void => setEditorContextMenu(null)}
+          onAdoptAsSnippet={(): void => {
+            const selectedHtml = getEditorSelectionSnippetHtml(editor)
+            if (!selectedHtml) {
+              void showAppAlert(t('editorContextMenu.selectTextFirst'), {
+                title: t('settings.textSnippets.heading')
+              })
+              return
+            }
+            setSnippetEditorOpen({
+              mode: 'create',
+              name: '',
+              body: snippetHtmlToPlain(selectedHtml)
+            })
+          }}
+        />
+      ) : null}
+      {snippetEditorOpen ? (
+        <ComposeTextSnippetEditorDialog
+          state={snippetEditorOpen}
+          onChange={setSnippetEditorOpen}
+          onClose={(): void => setSnippetEditorOpen(null)}
         />
       ) : null}
     </div>

@@ -134,6 +134,12 @@ export const IPC = {
     rebuildEmbeddingIndex: 'ai-connections:rebuild-embedding-index',
     cancelEmbeddingRebuild: 'ai-connections:cancel-embedding-rebuild'
   },
+  copilot: {
+    chat: 'copilot:chat',
+    retrieve: 'copilot:retrieve',
+    cacheGet: 'copilot:cache-get',
+    cacheSet: 'copilot:cache-set'
+  },
   notes: {
     getMail: 'notes:get-mail',
     upsertMail: 'notes:upsert-mail',
@@ -197,6 +203,10 @@ export const IPC = {
     listAttachments: 'mail:list-attachments',
     openAttachment: 'mail:open-attachment',
     saveAttachmentAs: 'mail:save-attachment-as',
+    /** Laedt Anhang in den Drag-Cache (Originalname) fuer natives OS-Drag. */
+    prepareAttachmentDrag: 'mail:prepare-attachment-drag',
+    /** Sync: startet webContents.startDrag waehrend dragstart. */
+    startAttachmentDrag: 'mail:start-attachment-drag',
     syncAttachmentsFlag: 'mail:sync-attachments-flag',
     refreshNow: 'mail:refresh-now',
     setActiveFolder: 'mail:set-active-folder',
@@ -298,6 +308,7 @@ export const IPC = {
     updateEvent: 'calendar:update-event',
     getEvent: 'calendar:get-event',
     resolveMeetingRecording: 'calendar:resolve-meeting-recording',
+    getMeetingAiInsights: 'calendar:get-meeting-ai-insights',
     listEventAttachments: 'calendar:list-event-attachments',
     openEventAttachment: 'calendar:open-event-attachment',
     saveEventAttachmentAs: 'calendar:save-event-attachment-as',
@@ -306,6 +317,8 @@ export const IPC = {
     patchEventSchedule: 'calendar:patch-event-schedule',
     /** Nur `categories` am Graph-Termin patchen (ohne Body/Zeiten). */
     patchEventCategories: 'calendar:patch-event-categories',
+    /** Nur `showAs` / `sensitivity` (Frei/Gebucht/Privat) patchen. */
+    patchEventStatus: 'calendar:patch-event-status',
     patchEventIcon: 'calendar:patch-event-icon',
     transferEvent: 'calendar:transfer-event',
     syncAccount: 'calendar:sync-account',
@@ -314,6 +327,8 @@ export const IPC = {
     pickIcsFile: 'calendar:pick-ics-file',
     parseMeetingFromMessage: 'calendar:parse-meeting-from-message',
     respondToMeetingInvitation: 'calendar:respond-to-meeting-invitation',
+    respondToEvent: 'calendar:respond-to-event',
+    rescheduleMeetingFromMessage: 'calendar:reschedule-meeting-from-message',
     findLocalFreeSlots: 'calendar:find-local-free-slots',
     getAttendeeSchedule: 'calendar:get-attendee-schedule',
     findMeetingTimes: 'calendar:find-meeting-times'

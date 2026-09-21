@@ -24,16 +24,75 @@ export async function pruneStaleAttachmentCache(
     return { freedBytes: 0, removedFiles: 0 }
   }
   for (const ent of entries) {
-    if (!ent.isFile()) continue
     const full = join(dir, ent.name)
     try {
-      const st = await stat(full)
-      if (st.mtimeMs >= cutoff) continue
-      freedBytes += st.size
-      await rm(full, { force: true })
-      removedFiles += 1
+      if (ent.isFile()) {
+        const st = await stat(full)
+        if (st.mtimeMs >= cutoff) continue
+        freedBytes += st.size
+        await rm(full, { force: true })
+        removedFiles += 1
+        continue
+      }
+      if (ent.isDirectory() && ent.name === 'drag') {
+        const nested = await pruneDragCacheTree(full, cutoff)
+        freedBytes += nested.freedBytes
+        removedFiles += nested.removedFiles
+      }
     } catch {
       /* ENOENT */
+    }
+  }
+  return { freedBytes, removedFiles }
+}
+
+async function pruneDragCacheTree(
+  dragDir: string,
+  cutoff: number
+): Promise<{ freedBytes: number; removedFiles: number }> {
+  let freedBytes = 0
+  let removedFiles = 0
+  let hashDirs
+  try {
+    hashDirs = await readdir(dragDir, { withFileTypes: true })
+  } catch {
+    return { freedBytes: 0, removedFiles: 0 }
+  }
+  for (const hashEnt of hashDirs) {
+    if (!hashEnt.isDirectory()) continue
+    const hashPath = join(dragDir, hashEnt.name)
+    let files
+    try {
+      files = await readdir(hashPath, { withFileTypes: true })
+    } catch {
+      continue
+    }
+    let remaining = 0
+    for (const fileEnt of files) {
+      if (!fileEnt.isFile()) {
+        remaining += 1
+        continue
+      }
+      const filePath = join(hashPath, fileEnt.name)
+      try {
+        const st = await stat(filePath)
+        if (st.mtimeMs >= cutoff) {
+          remaining += 1
+          continue
+        }
+        freedBytes += st.size
+        await rm(filePath, { force: true })
+        removedFiles += 1
+      } catch {
+        /* ENOENT */
+      }
+    }
+    if (remaining === 0) {
+      try {
+        await rm(hashPath, { recursive: true, force: true })
+      } catch {
+        /* busy */
+      }
     }
   }
   return { freedBytes, removedFiles }
@@ -73,6 +132,33 @@ export async function writeAttachmentCacheFile(
     await access(target)
   } catch {
     throw new Error(`Anhang-Cache konnte nicht geschrieben werden: ${target}`)
+  }
+  return target
+}
+
+/** Unterordner fuer Drag-and-Drop (Dateiname bleibt der Originalname beim Drop). */
+export function attachmentDragCacheDirectory(): string {
+  return join(attachmentCacheDirectory(), 'drag')
+}
+
+/**
+ * Schreibt Anhang in einen Drag-Cache mit Originaldateiname.
+ * Pfad: attachment-cache/drag/<hash>/<safeFileName>
+ */
+export async function writeAttachmentDragFile(
+  attachmentId: string,
+  safeFileName: string,
+  bytes: Buffer
+): Promise<string> {
+  const hash = createHash('sha256').update(attachmentId).digest('hex').slice(0, 16)
+  const dir = join(attachmentDragCacheDirectory(), hash)
+  await mkdir(dir, { recursive: true })
+  const target = join(dir, safeFileName || 'attachment')
+  await writeFile(target, bytes)
+  try {
+    await access(target)
+  } catch {
+    throw new Error(`Anhang-Drag-Cache konnte nicht geschrieben werden: ${target}`)
   }
   return target
 }

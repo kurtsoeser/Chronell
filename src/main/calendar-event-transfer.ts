@@ -100,7 +100,14 @@ export async function transferCalendarEvent(
         : null),
     teamsMeeting:
       input.payloadOverride?.teamsMeeting ??
-      (tgtAcc.provider === 'microsoft' && !isAllDay ? detail.isOnlineMeeting : null)
+      (tgtAcc.provider === 'microsoft' && !isAllDay ? detail.isOnlineMeeting : null),
+    ...(input.payloadOverride?.recurrence
+      ? { recurrence: input.payloadOverride.recurrence }
+      : {}),
+    ...(input.payloadOverride?.showAs ? { showAs: input.payloadOverride.showAs } : {}),
+    ...(input.payloadOverride?.sensitivity
+      ? { sensitivity: input.payloadOverride.sensitivity }
+      : {})
   }
 
   const result = await createSimpleCalendarEventForAccount(saveInput)

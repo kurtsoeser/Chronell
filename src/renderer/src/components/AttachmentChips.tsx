@@ -95,7 +95,12 @@ export function LocalAttachmentChip({
   onSaveAs,
   saveAsLabel,
   removeAriaLabel = 'Anhang entfernen',
-  compact = false
+  compact = false,
+  draggable = false,
+  dragPreparing = false,
+  onDragPrepare,
+  onNativeDragStart,
+  dragTitle
 }: {
   name: string
   contentType: string
@@ -106,16 +111,56 @@ export function LocalAttachmentChip({
   saveAsLabel?: string
   removeAriaLabel?: string
   compact?: boolean
+  /** Natives OS-Drag (Electron startDrag) — Datei auf Desktop/Ordner ziehen. */
+  draggable?: boolean
+  dragPreparing?: boolean
+  onDragPrepare?: () => void
+  /** Sync: startet natives Drag; false = Drag abbrechen (Datei noch nicht bereit). */
+  onNativeDragStart?: () => boolean
+  dragTitle?: string
 }): JSX.Element {
   const Icon = pickAttachmentIcon(contentType, name)
+  const canNativeDrag = Boolean(onNativeDragStart)
 
   return (
     <div
       className={cn(
         compact ? ATTACHMENT_CHIP_COMPACT_WIDTH_CLASS : ATTACHMENT_CHIP_WIDTH_CLASS,
         'flex flex-col rounded-xl border border-border/80 bg-card text-foreground shadow-sm',
-        compact ? 'gap-1 px-2 py-1.5 text-2xs' : 'gap-1.5 px-3 py-2 text-[11px]'
+        compact ? 'gap-1 px-2 py-1.5 text-2xs' : 'gap-1.5 px-3 py-2 text-[11px]',
+        canNativeDrag && 'select-none',
+        draggable && 'cursor-grab active:cursor-grabbing',
+        dragPreparing && 'opacity-70'
       )}
+      draggable={draggable}
+      title={dragTitle}
+      onPointerEnter={
+        onDragPrepare
+          ? (): void => {
+              onDragPrepare()
+            }
+          : undefined
+      }
+      onPointerDown={
+        onDragPrepare
+          ? (e): void => {
+              if (e.button !== 0) return
+              onDragPrepare()
+            }
+          : undefined
+      }
+      onDragStart={
+        onNativeDragStart
+          ? (e): void => {
+              if (!onNativeDragStart()) {
+                e.preventDefault()
+                return
+              }
+              e.dataTransfer.effectAllowed = 'copy'
+              e.dataTransfer.setData('text/plain', name)
+            }
+          : undefined
+      }
     >
       <div className={cn('flex min-w-0 items-start', compact ? 'gap-1.5' : 'gap-2')}>
         <Icon
@@ -128,6 +173,7 @@ export function LocalAttachmentChip({
           <button
             type="button"
             onClick={onOpen}
+            onPointerDown={(e): void => e.stopPropagation()}
             className="min-w-0 flex-1 rounded-sm text-left transition-colors hover:bg-secondary/40"
             title={size != null ? `${name} · ${formatAttachmentBytes(size)}` : name}
           >
@@ -158,6 +204,7 @@ export function LocalAttachmentChip({
               e.stopPropagation()
               onRemove()
             }}
+            onPointerDown={(e): void => e.stopPropagation()}
             className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-destructive/20 hover:text-destructive"
             aria-label={removeAriaLabel}
             title="Entfernen"
@@ -190,6 +237,7 @@ export function LocalAttachmentChip({
             <button
               type="button"
               onClick={onSaveAs}
+              onPointerDown={(e): void => e.stopPropagation()}
               className={cn(
                 'inline-flex shrink-0 items-center text-primary hover:text-primary/80',
                 compact ? 'rounded p-0.5 hover:bg-primary/10' : 'gap-0.5 text-[10px] font-medium hover:underline'

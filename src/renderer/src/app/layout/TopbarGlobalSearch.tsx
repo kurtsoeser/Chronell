@@ -316,6 +316,10 @@ export function TopbarGlobalSearch(): JSX.Element {
     if (q.length >= 2) {
       pushRecentSearch(q)
       setRecents(readRecentSearches())
+      void selectSearchView(q, { preferredMessageId: hit.id })
+      setAppMode('mail')
+      closeSearch()
+      return
     }
     useMailPendingFocusStore.getState().setPendingMessageId(hit.id)
     setAppMode('mail')

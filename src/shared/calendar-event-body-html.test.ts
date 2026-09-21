@@ -75,6 +75,18 @@ describe('linkifyBareUrlsInHtmlFragment', () => {
       '<p><a href="https://a.test">https://a.test</a></p><p><a href="https://b.test">B</a> <a href="https://c.test">https://c.test</a></p>'
     )
   })
+
+  it('linkifiziert www.-URLs mit https-href', () => {
+    expect(linkifyBareUrlsInHtmlFragment('<p>www.example.com</p>')).toBe(
+      '<p><a href="https://www.example.com/">www.example.com</a></p>'
+    )
+  })
+
+  it('normalisiert relative hrefs in bestehenden Ankern', () => {
+    expect(linkifyBareUrlsInHtmlFragment('<p><a href="www.x.test">X</a></p>')).toBe(
+      '<p><a href="https://www.x.test/">X</a></p>'
+    )
+  })
 })
 
 describe('isEffectivelyEmptyCalendarBodyHtml', () => {

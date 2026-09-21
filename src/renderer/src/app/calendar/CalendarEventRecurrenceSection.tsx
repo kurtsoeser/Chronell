@@ -174,9 +174,11 @@ export function CalendarEventRecurrenceSection({
               />
             </label>
           ) : null}
-          <p className="text-2xs leading-snug text-muted-foreground">
-            {tk('recurrenceHint')}
-          </p>
+          {tk('recurrenceHint') ? (
+            <p className="text-2xs leading-snug text-muted-foreground">
+              {tk('recurrenceHint')}
+            </p>
+          ) : null}
         </div>
       ) : null}
     </div>

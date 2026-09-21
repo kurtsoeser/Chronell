@@ -175,3 +175,164 @@ export function buildGoogleEventRecurrence(
 
   return [`RRULE:${freqPart}${tail}`]
 }
+
+type GraphPatternedRecurrence = {
+  pattern?: {
+    type?: string | null
+    interval?: number | null
+    daysOfWeek?: Array<string | null> | null
+  } | null
+  range?: {
+    type?: string | null
+    endDate?: string | null
+    numberOfOccurrences?: number | null
+  } | null
+}
+
+/** Microsoft Graph `event.recurrence` → UI-Modell (absolute Patterns). */
+export function parseMicrosoftGraphRecurrence(
+  raw: unknown
+): CalendarSaveEventRecurrence | null {
+  if (!raw || typeof raw !== 'object') return null
+  const rec = raw as GraphPatternedRecurrence
+  const pattern = rec.pattern
+  const range = rec.range
+  if (!pattern?.type) return null
+
+  let frequency: CalendarSaveEventRecurrence['frequency']
+  const interval = pattern.interval ?? 1
+  switch (pattern.type) {
+    case 'daily':
+      frequency = 'daily'
+      break
+    case 'weekly':
+      frequency = interval >= 2 ? 'biweekly' : 'weekly'
+      break
+    case 'absoluteMonthly':
+      frequency = 'monthly'
+      break
+    case 'absoluteYearly':
+      frequency = 'yearly'
+      break
+    default:
+      return null
+  }
+
+  let rangeEnd: CalendarSaveEventRecurrence['rangeEnd'] = 'never'
+  let untilDate: string | null | undefined
+  let count: number | null | undefined
+  switch (range?.type) {
+    case 'endDate': {
+      const ed = range.endDate?.trim()
+      if (ed && /^\d{4}-\d{2}-\d{2}$/.test(ed) && !ed.startsWith('0001-')) {
+        rangeEnd = 'until'
+        untilDate = ed
+      }
+      break
+    }
+    case 'numbered': {
+      const n = range.numberOfOccurrences
+      if (n != null && Number.isFinite(n) && n >= 1 && n <= 999) {
+        rangeEnd = 'count'
+        count = Math.floor(n)
+      }
+      break
+    }
+    default:
+      rangeEnd = 'never'
+  }
+
+  const weekdays = (pattern.daysOfWeek ?? [])
+    .map((d) => (typeof d === 'string' ? d.toLowerCase() : ''))
+    .filter((d): d is (typeof GRAPH_DOW)[number] => (GRAPH_DOW as readonly string[]).includes(d))
+
+  return {
+    frequency,
+    rangeEnd,
+    ...(weekdays.length > 0 ? { weekdays: Array.from(new Set(weekdays)) } : {}),
+    ...(rangeEnd === 'until' ? { untilDate } : {}),
+    ...(rangeEnd === 'count' ? { count } : {})
+  }
+}
+
+const GOOGLE_BYDAY_TO_DOW: Record<string, (typeof GRAPH_DOW)[number]> = {
+  MO: 'monday',
+  TU: 'tuesday',
+  WE: 'wednesday',
+  TH: 'thursday',
+  FR: 'friday',
+  SA: 'saturday',
+  SU: 'sunday'
+}
+
+/** Google `event.recurrence` (RRULE-Zeilen) → UI-Modell. */
+export function parseGoogleEventRecurrence(
+  lines: string[] | null | undefined
+): CalendarSaveEventRecurrence | null {
+  if (!lines?.length) return null
+  const rruleLine = lines.find((l) => /^RRULE:/i.test(l.trim()))
+  if (!rruleLine) return null
+  const body = rruleLine.replace(/^RRULE:/i, '').trim()
+  const parts = new Map<string, string>()
+  for (const piece of body.split(';')) {
+    const eq = piece.indexOf('=')
+    if (eq <= 0) continue
+    parts.set(piece.slice(0, eq).toUpperCase(), piece.slice(eq + 1))
+  }
+  const freq = (parts.get('FREQ') ?? '').toUpperCase()
+  const interval = Math.max(1, parseInt(parts.get('INTERVAL') ?? '1', 10) || 1)
+
+  let frequency: CalendarSaveEventRecurrence['frequency'] | null = null
+  switch (freq) {
+    case 'DAILY':
+      frequency = 'daily'
+      break
+    case 'WEEKLY':
+      frequency = interval >= 2 ? 'biweekly' : 'weekly'
+      break
+    case 'MONTHLY':
+      frequency = 'monthly'
+      break
+    case 'YEARLY':
+      frequency = 'yearly'
+      break
+    default:
+      return null
+  }
+
+  const bydayRaw = parts.get('BYDAY') ?? ''
+  const weekdays = bydayRaw
+    .split(',')
+    .map((d) => GOOGLE_BYDAY_TO_DOW[d.trim().toUpperCase().replace(/^[+-]?\d+/, '')] ?? null)
+    .filter((d): d is (typeof GRAPH_DOW)[number] => d != null)
+
+  let rangeEnd: CalendarSaveEventRecurrence['rangeEnd'] = 'never'
+  let untilDate: string | null | undefined
+  let count: number | null | undefined
+  const countRaw = parts.get('COUNT')
+  if (countRaw) {
+    const n = parseInt(countRaw, 10)
+    if (Number.isFinite(n) && n >= 1 && n <= 999) {
+      rangeEnd = 'count'
+      count = n
+    }
+  } else {
+    const untilRaw = parts.get('UNTIL')?.trim()
+    if (untilRaw) {
+      // YYYYMMDD or YYYYMMDDTHHMMSSZ
+      const ymd = untilRaw.slice(0, 8)
+      if (/^\d{8}$/.test(ymd)) {
+        rangeEnd = 'until'
+        untilDate = `${ymd.slice(0, 4)}-${ymd.slice(4, 6)}-${ymd.slice(6, 8)}`
+      }
+    }
+  }
+
+  return {
+    frequency,
+    rangeEnd,
+    ...(weekdays.length > 0 ? { weekdays: Array.from(new Set(weekdays)) } : {}),
+    ...(rangeEnd === 'until' ? { untilDate } : {}),
+    ...(rangeEnd === 'count' ? { count } : {})
+  }
+}

@@ -243,6 +243,10 @@ listEvents: (args: CalendarListEventsInput): Promise<CalendarEventView[]> =>
       input: import('@shared/types').CalendarResolveMeetingRecordingInput
     ): Promise<import('@shared/types').CalendarResolveMeetingRecordingResult> =>
       ipcRenderer.invoke(IPC.calendar.resolveMeetingRecording, input),
+    getMeetingAiInsights: (
+      input: import('@shared/types').CalendarGetMeetingAiInsightsInput
+    ): Promise<import('@shared/types').CalendarMeetingAiInsightsResult> =>
+      ipcRenderer.invoke(IPC.calendar.getMeetingAiInsights, input),
     listEventAttachments: (
       input: import('@shared/types').CalendarListEventAttachmentsInput
     ): Promise<import('@shared/types').CalendarEventAttachmentMeta[]> =>
@@ -273,6 +277,9 @@ listEvents: (args: CalendarListEventsInput): Promise<CalendarEventView[]> =>
       categories: string[]
       graphCalendarId?: string | null
     }): Promise<void> => ipcRenderer.invoke(IPC.calendar.patchEventCategories, args),
+    patchEventStatus: (
+      input: import('@shared/types').CalendarPatchEventStatusInput
+    ): Promise<void> => ipcRenderer.invoke(IPC.calendar.patchEventStatus, input),
     syncAccount: (accountId: string): Promise<void> =>
       ipcRenderer.invoke(IPC.calendar.syncAccount, accountId),
     getAccountSyncStates: (): Promise<import('@shared/types').CalendarAccountSyncStateRow[]> =>
@@ -290,6 +297,14 @@ listEvents: (args: CalendarListEventsInput): Promise<CalendarEventView[]> =>
       input: import('@shared/types').CalendarRespondToMeetingInput
     ): Promise<import('@shared/types').CalendarRespondToMeetingResult> =>
       ipcRenderer.invoke(IPC.calendar.respondToMeetingInvitation, input),
+    respondToEvent: (
+      input: import('@shared/types').CalendarRespondToEventInput
+    ): Promise<import('@shared/types').CalendarRespondToEventResult> =>
+      ipcRenderer.invoke(IPC.calendar.respondToEvent, input),
+    rescheduleMeetingFromMessage: (
+      input: import('@shared/types').CalendarRescheduleMeetingInput
+    ): Promise<import('@shared/types').CalendarRescheduleMeetingResult> =>
+      ipcRenderer.invoke(IPC.calendar.rescheduleMeetingFromMessage, input),
     onIcsFileOpen: (handler: (payload: { filePath: string }) => void): (() => void) => {
       const listener = (_e: IpcRendererEvent, payload: { filePath: string }): void => {
         if (payload?.filePath?.trim()) handler({ filePath: payload.filePath.trim() })

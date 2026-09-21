@@ -13,7 +13,7 @@ import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
 import luxonPlugin from '@fullcalendar/luxon'
 import { useCalendarFcLocale } from '@/hooks/use-calendar-fc-locale'
-import type { DateSelectArg, EventInput } from '@fullcalendar/core'
+import type { DateSelectArg, DatesSetArg, EventInput } from '@fullcalendar/core'
 import {
   AlertTriangle,
   CalendarClock,
@@ -50,7 +50,6 @@ import {
   safeFindMeetingTimes,
   safeGetAttendeeSchedule
 } from '@/lib/calendar-schedule-invoke'
-import { buildCalendarIncludeCalendars } from '@/lib/build-calendar-include-calendars'
 import {
   buildCalendarDisplayHexByKey,
   buildDefaultGraphCalendarIdByAccount,
@@ -196,6 +195,9 @@ export function MailScheduleMeetingDialog({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [replyInThread, setReplyInThread] = useState(false)
+  const [visibleWeekStart, setVisibleWeekStart] = useState(() =>
+    startOfWeek(new Date(suggestion.startIso), { weekStartsOn: 1 })
+  )
 
   const selectedAccount = accounts.find((a) => a.id === accountId) ?? accounts[0]
   const isMicrosoft = selectedAccount?.provider === 'microsoft'
@@ -211,11 +213,8 @@ export function MailScheduleMeetingDialog({
     [calendarLinkedAccountIds, calendarsByAccount]
   )
 
-  const weekStart = useMemo(
-    () => startOfWeek(slotStart, { weekStartsOn: 1 }),
-    [slotStart]
-  )
-  const weekEnd = useMemo(() => addDays(weekStart, 7), [weekStart])
+  const weekStart = visibleWeekStart
+  const weekEnd = useMemo(() => addDays(visibleWeekStart, 7), [visibleWeekStart])
 
   const slotStartIso = slotStart.toISOString()
   const slotEndIso = slotEnd.toISOString()
@@ -241,6 +240,7 @@ export function MailScheduleMeetingDialog({
     setSlotStart(start)
     setSlotEnd(end)
     setDurationMinutes(slotDurationMinutes(start, end))
+    setVisibleWeekStart(startOfWeek(start, { weekStartsOn: 1 }))
     setError(null)
     setReplyInThread(false)
   }, [open, suggestion, defaultAccountId])
@@ -251,13 +251,26 @@ export function MailScheduleMeetingDialog({
     setEventsLoading(true)
     void (async (): Promise<void> => {
       try {
-        const linked = accounts.filter((a) => a.id === accountId)
-        const includeCalendars = await buildCalendarIncludeCalendars(linked, calendarsByAccount)
+        // Alle Kalender des Kontos (ohne Sidebar-Sichtbarkeitsfilter) — sonst fehlen
+        // eigene Termine in der Konfliktvorschau; leeres includeCalendars = 0 Events.
+        const rows = calendarsByAccount[accountId] ?? []
+        let includeCalendars = rows.map((c) => ({
+          accountId,
+          graphCalendarId: c.id
+        }))
+        if (includeCalendars.length === 0) {
+          try {
+            const listed = await window.mailClient.calendar.listCalendars({ accountId })
+            includeCalendars = listed.map((c) => ({ accountId, graphCalendarId: c.id }))
+          } catch {
+            includeCalendars = []
+          }
+        }
         const events = await window.mailClient.calendar.listEvents({
           startIso: weekStart.toISOString(),
           endIso: weekEnd.toISOString(),
           focusCalendar: null,
-          includeCalendars
+          ...(includeCalendars.length > 0 ? { includeCalendars } : {})
         })
         if (!cancelled) setWeekEvents(events.filter((ev) => ev.accountId === accountId))
       } catch {
@@ -269,7 +282,7 @@ export function MailScheduleMeetingDialog({
     return (): void => {
       cancelled = true
     }
-  }, [open, accountId, accounts, calendarsByAccount, weekStart, weekEnd])
+  }, [open, accountId, calendarsByAccount, weekStart, weekEnd])
 
   const parsedAttendeeEmails = useMemo(
     () => parseRecipients(attendeeInput).map((r) => r.address),
@@ -304,11 +317,35 @@ export function MailScheduleMeetingDialog({
     }
   }, [open, isMicrosoft, accountId, parsedAttendeeEmails, weekStart, weekEnd])
 
+  useEffect(() => {
+    const host = calendarHostRef.current
+    if (!open || !host || typeof ResizeObserver === 'undefined') return
+    let raf = 0
+    const ro = new ResizeObserver(() => {
+      if (raf) cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => {
+        calendarRef.current?.getApi()?.updateSize()
+      })
+    })
+    ro.observe(host)
+    raf = requestAnimationFrame(() => calendarRef.current?.getApi()?.updateSize())
+    return (): void => {
+      ro.disconnect()
+      if (raf) cancelAnimationFrame(raf)
+    }
+  }, [open])
+
   const applySlot = useCallback((start: Date, end: Date): void => {
     setSlotStart(start)
     setSlotEnd(end)
     setDurationMinutes(slotDurationMinutes(start, end))
+    setVisibleWeekStart(startOfWeek(start, { weekStartsOn: 1 }))
     queueMicrotask(() => calendarRef.current?.getApi()?.gotoDate(start))
+  }, [])
+
+  const onDatesSet = useCallback((arg: DatesSetArg): void => {
+    const next = startOfWeek(arg.start, { weekStartsOn: 1 })
+    setVisibleWeekStart((prev) => (prev.getTime() === next.getTime() ? prev : next))
   }, [])
 
   const applyDuration = useCallback(
@@ -684,6 +721,7 @@ export function MailScheduleMeetingDialog({
                 selectable
                 selectMirror
                 select={onSelect}
+                datesSet={onDatesSet}
                 eventChange={onEventChange}
                 eventDidMount={eventDidMount}
                 nowIndicator

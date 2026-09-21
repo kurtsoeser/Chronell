@@ -334,7 +334,11 @@ Update-IndexHtml -Info $info -Path $indexPath
 
 $notesOutPath = Join-Path $repoRoot ('docs\releases\' + $info.Version + '.md')
 if (-not $DryRun) {
-  Copy-Item -LiteralPath $NotesFile -Destination $notesOutPath -Force
+  $srcFull = [System.IO.Path]::GetFullPath($NotesFile)
+  $dstFull = [System.IO.Path]::GetFullPath($notesOutPath)
+  if (-not $srcFull.Equals($dstFull, [System.StringComparison]::OrdinalIgnoreCase)) {
+    Copy-Item -LiteralPath $NotesFile -Destination $notesOutPath -Force
+  }
   $ghNotesPath = Join-Path $repoRoot 'docs\releases\latest-gh-notes.md'
   [System.IO.File]::WriteAllText($ghNotesPath, $info.GhReleaseNotes, [System.Text.UTF8Encoding]::new($false))
 }

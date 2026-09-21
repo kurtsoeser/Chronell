@@ -6,7 +6,19 @@ import {
 } from '@shared/calendar-datetime'
 import { prepareCalendarEventBodyHtml } from '@shared/calendar-event-body-html'
 import type { calendar_v3 } from 'googleapis'
-import type { CalendarGraphCalendarRow, CalendarSaveEventRecurrence } from '@shared/types'
+import type {
+  CalendarEventSensitivity,
+  CalendarEventShowAs,
+  CalendarGraphCalendarRow,
+  CalendarSaveEventRecurrence
+} from '@shared/types'
+import {
+  googleTransparencyFromShowAs,
+  googleVisibilityFromSensitivity,
+  sensitivityFromGoogleVisibility,
+  showAsFromGoogleTransparency
+} from '@shared/calendar-event-status'
+import { parseGoogleEventRecurrence } from '../calendar-recurrence'
 import { loadConfig } from '../config'
 import { resolveCalendarTimeZone } from '../todo-due-buckets'
 import { getGoogleApis } from './google-auth-client'
@@ -112,7 +124,10 @@ function rowFromGoogleEvent(
     categories: [],
     displayColorHex: calendarHex,
     graphCalendarId: calendarId,
-    calendarCanEdit
+    calendarCanEdit,
+    showAs: showAsFromGoogleTransparency(ev.transparency),
+    sensitivity: sensitivityFromGoogleVisibility(ev.visibility),
+    isSeries: Boolean(ev.recurringEventId?.trim()) || (Array.isArray(ev.recurrence) && ev.recurrence.length > 0)
   }
 }
 
@@ -277,6 +292,8 @@ export async function googleCreateEvent(
     recurrence?: CalendarSaveEventRecurrence | null
     attendeeEmails?: string[] | null
     timeZone?: string | null
+    showAs?: CalendarEventShowAs | null
+    sensitivity?: CalendarEventSensitivity | null
   }
 ): Promise<{ id: string; webLink: string | null }> {
   const { calendar } = await getGoogleApis(accountId)
@@ -310,6 +327,13 @@ export async function googleCreateEvent(
     body.recurrence = buildGoogleEventRecurrence(input.recurrence, startLocal, tz, input.isAllDay)
   }
 
+  if (input.showAs) {
+    body.transparency = googleTransparencyFromShowAs(input.showAs)
+  }
+  if (input.sensitivity) {
+    body.visibility = googleVisibilityFromSensitivity(input.sensitivity)
+  }
+
   const attendees = buildGoogleAttendees(input.attendeeEmails)
   if (attendees.length > 0) {
     body.attendees = attendees
@@ -334,8 +358,11 @@ export async function googleUpdateEvent(
     isAllDay: boolean
     location?: string | null
     bodyHtml?: string | null
+    recurrence?: CalendarSaveEventRecurrence | null
     attendeeEmails?: string[] | null
     timeZone?: string | null
+    showAs?: CalendarEventShowAs | null
+    sensitivity?: CalendarEventSensitivity | null
   }
 ): Promise<void> {
   const { calendar } = await getGoogleApis(accountId)
@@ -354,6 +381,23 @@ export async function googleUpdateEvent(
     body.end = { date: input.endIso.slice(0, 10) }
   } else {
     Object.assign(body, googleTimedStartEndFields(input.startIso, input.endIso, tz))
+  }
+
+  if (input.recurrence) {
+    const startLocal = input.isAllDay
+      ? calendarZonedPartsFromDateOnly(input.startIso.slice(0, 10), tz)
+      : calendarZonedPartsFromUtcIso(input.startIso, tz)
+    if (!startLocal) {
+      throw new Error('Serientermin: Startdatum fuer Wiederholung ungueltig.')
+    }
+    body.recurrence = buildGoogleEventRecurrence(input.recurrence, startLocal, tz, input.isAllDay)
+  }
+
+  if (input.showAs) {
+    body.transparency = googleTransparencyFromShowAs(input.showAs)
+  }
+  if (input.sensitivity) {
+    body.visibility = googleVisibilityFromSensitivity(input.sensitivity)
   }
 
   let sendUpdates: 'all' | undefined
@@ -395,6 +439,32 @@ export async function googlePatchEventTimes(
   })
 }
 
+/** Nur Transparenz / Sichtbarkeit patchen (Outlook-ShowAs / Privat). */
+export async function googlePatchEventStatus(
+  accountId: string,
+  calendarId: string,
+  eventId: string,
+  input: {
+    showAs?: CalendarEventShowAs | null
+    sensitivity?: CalendarEventSensitivity | null
+  }
+): Promise<void> {
+  const { calendar } = await getGoogleApis(accountId)
+  const body: calendar_v3.Schema$Event = {}
+  if (input.showAs) {
+    body.transparency = googleTransparencyFromShowAs(input.showAs)
+  }
+  if (input.sensitivity) {
+    body.visibility = googleVisibilityFromSensitivity(input.sensitivity)
+  }
+  if (Object.keys(body).length === 0) return
+  await calendar.events.patch({
+    calendarId,
+    eventId,
+    requestBody: body
+  })
+}
+
 export async function googleDeleteEvent(
   accountId: string,
   calendarId: string,
@@ -416,7 +486,7 @@ export async function googleGetCalendarEventDetail(
       calendarId,
       eventId,
       fields:
-        'summary,description,location,hangoutLink,conferenceData,attendees(email),organizer(email,displayName),start(timeZone,dateTime,date),end(timeZone,dateTime,date),htmlLink'
+        'summary,description,location,hangoutLink,conferenceData,attendees(email,responseStatus,self,organizer),organizer(email,displayName),start(timeZone,dateTime,date),end(timeZone,dateTime,date),htmlLink,recurrence,recurringEventId,transparency,visibility'
     })
   )
   const ev = res.data
@@ -443,6 +513,52 @@ export async function googleGetCalendarEventDetail(
   const tz = ev.start?.timeZone ?? 'UTC'
   const startIso = googleDateToIso(ev.start, tz, allDay)
   const endIso = googleDateToIso(ev.end, tz, allDay)
+  const recurringEventId = ev.recurringEventId?.trim() || null
+  const hasRecurrenceRule = Array.isArray(ev.recurrence) && ev.recurrence.length > 0
+  const eventType = recurringEventId
+    ? ('occurrence' as const)
+    : hasRecurrenceRule
+      ? ('seriesMaster' as const)
+      : ('singleInstance' as const)
+  let recurrence = parseGoogleEventRecurrence(ev.recurrence ?? null)
+  if (!recurrence && recurringEventId) {
+    try {
+      const masterRes = await withGoogleUsageLimitRetry('events.get.master', () =>
+        calendar.events.get({
+          calendarId,
+          eventId: recurringEventId,
+          fields: 'recurrence'
+        })
+      )
+      recurrence = parseGoogleEventRecurrence(masterRes.data.recurrence ?? null)
+    } catch {
+      /* Master nicht lesbar */
+    }
+  }
+  const selfAttendee =
+    (ev.attendees ?? []).find((a) => a.self === true) ??
+    (ev.attendees ?? []).find((a) => a.organizer === true && a.self !== false)
+  let selfPartStat: import('@shared/types').MeetingAttendeePartStat | null = null
+  if (selfAttendee?.organizer === true && selfAttendee.self === true) {
+    selfPartStat = null
+  } else {
+    switch ((selfAttendee?.responseStatus ?? '').trim().toLowerCase()) {
+      case 'accepted':
+        selfPartStat = 'accepted'
+        break
+      case 'declined':
+        selfPartStat = 'declined'
+        break
+      case 'tentative':
+        selfPartStat = 'tentative'
+        break
+      case 'needsaction':
+        selfPartStat = 'needs-action'
+        break
+      default:
+        selfPartStat = null
+    }
+  }
   return {
     subject: ev.summary ?? null,
     attendeeEmails: emails,
@@ -460,6 +576,13 @@ export async function googleGetCalendarEventDetail(
     startIso,
     endIso,
     isAllDay: allDay,
-    webLink: ev.htmlLink?.trim() || null
+    webLink: ev.htmlLink?.trim() || null,
+    eventType,
+    seriesMasterId: recurringEventId,
+    showAs: showAsFromGoogleTransparency(ev.transparency),
+    sensitivity: sensitivityFromGoogleVisibility(ev.visibility),
+    recurrence,
+    selfPartStat,
+    selfResponseAtIso: null
   }
 }

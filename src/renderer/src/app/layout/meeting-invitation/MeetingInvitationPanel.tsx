@@ -30,6 +30,7 @@ import { cn } from '@/lib/utils'
 import { Avatar } from '@/components/Avatar'
 import { ContextMenu, type ContextMenuItem } from '@/components/ContextMenu'
 import { showAppAlert, showAppPrompt } from '@/stores/app-dialog'
+import { useMailStore } from '@/stores/mail'
 import {
   MeetingInvitationDayPreview,
   meetingInvitationHasConflict,
@@ -39,6 +40,7 @@ import {
   formatMeetingProposedRangeLabel,
   MeetingProposeTimeDialog
 } from '@/app/layout/meeting-invitation/MeetingProposeTimeDialog'
+import { MeetingRescheduleTimePopover } from '@/app/layout/meeting-invitation/MeetingRescheduleTimePopover'
 import '@/app/layout/meeting-invitation/meeting-invitation.css'
 
 const MEETING_PANEL_COLLAPSE_KEY = 'meetingInvitationPanel.collapsed'
@@ -125,6 +127,8 @@ export function MeetingInvitationPanel({
   const [loading, setLoading] = useState(true)
   const [responding, setResponding] = useState<MeetingInvitationResponseKind | null>(null)
   const [proposeOpen, setProposeOpen] = useState(false)
+  const [rescheduleOpen, setRescheduleOpen] = useState(false)
+  const rescheduleBtnRef = useRef<HTMLDivElement | null>(null)
   const [moreMenu, setMoreMenu] = useState<{ x: number; y: number } | null>(null)
   const [responseMenu, setResponseMenu] = useState<{
     response: MeetingInvitationResponseKind
@@ -249,15 +253,17 @@ export function MeetingInvitationPanel({
             selfProposedEndIso: res.selfProposedEndIso ?? prev.selfProposedEndIso
           }
         })
-        void reload()
         void window.mailClient.calendar
           .syncAccount(account.id)
           .catch((err) => logIpcError('calendar.syncAccount', err))
+        // Nach Zusage/Absage/Vorläufig/Zeitvorschlag: Einladung aus dem Posteingang ins Archiv
+        // (wie Outlook „Anfragen nach Antwort löschen/archivieren“), sonst bleiben sie sichtbar.
+        void useMailStore.getState().archiveMessage(messageId)
       } finally {
         setResponding(null)
       }
     },
-    [account, invitation, messageId, reload, t]
+    [account, invitation, messageId, t]
   )
 
   const responseMenuItems = useMemo((): ContextMenuItem[] => {
@@ -402,46 +408,74 @@ export function MeetingInvitationPanel({
 
         {!invitation.isCancelled ? (
           <div className="flex flex-wrap items-center gap-2">
-            <ResponseSplitButton
-              tone="accept"
-              label={t('mail.meetingInvitation.accept')}
-              busy={responding === 'accept'}
-              disabled={!!responding || !invitation.canRespond}
-              onPrimaryClick={(): void => {
-                void respond('accept')
-              }}
-              onOpenMenu={(x, y): void => setResponseMenu({ response: 'accept', x, y })}
-            />
-            <ResponseSplitButton
-              tone="tentative"
-              label={t('mail.meetingInvitation.tentative')}
-              busy={responding === 'tentative'}
-              disabled={!!responding || !invitation.canRespond}
-              onPrimaryClick={(): void => {
-                void respond('tentative')
-              }}
-              onOpenMenu={(x, y): void => setResponseMenu({ response: 'tentative', x, y })}
-            />
-            <ResponseSplitButton
-              tone="decline"
-              label={t('mail.meetingInvitation.decline')}
-              busy={responding === 'decline'}
-              disabled={!!responding || !invitation.canRespond}
-              onPrimaryClick={(): void => {
-                void respond('decline')
-              }}
-              onOpenMenu={(x, y): void => setResponseMenu({ response: 'decline', x, y })}
-            />
-            {showPropose ? (
-              <ResponseButton
-                tone="tentative"
-                label={t('mail.meetingInvitation.proposeNewTime')}
-                busy={responding === 'propose'}
-                disabled={!!responding}
-                onClick={(): void => setProposeOpen(true)}
-                icon={CalendarClock}
-              />
-            ) : null}
+            {invitation.isOrganizer ? (
+              <>
+                {invitation.canReschedule ? (
+                  <div ref={rescheduleBtnRef} className="inline-flex">
+                    <ResponseButton
+                      tone="tentative"
+                      label={t('mail.meetingInvitation.changeTime')}
+                      busy={false}
+                      disabled={false}
+                      onClick={(): void => setRescheduleOpen(true)}
+                      icon={CalendarClock}
+                    />
+                  </div>
+                ) : invitation.rescheduleUnsupportedReason ? (
+                  <span className="text-[11px] text-muted-foreground">
+                    {invitation.rescheduleUnsupportedReason}
+                  </span>
+                ) : null}
+              </>
+            ) : (
+              <>
+                <ResponseSplitButton
+                  tone="accept"
+                  label={t('mail.meetingInvitation.accept')}
+                  busy={responding === 'accept'}
+                  disabled={!!responding || !invitation.canRespond}
+                  onPrimaryClick={(): void => {
+                    void respond('accept')
+                  }}
+                  onOpenMenu={(x, y): void => setResponseMenu({ response: 'accept', x, y })}
+                />
+                <ResponseSplitButton
+                  tone="tentative"
+                  label={t('mail.meetingInvitation.tentative')}
+                  busy={responding === 'tentative'}
+                  disabled={!!responding || !invitation.canRespond}
+                  onPrimaryClick={(): void => {
+                    void respond('tentative')
+                  }}
+                  onOpenMenu={(x, y): void => setResponseMenu({ response: 'tentative', x, y })}
+                />
+                <ResponseSplitButton
+                  tone="decline"
+                  label={t('mail.meetingInvitation.decline')}
+                  busy={responding === 'decline'}
+                  disabled={!!responding || !invitation.canRespond}
+                  onPrimaryClick={(): void => {
+                    void respond('decline')
+                  }}
+                  onOpenMenu={(x, y): void => setResponseMenu({ response: 'decline', x, y })}
+                />
+                {showPropose ? (
+                  <ResponseButton
+                    tone="tentative"
+                    label={t('mail.meetingInvitation.proposeNewTime')}
+                    busy={responding === 'propose'}
+                    disabled={!!responding}
+                    onClick={(): void => setProposeOpen(true)}
+                    icon={CalendarClock}
+                  />
+                ) : null}
+                {!invitation.canRespond && invitation.respondUnsupportedReason ? (
+                  <span className="text-[11px] text-muted-foreground">
+                    {invitation.respondUnsupportedReason}
+                  </span>
+                ) : null}
+              </>
+            )}
             <button
               ref={moreBtnRef}
               type="button"
@@ -455,9 +489,6 @@ export function MeetingInvitationPanel({
               <MoreHorizontal className="h-4 w-4" />
               <ChevronDown className="h-3 w-3 opacity-60" aria-hidden />
             </button>
-            {!invitation.canRespond && invitation.respondUnsupportedReason ? (
-              <span className="text-[11px] text-muted-foreground">{invitation.respondUnsupportedReason}</span>
-            ) : null}
           </div>
         ) : null}
 
@@ -637,6 +668,21 @@ export function MeetingInvitationPanel({
                     selfProposedEndIso: patch.selfProposedEndIso
                   }
                 : prev
+            )
+          }}
+        />
+      ) : null}
+
+      {account && rescheduleOpen && rescheduleBtnRef.current ? (
+        <MeetingRescheduleTimePopover
+          anchorEl={rescheduleBtnRef.current}
+          invitation={invitation}
+          account={account}
+          messageId={messageId}
+          onClose={(): void => setRescheduleOpen(false)}
+          onRescheduled={(patch): void => {
+            setInvitation((prev) =>
+              prev ? { ...prev, startIso: patch.startIso, endIso: patch.endIso } : prev
             )
           }}
         />

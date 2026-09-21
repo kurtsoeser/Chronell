@@ -8,6 +8,8 @@ import { NOTE_CLOUD_TASK_HTML_ATTRS } from '@shared/note-cloud-task'
 import { NOTE_FORM_FIELD_SANITIZE_ATTRS } from '@shared/note-form-field'
 import { noteEmbedSanitizeDataAttrs } from '@shared/note-embed-registry'
 import { isAllowedNoteEmbedIframeSrc } from '@shared/note-embed-frame'
+import { neutralizeComposeEditorDarkTextColorsInHtml } from '@/lib/compose-default-body'
+import { COMPOSE_DEFAULT_TEXT_COLOR, readComposeSettingsPrefs } from '@/lib/compose-settings-prefs'
 import { stripUnresolvedCidUrls } from '@/lib/sanitize'
 
 const NOTE_MEDIA_SRC_PREFIX = 'note-media://'
@@ -139,9 +141,12 @@ export function sanitizeComposeHtmlFragment(html: string): string {
 export function prepareComposeOutgoingHtmlFragment(html: string): string {
   const trimmed = html.trim()
   if (!trimmed) return ''
-  return linkifyBareUrlsInHtmlFragment(
+  const prepared = linkifyBareUrlsInHtmlFragment(
     sanitizeComposeHtmlFragment(promoteIframeSourcesToLinksInHtml(trimmed))
   )
+  const lightColor =
+    readComposeSettingsPrefs().defaultTextColor?.trim() || COMPOSE_DEFAULT_TEXT_COLOR
+  return neutralizeComposeEditorDarkTextColorsInHtml(prepared, lightColor)
 }
 
 /** HTML fuer Notizen-Editor inkl. eingebetteter Medien bereinigen. */

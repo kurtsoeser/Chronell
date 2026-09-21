@@ -87,8 +87,14 @@ export async function executeQuickStepActions(
           await applyMoveMessageToFolder(messageId, action.folderId, { source })
           break
         case 'add_todo':
-          setTodoForMessage(messageId, action.dueKind, { source })
-          await routeToWipAfterTodoIfConfigured(messageId)
+          setTodoForMessage(messageId, action.dueKind, { source, skipBroadcast: true })
+          {
+            const moved = await routeToWipAfterTodoIfConfigured(messageId)
+            if (!moved) {
+              const m = getMessageById(messageId)
+              if (m) broadcastMailChanged(m.accountId)
+            }
+          }
           break
         case 'mark_flagged':
           await applySetFlaggedForMessage(messageId, true, { source })

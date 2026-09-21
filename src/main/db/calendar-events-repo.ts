@@ -5,6 +5,10 @@ import type {
   CalendarIncludeCalendarRef,
   ConnectedAccount
 } from '@shared/types'
+import {
+  normalizeCalendarEventSensitivity,
+  normalizeCalendarEventShowAs
+} from '@shared/calendar-event-status'
 
 interface CalendarEventDbRow {
   id: string
@@ -26,6 +30,9 @@ interface CalendarEventDbRow {
   display_color_hex: string | null
   calendar_can_edit: number | null
   icon_id: string | null
+  show_as: string | null
+  sensitivity: string | null
+  is_series: number | null
 }
 
 export interface CalendarSyncStateRow {
@@ -48,6 +55,8 @@ function parseCategoriesJson(raw: string | null): string[] | undefined {
 }
 
 function rowToView(r: CalendarEventDbRow): CalendarEventView {
+  const showAs = normalizeCalendarEventShowAs(r.show_as)
+  const sensitivity = normalizeCalendarEventSensitivity(r.sensitivity)
   return {
     id: r.id,
     source: r.source as 'microsoft' | 'google',
@@ -67,7 +76,10 @@ function rowToView(r: CalendarEventDbRow): CalendarEventView {
     organizer: r.organizer,
     categories: parseCategoriesJson(r.categories_json),
     calendarCanEdit: r.calendar_can_edit == null ? undefined : r.calendar_can_edit === 1,
-    icon: r.icon_id?.trim() ? r.icon_id.trim() : null
+    icon: r.icon_id?.trim() ? r.icon_id.trim() : null,
+    ...(showAs ? { showAs } : {}),
+    ...(sensitivity ? { sensitivity } : {}),
+    ...(r.is_series === 1 ? { isSeries: true } : {})
   }
 }
 
@@ -95,12 +107,12 @@ const UPSERT_EVENT = `
     id, account_id, source, graph_event_id, graph_calendar_id,
     account_email, account_color_class, title, start_iso, end_iso, is_all_day,
     location, web_link, join_url, organizer, categories_json, display_color_hex,
-    calendar_can_edit, synced_at
+    calendar_can_edit, show_as, sensitivity, is_series, synced_at
   ) VALUES (
     @id, @account_id, @source, @graph_event_id, @graph_calendar_id,
     @account_email, @account_color_class, @title, @start_iso, @end_iso, @is_all_day,
     @location, @web_link, @join_url, @organizer, @categories_json, @display_color_hex,
-    @calendar_can_edit, datetime('now')
+    @calendar_can_edit, @show_as, @sensitivity, @is_series, datetime('now')
   )
   ON CONFLICT(id) DO UPDATE SET
     graph_calendar_id = excluded.graph_calendar_id,
@@ -117,6 +129,9 @@ const UPSERT_EVENT = `
     categories_json = excluded.categories_json,
     display_color_hex = excluded.display_color_hex,
     calendar_can_edit = excluded.calendar_can_edit,
+    show_as = excluded.show_as,
+    sensitivity = excluded.sensitivity,
+    is_series = excluded.is_series,
     synced_at = datetime('now')
 `
 
@@ -147,7 +162,10 @@ export function upsertCalendarEvents(events: CalendarEventView[]): void {
         categories_json: categoriesToJson(ev.categories),
         display_color_hex: ev.displayColorHex ?? null,
         calendar_can_edit:
-          ev.calendarCanEdit === undefined ? null : ev.calendarCanEdit ? 1 : 0
+          ev.calendarCanEdit === undefined ? null : ev.calendarCanEdit ? 1 : 0,
+        show_as: ev.showAs?.trim() || null,
+        sensitivity: ev.sensitivity?.trim() || null,
+        is_series: ev.isSeries === true ? 1 : 0
       })
     }
   })
@@ -170,7 +188,7 @@ export function getCalendarEventByGraphEventId(
       `SELECT id, account_id, source, graph_event_id, graph_calendar_id,
               account_email, account_color_class, title, start_iso, end_iso, is_all_day,
               location, web_link, join_url, organizer, categories_json, display_color_hex,
-              calendar_can_edit, icon_id
+              calendar_can_edit, icon_id, show_as, sensitivity, is_series
        FROM calendar_events
        WHERE account_id = ? AND graph_event_id = ?
        LIMIT 1`
@@ -218,7 +236,7 @@ export function listCalendarEventsInRange(
       `SELECT id, account_id, source, graph_event_id, graph_calendar_id,
               account_email, account_color_class, title, start_iso, end_iso, is_all_day,
               location, web_link, join_url, organizer, categories_json, display_color_hex,
-              calendar_can_edit, icon_id
+              calendar_can_edit, icon_id, show_as, sensitivity, is_series
        FROM calendar_events
        WHERE start_iso < @endIso AND end_iso > @startIso${calFilter}
        ORDER BY start_iso ASC`
@@ -263,7 +281,7 @@ export function listCalendarEventsForContactEmails(args: {
       `SELECT DISTINCT e.id, e.account_id, e.source, e.graph_event_id, e.graph_calendar_id,
               e.account_email, e.account_color_class, e.title, e.start_iso, e.end_iso, e.is_all_day,
               e.location, e.web_link, e.join_url, e.organizer, e.categories_json, e.display_color_hex,
-              e.calendar_can_edit, e.icon_id
+              e.calendar_can_edit, e.icon_id, e.show_as, e.sensitivity, e.is_series
        FROM calendar_events e
        LEFT JOIN calendar_event_details d
          ON d.account_id = e.account_id AND d.graph_event_id = e.graph_event_id

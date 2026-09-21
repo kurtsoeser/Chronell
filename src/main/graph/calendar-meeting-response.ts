@@ -4,6 +4,9 @@ import { graphWindowsZoneToIana, ianaToWindowsTimeZone } from '@shared/microsoft
 import { createGraphClient } from './client'
 import { runGraphMailboxRequest } from './graph-account-request'
 import { loadConfig } from '../config'
+import { graphEventInstancePath } from './calendar-graph'
+import { formatGraphErrorMessage, readGraphStatusCode } from './graph-request-errors'
+import { GraphError } from '@microsoft/microsoft-graph-client'
 
 async function getClientFor(accountId: string): Promise<ReturnType<typeof createGraphClient>> {
   const config = await loadConfig()
@@ -187,7 +190,8 @@ export async function enrichGraphMeetingInvitation(
   }
 }
 
-async function resolveGraphEventId(accountId: string, iCalUid: string): Promise<string> {
+/** Loest die Graph-Event-ID des eigenen Kalenders anhand der iCalUID auf (fuer Reschedule etc.). */
+export async function resolveGraphEventId(accountId: string, iCalUid: string): Promise<string> {
   const event = await findGraphEventByICalUid(accountId, iCalUid)
   const id = event?.id?.trim()
   if (!id) {
@@ -252,6 +256,47 @@ export async function respondToGraphMeetingInvitation(
 }> {
   const eventId = await resolveGraphEventId(accountId, iCalUid)
   const client = await getClientFor(accountId)
+  const eventPath = `/me/events/${eventId}`
+
+  // Pruefen, ob der Organisator eine Antwort erwartet (sonst schlaegt decline/accept fehl).
+  let responseRequested = true
+  try {
+    const meta = (await runGraphMailboxRequest(accountId, 'getMeetingResponseRequested', () =>
+      client.api(eventPath).select('responseRequested').get()
+    )) as { responseRequested?: boolean | null }
+    responseRequested = meta.responseRequested !== false
+  } catch {
+    responseRequested = true
+  }
+
+  if (!responseRequested) {
+    if (response === 'decline') {
+      await declineEventWhenOrganizerWantsNoResponse(accountId, client, eventPath)
+      return {
+        selfPartStat: 'declined',
+        selfProposedStartIso: null,
+        selfProposedEndIso: null
+      }
+    }
+    // Zusage/Vorbehalt ohne Organisator-Benachrichtigung
+    const action = graphResponsePath(response)
+    const body: { comment?: string; sendResponse: boolean } = { sendResponse: false }
+    const trimmed = comment?.trim()
+    if (trimmed) body.comment = trimmed
+    try {
+      await runGraphMailboxRequest(accountId, `meeting${action}Silent`, () =>
+        client.api(`${eventPath}/${action}`).post(body)
+      )
+    } catch {
+      // Ohne responseRequested reicht lokaler Status; Graph-Aktion ist optional.
+    }
+    return {
+      selfPartStat: toSelfPartStat(response),
+      selfProposedStartIso: null,
+      selfProposedEndIso: null
+    }
+  }
+
   const action = graphResponsePath(response)
   const body: {
     comment?: string
@@ -279,13 +324,273 @@ export async function respondToGraphMeetingInvitation(
     }
   }
 
-  await runGraphMailboxRequest(accountId, `meeting${action}`, () =>
-    client.api(`/me/events/${eventId}/${action}`).post(body)
-  )
+  try {
+    await runGraphMailboxRequest(accountId, `meeting${action}`, () =>
+      client.api(`${eventPath}/${action}`).post(body)
+    )
+  } catch (e) {
+    if (
+      response === 'decline' &&
+      (isOrganizerResponseNotRequestedError(e) || readGraphStatusCode(e) === 400)
+    ) {
+      try {
+        await declineEventWhenOrganizerWantsNoResponse(accountId, client, eventPath)
+        return {
+          selfPartStat: 'declined',
+          selfProposedStartIso: null,
+          selfProposedEndIso: null
+        }
+      } catch {
+        throw e
+      }
+    }
+    throw e
+  }
 
   return {
     selfPartStat: toSelfPartStat(response),
     selfProposedStartIso: response === 'propose' ? (proposedStartIso ?? null) : null,
     selfProposedEndIso: response === 'propose' ? (proposedEndIso ?? null) : null
   }
+}
+
+export type CalendarEventRsvpKind = 'accept' | 'decline' | 'tentative'
+export type CalendarEventRsvpScope = 'this' | 'series'
+
+/** RSVP auf einen Kalendertermin (Einmaltermin oder Serie) per Graph-Event-ID. */
+export async function respondToGraphCalendarEvent(
+  accountId: string,
+  graphEventId: string,
+  response: CalendarEventRsvpKind,
+  options: {
+    graphCalendarId?: string | null
+    scope?: CalendarEventRsvpScope
+    comment?: string | null
+    sendResponse?: boolean
+  } = {}
+): Promise<{
+  selfPartStat: MeetingAttendeePartStat
+  respondedEventId: string
+  scope: CalendarEventRsvpScope
+  /** true: Termin wurde geloescht (kein RSVP moeglich, Organisator will keine Antwort). */
+  removedWithoutResponse?: boolean
+}> {
+  const client = await getClientFor(accountId)
+  const eventId = graphEventId.trim()
+  if (!eventId) throw new Error('graphEventId fehlt.')
+
+  const path = graphEventInstancePath(eventId, options.graphCalendarId)
+  const meta = (await runGraphMailboxRequest(accountId, 'getEventRsvpMeta', () =>
+    client
+      .api(`${path}?$select=id,type,seriesMasterId,isOrganizer,responseRequested`)
+      .get()
+  )) as {
+    id?: string | null
+    type?: string | null
+    seriesMasterId?: string | null
+    isOrganizer?: boolean | null
+    responseRequested?: boolean | null
+  }
+
+  if (meta.isOrganizer === true) {
+    throw new Error(
+      'Als Organisator bitte den Termin loeschen statt die Teilnahme zu verneinen.'
+    )
+  }
+
+  const scope: CalendarEventRsvpScope = options.scope === 'series' ? 'series' : 'this'
+  let targetId = (meta.id?.trim() || eventId).trim()
+  if (scope === 'series') {
+    const type = (meta.type ?? '').trim()
+    const master = meta.seriesMasterId?.trim()
+    if (type === 'seriesMaster') {
+      targetId = meta.id?.trim() || eventId
+    } else if (master) {
+      targetId = master
+    }
+  }
+
+  const targetPath = graphEventInstancePath(targetId, options.graphCalendarId)
+  const responseRequested = meta.responseRequested !== false
+
+  // Organisator will keine Antwort: decline/accept mit sendResponse:true schlaegt fehl.
+  // Ablehnen → silent decline + Loeschen; Zusagen → silent accept/tentative.
+  if (!responseRequested) {
+    if (response === 'decline') {
+      await declineEventWhenOrganizerWantsNoResponse(accountId, client, targetPath)
+      return {
+        selfPartStat: 'declined',
+        respondedEventId: targetId,
+        scope,
+        removedWithoutResponse: true
+      }
+    }
+    const action = graphResponsePath(response)
+    const body: { comment?: string; sendResponse: boolean } = { sendResponse: false }
+    const trimmed = options.comment?.trim()
+    if (trimmed) body.comment = trimmed
+    try {
+      await runGraphMailboxRequest(accountId, `calendarEvent${action}Silent`, () =>
+        client.api(`${targetPath}/${action}`).post(body)
+      )
+    } catch {
+      // Termin bleibt im Kalender; Status ggf. erst nach Sync sichtbar.
+    }
+    return {
+      selfPartStat: toSelfPartStat(response),
+      respondedEventId: targetId,
+      scope,
+      removedWithoutResponse: false
+    }
+  }
+
+  const action = graphResponsePath(response)
+  const body: { comment?: string; sendResponse?: boolean } = {
+    sendResponse: options.sendResponse !== false
+  }
+  const trimmed = options.comment?.trim()
+  if (trimmed) body.comment = trimmed
+
+  try {
+    await runGraphMailboxRequest(accountId, `calendarEvent${action}`, () =>
+      client.api(`${targetPath}/${action}`).post(body)
+    )
+  } catch (e) {
+    // Fallback: responseRequested oft falsch; Graph verlangt dann sendResponse:false (oder Loeschen).
+    if (
+      response === 'decline' &&
+      (isOrganizerResponseNotRequestedError(e) || readGraphStatusCode(e) === 400)
+    ) {
+      try {
+        await declineEventWhenOrganizerWantsNoResponse(accountId, client, targetPath)
+        return {
+          selfPartStat: 'declined',
+          respondedEventId: targetId,
+          scope,
+          removedWithoutResponse: true
+        }
+      } catch {
+        throw e
+      }
+    }
+    // Zusage/Vorbehalt: einmal silent retry
+    if (
+      (response === 'accept' || response === 'tentative') &&
+      isOrganizerResponseNotRequestedError(e)
+    ) {
+      const silentBody: { comment?: string; sendResponse: boolean } = { sendResponse: false }
+      if (trimmed) silentBody.comment = trimmed
+      await runGraphMailboxRequest(accountId, `calendarEvent${action}SilentFallback`, () =>
+        client.api(`${targetPath}/${action}`).post(silentBody)
+      )
+      return {
+        selfPartStat: toSelfPartStat(response),
+        respondedEventId: targetId,
+        scope,
+        removedWithoutResponse: false
+      }
+    }
+    throw e
+  }
+
+  return {
+    selfPartStat: toSelfPartStat(response),
+    respondedEventId: targetId,
+    scope
+  }
+}
+
+/**
+ * Wenn der Organisator keine Antwort erwartet: zuerst decline mit sendResponse:false
+ * (offizieller Graph-Weg), danach Termin aus dem eigenen Kalender entfernen.
+ */
+async function declineEventWhenOrganizerWantsNoResponse(
+  accountId: string,
+  client: Awaited<ReturnType<typeof getClientFor>>,
+  eventPath: string
+): Promise<void> {
+  try {
+    await runGraphMailboxRequest(accountId, 'calendarEventDeclineSilent', () =>
+      client.api(`${eventPath}/decline`).post({ sendResponse: false })
+    )
+  } catch {
+    // Manche Postfaecher akzeptieren auch silent decline nicht — dann nur loeschen.
+  }
+  await runGraphMailboxRequest(accountId, 'calendarEventDeleteNoResponse', () =>
+    client.api(eventPath).delete()
+  )
+}
+
+function normalizeGraphErrorText(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[\u2018\u2019\u02bc\u0060\u00b4]/g, "'")
+    .replace(/\s+/g, ' ')
+}
+
+function collectGraphErrorTexts(e: unknown, into: string[], depth = 0): void {
+  if (e == null || depth > 6) return
+  if (typeof e === 'string') {
+    into.push(e)
+    return
+  }
+  if (typeof e !== 'object') return
+
+  if (e instanceof Error) {
+    if (e.message) into.push(e.message)
+    const cause = (e as Error & { cause?: unknown }).cause
+    if (cause) collectGraphErrorTexts(cause, into, depth + 1)
+  }
+
+  if (e instanceof GraphError) {
+    if (typeof e.body === 'string') {
+      into.push(e.body)
+      try {
+        const parsed = JSON.parse(e.body) as { error?: { message?: string; code?: string } }
+        if (parsed.error?.message) into.push(parsed.error.message)
+        if (parsed.error?.code) into.push(parsed.error.code)
+      } catch {
+        /* body ist Plaintext */
+      }
+    } else if (e.body && typeof e.body === 'object') {
+      const err = (e.body as { error?: { message?: string; code?: string } }).error
+      if (err?.message) into.push(err.message)
+      if (err?.code) into.push(err.code)
+    }
+  }
+
+  const o = e as { body?: unknown; code?: string; message?: string; error?: unknown }
+  if (typeof o.message === 'string') into.push(o.message)
+  if (typeof o.code === 'string') into.push(o.code)
+  if (typeof o.body === 'string') into.push(o.body)
+  if (o.body && typeof o.body === 'object') {
+    const err = (o.body as { error?: { message?: string; code?: string } }).error
+    if (err?.message) into.push(err.message)
+    if (err?.code) into.push(err.code)
+  }
+  if (o.error) collectGraphErrorTexts(o.error, into, depth + 1)
+}
+
+/** Erkennung: Organisator hat „Antwort anfordern“ deaktiviert. */
+export function isOrganizerResponseNotRequestedError(e: unknown): boolean {
+  const texts: string[] = []
+  collectGraphErrorTexts(e, texts)
+  try {
+    texts.push(formatGraphErrorMessage(e))
+  } catch {
+    /* ignore */
+  }
+  const joined = normalizeGraphErrorText(texts.join(' '))
+  if (!joined.trim()) return false
+  return (
+    joined.includes("hasn't requested a response") ||
+    joined.includes('has not requested a response') ||
+    joined.includes('organizer has not requested') ||
+    joined.includes('organizer hasn\'t requested') ||
+    (joined.includes('requested a response') && joined.includes('organizer')) ||
+    (joined.includes("can't be completed") &&
+      joined.includes('organizer') &&
+      joined.includes('response')) ||
+    (joined.includes('response') && joined.includes('not requested'))
+  )
 }

@@ -17,7 +17,8 @@ export function useCalendarShellSchedulingActions(
   setSchedulingDurationMin: Dispatch<SetStateAction<number>>,
   setSchedulingMeetingTitle: Dispatch<SetStateAction<string>>,
   setRightPreviewOpen: (open: boolean) => void,
-  setPreviewDockStripInDom: (v: boolean) => void
+  setPreviewDockStripInDom: (v: boolean) => void,
+  setPreviewPlacement: (p: 'dock' | 'float') => void
 ) {
   const closeSchedulingPanel = useCallback((): void => {
     setSchedulingOpen(false)
@@ -38,6 +39,7 @@ export function useCalendarShellSchedulingActions(
     setSchedulingOpen(true)
     persistRightPreviewOpen(true)
     setRightPreviewOpen(true)
+    setPreviewPlacement('dock')
     setPreviewDockStripInDom(true)
   }, [
     msAccounts,
@@ -49,7 +51,8 @@ export function useCalendarShellSchedulingActions(
     setSchedulingDurationMin,
     setSchedulingMeetingTitle,
     setRightPreviewOpen,
-    setPreviewDockStripInDom
+    setPreviewDockStripInDom,
+    setPreviewPlacement
   ])
 
   const addSchedulingSlot = useCallback(

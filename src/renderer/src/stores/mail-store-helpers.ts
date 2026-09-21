@@ -1,4 +1,4 @@
-import type { MailFolder, MailListItem, TodoDueKindList, TodoDueKindOpen } from '@shared/types'
+import type { MailFolder, MailFull, MailListItem, TodoDueKindList, TodoDueKindOpen } from '@shared/types'
 import {
   computeMailListLayout,
   filterMailListLayoutForCollapsedGroups,
@@ -98,6 +98,25 @@ export function findMailListItemById(
     if (hit) return hit
   }
   return undefined
+}
+
+/**
+ * Sofortige Vorschau-Hülle aus Listenmetadaten (ohne Body), damit der Wechsel
+ * nicht auf dem alten Body oder einem leeren Pane haengen bleibt.
+ */
+export function mailListItemAsPreviewShell(item: MailListItem): MailFull {
+  return {
+    ...item,
+    bodyHtml: null,
+    bodyText: null,
+    ccAddrs: null,
+    bccAddrs: null,
+    openTodoId: item.todoId ?? null,
+    openTodoDueKind: item.todoDueKind ?? null,
+    openTodoDueAt: item.todoDueAt ?? null,
+    openTodoStartAt: item.todoStartAt ?? null,
+    openTodoEndAt: item.todoEndAt ?? null
+  }
 }
 
 export function shorten(text: string, max = 50): string {

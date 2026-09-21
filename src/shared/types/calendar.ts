@@ -1,6 +1,17 @@
 import type { CalendarIncludeCalendarRef } from './account'
 import type { ComposeAttachment, ComposeReferenceAttachment } from './compose'
 
+/** Outlook „Anzeigen als“ / Graph `showAs`. */
+export type CalendarEventShowAs =
+  | 'free'
+  | 'tentative'
+  | 'busy'
+  | 'oof'
+  | 'workingElsewhere'
+
+/** Outlook-Vertraulichkeit / Graph `sensitivity` (UI: Privat = `private`). */
+export type CalendarEventSensitivity = 'normal' | 'personal' | 'private' | 'confidential'
+
 export interface CalendarEventView {
   id: string
   source: 'microsoft' | 'google'
@@ -27,6 +38,12 @@ export interface CalendarEventView {
   calendarCanEdit?: boolean
   /** Lokales Anzeige-Icon (`calendar-event-icons`), nicht mit Graph/Google synchronisiert. */
   icon?: string | null
+  /** Anzeigen als (Graph `showAs` / Google `transparency`). */
+  showAs?: CalendarEventShowAs | null
+  /** Vertraulichkeit (Graph `sensitivity` / Google `visibility`). */
+  sensitivity?: CalendarEventSensitivity | null
+  /** Serie / Vorkommen / Ausnahme (Wiederholungs-Icon im Kalender). */
+  isSeries?: boolean
 }
 
 /** Lokales Termin-Icon setzen/entfernen. */
@@ -35,6 +52,15 @@ export interface CalendarPatchEventIconInput {
   graphEventId: string
   /** `calendar-event-icons` ID oder null/leer = Standard (kein Icon). */
   iconId?: string | null
+}
+
+/** Nur Anzeigen-als / Privat patchen (Kontextmenü, ohne Body/Zeiten). */
+export interface CalendarPatchEventStatusInput {
+  accountId: string
+  graphEventId: string
+  graphCalendarId?: string | null
+  showAs?: CalendarEventShowAs | null
+  sensitivity?: CalendarEventSensitivity | null
 }
 
 /** Kalender-Ordner unter einem Konto (Graph `GET /me/calendars` oder Google `calendarList`). */
@@ -113,7 +139,7 @@ export type CalendarRecurrenceFrequency = 'daily' | 'weekly' | 'biweekly' | 'mon
 /** Ende der Serie: unbegrenzt, bis Datum, oder nach N Vorkommen (inkl. erstem Termin). */
 export type CalendarRecurrenceRangeEndMode = 'never' | 'until' | 'count'
 
-/** Serientermin nur beim **Anlegen** (Microsoft Graph `recurrence` / Google `RRULE`). */
+/** Serientermin beim Anlegen oder beim Umwandeln eines Einzeltermins (Microsoft Graph `recurrence` / Google `RRULE`). */
 export interface CalendarSaveEventRecurrence {
   frequency: CalendarRecurrenceFrequency
   rangeEnd: CalendarRecurrenceRangeEndMode
@@ -167,12 +193,16 @@ export interface CalendarSaveEventInput {
   attachments?: ComposeAttachment[] | null
   /** Microsoft 365: OneDrive/SharePoint als referenceAttachment. */
   referenceAttachments?: ComposeReferenceAttachment[] | null
-  /** Serientermin (nur Anlegen; Bearbeiten der Serie ist nicht implementiert). */
+  /** Serientermin beim Anlegen, Einzel→Serie, oder bestehende Serie aktualisieren. */
   recurrence?: CalendarSaveEventRecurrence | null
   /** Microsoft 365: Graph `isReminderOn` / `reminderMinutesBeforeStart`. */
   reminderMinutesBeforeStart?: number | null
   /** IANA-Zeitzone fuer Start/Ende (nur zeitgebundene Termine). */
   timeZone?: string | null
+  /** Anzeigen als (Graph `showAs` / Google `transparency`). */
+  showAs?: CalendarEventShowAs | null
+  /** Vertraulichkeit (Graph `sensitivity` / Google `visibility`); UI: Privat. */
+  sensitivity?: CalendarEventSensitivity | null
 }
 
 export interface CalendarSaveEventResult {
@@ -244,6 +274,22 @@ export interface CalendarGetEventResult {
   endIso?: string | null
   isAllDay?: boolean
   webLink?: string | null
+  /** Microsoft Graph: aktueller Benutzer ist Organisator. */
+  isOrganizer?: boolean | null
+  /** Microsoft Graph `event.type`. */
+  eventType?: 'singleInstance' | 'occurrence' | 'exception' | 'seriesMaster' | null
+  /** Bei Vorkommen/Ausnahmen: ID der Serie. */
+  seriesMasterId?: string | null
+  /** Anzeigen als (Graph `showAs` / Google `transparency`). */
+  showAs?: CalendarEventShowAs | null
+  /** Vertraulichkeit (Graph `sensitivity` / Google `visibility`). */
+  sensitivity?: CalendarEventSensitivity | null
+  /** Serienmuster (Master; bei Vorkommen vom Master geladen). */
+  recurrence?: CalendarSaveEventRecurrence | null
+  /** Eigene Teilnahmeantwort (Graph `responseStatus` / Google self-attendee). */
+  selfPartStat?: MeetingAttendeePartStat | null
+  /** Zeitpunkt der eigenen Antwort (UTC ISO), falls bekannt. */
+  selfResponseAtIso?: string | null
 }
 
 export interface CalendarResolveMeetingRecordingInput {
@@ -259,6 +305,67 @@ export interface CalendarResolveMeetingRecordingResult {
   recapSource: 'body' | 'joinUrl' | null
   /** Graph bestätigt eine Aufzeichnung, auch wenn keine öffentliche Stream-URL vorliegt. */
   hasGraphRecording?: boolean
+}
+
+/** Copilot Meeting Insights (nach Teams-Meeting). */
+export type CalendarMeetingAiInsightsStatus =
+  | 'ok'
+  | 'pending'
+  | 'notEnded'
+  | 'noJoinUrl'
+  | 'meetingNotFound'
+  | 'unsupported'
+  | 'forbidden'
+  | 'error'
+
+export interface CalendarMeetingAiInsightNote {
+  title: string | null
+  text: string | null
+  subpoints: Array<{ title: string | null; text: string | null }>
+}
+
+export interface CalendarMeetingAiInsightActionItem {
+  title: string | null
+  text: string | null
+  ownerDisplayName: string | null
+}
+
+/** Kurze Transkript-Ausschnitte (z. B. Mentions) aus Meeting Insights. */
+export interface CalendarMeetingAiInsightMentionSnippet {
+  speakerDisplayName: string | null
+  text: string
+}
+
+export interface CalendarMeetingAiInsight {
+  id: string
+  callId: string | null
+  contentCorrelationId: string | null
+  createdDateTime: string | null
+  endDateTime: string | null
+  meetingNotes: CalendarMeetingAiInsightNote[]
+  actionItems: CalendarMeetingAiInsightActionItem[]
+  mentionCount: number
+  mentionSnippets: CalendarMeetingAiInsightMentionSnippet[]
+}
+
+export interface CalendarGetMeetingAiInsightsInput {
+  accountId: string
+  joinUrl?: string | null
+  /** ISO-Ende des Termins; wenn in der Zukunft, kein Graph-Call. */
+  endIso?: string | null
+}
+
+export interface CalendarMeetingAiInsightsResult {
+  status: CalendarMeetingAiInsightsStatus
+  meetingId: string | null
+  insightId: string | null
+  createdDateTime: string | null
+  endDateTime: string | null
+  meetingNotes: CalendarMeetingAiInsightNote[]
+  actionItems: CalendarMeetingAiInsightActionItem[]
+  mentionCount: number
+  mentionSnippets: CalendarMeetingAiInsightMentionSnippet[]
+  errorMessage: string | null
 }
 
 /** Termin in anderen Kalender / anderes Konto kopieren oder verschieben. */
@@ -411,6 +518,11 @@ export interface MeetingInvitationView {
   /** Vom angemeldeten Konto vorgeschlagene Alternative (falls bereits gesendet). */
   selfProposedStartIso: string | null
   selfProposedEndIso: string | null
+  /** True, wenn das angemeldete Konto der Organisator dieses Termins ist. */
+  isOrganizer: boolean
+  /** True, wenn der Organisator die Zeit direkt aus dieser Mail heraus aendern kann. */
+  canReschedule: boolean
+  rescheduleUnsupportedReason: string | null
 }
 
 export interface CalendarParseMeetingFromMessageResult {
@@ -436,4 +548,44 @@ export interface CalendarRespondToMeetingResult {
   selfPartStat?: MeetingAttendeePartStat
   selfProposedStartIso?: string | null
   selfProposedEndIso?: string | null
+}
+
+/** RSVP auf einen Kalendertermin (nicht aus Mail-Einladung). */
+export type CalendarEventRsvpKind = 'accept' | 'decline' | 'tentative'
+export type CalendarEventRsvpScope = 'this' | 'series'
+
+export interface CalendarRespondToEventInput {
+  accountId: string
+  graphEventId: string
+  graphCalendarId?: string | null
+  response: CalendarEventRsvpKind
+  /** `this` = dieses Vorkommen, `series` = gesamte Serie (falls vorhanden). */
+  scope?: CalendarEventRsvpScope
+  comment?: string | null
+  sendResponse?: boolean
+}
+
+export interface CalendarRespondToEventResult {
+  ok: boolean
+  error?: string
+  selfPartStat?: MeetingAttendeePartStat
+  respondedEventId?: string
+  scope?: CalendarEventRsvpScope
+  /** Termin wurde ohne RSVP entfernen (Organisator will keine Antwort). */
+  removedWithoutResponse?: boolean
+}
+
+/** Organisator aendert die Zeit eines eigenen Termins direkt aus der Mail heraus (kein RSVP). */
+export interface CalendarRescheduleMeetingInput {
+  accountId: string
+  messageId: number
+  newStartIso: string
+  newEndIso: string
+}
+
+export interface CalendarRescheduleMeetingResult {
+  ok: boolean
+  error?: string
+  startIso?: string
+  endIso?: string
 }

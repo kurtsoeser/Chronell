@@ -11,6 +11,27 @@ describe('prepareComposeOutgoingHtmlFragment', () => {
     )
   })
 
+  it('linkifiziert www.-URLs und normalisiert href', () => {
+    const out = prepareComposeOutgoingHtmlFragment('<p>Siehe www.example.com</p>')
+    expect(out).toContain('href="https://www.example.com/"')
+    expect(out).toContain('>www.example.com</a>')
+  })
+
+  it('normalisiert relative Anker-hrefs', () => {
+    const out = prepareComposeOutgoingHtmlFragment(
+      '<p><a href="www.example.com/path">Beispiel</a></p>'
+    )
+    expect(out).toContain('href="https://www.example.com/path"')
+  })
+
+  it('ersetzt Dark-Theme-Weiss durch lesbare Textfarbe', () => {
+    const out = prepareComposeOutgoingHtmlFragment(
+      '<p><span style="color:#ffffff">Hallo <a href="https://example.com">Link</a></span></p>'
+    )
+    expect(out).not.toMatch(/color\s*:\s*#ffffff/i)
+    expect(out).toContain('href="https://example.com"')
+  })
+
   it('laesst bestehende Anker unveraendert', () => {
     const html = '<p>Web: <a href="https://example.com">Beispiel</a></p>'
     expect(prepareComposeOutgoingHtmlFragment(html)).toBe(html)

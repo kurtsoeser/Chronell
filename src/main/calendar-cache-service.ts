@@ -25,6 +25,7 @@ import {
 import { broadcastCalendarChanged, broadcastCalendarSyncStatus } from './ipc/ipc-broadcasts'
 import { getActiveSchedulePatchGuard } from './calendar-schedule-patch-guard'
 import { isAppOnline } from './network-status'
+import { warnProviderAuthOnce } from './auth/auth-errors'
 import { googleListCalendars } from './google/calendar-google'
 
 /** Vergangenheit im lokalen Cache (Tage). */
@@ -102,7 +103,11 @@ async function resolveIncludeCalendars(
   const refs: CalendarIncludeCalendarRef[] = []
   for (const acc of accounts) {
     if (acc.provider !== 'microsoft' && acc.provider !== 'google') continue
-    refs.push(...(await listAllCalendarsForAccount(acc)))
+    try {
+      refs.push(...(await listAllCalendarsForAccount(acc)))
+    } catch (e) {
+      warnProviderAuthOnce('calendar-cache', acc.id, e)
+    }
   }
   return refs
 }
@@ -252,33 +257,12 @@ export async function syncAllCalendarAccounts(
   const linked = accounts.filter((a) => a.provider === 'microsoft' || a.provider === 'google')
   if (linked.length === 0) return
 
-  const { startIso, endIso } = getDefaultCalendarSyncWindow()
-  const include: CalendarIncludeCalendarRef[] = []
   for (const acc of linked) {
-    include.push(...(await listAllCalendarsForAccount(acc)))
-  }
-  if (include.length === 0) return
-
-  for (const acc of linked) {
-    broadcastCalendarSyncStatus({ accountId: acc.id, state: 'syncing-folders' })
-  }
-  try {
-    await fetchFromCloudAndPersist(
-      startIso,
-      endIso,
-      { includeCalendars: include },
-      opts?.googleIncremental === true
-    )
-    for (const acc of linked) {
-      broadcastCalendarSyncStatus({ accountId: acc.id, state: 'idle' })
-      broadcastCalendarChanged(acc.id)
+    try {
+      await syncCalendarAccount(acc.id, opts)
+    } catch (e) {
+      warnProviderAuthOnce('calendar-sync', acc.id, e)
     }
-  } catch (e) {
-    const message = e instanceof Error ? e.message : String(e)
-    for (const acc of linked) {
-      broadcastCalendarSyncStatus({ accountId: acc.id, state: 'error', message })
-    }
-    throw e
   }
 }
 

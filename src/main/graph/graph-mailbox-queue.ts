@@ -3,6 +3,7 @@ export const GRAPH_MAILBOX_CONCURRENCY = 3
 
 type AccountQueue = {
   running: number
+  /** FIFO; Index 0 = naechster Slot. Prioritaets-Waiter werden vorne eingefuegt. */
   waiters: Array<() => void>
 }
 
@@ -17,17 +18,27 @@ function queueFor(accountId: string): AccountQueue {
   return q
 }
 
-function acquireMailboxSlot(accountId: string): Promise<void> {
+export interface GraphMailboxSlotOptions {
+  /**
+   * Interaktive Requests (z. B. geoeffnete Mail-Vorschau) vor Hintergrund-Indexierung.
+   * Default: false.
+   */
+  priority?: boolean
+}
+
+function acquireMailboxSlot(accountId: string, priority = false): Promise<void> {
   const q = queueFor(accountId)
   if (q.running < GRAPH_MAILBOX_CONCURRENCY) {
     q.running += 1
     return Promise.resolve()
   }
   return new Promise((resolve) => {
-    q.waiters.push((): void => {
+    const wake = (): void => {
       q.running += 1
       resolve()
-    })
+    }
+    if (priority) q.waiters.unshift(wake)
+    else q.waiters.push(wake)
   })
 }
 
@@ -45,9 +56,10 @@ function releaseMailboxSlot(accountId: string): void {
 /** Begrenzt parallele Graph-Aufrufe pro Konto (MailboxConcurrency). */
 export async function withGraphMailboxSlot<T>(
   accountId: string,
-  fn: () => Promise<T>
+  fn: () => Promise<T>,
+  opts?: GraphMailboxSlotOptions
 ): Promise<T> {
-  await acquireMailboxSlot(accountId)
+  await acquireMailboxSlot(accountId, opts?.priority === true)
   try {
     return await fn()
   } finally {

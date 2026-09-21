@@ -10,8 +10,11 @@ import {
   type CalendarGetEventResult,
   type CalendarResolveMeetingRecordingInput,
   type CalendarResolveMeetingRecordingResult,
+  type CalendarGetMeetingAiInsightsInput,
+  type CalendarMeetingAiInsightsResult,
   type CalendarDeleteEventInput,
   type CalendarPatchEventIconInput,
+  type CalendarPatchEventStatusInput,
   type CalendarPatchScheduleInput,
   type CalendarTransferEventInput,
   type CalendarPatchCalendarColorInput,
@@ -24,7 +27,9 @@ import {
   type CalendarParseIcsFileResult,
   type CalendarListEventAttachmentsInput,
   type CalendarEventAttachmentActionInput,
-  type CalendarEventAttachmentMeta
+  type CalendarEventAttachmentMeta,
+  type CalendarRespondToEventInput,
+  type CalendarRespondToEventResult
 } from '@shared/types'
 import {
   listCalendarEventAttachments,
@@ -35,13 +40,15 @@ import { sanitizeFileName } from './ipc-helpers'
 import { parseIcsFileAtPath } from '../ics-import-service'
 import {
   parseMeetingInvitationFromMessage,
-  respondToMeetingInvitation
+  respondToMeetingInvitation,
+  rescheduleMeetingFromMessage
 } from '../meeting-invitation-service'
 import { listAccounts } from '../accounts'
 import {
   afterCalendarEventCreated,
   afterCalendarEventDeleted,
   afterCalendarEventIconPatched,
+  afterCalendarEventStatusPatched,
   prepareCalendarEventSchedulePatch,
   rollbackCalendarEventSchedulePatch,
   afterCalendarEventUpdated
@@ -54,7 +61,7 @@ import {
 } from '../calendar-cache-service'
 import { syncCalendarFoldersForAccount } from '../calendar-folders-cache-service'
 import { getCalendarEventCached } from '../calendar-event-details-cache-service'
-import { getCalendarEventDetailsFromCache } from '../db/calendar-event-details-repo'
+import { getCalendarEventDetailsFromCache, deleteCalendarEventDetails } from '../db/calendar-event-details-repo'
 import {
   listCalendarsCached,
   listM365GroupCalendarsCached
@@ -66,8 +73,10 @@ import {
   refreshMicrosoftCalendarEventMeetingFields,
   updateCalendarEventForAccount,
   deleteCalendarEventForAccount,
+  respondToCalendarEventForAccount,
   patchCalendarEventScheduleForAccount,
   patchCalendarEventCategories,
+  patchCalendarEventStatusForAccount,
   buildCalendarSuggestionFromMessage,
   findLocalFreeSlotsForAccount,
   getAttendeeScheduleForAccount,
@@ -301,6 +310,13 @@ export function registerCalendarIpc(): void {
         }
       }
       const out: CalendarSaveEventResult = { ...result, joinUrl, event: event ?? undefined }
+      if (input.recurrence) {
+        try {
+          await syncCalendarAccount(input.accountId)
+        } catch (e) {
+          console.warn('[calendar] Sync nach Serien-Anlegen fehlgeschlagen:', e)
+        }
+      }
       return out
     }
   )
@@ -310,6 +326,14 @@ export function registerCalendarIpc(): void {
     assertAppOnline()
     await updateCalendarEventForAccount(input)
     await afterCalendarEventUpdated(input.accountId, input)
+    if (input.recurrence) {
+      deleteCalendarEventDetails(input.accountId, input.graphEventId)
+      try {
+        await syncCalendarAccount(input.accountId)
+      } catch (e) {
+        console.warn('[calendar] Sync nach Serie-Umwandlung fehlgeschlagen:', e)
+      }
+    }
   })
 
   ipcMain.removeHandler(IPC.calendar.getEvent)
@@ -396,6 +420,45 @@ export function registerCalendarIpc(): void {
         recapSource: recapResolved.source,
         hasGraphRecording
       }
+    }
+  )
+
+  ipcMain.removeHandler(IPC.calendar.getMeetingAiInsights)
+  ipcMain.handle(
+    IPC.calendar.getMeetingAiInsights,
+    async (
+      _event,
+      input: CalendarGetMeetingAiInsightsInput
+    ): Promise<CalendarMeetingAiInsightsResult> => {
+      assertAppOnline()
+      const accountId = input?.accountId?.trim() ?? ''
+      const joinUrl = input?.joinUrl?.trim() ?? ''
+      if (!accountId || !joinUrl) {
+        return {
+          status: joinUrl ? 'unsupported' : 'noJoinUrl',
+          meetingId: null,
+          insightId: null,
+          createdDateTime: null,
+          endDateTime: null,
+          meetingNotes: [],
+          actionItems: [],
+          mentionCount: 0,
+          mentionSnippets: [],
+          errorMessage: null
+        }
+      }
+
+      let meetingEnded = true
+      const endIso = input?.endIso?.trim()
+      if (endIso) {
+        const endMs = Date.parse(endIso)
+        if (Number.isFinite(endMs) && endMs > Date.now()) {
+          meetingEnded = false
+        }
+      }
+
+      const { graphFetchMeetingAiInsights } = await import('../graph/meeting-insights-graph')
+      return graphFetchMeetingAiInsights(accountId, joinUrl, { meetingEnded })
     }
   )
 
@@ -520,6 +583,18 @@ export function registerCalendarIpc(): void {
     }
   )
 
+  ipcMain.removeHandler(IPC.calendar.patchEventStatus)
+  ipcMain.handle(
+    IPC.calendar.patchEventStatus,
+    async (_event, input: CalendarPatchEventStatusInput): Promise<void> => {
+      assertAppOnline()
+      const graphEventId = input.graphEventId?.trim()
+      if (!graphEventId) throw new Error('graphEventId fehlt.')
+      await patchCalendarEventStatusForAccount(input)
+      afterCalendarEventStatusPatched({ ...input, graphEventId })
+    }
+  )
+
   ipcMain.removeHandler(IPC.calendar.syncAccount)
   ipcMain.handle(IPC.calendar.syncAccount, async (_event, accountId: unknown): Promise<void> => {
     assertAppOnline()
@@ -575,5 +650,46 @@ export function registerCalendarIpc(): void {
   ipcMain.removeHandler(IPC.calendar.respondToMeetingInvitation)
   ipcMain.handle(IPC.calendar.respondToMeetingInvitation, async (_event, input) =>
     respondToMeetingInvitation(input)
+  )
+
+  ipcMain.removeHandler(IPC.calendar.respondToEvent)
+  ipcMain.handle(
+    IPC.calendar.respondToEvent,
+    async (_event, input: CalendarRespondToEventInput): Promise<CalendarRespondToEventResult> => {
+      assertAppOnline()
+      const result = await respondToCalendarEventForAccount(input)
+      if (result.ok) {
+        if (input.response === 'decline') {
+          const graphEventId = input.graphEventId.trim()
+          afterCalendarEventDeleted(input.accountId, graphEventId)
+          if (
+            result.scope === 'series' &&
+            result.respondedEventId &&
+            result.respondedEventId !== graphEventId
+          ) {
+            afterCalendarEventDeleted(input.accountId, result.respondedEventId)
+          }
+          deleteCalendarEventDetails(input.accountId, graphEventId)
+          if (result.respondedEventId) {
+            deleteCalendarEventDetails(input.accountId, result.respondedEventId)
+          }
+          // Serie: Vorkommen aus dem lokalen Cache entfernen (Sync folgt im Renderer).
+          if (result.scope === 'series' || result.removedWithoutResponse) {
+            try {
+              await syncCalendarAccount(input.accountId)
+            } catch (e) {
+              console.warn('[calendar] Sync nach Ablehnen fehlgeschlagen:', e)
+            }
+          }
+        }
+        broadcastCalendarChanged(input.accountId)
+      }
+      return result
+    }
+  )
+
+  ipcMain.removeHandler(IPC.calendar.rescheduleMeetingFromMessage)
+  ipcMain.handle(IPC.calendar.rescheduleMeetingFromMessage, async (_event, input) =>
+    rescheduleMeetingFromMessage(input)
   )
 }

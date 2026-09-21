@@ -721,7 +721,8 @@ export function CalendarShell(): JSX.Element {
       setSchedulingDurationMin,
       setSchedulingMeetingTitle,
       setRightPreviewOpen,
-      setPreviewDockStripInDom
+      setPreviewDockStripInDom,
+      setPreviewPlacement
     )
 
   useEffect(() => {
@@ -841,10 +842,14 @@ export function CalendarShell(): JSX.Element {
       if (created) {
         applyOptimisticGraphCalendarEvent(created)
         useInboxCalendarAgendaCacheStore.getState().upsertPreviewCalendarEvent(created)
-        skipCalendarReloadUntilRef.current = Date.now() + 6000
+        // Serien brauchen Cloud-Sync (Vorkommen); kurzes Reload mit forceRefresh.
+        skipCalendarReloadUntilRef.current = Date.now() + 1500
+        window.setTimeout(() => {
+          reloadVisibleRange({ silent: true, forceRefresh: true })
+        }, 400)
         return
       }
-      reloadVisibleRange({ silent: true })
+      reloadVisibleRange({ silent: true, forceRefresh: true })
     },
     [applyOptimisticGraphCalendarEvent, reloadVisibleRange]
   )

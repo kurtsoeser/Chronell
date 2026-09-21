@@ -102,7 +102,7 @@ export function getTodoCountsAll(timeZone: string): TodoCountsAll {
 export function setTodoForMessage(
   messageId: number,
   dueKind: TodoDueKindOpen,
-  opts?: { source?: string; ruleId?: number | null }
+  opts?: { source?: string; ruleId?: number | null; skipBroadcast?: boolean }
 ): void {
   const msg = getMessageById(messageId)
   if (!msg) throw new Error('Mail nicht gefunden.')
@@ -180,14 +180,14 @@ export function setTodoForMessage(
     }
   }
 
-  broadcastMailChanged(msg.accountId)
+  if (!opts?.skipBroadcast) broadcastMailChanged(msg.accountId)
 }
 
 export function setTodoScheduleForMessage(
   messageId: number,
   startIso: string,
   endIso: string,
-  opts?: { source?: string; ruleId?: number | null }
+  opts?: { source?: string; ruleId?: number | null; skipBroadcast?: boolean }
 ): void {
   const msg = getMessageById(messageId)
   if (!msg) throw new Error('Mail nicht gefunden.')
@@ -253,7 +253,7 @@ export function setTodoScheduleForMessage(
     })
   }
 
-  broadcastMailChanged(msg.accountId)
+  if (!opts?.skipBroadcast) broadcastMailChanged(msg.accountId)
 }
 
 /**
@@ -288,7 +288,10 @@ export function completeOpenTodoFromGraphFlagIfNeeded(messageId: number): boolea
   return true
 }
 
-export function completeTodoForMessage(messageId: number): void {
+export function completeTodoForMessage(
+  messageId: number,
+  opts?: { skipBroadcast?: boolean }
+): void {
   const msg = getMessageById(messageId)
   if (!msg) throw new Error('Mail nicht gefunden.')
   const open = getOpenTodoByMessageId(messageId)
@@ -312,7 +315,7 @@ export function completeTodoForMessage(messageId: number): void {
       label: `ToDo erledigt: ${subj}`
     }
   })
-  broadcastMailChanged(msg.accountId)
+  if (!opts?.skipBroadcast) broadcastMailChanged(msg.accountId)
 }
 
 /**

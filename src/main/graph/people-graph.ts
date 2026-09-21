@@ -176,7 +176,11 @@ function graphApiPathFromNextLink(nextLink: string): string {
 
 function isGraphDeltaTokenExpired(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err)
-  return /410|sync state|resync|Expired|expired/i.test(msg)
+  // Graph Contacts-Delta erlaubt kein $top/$select/… — alte Cursor mit Query-Params neu starten.
+  return (
+    /410|sync state|resync|Expired|expired/i.test(msg) ||
+    /parameters are not supported with change tracking/i.test(msg)
+  )
 }
 
 async function paginateGraphCollection<T>(
@@ -237,7 +241,8 @@ async function graphContactsDeltaFetch(
   const client = await getClientFor(accountId)
   const contacts: GraphContact[] = []
   const deletedRemoteIds: string[] = []
-  let url: string | null = deltaLink ?? '/me/contacts/delta?$top=200'
+  // Contacts delta: $top/$select/$filter/$orderby/$expand/$search sind nicht erlaubt.
+  let url: string | null = deltaLink ?? '/me/contacts/delta'
   let nextDeltaLink: string | null = null
 
   while (url) {

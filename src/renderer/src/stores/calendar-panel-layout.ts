@@ -58,8 +58,8 @@ interface CalendarPanelLayoutState {
 
 export const useCalendarPanelLayoutStore = create<CalendarPanelLayoutState>((set) => ({
   inboxPlacement: readPlacement(K_INBOX, 'dock'),
-  /** Vorschau: Standard „losgeloest“ (Pop-up); laesst sich andocken. */
-  previewPlacement: readPlacement(K_PREVIEW, 'float'),
+  /** Vorschau: Standard angedockt (wie Mail-Lesevorschau); Abdocken oeffnet Pop-up/OS-Fenster. */
+  previewPlacement: readPlacement(K_PREVIEW, 'dock'),
   contextPlacement: readPlacement(K_CONTEXT, 'dock'),
   contextOpen: readBool(K_CONTEXT_OPEN, false),
   setInboxPlacement(p): void {

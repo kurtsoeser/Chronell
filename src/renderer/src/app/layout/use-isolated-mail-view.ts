@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { threadGroupingKey } from '@/lib/thread-group'
 import type { MailFull, MailListItem } from '@shared/types'
 
@@ -10,14 +10,11 @@ export interface IsolatedMailView {
   selectMessage: (messageId: number) => Promise<void>
 }
 
-async function loadMessageWithThread(messageId: number): Promise<{
-  message: MailFull | null
-  threadMessages: Record<string, MailListItem[]>
-}> {
-  const msg = await window.mailClient.mail.getMessage(messageId)
-  if (!msg) return { message: null, threadMessages: {} }
+async function loadThreadForMessage(
+  msg: MailFull
+): Promise<Record<string, MailListItem[]>> {
   const tk = msg.remoteThreadId?.trim()
-  if (!tk) return { message: msg, threadMessages: {} }
+  if (!tk) return {}
   const list = await window.mailClient.mail
     .listMessagesByThreads({ accountId: msg.accountId, threadKeys: [tk] })
     .catch(() => [] as MailListItem[])
@@ -28,7 +25,7 @@ async function loadMessageWithThread(messageId: number): Promise<{
     if (ad === bd) return 0
     return ad < bd ? 1 : -1
   })
-  return { message: msg, threadMessages: sorted.length > 1 ? { [key]: sorted } : {} }
+  return sorted.length > 1 ? { [key]: sorted } : {}
 }
 
 /** Mail-Vorschau unabhaengig von der Listen-Auswahl (Pop-out / eigenes Fenster). */
@@ -37,23 +34,33 @@ export function useIsolatedMailView(messageId: number | null): IsolatedMailView 
   const [selectedMessageId, setSelectedMessageId] = useState<number | null>(messageId)
   const [messageLoading, setMessageLoading] = useState(false)
   const [threadMessages, setThreadMessages] = useState<Record<string, MailListItem[]>>({})
+  const loadGenRef = useRef(0)
 
   useEffect(() => {
     setSelectedMessageId(messageId)
   }, [messageId])
 
   const load = useCallback(async (id: number): Promise<void> => {
+    const gen = ++loadGenRef.current
     setSelectedMessageId(id)
     setMessageLoading(true)
     try {
-      const { message, threadMessages: threads } = await loadMessageWithThread(id)
-      setSelectedMessage(message)
+      const msg = await window.mailClient.mail.getMessage(id)
+      if (loadGenRef.current !== gen) return
+      setSelectedMessage(msg)
+      setMessageLoading(false)
+      if (!msg) {
+        setThreadMessages({})
+        return
+      }
+      const threads = await loadThreadForMessage(msg)
+      if (loadGenRef.current !== gen) return
       setThreadMessages(threads)
     } catch (e) {
+      if (loadGenRef.current !== gen) return
       console.error('[isolated-mail-view] load failed', e)
       setSelectedMessage(null)
       setThreadMessages({})
-    } finally {
       setMessageLoading(false)
     }
   }, [])

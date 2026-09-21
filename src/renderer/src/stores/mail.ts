@@ -25,6 +25,7 @@ import {
   type SelectMailNavOptions
 } from './mail-nav-persist'
 import type { AccountListMetaEntry, MailFilter, MailListKind } from './mail-store-types'
+import { mailListUsesCrossAccountThreadScope } from './mail-store-types'
 import {
   persistMailListViewPrefsFromState,
   resolveMailListViewPrefs,
@@ -35,6 +36,7 @@ import {
   formatSnoozeWake,
   findMailListItemById,
   isMailInDeletedItemsFolder,
+  mailListItemAsPreviewShell,
   pickInitialMessageId,
   pickSuccessorMessageId,
   shorten,
@@ -277,6 +279,18 @@ function pollFolderIdsTouchInbox(
     }
   }
   return false
+}
+
+function prefetchNeighborMessageBodies(state: MailNavigableLayoutState, messageId: number): void {
+  const ids = buildNavigableMessageIds(state)
+  const idx = ids.indexOf(messageId)
+  if (idx < 0) return
+  for (const neighborId of [ids[idx - 1], ids[idx + 1]]) {
+    if (neighborId == null || neighborId === messageId) continue
+    void window.mailClient.mail.getMessage(neighborId).catch(() => {
+      /* Prefetch best-effort */
+    })
+  }
 }
 
 export const useMailStore = create<MailState>((set, get) => ({
@@ -1102,7 +1116,7 @@ export const useMailStore = create<MailState>((set, get) => ({
 
       const pick = pickInitialMessageId(messages, opts?.preferredMessageId ?? null)
       if (pick != null) {
-        await get().selectMessage(pick)
+        await get().selectMessageWithThreadPreview(pick)
       }
     } catch (e) {
       set({ loading: false, error: e instanceof Error ? e.message : String(e) })
@@ -1160,7 +1174,7 @@ export const useMailStore = create<MailState>((set, get) => ({
 
       const pick = pickInitialMessageId(messages, opts?.preferredMessageId ?? null)
       if (pick != null) {
-        await get().selectMessage(pick)
+        await get().selectMessageWithThreadPreview(pick)
       }
     } catch (e) {
       set({ loading: false, error: e instanceof Error ? e.message : String(e) })
@@ -1262,12 +1276,23 @@ export const useMailStore = create<MailState>((set, get) => ({
   },
 
   async selectMessage(messageId: number): Promise<void> {
-    set({ selectedMessageId: messageId, messageLoading: true })
+    const st = get()
+    const listHit = findMailListItemById(st.messages, st.threadMessages, messageId)
+    const shell =
+      listHit != null
+        ? mailListItemAsPreviewShell(listHit)
+        : st.selectedMessage?.id === messageId
+          ? st.selectedMessage
+          : null
+    set({ selectedMessageId: messageId, messageLoading: true, selectedMessage: shell })
     try {
       const msg = await window.mailClient.mail.getMessage(messageId)
+      if (get().selectedMessageId !== messageId) return
       set({ selectedMessage: msg, messageLoading: false })
       if (msg) snapshotMailNavForPersist(get())
+      prefetchNeighborMessageBodies(get(), messageId)
     } catch (e) {
+      if (get().selectedMessageId !== messageId) return
       console.error('[mail-store] selectMessage failed', e)
       set({ messageLoading: false, error: e instanceof Error ? e.message : String(e) })
     }
@@ -1282,41 +1307,53 @@ export const useMailStore = create<MailState>((set, get) => ({
     if (sid == null) return
     try {
       const fresh = await window.mailClient.mail.getMessage(sid)
-      if (fresh) set({ selectedMessage: fresh })
+      if (fresh && get().selectedMessageId === sid) set({ selectedMessage: fresh })
     } catch (e) {
       console.warn('[mail-store] reloadSelectedMessageFromDb failed', e)
     }
   },
 
   async selectMessageWithThreadPreview(messageId: number): Promise<void> {
-    set({ selectedMessageId: messageId, messageLoading: true })
+    const st = get()
+    const listHit = findMailListItemById(st.messages, st.threadMessages, messageId)
+    const shell =
+      listHit != null
+        ? mailListItemAsPreviewShell(listHit)
+        : st.selectedMessage?.id === messageId
+          ? st.selectedMessage
+          : null
+    set({ selectedMessageId: messageId, messageLoading: true, selectedMessage: shell })
     try {
       const msg = await window.mailClient.mail.getMessage(messageId)
+      if (get().selectedMessageId !== messageId) return
       if (!msg) {
         set({ selectedMessage: null, messageLoading: false, threadMessages: {} })
         return
       }
+      // Body sofort zeigen; Thread parallel nachziehen (nicht den Preview-Pfad blockieren).
+      set({ selectedMessage: msg, messageLoading: false })
+      snapshotMailNavForPersist(get())
+      prefetchNeighborMessageBodies(get(), messageId)
+
       const tk = msg.remoteThreadId?.trim()
-      if (!tk) {
-        set({ selectedMessage: msg, messageLoading: false, threadMessages: {} })
-        return
-      }
+      if (!tk) return
       const list = await window.mailClient.mail
         .listMessagesByThreads({ accountId: msg.accountId, threadKeys: [tk] })
         .catch(() => [] as MailListItem[])
-      const key = threadGroupingKey(msg, true)
+      if (get().selectedMessageId !== messageId) return
+      const scoped = mailListUsesCrossAccountThreadScope(get().listKind)
+      const key = threadGroupingKey(msg, scoped)
       const sorted = [...list].sort((a, b) => {
         const ad = a.receivedAt ?? a.sentAt ?? ''
         const bd = b.receivedAt ?? b.sentAt ?? ''
         if (ad === bd) return 0
         return ad < bd ? 1 : -1
       })
-      set({
-        selectedMessage: msg,
-        messageLoading: false,
-        threadMessages: { [key]: sorted }
-      })
+      set((s) => ({
+        threadMessages: { ...s.threadMessages, [key]: sorted }
+      }))
     } catch (e) {
+      if (get().selectedMessageId !== messageId) return
       console.error('[mail-store] selectMessageWithThreadPreview failed', e)
       set({ messageLoading: false, error: e instanceof Error ? e.message : String(e) })
     }
@@ -1434,7 +1471,7 @@ export const useMailStore = create<MailState>((set, get) => ({
       state.listKind === 'category' ||
       state.listKind === 'search'
     ) {
-      await get().selectMessage(messageId)
+      await get().selectMessageWithThreadPreview(messageId)
       return
     }
     if (
@@ -1685,8 +1722,31 @@ export const useMailStore = create<MailState>((set, get) => ({
 
   async setTodoForMessage(messageId: number, dueKind: TodoDueKindOpen): Promise<void> {
     const state = get()
-    const item = state.messages.find((m) => m.id === messageId) ?? state.selectedMessage
+    const item =
+      findMailListItemById(state.messages, state.threadMessages, messageId) ??
+      state.selectedMessage
     const subject = item?.subject ?? '(Mail)'
+    // Wie Archiv/Erledigt: sofort aus der aktuellen Liste nehmen (WIP-Routing folgt lokal-first).
+    const leaveCurrentList =
+      state.listKind !== 'todo' ||
+      (state.todoDueKind != null && state.todoDueKind !== dueKind && state.todoDueKind !== 'done')
+    if (leaveCurrentList) {
+      advanceSelectionAfterRemoval(messageId, set, get)
+    } else {
+      // Gleiche ToDo-Ansicht: Badge/Felder sofort patchen.
+      set((s) => ({
+        messages: s.messages.map((m) =>
+          m.id === messageId
+            ? {
+                ...m,
+                todoDueKind: dueKind,
+                todoDueAt: m.todoDueAt,
+                todoId: m.todoId ?? -1
+              }
+            : m
+        )
+      }))
+    }
     try {
       await window.mailClient.mail.setTodoForMessage({ messageId, dueKind })
       useUndoStore.getState().pushToast({
@@ -1694,29 +1754,13 @@ export const useMailStore = create<MailState>((set, get) => ({
         variant: 'success',
         onUndo: () => useUndoStore.getState().undoLast()
       })
-      const fresh = await window.mailClient.mail.getMessage(messageId)
-      if (fresh) {
-        const todoListFields =
-          fresh.openTodoId != null
-            ? {
-                todoId: fresh.openTodoId,
-                todoDueKind: fresh.openTodoDueKind,
-                todoDueAt: fresh.openTodoDueAt,
-                todoStartAt: fresh.openTodoStartAt,
-                todoEndAt: fresh.openTodoEndAt
-              }
-            : {}
-        set((s) => ({
-          messages: s.messages.map((m) =>
-            m.id === messageId ? { ...m, ...todoListFields } : m
-          ),
-          ...(s.selectedMessageId === messageId ? { selectedMessage: fresh } : {})
-        }))
-      }
       void window.mailClient.mail
         .listTodoCounts()
         .then((todoCounts) => set({ todoCounts }))
         .catch((err) => logIpcError('mail.listTodoCounts', err))
+      if (!leaveCurrentList && get().selectedMessageId === messageId) {
+        void get().reloadSelectedMessageFromDb()
+      }
     } catch (e) {
       console.error('[mail-store] setTodoForMessage failed', e)
       set({ error: e instanceof Error ? e.message : String(e) })
@@ -1730,8 +1774,14 @@ export const useMailStore = create<MailState>((set, get) => ({
     opts?: { skipSelectedRefresh?: boolean }
   ): Promise<void> {
     const state = get()
-    const item = state.messages.find((m) => m.id === messageId) ?? state.selectedMessage
+    const item =
+      findMailListItemById(state.messages, state.threadMessages, messageId) ??
+      state.selectedMessage
     const subject = item?.subject ?? '(Mail)'
+    // Termin → WIP: aus Inbox/Ordner-Listen sofort entfernen.
+    if (state.listKind !== 'todo') {
+      advanceSelectionAfterRemoval(messageId, set, get)
+    }
     try {
       await window.mailClient.mail.setTodoScheduleForMessage({ messageId, startIso, endIso })
       useUndoStore.getState().pushToast({
@@ -1739,9 +1789,13 @@ export const useMailStore = create<MailState>((set, get) => ({
         variant: 'success',
         onUndo: () => useUndoStore.getState().undoLast()
       })
-      if (!opts?.skipSelectedRefresh) {
+      if (!opts?.skipSelectedRefresh && get().selectedMessageId === messageId) {
         await get().reloadSelectedMessageFromDb()
       }
+      void window.mailClient.mail
+        .listTodoCounts()
+        .then((todoCounts) => set({ todoCounts }))
+        .catch((err) => logIpcError('mail.listTodoCounts', err))
     } catch (e) {
       console.error('[mail-store] setTodoScheduleForMessage failed', e)
       const msg = e instanceof Error ? e.message : String(e)

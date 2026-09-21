@@ -6,8 +6,8 @@ Dieses Dokument beschreibt den **aktuellen Funktionsumfang** der Desktop-App. Es
 |------|------|
 | **Produktname (UI)** | Chronell |
 | **Technischer Name / Installer** | MailClient |
-| **Version** | **1.0.4** |
-| **Stand** | **26. August 2026** |
+| **Version** | **1.0.5** |
+| **Stand** | **21. September 2026** |
 | **App-ID** | `at.kurtsoeser.chronell` |
 | **Zielplattform** | Windows 11 (primär) |
 | **Autor** | Kurt Soeser |
@@ -484,26 +484,11 @@ Marker-Datei nach Migration: `%APPDATA%\Chronell\.chronell-migrated-from-mailcli
 
 ## 20. Versionshistorie
 
-### 1.0.4 - 26. August 2026
+### 1.0.5 - 21. September 2026
 
-- **Kalender:** Kalender und Termine: Dialog, Vorschau, Kategorien und Shell (ueberarbeiteter Termin-Dialog)
-- **Mail:** Mail-Arbeitsbereich: Sidebar, Anhaenge, EWS und Aktionen (Kontext-Sidebar in Mail (Kontakt, Historie, Kalender))
-- **Notizen:** Notizen und Kalender-Pane (Notizen-Modul)
-- **Homepage:** Release-Texte, Homepage-Timeline und Download auf 1.0.4
-
-
-### 1.0.3 - 10. Juli 2026
-
-- **Kalender:** Kalender und Termine: Dialog, Vorschau, Kategorien und Shell (ueberarbeiteter Termin-Dialog; Termin-Vorschau)
-- **Mail:** Mail-Arbeitsbereich: Sidebar, Anhaenge, EWS und Aktionen (17 Datei(en) geaendert)
-- **Verbindungen:** Verbindungs-Graph und Objekt-Verknuepfungen (Verbindungs-Graph)
-- **Homepage:** Release-Texte, Homepage-Timeline und Download auf 1.0.3
-
-
-### 1.0.0 - 3. Juli 2026
-
-- **Notizen:** Notizen-Modul mit TipTap-Editor, Abschnitten, Freihand, Embeds, Verknuepfungen und Quick Capture
-- **Kalender:** Kalender mit Bookings, ueberarbeitetem Termin-Dialog, ICS-Import und Cloud-Tasks
-- **Mail:** Multi-Account-Mail mit EWS, Kontext-Sidebar, Composer und lokaler Anhangs-Indexierung
-- **Launch:** Erstes Major-Release — Version 1.0.0, Homepage und Download aktualisiert
+- **Copilot:** Work IQ und Copilot-Assistenz für Mail und Kalender — Zusammenfassungen, Meeting-Prep, Quellen-Pills und lokaler Cache
+- **Kalender:** KI-Meeting-Insights in der Termin-Vorschau; Teams-Link und Link kopieren sofort im Sticky-Header
+- **Termin-Vorschau:** Einheitliche Abschnitte (Info, Copilot, Beschreibung, Notiz, Kontext) mit einem gemeinsamen Scroll und ohne Höhen-Splitter
+- **Mail:** Textbausteine im Composer sowie verbesserte Einladungs- und RSVP-Abläufe
+- **Homepage:** Release-Texte, Timeline und Download auf 1.0.5
 

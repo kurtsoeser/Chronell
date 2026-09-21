@@ -6,11 +6,21 @@ import {
 } from '@shared/calendar-datetime'
 import { prepareCalendarEventBodyHtml } from '@shared/calendar-event-body-html'
 import type {
+  CalendarEventSensitivity,
+  CalendarEventShowAs,
   CalendarGraphCalendarRow,
   CalendarM365GroupCalendarsPage,
-  CalendarSaveEventRecurrence
+  CalendarSaveEventRecurrence,
+  MeetingAttendeePartStat
 } from '@shared/types'
-import { buildMicrosoftGraphRecurrencePayload } from '../calendar-recurrence'
+import {
+  normalizeCalendarEventSensitivity,
+  normalizeCalendarEventShowAs
+} from '@shared/calendar-event-status'
+import {
+  buildMicrosoftGraphRecurrencePayload,
+  parseMicrosoftGraphRecurrence
+} from '../calendar-recurrence'
 import {
   m365GroupCalendarRef,
   parseM365GroupIdFromCalendarRef
@@ -53,6 +63,12 @@ interface GraphEvent {
   body?: { contentType?: string | null; content?: string | null } | null
   isReminderOn?: boolean | null
   reminderMinutesBeforeStart?: number | null
+  isOrganizer?: boolean | null
+  /** `singleInstance` | `occurrence` | `exception` | `seriesMaster` */
+  type?: string | null
+  seriesMasterId?: string | null
+  showAs?: string | null
+  sensitivity?: string | null
   /** Nur mit `$expand=calendar(...)` in calendarView. */
   calendar?: { id?: string | null; color?: string | null; hexColor?: string | null } | null
 }
@@ -60,6 +76,7 @@ interface GraphEvent {
 interface GraphAttendee {
   type?: string | null
   emailAddress?: { name?: string | null; address?: string | null } | null
+  status?: { response?: string | null; time?: string | null } | null
 }
 
 interface GraphEventCollection {
@@ -84,6 +101,12 @@ export interface GraphCalendarEventRow {
   graphCalendarId: string | null
   /** false: Kalender/Konto erlaubt keine Aenderungen am Termin. */
   calendarCanEdit?: boolean
+  /** Anzeigen als (Graph `showAs` / Google `transparency`). */
+  showAs?: CalendarEventShowAs | null
+  /** Vertraulichkeit (Graph `sensitivity` / Google `visibility`). */
+  sensitivity?: CalendarEventSensitivity | null
+  /** true: Serienmaster, Vorkommen oder Ausnahme. */
+  isSeries?: boolean
 }
 
 /**
@@ -128,12 +151,19 @@ function rowFromGraph(e: GraphEvent): GraphCalendarEventRow | null {
     organizer: e.organizer?.emailAddress?.address ?? e.organizer?.emailAddress?.name ?? null,
     categories,
     displayColorHex,
-    graphCalendarId
+    graphCalendarId,
+    showAs: normalizeCalendarEventShowAs(e.showAs) ?? 'busy',
+    sensitivity: normalizeCalendarEventSensitivity(e.sensitivity) ?? 'normal',
+    isSeries: (() => {
+      const t = (e.type ?? '').trim()
+      if (t === 'occurrence' || t === 'exception' || t === 'seriesMaster') return true
+      return Boolean(e.seriesMasterId?.trim())
+    })()
   }
 }
 
 const EVENT_SELECT_FIELDS =
-  'id,subject,start,end,isAllDay,location,webLink,onlineMeeting,organizer,categories'
+  'id,subject,start,end,isAllDay,location,webLink,onlineMeeting,organizer,categories,showAs,sensitivity,type,seriesMasterId'
 
 async function paginateCalendarViewWithOptionalCalendarExpand(
   accountId: string,
@@ -556,12 +586,16 @@ type GraphEventWriteFields = {
   attendeeEmails?: string[] | null
   /** Microsoft: Teams-Besprechung (nur sinnvoll bei nicht ganztaegig). */
   teamsMeeting?: boolean | null
-  /** Serientermin (nur POST). */
+  /** Serientermin (POST Anlegen, oder PATCH Einzeltermin → Serie). */
   recurrence?: CalendarSaveEventRecurrence | null
   /** Microsoft: Erinnerung (`isReminderOn` / `reminderMinutesBeforeStart`). */
   reminderMinutesBeforeStart?: number | null
   /** IANA-Zeitzone fuer Start/Ende (timed events). */
   timeZone?: string | null
+  /** Microsoft: Anzeigen als (`showAs`). */
+  showAs?: CalendarEventShowAs | null
+  /** Microsoft: Vertraulichkeit (`sensitivity`). */
+  sensitivity?: CalendarEventSensitivity | null
 }
 
 const MAX_GRAPH_EVENT_ATTENDEES = 40
@@ -651,6 +685,12 @@ export function applyGraphMeetingInviteToPayload(
   }
 }
 
+export type GraphCalendarEventType =
+  | 'singleInstance'
+  | 'occurrence'
+  | 'exception'
+  | 'seriesMaster'
+
 export interface GraphCalendarEventDetail {
   subject: string | null
   attendeeEmails: string[]
@@ -667,6 +707,14 @@ export interface GraphCalendarEventDetail {
   endIso?: string | null
   isAllDay?: boolean
   webLink?: string | null
+  isOrganizer?: boolean | null
+  eventType?: GraphCalendarEventType | null
+  seriesMasterId?: string | null
+  showAs?: CalendarEventShowAs | null
+  sensitivity?: CalendarEventSensitivity | null
+  recurrence?: CalendarSaveEventRecurrence | null
+  selfPartStat?: MeetingAttendeePartStat | null
+  selfResponseAtIso?: string | null
 }
 
 function applyGraphReminderToPayload(
@@ -680,6 +728,69 @@ function applyGraphReminderToPayload(
   }
   payload.isReminderOn = true
   payload.reminderMinutesBeforeStart = Math.max(0, Math.min(10_080, Math.round(reminderMinutesBeforeStart)))
+}
+
+/** Graph `recurrence` fuer POST (Anlegen) oder PATCH (Einzeltermin → Serie). */
+async function applyGraphRecurrenceToPayload(
+  payload: Record<string, unknown>,
+  input: GraphEventWriteFields
+): Promise<void> {
+  if (!input.recurrence) return
+  const appCfg = await loadConfig()
+  const iana =
+    input.timeZone?.trim() ||
+    appCfg.calendarTimeZone?.trim() ||
+    Intl.DateTimeFormat().resolvedOptions().timeZone
+  const graphWindowsTz = ianaToWindowsTimeZone(iana)
+  const startLocal = input.isAllDay
+    ? calendarZonedPartsFromDateOnly(input.startIso.trim().slice(0, 10), iana)
+    : calendarZonedPartsFromUtcIso(input.startIso, iana)
+  if (!startLocal) {
+    throw new Error('Serientermin: Startdatum fuer Wiederholung ungueltig.')
+  }
+  // Graph: range.startDate MUSS dem Datum von event.start entsprechen (gleiche Wandzeit-Zone).
+  const startField = payload.start as { dateTime?: string } | undefined
+  const startDateFromEvent =
+    typeof startField?.dateTime === 'string' && /^\d{4}-\d{2}-\d{2}/.test(startField.dateTime)
+      ? startField.dateTime.slice(0, 10)
+      : null
+  const parts =
+    startDateFromEvent && startDateFromEvent !== startLocal.dateOnly
+      ? { ...startLocal, dateOnly: startDateFromEvent }
+      : startLocal
+  const recPayload = buildMicrosoftGraphRecurrencePayload(
+    input.recurrence,
+    parts,
+    graphWindowsTz
+  )
+  Object.assign(payload, recPayload)
+}
+
+async function assertGraphEventIsSeriesMaster(
+  client: ReturnType<typeof createGraphClient>,
+  eventPath: string
+): Promise<void> {
+  const verified = (await client
+    .api(`${eventPath}?$select=type,recurrence`)
+    .get()) as GraphEvent & { recurrence?: unknown }
+  const type = normalizeGraphEventType(verified.type)
+  if (type !== 'seriesMaster' || verified.recurrence == null) {
+    throw new Error(
+      'Die Wiederholung wurde von Microsoft 365 nicht übernommen. Bitte erneut speichern oder den Termin in Outlook prüfen.'
+    )
+  }
+}
+
+function applyGraphShowAsSensitivityToPayload(
+  payload: Record<string, unknown>,
+  input: GraphEventWriteFields
+): void {
+  if (input.showAs) {
+    payload.showAs = input.showAs
+  }
+  if (input.sensitivity) {
+    payload.sensitivity = input.sensitivity
+  }
 }
 
 export function normalizeGraphEventBodyHtml(
@@ -784,14 +895,18 @@ export function graphEventInstancePath(graphEventId: string, graphCalendarId?: s
 export async function graphGetCalendarEvent(
   accountId: string,
   graphEventId: string,
-  graphCalendarId?: string | null
+  graphCalendarId?: string | null,
+  accountEmail?: string | null
 ): Promise<GraphCalendarEventDetail> {
   const client = await getClientFor(accountId)
   const path = graphEventInstancePath(graphEventId, graphCalendarId)
   const sel = encodeURIComponent(
-    'id,subject,body,attendees,isOnlineMeeting,onlineMeeting,onlineMeetingProvider,start,end,isAllDay,location,organizer,isReminderOn,reminderMinutesBeforeStart,webLink'
+    'id,subject,body,attendees,isOnlineMeeting,onlineMeeting,onlineMeetingProvider,start,end,isAllDay,location,organizer,isReminderOn,reminderMinutesBeforeStart,webLink,isOrganizer,type,seriesMasterId,showAs,sensitivity,recurrence,responseStatus'
   )
-  const ev = (await client.api(`${path}?$select=${sel}`).get()) as GraphEvent
+  const ev = (await client.api(`${path}?$select=${sel}`).get()) as GraphEvent & {
+    recurrence?: unknown
+    responseStatus?: { response?: string | null; time?: string | null } | null
+  }
   const emails: string[] = []
   const seen = new Set<string>()
   for (const at of ev.attendees ?? []) {
@@ -815,6 +930,40 @@ export async function graphGetCalendarEvent(
   const endIso = ev.end?.dateTime
     ? graphDateTimeToIso(ev.end.dateTime, ev.end?.timeZone, allDay)
     : null
+  const eventType = normalizeGraphEventType(ev.type)
+  let recurrence = parseMicrosoftGraphRecurrence(ev.recurrence)
+  const seriesMasterId = ev.seriesMasterId?.trim() || null
+  if (
+    !recurrence &&
+    seriesMasterId &&
+    (eventType === 'occurrence' || eventType === 'exception')
+  ) {
+    try {
+      const masterPath = graphEventInstancePath(seriesMasterId, graphCalendarId)
+      const master = (await client
+        .api(`${masterPath}?$select=recurrence`)
+        .get()) as { recurrence?: unknown }
+      recurrence = parseMicrosoftGraphRecurrence(master.recurrence)
+    } catch {
+      /* Master nicht lesbar — Formular bleibt ohne Serienmuster */
+    }
+  }
+  let selfPartStat = graphResponseStatusToPartStat(ev.responseStatus?.response)
+  let selfResponseAtIso = graphResponseStatusTimeToIso(ev.responseStatus?.time)
+  if (!selfPartStat || selfPartStat === 'needs-action') {
+    const self = accountEmail?.trim().toLowerCase() ?? ''
+    if (self) {
+      const hit = (ev.attendees ?? []).find(
+        (a) => (a.emailAddress?.address ?? '').trim().toLowerCase() === self
+      )
+      const fromAttendee = graphResponseStatusToPartStat(hit?.status?.response)
+      if (fromAttendee && fromAttendee !== 'needs-action') {
+        selfPartStat = fromAttendee
+        selfResponseAtIso =
+          graphResponseStatusTimeToIso(hit?.status?.time) ?? selfResponseAtIso
+      }
+    }
+  }
   return {
     subject: ev.subject ?? null,
     attendeeEmails: emails.slice(0, MAX_GRAPH_EVENT_ATTENDEES),
@@ -831,8 +980,57 @@ export async function graphGetCalendarEvent(
     startIso,
     endIso,
     isAllDay: allDay,
-    webLink: ev.webLink?.trim() || null
+    webLink: ev.webLink?.trim() || null,
+    isOrganizer: typeof ev.isOrganizer === 'boolean' ? ev.isOrganizer : null,
+    eventType,
+    seriesMasterId,
+    showAs: normalizeCalendarEventShowAs(ev.showAs) ?? 'busy',
+    sensitivity: normalizeCalendarEventSensitivity(ev.sensitivity) ?? 'normal',
+    recurrence,
+    selfPartStat,
+    selfResponseAtIso
   }
+}
+
+function normalizeGraphEventType(raw: string | null | undefined): GraphCalendarEventType | null {
+  const v = (raw ?? '').trim()
+  switch (v) {
+    case 'singleInstance':
+    case 'occurrence':
+    case 'exception':
+    case 'seriesMaster':
+      return v
+    default:
+      return null
+  }
+}
+
+function graphResponseStatusToPartStat(raw: string | null | undefined): MeetingAttendeePartStat | null {
+  switch ((raw ?? '').trim().toLowerCase()) {
+    case 'accepted':
+      return 'accepted'
+    case 'declined':
+      return 'declined'
+    case 'tentativelyaccepted':
+    case 'tentative':
+      return 'tentative'
+    case 'organizer':
+      return null
+    case 'notresponded':
+    case 'none':
+      return 'needs-action'
+    default:
+      return null
+  }
+}
+
+function graphResponseStatusTimeToIso(raw: string | null | undefined): string | null {
+  const t = raw?.trim()
+  if (!t) return null
+  if (t.startsWith('0001-01-01')) return null
+  const ms = Date.parse(t)
+  if (!Number.isFinite(ms)) return null
+  return new Date(ms).toISOString()
 }
 
 /**
@@ -860,28 +1058,13 @@ export async function graphCreateSimpleCalendarEvent(
   }
   applyGraphMeetingInviteToPayload(payload, input.attendeeEmails)
   applyGraphReminderToPayload(payload, input.reminderMinutesBeforeStart)
-  if (input.recurrence) {
-    const appCfg = await loadConfig()
-    const iana =
-      input.timeZone?.trim() ||
-      appCfg.calendarTimeZone?.trim() ||
-      Intl.DateTimeFormat().resolvedOptions().timeZone
-    const graphWindowsTz = ianaToWindowsTimeZone(iana)
-    const startLocal = input.isAllDay
-      ? calendarZonedPartsFromDateOnly(input.startIso.trim().slice(0, 10), iana)
-      : calendarZonedPartsFromUtcIso(input.startIso, iana)
-    if (!startLocal) {
-      throw new Error('Serientermin: Startdatum fuer Wiederholung ungueltig.')
-    }
-    const recPayload = buildMicrosoftGraphRecurrencePayload(
-      input.recurrence,
-      startLocal,
-      graphWindowsTz
-    )
-    Object.assign(payload, recPayload)
-  }
+  await applyGraphRecurrenceToPayload(payload, input)
+  applyGraphShowAsSensitivityToPayload(payload, input)
   const created = (await client.api(eventPostPath(input.graphCalendarId)).post(payload)) as GraphEvent
   const eventPath = graphEventInstancePath(created.id, input.graphCalendarId)
+  if (input.recurrence) {
+    await assertGraphEventIsSeriesMaster(client, eventPath)
+  }
   const joinUrl = await resolveGraphEventJoinUrlAfterWrite(client, eventPath, created, wantTeams)
   return {
     id: created.id,
@@ -918,6 +1101,7 @@ export async function graphUpdateCalendarEvent(
     }
   }
   applyGraphReminderToPayload(payload, input.reminderMinutesBeforeStart)
+  applyGraphShowAsSensitivityToPayload(payload, input)
   const path = graphEventInstancePath(graphEventId, input.graphCalendarId)
   if (typeof input.teamsMeeting === 'boolean') {
     if (core.isAllDay && !input.teamsMeeting) {
@@ -937,7 +1121,20 @@ export async function graphUpdateCalendarEvent(
       }
     }
   }
+  // Zuerst Felder ohne Serie — Einzeltermin → Serie separat (zuverlässiger bei Graph).
   await client.api(path).patch(payload)
+  if (input.recurrence) {
+    const recurrencePatch: Record<string, unknown> = {
+      start: core.start,
+      end: core.end,
+      isAllDay: core.isAllDay
+    }
+    await applyGraphRecurrenceToPayload(recurrencePatch, input)
+    await client.api(path).patch({
+      recurrence: recurrencePatch.recurrence
+    })
+    await assertGraphEventIsSeriesMaster(client, path)
+  }
 }
 
 /** Nur Start/Ende/Ganztaegig patchen (Drag & Drop / Resize), ohne Body zu ueberschreiben. */
@@ -986,6 +1183,27 @@ export async function graphPatchEventCategories(
   ).slice(0, 25)
   const path = graphEventInstancePath(graphEventId, graphCalendarId)
   await client.api(path).patch({ categories: capped })
+}
+
+/** Nur Anzeigen-als / Vertraulichkeit patchen. */
+export async function graphPatchEventStatus(
+  accountId: string,
+  graphEventId: string,
+  input: {
+    showAs?: CalendarEventShowAs | null
+    sensitivity?: CalendarEventSensitivity | null
+    graphCalendarId?: string | null
+  }
+): Promise<void> {
+  const payload: Record<string, unknown> = {}
+  const showAs = normalizeCalendarEventShowAs(input.showAs ?? undefined)
+  const sensitivity = normalizeCalendarEventSensitivity(input.sensitivity ?? undefined)
+  if (showAs) payload.showAs = showAs
+  if (sensitivity) payload.sensitivity = sensitivity
+  if (Object.keys(payload).length === 0) return
+  const client = await getClientFor(accountId)
+  const path = graphEventInstancePath(graphEventId, input.graphCalendarId)
+  await client.api(path).patch(payload)
 }
 
 /**

@@ -13,7 +13,6 @@ export function buildHeuristicMeetingInvitation(
   joinUrlFallback: string | null,
   provider: string | undefined
 ): MeetingInvitationView | null {
-  void accountEmail
   const joinUrl = joinUrlFallback ?? extractMeetingJoinUrl(msg.bodyHtml ?? msg.bodyText ?? msg.snippet)
   if (!joinUrl && !msg.subject?.trim()) return null
 
@@ -33,6 +32,17 @@ export function buildHeuristicMeetingInvitation(
   }))
 
   const canRespond = provider === 'microsoft' && Boolean(times)
+
+  const selfEmail = (accountEmail ?? '').trim().toLowerCase()
+  const isOrganizer = Boolean(selfEmail && fromEmail === selfEmail)
+  const canReschedule = isOrganizer && provider === 'microsoft' && Boolean(times)
+  const rescheduleUnsupportedReason = !isOrganizer
+    ? null
+    : provider !== 'microsoft'
+      ? 'Zeit aendern ist aktuell nur fuer Microsoft-Konten verfuegbar.'
+      : !times
+        ? 'Terminzeiten konnten nicht gelesen werden.'
+        : null
 
   return {
     uid: null,
@@ -61,6 +71,9 @@ export function buildHeuristicMeetingInvitation(
         : 'Terminzeiten konnten nicht gelesen werden — RSVP nicht moeglich.',
     allowNewTimeProposals: true,
     selfProposedStartIso: null,
-    selfProposedEndIso: null
+    selfProposedEndIso: null,
+    isOrganizer,
+    canReschedule,
+    rescheduleUnsupportedReason
   }
 }

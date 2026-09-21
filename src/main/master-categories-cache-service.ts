@@ -6,6 +6,7 @@ import {
   listMasterCategoriesFromCache,
   upsertMasterCategories
 } from './db/master-categories-repo'
+import { warnProviderAuthOnce } from './auth/auth-errors'
 import { graphListMasterCategories } from './graph/master-categories'
 import { isAppOnline } from './network-status'
 
@@ -33,7 +34,7 @@ export async function syncAllMasterCategoriesAccounts(): Promise<void> {
     try {
       await syncMasterCategoriesForAccount(acc.id)
     } catch (e) {
-      console.warn('[master-categories-cache] Sync fehlgeschlagen:', acc.id, e)
+      warnProviderAuthOnce('master-categories-cache', acc.id, e)
     }
   }
 }
@@ -58,7 +59,7 @@ export async function listMasterCategoriesCached(
 
   if (!force && cached.length > 0 && !fresh && isAppOnline()) {
     void fetchMasterCategoriesFromCloud(accountId).catch((e) =>
-      console.warn('[master-categories-cache] Hintergrund-Refresh:', accountId, e)
+      warnProviderAuthOnce('master-categories-cache', accountId, e)
     )
     return cached
   }

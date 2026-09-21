@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
+  calendarEventDialogLooksLikeMeeting,
   calendarEventLooksLikeMeeting,
+  calendarEventScheduleChanged,
   patchScheduleInputWithMeetingNotify
 } from '@/app/calendar/calendar-meeting-schedule-change'
 import type { CalendarEventView } from '@shared/types'
@@ -55,6 +57,87 @@ describe('calendarEventLooksLikeMeeting', () => {
         joinUrl: null,
         isOnlineMeeting: false,
         bodyHtml: null
+      })
+    ).toBe(false)
+  })
+})
+
+describe('calendarEventScheduleChanged', () => {
+  it('erkennt geaenderte Startzeit', () => {
+    expect(
+      calendarEventScheduleChanged(
+        {
+          startIso: '2026-05-20T10:00:00.000Z',
+          endIso: '2026-05-20T11:00:00.000Z',
+          isAllDay: false
+        },
+        {
+          startIso: '2026-05-20T11:00:00.000Z',
+          endIso: '2026-05-20T12:00:00.000Z',
+          isAllDay: false
+        }
+      )
+    ).toBe(true)
+  })
+
+  it('ignoriert identische Zeit trotz anderer ISO-Darstellung', () => {
+    expect(
+      calendarEventScheduleChanged(
+        {
+          startIso: '2026-05-20T10:00:00.000Z',
+          endIso: '2026-05-20T11:00:00.000Z',
+          isAllDay: false
+        },
+        {
+          startIso: '2026-05-20T10:00:00+00:00',
+          endIso: '2026-05-20T11:00:00+00:00',
+          isAllDay: false
+        }
+      )
+    ).toBe(false)
+  })
+
+  it('vergleicht Ganztagstermine nur nach Datum', () => {
+    expect(
+      calendarEventScheduleChanged(
+        { startIso: '2026-05-20', endIso: '2026-05-21', isAllDay: true },
+        { startIso: '2026-05-20T00:00:00.000Z', endIso: '2026-05-21T00:00:00.000Z', isAllDay: true }
+      )
+    ).toBe(false)
+    expect(
+      calendarEventScheduleChanged(
+        { startIso: '2026-05-20', endIso: '2026-05-21', isAllDay: true },
+        { startIso: '2026-05-21', endIso: '2026-05-22', isAllDay: true }
+      )
+    ).toBe(true)
+  })
+})
+
+describe('calendarEventDialogLooksLikeMeeting', () => {
+  it('erkennt Teilnehmer, Teams und Join-URL', () => {
+    expect(
+      calendarEventDialogLooksLikeMeeting({
+        attendeeEmails: ['a@b.c'],
+        teamsMeeting: false
+      })
+    ).toBe(true)
+    expect(
+      calendarEventDialogLooksLikeMeeting({
+        attendeeEmails: [],
+        teamsMeeting: true
+      })
+    ).toBe(true)
+    expect(
+      calendarEventDialogLooksLikeMeeting({
+        attendeeEmails: [],
+        teamsMeeting: false,
+        joinUrl: 'https://teams.microsoft.com/x'
+      })
+    ).toBe(true)
+    expect(
+      calendarEventDialogLooksLikeMeeting({
+        attendeeEmails: [],
+        teamsMeeting: false
       })
     ).toBe(false)
   })

@@ -253,7 +253,9 @@ export function CalendarShellPreviewBody({
               )
             )
           }}
-          onSaved={(): void => reloadCalendarEventsOnlyRef.current?.({ silent: true })}
+          onSaved={(): void =>
+            reloadCalendarEventsOnlyRef.current?.({ silent: true, forceRefresh: true })
+          }
         />
       ) : (
         <ReadingPane

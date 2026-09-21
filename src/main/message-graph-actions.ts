@@ -261,14 +261,16 @@ function adjustFolderUnreadForMove(
 }
 
 /**
- * Verschiebt eine Mail in einen beliebigen Ordner desselben Kontos (Graph move).
+ * Verschiebt eine Mail in einen beliebigen Ordner desselben Kontos (Graph/Gmail move).
  * Lokale Zeile bleibt erhalten (wie Snooze), damit Mail-ToDos (`todos.message_id`) nicht
  * durch `deleteMessageLocal` verloren gehen.
+ *
+ * Lokal-first: Ordnerwechsel + `mail:changed` sofort, Remote danach (optional deferred).
  */
 export async function applyMoveMessageToFolder(
   messageId: number,
   targetFolderId: number,
-  opts?: { source?: string; ruleId?: number | null }
+  opts?: { source?: string; ruleId?: number | null; deferRemote?: boolean }
 ): Promise<void> {
   const msg = getMessageById(messageId)
   if (!msg) throw new Error('Mail nicht gefunden.')
@@ -281,78 +283,90 @@ export async function applyMoveMessageToFolder(
 
   const accounts = await listAccounts()
   const acc = accounts.find((a) => a.id === msg.accountId)
+  if (acc?.provider !== 'google' && acc?.provider !== 'microsoft') {
+    throw new Error('Verschieben in andere Ordner wird fuer dieses Konto nicht unterstuetzt.')
+  }
+
   const previousFolder = msg.folderId != null ? findFolderById(msg.folderId) : null
+  const previousFolderId = msg.folderId
+  const previousRemoteId = msg.remoteId
+  const wasUnread = !msg.isRead
   const source = opts?.source ?? 'ui'
   const moveLabel =
     source === 'workflow-mail-folders'
       ? `Triage: nach „${truncate(targetFolder.name, 40)}“ — ${truncate(msg.subject ?? '(Kein Betreff)', 50)}`
       : `Regel: verschoben nach „${truncate(targetFolder.name, 40)}“ — ${truncate(msg.subject ?? '(Kein Betreff)', 50)}`
 
-  if (acc?.provider === 'google') {
-    await gmailMoveMessageForFolderMove(
-      msg.accountId,
-      msg.remoteId,
-      previousFolder,
-      targetFolder
-    )
-    updateMessageFolderLocal(msg.id, targetFolder.id, msg.remoteId)
-    adjustFolderUnreadForMove(previousFolder, targetFolder, !msg.isRead)
-    recordAction({
-      messageId: msg.id,
-      accountId: msg.accountId,
-      actionType: 'move-message',
-      source,
-      ruleId: opts?.ruleId ?? null,
-      payload: {
-        previousFolderId: previousFolder?.id ?? null,
-        previousFolderRemoteId: previousFolder?.remoteId ?? null,
-        newRemoteId: msg.remoteId,
-        targetFolderId: targetFolder.id,
-        label: moveLabel
+  // Sofort lokal — Listen (Inbox etc.) aktualisieren ohne auf Graph/Gmail zu warten.
+  updateMessageFolderLocal(msg.id, targetFolder.id, msg.remoteId)
+  adjustFolderUnreadForMove(previousFolder, targetFolder, wasUnread)
+  broadcastMailChanged(msg.accountId)
+
+  const runRemote = async (): Promise<void> => {
+    try {
+      let newRemoteId = msg.remoteId
+      if (acc.provider === 'google') {
+        await gmailMoveMessageForFolderMove(
+          msg.accountId,
+          msg.remoteId,
+          previousFolder,
+          targetFolder
+        )
+      } else {
+        newRemoteId = await microsoftMoveMessage(
+          msg.accountId,
+          msg.remoteId,
+          targetFolder.remoteId
+        )
+        if (newRemoteId !== msg.remoteId) {
+          updateMessageFolderLocal(msg.id, targetFolder.id, newRemoteId)
+        }
       }
-    })
-    broadcastMailChanged(msg.accountId)
-    void runFolderSync(targetFolder.id).catch((e) =>
-      console.warn('[message-graph-actions] Sync Ziel-Ordner (Gmail) fehlgeschlagen:', e)
-    )
-    if (previousFolder) {
-      void runFolderSync(previousFolder.id).catch((e) =>
-        console.warn('[message-graph-actions] Sync Quell-Ordner (Gmail) fehlgeschlagen:', e)
+      recordAction({
+        messageId: msg.id,
+        accountId: msg.accountId,
+        actionType: 'move-message',
+        source,
+        ruleId: opts?.ruleId ?? null,
+        payload: {
+          previousFolderId: previousFolder?.id ?? null,
+          previousFolderRemoteId: previousFolder?.remoteId ?? null,
+          newRemoteId,
+          targetFolderId: targetFolder.id,
+          label: moveLabel
+        }
+      })
+      void runFolderSync(targetFolder.id).catch((e) =>
+        console.warn('[message-graph-actions] Sync Ziel-Ordner fehlgeschlagen:', e)
       )
+      if (previousFolder) {
+        void runFolderSync(previousFolder.id).catch((e) =>
+          console.warn('[message-graph-actions] Sync Quell-Ordner fehlgeschlagen:', e)
+        )
+      }
+    } catch (e) {
+      const stillThere = getMessageById(messageId)
+      if (
+        stillThere &&
+        previousFolderId != null &&
+        stillThere.folderId === targetFolder.id
+      ) {
+        updateMessageFolderLocal(messageId, previousFolderId, previousRemoteId)
+        adjustFolderUnreadForMove(targetFolder, previousFolder, wasUnread)
+        broadcastMailChanged(msg.accountId)
+      }
+      throw e
     }
+  }
+
+  if (opts?.deferRemote) {
+    void runRemote().catch((e) =>
+      logBackgroundError('mail.applyMoveMessageToFolder.deferredRemote', e)
+    )
     return
   }
 
-  if (acc?.provider !== 'microsoft') {
-    throw new Error('Verschieben in andere Ordner wird fuer dieses Konto nicht unterstuetzt.')
-  }
-
-  const newRemoteId = await microsoftMoveMessage(msg.accountId, msg.remoteId, targetFolder.remoteId)
-  updateMessageFolderLocal(msg.id, targetFolder.id, newRemoteId)
-  adjustFolderUnreadForMove(previousFolder, targetFolder, !msg.isRead)
-  recordAction({
-    messageId: msg.id,
-    accountId: msg.accountId,
-    actionType: 'move-message',
-    source,
-    ruleId: opts?.ruleId ?? null,
-    payload: {
-      previousFolderId: previousFolder?.id ?? null,
-      previousFolderRemoteId: previousFolder?.remoteId ?? null,
-      newRemoteId,
-      targetFolderId: targetFolder.id,
-      label: moveLabel
-    }
-  })
-  broadcastMailChanged(msg.accountId)
-  void runFolderSync(targetFolder.id).catch((e) =>
-    console.warn('[message-graph-actions] Sync Ziel-Ordner fehlgeschlagen:', e)
-  )
-  if (previousFolder) {
-    void runFolderSync(previousFolder.id).catch((e) =>
-      console.warn('[message-graph-actions] Sync Quell-Ordner fehlgeschlagen:', e)
-    )
-  }
+  await runRemote()
 }
 
 const MAX_MESSAGE_CATEGORIES = 25

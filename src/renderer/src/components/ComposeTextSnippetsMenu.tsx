@@ -3,17 +3,22 @@ import type { Editor } from '@tiptap/react'
 import { FileText, Pencil, Plus, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { MenuDivider, MenuRow, MenuSectionTitle } from '@/components/list-view-menu-parts'
-import { sanitizeComposeHtmlFragment } from '@/lib/sanitize-compose-html'
+import {
+  ComposeTextSnippetEditorDialog,
+  type ComposeTextSnippetEditorState
+} from '@/components/ComposeTextSnippetEditorDialog'
 import {
   BUILTIN_COMPOSE_TEXT_SNIPPETS,
   loadCustomComposeTextSnippets,
   removeCustomComposeTextSnippet,
   saveCustomComposeTextSnippets,
-  textToComposeSnippetHtml,
-  upsertCustomComposeTextSnippet,
   type ComposeTextSnippet
 } from '@/lib/compose-text-snippets'
-import { showAppAlert, showAppConfirm, showAppPrompt } from '@/stores/app-dialog'
+import {
+  getEditorSelectionSnippetHtml,
+  snippetHtmlToPlain
+} from '@/lib/compose-text-snippet-selection'
+import { showAppAlert, showAppConfirm } from '@/stores/app-dialog'
 
 interface Props {
   editor: Editor
@@ -22,12 +27,7 @@ interface Props {
 export function ComposeTextSnippetsMenu({ editor }: Props): JSX.Element {
   const [open, setOpen] = useState(false)
   const [custom, setCustom] = useState<ComposeTextSnippet[]>(() => loadCustomComposeTextSnippets())
-  const [editorOpen, setEditorOpen] = useState<{
-    mode: 'create' | 'edit'
-    id?: string
-    name: string
-    body: string
-  } | null>(null)
+  const [editorOpen, setEditorOpen] = useState<ComposeTextSnippetEditorState | null>(null)
 
   const refreshCustom = useCallback((): void => {
     setCustom(loadCustomComposeTextSnippets())
@@ -58,35 +58,27 @@ export function ComposeTextSnippetsMenu({ editor }: Props): JSX.Element {
   }
 
   const startEdit = (snippet: ComposeTextSnippet): void => {
-    const body = snippet.html
-      .replace(/<br\s*\/?>/gi, '\n')
-      .replace(/<\/p>\s*<p>/gi, '\n\n')
-      .replace(/<[^>]+>/g, '')
-      .trim()
-    setEditorOpen({ mode: 'edit', id: snippet.id, name: snippet.name, body })
+    setEditorOpen({
+      mode: 'edit',
+      id: snippet.id,
+      name: snippet.name,
+      body: snippetHtmlToPlain(snippet.html)
+    })
     setOpen(false)
   }
 
-  const saveEditor = (): void => {
-    if (!editorOpen) return
-    const name = editorOpen.name.trim()
-    const body = editorOpen.body.trim()
-    if (!name) {
-      void showAppAlert('Bitte einen Namen eingeben.', { title: 'Textbaustein' })
+  const startFromSelection = (): void => {
+    const selectedHtml = getEditorSelectionSnippetHtml(editor)
+    if (!selectedHtml) {
+      void showAppAlert('Bitte zuerst Text im Editor markieren.', { title: 'Textbaustein' })
       return
     }
-    if (!body) {
-      void showAppAlert('Bitte einen Text eingeben.', { title: 'Textbaustein' })
-      return
-    }
-    const html = textToComposeSnippetHtml(body)
-    const next = upsertCustomComposeTextSnippet(custom, {
-      id: editorOpen.mode === 'edit' ? editorOpen.id : undefined,
-      name,
-      html
+    setEditorOpen({
+      mode: 'create',
+      name: '',
+      body: snippetHtmlToPlain(selectedHtml)
     })
-    persistCustom(next)
-    setEditorOpen(null)
+    setOpen(false)
   }
 
   const removeSnippet = (snippet: ComposeTextSnippet): void => {
@@ -98,43 +90,6 @@ export function ComposeTextSnippetsMenu({ editor }: Props): JSX.Element {
       })
       if (!ok) return
       persistCustom(removeCustomComposeTextSnippet(custom, snippet.id))
-    })()
-  }
-
-  const saveSelectionAsSnippet = (): void => {
-    void (async (): Promise<void> => {
-      const { from, to } = editor.state.selection
-      if (from === to) {
-        void showAppAlert('Bitte zuerst Text im Editor markieren.', { title: 'Textbaustein' })
-        return
-      }
-      const slice = editor.state.doc.slice(from, to)
-      let selectedHtml = ''
-      try {
-        const { dom } = editor.view.serializeForClipboard(slice)
-        const el = document.createElement('div')
-        el.appendChild(dom.cloneNode(true))
-        selectedHtml = sanitizeComposeHtmlFragment(el.innerHTML)
-      } catch {
-        selectedHtml = textToComposeSnippetHtml(editor.state.doc.textBetween(from, to, '\n'))
-      }
-      if (!selectedHtml.trim()) {
-        void showAppAlert('Die Auswahl ist leer.', { title: 'Textbaustein' })
-        return
-      }
-      const name = await showAppPrompt('Name des Textbausteins:', {
-        title: 'Auswahl speichern',
-        defaultValue: 'Mein Baustein',
-        placeholder: 'z. B. Standard-Antwort'
-      })
-      if (name === null) return
-      const trimmed = name.trim()
-      if (!trimmed) return
-      const next = upsertCustomComposeTextSnippet(custom, {
-        name: trimmed,
-        html: selectedHtml
-      })
-      persistCustom(next)
     })()
   }
 
@@ -217,66 +172,19 @@ export function ComposeTextSnippetsMenu({ editor }: Props): JSX.Element {
                   Neuer Textbaustein…
                 </span>
               </MenuRow>
-              <MenuRow onPick={(): void => void saveSelectionAsSnippet()}>
-                Auswahl als Baustein speichern…
-              </MenuRow>
+              <MenuRow onPick={startFromSelection}>Auswahl als Baustein speichern…</MenuRow>
             </div>
           </>
         )}
       </div>
 
       {editorOpen ? (
-        <div
-          className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="snippet-editor-title"
-        >
-          <div className="flex w-full max-w-md flex-col gap-3 rounded-lg border border-border bg-card p-4 shadow-xl">
-            <h2 id="snippet-editor-title" className="text-sm font-semibold text-foreground">
-              {editorOpen.mode === 'create' ? 'Textbaustein anlegen' : 'Textbaustein bearbeiten'}
-            </h2>
-            <label className="flex flex-col gap-1 text-xs">
-              <span className="text-muted-foreground">Name</span>
-              <input
-                type="text"
-                value={editorOpen.name}
-                onChange={(e): void =>
-                  setEditorOpen((s) => (s ? { ...s, name: e.target.value } : s))
-                }
-                className="rounded border border-border bg-background px-2 py-1.5 text-sm text-foreground"
-                autoFocus
-              />
-            </label>
-            <label className="flex min-h-0 flex-1 flex-col gap-1 text-xs">
-              <span className="text-muted-foreground">Text (Absätze mit Leerzeile)</span>
-              <textarea
-                value={editorOpen.body}
-                onChange={(e): void =>
-                  setEditorOpen((s) => (s ? { ...s, body: e.target.value } : s))
-                }
-                rows={8}
-                className="resize-y rounded border border-border bg-background px-2 py-1.5 text-sm leading-relaxed text-foreground"
-              />
-            </label>
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                className="rounded border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-secondary"
-                onClick={(): void => setEditorOpen(null)}
-              >
-                Abbrechen
-              </button>
-              <button
-                type="button"
-                className="rounded bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
-                onClick={saveEditor}
-              >
-                Speichern
-              </button>
-            </div>
-          </div>
-        </div>
+        <ComposeTextSnippetEditorDialog
+          state={editorOpen}
+          onChange={setEditorOpen}
+          onClose={(): void => setEditorOpen(null)}
+          onSaved={refreshCustom}
+        />
       ) : null}
     </>
   )

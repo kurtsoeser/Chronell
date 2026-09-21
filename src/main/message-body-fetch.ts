@@ -165,7 +165,8 @@ async function fetchAndStoreListUnsubscribeIfMissing(messageId: number): Promise
 
 async function fetchGraphMessageBody(
   accountId: string,
-  remoteId: string
+  remoteId: string,
+  priority = true
 ): Promise<{ bodyHtml: string | null; bodyText: string | null }> {
   const config = await loadConfig()
   if (!config.microsoftClientId) {
@@ -173,8 +174,10 @@ async function fetchGraphMessageBody(
   }
   const homeAccountId = accountId.replace(/^ms:/, '')
   const client = createGraphClient(config.microsoftClientId, homeAccountId)
-  const m = await withGraphMailboxSlot(accountId, () =>
-    client.api(`/me/messages/${remoteId}`).select(['body']).get()
+  const m = await withGraphMailboxSlot(
+    accountId,
+    () => client.api(`/me/messages/${remoteId}`).select(['body']).get(),
+    { priority }
   ) as {
     body?: { contentType: 'html' | 'text'; content: string } | null
   }
@@ -230,13 +233,14 @@ export async function fetchAndStoreMessageBodyIfMissing(
   }
 
   try {
+    const interactive = !opts?.background
     const fetchBodies =
       account.provider === 'google'
         ? () => fetchGmailMessageBody(account.id, msg.remoteId!)
         : async () =>
             (await shouldUseEwsForMicrosoftMail(account.id))
               ? fetchEwsMessageBody(account.id, msg.remoteId!)
-              : fetchGraphMessageBody(account.id, msg.remoteId!)
+              : fetchGraphMessageBody(account.id, msg.remoteId!, interactive)
     const bodies = opts?.background
       ? await withTimeout(
           fetchBodies(),
@@ -270,15 +274,29 @@ export async function fetchAndStoreMessageBodyIfMissing(
   }
 }
 
+const bodyLoadInflight = new Map<number, Promise<MailFull | null>>()
+
 /** Laedt Mail-Body vom Provider nach, wenn lokal noch keiner gespeichert ist. */
 export async function ensureMessageBodyLoaded(messageId: number): Promise<MailFull | null> {
-  const msg = getMessageById(messageId)
-  if (!msg) return null
-  await Promise.all([
-    messageNeedsBody(msg) ? fetchAndStoreMessageBodyIfMissing(messageId) : Promise.resolve(),
-    messageNeedsListUnsubscribe(msg)
-      ? fetchAndStoreListUnsubscribeIfMissing(messageId)
-      : Promise.resolve()
-  ])
-  return getMessageById(messageId)
+  const existing = bodyLoadInflight.get(messageId)
+  if (existing) return existing
+
+  const run = (async (): Promise<MailFull | null> => {
+    const msg = getMessageById(messageId)
+    if (!msg) return null
+    // Body zuerst — List-Unsubscribe blockiert die Vorschau nicht mehr.
+    if (messageNeedsBody(msg)) {
+      await fetchAndStoreMessageBodyIfMissing(messageId)
+    }
+    const afterBody = getMessageById(messageId)
+    if (afterBody && messageNeedsListUnsubscribe(afterBody)) {
+      void fetchAndStoreListUnsubscribeIfMissing(messageId)
+    }
+    return getMessageById(messageId)
+  })().finally(() => {
+    bodyLoadInflight.delete(messageId)
+  })
+
+  bodyLoadInflight.set(messageId, run)
+  return run
 }

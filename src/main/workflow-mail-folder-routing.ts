@@ -198,51 +198,60 @@ async function supportsServerSideWorkflowMailMoves(accountId: string): Promise<b
 /**
  * Nach ToDo-Zuweisung (oder Termin): Mail in den konfigurierten Triage-Ordner
  * „In Bearbeitung“ verschieben — unabhaengig vom aktuellen Ordner (sofern mapping gesetzt).
+ * Remote-Move laeuft deferred (lokal-first), damit die Inbox sofort aktualisiert.
  */
-export async function routeToWipAfterTodoIfConfigured(messageId: number): Promise<void> {
+export async function routeToWipAfterTodoIfConfigured(messageId: number): Promise<boolean> {
   const msg = getMessageById(messageId)
-  if (!msg) return
-  if (!(await supportsServerSideWorkflowMailMoves(msg.accountId))) return
+  if (!msg) return false
+  if (!(await supportsServerSideWorkflowMailMoves(msg.accountId))) return false
 
   const prefs = getAccountWorkflowMailFolders(msg.accountId)
   const wipRemote = prefs?.wipFolderRemoteId
-  if (!wipRemote) return
+  if (!wipRemote) return false
 
   const wipFolder = findFolderByRemoteId(msg.accountId, wipRemote)
   if (!wipFolder) {
     console.warn('[workflow-folders] WIP-Ordner nicht in der lokalen DB:', msg.accountId, wipRemote)
-    return
+    return false
   }
 
-  if (msg.folderId != null && msg.folderId === wipFolder.id) return
+  if (msg.folderId != null && msg.folderId === wipFolder.id) return false
 
-  await applyMoveMessageToFolder(messageId, wipFolder.id, { source: 'workflow-mail-folders' })
+  await applyMoveMessageToFolder(messageId, wipFolder.id, {
+    source: 'workflow-mail-folders',
+    deferRemote: true
+  })
+  return true
 }
 
 /**
  * Nach ToDo-Erledigung: Mail in den Ordner „Erledigt“ verschieben.
  */
-export async function routeToDoneFolderAfterCompleteIfConfigured(messageId: number): Promise<void> {
+export async function routeToDoneFolderAfterCompleteIfConfigured(messageId: number): Promise<boolean> {
   const msg = getMessageById(messageId)
-  if (!msg) return
-  if (!(await supportsServerSideWorkflowMailMoves(msg.accountId))) return
+  if (!msg) return false
+  if (!(await supportsServerSideWorkflowMailMoves(msg.accountId))) return false
 
   const prefs = getAccountWorkflowMailFolders(msg.accountId)
   const doneRemote = prefs?.doneFolderRemoteId
-  if (!doneRemote) return
+  if (!doneRemote) return false
 
   const doneFolder = findFolderByRemoteId(msg.accountId, doneRemote)
   if (!doneFolder) {
     console.warn('[workflow-folders] Erledigt-Ordner nicht in der lokalen DB:', msg.accountId, doneRemote)
-    return
+    return false
   }
 
   if (msg.folderId != null) {
     const cur = findFolderById(msg.folderId)
-    if (cur && cur.id === doneFolder.id) return
+    if (cur && cur.id === doneFolder.id) return false
   }
 
-  await applyMoveMessageToFolder(messageId, doneFolder.id, { source: 'workflow-mail-folders' })
+  await applyMoveMessageToFolder(messageId, doneFolder.id, {
+    source: 'workflow-mail-folders',
+    deferRemote: true
+  })
+  return true
 }
 
 export function getWorkflowMailFolderUiState(accountId: string): WorkflowMailFolderUiState {

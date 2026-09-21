@@ -1486,5 +1486,36 @@ export const MIGRATIONS: Migration[] = [
         WHERE n.message_id = new.id;
       END;
     `
+  },
+  {
+    version: 51,
+    description: 'Kalender-Termine: showAs (Frei/Gebucht) und sensitivity (Privat)',
+    sql: `
+      ALTER TABLE calendar_events ADD COLUMN show_as TEXT;
+      ALTER TABLE calendar_events ADD COLUMN sensitivity TEXT;
+    `
+  },
+  {
+    version: 52,
+    description: 'Kalender-Termine: is_series fuer Serien-Icon',
+    sql: `
+      ALTER TABLE calendar_events ADD COLUMN is_series INTEGER NOT NULL DEFAULT 0;
+    `
+  },
+  {
+    version: 53,
+    description: 'Lokaler Cache fuer Copilot/Work-IQ-Zusammenfassungen pro Mail+Engine',
+    sql: `
+      CREATE TABLE IF NOT EXISTS message_copilot_cache (
+        message_id INTEGER NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+        engine TEXT NOT NULL CHECK (engine IN ('graph', 'workiq')),
+        reply_text TEXT NOT NULL,
+        attributions_json TEXT NOT NULL DEFAULT '[]',
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (message_id, engine)
+      );
+      CREATE INDEX IF NOT EXISTS idx_message_copilot_cache_updated
+        ON message_copilot_cache(updated_at);
+    `
   }
 ]

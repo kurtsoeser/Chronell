@@ -27,9 +27,11 @@ import {
 } from '@/app/work-items/work-item-context-menu'
 import {
   buildCalendarEventCategorySubmenuItems,
+  buildCalendarEventStatusSubmenuItems,
   buildCalendarEventContextItems,
   formatCalendarEventClipboardText
 } from '@/lib/calendar-event-context-menu'
+import { respondToCalendarEventInvitation } from '@/lib/calendar-event-rsvp'
 import { deleteCalendarEventIpc } from '@/lib/calendar-ipc'
 import { accountSupportsCloudTasks } from '@/lib/cloud-task-accounts'
 import {
@@ -264,6 +266,7 @@ async function buildCalendarMenuItems(
     h.t,
     h.calendarCollatorLocale
   )
+  const statusMenu = buildCalendarEventStatusSubmenuItems(ev, h.refreshGraph, h.t)
   const hasGraphEvent = Boolean(ev.graphEventId?.trim())
   const canMutateEvent =
     ev.calendarCanEdit !== false &&
@@ -325,6 +328,24 @@ async function buildCalendarMenuItems(
         const link = ev.joinUrl?.trim()
         if (link) void openExternalUrl(link)
       },
+      onAcceptInvitation: (): void => {
+        void (async (): Promise<void> => {
+          const res = await respondToCalendarEventInvitation(ev, 'accept', { t: h.t })
+          if (res?.ok) await h.refreshGraph()
+        })()
+      },
+      onTentativeInvitation: (): void => {
+        void (async (): Promise<void> => {
+          const res = await respondToCalendarEventInvitation(ev, 'tentative', { t: h.t })
+          if (res?.ok) await h.refreshGraph()
+        })()
+      },
+      onDeclineInvitation: (): void => {
+        void (async (): Promise<void> => {
+          const res = await respondToCalendarEventInvitation(ev, 'decline', { t: h.t })
+          if (res?.ok) await h.refreshGraph()
+        })()
+      },
       onDelete: (): void => {
         void (async (): Promise<void> => {
           const ok = await showAppConfirm(h.t('calendar.confirm.deleteEventBody'), {
@@ -348,7 +369,10 @@ async function buildCalendarMenuItems(
       }
     },
     h.t,
-    { categorySubmenu: cat.length > 0 ? cat : undefined }
+    {
+      categorySubmenu: cat.length > 0 ? cat : undefined,
+      statusSubmenu: statusMenu.length > 0 ? statusMenu : undefined
+    }
   )
 }
 

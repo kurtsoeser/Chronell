@@ -135,6 +135,13 @@ export function useCalendarShellRightPanels({
 
   const useOsFloatingPanels = loadUseOsFloatingPanelsDefault()
 
+  /** float + OS-Fenster rendert keine In-App-Vorschau — bei offener Vorschau automatisch andocken. */
+  useEffect(() => {
+    if (rightPreviewOpen && previewPlacement === 'float' && useOsFloatingPanels) {
+      setPreviewPlacement('dock')
+    }
+  }, [rightPreviewOpen, previewPlacement, useOsFloatingPanels, setPreviewPlacement])
+
   const bothPanelsFloating = useMemo(
     () =>
       !useOsFloatingPanels &&

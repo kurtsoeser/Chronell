@@ -552,6 +552,20 @@ export function CalendarEventDialogDayPicker({
               selectMirror={false}
               events={fcEvents}
               eventContent={calendarFcEventContentRender}
+              eventClassNames={(arg): string[] => {
+                const ev = arg.event.extendedProps.calendarEvent as CalendarEventView | undefined
+                if (!ev) return []
+                const classes: string[] = []
+                if (ev.showAs === 'free') classes.push('fc-cal-event--free')
+                if (
+                  ev.sensitivity === 'private' ||
+                  ev.sensitivity === 'personal' ||
+                  ev.sensitivity === 'confidential'
+                ) {
+                  classes.push('fc-cal-event--private')
+                }
+                return classes
+              }}
               eventDidMount={(info): void => {
                 const calEv = info.event.extendedProps.calendarEvent as CalendarEventView | undefined
                 const displayHex =

@@ -24,6 +24,66 @@
     "expand": "Ausklappen",
     "collapse": "Einklappen"
   },
+  "copilot": {
+    "assist": {
+      "loading": "Copilot denkt nach …",
+      "hint": "Starte mit der Aktion oben — Antwort erscheint hier. Danach kannst du nachfragen.",
+      "forbidden": "Copilot Chat nicht verfügbar. Microsoft-Konto erneut verbinden und Microsoft 365 Copilot-Lizenz / Admin-Zustimmung prüfen.",
+      "unsupported": "Copilot ist nur für Microsoft-365-Konten verfügbar.",
+      "error": "Copilot-Anfrage fehlgeschlagen.",
+      "preloadStale": "Copilot-API noch nicht geladen — App bitte komplett neu starten (nicht nur neu laden).",
+      "contextMissing": "Kein Mail-/Termin-Inhalt geladen. Kurz warten, bis der Text sichtbar ist, und erneut versuchen.",
+      "engineLabel": "Copilot-Engine",
+      "engineHint": "Graph Copilot (aktuell) oder Work IQ (Test mit stärkerem Arbeitskontext)",
+      "engineGraph": "Graph Copilot",
+      "engineWorkIq": "Work IQ (Test)",
+      "workIqPromptExtra": "Beziehe verwandten Arbeitskontext ein (andere Mails, Termine, Teams, Dateien), soweit fuer mich zugaenglich und relevant. Kennzeichne klar, was aus der vorliegenden Nachricht und was aus verwandtem Kontext kommt.",
+      "workIqForbidden": "Work IQ nicht verfügbar. Tenant aktivieren (Service Principal), in Entra WorkIQAgent.Ask + Admin-Consent, ggf. Copilot Credits — dann Konto erneut verbinden.",
+      "retrievalForbidden": "Dokument-Retrieval eingeschränkt (Berechtigung oder Lizenz).",
+      "relatedDocs": "Verwandte Dokumente",
+      "sources": "Quellen",
+      "cachedLocal": "Lokal gespeichert",
+      "cachedAt": "Lokal gespeichert · {{when}}",
+      "refresh": "Erneut erzeugen",
+      "adoptToNote": "In Notiz übernehmen",
+      "adopted": "In Notiz übernommen",
+      "adoptError": "Übernehmen in die Notiz fehlgeschlagen.",
+      "adoptEmpty": "Kein Inhalt zum Übernehmen.",
+      "noteHeading": "Copilot · {{engine}}",
+      "followUpPlaceholder": "Nachfrage an Copilot …",
+      "send": "Senden"
+    },
+    "mail": {
+      "title": "Copilot",
+      "summarize": "Zusammenfassen",
+      "summarizePrompt": "Fasse die unten stehende E-Mail knapp zusammen. Nutze nur diesen Inhalt (kein Hochladen nötig). Struktur: Kernaussagen, offene Fragen, empfohlene nächste Schritte. Antworte auf Deutsch."
+    },
+    "meeting": {
+      "title": "Copilot",
+      "prepare": "Vorbereiten",
+      "preparePrompt": "Hilf mir bei der Vorbereitung auf das unten stehende Meeting. Nutze Termin-Kontext und — falls vorhanden — Meeting Notes, Action Items und Transkript-Ausschnitte. Zweck, offene Punkte und sinnvolle Fragen. Antworte auf Deutsch.",
+      "reviewTitle": "Copilot",
+      "review": "Nachschau",
+      "reviewPrompt": "Fasse das unten stehende, bereits stattgefundene Meeting nach. Nutze Termin-Kontext und — falls vorhanden — Meeting Notes, Action Items und Transkript-Ausschnitte. Kernaussagen, offene Punkte, Action Items und empfohlene nächste Schritte. Antworte auf Deutsch."
+    }
+  },
+  "editorContextMenu": {
+    "bold": "Fett",
+    "italic": "Kursiv",
+    "underline": "Unterstrichen",
+    "strikethrough": "Durchgestrichen",
+    "cut": "Ausschneiden",
+    "paste": "Einfügen",
+    "selectAll": "Alles auswählen",
+    "adoptAsSnippet": "Als Textbaustein übernehmen…",
+    "selectTextFirst": "Bitte zuerst Text im Editor markieren."
+  },
+  "editorLink": {
+    "title": "Link",
+    "prompt": "Link-URL eingeben:",
+    "placeholder": "https://…",
+    "invalid": "Bitte eine gültige URL eingeben (z. B. https://example.com oder www.example.com)."
+  },
   "entityIcon": {
     "iconColorLabel": "Farbe",
     "iconColorNone": "Standardfarbe"
@@ -2516,6 +2576,26 @@
             "label": "Onlinebesprechungen lesen und erstellen",
             "purpose": "Teams-Meeting-Links in Kalenderterminen einfügen oder bearbeiten."
           },
+          "meetingInsights": {
+            "label": "KI-Insights aus Onlinebesprechungen lesen",
+            "purpose": "Copilot-Zusammenfassungen und Action Items nach Teams-Meetings in der Termin-Vorschau anzeigen (Microsoft 365 Copilot)."
+          },
+          "meetingTranscript": {
+            "label": "Onlinebesprechungs-Transkripte lesen",
+            "purpose": "Für Copilot Chat: Meeting-Inhalte als Grounding (Microsoft 365 Copilot Chat API)."
+          },
+          "channelMessages": {
+            "label": "Kanalnachrichten in allen Teams lesen",
+            "purpose": "Für Copilot Chat: Teams-Kanalinhalte als Kontext."
+          },
+          "externalItem": {
+            "label": "Externe Elemente lesen (Copilot Connectors)",
+            "purpose": "Für Copilot Chat und Retrieval über angebundene Drittquellen."
+          },
+          "peopleReadAll": {
+            "label": "Alle Profile der Organisation lesen (People)",
+            "purpose": "Für Copilot Chat: Personen- und Organisationskontext."
+          },
           "onedrive": {
             "label": "Vollzugriff auf Dateien, auf die Sie Zugriff haben",
             "purpose": "OneDrive-Dateien als Anhang einfügen oder Freigabe-Links beim Verfassen einer Mail nutzen."
@@ -2715,6 +2795,28 @@
         "markUnread": "Als ungelesen markieren",
         "todo": "ToDo heute"
       }
+    },
+    "searchPlaceholder": "Einstellungen durchsuchen…",
+    "searchAria": "Einstellungen durchsuchen",
+    "searchNoResults": "Keine Einstellungen gefunden.",
+    "searchClearAria": "Suche leeren",
+    "textSnippets": {
+      "heading": "Textbausteine",
+      "intro": "Wiederverwendbare Textbausteine für den Mail-Composer. Eigene Bausteine anlegen, bearbeiten oder löschen — eingebaute Vorlagen sind nur einfügbar.",
+      "new": "Neuer Textbaustein",
+      "empty": "Noch keine eigenen Textbausteine. Legen Sie einen an oder speichern Sie eine Auswahl im Composer.",
+      "customHeading": "Eigene Bausteine",
+      "builtinHeading": "Eingebaute Vorlagen",
+      "builtinHint": "Diese Vorlagen sind fest eingebaut und können nicht bearbeitet oder gelöscht werden. Im Composer unter dem Textbaustein-Symbol einfügen.",
+      "builtinBadge": "Eingebaut",
+      "editorNewTitle": "Textbaustein anlegen",
+      "editorEditTitle": "Textbaustein bearbeiten",
+      "nameLabel": "Name",
+      "bodyLabel": "Text (Absätze mit Leerzeile)",
+      "nameRequired": "Bitte einen Namen eingeben.",
+      "bodyRequired": "Bitte einen Text eingeben.",
+      "deleteTitle": "Textbaustein löschen",
+      "deleteConfirm": "Textbaustein „{{name}}“ wirklich löschen?"
     },
     "quickSteps": {
       "heading": "QuickSteps",
@@ -3190,6 +3292,13 @@
       "archive": "Archivieren",
       "viewerLight": "Mail-Anzeige: Hell",
       "viewerDark": "Mail-Anzeige: Dunkel",
+      "bodyViewHtmlShort": "HTML",
+      "bodyViewPlainShort": "Text",
+      "bodyViewHtmlTitle": "Ansicht: HTML — Klick für Nur-Text. Gespeichert als: {{stored}}.",
+      "bodyViewPlainTitle": "Ansicht: Nur-Text — Klick für HTML. Gespeichert als: {{stored}}.",
+      "bodyViewStoredHtml": "HTML (mit Formatierung)",
+      "bodyViewStoredPlain": "Nur Text",
+      "bodyViewStoredEmpty": "kein Inhalt",
       "zoomIn": "Mail-Inhalt vergrößern",
       "zoomOut": "Mail-Inhalt verkleinern",
       "zoomReset": "Mail-Zoom zurücksetzen",
@@ -3228,6 +3337,15 @@
       "notFoundBody": "Diese Mail konnte lokal nicht geladen werden.",
       "categoriesTitle": "Kategorien bearbeiten (Outlook-kompatibel)",
       "categories": "Kategorien",
+      "categoriesMasterManageHint": "Entspricht den Outlook-Kategorien dieses Kontos. Hier kannst du sie auch anlegen, bearbeiten oder löschen.",
+      "categoriesLocalHint": "Lokale Kategorien für dieses Konto. Bei Microsoft-Konten werden dieselben Namen mit Outlook synchronisiert.",
+      "categoriesLoading": "Lade …",
+      "categoriesApply": "Übernehmen",
+      "categoriesNewPlaceholder": "Neue Kategorie…",
+      "categoriesEmptyMasters": "Noch keine Kategorien. Lege unten eine neue an oder lege sie in Outlook an.",
+      "categoriesColor": "Farbe",
+      "categoriesFavAdd": "Als Favorit anpinnen",
+      "categoriesFavRemove": "Aus Favoriten entfernen",
       "attachment_one": "Anhang",
       "attachment_other": "Anhänge",
       "inlineImage_one": "Inline-Bild",
@@ -3249,6 +3367,9 @@
       "loadExternalImages": "Externe Bilder laden",
       "loadingAttachments": "Anhänge werden geladen …",
       "saveAttachmentAsTitle": "Speichern unter …",
+      "attachmentDragHint": "Gedrückt halten und ziehen, um auf dem PC zu speichern",
+      "attachmentDragPreparing": "Anhang wird für Drag & Drop vorbereitet …",
+      "attachmentDragReady": "Auf Desktop oder Ordner ziehen zum Speichern",
       "attachmentInlineChip": "inline",
       "metaFolder": "Ordner",
       "metaFrom": "Von",
@@ -3330,7 +3451,20 @@
       "proposeFailedTitle": "Zeitvorschlag fehlgeschlagen",
       "proposeFailed": "Der Zeitvorschlag konnte nicht gesendet werden.",
       "youProposed": "Vorgeschlagen: {{when}}",
-      "loadFailedTitle": "Termineinladung konnte nicht vollständig geladen werden"
+      "loadFailedTitle": "Termineinladung konnte nicht vollständig geladen werden",
+      "changeTime": "Zeit ändern",
+      "changeTimeTitle": "Termin verschieben",
+      "changeTimeApply": "Übernehmen",
+      "changeTimePlusOneHour": "+1 Stunde",
+      "changeTimeThisAfternoon": "Heute Nachmittag",
+      "changeTimeTomorrowSame": "Morgen, gleiche Uhrzeit",
+      "changeTimePreviewLabel": "Vorschau an diesem Tag",
+      "changeTimePreviewTitle": "Neue Zeit",
+      "changeTimeSucceeded": "Termin verschoben — Teilnehmende wurden benachrichtigt.",
+      "changeTimeFailedTitle": "Termin konnte nicht verschoben werden",
+      "changeTimeFailed": "Der Termin konnte nicht verschoben werden.",
+      "changeTimeInvalidStart": "Ungültige Startzeit.",
+      "changeTimeInvalidEnd": "Ungültige Endzeit."
     },
     "conversationPreview": {
       "collapsedAria": "{{from}}, {{date}} — zum Aufklappen anklicken",
@@ -4287,10 +4421,11 @@
       "deleteEventConfirm": "Löschen"
     },
     "scheduleChangeDialog": {
-      "title": "Ereigniszeit wurde geändert",
-      "body": "Diese Besprechung hat Teilnehmer. Soll die neue Zeit gespeichert und eine Aktualisierung an alle Teilnehmer gesendet werden?",
-      "saveAndNotify": "Speichern & senden",
-      "discard": "Verwerfen"
+      "title": "Termin verschoben",
+      "body": "Die Besprechung wurde auf einen neuen Zeitpunkt verschoben. Beim Speichern erhalten alle Teilnehmer eine Aktualisierung (erneute Einladung) mit dem neuen Termin.",
+      "saveAndNotify": "Speichern & an alle senden",
+      "discard": "Verwerfen",
+      "cancel": "Abbrechen"
     },
     "context": {
       "duplicateSuffix": " (Kopie)",
@@ -4305,6 +4440,8 @@
       "moveFailedTitle": "Verschieben fehlgeschlagen",
       "transferEmpty": "Kein anderer Kalender verfügbar",
       "categories": "Kategorien",
+      "status": "Status",
+      "statusFailedTitle": "Status konnte nicht geändert werden",
       "copyDetails": "Details kopieren",
       "copyOutlookWebLink": "Outlook-Web-Link kopieren",
       "copyTeamsMeetingLink": "Teams-Besprechungslink kopieren",
@@ -4312,6 +4449,36 @@
       "openTeamsMeeting": "Teams-Besprechung öffnen",
       "delete": "Löschen…",
       "categoriesLoadError": "Kategorien nicht ladbar"
+    },
+    "eventRsvp": {
+      "accept": "Zusagen",
+      "tentative": "Vorläufig",
+      "decline": "Ablehnen",
+      "scopeThis": "Nur diesen Termin",
+      "scopeSeries": "Gesamte Serie",
+      "acceptScopeTitle": "Zusage",
+      "acceptScopeBody": "Für diesen Termin oder die gesamte Serie zusagen?",
+      "tentativeScopeTitle": "Vorläufige Zusage",
+      "tentativeScopeBody": "Für diesen Termin oder die gesamte Serie vorläufig zusagen?",
+      "declineScopeTitle": "Teilnahme ablehnen",
+      "declineScopeBody": "Nur diesen Termin oder die gesamte Serie ablehnen?",
+      "declineConfirmTitle": "Teilnahme ablehnen",
+      "declineConfirmBody": "Diesen Termin wirklich ablehnen? Wenn der Organisator eine Antwort erwartet, wird er benachrichtigt — sonst wird der Termin nur aus deinem Kalender entfernt.",
+      "removedWithoutResponse": "Termin aus dem Kalender entfernt (Organisator erwartet keine Antwort).",
+      "microsoftOnly": "Teilnahmeantworten sind nur für Microsoft-Konten verfügbar.",
+      "organizerCannotRespond": "Als Organisator bitte den Termin löschen statt abzulehnen.",
+      "failed": "Antwort konnte nicht gesendet werden.",
+      "failedTitle": "Antwort fehlgeschlagen",
+      "responding": "Antwort wird gesendet …",
+      "respondMenu": "Antworten",
+      "statusAccepted": "Zugesagt",
+      "statusAcceptedAt": "Zugesagt am {{when}}",
+      "statusTentative": "Mit Vorbehalt zugesagt",
+      "statusTentativeAt": "Vorläufig am {{when}}",
+      "statusDeclined": "Abgelehnt",
+      "statusDeclinedAt": "Abgelehnt am {{when}}",
+      "statusNeedsAction": "Noch nicht geantwortet",
+      "statusAt": "am {{when}}"
     },
     "eventClipboard": {
       "allDayPrefix": "Ganztägig:",
@@ -4384,16 +4551,43 @@
       "saving": "Speichern …",
       "allDaySuffix": "(ganztägig)",
       "calendarLabel": "Kalender",
+      "calendarFallback": "Kalender",
+      "infoSection": "Info",
+      "infoAttendeesSummary": "{{count}} Teilnehmer",
+      "infoAttachmentsSummary": "{{count}} Anhänge",
+      "infoAttendeesMore": "+{{count}} weitere",
+      "infoShowMore": "Mehr Details",
+      "infoShowLess": "Weniger",
+      "copyMeetingLinkShort": "Link kopieren",
+      "openMeetingLink": "Link öffnen",
+      "descriptionUnavailable": "Beschreibung nicht verfügbar",
       "organizerLabel": "Organisator",
       "attendeesLabel": "Teilnehmer",
       "meetingLabel": "Besprechung",
+      "meetingLinkLabel": "Meeting-Link",
+      "copyMeetingLink": "Meeting-Link kopieren",
+      "meetingLinkCopied": "Kopiert",
       "teamsMeetingScheduled": "Teams-Besprechung geplant",
       "openInMaps": "In Karten öffnen",
       "durationUnderMinute": "Unter 1 Minute",
       "durationMinutesOnly": "{{minutes}} Min.",
       "durationHoursOnly": "{{hours}} Std.",
-      "durationHoursMinutes": "{{hours}} Std. {{minutes}} Min.",
-      "contextSplitterAria": "Höhe von Notiz und Kontext anpassen"
+      "durationHoursMinutes": "{{hours}} Std. {{minutes}} Min."
+    },
+    "meetingInsights": {
+      "title": "Insights",
+      "loading": "Insights werden geladen …",
+      "pending": "Noch keine Insights — Transkript/Aufzeichnung nötig; nach dem Meeting kann es bis zu einigen Stunden dauern.",
+      "pendingShort": "Noch keine Insights",
+      "summaryOk": "{{notes}} Notizen · {{actions}} Action Items",
+      "forbidden": "Meeting Insights nicht verfügbar. Bitte Microsoft-Konto neu verbinden (Copilot-Berechtigung) und prüfen, ob eine Microsoft 365 Copilot-Lizenz zugewiesen ist.",
+      "error": "Meeting Insights konnten nicht geladen werden.",
+      "preloadStale": "Copilot-API noch nicht geladen — App bitte komplett neu starten (nicht nur neu laden).",
+      "notesHeading": "Zusammenfassung",
+      "actionsHeading": "Action Items",
+      "owner": "Zuständig: {{name}}",
+      "mentions_one": "{{count}} Erwähnung in diesem Meeting",
+      "mentions_other": "{{count}} Erwähnungen in diesem Meeting"
     },
     "floatingPanel": {
       "dockTitle": "In die Leiste andocken",
@@ -4516,6 +4710,17 @@
       "dayColumnNoAccount": "Kalenderkonto wählen",
       "dayColumnResizeAria": "Tagesvorschau verbreitern oder verschmälern",
       "reminderHeading": "Erinnerung",
+      "statusHeading": "Status",
+      "statusShowAsAria": "Anzeigen als",
+      "statusShowAs": {
+        "free": "Frei",
+        "tentative": "Mit Vorbehalt",
+        "busy": "Gebucht",
+        "oof": "Abwesend",
+        "workingElsewhere": "Woanders arbeiten"
+      },
+      "statusPrivate": "Privat",
+      "statusGoogleHint": "Google speichert nur Frei vs. Gebucht und Privat; Vorbehalt/Abwesend werden als Gebucht übernommen.",
       "reminderEnabled": "Erinnerung",
       "reminderNone": "Keine",
       "reminderMinutesLabel": "Erinnern",
@@ -4626,6 +4831,8 @@
       "applyTemplateTitle": "Template anwenden",
       "invitationSent": "Einladung gesendet an {{names}}",
       "invitationSentWithMore": "Einladung gesendet an {{names}} und {{count}} weitere",
+      "rescheduleUpdateSent": "Terminaktualisierung gesendet an {{names}}",
+      "rescheduleUpdateSentWithMore": "Terminaktualisierung gesendet an {{names}} und {{count}} weitere",
       "teamsDisabledAllDay": "Teams ist bei ganztägigen Terminen nicht verfügbar.",
       "attendeesRowLabel": "Teilnehmer",
       "attendeesPickContacts": "Aus Kontakten wählen",
@@ -4656,7 +4863,8 @@
       "recurrenceEndCount": "Anzahl Termine (inkl. erstem)",
       "recurrenceUntilLabel": "Letztes Datum",
       "recurrenceCountLabel": "Anzahl",
-      "recurrenceHint": "Serien sind beim Anlegen verfügbar (Microsoft 365 und Google). Bearbeiten der ganzen Serie folgt später.",
+      "recurrenceHint": "",
+      "recurrenceSeriesClearUnsupported": "Eine bestehende Serie kann hier nicht in einen Einzeltermin umgewandelt werden. Bitte Frequenz belassen oder den Termin in Outlook löschen.",
       "recurrenceUntilInvalid": "Bitte ein gültiges Enddatum (JJJJ-MM-TT) wählen.",
       "recurrenceUntilBeforeStart": "Das Serien-Ende darf nicht vor dem Start liegen.",
       "recurrenceCountInvalid": "Anzahl: bitte eine Zahl zwischen 1 und 999 eingeben."

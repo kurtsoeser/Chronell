@@ -42,6 +42,8 @@ interface GraphEventRow {
   attendees?: GraphAttendeeRow[] | null
   onlineMeeting?: { joinUrl?: string | null } | null
   iCalUId?: string | null
+  /** `singleInstance` | `occurrence` | `exception` | `seriesMaster` (Graph `event.type`). */
+  type?: string | null
   '@odata.type'?: string | null
 }
 
@@ -178,6 +180,19 @@ function buildInvitationFromGraphEvent(
   const isCancelled = meetingType === 'meetingcancelled'
   const isOpenRequest = !meetingType || meetingType === 'meetingrequest'
 
+  const isOrganizer = Boolean(selfEmail && organizerEmail === selfEmail)
+  const hasRecurrence = Boolean(ev.type && ev.type !== 'singleInstance')
+  const canReschedule = isOrganizer && !isCancelled && !isAllDay && !hasRecurrence
+  const rescheduleUnsupportedReason = !isOrganizer
+    ? null
+    : isCancelled
+      ? 'Der Termin wurde abgesagt.'
+      : isAllDay
+        ? 'Fuer Ganztagstermine ist das Aendern hier nicht moeglich.'
+        : hasRecurrence
+          ? 'Bearbeiten von Serienterminen wird hier nicht unterstuetzt.'
+          : null
+
   return {
     uid: ev.iCalUId?.trim() || null,
     method: meetingMethodFromGraphType(message.meetingMessageType),
@@ -203,7 +218,10 @@ function buildInvitationFromGraphEvent(
         : null,
     allowNewTimeProposals: graphMeta?.allowNewTimeProposals ?? true,
     selfProposedStartIso: graphMeta?.selfProposedStartIso ?? null,
-    selfProposedEndIso: graphMeta?.selfProposedEndIso ?? null
+    selfProposedEndIso: graphMeta?.selfProposedEndIso ?? null,
+    isOrganizer,
+    canReschedule,
+    rescheduleUnsupportedReason
   }
 }
 

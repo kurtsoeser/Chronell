@@ -16,6 +16,11 @@ export const MICROSOFT_SCOPES = [
   'offline_access',
   'User.Read',
   'Mail.ReadWrite',
+  /**
+   * Copilot Chat API verlangt explizit Mail.Read (nicht nur ReadWrite) im Token.
+   * ReadWrite allein reicht fuer diesen Endpoint oft nicht.
+   */
+  'Mail.Read',
   'Mail.Send',
   /** Outlook-Masterkategorien (Kategorien verwalten / mit Desktop-Outlook abgleichen). */
   'MailboxSettings.ReadWrite',
@@ -31,19 +36,33 @@ export const MICROSOFT_SCOPES = [
   'OnlineMeetings.ReadWrite',
   /** Teams-Besprechungsaufzeichnungen lesen (`/onlineMeetings/{id}/recordings`). */
   'OnlineMeetingRecording.Read.All',
+  /** Microsoft 365 Copilot: Meeting AI Insights (`/copilot/users/{id}/onlineMeetings/{id}/aiInsights`). */
+  'OnlineMeetingAiInsight.Read.All',
+  /** Microsoft 365 Copilot Chat API: Meeting-Transkripte als Grounding. */
+  'OnlineMeetingTranscript.Read.All',
+  /** Microsoft 365 Copilot Chat API: Teams-Kanalnachrichten als Grounding. */
+  'ChannelMessage.Read.All',
+  /** Microsoft 365 Copilot Chat/Retrieval: Copilot-Connector-Inhalte. */
+  'ExternalItem.Read.All',
   /** Microsoft Teams: Chats lesen/schreiben; neue Chats anlegen (Graph `/me/chats`, `POST /chats`). */
   'Chat.ReadWrite',
+  /** Copilot Chat API verlangt explizit Chat.Read. */
+  'Chat.Read',
   'Chat.Create',
-/** Outlook-Kontakte lesen und schreiben (Graph `/me/contacts`). */
+  /** Outlook-Kontakte lesen und schreiben (Graph `/me/contacts`). */
   'Contacts.ReadWrite',
   /** Graph `/me/people` fuer Empfaenger-Vorschlaege im Compose. */
   'People.Read',
+  /** Microsoft 365 Copilot Chat API: Organisationskontakte / People-Graph. */
+  'People.Read.All',
   /** Organisationsverzeichnis: `/users` mit Filter fuer Empfaenger-Autocomplete. */
   'User.ReadBasic.All',
   /** OneDrive: Dateien lesen, Freigabe-Links (`createLink`) und Cloud-Anhaenge. */
   'Files.ReadWrite.All',
   /** SharePoint: Sites/Bibliotheken lesen und Freigabe-Links. */
   'Sites.ReadWrite.All',
+  /** Copilot Chat/Retrieval verlangen explizit Sites.Read.All. */
+  'Sites.Read.All',
   /** Microsoft Bookings: Unternehmens-Buchungsseiten lesen (`/solutions/bookingBusinesses`). */
   'Bookings.Read.All',
   /** Microsoft Bookings: Termine in Buchungskalendern lesen/schreiben. */

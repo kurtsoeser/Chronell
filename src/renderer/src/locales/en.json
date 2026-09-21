@@ -24,6 +24,66 @@
     "expand": "Expand",
     "collapse": "Collapse"
   },
+  "copilot": {
+    "assist": {
+      "loading": "Copilot is thinking…",
+      "hint": "Use the action above — the answer appears here. Then you can ask follow-ups.",
+      "forbidden": "Copilot Chat unavailable. Reconnect your Microsoft account and check Microsoft 365 Copilot license / admin consent.",
+      "unsupported": "Copilot is only available for Microsoft 365 accounts.",
+      "error": "Copilot request failed.",
+      "preloadStale": "Copilot API not loaded yet — fully restart the app (not just reload).",
+      "contextMissing": "No mail/event content loaded yet. Wait until the body is visible, then try again.",
+      "engineLabel": "Copilot engine",
+      "engineHint": "Graph Copilot (current) or Work IQ (test with stronger work context)",
+      "engineGraph": "Graph Copilot",
+      "engineWorkIq": "Work IQ (test)",
+      "workIqPromptExtra": "Include related work context (other mail, meetings, Teams, files) when accessible and relevant. Clearly mark what comes from this message vs. related context.",
+      "workIqForbidden": "Work IQ unavailable. Enable tenant (service principal), add WorkIQAgent.Ask + admin consent in Entra, Copilot Credits if required — then reconnect the account.",
+      "retrievalForbidden": "Document retrieval limited (permission or license).",
+      "relatedDocs": "Related documents",
+      "sources": "Sources",
+      "cachedLocal": "Saved locally",
+      "cachedAt": "Saved locally · {{when}}",
+      "refresh": "Regenerate",
+      "adoptToNote": "Add to note",
+      "adopted": "Added to note",
+      "adoptError": "Could not add to the note.",
+      "adoptEmpty": "Nothing to add.",
+      "noteHeading": "Copilot · {{engine}}",
+      "followUpPlaceholder": "Ask Copilot a follow-up…",
+      "send": "Send"
+    },
+    "mail": {
+      "title": "Copilot",
+      "summarize": "Summarize",
+      "summarizePrompt": "Summarize the email below briefly. Use only this content (no upload needed). Structure: key points, open questions, recommended next steps. Reply in English."
+    },
+    "meeting": {
+      "title": "Copilot",
+      "prepare": "Prepare",
+      "preparePrompt": "Help me prepare for the meeting below. Use the event context and — if present — meeting notes, action items, and transcript snippets. Purpose, open items, and good questions. Reply in English.",
+      "reviewTitle": "Copilot",
+      "review": "Review",
+      "reviewPrompt": "Review the past meeting below. Use the event context and — if present — meeting notes, action items, and transcript snippets. Key points, open items, action items, and recommended next steps. Reply in English."
+    }
+  },
+  "editorContextMenu": {
+    "bold": "Bold",
+    "italic": "Italic",
+    "underline": "Underline",
+    "strikethrough": "Strikethrough",
+    "cut": "Cut",
+    "paste": "Paste",
+    "selectAll": "Select all",
+    "adoptAsSnippet": "Save as text snippet…",
+    "selectTextFirst": "Please select text in the editor first."
+  },
+  "editorLink": {
+    "title": "Link",
+    "prompt": "Enter link URL:",
+    "placeholder": "https://…",
+    "invalid": "Please enter a valid URL (e.g. https://example.com or www.example.com)."
+  },
   "entityIcon": {
     "iconColorLabel": "Color",
     "iconColorNone": "Default color"
@@ -2516,6 +2576,26 @@
             "label": "Read and create your online meetings",
             "purpose": "Add or edit Teams meeting links on calendar events."
           },
+          "meetingInsights": {
+            "label": "Read AI insights from online meetings",
+            "purpose": "Show Copilot summaries and action items after Teams meetings in the event preview (Microsoft 365 Copilot)."
+          },
+          "meetingTranscript": {
+            "label": "Read online meeting transcripts",
+            "purpose": "For Copilot Chat: meeting content as grounding (Microsoft 365 Copilot Chat API)."
+          },
+          "channelMessages": {
+            "label": "Read channel messages across all teams",
+            "purpose": "For Copilot Chat: Teams channel content as context."
+          },
+          "externalItem": {
+            "label": "Read external items (Copilot connectors)",
+            "purpose": "For Copilot Chat and Retrieval across connected third-party sources."
+          },
+          "peopleReadAll": {
+            "label": "Read all people’s profiles (People)",
+            "purpose": "For Copilot Chat: people and organization context."
+          },
           "onedrive": {
             "label": "Full access to all files you can access",
             "purpose": "Attach OneDrive files or use sharing links when composing mail."
@@ -2715,6 +2795,28 @@
         "markUnread": "Mark as unread",
         "todo": "To-do today"
       }
+    },
+    "searchPlaceholder": "Search settings…",
+    "searchAria": "Search settings",
+    "searchNoResults": "No settings found.",
+    "searchClearAria": "Clear search",
+    "textSnippets": {
+      "heading": "Text snippets",
+      "intro": "Reusable text snippets for the mail composer. Create, edit, or delete your own — built-in templates can only be inserted.",
+      "new": "New snippet",
+      "empty": "No custom snippets yet. Create one here or save a selection in the composer.",
+      "customHeading": "Your snippets",
+      "builtinHeading": "Built-in templates",
+      "builtinHint": "These templates are built in and cannot be edited or deleted. Insert them in the composer via the snippet icon.",
+      "builtinBadge": "Built-in",
+      "editorNewTitle": "Create snippet",
+      "editorEditTitle": "Edit snippet",
+      "nameLabel": "Name",
+      "bodyLabel": "Text (paragraphs separated by a blank line)",
+      "nameRequired": "Please enter a name.",
+      "bodyRequired": "Please enter some text.",
+      "deleteTitle": "Delete snippet",
+      "deleteConfirm": "Delete snippet “{{name}}”?"
     },
     "quickSteps": {
       "heading": "Quick Steps",
@@ -3190,6 +3292,13 @@
       "archive": "Archive",
       "viewerLight": "Message view: light",
       "viewerDark": "Message view: dark",
+      "bodyViewHtmlShort": "HTML",
+      "bodyViewPlainShort": "Text",
+      "bodyViewHtmlTitle": "View: HTML — click for plain text. Stored as: {{stored}}.",
+      "bodyViewPlainTitle": "View: plain text — click for HTML. Stored as: {{stored}}.",
+      "bodyViewStoredHtml": "HTML (formatted)",
+      "bodyViewStoredPlain": "plain text only",
+      "bodyViewStoredEmpty": "no content",
       "zoomIn": "Enlarge mail content",
       "zoomOut": "Shrink mail content",
       "zoomReset": "Reset mail zoom",
@@ -3228,6 +3337,15 @@
       "notFoundBody": "This message could not be loaded locally.",
       "categoriesTitle": "Edit categories (Outlook-compatible)",
       "categories": "Categories",
+      "categoriesMasterManageHint": "Matches this account’s Outlook categories. You can also create, edit, or delete them here.",
+      "categoriesLocalHint": "Local categories for this account. On Microsoft accounts the same names sync with Outlook.",
+      "categoriesLoading": "Loading…",
+      "categoriesApply": "Apply",
+      "categoriesNewPlaceholder": "New category…",
+      "categoriesEmptyMasters": "No categories yet. Create one below or in Outlook.",
+      "categoriesColor": "Color",
+      "categoriesFavAdd": "Pin as favorite",
+      "categoriesFavRemove": "Remove from favorites",
       "attachment_one": "attachment",
       "attachment_other": "attachments",
       "inlineImage_one": "inline image",
@@ -3249,6 +3367,9 @@
       "loadExternalImages": "Load external images",
       "loadingAttachments": "Loading attachments…",
       "saveAttachmentAsTitle": "Save as…",
+      "attachmentDragHint": "Press and drag to save to your PC",
+      "attachmentDragPreparing": "Preparing attachment for drag and drop…",
+      "attachmentDragReady": "Drag to desktop or folder to save",
       "attachmentInlineChip": "inline",
       "metaFolder": "Folder",
       "metaFrom": "From",
@@ -3330,7 +3451,20 @@
       "proposeFailedTitle": "Proposal failed",
       "proposeFailed": "Your time proposal could not be sent.",
       "youProposed": "Proposed: {{when}}",
-      "loadFailedTitle": "Meeting invitation could not be loaded completely"
+      "loadFailedTitle": "Meeting invitation could not be loaded completely",
+      "changeTime": "Change time",
+      "changeTimeTitle": "Reschedule meeting",
+      "changeTimeApply": "Apply",
+      "changeTimePlusOneHour": "+1 hour",
+      "changeTimeThisAfternoon": "This afternoon",
+      "changeTimeTomorrowSame": "Tomorrow, same time",
+      "changeTimePreviewLabel": "Preview for this day",
+      "changeTimePreviewTitle": "New time",
+      "changeTimeSucceeded": "Meeting rescheduled — attendees have been notified.",
+      "changeTimeFailedTitle": "Could not reschedule meeting",
+      "changeTimeFailed": "The meeting could not be rescheduled.",
+      "changeTimeInvalidStart": "Invalid start time.",
+      "changeTimeInvalidEnd": "Invalid end time."
     },
     "conversationPreview": {
       "collapsedAria": "{{from}}, {{date}} — click to expand",
@@ -4314,10 +4448,11 @@
       "deleteEventConfirm": "Delete"
     },
     "scheduleChangeDialog": {
-      "title": "Event time was changed",
-      "body": "This meeting has attendees. Save the new time and send an update to all attendees?",
-      "saveAndNotify": "Save & send",
-      "discard": "Discard"
+      "title": "Meeting rescheduled",
+      "body": "This meeting was moved to a new time. Saving will send an update (re-invitation) with the new time to all attendees.",
+      "saveAndNotify": "Save & send to all",
+      "discard": "Discard",
+      "cancel": "Cancel"
     },
     "context": {
       "duplicateSuffix": " (copy)",
@@ -4332,6 +4467,8 @@
       "moveFailedTitle": "Move failed",
       "transferEmpty": "No other calendar available",
       "categories": "Categories",
+      "status": "Status",
+      "statusFailedTitle": "Could not update status",
       "copyDetails": "Copy details",
       "copyOutlookWebLink": "Copy Outlook web link",
       "copyTeamsMeetingLink": "Copy Teams meeting link",
@@ -4339,6 +4476,36 @@
       "openTeamsMeeting": "Open Teams meeting",
       "delete": "Delete…",
       "categoriesLoadError": "Could not load categories"
+    },
+    "eventRsvp": {
+      "accept": "Accept",
+      "tentative": "Tentative",
+      "decline": "Decline",
+      "scopeThis": "This event only",
+      "scopeSeries": "Entire series",
+      "acceptScopeTitle": "Accept",
+      "acceptScopeBody": "Accept this event or the entire series?",
+      "tentativeScopeTitle": "Tentative",
+      "tentativeScopeBody": "Tentatively accept this event or the entire series?",
+      "declineScopeTitle": "Decline",
+      "declineScopeBody": "Decline this event only or the entire series?",
+      "declineConfirmTitle": "Decline invitation",
+      "declineConfirmBody": "Decline this event? If the organiser requested a response they will be notified — otherwise the event is only removed from your calendar.",
+      "removedWithoutResponse": "Event removed from your calendar (organiser did not request a response).",
+      "microsoftOnly": "Meeting responses are only available for Microsoft accounts.",
+      "organizerCannotRespond": "As the organiser, delete the event instead of declining.",
+      "failed": "Could not send the response.",
+      "failedTitle": "Response failed",
+      "responding": "Sending response…",
+      "respondMenu": "Respond",
+      "statusAccepted": "Accepted",
+      "statusAcceptedAt": "Accepted on {{when}}",
+      "statusTentative": "Tentatively accepted",
+      "statusTentativeAt": "Tentative on {{when}}",
+      "statusDeclined": "Declined",
+      "statusDeclinedAt": "Declined on {{when}}",
+      "statusNeedsAction": "Not yet responded",
+      "statusAt": "on {{when}}"
     },
     "eventClipboard": {
       "allDayPrefix": "All day:",
@@ -4411,16 +4578,43 @@
       "saving": "Saving…",
       "allDaySuffix": "(all day)",
       "calendarLabel": "Calendar",
+      "calendarFallback": "Calendar",
+      "infoSection": "Info",
+      "infoAttendeesSummary": "{{count}} attendees",
+      "infoAttachmentsSummary": "{{count}} attachments",
+      "infoAttendeesMore": "+{{count}} more",
+      "infoShowMore": "More details",
+      "infoShowLess": "Less",
+      "copyMeetingLinkShort": "Copy link",
+      "openMeetingLink": "Open link",
+      "descriptionUnavailable": "Description unavailable",
       "organizerLabel": "Organiser",
       "attendeesLabel": "Attendees",
       "meetingLabel": "Meeting",
+      "meetingLinkLabel": "Meeting link",
+      "copyMeetingLink": "Copy meeting link",
+      "meetingLinkCopied": "Copied",
       "teamsMeetingScheduled": "Teams meeting scheduled",
       "openInMaps": "Open in Maps",
       "durationUnderMinute": "Under 1 minute",
       "durationMinutesOnly": "{{minutes}} min",
       "durationHoursOnly": "{{hours}} h",
-      "durationHoursMinutes": "{{hours}} h {{minutes}} min",
-      "contextSplitterAria": "Resize note and context height"
+      "durationHoursMinutes": "{{hours}} h {{minutes}} min"
+    },
+    "meetingInsights": {
+      "title": "Insights",
+      "loading": "Loading insights…",
+      "pending": "No insights yet — transcription/recording required; after the meeting it can take up to a few hours.",
+      "pendingShort": "No insights yet",
+      "summaryOk": "{{notes}} notes · {{actions}} action items",
+      "forbidden": "Meeting insights unavailable. Reconnect your Microsoft account (Copilot permission) and check that a Microsoft 365 Copilot license is assigned.",
+      "error": "Could not load meeting insights.",
+      "preloadStale": "Copilot API not loaded yet — fully restart the app (not just reload).",
+      "notesHeading": "Summary",
+      "actionsHeading": "Action items",
+      "owner": "Owner: {{name}}",
+      "mentions_one": "{{count}} mention in this meeting",
+      "mentions_other": "{{count}} mentions in this meeting"
     },
     "floatingPanel": {
       "dockTitle": "Dock to the bar",
@@ -4543,6 +4737,17 @@
       "dayColumnNoAccount": "Select a calendar account",
       "dayColumnResizeAria": "Resize day preview",
       "reminderHeading": "Reminder",
+      "statusHeading": "Status",
+      "statusShowAsAria": "Show as",
+      "statusShowAs": {
+        "free": "Free",
+        "tentative": "Tentative",
+        "busy": "Busy",
+        "oof": "Out of office",
+        "workingElsewhere": "Working elsewhere"
+      },
+      "statusPrivate": "Private",
+      "statusGoogleHint": "Google only stores Free vs Busy and Private; Tentative/OOF are saved as Busy.",
       "reminderEnabled": "Reminder",
       "reminderNone": "None",
       "reminderMinutesLabel": "Remind me",
@@ -4653,6 +4858,8 @@
       "applyTemplateTitle": "Apply template",
       "invitationSent": "Invitation sent to {{names}}",
       "invitationSentWithMore": "Invitation sent to {{names}} and {{count}} more",
+      "rescheduleUpdateSent": "Meeting update sent to {{names}}",
+      "rescheduleUpdateSentWithMore": "Meeting update sent to {{names}} and {{count}} more",
       "teamsDisabledAllDay": "Teams is not available for all-day events.",
       "attendeesRowLabel": "Attendees",
       "attendeesPickContacts": "Pick from contacts",
@@ -4683,7 +4890,8 @@
       "recurrenceEndCount": "Number of events (including first)",
       "recurrenceUntilLabel": "Last date",
       "recurrenceCountLabel": "Count",
-      "recurrenceHint": "Series are available when creating events (Microsoft 365 and Google). Editing the whole series is not implemented yet.",
+      "recurrenceHint": "",
+      "recurrenceSeriesClearUnsupported": "An existing series cannot be turned into a single event here. Keep a recurrence pattern, or delete the series in Outlook.",
       "recurrenceUntilInvalid": "Please choose a valid end date (YYYY-MM-DD).",
       "recurrenceUntilBeforeStart": "The series end date cannot be before the start.",
       "recurrenceCountInvalid": "Enter a number between 1 and 999 for the count."

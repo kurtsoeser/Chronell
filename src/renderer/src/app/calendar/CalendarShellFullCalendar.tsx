@@ -38,6 +38,7 @@ import { syncFullCalendarWidth } from '@/app/calendar/sync-full-calendar-width'
 import { accountColorToCssBackground } from '@/lib/avatar-color'
 import {
   buildCalendarEventCategorySubmenuItems,
+  buildCalendarEventStatusSubmenuItems,
   buildCalendarEventTransferSubmenuItems,
   buildCalendarEventContextItems,
   formatCalendarEventClipboardText
@@ -48,6 +49,7 @@ import {
   sendCalendarEventAsNewNotionPage
 } from '@/lib/notion-ui'
 import { deleteCalendarEventIpc } from '@/lib/calendar-ipc'
+import { respondToCalendarEventInvitation } from '@/lib/calendar-event-rsvp'
 import { applyCalendarEventDomColors } from '@/lib/calendar-event-chip-style'
 import { openExternalUrl } from '@/lib/open-external'
 import {
@@ -481,6 +483,7 @@ export function CalendarShellFullCalendar(props: CalendarShellFullCalendarProps)
               t,
               calendarCollatorLocale
             )
+            const statusMenu = buildCalendarEventStatusSubmenuItems(calEv, reloadVisibleRange, t)
             const copyTo = await buildCalendarEventTransferSubmenuItems(
               calEv,
               'copy',
@@ -623,6 +626,27 @@ export function CalendarShellFullCalendar(props: CalendarShellFullCalendarProps)
                     })
                   }
                 },
+                onAcceptInvitation: (): void => {
+                  void (async (): Promise<void> => {
+                    setError(null)
+                    const res = await respondToCalendarEventInvitation(calEv, 'accept', { t })
+                    if (res?.ok) reloadVisibleRange()
+                  })()
+                },
+                onTentativeInvitation: (): void => {
+                  void (async (): Promise<void> => {
+                    setError(null)
+                    const res = await respondToCalendarEventInvitation(calEv, 'tentative', { t })
+                    if (res?.ok) reloadVisibleRange()
+                  })()
+                },
+                onDeclineInvitation: (): void => {
+                  void (async (): Promise<void> => {
+                    setError(null)
+                    const res = await respondToCalendarEventInvitation(calEv, 'decline', { t })
+                    if (res?.ok) reloadVisibleRange()
+                  })()
+                },
                 onDelete: (): void => {
                   const gid = calEv.graphEventId
                   if (!gid) return
@@ -653,6 +677,7 @@ export function CalendarShellFullCalendar(props: CalendarShellFullCalendarProps)
               t,
               {
                 categorySubmenu: cat.length > 0 ? cat : undefined,
+                statusSubmenu: statusMenu.length > 0 ? statusMenu : undefined,
                 copyToSubmenu: copyTo.length > 0 ? copyTo : undefined,
                 moveToSubmenu: moveTo.length > 0 ? moveTo : undefined
               }
@@ -745,9 +770,20 @@ export function CalendarShellFullCalendar(props: CalendarShellFullCalendarProps)
         if (kind) return []
         const ev = arg.event.extendedProps.calendarEvent as CalendarEventView | undefined
         if (!ev) return []
+        const classes: string[] = []
+        if (ev.showAs === 'free') classes.push('fc-cal-event--free')
+        if (
+          ev.sensitivity === 'private' ||
+          ev.sensitivity === 'personal' ||
+          ev.sensitivity === 'confidential'
+        ) {
+          classes.push('fc-cal-event--private')
+        }
         const key = graphEventKey(ev)
-        if (!key || !graphEventSelection.isSelected(key)) return []
-        return ['ring-2', 'ring-primary/40', 'ring-inset', 'rounded']
+        if (key && graphEventSelection.isSelected(key)) {
+          classes.push('ring-2', 'ring-primary/40', 'ring-inset', 'rounded')
+        }
+        return classes
       }}
       eventClick={(info): boolean => {
         info.jsEvent.preventDefault()

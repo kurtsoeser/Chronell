@@ -14,6 +14,7 @@ import {
 } from '@/app/layout/meeting-invitation/MeetingInvitationDayPreview'
 import { eventDatetimeLocalToUtcIso, resolveDefaultEventTimeZone } from '@/lib/calendar-event-timezone'
 import { useAccountsStore } from '@/stores/accounts'
+import { useMailStore } from '@/stores/mail'
 import { logIpcError } from '@/lib/ipc-error-log'
 
 function toDatetimeLocalValue(iso: string): string {
@@ -164,6 +165,7 @@ export function MeetingProposeTimeDialog({
       void window.mailClient.calendar
         .syncAccount(account.id)
         .catch((err) => logIpcError('calendar.syncAccount', err))
+      void useMailStore.getState().archiveMessage(messageId)
       onClose()
     } finally {
       setBusy(false)

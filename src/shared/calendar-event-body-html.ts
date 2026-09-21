@@ -1,6 +1,8 @@
+import { normalizeAnchorHrefsInHtmlFragment, normalizeComposeLinkHref } from './compose-link-href'
 import { buildMsFormsResponseUrl, parseMsFormsUrl } from './note-msforms-embed'
 
-const URL_IN_TEXT_RE = /(https?:\/\/[^\s<>"']+)/gi
+/** http(s) und www.-URLs; Trailing-Satzzeichen bleiben ausserhalb des Matches. */
+const URL_IN_TEXT_RE = /(?:https?:\/\/[^\s<>"']+|www\.[^\s<>"']+)/gi
 const IFRAME_SRC_RE =
   /<iframe\b[^>]*\bsrc=["']([^"']+)["'][^>]*(?:\/>|>[\s\S]*?<\/iframe>)/gi
 
@@ -12,8 +14,21 @@ function escapeHtml(text: string): string {
     .replace(/"/g, '&quot;')
 }
 
+function trimTrailingUrlPunctuation(url: string): { hrefPart: string; trailing: string } {
+  const m = url.match(/^(.*?)([),.!?;:]+)$/)
+  if (!m) return { hrefPart: url, trailing: '' }
+  return { hrefPart: m[1], trailing: m[2] }
+}
+
+function linkifyMatchedUrl(url: string): string {
+  const { hrefPart, trailing } = trimTrailingUrlPunctuation(url)
+  const normalized = normalizeComposeLinkHref(hrefPart)
+  const href = normalized ?? hrefPart
+  return `<a href="${escapeHtml(href)}">${escapeHtml(hrefPart)}</a>${trailing}`
+}
+
 function linkifyEscapedHtml(escaped: string): string {
-  return escaped.replace(URL_IN_TEXT_RE, (url) => `<a href="${url}">${url}</a>`)
+  return escaped.replace(URL_IN_TEXT_RE, (url) => linkifyMatchedUrl(url))
 }
 
 function calendarLinkParagraph(url: string, label?: string): string {
@@ -65,12 +80,13 @@ export function isEffectivelyEmptyCalendarBodyHtml(html: string): boolean {
 /** Bare URLs ausserhalb bestehender Anker zu klickbaren Links machen. */
 export function linkifyBareUrlsInHtmlFragment(html: string): string {
   const parts = html.split(/(<a\b[^>]*>[\s\S]*?<\/a>)/gi)
-  return parts
+  const linkified = parts
     .map((part, index) => {
       if (index % 2 === 1) return part
-      return part.replace(URL_IN_TEXT_RE, (url) => `<a href="${url}">${url}</a>`)
+      return part.replace(URL_IN_TEXT_RE, (url) => linkifyMatchedUrl(url))
     })
     .join('')
+  return normalizeAnchorHrefsInHtmlFragment(linkified)
 }
 
 /**

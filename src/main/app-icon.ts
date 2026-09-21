@@ -42,3 +42,12 @@ export function resolveAppWindowIcon(): NativeImage | undefined {
   }
   return undefined
 }
+
+/** Kleines Icon für natives Datei-Drag (webContents.startDrag). */
+export function resolveDragFileIcon(): NativeImage {
+  const base = resolveAppWindowIcon()
+  if (base && !base.isEmpty()) {
+    return base.resize({ width: 32, height: 32, quality: 'better' })
+  }
+  return nativeImage.createEmpty()
+}

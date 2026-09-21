@@ -28,7 +28,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useShallow } from 'zustand/react/shallow'
-import { useMailStore } from '@/stores/mail'
+import { useMailStore, mailListUsesCrossAccountThreadScope } from '@/stores/mail'
 import { logIpcError } from '@/lib/ipc-error-log'
 import { useAccountsStore } from '@/stores/accounts'
 import { threadGroupingKey } from '@/lib/thread-group'
@@ -48,6 +48,7 @@ import {
   useMailPreviewScaleStore
 } from '@/stores/mail-preview-scale'
 import { useMailPreviewZoom } from '@/hooks/use-mail-preview-zoom'
+import { htmlToReadablePlainText } from '@/lib/html-to-readable-plain-text'
 import { useSnoozeUiStore } from '@/stores/snooze-ui'
 import { useUndoStore } from '@/stores/undo'
 import { showAppAlert } from '@/stores/app-dialog'
@@ -104,6 +105,7 @@ import {
 import { MailConversationPreview } from '@/app/layout/MailConversationPreview'
 import { useConversationThreadMessages } from '@/app/layout/use-conversation-thread-messages'
 import { MeetingInvitationPanel } from '@/app/layout/meeting-invitation/MeetingInvitationPanel'
+import { CopilotAssistPanel } from '@/components/copilot/CopilotAssistPanel'
 import { looksLikeMeetingInvitationMail } from '@shared/meeting-invitation-detect'
 import { isMeetingCalendarAttachment } from '@shared/meeting-invitation-attachment'
 import { useCreateCloudTaskUiStore } from '@/stores/create-cloud-task-ui'
@@ -207,7 +209,8 @@ export function ReadingPane({
     completeTodoForMessage,
     setWaitingForMessage,
     clearWaitingForMessage,
-    selectMessage: selectMessageInStore
+    selectMessage: selectMessageInStore,
+    selectMessageWithThreadPreview: selectMessageWithThreadPreviewInStore
   } = useMailStore(
     useShallow((s) => ({
       setMessageRead: s.setMessageRead,
@@ -220,10 +223,13 @@ export function ReadingPane({
       completeTodoForMessage: s.completeTodoForMessage,
       setWaitingForMessage: s.setWaitingForMessage,
       clearWaitingForMessage: s.clearWaitingForMessage,
-      selectMessage: s.selectMessage
+      selectMessage: s.selectMessage,
+      selectMessageWithThreadPreview: s.selectMessageWithThreadPreview
     }))
   )
   const selectMessage = isolatedView?.selectMessage ?? selectMessageInStore
+  const selectMessageWithThreadPreview =
+    isolatedView?.selectMessage ?? selectMessageWithThreadPreviewInStore
   const accounts = useAccountsStore((s) => s.accounts)
   const profilePhotoDataUrls = useAccountsStore((s) => s.profilePhotoDataUrls)
   const autoLoadImages = useAccountsStore((s) => s.config?.autoLoadImages ?? true)
@@ -359,10 +365,21 @@ export function ReadingPane({
   const messageAccount =
     accounts.find((a) => a.id === selectedMessage?.accountId) ?? null
 
-  const conversationThread = useConversationThreadMessages(selectedMessage, threadMessages)
+  const conversationThread = useConversationThreadMessages(
+    selectedMessage,
+    threadMessages,
+    isolatedView ? true : mailListUsesCrossAccountThreadScope(listKind)
+  )
 
   const viewerTheme = useComposeEditorEffectiveTheme()
   const toggleViewerTheme = useComposeEditorThemeStore((s) => s.toggle)
+  const [bodyViewMode, setBodyViewMode] = useState<'html' | 'plain'>('html')
+
+  const selectedBodyStoredLabel = useMemo(() => {
+    if (selectedMessage?.bodyHtml?.trim()) return t('mail.readingPane.bodyViewStoredHtml')
+    if (selectedMessage?.bodyText?.trim()) return t('mail.readingPane.bodyViewStoredPlain')
+    return t('mail.readingPane.bodyViewStoredEmpty')
+  }, [selectedMessage?.bodyHtml, selectedMessage?.bodyText, t])
 
   // Auto-Read: nach 800ms im Lesebereich als gelesen markieren (max. ein Versuch pro Nachricht)
   useEffect(() => {
@@ -538,6 +555,34 @@ export function ReadingPane({
           label={viewerTheme === 'light' ? t('mail.readingPane.viewerLight') : t('mail.readingPane.viewerDark')}
           onClick={toggleViewerTheme}
         />
+        <button
+          type="button"
+          disabled={!selectedMessage}
+          aria-pressed={bodyViewMode === 'plain'}
+          title={
+            bodyViewMode === 'html'
+              ? t('mail.readingPane.bodyViewHtmlTitle', { stored: selectedBodyStoredLabel })
+              : t('mail.readingPane.bodyViewPlainTitle', { stored: selectedBodyStoredLabel })
+          }
+          aria-label={
+            bodyViewMode === 'html'
+              ? t('mail.readingPane.bodyViewHtmlTitle', { stored: selectedBodyStoredLabel })
+              : t('mail.readingPane.bodyViewPlainTitle', { stored: selectedBodyStoredLabel })
+          }
+          onClick={(): void => setBodyViewMode((m) => (m === 'html' ? 'plain' : 'html'))}
+          className={cn(
+            'flex h-7 shrink-0 items-center rounded-md px-1.5 text-[10px] font-bold tracking-wide transition-colors',
+            !selectedMessage
+              ? 'cursor-not-allowed text-muted-foreground/40'
+              : bodyViewMode === 'plain'
+                ? 'bg-secondary text-foreground'
+                : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+          )}
+        >
+          {bodyViewMode === 'plain'
+            ? t('mail.readingPane.bodyViewPlainShort')
+            : t('mail.readingPane.bodyViewHtmlShort')}
+        </button>
         <MailPreviewZoomToolbar hidePercent={toolbarNarrow} />
 
         <label className="sr-only" htmlFor="readingpane-quickstep">
@@ -709,11 +754,7 @@ export function ReadingPane({
         />
       ) : (
         <ContentCrossfade
-          contentKey={
-            conversationThread
-              ? `thread:${conversationThread.map((m) => m.id).join(',')}:${selectedMessageId}`
-              : selectedMessageId
-          }
+          contentKey={selectedMessageId}
           className="flex min-h-0 flex-1 flex-col overflow-hidden"
         >
           {hideEntityConnections ? (
@@ -721,7 +762,9 @@ export function ReadingPane({
               message={selectedMessage}
               account={messageAccount}
               viewerTheme={viewerTheme}
+              bodyViewMode={bodyViewMode}
               autoLoadImages={autoLoadImages}
+              bodyPending={messageLoading}
               hideEntityConnections
               onReply={(): void => openReply('reply', selectedMessage)}
               onReplyAll={(): void => openReply('replyAll', selectedMessage)}
@@ -738,7 +781,7 @@ export function ReadingPane({
               profilePhotoDataUrls={profilePhotoDataUrls}
               foldersByAccount={foldersByAccount}
               onSelectMessage={(id): void => {
-                void selectMessage(id)
+                void selectMessageWithThreadPreview(id)
               }}
             >
               {(expanded): JSX.Element => (
@@ -746,7 +789,9 @@ export function ReadingPane({
                   message={expanded}
                   account={messageAccount}
                   viewerTheme={viewerTheme}
+                  bodyViewMode={bodyViewMode}
                   autoLoadImages={autoLoadImages}
+                  bodyPending={messageLoading && expanded.id === selectedMessageId}
                   conversationTile
                   onReply={(): void => openReply('reply', expanded)}
                   onReplyAll={(): void => openReply('replyAll', expanded)}
@@ -762,7 +807,9 @@ export function ReadingPane({
                   message={selectedMessage}
                   account={messageAccount}
                   viewerTheme={viewerTheme}
+                  bodyViewMode={bodyViewMode}
                   autoLoadImages={autoLoadImages}
+                  bodyPending={messageLoading}
                   conversationTile
                   onReply={(): void => openReply('reply', selectedMessage)}
                   onReplyAll={(): void => openReply('replyAll', selectedMessage)}
@@ -819,7 +866,9 @@ function MailReader({
   message,
   account,
   viewerTheme,
+  bodyViewMode = 'html',
   autoLoadImages,
+  bodyPending = false,
   hideEntityConnections = false,
   conversationTile = false,
   onReply,
@@ -830,7 +879,10 @@ function MailReader({
   message: MailFull
   account: ConnectedAccount | null
   viewerTheme: MailViewerTheme
+  bodyViewMode?: 'html' | 'plain'
   autoLoadImages: boolean
+  /** Body wird noch nachgeladen (sofortige Header-Vorschau). */
+  bodyPending?: boolean
   hideEntityConnections?: boolean
   /** Konversations-Kachel: kein Vollbild-Flex, keine Kopf-Trennlinie. */
   conversationTile?: boolean
@@ -974,21 +1026,76 @@ function MailReader({
   const showAttachmentLoading =
     attachmentsLoading && message.hasAttachments && visibleAttachments.length === 0
 
+  const copilotMailContext = useMemo(() => {
+    const plain =
+      message.bodyText?.trim() ||
+      (message.bodyHtml?.trim() ? htmlToReadablePlainText(message.bodyHtml) : '')
+    const clipped = plain.slice(0, 12_000)
+    const header = [
+      'EMAIL',
+      message.subject?.trim() ? `Subject: ${message.subject.trim()}` : null,
+      message.fromAddr?.trim()
+        ? `From: ${message.fromName?.trim() || message.fromAddr.trim()}`
+        : null,
+      message.toAddrs?.trim() ? `To: ${message.toAddrs.trim()}` : null,
+      message.receivedAt ? `Received: ${message.receivedAt}` : null,
+      '',
+      clipped || '(no body text)'
+    ]
+      .filter((line) => line != null)
+      .join('\n')
+    return [header]
+  }, [
+    message.bodyHtml,
+    message.bodyText,
+    message.fromAddr,
+    message.fromName,
+    message.receivedAt,
+    message.subject,
+    message.toAddrs
+  ])
+
   const safeHtml = useMemo(() => {
+    const color = viewerTheme === 'light' ? '#1f1f23' : '#1a1a1a'
+    const fontPx = Math.round(14 * previewScale)
+    const muted = viewerTheme === 'light' ? '#6b6b73' : '#5c5c5c'
+
+    const renderPlain = (plain: string): string => {
+      const escaped = escapeHtml(plain).replace(/\n/g, '<br>')
+      // Dunkel: invert()-Filter im Shadow-Root — dunkle Vorschlagsfarbe wird hell dargestellt.
+      return `<pre style="white-space:pre-wrap;font-family:inherit;font-size:${fontPx}px;color:${color};">${escaped}</pre>`
+    }
+
+    const hasBody = Boolean(message.bodyHtml?.trim() || message.bodyText?.trim())
+    if (bodyPending && !hasBody) return ''
+
+    if (bodyViewMode === 'plain') {
+      const plain =
+        message.bodyText?.trim() ||
+        (message.bodyHtml?.trim() ? htmlToReadablePlainText(message.bodyHtml) : '')
+      if (plain) return renderPlain(plain)
+      return `<p style="color:${muted};font-style:italic;">${t('mail.readingPane.noContent')}</p>`
+    }
+
     if (message.bodyHtml) {
       const withInline = replaceInlineCidImages(message.bodyHtml, inlineImages)
       return sanitizeMailHtml(stripUnresolvedCidUrls(withInline), { loadImages })
     }
     if (message.bodyText) {
-      const escaped = escapeHtml(message.bodyText).replace(/\n/g, '<br>')
-      // Dunkel: invert()-Filter im Shadow-Root — dunkle Vorschlagsfarbe wird hell dargestellt.
-      const color = viewerTheme === 'light' ? '#1f1f23' : '#1a1a1a'
-      const fontPx = Math.round(14 * previewScale)
-      return `<pre style="white-space:pre-wrap;font-family:inherit;font-size:${fontPx}px;color:${color};">${escaped}</pre>`
+      return renderPlain(message.bodyText)
     }
-    const muted = viewerTheme === 'light' ? '#6b6b73' : '#5c5c5c'
     return `<p style="color:${muted};font-style:italic;">${t('mail.readingPane.noContent')}</p>`
-  }, [message.bodyHtml, message.bodyText, loadImages, viewerTheme, inlineImages, previewScale, t])
+  }, [
+    bodyPending,
+    bodyViewMode,
+    message.bodyHtml,
+    message.bodyText,
+    loadImages,
+    viewerTheme,
+    inlineImages,
+    previewScale,
+    t
+  ])
 
   const shadowInnerHtml = useMemo(
     () =>
@@ -1213,13 +1320,39 @@ function MailReader({
         />
       ) : null}
 
+      {message.accountId.startsWith('ms:') ? (
+        <CopilotAssistPanel
+          accountId={message.accountId}
+          contextKey={`mail:${message.id}`}
+          contextTexts={copilotMailContext}
+          primaryPrompt={t('copilot.mail.summarizePrompt')}
+          primaryActionLabel={t('copilot.mail.summarize')}
+          title={t('copilot.mail.title')}
+          className="mx-4 mt-2"
+          retrievalQuery={message.subject?.trim() || null}
+          collapsedDefault
+          noteTarget={{
+            kind: 'mail',
+            messageId: message.id,
+            title: message.subject || t('common.noSubject')
+          }}
+        />
+      ) : null}
+
+      {bodyPending && !message.bodyHtml?.trim() && !message.bodyText?.trim() ? (
+        <LoadingIndicator
+          className={conversationTile ? 'min-h-[8rem] px-6 py-8' : 'min-h-0 flex-1'}
+          label={t('mail.readingPane.loadingMail')}
+        />
+      ) : null}
       <div
         ref={shadowHostRef}
         className={cn(
           'mail-reading-shadow-host chronell-surface-flat flex min-w-0 flex-col touch-pan-y',
           conversationTile
             ? 'overflow-visible px-6 pb-0'
-            : 'min-h-0 flex-1 overflow-auto'
+            : 'min-h-0 flex-1 overflow-auto',
+          bodyPending && !message.bodyHtml?.trim() && !message.bodyText?.trim() && 'hidden'
         )}
         style={{ zoom: previewScale }}
         data-mail-viewer-theme={viewerTheme}
@@ -1317,6 +1450,17 @@ function MailPreviewAttachmentsPanel({
 }): JSX.Element {
   const { t } = useTranslation()
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [dragPathById, setDragPathById] = useState<Record<string, string>>({})
+  const [dragPreparingId, setDragPreparingId] = useState<string | null>(null)
+  const dragPrepareInFlight = useRef<Set<string>>(new Set())
+  const dragPathByIdRef = useRef<Record<string, string>>({})
+
+  useEffect(() => {
+    setDragPathById({})
+    dragPathByIdRef.current = {}
+    setDragPreparingId(null)
+    dragPrepareInFlight.current.clear()
+  }, [messageId])
 
   async function open(a: AttachmentMeta): Promise<void> {
     setBusyId(a.id)
@@ -1348,6 +1492,24 @@ function MailPreviewAttachmentsPanel({
     }
   }
 
+  async function prepareDrag(a: AttachmentMeta): Promise<void> {
+    if (dragPathByIdRef.current[a.id] || dragPrepareInFlight.current.has(a.id)) return
+    dragPrepareInFlight.current.add(a.id)
+    setDragPreparingId(a.id)
+    try {
+      const res = await window.mailClient.mail.prepareAttachmentDrag(messageId, a.id)
+      if (res.ok && res.filePath) {
+        dragPathByIdRef.current = { ...dragPathByIdRef.current, [a.id]: res.filePath }
+        setDragPathById(dragPathByIdRef.current)
+      } else if (res.error) {
+        console.warn('[mail] prepare attachment drag failed:', res.error)
+      }
+    } finally {
+      dragPrepareInFlight.current.delete(a.id)
+      setDragPreparingId((cur) => (cur === a.id ? null : cur))
+    }
+  }
+
   const attachmentLabel =
     attachments.length === 1
       ? t('mail.readingPane.attachment_one')
@@ -1363,17 +1525,40 @@ function MailPreviewAttachmentsPanel({
           </div>
         ) : (
           <div className="flex flex-wrap gap-2">
-            {attachments.map((a) => (
-              <LocalAttachmentChip
-                key={a.id}
-                name={a.name}
-                contentType={a.contentType ?? 'application/octet-stream'}
-                size={a.size ?? null}
-                onOpen={busyId === a.id ? undefined : (): void => void open(a)}
-                onSaveAs={busyId === a.id ? undefined : (): void => void saveAs(a)}
-                saveAsLabel={t('mail.readingPane.saveAttachmentAsTitle')}
-              />
-            ))}
+            {attachments.map((a) => {
+              const dragPath = dragPathById[a.id]
+              const preparing = dragPreparingId === a.id
+              return (
+                <LocalAttachmentChip
+                  key={a.id}
+                  name={a.name}
+                  contentType={a.contentType ?? 'application/octet-stream'}
+                  size={a.size ?? null}
+                  onOpen={busyId === a.id ? undefined : (): void => void open(a)}
+                  onSaveAs={busyId === a.id ? undefined : (): void => void saveAs(a)}
+                  saveAsLabel={t('mail.readingPane.saveAttachmentAsTitle')}
+                  draggable
+                  dragPreparing={preparing}
+                  onDragPrepare={(): void => void prepareDrag(a)}
+                  onNativeDragStart={(): boolean => {
+                    const readyPath = dragPathByIdRef.current[a.id]
+                    if (!readyPath) {
+                      void prepareDrag(a)
+                      return false
+                    }
+                    window.mailClient.mail.startAttachmentDrag(readyPath)
+                    return true
+                  }}
+                  dragTitle={
+                    preparing
+                      ? t('mail.readingPane.attachmentDragPreparing')
+                      : dragPath
+                        ? t('mail.readingPane.attachmentDragReady')
+                        : t('mail.readingPane.attachmentDragHint')
+                  }
+                />
+              )
+            })}
           </div>
         )}
       </PreviewMetaRow>

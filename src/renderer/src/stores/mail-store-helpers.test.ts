@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  mailListItemAsPreviewShell,
   pickSuccessorMessageId,
   type MailNavigableLayoutState
 } from './mail-store-helpers'
@@ -53,5 +54,25 @@ describe('pickSuccessorMessageId', () => {
   it('gibt null zurueck, wenn die einzige Mail entfernt wird', () => {
     const state = baseState([makeMailListItem(1)])
     expect(pickSuccessorMessageId(state, 1)).toBeNull()
+  })
+})
+
+describe('mailListItemAsPreviewShell', () => {
+  it('baut eine MailFull-Huelle ohne Body', () => {
+    const item = makeMailListItem(42, {
+      subject: 'Hallo',
+      snippet: 'Kurz',
+      todoId: 7,
+      todoDueKind: 'today',
+      todoDueAt: '2026-01-01T10:00:00.000Z'
+    })
+    const shell = mailListItemAsPreviewShell(item)
+    expect(shell.id).toBe(42)
+    expect(shell.subject).toBe('Hallo')
+    expect(shell.bodyHtml).toBeNull()
+    expect(shell.bodyText).toBeNull()
+    expect(shell.openTodoId).toBe(7)
+    expect(shell.openTodoDueKind).toBe('today')
+    expect(shell.openTodoDueAt).toBe('2026-01-01T10:00:00.000Z')
   })
 })

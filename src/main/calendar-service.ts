@@ -1,5 +1,6 @@
 import { listAccounts } from './accounts'
 import { runGraphMailboxRequest } from './graph/graph-account-request'
+import { formatGraphErrorMessage } from './graph/graph-request-errors'
 import { mapWithConcurrency } from './map-with-concurrency'
 import {
   graphListCalendarView,
@@ -13,6 +14,7 @@ import {
   graphPatchCalendarEventTimes,
   graphDeleteCalendarEvent,
   graphPatchEventCategories,
+  graphPatchEventStatus,
   graphGetCalendarEvent,
   type GraphCalendarEventRow,
   type CreateTeamsCalendarEventInput,
@@ -26,6 +28,7 @@ import {
   googleCreateEvent,
   googleUpdateEvent,
   googlePatchEventTimes,
+  googlePatchEventStatus,
   googleDeleteEvent,
   googleGetCalendarEventDetail
 } from './google/calendar-google'
@@ -51,6 +54,8 @@ import type {
   ConnectedAccount,
   CalendarGetEventInput,
   CalendarGetEventResult,
+  CalendarRespondToEventInput,
+  CalendarRespondToEventResult,
   CalendarFindLocalFreeSlotsInput,
   CalendarFreeSlot,
   CalendarGetAttendeeScheduleInput,
@@ -63,6 +68,7 @@ import {
   graphGetAttendeeSchedule,
   graphFindMeetingTimes
 } from './graph/calendar-graph'
+import { respondToGraphCalendarEvent } from './graph/calendar-meeting-response'
 
 export type CalendarListEventsFocus =
   | null
@@ -172,7 +178,10 @@ function rowToView(acc: ConnectedAccount, r: GraphCalendarEventRow, source: 'mic
     categories: r.categories.length > 0 ? r.categories : undefined,
     displayColorHex: r.displayColorHex,
     graphCalendarId: r.graphCalendarId,
-    calendarCanEdit: r.calendarCanEdit !== false
+    calendarCanEdit: r.calendarCanEdit !== false,
+    showAs: r.showAs ?? null,
+    sensitivity: r.sensitivity ?? null,
+    isSeries: r.isSeries === true
   }
 }
 
@@ -380,7 +389,7 @@ export async function getCalendarEventForAccount(input: CalendarGetEventInput): 
   } else if (acc.provider !== 'microsoft') {
     throw new Error('Kalender-Termin-Details werden fuer dieses Konto nicht unterstuetzt.')
   } else {
-    detail = await graphGetCalendarEvent(input.accountId, graphEventId, graphCalendarId)
+    detail = await graphGetCalendarEvent(input.accountId, graphEventId, graphCalendarId, acc.email)
   }
   return detail
 }
@@ -400,7 +409,9 @@ export async function createSimpleCalendarEventForAccount(
       bodyHtml: input.bodyHtml,
       recurrence: input.recurrence ?? null,
       attendeeEmails: input.attendeeEmails,
-      timeZone: input.timeZone ?? null
+      timeZone: input.timeZone ?? null,
+      showAs: input.showAs ?? null,
+      sensitivity: input.sensitivity ?? null
     })
     if (input.attachments?.length || input.referenceAttachments?.length) {
       await addCalendarEventAttachments(input.accountId, r.id, input.graphCalendarId ?? null, {
@@ -423,7 +434,9 @@ export async function createSimpleCalendarEventForAccount(
     teamsMeeting: input.teamsMeeting,
     recurrence: input.recurrence ?? null,
     reminderMinutesBeforeStart: input.reminderMinutesBeforeStart ?? null,
-    timeZone: input.timeZone ?? null
+    timeZone: input.timeZone ?? null,
+    showAs: input.showAs ?? null,
+    sensitivity: input.sensitivity ?? null
   })
   if (input.attachments?.length || input.referenceAttachments?.length) {
     await addCalendarEventAttachments(input.accountId, r.id, input.graphCalendarId ?? null, {
@@ -463,7 +476,10 @@ export async function updateCalendarEventForAccount(input: CalendarUpdateEventIn
       location: input.location,
       bodyHtml: input.bodyHtml,
       attendeeEmails: input.attendeeEmails,
-      timeZone: input.timeZone ?? null
+      recurrence: input.recurrence ?? null,
+      timeZone: input.timeZone ?? null,
+      showAs: input.showAs ?? null,
+      sensitivity: input.sensitivity ?? null
     })
     if (input.attachments?.length || input.referenceAttachments?.length) {
       await addCalendarEventAttachments(input.accountId, input.graphEventId, calId, {
@@ -485,8 +501,11 @@ export async function updateCalendarEventForAccount(input: CalendarUpdateEventIn
     categories: rest.categories,
     attendeeEmails: rest.attendeeEmails,
     teamsMeeting: rest.teamsMeeting,
+    recurrence: rest.recurrence ?? null,
     reminderMinutesBeforeStart: rest.reminderMinutesBeforeStart ?? null,
-    timeZone: rest.timeZone ?? null
+    timeZone: rest.timeZone ?? null,
+    showAs: rest.showAs ?? null,
+    sensitivity: rest.sensitivity ?? null
   })
   if (input.attachments?.length || input.referenceAttachments?.length) {
     await addCalendarEventAttachments(accountId, graphEventId, input.graphCalendarId ?? null, {
@@ -540,6 +559,37 @@ export async function deleteCalendarEventForAccount(input: CalendarDeleteEventIn
   await graphDeleteCalendarEvent(input.accountId, input.graphEventId, input.graphCalendarId ?? null)
 }
 
+export async function respondToCalendarEventForAccount(
+  input: CalendarRespondToEventInput
+): Promise<CalendarRespondToEventResult> {
+  const accounts = await listAccounts()
+  const acc = accounts.find((a) => a.id === input.accountId)
+  if (!acc || acc.provider !== 'microsoft') {
+    return { ok: false, error: 'Teilnahmeantwort ist nur fuer Microsoft-Konten verfuegbar.' }
+  }
+  const graphEventId = input.graphEventId?.trim()
+  if (!graphEventId) {
+    return { ok: false, error: 'graphEventId fehlt.' }
+  }
+  try {
+    const result = await respondToGraphCalendarEvent(input.accountId, graphEventId, input.response, {
+      graphCalendarId: input.graphCalendarId ?? null,
+      scope: input.scope === 'series' ? 'series' : 'this',
+      comment: input.comment ?? null,
+      sendResponse: input.sendResponse !== false
+    })
+    return {
+      ok: true,
+      selfPartStat: result.selfPartStat,
+      respondedEventId: result.respondedEventId,
+      scope: result.scope,
+      ...(result.removedWithoutResponse ? { removedWithoutResponse: true } : {})
+    }
+  } catch (e) {
+    return { ok: false, error: formatGraphErrorMessage(e) }
+  }
+}
+
 export async function patchCalendarEventCategories(
   accountId: string,
   graphEventId: string,
@@ -547,6 +597,34 @@ export async function patchCalendarEventCategories(
   graphCalendarId?: string | null
 ): Promise<void> {
   await graphPatchEventCategories(accountId, graphEventId, categories, graphCalendarId)
+}
+
+export async function patchCalendarEventStatusForAccount(
+  input: import('@shared/types').CalendarPatchEventStatusInput
+): Promise<void> {
+  const graphEventId = input.graphEventId?.trim()
+  if (!graphEventId) throw new Error('graphEventId fehlt.')
+  const accounts = await listAccounts()
+  const acc = accounts.find((a) => a.id === input.accountId)
+  if (!acc) throw new Error('Konto nicht gefunden.')
+
+  if (acc.provider === 'google') {
+    const calId = input.graphCalendarId?.trim()
+    if (!calId) throw new Error('Google: Kalender-ID fehlt (graphCalendarId).')
+    await googlePatchEventStatus(input.accountId, calId, graphEventId, {
+      showAs: input.showAs ?? null,
+      sensitivity: input.sensitivity ?? null
+    })
+    return
+  }
+  if (acc.provider !== 'microsoft') {
+    throw new Error('Status aendern ist nur fuer Microsoft- und Google-Konten verfuegbar.')
+  }
+  await graphPatchEventStatus(input.accountId, graphEventId, {
+    showAs: input.showAs ?? null,
+    sensitivity: input.sensitivity ?? null,
+    graphCalendarId: input.graphCalendarId ?? null
+  })
 }
 
 export async function buildCalendarSuggestionFromMessage(

@@ -1,8 +1,9 @@
-### 1.0.4 - 26. August 2026
+### 1.0.5 - 21. September 2026
 
-- **Kalender:** Kalender und Termine: Dialog, Vorschau, Kategorien und Shell (ueberarbeiteter Termin-Dialog)
-- **Mail:** Mail-Arbeitsbereich: Sidebar, Anhaenge, EWS und Aktionen (Kontext-Sidebar in Mail (Kontakt, Historie, Kalender))
-- **Notizen:** Notizen und Kalender-Pane (Notizen-Modul)
-- **Homepage:** Release-Texte, Homepage-Timeline und Download auf 1.0.4
+- **Copilot:** Work IQ und Copilot-Assistenz für Mail und Kalender — Zusammenfassungen, Meeting-Prep, Quellen-Pills und lokaler Cache
+- **Kalender:** KI-Meeting-Insights in der Termin-Vorschau; Teams-Link und Link kopieren sofort im Sticky-Header
+- **Termin-Vorschau:** Einheitliche Abschnitte (Info, Copilot, Beschreibung, Notiz, Kontext) mit einem gemeinsamen Scroll und ohne Höhen-Splitter
+- **Mail:** Textbausteine im Composer sowie verbesserte Einladungs- und RSVP-Abläufe
+- **Homepage:** Release-Texte, Timeline und Download auf 1.0.5
 
 Download: https://chronell.app/

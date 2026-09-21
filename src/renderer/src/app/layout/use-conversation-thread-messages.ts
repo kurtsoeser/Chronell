@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { threadGroupingKey } from '@/lib/thread-group'
 import { compareMessageChronoDesc } from '@/lib/thread-display-pick'
 import { dedupeMailListThreadMessagesById } from '@/lib/mail-list-ui'
@@ -14,13 +14,15 @@ function sortThreadMessages(msgs: MailListItem[]): MailListItem[] {
  */
 export function useConversationThreadMessages(
   selectedMessage: MailFull | null,
-  threadMessages: Record<string, MailListItem[]>
+  threadMessages: Record<string, MailListItem[]>,
+  namespaceByAccount = true
 ): MailListItem[] | null {
   const [fetched, setFetched] = useState<MailListItem[] | null>(null)
+  const activeFetchKeyRef = useRef<string | null>(null)
 
   const threadKey = useMemo(
-    () => (selectedMessage ? threadGroupingKey(selectedMessage, true) : null),
-    [selectedMessage]
+    () => (selectedMessage ? threadGroupingKey(selectedMessage, namespaceByAccount) : null),
+    [selectedMessage, namespaceByAccount]
   )
 
   const fromCache = useMemo((): MailListItem[] | null => {
@@ -31,15 +33,33 @@ export function useConversationThreadMessages(
   }, [selectedMessage, threadKey, threadMessages])
 
   useEffect(() => {
-    setFetched(null)
-    if (!selectedMessage) return
-    const tk = selectedMessage.remoteThreadId?.trim()
-    if (!tk) return
-    if (fromCache && fromCache.length > 1) return
+    if (!selectedMessage || threadKey == null) {
+      setFetched(null)
+      activeFetchKeyRef.current = null
+      return
+    }
+    const remoteThreadId = selectedMessage.remoteThreadId?.trim()
+    if (!remoteThreadId) {
+      setFetched(null)
+      activeFetchKeyRef.current = null
+      return
+    }
+    if (fromCache && fromCache.length > 1) {
+      activeFetchKeyRef.current = threadKey
+      return
+    }
+
+    if (activeFetchKeyRef.current !== threadKey) {
+      setFetched(null)
+      activeFetchKeyRef.current = threadKey
+    }
 
     let cancelled = false
     void window.mailClient.mail
-      .listMessagesByThreads({ accountId: selectedMessage.accountId, threadKeys: [tk] })
+      .listMessagesByThreads({
+        accountId: selectedMessage.accountId,
+        threadKeys: [remoteThreadId]
+      })
       .then((list) => {
         if (cancelled) return
         const sorted = sortThreadMessages(list)
@@ -52,7 +72,7 @@ export function useConversationThreadMessages(
     return (): void => {
       cancelled = true
     }
-  }, [selectedMessage?.id, selectedMessage?.accountId, selectedMessage?.remoteThreadId, fromCache])
+  }, [selectedMessage, threadKey, fromCache])
 
   return fromCache ?? fetched
 }

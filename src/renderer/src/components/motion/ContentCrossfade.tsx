@@ -30,7 +30,7 @@ export function ContentCrossfade({
     const id = window.setTimeout(() => {
       setDisplayKey(contentKey)
       setVisible(true)
-    }, 100)
+    }, 40)
     return (): void => window.clearTimeout(id)
   }, [contentKey, displayKey, reducedMotion])
 

@@ -1,5 +1,8 @@
 import type {
   CalendarParseMeetingFromMessageResult,
+  CalendarPatchScheduleInput,
+  CalendarRescheduleMeetingInput,
+  CalendarRescheduleMeetingResult,
   CalendarRespondToMeetingInput,
   CalendarRespondToMeetingResult,
   MeetingAttendeePartStat,
@@ -20,8 +23,10 @@ import { getMessageById } from './db/messages-repo-ops'
 import { fetchMailAttachmentsMeta, downloadMailAttachmentBytes } from './mail-attachment-fetch'
 import {
   enrichGraphMeetingInvitation,
-  respondToGraphMeetingInvitation
+  respondToGraphMeetingInvitation,
+  resolveGraphEventId
 } from './graph/calendar-meeting-response'
+import { formatGraphErrorMessage } from './graph/graph-request-errors'
 import { fetchMeetingInvitationFromGraphMessage } from './graph/meeting-invitation-graph'
 import {
   fetchIcsTextFromGraphMessageAttachments,
@@ -29,6 +34,12 @@ import {
 } from './graph/meeting-invitation-mime'
 import { buildHeuristicMeetingInvitation } from './meeting-invitation-heuristic'
 import { mergeMeetingAttendees } from '@shared/merge-meeting-attendees'
+import { patchCalendarEventScheduleForAccount } from './calendar-service'
+import {
+  prepareCalendarEventSchedulePatch,
+  rollbackCalendarEventSchedulePatch
+} from './calendar-cache-mutations'
+import { broadcastCalendarChanged } from './ipc/ipc-broadcasts'
 
 function mapPartStat(v: IcsAttendeePartStat): MeetingAttendeePartStat {
   return v
@@ -40,6 +51,50 @@ function mapAttendees(rows: IcsMeetingAttendee[]): MeetingInvitationView['attend
     name: a.name,
     partStat: mapPartStat(a.partStat)
   }))
+}
+
+function resolveOrganizerFlags(
+  organizer: { email: string; name: string | null } | null,
+  accountEmail: string | null,
+  provider: string | undefined,
+  isCancelled: boolean,
+  isAllDay: boolean,
+  hasRecurrence: boolean
+): { isOrganizer: boolean; canReschedule: boolean; rescheduleUnsupportedReason: string | null } {
+  const self = (accountEmail ?? '').trim().toLowerCase()
+  const isOrganizer = Boolean(self && organizer?.email?.trim().toLowerCase() === self)
+  if (!isOrganizer) {
+    return { isOrganizer: false, canReschedule: false, rescheduleUnsupportedReason: null }
+  }
+  if (isCancelled) {
+    return {
+      isOrganizer: true,
+      canReschedule: false,
+      rescheduleUnsupportedReason: 'Der Termin wurde abgesagt.'
+    }
+  }
+  if (isAllDay) {
+    return {
+      isOrganizer: true,
+      canReschedule: false,
+      rescheduleUnsupportedReason: 'Fuer Ganztagstermine ist das Aendern hier nicht moeglich.'
+    }
+  }
+  if (hasRecurrence) {
+    return {
+      isOrganizer: true,
+      canReschedule: false,
+      rescheduleUnsupportedReason: 'Bearbeiten von Serienterminen wird hier nicht unterstuetzt.'
+    }
+  }
+  if (provider !== 'microsoft') {
+    return {
+      isOrganizer: true,
+      canReschedule: false,
+      rescheduleUnsupportedReason: 'Zeit aendern ist aktuell nur fuer Microsoft-Konten verfuegbar.'
+    }
+  }
+  return { isOrganizer: true, canReschedule: true, rescheduleUnsupportedReason: null }
 }
 
 function toMeetingViewFromIcs(
@@ -54,7 +109,8 @@ function toMeetingViewFromIcs(
     selfProposedStartIso: string | null
     selfProposedEndIso: string | null
     attendees: MeetingInvitationView['attendees']
-  } | null
+  } | null,
+  provider: string | undefined
 ): MeetingInvitationView {
   const icsSelfPartStat = resolveSelfMeetingPartStat(invitation.attendees, accountEmail)
   const selfPartStat = graphMeta?.selfPartStat ?? (icsSelfPartStat ? mapPartStat(icsSelfPartStat) : null)
@@ -63,6 +119,14 @@ function toMeetingViewFromIcs(
     graphMeta?.attendees,
     accountEmail,
     selfPartStat
+  )
+  const organizerFlags = resolveOrganizerFlags(
+    invitation.organizer,
+    accountEmail,
+    provider,
+    invitation.isCancelled,
+    invitation.isAllDay,
+    false
   )
   return {
     uid: invitation.uid,
@@ -85,7 +149,10 @@ function toMeetingViewFromIcs(
     respondUnsupportedReason,
     allowNewTimeProposals: graphMeta?.allowNewTimeProposals ?? true,
     selfProposedStartIso: graphMeta?.selfProposedStartIso ?? null,
-    selfProposedEndIso: graphMeta?.selfProposedEndIso ?? null
+    selfProposedEndIso: graphMeta?.selfProposedEndIso ?? null,
+    isOrganizer: organizerFlags.isOrganizer,
+    canReschedule: organizerFlags.canReschedule,
+    rescheduleUnsupportedReason: organizerFlags.rescheduleUnsupportedReason
   }
 }
 
@@ -133,7 +200,8 @@ async function enrichIcsInvitation(
       joinUrlFallback,
       canRespond,
       respondUnsupportedReason,
-      graphMeta
+      graphMeta,
+      acc?.provider
     ),
     warnings: []
   }
@@ -314,7 +382,68 @@ export async function respondToMeetingInvitation(
       selfProposedEndIso: result.selfProposedEndIso
     }
   } catch (e) {
-    const message = e instanceof Error ? e.message : String(e)
-    return { ok: false, error: message }
+    return { ok: false, error: formatGraphErrorMessage(e) }
   }
+}
+
+/**
+ * Organisator aendert Start-/Endzeit eines eigenen Termins direkt aus der Mail heraus
+ * (kein RSVP). Nutzt denselben Graph-PATCH-Pfad wie Drag & Drop im Kalender, damit
+ * Teilnehmer automatisch von Microsoft benachrichtigt werden.
+ */
+export async function rescheduleMeetingFromMessage(
+  input: CalendarRescheduleMeetingInput
+): Promise<CalendarRescheduleMeetingResult> {
+  const startIso = input.newStartIso?.trim()
+  const endIso = input.newEndIso?.trim()
+  if (!startIso || !endIso) {
+    return { ok: false, error: 'Bitte Start- und Endzeit angeben.' }
+  }
+  if (Date.parse(endIso) <= Date.parse(startIso)) {
+    return { ok: false, error: 'Die Endzeit muss nach der Startzeit liegen.' }
+  }
+
+  const parsed = await parseMeetingInvitationFromMessage(input.messageId)
+  const inv = parsed.invitation
+  if (!inv?.uid?.trim()) {
+    return { ok: false, error: 'Keine Meeting-Einladung mit UID gefunden.' }
+  }
+  if (!inv.isOrganizer) {
+    return { ok: false, error: 'Nur der Organisator kann die Zeit hier direkt aendern.' }
+  }
+  if (!inv.canReschedule) {
+    return { ok: false, error: inv.rescheduleUnsupportedReason ?? 'Zeit aendern nicht moeglich.' }
+  }
+
+  const accounts = await listAccounts()
+  const acc = accounts.find((a) => a.id === input.accountId)
+  if (!acc || acc.provider !== 'microsoft') {
+    return { ok: false, error: 'Zeit aendern ist aktuell nur fuer Microsoft-Konten verfuegbar.' }
+  }
+
+  let graphEventId: string
+  try {
+    graphEventId = await resolveGraphEventId(input.accountId, inv.uid)
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+
+  const patchInput: CalendarPatchScheduleInput = {
+    accountId: input.accountId,
+    graphEventId,
+    graphCalendarId: null,
+    startIso,
+    endIso,
+    isAllDay: false
+  }
+  const previous = prepareCalendarEventSchedulePatch(patchInput)
+  try {
+    await patchCalendarEventScheduleForAccount(patchInput)
+    broadcastCalendarChanged(input.accountId)
+  } catch (e) {
+    rollbackCalendarEventSchedulePatch(input.accountId, graphEventId, previous)
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+
+  return { ok: true, startIso, endIso }
 }

@@ -2,17 +2,28 @@ import type { Locale } from 'date-fns'
 import type { TFunction } from 'i18next'
 import {
   ArrowRightLeft,
+  Check,
+  CircleDot,
   Copy,
   ExternalLink,
   Files,
+  HelpCircle,
+  Lock,
   Pencil,
   SquareArrowOutUpRight,
   StickyNote,
   Tag,
   Trash2,
-  Video
+  Video,
+  X
 } from 'lucide-react'
-import type { CalendarEventView, CalendarGraphCalendarRow, ConnectedAccount } from '@shared/types'
+import type { CalendarEventShowAs, CalendarEventView, CalendarGraphCalendarRow, ConnectedAccount } from '@shared/types'
+import {
+  CALENDAR_EVENT_SHOW_AS_OPTIONS,
+  calendarEventSensitivityFromPrivate,
+  calendarEventSensitivityIsPrivate,
+  DEFAULT_CALENDAR_EVENT_SHOW_AS
+} from '@shared/calendar-event-status'
 import {
   calendarDestinationKey,
   destinationAccountOptgroupLabel,
@@ -22,6 +33,7 @@ import {
 import { formatCalendarEventClipboardText as formatCalendarEventClipboardTextShared } from '@shared/calendar-event-clipboard'
 import type { ContextMenuItem } from '@/components/ContextMenu'
 import { showAppAlert } from '@/stores/app-dialog'
+import { calendarEventLooksLikeExternalInvitation } from '@/lib/calendar-event-rsvp'
 
 export function formatCalendarEventClipboardText(
   ev: CalendarEventView,
@@ -56,10 +68,14 @@ export interface CalendarEventContextHandlers {
   onOpenWeb: () => void
   onOpenTeams: () => void
   onDelete: () => void
+  onAcceptInvitation?: () => void
+  onTentativeInvitation?: () => void
+  onDeclineInvitation?: () => void
 }
 
 export interface CalendarEventContextMenuExtra {
   categorySubmenu?: ContextMenuItem[]
+  statusSubmenu?: ContextMenuItem[]
   copyToSubmenu?: ContextMenuItem[]
   moveToSubmenu?: ContextMenuItem[]
 }
@@ -224,6 +240,80 @@ export async function buildCalendarEventCategorySubmenuItems(
   }
 }
 
+function showAsIcon(showAs: CalendarEventShowAs): ContextMenuItem['icon'] {
+  switch (showAs) {
+    case 'tentative':
+      return HelpCircle
+    case 'workingElsewhere':
+      return ExternalLink
+    case 'free':
+    case 'busy':
+    case 'oof':
+    default:
+      return CircleDot
+  }
+}
+
+export function buildCalendarEventStatusSubmenuItems(
+  ev: CalendarEventView,
+  onAfterChange: () => void | Promise<void>,
+  t: TFunction
+): ContextMenuItem[] {
+  if (!ev.graphEventId?.trim()) return []
+  if (ev.source !== 'microsoft' && ev.source !== 'google') return []
+  if (ev.calendarCanEdit === false) return []
+
+  const currentShowAs = ev.showAs ?? DEFAULT_CALENDAR_EVENT_SHOW_AS
+  const isPrivate = calendarEventSensitivityIsPrivate(ev.sensitivity)
+
+  const patchStatus = (patch: {
+    showAs?: CalendarEventShowAs
+    sensitivity?: ReturnType<typeof calendarEventSensitivityFromPrivate>
+  }): void => {
+    void (async (): Promise<void> => {
+      try {
+        await window.mailClient.calendar.patchEventStatus({
+          accountId: ev.accountId,
+          graphEventId: ev.graphEventId!,
+          graphCalendarId: ev.graphCalendarId ?? null,
+          ...patch
+        })
+        await onAfterChange()
+      } catch (e) {
+        const message = e instanceof Error ? e.message : String(e)
+        await showAppAlert(message, {
+          title: t('calendar.eventContextMenu.statusFailedTitle')
+        })
+      }
+    })()
+  }
+
+  const showAsItems: ContextMenuItem[] = CALENDAR_EVENT_SHOW_AS_OPTIONS.map((opt) => ({
+    id: `cal-status-showas-${opt}`,
+    label: t(`calendar.eventDialog.statusShowAs.${opt}`),
+    icon: showAsIcon(opt),
+    selected: currentShowAs === opt,
+    onSelect: (): void => {
+      if (currentShowAs === opt) return
+      patchStatus({ showAs: opt })
+    }
+  }))
+
+  return [
+    ...showAsItems,
+    { id: 'cal-status-sep-private', label: '', separator: true },
+    {
+      id: 'cal-status-private',
+      label: t('calendar.eventDialog.statusPrivate'),
+      icon: Lock,
+      selected: isPrivate,
+      onSelect: (): void => {
+        patchStatus({ sensitivity: calendarEventSensitivityFromPrivate(!isPrivate) })
+      }
+    }
+  ]
+}
+
 export function buildCalendarEventContextItems(
   ev: CalendarEventView,
   canMutateEvent: boolean,
@@ -313,6 +403,20 @@ export function buildCalendarEventContextItems(
           }
         ]
       : []),
+    ...(extra?.statusSubmenu && extra.statusSubmenu.length > 0
+      ? [
+          ...(extra?.categorySubmenu && extra.categorySubmenu.length > 0
+            ? []
+            : [{ id: 'sep-status', label: '', separator: true }]),
+          {
+            id: 'cal-status',
+            label: t('calendar.eventContextMenu.status'),
+            icon: CircleDot,
+            disabled: !canMutateEvent,
+            submenu: extra.statusSubmenu
+          }
+        ]
+      : []),
     { id: 'sep1', label: '', separator: true },
     {
       id: 'copy',
@@ -360,6 +464,39 @@ export function buildCalendarEventContextItems(
   }
   if (openers.length > 0) {
     items.push({ id: 'sep2', label: '', separator: true }, ...openers)
+  }
+
+  const canRespond =
+    calendarEventLooksLikeExternalInvitation(ev) &&
+    Boolean(ev.graphEventId?.trim()) &&
+    (h.onAcceptInvitation || h.onTentativeInvitation || h.onDeclineInvitation)
+  if (canRespond) {
+    items.push({ id: 'sep-rsvp', label: '', separator: true })
+    if (h.onAcceptInvitation) {
+      items.push({
+        id: 'rsvp-accept',
+        label: t('calendar.eventRsvp.accept'),
+        icon: Check,
+        onSelect: h.onAcceptInvitation
+      })
+    }
+    if (h.onTentativeInvitation) {
+      items.push({
+        id: 'rsvp-tentative',
+        label: t('calendar.eventRsvp.tentative'),
+        icon: HelpCircle,
+        onSelect: h.onTentativeInvitation
+      })
+    }
+    if (h.onDeclineInvitation) {
+      items.push({
+        id: 'rsvp-decline',
+        label: t('calendar.eventRsvp.decline'),
+        icon: X,
+        destructive: true,
+        onSelect: h.onDeclineInvitation
+      })
+    }
   }
 
   items.push({ id: 'sep3', label: '', separator: true })

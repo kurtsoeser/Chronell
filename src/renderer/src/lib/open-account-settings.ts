@@ -13,7 +13,7 @@ export type OpenAccountSettingsTab =
 
 export type OpenAccountSettingsDetail = {
   tab?: OpenAccountSettingsTab
-  /** Unterpunkt im Mail-Tab (z. B. `rules`, `signatures`). */
+  /** Unterpunkt im Mail-Tab (z. B. `rules`, `signatures`, `textSnippets`). */
   mailSubNav?: string
   /** Unterpunkt im Bookings-Tab (z. B. `personal`, `access`). */
   bookingsSubNav?: string

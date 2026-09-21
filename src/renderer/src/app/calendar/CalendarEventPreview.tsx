@@ -1,22 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import {
-  CALENDAR_PREVIEW_NOTE_PANE_HEIGHT_DEFAULT,
-  CALENDAR_PREVIEW_NOTE_PANE_HEIGHT_KEY,
-  CALENDAR_PREVIEW_NOTE_PANE_HEIGHT_MIN,
-  calendarPreviewNotePaneHeightMax
-} from '@/app/calendar/calendar-preview-storage'
-import {
-  HorizontalSplitter,
-  useResizableHeight
-} from '@/components/ResizableSplitter'
 import type { Locale } from 'date-fns'
 import { addDays, differenceInMinutes, format, parseISO, startOfDay } from 'date-fns'
 import { useDateFnsLocale } from '@/lib/date-fns-locale'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import {
+  AlignLeft,
   CalendarDays,
+  Check,
+  ChevronDown,
+  Clock,
+  Copy,
   ExternalLink,
+  HelpCircle,
+  Info,
+  Link2,
   Loader2,
   MapPin,
   Paperclip,
@@ -24,9 +22,10 @@ import {
   Tag,
   User,
   Users,
-  Video
+  Video,
+  X
 } from 'lucide-react'
-import type { CalendarEventAttachmentMeta, CalendarEventView } from '@shared/types'
+import type { CalendarEventAttachmentMeta, CalendarEventView, MeetingAttendeePartStat } from '@shared/types'
 import { CalendarEventAttachmentRow } from '@/app/calendar/CalendarEventAttachmentRow'
 import { fullCalendarEventToPatchSchedule } from '@/app/calendar/calendar-shell-view-helpers'
 import {
@@ -34,10 +33,13 @@ import {
   resolveMeetingScheduleChange
 } from '@/app/calendar/calendar-meeting-schedule-change'
 import { openExternalUrl } from '@/lib/open-external'
+import {
+  calendarEventCanRespondAsAttendee,
+  respondToCalendarEventInvitation
+} from '@/lib/calendar-event-rsvp'
 import { ChronellDateField } from '@/components/ChronellDateField'
 import { ChronellTimeField } from '@/components/ChronellTimeField'
 import {
-  previewDetailPanelClass,
   previewSectionDividerClass,
   eventDialogPanelSelectClass
 } from '@/lib/chronell-ui-classes'
@@ -50,6 +52,11 @@ import {
 import { cn } from '@/lib/utils'
 import { EntityContextBlock } from '@/components/connections/EntityContextBlock'
 import { CalendarEventDescriptionPreview } from '@/app/calendar/CalendarEventDescriptionPreview'
+import { CalendarMeetingInsightsPanel } from '@/app/calendar/CalendarMeetingInsightsPanel'
+import { formatMeetingAiInsightsForCopilotContext } from '@/app/calendar/format-meeting-ai-insights-for-copilot'
+import { useMeetingAiInsights } from '@/app/calendar/use-meeting-ai-insights'
+import { CopilotAssistPanel } from '@/components/copilot/CopilotAssistPanel'
+import { PreviewFoldSection } from '@/components/PreviewFoldSection'
 import { CalendarEventIconPicker } from '@/components/CalendarEventIconPicker'
 import { calendarEventIconIsExplicit, resolveCalendarEventIcon } from '@/lib/calendar-event-icons'
 import { sanitizeComposeHtmlFragment } from '@/lib/sanitize-compose-html'
@@ -115,6 +122,28 @@ function locationMapsUrl(location: string): string {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`
 }
 
+/** Ort ist redundant, wenn schon ein Join-Link im Header existiert. */
+function isRedundantOnlineLocation(location: string, hasJoinUrl: boolean): boolean {
+  if (!hasJoinUrl) return false
+  const n = location.trim().toLowerCase()
+  if (!n) return true
+  if (/^https?:\/\//i.test(n)) return true
+  return (
+    n === 'online' ||
+    n === 'teams' ||
+    n === 'microsoft teams' ||
+    n === 'microsoft teams-besprechung' ||
+    n === 'microsoft teams meeting' ||
+    n.includes('microsoft teams meeting') ||
+    n.includes('teams-besprechung') ||
+    n === 'zoom' ||
+    n === 'webex' ||
+    n === 'google meet'
+  )
+}
+
+const INFO_ATTENDEE_PREVIEW = 3
+
 function PreviewDetailRow(props: {
   icon: typeof MapPin
   label: string
@@ -122,10 +151,10 @@ function PreviewDetailRow(props: {
 }): JSX.Element {
   const Icon = props.icon
   return (
-    <div className="flex gap-2.5 py-2.5 first:pt-0 last:pb-0">
-      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+    <div className="flex gap-2.5 py-2.5">
+      <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
       <div className="min-w-0 flex-1 space-y-0.5">
-        <p className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
           {props.label}
         </p>
         <div className="text-sm leading-snug text-foreground">{props.children}</div>
@@ -163,13 +192,28 @@ export function CalendarEventPreview(props: {
   const [descHtml, setDescHtml] = useState('')
   const [descLoading, setDescLoading] = useState(false)
   const [descErr, setDescErr] = useState<string | null>(null)
+  const [descExpanded, setDescExpanded] = useState(false)
+  const [infoExpanded, setInfoExpanded] = useState(true)
+  const [infoDetailsExpanded, setInfoDetailsExpanded] = useState(false)
   const [attendeeEmails, setAttendeeEmails] = useState<string[]>([])
   const [teamsMeeting, setTeamsMeeting] = useState(false)
+  const [detailJoinUrl, setDetailJoinUrl] = useState<string | null>(null)
   const [detailLocation, setDetailLocation] = useState<string | null>(null)
   const [detailOrganizer, setDetailOrganizer] = useState<string | null>(null)
+  const [detailIsOrganizer, setDetailIsOrganizer] = useState<boolean | null>(null)
+  const [detailEventType, setDetailEventType] = useState<
+    'singleInstance' | 'occurrence' | 'exception' | 'seriesMaster' | null
+  >(null)
+  const [detailSeriesMasterId, setDetailSeriesMasterId] = useState<string | null>(null)
   const [attachments, setAttachments] = useState<CalendarEventAttachmentMeta[]>([])
   const [attachmentsLoading, setAttachmentsLoading] = useState(false)
   const [attachmentBusyId, setAttachmentBusyId] = useState<string | null>(null)
+  const [joinUrlCopied, setJoinUrlCopied] = useState(false)
+  const [rsvpBusy, setRsvpBusy] = useState<'accept' | 'decline' | 'tentative' | null>(null)
+  const [rsvpMenuOpen, setRsvpMenuOpen] = useState(false)
+  const rsvpMenuRef = useRef<HTMLDivElement>(null)
+  const [selfPartStat, setSelfPartStat] = useState<MeetingAttendeePartStat | null>(null)
+  const [selfResponseAtIso, setSelfResponseAtIso] = useState<string | null>(null)
 
   const [editingField, setEditingField] = useState<PreviewEditField | null>(null)
   const [titleDraft, setTitleDraft] = useState('')
@@ -201,6 +245,96 @@ export function CalendarEventPreview(props: {
   const locationLabel = (ev.location?.trim() || detailLocation?.trim() || '').trim() || null
   const organizerLabel = (ev.organizer?.trim() || detailOrganizer?.trim() || '').trim() || null
   const calendarLabel = calendarName?.trim() || null
+  const meetingJoinUrl = (detailJoinUrl?.trim() || ev.joinUrl?.trim() || '').trim() || null
+  const meetingEnded = useMemo(() => {
+    const endMs = Date.parse(ev.endIso)
+    return Number.isFinite(endMs) && endMs <= Date.now()
+  }, [ev.endIso])
+  const canRespondAsAttendee = calendarEventCanRespondAsAttendee(ev, {
+    isOrganizer: detailIsOrganizer
+  })
+
+  const { loading: meetingInsightsLoading, result: meetingInsights } = useMeetingAiInsights({
+    accountId: ev.accountId,
+    joinUrl: meetingJoinUrl,
+    endIso: ev.endIso
+  })
+
+  const meetingPrepContext = useMemo(() => {
+    const lines = [
+      ev.title?.trim() ? `Meeting: ${ev.title.trim()}` : null,
+      `When: ${ev.startIso} – ${ev.endIso}`,
+      locationLabel ? `Location: ${locationLabel}` : null,
+      organizerLabel ? `Organizer: ${organizerLabel}` : null,
+      attendeeEmails.length > 0 ? `Attendees: ${attendeeEmails.join(', ')}` : null,
+      meetingJoinUrl ? `Join URL: ${meetingJoinUrl}` : null
+    ].filter(Boolean)
+    const bodyPlain = descHtml.trim()
+      ? descHtml
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .slice(0, 6_000)
+      : ''
+    const insightsBlock = formatMeetingAiInsightsForCopilotContext(meetingInsights)
+    return [...lines, bodyPlain, insightsBlock].filter(
+      (s): s is string => !!s && s.trim().length > 0
+    )
+  }, [
+    attendeeEmails,
+    descHtml,
+    ev.endIso,
+    ev.startIso,
+    ev.title,
+    locationLabel,
+    meetingInsights,
+    meetingJoinUrl,
+    organizerLabel
+  ])
+
+  const selfResponseAtLabel = useMemo(() => {
+    if (!selfResponseAtIso) return null
+    try {
+      const d = parseISO(selfResponseAtIso)
+      if (Number.isNaN(d.getTime())) return null
+      return format(d, i18n.language.startsWith('de') ? 'd. MMM yyyy, HH:mm' : 'MMM d, yyyy, HH:mm', {
+        locale: dfLocale
+      })
+    } catch {
+      return null
+    }
+  }, [dfLocale, i18n.language, selfResponseAtIso])
+
+  const selfResponseLabel = useMemo(() => {
+    if (selfPartStat === 'accepted') {
+      return selfResponseAtLabel
+        ? t('calendar.eventRsvp.statusAcceptedAt', { when: selfResponseAtLabel })
+        : t('calendar.eventRsvp.statusAccepted')
+    }
+    if (selfPartStat === 'tentative') {
+      return selfResponseAtLabel
+        ? t('calendar.eventRsvp.statusTentativeAt', { when: selfResponseAtLabel })
+        : t('calendar.eventRsvp.statusTentative')
+    }
+    if (selfPartStat === 'declined') {
+      return selfResponseAtLabel
+        ? t('calendar.eventRsvp.statusDeclinedAt', { when: selfResponseAtLabel })
+        : t('calendar.eventRsvp.statusDeclined')
+    }
+    if (selfPartStat === 'needs-action' && canRespondAsAttendee) {
+      return t('calendar.eventRsvp.statusNeedsAction')
+    }
+    return null
+  }, [canRespondAsAttendee, selfPartStat, selfResponseAtLabel, t])
+
+  const selfResponseToneClass =
+    selfPartStat === 'accepted'
+      ? 'border-emerald-500/50 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+      : selfPartStat === 'declined'
+        ? 'border-destructive/40 bg-destructive/10 text-destructive'
+        : selfPartStat === 'tentative'
+          ? 'border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-200'
+          : 'border-border bg-secondary text-secondary-foreground'
   const noteTarget = useMemo(() => {
     const eventRemoteId = ev.graphEventId?.trim()
     if (!eventRemoteId) return null
@@ -217,30 +351,13 @@ export function CalendarEventPreview(props: {
   }, [ev.accountId, ev.graphCalendarId, ev.graphEventId, ev.source, ev.startIso, ev.title])
 
   const canEdit = ev.calendarCanEdit !== false && Boolean(ev.graphEventId)
-  const showResizableNotePane = Boolean(ev.graphEventId?.trim()) && !hideEntityContext
-  const notePaneHeightMax = calendarPreviewNotePaneHeightMax()
-  const [notePaneHeight, setNotePaneHeight] = useResizableHeight({
-    storageKey: CALENDAR_PREVIEW_NOTE_PANE_HEIGHT_KEY,
-    defaultHeight: CALENDAR_PREVIEW_NOTE_PANE_HEIGHT_DEFAULT,
-    minHeight: CALENDAR_PREVIEW_NOTE_PANE_HEIGHT_MIN,
-    maxHeight: notePaneHeightMax
-  })
-
-  useEffect(() => {
-    if (!showResizableNotePane) return
-    const clamp = (): void => {
-      const max = calendarPreviewNotePaneHeightMax()
-      setNotePaneHeight((h) =>
-        Math.min(max, Math.max(CALENDAR_PREVIEW_NOTE_PANE_HEIGHT_MIN, h))
-      )
-    }
-    window.addEventListener('resize', clamp)
-    return (): void => window.removeEventListener('resize', clamp)
-  }, [showResizableNotePane, setNotePaneHeight])
 
   useEffect(() => {
     setEditingField(null)
     setInlineError(null)
+    setDescExpanded(false)
+    setInfoExpanded(true)
+    setInfoDetailsExpanded(false)
   }, [ev.id, ev.startIso, ev.endIso, ev.title])
 
   useEffect(() => {
@@ -265,8 +382,14 @@ export function CalendarEventPreview(props: {
       setDescErr(null)
       setAttendeeEmails([])
       setTeamsMeeting(false)
+      setDetailJoinUrl(null)
       setDetailLocation(null)
       setDetailOrganizer(null)
+      setDetailIsOrganizer(null)
+      setDetailEventType(null)
+      setDetailSeriesMasterId(null)
+      setSelfPartStat(null)
+      setSelfResponseAtIso(null)
       setAttachments([])
       setAttachmentsLoading(false)
       return
@@ -277,8 +400,14 @@ export function CalendarEventPreview(props: {
       setDescErr(null)
       setAttendeeEmails([])
       setTeamsMeeting(false)
+      setDetailJoinUrl(null)
       setDetailLocation(null)
       setDetailOrganizer(null)
+      setDetailIsOrganizer(null)
+      setDetailEventType(null)
+      setDetailSeriesMasterId(null)
+      setSelfPartStat(null)
+      setSelfResponseAtIso(null)
       setAttachments([])
       setAttachmentsLoading(false)
       return
@@ -301,8 +430,14 @@ export function CalendarEventPreview(props: {
         setDescHtml(raw ? sanitizeComposeHtmlFragment(raw) : '')
         setAttendeeEmails(d.attendeeEmails)
         setTeamsMeeting(!!d.isOnlineMeeting && !ev.isAllDay)
+        setDetailJoinUrl(d.joinUrl?.trim() || null)
         setDetailLocation(d.location?.trim() || null)
         setDetailOrganizer(d.organizer?.trim() || null)
+        setDetailIsOrganizer(typeof d.isOrganizer === 'boolean' ? d.isOrganizer : null)
+        setDetailEventType(d.eventType ?? null)
+        setDetailSeriesMasterId(d.seriesMasterId?.trim() || null)
+        setSelfPartStat(d.selfPartStat ?? null)
+        setSelfResponseAtIso(d.selfResponseAtIso?.trim() || null)
         setDescErr(null)
       })
       .catch((e) => {
@@ -310,8 +445,14 @@ export function CalendarEventPreview(props: {
         setDescHtml('')
         setAttendeeEmails([])
         setTeamsMeeting(false)
+        setDetailJoinUrl(null)
         setDetailLocation(null)
         setDetailOrganizer(null)
+        setDetailIsOrganizer(null)
+        setDetailEventType(null)
+        setDetailSeriesMasterId(null)
+        setSelfPartStat(null)
+        setSelfResponseAtIso(null)
         setDescErr(e instanceof Error ? e.message : String(e))
       })
       .finally(() => {
@@ -341,10 +482,84 @@ export function CalendarEventPreview(props: {
     }
   }, [ev.accountId, ev.graphCalendarId, ev.graphEventId, ev.isAllDay, ev.source])
 
+  useEffect(() => {
+    setJoinUrlCopied(false)
+  }, [meetingJoinUrl])
+
+  useEffect(() => {
+    if (!rsvpMenuOpen) return
+    const onDoc = (e: MouseEvent): void => {
+      const t = e.target
+      if (!(t instanceof Node)) return
+      if (rsvpMenuRef.current?.contains(t)) return
+      setRsvpMenuOpen(false)
+    }
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') setRsvpMenuOpen(false)
+    }
+    document.addEventListener('mousedown', onDoc)
+    document.addEventListener('keydown', onKey)
+    return (): void => {
+      document.removeEventListener('mousedown', onDoc)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [rsvpMenuOpen])
+
+  useEffect(() => {
+    setRsvpMenuOpen(false)
+  }, [ev.id, ev.graphEventId])
+
   const cancelInlineEdit = useCallback((): void => {
     setEditingField(null)
     setInlineError(null)
   }, [])
+
+  const respondAsAttendee = useCallback(
+    async (response: 'accept' | 'decline' | 'tentative'): Promise<void> => {
+      if (rsvpBusy) return
+      setErr(null)
+      setRsvpBusy(response)
+      try {
+        const res = await respondToCalendarEventInvitation(ev, response, {
+          t,
+          detail: {
+            subject: null,
+            attendeeEmails,
+            joinUrl: detailJoinUrl,
+            isOnlineMeeting: teamsMeeting,
+            bodyHtml: null,
+            isOrganizer: detailIsOrganizer,
+            eventType: detailEventType,
+            seriesMasterId: detailSeriesMasterId
+          }
+        })
+        if (res?.ok) {
+          if (response === 'accept') setSelfPartStat('accepted')
+          else if (response === 'tentative') setSelfPartStat('tentative')
+          else if (response === 'decline') setSelfPartStat('declined')
+          setSelfResponseAtIso(new Date().toISOString())
+          onSaved?.()
+          if (response === 'decline') {
+            // Vorschau bleibt ggf. offen; Eltern laden die Liste neu.
+          }
+        }
+      } finally {
+        setRsvpBusy(null)
+      }
+    },
+    [
+      attendeeEmails,
+      detailEventType,
+      detailIsOrganizer,
+      detailJoinUrl,
+      detailSeriesMasterId,
+      ev,
+      onSaved,
+      rsvpBusy,
+      t,
+      teamsMeeting
+    ]
+  )
 
   const openAttachment = useCallback(
     async (att: CalendarEventAttachmentMeta): Promise<void> => {
@@ -639,45 +854,114 @@ export function CalendarEventPreview(props: {
   )
 
   const entityContextBlock =
-    showResizableNotePane && noteTarget ? (
+    ev.graphEventId?.trim() && !hideEntityContext && noteTarget ? (
       <EntityContextBlock
         anchor={{
           kind: 'calendar_event',
           accountId: ev.accountId,
-          graphEventId: ev.graphEventId!
+          graphEventId: ev.graphEventId
         }}
         noteTarget={noteTarget}
-        noteEditorFillHeight
-        contextFillHeight
         dense
         contentPaddingClass="px-4"
         sectionCollapsedDefault
-        className={cn('min-h-0 flex-1', previewSectionDividerClass)}
+        className="min-h-0"
       />
     ) : null
+
+  const showLocationRow =
+    Boolean(locationLabel) && !isRedundantOnlineLocation(locationLabel!, Boolean(meetingJoinUrl))
+  /** Teams-Hinweis weglassen, wenn Join-URL bereits sichtbar ist. */
+  const showTeamsMeetingRow = teamsMeeting && !meetingJoinUrl
+  const showCategoriesRow = Boolean(ev.categories && ev.categories.length > 0)
+  const showMeetingLinkRow = Boolean(meetingJoinUrl)
+  const showCalendarRow = Boolean(calendarLabel || ev.accountEmail?.trim())
+  const showOpenInCalendar = Boolean(ev.webLink?.trim())
+  const hasInfoExtra =
+    showCalendarRow ||
+    showOpenInCalendar ||
+    showLocationRow ||
+    showCategoriesRow ||
+    showTeamsMeetingRow
+
+  const hasInfoContent =
+    showCalendarRow ||
+    Boolean(organizerLabel) ||
+    attendeeEmails.length > 0 ||
+    attachments.length > 0 ||
+    attachmentsLoading ||
+    showMeetingLinkRow ||
+    hasInfoExtra
+
+  const infoSummary = useMemo(() => {
+    const parts: string[] = []
+    if (meetingJoinUrl) parts.push(t('calendar.eventPreview.meetingLinkLabel'))
+    if (organizerLabel) parts.push(organizerLabel)
+    if (attendeeEmails.length > 0) {
+      parts.push(
+        t('calendar.eventPreview.infoAttendeesSummary', { count: attendeeEmails.length })
+      )
+    }
+    if (attachments.length > 0) {
+      parts.push(
+        t('calendar.eventPreview.infoAttachmentsSummary', { count: attachments.length })
+      )
+    }
+    return parts.length > 0 ? parts.join(' · ') : undefined
+  }, [attachments.length, attendeeEmails.length, meetingJoinUrl, organizerLabel, t])
+
+  const descriptionSummary = useMemo(() => {
+    if (descLoading) return t('calendar.eventDialog.loadingEventDetails')
+    if (descErr) return t('calendar.eventPreview.descriptionUnavailable')
+    const plain = descHtml
+      .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+    if (!plain) return t('calendar.eventDialog.descriptionEmptyReadonly')
+    return plain.length > 280 ? `${plain.slice(0, 277)}…` : plain
+  }, [descErr, descHtml, descLoading, t])
+
+  const attendeePreview = useMemo(() => {
+    if (infoDetailsExpanded || attendeeEmails.length <= INFO_ATTENDEE_PREVIEW) {
+      return { shown: attendeeEmails, hidden: 0 }
+    }
+    return {
+      shown: attendeeEmails.slice(0, INFO_ATTENDEE_PREVIEW),
+      hidden: attendeeEmails.length - INFO_ATTENDEE_PREVIEW
+    }
+  }, [attendeeEmails, infoDetailsExpanded])
+
+  const copyMeetingLink = useCallback((): void => {
+    if (!meetingJoinUrl) return
+    setErr(null)
+    void navigator.clipboard
+      .writeText(meetingJoinUrl)
+      .then(() => {
+        setJoinUrlCopied(true)
+        window.setTimeout(() => setJoinUrlCopied(false), 1600)
+      })
+      .catch((e) => setErr(e instanceof Error ? e.message : String(e)))
+  }, [meetingJoinUrl])
 
   return (
     <div
       className={cn(
-        'flex min-h-0 flex-1 flex-col bg-background',
-        showResizableNotePane ? 'overflow-hidden' : 'overflow-y-auto',
+        'flex min-h-0 flex-1 flex-col overflow-hidden bg-background',
         className
       )}
     >
-      <div className={cn(showResizableNotePane && 'min-h-0 flex-1 overflow-y-auto')}>
+      {/* Sticky Titel-Block */}
       <div
         className={cn(
-          'shrink-0 space-y-2 border-b px-4 py-3',
+          'z-20 shrink-0 space-y-2.5 border-b bg-background/95 px-4 py-3 backdrop-blur-sm',
           previewSectionDividerClass
         )}
       >
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="min-w-0 flex-1 space-y-1">
-            <p className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {ev.source === 'google'
-                ? t('calendar.eventPreview.sourceGoogle')
-                : t('calendar.eventPreview.sourceMicrosoft')}
-            </p>
             <div className="flex items-start gap-2">
               {canEdit ? (
                 <CalendarEventIconPicker
@@ -870,28 +1154,36 @@ export function CalendarEventPreview(props: {
                 )}
               </div>
             ) : (
-              <p
-                role={canEdit ? 'button' : undefined}
-                tabIndex={canEdit ? 0 : undefined}
-                title={inlineEditHandlers('schedule').title}
-                onClick={inlineEditHandlers('schedule').onClick}
-                onDoubleClick={inlineEditHandlers('schedule').onDoubleClick}
-                onKeyDown={(e): void => {
-                  if (!canEdit) return
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    beginInlineEdit('schedule')
-                  }
-                }}
-                className={cn('text-sm text-muted-foreground', clickableClass, canEdit && '-mx-1 px-1')}
-              >
-                {rangeLabel}
-              </p>
+              <div className="flex flex-wrap items-stretch gap-2">
+                <div
+                  role={canEdit ? 'button' : undefined}
+                  tabIndex={canEdit ? 0 : undefined}
+                  title={inlineEditHandlers('schedule').title}
+                  onClick={inlineEditHandlers('schedule').onClick}
+                  onDoubleClick={inlineEditHandlers('schedule').onDoubleClick}
+                  onKeyDown={(e): void => {
+                    if (!canEdit) return
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      beginInlineEdit('schedule')
+                    }
+                  }}
+                  className={cn(
+                    'inline-flex max-w-full items-center gap-2 rounded-md border border-border/80 bg-secondary/40 px-2.5 py-1.5 text-sm leading-snug text-foreground',
+                    canEdit && 'cursor-pointer hover:bg-secondary/70'
+                  )}
+                >
+                  <CalendarDays className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+                  <span className="min-w-0">{rangeLabel}</span>
+                </div>
+                {durationLabel ? (
+                  <div className="inline-flex items-center gap-2 rounded-md border border-border/80 bg-secondary/40 px-2.5 py-1.5 text-sm leading-snug text-foreground">
+                    <Clock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+                    <span>{durationLabel}</span>
+                  </div>
+                ) : null}
+              </div>
             )}
-            {durationLabel ? (
-              <p className="text-xs text-muted-foreground">{durationLabel}</p>
-            ) : null}
-            <p className="text-xs text-muted-foreground">{ev.accountEmail}</p>
             {inlineError ? <p className="text-xs text-destructive">{inlineError}</p> : null}
             {inlineSaving ? (
               <p className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -918,14 +1210,14 @@ export function CalendarEventPreview(props: {
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          {ev.joinUrl?.trim() ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {meetingJoinUrl ? (
             <button
               type="button"
               className="inline-flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
               onClick={(): void => {
                 setErr(null)
-                void openExternalUrl(ev.joinUrl!.trim()).catch((e) =>
+                void openExternalUrl(meetingJoinUrl).catch((e) =>
                   setErr(e instanceof Error ? e.message : String(e))
                 )
               }}
@@ -934,90 +1226,176 @@ export function CalendarEventPreview(props: {
               {t('calendar.eventPreview.joinTeams')}
             </button>
           ) : null}
-          {ev.webLink?.trim() ? (
+          {meetingJoinUrl ? (
             <button
               type="button"
               className="inline-flex items-center gap-1.5 rounded-md border border-border bg-secondary px-2.5 py-1.5 text-xs font-medium text-secondary-foreground hover:bg-secondary/80"
-              onClick={(): void => {
-                setErr(null)
-                void openExternalUrl(ev.webLink!.trim()).catch((e) =>
-                  setErr(e instanceof Error ? e.message : String(e))
-                )
-              }}
+              onClick={copyMeetingLink}
             >
-              <ExternalLink className="h-3.5 w-3.5" />
-              {t('calendar.eventPreview.openInCalendar')}
+              {joinUrlCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+              {joinUrlCopied
+                ? t('calendar.eventPreview.meetingLinkCopied')
+                : t('calendar.eventPreview.copyMeetingLinkShort')}
             </button>
           ) : null}
+          {canRespondAsAttendee || selfResponseLabel ? (
+            <div className="relative" ref={rsvpMenuRef}>
+              <button
+                type="button"
+                disabled={rsvpBusy != null}
+                title={selfResponseLabel ?? t('calendar.eventRsvp.respondMenu')}
+                aria-haspopup="menu"
+                aria-expanded={rsvpMenuOpen}
+                className={cn(
+                  'inline-flex max-w-full items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium disabled:opacity-50',
+                  selfResponseToneClass,
+                  canRespondAsAttendee && 'hover:opacity-90'
+                )}
+                onClick={(): void => {
+                  if (!canRespondAsAttendee || rsvpBusy) return
+                  setRsvpMenuOpen((o) => !o)
+                }}
+              >
+                {rsvpBusy ? (
+                  <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
+                ) : selfPartStat === 'accepted' ? (
+                  <Check className="h-3.5 w-3.5 shrink-0" />
+                ) : selfPartStat === 'tentative' ? (
+                  <HelpCircle className="h-3.5 w-3.5 shrink-0" />
+                ) : selfPartStat === 'declined' ? (
+                  <X className="h-3.5 w-3.5 shrink-0" />
+                ) : (
+                  <Check className="h-3.5 w-3.5 shrink-0 opacity-70" />
+                )}
+                <span className="truncate">
+                  {selfResponseLabel ?? t('calendar.eventRsvp.respondMenu')}
+                </span>
+                {canRespondAsAttendee ? (
+                  <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 opacity-70', rsvpMenuOpen && 'rotate-180')} />
+                ) : null}
+              </button>
+              {rsvpMenuOpen && canRespondAsAttendee ? (
+                <div
+                  role="menu"
+                  className="chronell-acrylic-popover absolute left-0 top-full z-[280] mt-1 min-w-[11.5rem] overflow-hidden rounded-md py-1 text-popover-foreground shadow-lg"
+                >
+                  {(
+                    [
+                      { id: 'accept' as const, label: t('calendar.eventRsvp.accept'), Icon: Check },
+                      {
+                        id: 'tentative' as const,
+                        label: t('calendar.eventRsvp.tentative'),
+                        Icon: HelpCircle
+                      },
+                      { id: 'decline' as const, label: t('calendar.eventRsvp.decline'), Icon: X }
+                    ] as const
+                  ).map((opt) => {
+                    const selected =
+                      (opt.id === 'accept' && selfPartStat === 'accepted') ||
+                      (opt.id === 'tentative' && selfPartStat === 'tentative') ||
+                      (opt.id === 'decline' && selfPartStat === 'declined')
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        role="menuitem"
+                        className={cn(
+                          'flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-accent',
+                          opt.id === 'accept' && selected && 'text-emerald-700 dark:text-emerald-300',
+                          opt.id === 'tentative' && selected && 'text-amber-800 dark:text-amber-200',
+                          opt.id === 'decline' && 'text-destructive',
+                          selected && 'bg-accent/60 font-medium'
+                        )}
+                        onClick={(): void => {
+                          setRsvpMenuOpen(false)
+                          void respondAsAttendee(opt.id)
+                        }}
+                      >
+                        <opt.Icon className="h-3.5 w-3.5 shrink-0" />
+                        <span className="flex-1">{opt.label}</span>
+                        {selected ? <Check className="h-3.5 w-3.5 shrink-0 opacity-80" /> : null}
+                      </button>
+                    )
+                  })}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
+        {rsvpBusy ? (
+          <p className="text-xs text-muted-foreground">{t('calendar.eventRsvp.responding')}</p>
+        ) : null}
         {err ? <p className="text-xs text-destructive">{err}</p> : null}
       </div>
 
-      <div className="px-4 py-3 text-sm">
-        {calendarLabel ||
-        locationLabel ||
-        organizerLabel ||
-        attendeeEmails.length > 0 ||
-        (ev.categories && ev.categories.length > 0) ||
-        teamsMeeting ||
-        attachments.length > 0 ||
-        attachmentsLoading ? (
-          <div className={cn('mb-3 px-3', previewDetailPanelClass)}>
-            {calendarLabel ? (
-              <PreviewDetailRow icon={CalendarDays} label={t('calendar.eventPreview.calendarLabel')}>
-                {calendarLabel}
-              </PreviewDetailRow>
-            ) : null}
-            {locationLabel ? (
-              <PreviewDetailRow icon={MapPin} label={t('calendar.eventDialog.locationRowLabel')}>
-                <span className="block min-w-0">{locationLabel}</span>
-                <button
-                  type="button"
-                  className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-                  onClick={(): void => {
-                    setErr(null)
-                    void openExternalUrl(locationMapsUrl(locationLabel)).catch((e) =>
-                      setErr(e instanceof Error ? e.message : String(e))
-                    )
-                  }}
-                >
-                  <ExternalLink className="h-3 w-3" />
-                  {t('calendar.eventPreview.openInMaps')}
-                </button>
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {hasInfoContent ? (
+          <PreviewFoldSection
+            icon={Info}
+            title={t('calendar.eventPreview.infoSection')}
+            expanded={infoExpanded}
+            onToggle={(): void => setInfoExpanded((v) => !v)}
+            summary={infoSummary}
+            className="border-t-0"
+            contentClassName="divide-y divide-white/[0.04] pt-0.5"
+          >
+            {showMeetingLinkRow && meetingJoinUrl ? (
+              <PreviewDetailRow icon={Link2} label={t('calendar.eventPreview.meetingLinkLabel')}>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border/60 bg-secondary/40 px-2 text-2xs font-medium text-secondary-foreground hover:bg-secondary/70"
+                    onClick={copyMeetingLink}
+                  >
+                    {joinUrlCopied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                    {joinUrlCopied
+                      ? t('calendar.eventPreview.meetingLinkCopied')
+                      : t('calendar.eventPreview.copyMeetingLinkShort')}
+                  </button>
+                  <button
+                    type="button"
+                    className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border/60 bg-background px-2 text-2xs font-medium text-foreground hover:bg-secondary/40"
+                    onClick={(): void => {
+                      setErr(null)
+                      void openExternalUrl(meetingJoinUrl).catch((e) =>
+                        setErr(e instanceof Error ? e.message : String(e))
+                      )
+                    }}
+                  >
+                    <Video className="h-3 w-3" />
+                    {t('calendar.eventPreview.openMeetingLink')}
+                  </button>
+                </div>
               </PreviewDetailRow>
             ) : null}
             {organizerLabel ? (
               <PreviewDetailRow icon={User} label={t('calendar.eventPreview.organizerLabel')}>
-                {organizerLabel}
+                <span className="block min-w-0 break-all">{organizerLabel}</span>
               </PreviewDetailRow>
             ) : null}
             {attendeeEmails.length > 0 ? (
               <PreviewDetailRow icon={Users} label={t('calendar.eventPreview.attendeesLabel')}>
-                <ul className="space-y-1">
-                  {attendeeEmails.map((email) => (
-                    <li key={email} className="truncate">
-                      {email}
-                    </li>
-                  ))}
-                </ul>
-              </PreviewDetailRow>
-            ) : null}
-            {teamsMeeting && !ev.joinUrl?.trim() ? (
-              <PreviewDetailRow icon={Video} label={t('calendar.eventPreview.meetingLabel')}>
-                {t('calendar.eventPreview.teamsMeetingScheduled')}
-              </PreviewDetailRow>
-            ) : null}
-            {ev.categories && ev.categories.length > 0 ? (
-              <PreviewDetailRow icon={Tag} label={t('calendar.eventPreview.categories')}>
-                <div className="flex flex-wrap gap-1 pt-0.5">
-                  {ev.categories.map((c) => (
+                <div className="flex flex-wrap gap-1.5">
+                  {attendeePreview.shown.map((addr) => (
                     <span
-                      key={c}
-                      className="rounded-md border border-white/[0.06] bg-secondary/[0.06] px-2 py-0.5 text-xs text-foreground dark:border-white/[0.06]"
+                      key={addr}
+                      className="inline-flex max-w-full truncate rounded-md border border-border/50 bg-secondary/30 px-1.5 py-0.5 text-2xs text-foreground"
+                      title={addr}
                     >
-                      {c}
+                      {addr}
                     </span>
                   ))}
+                  {attendeePreview.hidden > 0 ? (
+                    <button
+                      type="button"
+                      className="inline-flex items-center rounded-md border border-dashed border-border/60 px-1.5 py-0.5 text-2xs font-medium text-primary hover:bg-secondary/40"
+                      onClick={(): void => setInfoDetailsExpanded(true)}
+                    >
+                      {t('calendar.eventPreview.infoAttendeesMore', {
+                        count: attendeePreview.hidden
+                      })}
+                    </button>
+                  ) : null}
                 </div>
               </PreviewDetailRow>
             ) : null}
@@ -1044,21 +1422,161 @@ export function CalendarEventPreview(props: {
                 </ul>
               </PreviewDetailRow>
             ) : null}
-          </div>
+
+            {infoDetailsExpanded ? (
+              <>
+                {showCalendarRow ? (
+                  <PreviewDetailRow icon={CalendarDays} label={t('calendar.eventPreview.calendarLabel')}>
+                    <span className="block min-w-0 break-words">
+                      {calendarLabel || t('calendar.eventPreview.calendarFallback')}
+                      {ev.accountEmail?.trim() &&
+                      ev.accountEmail.trim().toLowerCase() !==
+                        (calendarLabel || t('calendar.eventPreview.calendarFallback')).toLowerCase() ? (
+                        <span className="text-muted-foreground"> ({ev.accountEmail.trim()})</span>
+                      ) : null}
+                    </span>
+                    {showOpenInCalendar ? (
+                      <button
+                        type="button"
+                        className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                        onClick={(): void => {
+                          setErr(null)
+                          void openExternalUrl(ev.webLink!.trim()).catch((e) =>
+                            setErr(e instanceof Error ? e.message : String(e))
+                          )
+                        }}
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        {t('calendar.eventPreview.openInCalendar')}
+                      </button>
+                    ) : null}
+                  </PreviewDetailRow>
+                ) : showOpenInCalendar ? (
+                  <PreviewDetailRow icon={ExternalLink} label={t('calendar.eventPreview.openInCalendar')}>
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                      onClick={(): void => {
+                        setErr(null)
+                        void openExternalUrl(ev.webLink!.trim()).catch((e) =>
+                          setErr(e instanceof Error ? e.message : String(e))
+                        )
+                      }}
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      {t('calendar.eventPreview.openInCalendar')}
+                    </button>
+                  </PreviewDetailRow>
+                ) : null}
+                {showLocationRow && locationLabel ? (
+                  <PreviewDetailRow icon={MapPin} label={t('calendar.eventDialog.locationRowLabel')}>
+                    <span className="block min-w-0">{locationLabel}</span>
+                    <button
+                      type="button"
+                      className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                      onClick={(): void => {
+                        setErr(null)
+                        void openExternalUrl(locationMapsUrl(locationLabel)).catch((e) =>
+                          setErr(e instanceof Error ? e.message : String(e))
+                        )
+                      }}
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      {t('calendar.eventPreview.openInMaps')}
+                    </button>
+                  </PreviewDetailRow>
+                ) : null}
+                {showTeamsMeetingRow ? (
+                  <PreviewDetailRow icon={Video} label={t('calendar.eventPreview.meetingLabel')}>
+                    <span>{t('calendar.eventPreview.teamsMeetingScheduled')}</span>
+                  </PreviewDetailRow>
+                ) : null}
+                {showCategoriesRow && ev.categories ? (
+                  <PreviewDetailRow icon={Tag} label={t('calendar.eventPreview.categories')}>
+                    <div className="flex flex-wrap gap-1.5">
+                      {ev.categories.map((c) => (
+                        <span
+                          key={c}
+                          className="inline-flex max-w-full truncate rounded-md border border-border/50 bg-secondary/30 px-1.5 py-0.5 text-2xs text-foreground"
+                        >
+                          {c}
+                        </span>
+                      ))}
+                    </div>
+                  </PreviewDetailRow>
+                ) : null}
+              </>
+            ) : null}
+
+            {hasInfoExtra ? (
+              <div className="pt-1">
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1 rounded-md px-0.5 py-1 text-2xs font-medium text-primary hover:underline"
+                  aria-expanded={infoDetailsExpanded}
+                  onClick={(): void => setInfoDetailsExpanded((v) => !v)}
+                >
+                  <ChevronDown
+                    className={cn(
+                      'h-3.5 w-3.5 transition-transform',
+                      infoDetailsExpanded ? 'rotate-180' : 'rotate-0'
+                    )}
+                    aria-hidden
+                  />
+                  {infoDetailsExpanded
+                    ? t('calendar.eventPreview.infoShowLess')
+                    : t('calendar.eventPreview.infoShowMore')}
+                </button>
+              </div>
+            ) : null}
+          </PreviewFoldSection>
         ) : descLoading && ev.graphEventId?.trim() ? (
-          <p className="mb-3 inline-flex items-center gap-2 text-xs text-muted-foreground">
+          <p className="inline-flex items-center gap-2 px-4 py-3 text-xs text-muted-foreground">
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
             {t('calendar.eventDialog.loadingEventDetails')}
           </p>
         ) : null}
 
+        {ev.accountId.startsWith('ms:') ? (
+          <CopilotAssistPanel
+            accountId={ev.accountId}
+            contextKey={`cal:${ev.accountId}:${ev.graphEventId ?? ev.id}`}
+            contextTexts={meetingPrepContext}
+            primaryPrompt={t(
+              meetingEnded ? 'copilot.meeting.reviewPrompt' : 'copilot.meeting.preparePrompt'
+            )}
+            primaryActionLabel={t(
+              meetingEnded ? 'copilot.meeting.review' : 'copilot.meeting.prepare'
+            )}
+            title={t(meetingEnded ? 'copilot.meeting.reviewTitle' : 'copilot.meeting.title')}
+            retrievalQuery={ev.title?.trim() || null}
+            collapsedDefault
+            noteTarget={noteTarget}
+          />
+        ) : null}
+
+        {meetingJoinUrl && ev.accountId.startsWith('ms:') ? (
+          <CalendarMeetingInsightsPanel
+            accountId={ev.accountId}
+            joinUrl={meetingJoinUrl}
+            result={meetingInsights}
+            loading={meetingInsightsLoading}
+          />
+        ) : null}
+
         {ev.graphEventId?.trim() ? (
-          <div className={cn('min-h-0 border-t pt-3', previewSectionDividerClass)}>
-            <p className="mb-2 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {t('calendar.eventDialog.description')}
-            </p>
+          <PreviewFoldSection
+            icon={AlignLeft}
+            title={t('calendar.eventDialog.description')}
+            expanded={descExpanded}
+            onToggle={(): void => setDescExpanded((v) => !v)}
+            summary={descriptionSummary}
+            summaryLines={3}
+          >
             {ev.source === 'google' && !ev.graphCalendarId?.trim() ? (
-              <p className="text-xs text-muted-foreground">{t('calendar.eventDialog.googleCalendarIdMissing')}</p>
+              <p className="text-xs text-muted-foreground">
+                {t('calendar.eventDialog.googleCalendarIdMissing')}
+              </p>
             ) : descLoading ? (
               <p className="inline-flex items-center gap-2 text-xs text-muted-foreground">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1075,7 +1593,7 @@ export function CalendarEventPreview(props: {
                 className="w-full"
               />
             )}
-          </div>
+          </PreviewFoldSection>
         ) : null}
 
         {ev.graphEventId?.trim() && hideEntityContext ? (
@@ -1086,37 +1604,14 @@ export function CalendarEventPreview(props: {
               graphEventId: ev.graphEventId
             }}
             noteTarget={noteTarget}
-            contentPaddingClass="px-0"
+            contentPaddingClass="px-4"
             sectionCollapsedDefault
-            className={cn('mt-3 border-t', previewSectionDividerClass)}
+            className="min-h-0"
           />
         ) : null}
-      </div>
-      </div>
 
-      {showResizableNotePane ? (
-        <>
-          <HorizontalSplitter
-            variant="subtle"
-            ariaLabel={t('calendar.eventPreview.contextSplitterAria')}
-            onDrag={(deltaY): void => {
-              setNotePaneHeight((h) => {
-                const max = calendarPreviewNotePaneHeightMax()
-                return Math.min(
-                  max,
-                  Math.max(CALENDAR_PREVIEW_NOTE_PANE_HEIGHT_MIN, h - deltaY)
-                )
-              })
-            }}
-          />
-          <div
-            className="flex min-h-0 shrink-0 flex-col overflow-hidden border-t border-border/40 bg-secondary/[0.02]"
-            style={{ height: Math.min(notePaneHeight, notePaneHeightMax) }}
-          >
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{entityContextBlock}</div>
-          </div>
-        </>
-      ) : null}
+        {entityContextBlock}
+      </div>
     </div>
   )
 }
