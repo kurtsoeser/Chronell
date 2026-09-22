@@ -38,7 +38,7 @@ export interface CalendarShellPreviewBodyProps {
   setEventDialog: SetCalendarShellEventDialog
   setPreviewCalendarEvent: Dispatch<SetStateAction<CalendarEventView | null>>
   setEvents: Dispatch<SetStateAction<CalendarEventView[]>>
-  reloadCalendarEventsOnlyRef: RefObject<(opts?: { silent?: boolean }) => void>
+  reloadCalendarEventsOnlyRef: RefObject<(opts?: { silent?: boolean; forceRefresh?: boolean }) => void>
   calendarRef: RefObject<FullCalendar>
   lastRangeRef: RefObject<{ start: Date; end: Date }>
   cloudTaskByKeyRef: RefObject<Map<string, CloudTaskListItem>>
