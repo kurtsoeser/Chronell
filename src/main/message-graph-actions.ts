@@ -251,13 +251,13 @@ export async function applyMoveMessageToWellKnownAlias(
 }
 
 function adjustFolderUnreadForMove(
-  previousFolder: ReturnType<typeof findFolderById>,
-  targetFolder: NonNullable<ReturnType<typeof findFolderById>>,
+  fromFolder: ReturnType<typeof findFolderById>,
+  toFolder: ReturnType<typeof findFolderById>,
   wasUnread: boolean
 ): void {
   if (!wasUnread) return
-  if (previousFolder) adjustFolderUnread(previousFolder.id, -1)
-  adjustFolderUnread(targetFolder.id, 1)
+  if (fromFolder) adjustFolderUnread(fromFolder.id, -1)
+  if (toFolder) adjustFolderUnread(toFolder.id, 1)
 }
 
 /**
