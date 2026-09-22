@@ -67,20 +67,14 @@ export function registerAppIpc(): void {
     return senderWindow(event)?.isMaximized() ?? false
   })
 
-  ipcMain.handle(IPC.app.openExternal, async (event, url: unknown): Promise<void> => {
+  ipcMain.handle(IPC.app.openExternal, async (_event, url: unknown): Promise<void> => {
     const raw = typeof url === 'string' ? url.trim() : ''
     if (!raw) throw new Error('Keine URL.')
     if (!normalizeExternalOpenUrl(raw)) {
       throw new Error('Diese URL darf nicht extern geoeffnet werden (nicht in der erlaubten Liste).')
     }
+    // Kein win.focus()/moveTop danach: sonst landet der Systembrowser hinter der App
+    // und Links (z. B. im Copilot-Assist-Panel) wirken „tot“.
     await openExternalDeduped(raw)
-    const win = BrowserWindow.fromWebContents(event.sender)
-    if (win && !win.isDestroyed()) {
-      win.show()
-      win.focus()
-      if (process.platform === 'win32') {
-        win.moveTop()
-      }
-    }
   })
 }

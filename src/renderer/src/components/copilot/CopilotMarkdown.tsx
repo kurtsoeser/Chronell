@@ -1,5 +1,5 @@
 import { useMemo, type MouseEvent } from 'react'
-import { openExternalUrl } from '@/lib/open-external'
+import { voidOpenExternalUrl } from '@/lib/open-external'
 import { cn } from '@/lib/utils'
 import { copilotMarkdownToSafeHtml } from '@/components/copilot/copilot-markdown'
 
@@ -20,6 +20,7 @@ export function CopilotMarkdown({
     const href = a.getAttribute('href')?.trim()
     if (!href) return
     e.preventDefault()
+    e.stopPropagation()
     if (href.startsWith('#copilot-cite-')) {
       const el = document.getElementById(href.slice(1))
       el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
@@ -29,7 +30,7 @@ export function CopilotMarkdown({
       }, 1200)
       return
     }
-    void openExternalUrl(href).catch(() => undefined)
+    voidOpenExternalUrl(href, 'CopilotMarkdown')
   }
 
   return (

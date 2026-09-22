@@ -11,6 +11,7 @@ import {
 import type { DemoStatus } from '@shared/types'
 import {
   clearUserDataForReplace,
+  exportLocalDataArchive,
   getUserDataPath,
   restoreLocalDataArchive
 } from '../local-data-service'
@@ -117,7 +118,6 @@ export async function getDemoStatus(): Promise<DemoStatus> {
 }
 
 export async function exportDemoPackTo(zipPath: string): Promise<string> {
-  const { exportLocalDataArchive } = await import('../local-data-service')
   await exportLocalDataArchive(zipPath, 'portable')
   return zipPath
 }

@@ -6,8 +6,8 @@ Dieses Dokument beschreibt den **aktuellen Funktionsumfang** der Desktop-App. Es
 |------|------|
 | **Produktname (UI)** | Chronell |
 | **Technischer Name / Installer** | MailClient |
-| **Version** | **1.0.5** |
-| **Stand** | **21. September 2026** |
+| **Version** | **1.2.0** |
+| **Stand** | **22. September 2026** |
 | **App-ID** | `at.kurtsoeser.chronell` |
 | **Zielplattform** | Windows 11 (primär) |
 | **Autor** | Kurt Soeser |
@@ -484,11 +484,12 @@ Marker-Datei nach Migration: `%APPDATA%\Chronell\.chronell-migrated-from-mailcli
 
 ## 20. Versionshistorie
 
-### 1.0.5 - 21. September 2026
+### 1.2.0 - 22. September 2026
 
 - **Copilot:** Work IQ und Copilot-Assistenz für Mail und Kalender — Zusammenfassungen, Meeting-Prep, Quellen-Pills und lokaler Cache
 - **Kalender:** KI-Meeting-Insights in der Termin-Vorschau; Teams-Link und Link kopieren sofort im Sticky-Header
 - **Termin-Vorschau:** Einheitliche Abschnitte (Info, Copilot, Beschreibung, Notiz, Kontext) mit einem gemeinsamen Scroll und ohne Höhen-Splitter
 - **Mail:** Textbausteine im Composer sowie verbesserte Einladungs- und RSVP-Abläufe
-- **Homepage:** Release-Texte, Timeline und Download auf 1.0.5
+- **Homepage:** Release-Texte, Timeline und Download auf 1.2.0
+
 
