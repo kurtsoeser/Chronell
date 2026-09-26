@@ -149,6 +149,69 @@ export async function completeJsonWithOllama(input: OllamaJsonCompletionInput): 
   }
 }
 
+export async function completeTextWithOllama(input: {
+  baseUrl: string
+  model: string
+  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>
+  timeoutMs?: number
+}): Promise<string> {
+  const root = normalizeOllamaBaseUrl(input.baseUrl)
+  const controller = new AbortController()
+  const timeoutMs = input.timeoutMs ?? OLLAMA_TIMEOUT_MS
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+
+  try {
+    const res = await fetch(`${root}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model: input.model,
+        stream: false,
+        messages: input.messages,
+        options: { temperature: 0.4 }
+      })
+    })
+
+    if (!res.ok) {
+      const detail = await res.text().catch(() => '')
+      if (res.status === 404) {
+        throw new AiConnectionsError(
+          'provider_error',
+          `Ollama-Modell „${input.model}“ nicht gefunden. Bitte \`ollama pull ${input.model}\` ausführen.`
+        )
+      }
+      throw new AiConnectionsError(
+        'provider_error',
+        `Ollama-Anfrage fehlgeschlagen (${res.status}).${detail ? ` ${detail.slice(0, 200)}` : ''}`
+      )
+    }
+
+    const payload = (await res.json()) as {
+      message?: { content?: string | null }
+    }
+    const text = payload.message?.content?.trim()
+    if (!text) {
+      throw new AiConnectionsError('invalid_response', 'Leere Antwort von Ollama.')
+    }
+    return text
+  } catch (err) {
+    if (err instanceof AiConnectionsError) throw err
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new AiConnectionsError(
+        'network',
+        'Zeitüberschreitung bei der Ollama-Anfrage (große Modelle können mehrere Minuten brauchen).'
+      )
+    }
+    throw new AiConnectionsError(
+      'network',
+      err instanceof Error ? err.message : 'Netzwerkfehler bei der Ollama-Anfrage.'
+    )
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 async function fetchOllamaVersion(root: string): Promise<string | undefined> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), OLLAMA_LIST_TIMEOUT_MS)

@@ -54,6 +54,11 @@ interface CalendarFloatingPanelProps {
   onDock: () => void
   /** Wenn true: nur Ziehen + Titel (Aktionen liegen im Kind-Header). */
   hideHeaderActions?: boolean
+  /**
+   * Einschub von rechts (Seitenpanels). Fuer freie Termin-Fenster besser aus,
+   * sonst kann der Inhalt unter Windows schwarz/leer wirken.
+   */
+  slideFromRight?: boolean
   children: React.ReactNode
   zIndex?: number
 }
@@ -85,6 +90,7 @@ export function CalendarFloatingPanel(props: CalendarFloatingPanelProps): JSX.El
     onClose,
     onDock,
     hideHeaderActions = false,
+    slideFromRight = true,
     children,
     zIndex = 90
   } = props
@@ -109,7 +115,7 @@ export function CalendarFloatingPanel(props: CalendarFloatingPanelProps): JSX.El
   const prevOpenRef = useRef(false)
 
   const [portalMounted, setPortalMounted] = useState(open)
-  const [slideEntered, setSlideEntered] = useState(false)
+  const [slideEntered, setSlideEntered] = useState(!slideFromRight)
 
   useEffect(() => {
     if (open) {
@@ -126,6 +132,13 @@ export function CalendarFloatingPanel(props: CalendarFloatingPanelProps): JSX.El
 
   useLayoutEffect(() => {
     if (typeof document === 'undefined') return
+    if (!slideFromRight) {
+      setSlideEntered(true)
+      if (!open) {
+        setPortalMounted(false)
+      }
+      return
+    }
     if (!open) {
       setSlideEntered(false)
       if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
@@ -140,7 +153,7 @@ export function CalendarFloatingPanel(props: CalendarFloatingPanelProps): JSX.El
       })
     })
     return (): void => cancelAnimationFrame(id)
-  }, [open])
+  }, [open, slideFromRight])
 
   const maxWForPos = useCallback((x: number): number => {
     return Math.max(minResizeWidthPx, window.innerWidth - x - 8)
@@ -308,12 +321,13 @@ export function CalendarFloatingPanel(props: CalendarFloatingPanelProps): JSX.El
       className={cn(
         'fixed flex min-h-0 flex-col overflow-hidden rounded-xl border border-border',
         'bg-card text-card-foreground shadow-2xl ring-1 ring-black/10 dark:ring-white/10',
-        'transition-transform duration-300 ease-out motion-reduce:transition-none',
-        slideEntered ? 'translate-x-0' : 'translate-x-full'
+        slideFromRight && 'transition-transform duration-300 ease-out motion-reduce:transition-none',
+        slideFromRight && (slideEntered ? 'translate-x-0' : 'translate-x-full')
       )}
       role="dialog"
       aria-label={title}
       onTransitionEnd={(e): void => {
+        if (!slideFromRight) return
         if (e.target !== e.currentTarget) return
         if (e.propertyName !== 'transform') return
         if (open) return
@@ -360,7 +374,7 @@ export function CalendarFloatingPanel(props: CalendarFloatingPanelProps): JSX.El
         ) : null}
       </div>
       <div
-        className="flex min-h-0 flex-1 flex-col overflow-hidden"
+        className="flex min-h-0 flex-1 flex-col overflow-hidden bg-card"
         style={{ minHeight: Math.max(0, minHeightPx - headerH) }}
       >
         {children}

@@ -82,6 +82,19 @@ export function removeGraphCalendarEventsByGraphEventId(
   }
 }
 
+/** Entfernt sämtliche FC-Einträge eines Graph-Termins (z. B. optimistisches Löschen). */
+export function removeAllGraphCalendarEventsByGraphEventId(
+  api: CalendarApi,
+  accountId: string,
+  graphEventId: string
+): void {
+  const gid = graphEventId.trim()
+  if (!gid) return
+  for (const ev of api.getEvents()) {
+    if (eventMatchesGraphCalendarEvent(ev, accountId, gid)) ev.remove()
+  }
+}
+
 /** Entfernt FullCalendar-Duplikate nach Drag/Resize (gleiche öffentliche Event-ID). */
 export function removeDuplicateFullCalendarEventsById(
   api: CalendarApi,

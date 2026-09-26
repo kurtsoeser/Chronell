@@ -21,7 +21,7 @@ import {
   type InboxAgendaRow
 } from '@/stores/inbox-calendar-agenda-cache'
 import { resolvedAccountColorCss } from '@/lib/avatar-color'
-import { MIME_THREAD_IDS, readDraggedWorkflowMessageIds } from '@/lib/workflow-dnd'
+import { MIME_THREAD_IDS, readDraggedTodoAnchorMessageIds } from '@/lib/workflow-dnd'
 import {
   defaultScheduleForCalendarDayFc,
   mailListItemTodoScheduleWindow
@@ -165,7 +165,7 @@ export function InboxCalendarSidebar({
     (e: React.DragEvent, dateStr: string): void => {
       setDropHoverDate(null)
       if (!e.dataTransfer || !dataTransferLooksLikeMailDrag(e.dataTransfer)) return
-      const dragged = readDraggedWorkflowMessageIds(e.dataTransfer)
+      const dragged = readDraggedTodoAnchorMessageIds(e.dataTransfer)
       if (dragged.length === 0) return
       e.preventDefault()
       e.stopPropagation()

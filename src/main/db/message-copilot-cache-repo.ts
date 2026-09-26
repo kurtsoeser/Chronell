@@ -1,9 +1,10 @@
-import { getDb } from './index'
-import type {
-  CopilotChatEngine,
-  CopilotChatMessageAttribution,
-  MessageCopilotCacheEntry
+import {
+  normalizeCopilotChatEngine,
+  type CopilotChatEngine,
+  type CopilotChatMessageAttribution,
+  type MessageCopilotCacheEntry
 } from '@shared/types'
+import { getDb } from './index'
 
 interface CacheRow {
   message_id: number
@@ -33,7 +34,7 @@ function parseAttributions(raw: string): CopilotChatMessageAttribution[] {
 function rowToEntry(row: CacheRow): MessageCopilotCacheEntry {
   return {
     messageId: row.message_id,
-    engine: row.engine === 'workiq' ? 'workiq' : 'graph',
+    engine: normalizeCopilotChatEngine(row.engine),
     replyText: row.reply_text,
     attributions: parseAttributions(row.attributions_json),
     updatedAt: row.updated_at
@@ -65,7 +66,7 @@ export function upsertMessageCopilotCache(input: {
   const messageId = input.messageId
   const replyText = input.replyText?.trim() ?? ''
   if (!Number.isFinite(messageId) || messageId <= 0 || !replyText) return null
-  const engine: CopilotChatEngine = input.engine === 'workiq' ? 'workiq' : 'graph'
+  const engine = normalizeCopilotChatEngine(input.engine)
   const attributionsJson = JSON.stringify(input.attributions ?? [])
   const db = getDb()
   db.prepare(
@@ -88,7 +89,7 @@ export function deleteMessageCopilotCache(
   if (engine) {
     db.prepare(`DELETE FROM message_copilot_cache WHERE message_id = ? AND engine = ?`).run(
       messageId,
-      engine
+      normalizeCopilotChatEngine(engine)
     )
     return
   }

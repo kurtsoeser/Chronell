@@ -1,4 +1,4 @@
-import type { CalendarEventView, MailFull } from '@shared/types'
+import type { CalendarEventView, MailFull, UserNote } from '@shared/types'
 
 const MAX_RICH_TEXT = 1900
 const MAX_BODY_PARAGRAPHS = 24
@@ -298,6 +298,29 @@ export function buildMailNotionBlocks(
         icon: { emoji: '📧' },
         color: 'gray_background',
         children: calloutChildren
+      }
+    }
+  ]
+}
+
+export function buildNoteNotionBlocks(note: UserNote, localeCode: 'de' | 'en' = 'de'): NotionBlock[] {
+  const isDe = localeCode === 'de'
+  const title = note.title?.trim() || (isDe ? 'Notiz' : 'Note')
+  const plain = note.body?.trim() ? htmlToPlainText(note.body) : ''
+  const children = bodyParagraphBlocks(plain)
+
+  return [
+    {
+      object: 'block',
+      type: 'callout',
+      callout: {
+        rich_text: [rt(title)],
+        icon: { emoji: '📝' },
+        color: 'blue_background',
+        children:
+          children.length > 0
+            ? children
+            : [paragraph(isDe ? '(Leere Notiz)' : '(Empty note)')]
       }
     }
   ]

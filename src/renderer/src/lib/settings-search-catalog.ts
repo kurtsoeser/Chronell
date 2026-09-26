@@ -7,6 +7,7 @@ export type SettingsSearchTab =
   | 'contacts'
   | 'notes'
   | 'tasks'
+  | 'ai'
   | 'info'
 
 export type SettingsSearchEntry = {
@@ -73,13 +74,6 @@ export const SETTINGS_SEARCH_CATALOG: readonly SettingsSearchEntry[] = [
     subNav: 'notion',
     labelKey: 'settings.notionHeading',
     keywords: ['notion', 'integration']
-  },
-  {
-    id: 'general.aiConnections',
-    tab: 'general',
-    subNav: 'aiConnections',
-    labelKey: 'settings.aiConnections.nav',
-    keywords: ['ki', 'ai', 'gemini', 'openai', 'ollama', 'api', 'schlüssel', 'key']
   },
   {
     id: 'general.cloudSync',
@@ -250,7 +244,21 @@ export const SETTINGS_SEARCH_CATALOG: readonly SettingsSearchEntry[] = [
     tab: 'calendar',
     subNav: 'templates',
     labelKey: 'settings.calendarTemplates.heading',
-    keywords: ['termin-templates', 'event templates', 'vorlagen', 'templates']
+    keywords: [
+      'termin-templates',
+      'event templates',
+      'vorlagen',
+      'templates',
+      'teams premium',
+      'besprechungsvorlage',
+      'webinar',
+      'webinar-einladung',
+      'html-layout',
+      'layout-vorlage',
+      'einladungsvorlage',
+      'hinweise',
+      'signatur'
+    ]
   },
   {
     id: 'calendar.advanced',
@@ -464,6 +472,63 @@ export const SETTINGS_SEARCH_CATALOG: readonly SettingsSearchEntry[] = [
     keywords: ['sync', 'synchronisation']
   },
 
+  // AI / Copilot
+  {
+    id: 'ai.connections',
+    tab: 'ai',
+    subNav: 'connections',
+    labelKey: 'settings.ai.connectionsNav',
+    keywords: [
+      'ki',
+      'ai',
+      'gemini',
+      'openai',
+      'chatgpt',
+      'ollama',
+      'api',
+      'schlüssel',
+      'key',
+      'anbindung',
+      'modell',
+      'provider'
+    ]
+  },
+  {
+    id: 'ai.mail',
+    tab: 'ai',
+    subNav: 'mail',
+    labelKey: 'settings.copilot.mailHeading',
+    keywords: ['copilot', 'prompt', 'zusammenfassen', 'summarize', 'mail']
+  },
+  {
+    id: 'ai.compose',
+    tab: 'ai',
+    subNav: 'compose',
+    labelKey: 'settings.copilot.composeHeading',
+    keywords: ['copilot', 'prompt', 'verfassen', 'compose', 'antwort', 'reply']
+  },
+  {
+    id: 'ai.contact',
+    tab: 'ai',
+    subNav: 'contact',
+    labelKey: 'settings.copilot.contactHeading',
+    keywords: ['copilot', 'prompt', 'kontakt', 'contact']
+  },
+  {
+    id: 'ai.meeting',
+    tab: 'ai',
+    subNav: 'meeting',
+    labelKey: 'settings.copilot.meetingHeading',
+    keywords: ['copilot', 'prompt', 'termin', 'meeting', 'vorbereiten', 'prepare']
+  },
+  {
+    id: 'ai.engine',
+    tab: 'ai',
+    subNav: 'engine',
+    labelKey: 'settings.copilot.engineHeading',
+    keywords: ['copilot', 'work iq', 'workiq', 'graph', 'engine']
+  },
+
   // Info
   {
     id: 'info.about',
@@ -483,6 +548,7 @@ const TAB_LABEL_KEYS: Record<SettingsSearchTab, string> = {
   contacts: 'settings.tabContacts',
   notes: 'settings.tabNotes',
   tasks: 'settings.tabTasks',
+  ai: 'settings.tabAi',
   info: 'settings.tabInfo'
 }
 

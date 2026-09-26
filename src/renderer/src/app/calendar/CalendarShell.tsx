@@ -47,6 +47,7 @@ import type {
   CalendarGraphCalendarRow,
   ConnectedAccount,
   MailListItem,
+  NotionWebinarImportResult,
   TodoDueKindOpen,
   UserNoteListItem
 } from '@shared/types'
@@ -114,12 +115,14 @@ import { CalendarShellRightPanels } from '@/app/calendar/CalendarShellRightPanel
 import { useCalendarShellRightPanels } from '@/app/calendar/use-calendar-shell-right-panels'
 import { useCalendarShellKeyboard } from '@/app/calendar/use-calendar-shell-keyboard'
 import { CalendarShellModals } from '@/app/calendar/CalendarShellModals'
+import { NotionWebinarImportDialog } from '@/components/NotionWebinarImportDialog'
 import { CalendarShellLeftSidebar } from '@/app/calendar/CalendarShellLeftSidebar'
 import type { CalendarShellEventDialogState } from '@/app/calendar/calendar-shell-event-dialog-state'
 import { useCalendarShellSchedulingActions } from '@/app/calendar/use-calendar-shell-scheduling'
 import { useCalendarShellPendingFocus } from '@/app/calendar/use-calendar-shell-pending-focus'
 import { useCalendarShellMailActions } from '@/app/calendar/use-calendar-shell-mail-actions'
 import { useCalendarShellFcEventSources } from '@/app/calendar/use-calendar-shell-fc-event-sources'
+import { usePinnedFcEventSources } from '@/app/calendar/use-pinned-fc-event-sources'
 import { useCalendarShellGanttHandlers } from '@/app/calendar/use-calendar-shell-gantt-handlers'
 import { buildCalendarFolderColorContextMenuItems } from '@/lib/calendar-folder-color-context-menu'
 import {
@@ -158,11 +161,6 @@ import {
   formatCalendarEventClipboardText
 } from '@/lib/calendar-event-context-menu'
 import {
-  pickAndSendCalendarEventToNotion,
-  runNotionSendWithErrorHandling,
-  sendCalendarEventAsNewNotionPage
-} from '@/lib/notion-ui'
-import {
   buildMailCategorySubmenuItems,
   buildMailContextItems,
   type MailContextHandlers
@@ -172,7 +170,6 @@ import { confirmDeleteCloudTasks } from '@/app/tasks/confirm-delete-cloud-task'
 import { toggleWorkItemCompleted } from '@/app/work-items/work-item-actions'
 import { openWorkItemInCalendar } from '@/app/work-items/work-item-calendar-nav'
 import type { CalendarOverlayContextMenuOptions } from '@/app/calendar/calendar-overlay-context-menu'
-import { deleteCalendarEventIpc } from '@/lib/calendar-ipc'
 import { applyCalendarEventDomColors } from '@/lib/calendar-event-chip-style'
 import { accountColorToCssBackground } from '@/lib/avatar-color'
 import { GLOBAL_CREATE_EVENT, useGlobalCreateNavigateStore } from '@/lib/global-create'
@@ -346,6 +343,11 @@ export function CalendarShell(): JSX.Element {
   const graphCalendarPersistInFlightRef = useRef(0)
   const graphCalendarReconcilingRef = useRef(false)
   const skipCalendarReloadUntilRef = useRef(0)
+  const eventPointerManipulatingRef = useRef(false)
+  const [fcEventSourcesReleaseEpoch, setFcEventSourcesReleaseEpoch] = useState(0)
+  const releasePinnedFcEventSources = useCallback((): void => {
+    setFcEventSourcesReleaseEpoch((n) => n + 1)
+  }, [])
 
   const [timeGridSlotMinutes, setTimeGridSlotMinutes] = useState<TimeGridSlotMinutes>(
     readTimeGridSlotMinutesFromStorage
@@ -506,6 +508,76 @@ export function CalendarShell(): JSX.Element {
     setPreviewCalendarEvent(null)
     setEventDialog({ mode: 'create', range: null })
   }, [canCreateCalendarEntry])
+
+  const openCreateWebinarDialog = useCallback((): void => {
+    if (!canCreateCalendarEntry) return
+    const msAccountId = msAccounts[0]?.id
+    if (!msAccountId) {
+      setError(t('topbar.create.noMicrosoftAccount'))
+      return
+    }
+    setError(null)
+    setPreviewCloudTask(null)
+    setPreviewCloudTaskPlannedFromTimeline(null)
+    setPreviewCalendarEvent(null)
+    setEventDialog({
+      mode: 'create',
+      range: null,
+      createAccountId: msAccountId,
+      createPrefill: { webinarMode: true, teamsMeeting: true }
+    })
+  }, [canCreateCalendarEntry, msAccounts, t])
+
+  const [notionWebinarImportOpen, setNotionWebinarImportOpen] = useState(false)
+
+  const openCreateWebinarFromNotion = useCallback((): void => {
+    if (!canCreateCalendarEntry) return
+    const msAccountId = msAccounts[0]?.id
+    if (!msAccountId) {
+      setError(t('topbar.create.noMicrosoftAccount'))
+      return
+    }
+    setError(null)
+    setNotionWebinarImportOpen(true)
+  }, [canCreateCalendarEntry, msAccounts, t])
+
+  const handleNotionWebinarImported = useCallback(
+    (result: NotionWebinarImportResult): void => {
+      const msAccountId = msAccounts[0]?.id
+      if (!msAccountId) {
+        setError(t('topbar.create.noMicrosoftAccount'))
+        return
+      }
+      let range: { start: Date; end: Date; allDay: boolean } | null = null
+      if (result.startIso) {
+        const start = new Date(result.startIso)
+        const end = result.endIso
+          ? new Date(result.endIso)
+          : new Date(start.getTime() + 60 * 60 * 1000)
+        if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime())) {
+          range = { start, end, allDay: result.isAllDay }
+        }
+      }
+      setPreviewCloudTask(null)
+      setPreviewCloudTaskPlannedFromTimeline(null)
+      setPreviewCalendarEvent(null)
+      setEventDialog({
+        mode: 'create',
+        range,
+        createAccountId: msAccountId,
+        createPrefill: {
+          webinarMode: true,
+          teamsMeeting: true,
+          subject: result.title,
+          webinarHeroImageSrc: result.heroImageDataUrl,
+          webinarWebsiteUrl: result.websiteUrl ?? undefined,
+          webinarSupplementHtml: result.descriptionHtml || undefined,
+          notionPageId: result.pageId
+        }
+      })
+    },
+    [msAccounts, t]
+  )
 
   const openCalendarAccountContextMenu = useCallback(
     (clientX: number, clientY: number, account: ConnectedAccount): void => {
@@ -729,23 +801,27 @@ export function CalendarShell(): JSX.Element {
     const pending = useGlobalCreateNavigateStore.getState().takePendingAfterNavigate()
     if (pending === 'calendar_event') {
       window.setTimeout((): void => openCreateCalendarEventDialog(), 0)
+    } else if (pending === 'calendar_webinar') {
+      window.setTimeout((): void => openCreateWebinarDialog(), 0)
     } else if (pending === 'booking') {
       window.setTimeout((): void => openSchedulingPanel(), 0)
     }
-  }, [openCreateCalendarEventDialog, openSchedulingPanel])
+  }, [openCreateCalendarEventDialog, openCreateWebinarDialog, openSchedulingPanel])
 
   useEffect(() => {
     function onGlobalCreate(e: Event): void {
       const ce = e as CustomEvent<{ kind?: string }>
       if (ce.detail?.kind === 'calendar_event') {
         openCreateCalendarEventDialog()
+      } else if (ce.detail?.kind === 'calendar_webinar') {
+        openCreateWebinarDialog()
       } else if (ce.detail?.kind === 'booking') {
         openSchedulingPanel()
       }
     }
     window.addEventListener(GLOBAL_CREATE_EVENT, onGlobalCreate as EventListener)
     return (): void => window.removeEventListener(GLOBAL_CREATE_EVENT, onGlobalCreate as EventListener)
-  }, [openCreateCalendarEventDialog, openSchedulingPanel])
+  }, [openCreateCalendarEventDialog, openCreateWebinarDialog, openSchedulingPanel])
 
   useEffect(() => {
     useCalendarSyncStore.getState().initialize()
@@ -1029,7 +1105,7 @@ export function CalendarShell(): JSX.Element {
     [hideCalendarFromSidebar, reloadCalendarsForAccount, reloadVisibleRange, t]
   )
 
-  const { handleGraphEventChange } = useCalendarShellEventPersist({
+  const { handleGraphEventChange, deleteGraphCalendarEvent } = useCalendarShellEventPersist({
     calendarRef,
     lastRangeRef,
     fcTimeZone,
@@ -1055,10 +1131,11 @@ export function CalendarShell(): JSX.Element {
     commitCloudTaskLayer,
     loadUserNotesForRange,
     setTodoScheduleForMessage,
+    releasePinnedFcEventSources,
     t
   })
 
-  const fcEventSources = useCalendarShellFcEventSources({
+  const fcEventSourcesLive = useCalendarShellFcEventSources({
     activeViewId,
     graphCalendarSourceRev,
     graphFcEventsForFc,
@@ -1072,6 +1149,12 @@ export function CalendarShell(): JSX.Element {
     quickCreate,
     schedulingOpen,
     schedulingSlots
+  })
+
+  const fcEventSources = usePinnedFcEventSources(fcEventSourcesLive, {
+    persistInFlightRef: graphCalendarPersistInFlightRef,
+    pointerManipulatingRef: eventPointerManipulatingRef,
+    releaseEpoch: fcEventSourcesReleaseEpoch
   })
 
   useEffect(() => {
@@ -1384,6 +1467,12 @@ export function CalendarShell(): JSX.Element {
                   }}
                   leftSidebarCollapsed={leftSidebarCollapsed}
                   onLeftSidebarCollapsedChange={setLeftSidebarCollapsed}
+                  onNewEventClick={openCreateCalendarEventDialog}
+                  onNewWebinarClick={msAccounts.length > 0 ? openCreateWebinarDialog : undefined}
+                  onNewWebinarFromNotionClick={
+                    msAccounts.length > 0 ? openCreateWebinarFromNotion : undefined
+                  }
+                  newEventDisabled={!canCreateCalendarEntry}
                   onImportIcsClick={(): void => {
                     void useCalendarIcsImportStore.getState().openFromPicker()
                   }}
@@ -1423,6 +1512,8 @@ export function CalendarShell(): JSX.Element {
                 cloudTaskOverlay={cloudTaskOverlay}
                 userNoteOverlay={userNoteOverlay}
                 handleGraphEventChange={handleGraphEventChange}
+                deleteGraphCalendarEvent={deleteGraphCalendarEvent}
+                eventPointerManipulatingRef={eventPointerManipulatingRef}
                 canInteractInTimeGrid={canInteractInTimeGrid}
                 setError={setError}
                 setPreviewCloudTask={setPreviewCloudTask}
@@ -1565,6 +1656,12 @@ export function CalendarShell(): JSX.Element {
           onClose={(): void => setCalendarFolderContextMenu(null)}
         />
       )}
+
+      <NotionWebinarImportDialog
+        open={notionWebinarImportOpen}
+        onClose={(): void => setNotionWebinarImportOpen(false)}
+        onImported={handleNotionWebinarImported}
+      />
 
       <CalendarShellModals
         t={t}

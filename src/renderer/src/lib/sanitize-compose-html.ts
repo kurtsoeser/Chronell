@@ -86,6 +86,8 @@ const SANITIZE: DOMPurify.Config = {
   ],
   ALLOW_DATA_ATTR: false,
   ALLOW_UNKNOWN_PROTOCOLS: false,
+  /** Inline-Bilder (data:) in Signaturen/Textbausteinen erlauben. */
+  ADD_DATA_URI_TAGS: ['img'],
   FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'style'],
   FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover']
 }

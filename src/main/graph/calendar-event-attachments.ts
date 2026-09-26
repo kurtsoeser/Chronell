@@ -21,6 +21,7 @@ interface GraphEventAttachment {
   contentType?: string | null
   size?: number | null
   contentBytes?: string | null
+  contentId?: string | null
   sourceUrl?: string | null
   isInline?: boolean
 }
@@ -37,7 +38,8 @@ function mapGraphEventAttachment(a: GraphEventAttachment): CalendarEventAttachme
       size: typeof a.size === 'number' ? a.size : null,
       kind: 'reference',
       sourceUrl: a.sourceUrl?.trim() || null,
-      isInline: false
+      isInline: false,
+      contentId: null
     }
   }
   if (odata.includes('itemAttachment')) {
@@ -49,7 +51,8 @@ function mapGraphEventAttachment(a: GraphEventAttachment): CalendarEventAttachme
     contentType: a.contentType ?? null,
     size: typeof a.size === 'number' ? a.size : null,
     kind: 'file',
-    isInline: Boolean(a.isInline)
+    isInline: Boolean(a.isInline),
+    contentId: a.contentId?.trim() ? a.contentId.trim().replace(/^<|>$/g, '') : null
   }
 }
 
@@ -82,7 +85,13 @@ async function uploadLargeGraphEventAttachment(
       attachmentType: 'file',
       name: att.name,
       size: buffer.byteLength,
-      contentType: att.contentType
+      contentType: att.contentType,
+      ...(att.isInline === true
+        ? {
+            isInline: true,
+            contentId: att.contentId?.trim() || undefined
+          }
+        : {})
     }
   })) as { uploadUrl: string }
 
@@ -117,6 +126,45 @@ export async function listGraphEventAttachments(
   for (const raw of res.value ?? []) {
     const mapped = mapGraphEventAttachment(raw)
     if (mapped) out.push(mapped)
+  }
+  return out
+}
+
+/**
+ * Inline-Bilder eines Termins als `Record<contentId, dataUri>` — fuer `cid:` im Body-HTML.
+ * Kein `$select`: `contentId` ist nur auf `fileAttachment` definiert.
+ */
+export async function fetchGraphEventInlineImages(
+  accountId: string,
+  graphEventId: string,
+  graphCalendarId?: string | null
+): Promise<Record<string, string>> {
+  const client = await getClientFor(accountId)
+  const path = eventAttachmentsPath(graphEventId, graphCalendarId)
+  const res = (await client.api(path).get()) as { value?: GraphEventAttachment[] }
+  const inlineCandidates = (res.value ?? []).filter(
+    (a) =>
+      a.isInline &&
+      a.contentId &&
+      !(a['@odata.type'] ?? '').includes('referenceAttachment') &&
+      !(a['@odata.type'] ?? '').includes('itemAttachment') &&
+      (a.contentType?.startsWith('image/') ?? true)
+  )
+  if (inlineCandidates.length === 0) return {}
+
+  const out: Record<string, string> = {}
+  for (const candidate of inlineCandidates) {
+    try {
+      const fullPath = `${path}/${encodeURIComponent(candidate.id)}`
+      const full = (await client.api(fullPath).get()) as GraphEventAttachment
+      if (!full.contentBytes) continue
+      const mime = full.contentType?.trim() || 'image/png'
+      const cidRaw = (candidate.contentId ?? '').replace(/^<|>$/g, '').trim()
+      if (!cidRaw) continue
+      out[cidRaw] = `data:${mime};base64,${full.contentBytes}`
+    } catch (e) {
+      console.warn('[calendar-attachments] Inline-Bild konnte nicht geladen werden:', e)
+    }
   }
   return out
 }
@@ -168,7 +216,13 @@ export async function graphAddEventAttachments(
       '@odata.type': '#microsoft.graph.fileAttachment',
       name: att.name,
       contentType: att.contentType,
-      contentBytes: att.dataBase64
+      contentBytes: att.dataBase64,
+      ...(att.isInline === true
+        ? {
+            isInline: true,
+            contentId: att.contentId?.trim() || undefined
+          }
+        : {})
     })
   }
   for (const att of large) {

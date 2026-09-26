@@ -367,6 +367,7 @@
 
   /**
    * Mail-Kachel: dunkler Chrome (An/Betreff, Toolbar, Signatur-Kopf) — unabhängig vom Editor-Hell/Dunkel.
+   * Hintergrund und --foreground immer dunkel/hell, nicht vom App-Light-Theme (sonst weißer Text auf weißer Kachel).
    */
   .compose-mail-body-tile {
     display: flex;
@@ -376,14 +377,16 @@
     border-radius: var(--radius-xl);
     border: 1px solid hsl(0 0% 100% / 0.07);
     box-shadow: 0 2px 12px hsl(0 0% 0% / 0.28);
-    background: color-mix(in srgb, var(--chronell-bg-card-solid) 96%, transparent);
-    color: hsl(0 0% 100%);
     --compose-surface: 0 0% 9%;
     --compose-surface-muted: 0 0% 7%;
     --compose-surface-border: 0 0% 15%;
+    --foreground: 0 0% 100%;
+    --muted-foreground: 220 9% 65%;
     --compose-chrome-divider: hsl(0 0% 100% / 0.07);
     --compose-chrome-chip-border: hsl(0 0% 100% / 0.1);
     --compose-chrome-chip-bg: hsl(0 0% 100% / 0.06);
+    background-color: hsl(var(--compose-surface));
+    color: hsl(var(--foreground));
   }
 
   :root:not(.dark) .compose-mail-body-tile {
@@ -2011,4 +2014,25 @@
 .ProseMirror .note-embed-resizable.ProseMirror-selectednode [data-resize-handle],
 .ProseMirror .note-embed-resizable[data-resize-state='true'] [data-resize-handle] {
   opacity: 1;
+}
+
+/** Webinar-Einladung: Vorschau — Inline-Styles aus dem HTML, kein Farb-Override. */
+.webinar-invitation-preview {
+  width: 100%;
+  max-width: 720px;
+  min-width: min(100%, 520px);
+}
+
+.webinar-invitation-preview table[role='presentation'] {
+  width: 100% !important;
+  max-width: 640px;
+}
+
+.webinar-invitation-preview img {
+  max-width: 100%;
+  height: auto;
+}
+
+.webinar-invitation-preview hr {
+  border-color: #333;
 }

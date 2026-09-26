@@ -9,6 +9,7 @@ export type OpenAccountSettingsTab =
   | 'contacts'
   | 'notes'
   | 'tasks'
+  | 'ai'
   | 'info'
 
 export type OpenAccountSettingsDetail = {
@@ -17,6 +18,8 @@ export type OpenAccountSettingsDetail = {
   mailSubNav?: string
   /** Unterpunkt im Bookings-Tab (z. B. `personal`, `access`). */
   bookingsSubNav?: string
+  /** Unterpunkt im KI-Tab (z. B. `connections`, `mail`, `compose`). */
+  aiSubNav?: string
 }
 
 export function requestOpenAccountSettings(detail: OpenAccountSettingsDetail = {}): void {

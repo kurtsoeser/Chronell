@@ -1374,7 +1374,8 @@ const ThreadHeadRow = memo(function ThreadHeadRow({
       onDragStart={(e): void => {
         writeMailDragPayload(
           e.dataTransfer,
-          resolveDragMessageIds(latest.id, conversationDragIds)
+          resolveDragMessageIds(latest.id, conversationDragIds),
+          { todoAnchorIds: resolveDragMessageIds(latest.id, [latest.id]) }
         )
       }}
       onContextMenu={(e): void => {
@@ -1469,7 +1470,7 @@ const ThreadHeadRow = memo(function ThreadHeadRow({
           onOpenPopout(latest.id, e)
         }}
         className={cn(
-          'flex min-w-0 flex-1 text-left',
+          'flex min-w-0 w-full flex-1 text-left',
           outlookExpandHeader ? 'flex-row items-center gap-2 py-0.5' : 'flex-col gap-0.5'
         )}
       >
@@ -1522,46 +1523,48 @@ const ThreadHeadRow = memo(function ThreadHeadRow({
                 <span className="tabular-nums">{formatSnoozeWake(latest.snoozedUntil)}</span>
               </span>
             ) : (
-              <span className="shrink-0 text-2xs text-muted-foreground tabular-nums transition-opacity group-hover/row:opacity-0">
+              <span className="shrink-0 text-right text-2xs text-muted-foreground tabular-nums transition-opacity group-hover/row:opacity-0">
                 {date}
               </span>
             )}
           </>
         ) : (
           <>
-            <div className="flex items-center gap-2">
-              <StatusDot
-                variant={isUnread ? 'unread' : 'read'}
-                size="sm"
-                className="shrink-0"
-                title={isUnread ? t('mail.list.unread') : t('mail.list.read')}
-              />
-              <span
-                className={cn(
-                  'flex-1 truncate text-xs',
-                  isUnread ? 'font-semibold text-foreground' : 'text-muted-foreground'
-                )}
-              >
-                {senderLabel}
-              </span>
-              {hasMultiple && (
+            <div className="flex w-full items-center justify-between gap-2">
+              <div className="flex min-w-0 flex-1 items-center gap-2">
+                <StatusDot
+                  variant={isUnread ? 'unread' : 'read'}
+                  size="sm"
+                  className="shrink-0"
+                  title={isUnread ? t('mail.list.unread') : t('mail.list.read')}
+                />
                 <span
-                  className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-muted px-1.5 py-px text-2xs font-medium text-muted-foreground"
-                  title={t('mail.list.messagesInThread', { count: thread.messageCount })}
+                  className={cn(
+                    'min-w-0 flex-1 truncate text-xs',
+                    isUnread ? 'font-semibold text-foreground' : 'text-muted-foreground'
+                  )}
                 >
-                  <MessagesSquare className="h-2.5 w-2.5" />
-                  {thread.messageCount}
+                  {senderLabel}
                 </span>
-              )}
-              {thread.isFlagged && (
-                <Star className="h-3 w-3 shrink-0 fill-status-flagged text-status-flagged group-hover/row:opacity-0" />
-              )}
-              {thread.hasAttachments && (
-                <Paperclip className="h-3 w-3 shrink-0 text-muted-foreground group-hover/row:opacity-0" />
-              )}
-              {thread.openTodoDueKind != null && (
-                <TodoDueBucketBadge kind={thread.openTodoDueKind} className="shrink-0" />
-              )}
+                {hasMultiple && (
+                  <span
+                    className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-muted px-1.5 py-px text-2xs font-medium text-muted-foreground"
+                    title={t('mail.list.messagesInThread', { count: thread.messageCount })}
+                  >
+                    <MessagesSquare className="h-2.5 w-2.5" />
+                    {thread.messageCount}
+                  </span>
+                )}
+                {thread.isFlagged && (
+                  <Star className="h-3 w-3 shrink-0 fill-status-flagged text-status-flagged group-hover/row:opacity-0" />
+                )}
+                {thread.hasAttachments && (
+                  <Paperclip className="h-3 w-3 shrink-0 text-muted-foreground group-hover/row:opacity-0" />
+                )}
+                {thread.openTodoDueKind != null && (
+                  <TodoDueBucketBadge kind={thread.openTodoDueKind} className="shrink-0" />
+                )}
+              </div>
               {latest.snoozedUntil ? (
                 <span
                   className="inline-flex shrink-0 items-center gap-1 rounded-md bg-status-unread/15 px-1.5 py-0.5 text-2xs font-medium text-status-unread transition-opacity group-hover/row:opacity-0"
@@ -1571,12 +1574,12 @@ const ThreadHeadRow = memo(function ThreadHeadRow({
                   <span className="tabular-nums">{formatSnoozeWake(latest.snoozedUntil)}</span>
                 </span>
               ) : (
-                <span className="shrink-0 text-2xs text-muted-foreground tabular-nums transition-opacity group-hover/row:opacity-0">
+                <span className="shrink-0 text-right text-2xs text-muted-foreground tabular-nums transition-opacity group-hover/row:opacity-0">
                   {date}
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex w-full items-center gap-1.5">
               <span
                 className={cn(
                   'min-w-0 flex-1 truncate text-xs',

@@ -34,6 +34,14 @@ export function snippetHtmlToPlain(html: string): string {
     .trim()
 }
 
+/** Leer, wenn weder sichtbarer Text noch Bilder vorhanden. */
+export function isComposeSnippetHtmlEmpty(html: string): boolean {
+  const trimmed = html.trim()
+  if (!trimmed) return true
+  if (/<img\b/i.test(trimmed)) return false
+  return !snippetHtmlToPlain(trimmed)
+}
+
 /** Schnellweg: Auswahl speichern (Name-Prompt). */
 export async function promptSaveSelectionAsComposeSnippet(editor: Editor): Promise<boolean> {
   const selectedHtml = getEditorSelectionSnippetHtml(editor)

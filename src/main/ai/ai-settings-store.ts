@@ -362,7 +362,7 @@ export async function assertAiConnectionsReady(): Promise<{
     const label = settings.provider === 'openai' ? 'OpenAI' : 'Google Gemini'
     throw new AiConnectionsError(
       'no_api_key',
-      `Kein API-Schlüssel für ${label} hinterlegt. Bitte in den Einstellungen unter KI-Verbindungen speichern.`
+      `Kein API-Schlüssel für ${label} hinterlegt. Bitte in den Einstellungen unter KI → Anbindung speichern.`
     )
   }
   return {
@@ -371,6 +371,63 @@ export async function assertAiConnectionsReady(): Promise<{
     model,
     ollamaBaseUrl: normalizeOllamaBaseUrl(settings.ollamaBaseUrl)
   }
+}
+
+/**
+ * Assist-Chat (Zusammenfassen/Verfassen) für einen konkreten Anbieter —
+ * unabhängig vom „Bevorzugte KI“-Schalter für Entity-Links.
+ */
+export async function assertAiProviderReadyForAssistChat(
+  provider: AiConnectionsProvider
+): Promise<{ apiKey: string; model: string; ollamaBaseUrl: string }> {
+  await migrateLegacyApiKeyIfNeeded()
+  const settings = await getAiConnectionsSettings()
+  if (!settings.consentGiven) {
+    throw new AiConnectionsError(
+      'consent_required',
+      provider === 'ollama'
+        ? 'Bitte unter Einstellungen → KI → Anbindung den Hinweis zu Ollama bestätigen.'
+        : 'Bitte unter Einstellungen → KI → Anbindung den Hinweis zur Cloud-KI bestätigen.'
+    )
+  }
+  const ollamaBaseUrl = normalizeOllamaBaseUrl(settings.ollamaBaseUrl)
+
+  if (provider === 'ollama') {
+    const model =
+      settings.provider === 'ollama' && settings.model?.trim()
+        ? settings.model.trim()
+        : null
+    if (!model) {
+      throw new AiConnectionsError(
+        'no_api_key',
+        'Bitte unter Einstellungen → KI → Anbindung Ollama wählen und ein Modell setzen (z. B. `ollama pull llama3.2`).'
+      )
+    }
+    return { apiKey: '', model, ollamaBaseUrl }
+  }
+
+  const apiKey = await readAiConnectionsApiKey(provider)
+  if (!apiKey) {
+    const label = provider === 'openai' ? 'OpenAI' : 'Google Gemini'
+    throw new AiConnectionsError(
+      'no_api_key',
+      `Kein API-Schlüssel für ${label}. Bitte unter Einstellungen → KI → Anbindung hinterlegen.`
+    )
+  }
+
+  let model: string
+  if (settings.provider === provider && settings.model?.trim()) {
+    model =
+      provider === 'gemini'
+        ? resolveGeminiModel(settings.model)
+        : settings.model.trim()
+  } else if (provider === 'openai') {
+    model = 'gpt-4o-mini'
+  } else {
+    model = resolveGeminiModel(null)
+  }
+
+  return { apiKey, model, ollamaBaseUrl }
 }
 
 export async function exportAiConnectionsSettingsForBackup(): Promise<AiConnectionsSettingsBackupSnapshot> {

@@ -5,7 +5,6 @@ import {
   type RefObject,
   type SetStateAction
 } from 'react'
-import { flushSync } from 'react-dom'
 import type { EventChangeArg } from '@fullcalendar/core'
 import type FullCalendar from '@fullcalendar/react'
 import type { TFunction } from 'i18next'
@@ -40,9 +39,9 @@ import {
   applyOptimisticMailTodoScheduleToItems,
   syncFullCalendarMailTodoEventFromLayer
 } from '@/app/calendar/optimistic-mail-todo-calendar'
-import { deduplicateCalendarEventsByGraphEventId, purgeDuplicateGraphCalendarEventsOnApi } from '@/app/calendar/calendar-graph-events'
+import { deduplicateCalendarEventsByGraphEventId } from '@/app/calendar/calendar-graph-events'
 import {
-  reconcileGraphCalendarEventOnCalendar,
+  removeFullCalendarGraphEventFromLayer,
   syncFullCalendarGraphEventFromLayer
 } from '@/app/calendar/optimistic-graph-calendar'
 import { clearMegaTimelineCache } from '@/app/work-items/apply-calendar-event-schedule-to-work-items'
@@ -58,6 +57,7 @@ import {
   fullCalendarEventToPatchSchedule,
   resolveCalendarEventGraphCalendarId
 } from '@/app/calendar/calendar-shell-view-helpers'
+import { deleteCalendarEventIpc } from '@/lib/calendar-ipc'
 import { useInboxCalendarAgendaCacheStore } from '@/stores/inbox-calendar-agenda-cache'
 import { useMailStore } from '@/stores/mail'
 
@@ -98,6 +98,7 @@ export interface UseCalendarShellEventPersistParams {
     endIso: string,
     opts?: { skipSelectedRefresh?: boolean }
   ) => Promise<void>
+  releasePinnedFcEventSources: () => void
   t: TFunction
 }
 
@@ -127,6 +128,7 @@ export function useCalendarShellEventPersist({
   commitCloudTaskLayer,
   loadUserNotesForRange,
   setTodoScheduleForMessage,
+  releasePinnedFcEventSources,
   t
 }: UseCalendarShellEventPersistParams) {
   const handleGraphEventChange = useCallback(
@@ -173,10 +175,8 @@ export function useCalendarShellEventPersist({
           const optimisticPlanned = optimistic.plannedByKey.get(taskKey)
           const canonicalEventId = cloudTaskEventId(taskKey)
 
-          flushSync(() => {
-            commitCloudTaskLayer(optimistic.items, optimistic.plannedByKey, start, end, {
-              force: true
-            })
+          commitCloudTaskLayer(optimistic.items, optimistic.plannedByKey, start, end, {
+            force: true
           })
 
           syncFullCalendarCloudTaskEventFromLayer(
@@ -273,12 +273,12 @@ export function useCalendarShellEventPersist({
             todoDueAt: range.endIso
           }
 
-          flushSync(() => {
-            setMailTodoItems((prev) =>
-              applyOptimisticMailTodoScheduleToItems(prev, m.id, range)
-            )
+          setMailTodoItems((prev) =>
+            applyOptimisticMailTodoScheduleToItems(prev, m.id, range)
+          )
+          syncFullCalendarMailTodoEventFromLayer(api, optimisticMail, accountColorById, {
+            syncDates: false
           })
-          syncFullCalendarMailTodoEventFromLayer(api, optimisticMail, accountColorById)
 
           await setTodoScheduleForMessage(m.id, range.startIso, range.endIso, {
             skipSelectedRefresh: true
@@ -289,7 +289,9 @@ export function useCalendarShellEventPersist({
           timelineReloadRef.current?.()
 
           if (api) {
-            syncFullCalendarMailTodoEventFromLayer(api, optimisticMail, accountColorById)
+            syncFullCalendarMailTodoEventFromLayer(api, optimisticMail, accountColorById, {
+              syncDates: false
+            })
             scheduleRemoveMailTodoCalendarEventsByMessageId(api, m.id, mailTodoFcId)
             scheduleRemoveDuplicateFullCalendarEventsById(api, [mailTodoFcId])
           }
@@ -329,11 +331,6 @@ export function useCalendarShellEventPersist({
         setError(t('calendar.errors.scheduleParseFailed'))
         return
       }
-      if (graphCalendarPersistInFlightRef.current > 0) {
-        info.revert()
-        setError(t('calendar.errors.schedulePersistInFlight'))
-        return
-      }
       const updatedCalEv: CalendarEventView = {
         ...calEv,
         graphCalendarId: resolvedGraphCalendarId,
@@ -345,29 +342,28 @@ export function useCalendarShellEventPersist({
       const applyOptimisticGraphSchedule = (): void => {
         graphCalendarReconcilingRef.current = true
         try {
-          flushSync(() => {
-            setEvents((prev) =>
-              deduplicateCalendarEventsByGraphEventId(
-                prev.map((ev) =>
-                  ev.accountId === calEv.accountId && ev.graphEventId === calEv.graphEventId
-                    ? updatedCalEv
-                    : ev
-                )
+          // Nur Daten-Layer + extendedProps. Kein setDates, kein Source-Remount,
+          // kein Duplikat-Purge — FullCalendar hat die Position bereits.
+          setEvents((prev) =>
+            deduplicateCalendarEventsByGraphEventId(
+              prev.map((ev) =>
+                ev.accountId === calEv.accountId && ev.graphEventId === calEv.graphEventId
+                  ? updatedCalEv
+                  : ev
               )
             )
-            setPreviewCalendarEvent((prev) =>
-              prev &&
-              prev.accountId === calEv.accountId &&
-              prev.graphEventId === calEv.graphEventId
-                ? updatedCalEv
-                : prev
-            )
-            setGraphCalendarSourceRev((rev) => rev + 1)
-          })
+          )
+          setPreviewCalendarEvent((prev) =>
+            prev &&
+            prev.accountId === calEv.accountId &&
+            prev.graphEventId === calEv.graphEventId
+              ? updatedCalEv
+              : prev
+          )
           useInboxCalendarAgendaCacheStore.getState().upsertPreviewCalendarEvent(updatedCalEv)
           const api = calendarRef.current?.getApi()
-          syncFullCalendarGraphEventFromLayer(api, updatedCalEv)
-          reconcileGraphCalendarEventOnCalendar(api, updatedCalEv)
+          const existing = api?.getEventById(updatedCalEv.id)
+          existing?.setExtendedProp('calendarEvent', updatedCalEv)
         } finally {
           queueMicrotask(() => {
             graphCalendarReconcilingRef.current = false
@@ -378,27 +374,25 @@ export function useCalendarShellEventPersist({
       const rollbackOptimisticGraphSchedule = (): void => {
         graphCalendarReconcilingRef.current = true
         try {
-          flushSync(() => {
-            setEvents((prev) =>
-              deduplicateCalendarEventsByGraphEventId(
-                prev.map((ev) =>
-                  ev.accountId === calEv.accountId && ev.graphEventId === calEv.graphEventId
-                    ? calEv
-                    : ev
-                )
+          setEvents((prev) =>
+            deduplicateCalendarEventsByGraphEventId(
+              prev.map((ev) =>
+                ev.accountId === calEv.accountId && ev.graphEventId === calEv.graphEventId
+                  ? calEv
+                  : ev
               )
             )
-            setPreviewCalendarEvent((prev) =>
-              prev &&
-              prev.accountId === calEv.accountId &&
-              prev.graphEventId === calEv.graphEventId
-                ? calEv
-                : prev
-            )
-          })
+          )
+          setPreviewCalendarEvent((prev) =>
+            prev &&
+            prev.accountId === calEv.accountId &&
+            prev.graphEventId === calEv.graphEventId
+              ? calEv
+              : prev
+          )
+          useInboxCalendarAgendaCacheStore.getState().upsertPreviewCalendarEvent(calEv)
           const api = calendarRef.current?.getApi()
           syncFullCalendarGraphEventFromLayer(api, calEv)
-          reconcileGraphCalendarEventOnCalendar(api, calEv)
           info.revert()
         } finally {
           queueMicrotask(() => {
@@ -434,7 +428,6 @@ export function useCalendarShellEventPersist({
           )
           setError(null)
           clearMegaTimelineCache()
-          purgeDuplicateGraphCalendarEventsOnApi(calendarRef.current?.getApi())
           timelineReloadRef.current?.()
         } catch (e) {
           setError(e instanceof Error ? e.message : String(e))
@@ -444,6 +437,7 @@ export function useCalendarShellEventPersist({
             0,
             graphCalendarPersistInFlightRef.current - 1
           )
+          releasePinnedFcEventSources()
         }
       })()
     },
@@ -470,12 +464,96 @@ export function useCalendarShellEventPersist({
       setTodoSideListRefreshKey,
       setEvents,
       setPreviewCalendarEvent,
-      setGraphCalendarSourceRev,
       setPreviewCloudTask,
       setPreviewCloudTaskPlannedFromTimeline,
-      loadUserNotesForRange
+      loadUserNotesForRange,
+      releasePinnedFcEventSources
     ]
   )
 
-  return { handleGraphEventChange }
+  const deleteGraphCalendarEvent = useCallback(
+    async (calEv: CalendarEventView): Promise<void> => {
+      const graphEventId = calEv.graphEventId?.trim()
+      if (!graphEventId) return
+
+      const snapshot = calEv
+      graphCalendarReconcilingRef.current = true
+      skipCalendarReloadUntilRef.current = Date.now() + 6000
+      graphCalendarPersistInFlightRef.current += 1
+      try {
+        setEvents((prev) =>
+          prev.filter(
+            (ev) =>
+              !(ev.accountId === calEv.accountId && ev.graphEventId === calEv.graphEventId)
+          )
+        )
+        setPreviewCalendarEvent((prev) =>
+          prev &&
+          prev.accountId === calEv.accountId &&
+          prev.graphEventId === calEv.graphEventId
+            ? null
+            : prev
+        )
+        useInboxCalendarAgendaCacheStore.getState().removePreviewCalendarEvent(calEv)
+        removeFullCalendarGraphEventFromLayer(calendarRef.current?.getApi(), calEv)
+      } finally {
+        queueMicrotask(() => {
+          graphCalendarReconcilingRef.current = false
+        })
+      }
+
+      try {
+        await deleteCalendarEventIpc({
+          accountId: calEv.accountId,
+          graphEventId,
+          graphCalendarId: calEv.graphCalendarId ?? null
+        })
+        setError(null)
+        clearMegaTimelineCache()
+        timelineReloadRef.current?.()
+      } catch (e) {
+        graphCalendarReconcilingRef.current = true
+        try {
+          setEvents((prev) =>
+            deduplicateCalendarEventsByGraphEventId(
+              prev.some(
+                (ev) =>
+                  ev.accountId === snapshot.accountId && ev.graphEventId === snapshot.graphEventId
+              )
+                ? prev
+                : [...prev, snapshot]
+            )
+          )
+          useInboxCalendarAgendaCacheStore.getState().upsertPreviewCalendarEvent(snapshot)
+          setGraphCalendarSourceRev((rev) => rev + 1)
+          setError(e instanceof Error ? e.message : String(e))
+        } finally {
+          queueMicrotask(() => {
+            graphCalendarReconcilingRef.current = false
+          })
+        }
+        throw e
+      } finally {
+        graphCalendarPersistInFlightRef.current = Math.max(
+          0,
+          graphCalendarPersistInFlightRef.current - 1
+        )
+        releasePinnedFcEventSources()
+      }
+    },
+    [
+      calendarRef,
+      graphCalendarPersistInFlightRef,
+      graphCalendarReconcilingRef,
+      skipCalendarReloadUntilRef,
+      timelineReloadRef,
+      setError,
+      setEvents,
+      setPreviewCalendarEvent,
+      setGraphCalendarSourceRev,
+      releasePinnedFcEventSources
+    ]
+  )
+
+  return { handleGraphEventChange, deleteGraphCalendarEvent }
 }

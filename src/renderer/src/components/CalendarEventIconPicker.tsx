@@ -16,6 +16,7 @@ import {
   CALENDAR_EVENT_ICON_CATALOG,
   calendarEventIconIsExplicit,
   calendarEventIconLabel,
+  listSuggestedCalendarEventIcons,
   resolveCalendarEventIcon
 } from '@/lib/calendar-event-icons'
 import {
@@ -37,6 +38,8 @@ export interface CalendarEventIconPickerProps {
   /** Zusätzlicher Inhalt unter dem Icon-Raster (z. B. Farbpalette). */
   footer?: ReactNode
   compactButtonClassName?: string
+  /** Kompakt: Icon-Größe im Trigger (Standard h-4 w-4). */
+  compactIconClassName?: string
   className?: string
   /** Kompakt: Standard-Inhalt des Triggers wenn kein explizites `iconId` gesetzt ist. */
   triggerIcon?: ReactNode
@@ -107,6 +110,7 @@ export function CalendarEventIconPicker({
   iconColorHex,
   footer,
   compactButtonClassName,
+  compactIconClassName,
   className,
   triggerIcon,
   defaultPickerOpen = false
@@ -135,6 +139,34 @@ export function CalendarEventIconPicker({
     () => filterCalendarEventIconCatalog(CALENDAR_EVENT_ICON_CATALOG, query, extraSearch),
     [query, extraSearch]
   )
+
+  const suggestedIcons = useMemo(() => listSuggestedCalendarEventIcons(), [])
+  const showSuggestions = !query.trim()
+
+  const renderIconButton = (entry: (typeof CALENDAR_EVENT_ICON_CATALOG)[number]): JSX.Element => {
+    const Icon = resolveCalendarEventIcon(entry.id)
+    const selected = hasExplicit && iconId === entry.id
+    const tip = calendarEventIconLabel(entry.id, (k) => t(k))
+    return (
+      <button
+        key={entry.id}
+        type="button"
+        disabled={disabled}
+        title={tip}
+        className={cn(
+          'flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary/80 hover:text-foreground',
+          selected && 'bg-primary/15 text-primary ring-1 ring-primary/40',
+          disabled && 'pointer-events-none opacity-50'
+        )}
+        onClick={(): void => {
+          onIconChange(entry.id)
+          setOpen(false)
+        }}
+      >
+        <Icon className="h-4 w-4" strokeWidth={2} />
+      </button>
+    )
+  }
 
   useLayoutEffect(() => {
     if (!open || layout !== 'compact' || !anchorRef.current) return
@@ -251,6 +283,22 @@ export function CalendarEventIconPicker({
         className="overflow-y-auto overscroll-contain pr-0.5"
         style={{ maxHeight: PICKER_MAX_HEIGHT_PX }}
       >
+        {showSuggestions && suggestedIcons.length > 0 ? (
+          <div className="mb-2">
+            <p className="mb-1 px-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              {t('calendar.eventIcon.suggestionsHeading')}
+            </p>
+            <div
+              className="grid gap-0.5"
+              style={{ gridTemplateColumns: `repeat(${PICKER_GRID_COLS}, minmax(0, 1fr))` }}
+            >
+              {suggestedIcons.map((entry) => renderIconButton(entry))}
+            </div>
+            <p className="mb-1 mt-2 px-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              {t('calendar.eventIcon.allIconsHeading')}
+            </p>
+          </div>
+        ) : null}
         {filteredIcons.length === 0 ? (
           <p className="px-2 py-6 text-center text-xs text-muted-foreground">
             {t('calendar.eventIcon.searchEmpty')}
@@ -260,30 +308,7 @@ export function CalendarEventIconPicker({
             className="grid gap-0.5"
             style={{ gridTemplateColumns: `repeat(${PICKER_GRID_COLS}, minmax(0, 1fr))` }}
           >
-            {filteredIcons.map((entry) => {
-              const Icon = resolveCalendarEventIcon(entry.id)
-              const selected = hasExplicit && iconId === entry.id
-              const tip = calendarEventIconLabel(entry.id, (k) => t(k))
-              return (
-                <button
-                  key={entry.id}
-                  type="button"
-                  disabled={disabled}
-                  title={tip}
-                  className={cn(
-                    'flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary/80 hover:text-foreground',
-                    selected && 'bg-primary/15 text-primary ring-1 ring-primary/40',
-                    disabled && 'pointer-events-none opacity-50'
-                  )}
-                  onClick={(): void => {
-                    onIconChange(entry.id)
-                    setOpen(false)
-                  }}
-                >
-                  <Icon className="h-4 w-4" strokeWidth={2} />
-                </button>
-              )
-            })}
+            {filteredIcons.map((entry) => renderIconButton(entry))}
           </div>
         )}
       </div>
@@ -319,9 +344,19 @@ export function CalendarEventIconPicker({
           aria-label={t('calendar.eventIcon.pickerTitle')}
         >
           {hasExplicit ? (
-            <SelectedIcon className="h-4 w-4" strokeWidth={2} style={iconStyle} />
+            <SelectedIcon
+              className={cn('h-4 w-4', compactIconClassName)}
+              strokeWidth={2}
+              style={iconStyle}
+            />
           ) : (
-            triggerIcon ?? <SelectedIcon className="h-4 w-4" strokeWidth={2} style={iconStyle} />
+            triggerIcon ?? (
+              <SelectedIcon
+                className={cn('h-4 w-4', compactIconClassName)}
+                strokeWidth={2}
+                style={iconStyle}
+              />
+            )
           )}
         </button>
         {open

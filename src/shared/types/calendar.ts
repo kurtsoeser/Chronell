@@ -187,8 +187,19 @@ export interface CalendarSaveEventInput {
   categories?: string[] | null
   /** Teilnehmer-Einladungen (Graph `attendees` / Google `attendees` + `sendUpdates`). Beim PATCH: gesamte Liste ersetzen. */
   attendeeEmails?: string[] | null
+  /**
+   * Einladungen/E-Mail-Updates an Teilnehmer.
+   * `false`: Termin speichern ohne Versand (Microsoft: Entwurf in Extended Property; Google: ohne `sendUpdates`).
+   * `true`/`undefined`: bisheriges Verhalten — Einladungen versenden.
+   */
+  notifyAttendees?: boolean | null
   /** Microsoft 365: Teams-Besprechung (`isOnlineMeeting` / `onlineMeetingProvider`) — nicht fuer Ganztage. Einladungen unabhaengig davon. */
   teamsMeeting?: boolean | null
+  /**
+   * Teams Premium: Besprechungsvorlage (`onlineMeetings.meetingTemplateId`).
+   * Wird ueber Cloud-Communications-API angelegt (nicht ueber Kalender-isOnlineMeeting).
+   */
+  teamsMeetingTemplateId?: string | null
   /** Dateianhaenge (Microsoft Graph fileAttachment / Google Drive). */
   attachments?: ComposeAttachment[] | null
   /** Microsoft 365: OneDrive/SharePoint als referenceAttachment. */
@@ -203,6 +214,31 @@ export interface CalendarSaveEventInput {
   showAs?: CalendarEventShowAs | null
   /** Vertraulichkeit (Graph `sensitivity` / Google `visibility`); UI: Privat. */
   sensitivity?: CalendarEventSensitivity | null
+  /**
+   * Microsoft 365: Graph `hideAttendees` — Eingeladene sehen nur sich selbst
+   * (Outlook „Teilnehmerliste ausblenden“). Google: ignoriert.
+   */
+  hideAttendees?: boolean | null
+  /**
+   * Microsoft 365: Graph `responseRequested` (Outlook „Antworten anfordern“).
+   * Default bei Teilnehmern: true. Google: ignoriert.
+   */
+  responseRequested?: boolean | null
+  /**
+   * Microsoft 365: Outlook „Weiterleitung zulassen“ (über Extended Property `DoNotForward`).
+   * `false` = Weiterleitung verhindern. Google: ignoriert.
+   */
+  allowForwarding?: boolean | null
+  /**
+   * Microsoft 365: Chronell-Webinar-Einladung (Extended Property).
+   * Steuert HTML-Editor statt TipTap. Google: ignoriert.
+   */
+  chronellWebinarInvitation?: boolean | null
+  /**
+   * Optionale Teilnehmer (Graph `attendees[].type = optional` / Google `optional: true`).
+   * Beim PATCH: zusammen mit `attendeeEmails` die gesamte Liste ersetzen.
+   */
+  optionalAttendeeEmails?: string[] | null
 }
 
 export interface CalendarSaveEventResult {
@@ -212,6 +248,22 @@ export interface CalendarSaveEventResult {
   joinUrl?: string | null
   /** Sofort aus lokalem Cache — fuer optimistische Kalender-Aktualisierung in der UI. */
   event?: CalendarEventView
+}
+
+/** Teams Premium: Online-Besprechung mit Besprechungsvorlage (Cloud Communications). */
+export interface CalendarCreateOnlineMeetingWithTemplateInput {
+  accountId: string
+  subject: string
+  startIso: string
+  endIso: string
+  meetingTemplateId: string
+}
+
+export interface CalendarCreateOnlineMeetingWithTemplateResult {
+  id: string
+  joinUrl: string | null
+  joinInformationHtml: string | null
+  meetingTemplateId: string | null
 }
 
 export interface CalendarUpdateEventInput extends CalendarSaveEventInput {
@@ -241,6 +293,8 @@ export interface CalendarEventAttachmentMeta {
   /** Cloud-Anhang / Google Drive: URL zum Oeffnen im Browser. */
   sourceUrl?: string | null
   isInline?: boolean
+  /** Graph `contentId` fuer `cid:`-Referenzen im Body (ohne umschliessende <>). */
+  contentId?: string | null
 }
 
 export interface CalendarListEventAttachmentsInput {
@@ -249,6 +303,9 @@ export interface CalendarListEventAttachmentsInput {
   graphCalendarId?: string | null
 }
 
+/** Inline-Bilder als Data-URIs (`contentId` → `data:…`). */
+export type CalendarFetchEventInlineImagesInput = CalendarListEventAttachmentsInput
+
 export interface CalendarEventAttachmentActionInput extends CalendarListEventAttachmentsInput {
   attachmentId: string
 }
@@ -256,6 +313,8 @@ export interface CalendarEventAttachmentActionInput extends CalendarListEventAtt
 export interface CalendarGetEventResult {
   subject: string | null
   attendeeEmails: string[]
+  /** Optionale Teilnehmer (Graph type=optional / Google optional). */
+  optionalAttendeeEmails?: string[]
   joinUrl: string | null
   isOnlineMeeting: boolean
   /** Roh-HTML aus Graph (`body.contentType=html`) bzw. Google `description` (oft HTML). */
@@ -284,6 +343,16 @@ export interface CalendarGetEventResult {
   showAs?: CalendarEventShowAs | null
   /** Vertraulichkeit (Graph `sensitivity` / Google `visibility`). */
   sensitivity?: CalendarEventSensitivity | null
+  /** Microsoft 365: Graph `hideAttendees` (Teilnehmerliste ausblenden). */
+  hideAttendees?: boolean | null
+  /** Microsoft 365: Graph `responseRequested`. */
+  responseRequested?: boolean | null
+  /** Microsoft 365: Weiterleitung zulassen (invertiert zu DoNotForward). */
+  allowForwarding?: boolean | null
+  /** Microsoft 365: Chronell-Webinar-Einladung (Extended Property). */
+  chronellWebinarInvitation?: boolean | null
+  /** Microsoft 365: Teilnehmer stehen im Entwurf — noch nicht eingeladen. */
+  webinarInvitationsPending?: boolean | null
   /** Serienmuster (Master; bei Vorkommen vom Master geladen). */
   recurrence?: CalendarSaveEventRecurrence | null
   /** Eigene Teilnahmeantwort (Graph `responseStatus` / Google self-attendee). */

@@ -23,6 +23,9 @@ import {
   formatOutlookReminderMinutes,
   OUTLOOK_REMINDER_MINUTES_OPTIONS
 } from '@/lib/calendar-event-reminder-options'
+import { SettingsTeamsMeetingTemplatesSection } from '@/components/account-setup/SettingsTeamsMeetingTemplatesSection'
+import { SettingsWebinarInvitationSection } from '@/components/account-setup/SettingsWebinarInvitationSection'
+import { readTeamsMeetingTemplates } from '@/lib/teams-meeting-templates-storage'
 import { TipTapBody } from '@/components/TipTapBody'
 
 const DURATION_OPTIONS = [15, 30, 45, 60, 90, 120, 180, 240]
@@ -169,12 +172,72 @@ function TemplateEditor({
         <input
           type="checkbox"
           checked={draft.teamsMeeting}
-          onChange={(e): void => patch({ teamsMeeting: e.target.checked })}
+          onChange={(e): void =>
+            patch({
+              teamsMeeting: e.target.checked,
+              ...(e.target.checked ? {} : { teamsMeetingTemplateId: '' })
+            })
+          }
           className="h-4 w-4 rounded border-border accent-blue-500"
         />
         <Video className={cn('h-3.5 w-3.5 shrink-0', draft.teamsMeeting ? 'text-blue-500' : 'text-muted-foreground')} />
         <span className="font-medium">{t('settings.calendarTemplates.teamsMeetingLabel')}</span>
       </label>
+
+      {draft.teamsMeeting ? (
+        <label className={labelClass}>
+          <span className={labelTextClass}>{t('settings.calendarTemplates.teamsPremiumTemplateLabel')}</span>
+          <select
+            value={draft.teamsMeetingTemplateId || ''}
+            onChange={(e): void => patch({ teamsMeetingTemplateId: e.target.value })}
+            className={inputClass}
+          >
+            <option value="">{t('settings.calendarTemplates.teamsPremiumTemplateNone')}</option>
+            {readTeamsMeetingTemplates().map((tm) => (
+              <option key={tm.id} value={tm.meetingTemplateId}>
+                {tm.name}
+              </option>
+            ))}
+          </select>
+          <span className="block text-2xs text-muted-foreground">
+            {t('settings.calendarTemplates.teamsPremiumTemplateHint')}
+          </span>
+        </label>
+      ) : null}
+
+      {/* Nachverfolgung / Webinar-Optionen (Microsoft) */}
+      <div className="space-y-2 rounded-md border border-border/70 bg-muted/20 p-3">
+        <p className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {t('settings.calendarTemplates.trackingHeading')}
+        </p>
+        {(
+          [
+            ['hideAttendees', 'hideAttendeesLabel'],
+            ['responseRequested', 'responseRequestedLabel'],
+            ['allowForwarding', 'allowForwardingLabel']
+          ] as const
+        ).map(([key, labelKey]) => (
+          <label key={key} className={labelClass}>
+            <span className={labelTextClass}>{t(`settings.calendarTemplates.${labelKey}`)}</span>
+            <select
+              value={
+                draft[key] === true ? 'on' : draft[key] === false ? 'off' : 'keep'
+              }
+              onChange={(e): void => {
+                const v = e.target.value
+                patch({
+                  [key]: v === 'on' ? true : v === 'off' ? false : -1
+                } as Partial<CalendarEventTemplate>)
+              }}
+              className={inputClass}
+            >
+              <option value="keep">{t('settings.calendarTemplates.flagKeep')}</option>
+              <option value="on">{t('settings.calendarTemplates.flagOn')}</option>
+              <option value="off">{t('settings.calendarTemplates.flagOff')}</option>
+            </select>
+          </label>
+        ))}
+      </div>
 
       {/* Beschreibung */}
       <div className={labelClass}>
@@ -405,6 +468,9 @@ export function SettingsCalendarTemplatesSection(): JSX.Element {
           })
         )}
       </ul>
+
+      <SettingsTeamsMeetingTemplatesSection />
+      <SettingsWebinarInvitationSection />
     </section>
   )
 }

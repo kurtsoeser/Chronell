@@ -4,8 +4,8 @@ import { zonedLocalDateTimeToUtcIso } from '@/lib/zoned-iso-date'
 
 export function resolveDefaultEventTimeZone(calendarTzConfig: string | null | undefined): string {
   const configured = calendarTzConfig?.trim()
-  if (configured && configured !== 'local') return configured
-  return Intl.DateTimeFormat().resolvedOptions().timeZone
+  if (configured && configured !== 'local') return graphWindowsZoneToIana(configured)
+  return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
 }
 
 export function resolveRendererDisplayTimeZone(calendarTzConfig: string | null | undefined): string {

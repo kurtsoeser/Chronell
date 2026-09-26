@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { PanelPopoutKind, PanelPopoutOpenInput, PanelPopoutRef } from '@shared/panel-popout'
 import { broadcastPanelPopoutClosed } from '../ipc/ipc-broadcasts'
+import { clearPanelPopoutPayload } from './panel-popout-payload'
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 const isDev = !app.isPackaged
@@ -114,7 +115,7 @@ export function openPanelPopout(input: PanelPopoutOpenInput): void {
     y,
     show: false,
     autoHideMenuBar: true,
-    backgroundColor: '#0e0e12',
+    backgroundColor: '#1a1a1f',
     title: input.title?.trim() || 'Chronell',
     alwaysOnTop,
     ...popoutWindowTitleBarOptions(),
@@ -141,6 +142,8 @@ export function openPanelPopout(input: PanelPopoutOpenInput): void {
 
   win.on('closed', () => {
     popoutWindows.delete(key)
+    const stashKey = input.stashKey?.trim()
+    if (stashKey) clearPanelPopoutPayload(stashKey)
     broadcastPanelPopoutClosed({
       panel: input.panel,
       instanceKey: input.instanceKey?.trim() || ''

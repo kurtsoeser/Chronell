@@ -529,6 +529,7 @@ export function FirstRunWizard({ onOpenSettings }: Props): JSX.Element {
             <li>{t('firstRun.msLi3')}</li>
             <li>{t('firstRun.msLi4')}</li>
             <li>{t('firstRun.msLi5')}</li>
+            <li>{t('firstRun.msLi6')}</li>
           </ul>
           <p className="text-xs">{t('firstRun.msDetails')}</p>
           {hasMicrosoft ? (

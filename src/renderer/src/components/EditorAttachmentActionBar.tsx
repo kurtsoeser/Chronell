@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react'
+import { useCallback, useRef, type ReactNode } from 'react'
 import { Cloud, Paperclip, PenLine } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { AudioRecorderButton } from '@/components/AudioRecorderButton'
@@ -16,6 +16,7 @@ export function EditorAttachmentActionBar({
   inEditorSurface,
   showMediaActions = true,
   enableFileAttach = true,
+  leadingActions,
   className
 }: {
   disabled?: boolean
@@ -31,6 +32,8 @@ export function EditorAttachmentActionBar({
   showMediaActions?: boolean
   /** Lokale Datei-Anhänge (Büroklammer). */
   enableFileAttach?: boolean
+  /** Zusätzliche Aktionen vor den Anhang-Buttons (z. B. Copilot). */
+  leadingActions?: ReactNode
   className?: string
 }): JSX.Element {
   const { t } = useTranslation()
@@ -90,6 +93,7 @@ export function EditorAttachmentActionBar({
           className="hidden"
           onChange={handleFilesChosen}
         />
+        {leadingActions}
         {enableFileAttach ? (
           <button
             type="button"

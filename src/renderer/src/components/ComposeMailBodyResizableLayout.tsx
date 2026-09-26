@@ -35,6 +35,11 @@ export function ComposeMailBodyResizableLayout({
     return (): void => window.removeEventListener('resize', clamp)
   }, [setBottomHeight])
 
+  // maxHeight statt fester height: Signatur/Zitat nehmen nur so viel Platz wie
+  // der Inhalt braucht (eingeklappt ≈ eine Kopfzeile). Sonst bleibt im Popout
+  // ein großer leerer Block und das Textfeld wird zu klein.
+  const bottomMaxHeight = Math.min(bottomHeight, bottomMax)
+
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="min-h-0 flex-1 overflow-hidden">{editor}</div>
@@ -50,7 +55,7 @@ export function ComposeMailBodyResizableLayout({
       />
       <div
         className="flex min-h-0 shrink-0 flex-col gap-2 overflow-y-auto"
-        style={{ height: Math.min(bottomHeight, bottomMax) }}
+        style={{ maxHeight: bottomMaxHeight }}
       >
         {bottom}
       </div>

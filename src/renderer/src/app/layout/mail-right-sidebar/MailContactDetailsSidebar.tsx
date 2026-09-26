@@ -17,6 +17,7 @@ import { ConnectionsObjectPreview } from '@/app/connections/ConnectionsObjectPre
 import { EntityContextBlock } from '@/components/connections/EntityContextBlock'
 import { clearContactHistoryPreviewCache } from '@/app/layout/mail-right-sidebar/contact-history-preview-cache'
 import { ContactAttachmentsList } from '@/app/layout/mail-right-sidebar/ContactAttachmentsList'
+import { ContactCopilotSummaryPanel } from '@/app/layout/mail-right-sidebar/ContactCopilotSummaryPanel'
 import { ContactHistoryList } from '@/app/layout/mail-right-sidebar/ContactHistoryList'
 import { ContactRelatedStrip } from '@/app/layout/mail-right-sidebar/ContactRelatedStrip'
 import { findContactByEmail } from '@/lib/contact-photo-by-email'
@@ -28,7 +29,7 @@ import { useAppModeStore } from '@/stores/app-mode'
 
 const HISTORY_PAGE = 100
 
-type ContactSidebarTab = 'history' | 'attachments' | 'details'
+type ContactSidebarTab = 'history' | 'summary' | 'attachments' | 'details'
 
 export function MailContactDetailsSidebar(): JSX.Element {
   const { t } = useTranslation()
@@ -185,6 +186,7 @@ export function MailContactDetailsSidebar(): JSX.Element {
   const tabOptions = useMemo(() => {
     const opts: Array<{ id: ContactSidebarTab; label: string }> = [
       { id: 'history', label: t('mail.rightSidebar.contactTabHistory') },
+      { id: 'summary', label: t('mail.rightSidebar.contactTabSummary') },
       { id: 'attachments', label: t('mail.rightSidebar.contactTabAttachments') }
     ]
     if (contact) {
@@ -192,6 +194,11 @@ export function MailContactDetailsSidebar(): JSX.Element {
     }
     return opts
   }, [contact, t])
+
+  const copilotAccountId = useMemo((): string | null => {
+    if (correspondentAccountId?.startsWith('ms:')) return correspondentAccountId
+    return queryAccountIds.find((id) => id.startsWith('ms:')) ?? null
+  }, [correspondentAccountId, queryAccountIds])
 
   useEffect(() => {
     if (tab === 'details' && !contact) setTab('history')
@@ -326,6 +333,16 @@ export function MailContactDetailsSidebar(): JSX.Element {
               onMessageReadChanged={onHistoryMessageReadChanged}
             />
           </>
+        ) : tab === 'summary' ? (
+          <ContactCopilotSummaryPanel
+            accountId={copilotAccountId}
+            displayName={headerName}
+            primaryEmail={correspondentEmail}
+            emails={correspondenceEmails}
+            contact={contact}
+            historyItems={historyItems}
+            historyLoading={historyLoading}
+          />
         ) : tab === 'attachments' && correspondentEmail && queryAccountIds.length > 0 ? (
           <ContactAttachmentsList
             contactEmails={correspondenceEmails}

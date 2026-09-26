@@ -178,6 +178,7 @@ export function DashboardComposeTile(): JSX.Element {
                 onChange={(v): void => update(draft.id, { to: v })}
                 showToggle={!draft.showCcBcc}
                 onToggleCcBcc={(): void => update(draft.id, { showCcBcc: true })}
+                autoFocus={draft.mode === 'new'}
                 className="px-2 py-1"
               />
               {draft.showCcBcc && (

@@ -267,9 +267,9 @@ listFolders: (accountId: string): Promise<MailFolder[]> =>
       attachmentId: string
     ): Promise<{ ok: boolean; filePath?: string; error?: string }> =>
       ipcRenderer.invoke(IPC.mail.prepareAttachmentDrag, { messageId, attachmentId }),
-    /** Muss synchron aus dem dragstart-Handler aufgerufen werden. */
+    /** Muss aus dem dragstart-Handler aufgerufen werden (async — kein sendSync). */
     startAttachmentDrag: (filePath: string): void => {
-      ipcRenderer.sendSync(IPC.mail.startAttachmentDrag, filePath)
+      ipcRenderer.send(IPC.mail.startAttachmentDrag, filePath)
     },
     syncAttachmentsFlag: (messageId: number, value: boolean): Promise<void> =>
       ipcRenderer.invoke(IPC.mail.syncAttachmentsFlag, { messageId, value }),

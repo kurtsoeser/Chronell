@@ -21,6 +21,7 @@ import { cn } from '@/lib/utils'
 
 export type RecipientTokenFieldHandle = {
   openContactPicker: () => void
+  focus: () => void
 }
 
 export const RecipientTokenField = forwardRef<
@@ -40,6 +41,8 @@ export const RecipientTokenField = forwardRef<
     /** Label-Spalte ausblenden (z. B. in Calendar PropertyRow). */
     hideLabelColumn?: boolean
     placeholder?: string
+    /** Fokus beim Mount (z. B. neue E-Mail → An-Feld). */
+    autoFocus?: boolean
   }
 >(function RecipientTokenField(
   {
@@ -53,7 +56,8 @@ export const RecipientTokenField = forwardRef<
     inEditorSurface,
     inMailTile,
     hideLabelColumn,
-    placeholder
+    placeholder,
+    autoFocus = false
   },
   ref
 ) {
@@ -66,8 +70,21 @@ export const RecipientTokenField = forwardRef<
   const inputRef = useRef<HTMLInputElement | null>(null)
 
   useImperativeHandle(ref, () => ({
-    openContactPicker: (): void => setPickerOpen(true)
+    openContactPicker: (): void => setPickerOpen(true),
+    focus: (): void => {
+      inputRef.current?.focus()
+      setOpen(true)
+    }
   }))
+
+  useEffect(() => {
+    if (!autoFocus) return
+    const id = window.setTimeout(() => {
+      inputRef.current?.focus()
+      setOpen(true)
+    }, 0)
+    return (): void => window.clearTimeout(id)
+  }, [autoFocus])
 
   const dedupedSuggestions = useMemo(() => {
     const rank: Record<string, number> = {
@@ -227,7 +244,20 @@ export const RecipientTokenField = forwardRef<
         </div>
       ) : null}
       <div className="relative min-w-0 flex-1">
-        <div className="flex min-h-[28px] flex-wrap items-center gap-1 rounded border border-transparent bg-transparent px-0 py-0.5 focus-within:border-border/80">
+        <div
+          className="flex min-h-[28px] flex-wrap items-center gap-1 rounded border border-transparent bg-transparent px-0 py-0.5 focus-within:border-border/80"
+          onMouseDown={(e): void => {
+            // Klick in die Zeile (nicht auf Chip-Remove) → Input fokussieren,
+            // damit TipTap den Fokus nicht behält.
+            if (e.button !== 0) return
+            const target = e.target as HTMLElement | null
+            if (target?.closest('button')) return
+            if (document.activeElement === inputRef.current) return
+            e.preventDefault()
+            inputRef.current?.focus()
+            setOpen(true)
+          }}
+        >
           {complete.map((r, idx) => (
             <span
               key={`${r.address}-${idx}`}
@@ -258,6 +288,7 @@ export const RecipientTokenField = forwardRef<
             type="text"
             aria-label={label || undefined}
             value={tail}
+            autoFocus={autoFocus}
             onChange={(e): void => {
               onChange(formatRecipientsWithTail(complete, e.target.value))
               setOpen(true)

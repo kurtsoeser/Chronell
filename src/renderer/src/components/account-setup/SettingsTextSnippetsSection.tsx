@@ -2,26 +2,23 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FileText, Pencil, Plus, Trash2 } from 'lucide-react'
 import {
+  ComposeTextSnippetEditorDialog,
+  type ComposeTextSnippetEditorState
+} from '@/components/ComposeTextSnippetEditorDialog'
+import {
   BUILTIN_COMPOSE_TEXT_SNIPPETS,
   loadCustomComposeTextSnippets,
   removeCustomComposeTextSnippet,
   saveCustomComposeTextSnippets,
-  textToComposeSnippetHtml,
-  upsertCustomComposeTextSnippet,
   type ComposeTextSnippet
 } from '@/lib/compose-text-snippets'
 import { snippetHtmlToPlain } from '@/lib/compose-text-snippet-selection'
-import { showAppAlert, showAppConfirm } from '@/stores/app-dialog'
+import { showAppConfirm } from '@/stores/app-dialog'
 
 export default function SettingsTextSnippetsSection(): JSX.Element {
   const { t } = useTranslation()
   const [custom, setCustom] = useState<ComposeTextSnippet[]>(() => loadCustomComposeTextSnippets())
-  const [editorOpen, setEditorOpen] = useState<{
-    mode: 'create' | 'edit'
-    id?: string
-    name: string
-    body: string
-  } | null>(null)
+  const [editorOpen, setEditorOpen] = useState<ComposeTextSnippetEditorState | null>(null)
 
   const refresh = useCallback((): void => {
     setCustom(loadCustomComposeTextSnippets())
@@ -39,7 +36,7 @@ export default function SettingsTextSnippetsSection(): JSX.Element {
   }
 
   const startCreate = (): void => {
-    setEditorOpen({ mode: 'create', name: '', body: '' })
+    setEditorOpen({ mode: 'create', name: '', bodyHtml: '' })
   }
 
   const startEdit = (snippet: ComposeTextSnippet): void => {
@@ -47,33 +44,8 @@ export default function SettingsTextSnippetsSection(): JSX.Element {
       mode: 'edit',
       id: snippet.id,
       name: snippet.name,
-      body: snippetHtmlToPlain(snippet.html)
+      bodyHtml: snippet.html
     })
-  }
-
-  const saveEditor = (): void => {
-    if (!editorOpen) return
-    const name = editorOpen.name.trim()
-    const body = editorOpen.body.trim()
-    if (!name) {
-      void showAppAlert(t('settings.textSnippets.nameRequired'), {
-        title: t('settings.textSnippets.heading')
-      })
-      return
-    }
-    if (!body) {
-      void showAppAlert(t('settings.textSnippets.bodyRequired'), {
-        title: t('settings.textSnippets.heading')
-      })
-      return
-    }
-    const next = upsertCustomComposeTextSnippet(custom, {
-      id: editorOpen.mode === 'edit' ? editorOpen.id : undefined,
-      name,
-      html: textToComposeSnippetHtml(body)
-    })
-    persist(next)
-    setEditorOpen(null)
   }
 
   const removeSnippet = (snippet: ComposeTextSnippet): void => {
@@ -132,7 +104,10 @@ export default function SettingsTextSnippetsSection(): JSX.Element {
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm">{snippet.name}</div>
                   <div className="truncate text-[11px] text-muted-foreground">
-                    {snippetHtmlToPlain(snippet.html) || '—'}
+                    {snippetHtmlToPlain(snippet.html) ||
+                      (/<img\b/i.test(snippet.html)
+                        ? t('settings.textSnippets.previewImageOnly')
+                        : '—')}
                   </div>
                 </div>
                 <button
@@ -186,59 +161,12 @@ export default function SettingsTextSnippetsSection(): JSX.Element {
       </div>
 
       {editorOpen ? (
-        <div
-          className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="settings-snippet-editor-title"
-        >
-          <div className="flex w-full max-w-md flex-col gap-3 rounded-lg border border-border bg-card p-4 shadow-xl">
-            <h2 id="settings-snippet-editor-title" className="text-sm font-semibold text-foreground">
-              {editorOpen.mode === 'create'
-                ? t('settings.textSnippets.editorNewTitle')
-                : t('settings.textSnippets.editorEditTitle')}
-            </h2>
-            <label className="flex flex-col gap-1 text-xs">
-              <span className="text-muted-foreground">{t('settings.textSnippets.nameLabel')}</span>
-              <input
-                type="text"
-                value={editorOpen.name}
-                onChange={(e): void =>
-                  setEditorOpen((s) => (s ? { ...s, name: e.target.value } : s))
-                }
-                className="rounded border border-border bg-background px-2 py-1.5 text-sm text-foreground"
-                autoFocus
-              />
-            </label>
-            <label className="flex min-h-0 flex-1 flex-col gap-1 text-xs">
-              <span className="text-muted-foreground">{t('settings.textSnippets.bodyLabel')}</span>
-              <textarea
-                value={editorOpen.body}
-                onChange={(e): void =>
-                  setEditorOpen((s) => (s ? { ...s, body: e.target.value } : s))
-                }
-                rows={8}
-                className="resize-y rounded border border-border bg-background px-2 py-1.5 text-sm leading-relaxed text-foreground"
-              />
-            </label>
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                className="rounded border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-secondary"
-                onClick={(): void => setEditorOpen(null)}
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                type="button"
-                className="rounded bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
-                onClick={saveEditor}
-              >
-                {t('common.save')}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ComposeTextSnippetEditorDialog
+          state={editorOpen}
+          onChange={setEditorOpen}
+          onClose={(): void => setEditorOpen(null)}
+          onSaved={refresh}
+        />
       ) : null}
     </section>
   )

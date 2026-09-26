@@ -34,7 +34,8 @@ import {
   Plus,
   RotateCcw,
   TextCursor,
-  Trash2
+  Trash2,
+  Video
 } from 'lucide-react'
 import {
   DndContext,
@@ -248,6 +249,7 @@ const TOPBAR_CREATE_KINDS: GlobalCreateKind[] = [
   'mail',
   'task',
   'calendar_event',
+  'calendar_webinar',
   'booking',
   'business_booking',
   'note',
@@ -264,6 +266,8 @@ function createKindIcon(kind: GlobalCreateKind): React.ComponentType<{ className
       return ListTodo
     case 'calendar_event':
       return Calendar
+    case 'calendar_webinar':
+      return Video
     case 'booking':
       return Link2
     case 'business_booking':
@@ -322,7 +326,7 @@ function TopbarGlobalCreateSplit({
   }
 
   function isCreateKindDisabled(kind: GlobalCreateKind): boolean {
-    if (kind === 'booking' || kind === 'business_booking') {
+    if (kind === 'booking' || kind === 'business_booking' || kind === 'calendar_webinar') {
       return microsoftAccounts.length === 0
     }
     if (kind === 'calendar_event' || kind === 'task' || kind === 'contact') {
@@ -332,7 +336,10 @@ function TopbarGlobalCreateSplit({
   }
 
   function disabledHint(kind: GlobalCreateKind): string | undefined {
-    if ((kind === 'booking' || kind === 'business_booking') && microsoftAccounts.length === 0)
+    if (
+      (kind === 'booking' || kind === 'business_booking' || kind === 'calendar_webinar') &&
+      microsoftAccounts.length === 0
+    )
       return t('topbar.create.noMicrosoftAccount')
     if (kind === 'calendar_event' && graphCapableAccounts.length === 0)
       return t('topbar.create.noCalendarAccount')

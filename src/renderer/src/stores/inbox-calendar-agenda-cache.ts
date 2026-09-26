@@ -51,6 +51,8 @@ interface InboxCalendarAgendaCacheState {
   loadAgenda: (calendarLinkedAccounts: ConnectedAccount[], opts?: { force?: boolean }) => Promise<void>
   /** Neuer Termin: sofort in Vorschau/Agenda, ohne auf Hintergrund-Sync zu warten. */
   upsertPreviewCalendarEvent: (ev: CalendarEventView) => void
+  /** Termin entfernen (optimistisches Löschen). */
+  removePreviewCalendarEvent: (ev: Pick<CalendarEventView, 'accountId' | 'graphEventId'>) => void
 }
 
 export const useInboxCalendarAgendaCacheStore = create<InboxCalendarAgendaCacheState>((set, get) => ({
@@ -99,6 +101,28 @@ export const useInboxCalendarAgendaCacheStore = create<InboxCalendarAgendaCacheS
     })
   },
 
+  removePreviewCalendarEvent(ev): void {
+    const graphEventId = ev.graphEventId?.trim()
+    if (!graphEventId) return
+    const nowMs = Date.now()
+    set((state) => {
+      const previewRangeEvents = state.previewRangeEvents.filter(
+        (row) => !(row.accountId === ev.accountId && row.graphEventId === graphEventId)
+      )
+      const agenda = state.agenda.filter(
+        (r) =>
+          r.kind !== 'graph' ||
+          !(r.ev.accountId === ev.accountId && r.ev.graphEventId === graphEventId)
+      )
+      const dashboardUpcomingCalendar = filterUpcomingCalendarEvents(
+        previewRangeEvents,
+        DASHBOARD_CALENDAR_MAX_EVENTS,
+        nowMs
+      )
+      return { previewRangeEvents, agenda, dashboardUpcomingCalendar }
+    })
+  },
+
   async loadAgenda(calendarLinkedAccounts, opts): Promise<void> {
     const key = calendarLinkedKey(calendarLinkedAccounts)
     const force = opts?.force === true
@@ -126,6 +150,12 @@ export const useInboxCalendarAgendaCacheStore = create<InboxCalendarAgendaCacheS
 
     try {
       const includeCalendars = await buildCalendarIncludeCalendars(calendarLinkedAccounts)
+      if (includeCalendars.length === 0) {
+        // Cache nicht mit [] überschreiben (z. B. noch keine Kalenderliste).
+        if (seq !== loadSeq) return
+        set({ inFlight: false })
+        return
+      }
       const [graphEvents, mailTodos] = await Promise.all([
         window.mailClient.calendar.listEvents({
           startIso,

@@ -98,3 +98,56 @@ export function calendarEventIconLabel(
   }
   return entry?.l ?? iconId.replace(/-/g, ' ')
 }
+
+/**
+ * Empfohlene Symbole für Termine / Meetings / Webinare (Picker ohne Suchfilter).
+ * IDs müssen im Katalog existieren (Lucide kebab-case).
+ */
+export const CALENDAR_EVENT_ICON_SUGGESTIONS: readonly string[] = [
+  'calendar',
+  'calendar-check',
+  'calendar-clock',
+  'calendar-days',
+  'calendar-range',
+  'video',
+  'presentation',
+  'screen-share',
+  'monitor-play',
+  'projector',
+  'webcam',
+  'podcast',
+  'mic',
+  'mic-vocal',
+  'headset',
+  'megaphone',
+  'radio',
+  'cast',
+  'users',
+  'users-round',
+  'user-round',
+  'handshake',
+  'messages-square',
+  'phone',
+  'phone-call',
+  'briefcase',
+  'briefcase-business',
+  'building-2',
+  'map-pin',
+  'clock',
+  'alarm-clock',
+  'timer',
+  'coffee',
+  'clipboard-list',
+  'notebook-pen',
+  'clapperboard',
+  'tv'
+] as const
+
+export function listSuggestedCalendarEventIcons(): CalendarEventIconCatalogEntry[] {
+  const out: CalendarEventIconCatalogEntry[] = []
+  for (const id of CALENDAR_EVENT_ICON_SUGGESTIONS) {
+    const entry = CATALOG_BY_ID.get(id)
+    if (entry) out.push(entry)
+  }
+  return out
+}

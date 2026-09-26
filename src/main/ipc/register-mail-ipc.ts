@@ -1,5 +1,5 @@
 import { ipcMain, app, BrowserWindow, dialog, shell } from 'electron'
-import { promises as fs } from 'node:fs'
+import { existsSync, promises as fs } from 'node:fs'
 import path from 'node:path'
 import {
   IPC,
@@ -338,7 +338,13 @@ export function registerMailIpc(): void {
       console.warn('[ipc] startAttachmentDrag: Pfad ausserhalb Drag-Cache:', resolved)
       return
     }
+    if (!existsSync(resolved)) {
+      console.warn('[ipc] startAttachmentDrag: Datei fehlt:', resolved)
+      return
+    }
     try {
+      // Wichtig: startDrag blockiert auf Windows bis Drop/Abbruch.
+      // Darf NICHT via sendSync aus dem Renderer kommen — sonst friert DnD ein.
       event.sender.startDrag({
         file: resolved,
         icon: resolveDragFileIcon()

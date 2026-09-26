@@ -44,7 +44,8 @@ export function EntityContextBlock({
   contentPaddingClass = 'px-6',
   noteEditorFillHeight = false,
   contextFillHeight = false,
-  dense = false
+  dense = false,
+  sectionHeaderVariant = 'fold'
 }: {
   anchor: ChronellEntityRef
   noteTarget?: ObjectNoteTarget | null
@@ -59,6 +60,11 @@ export function EntityContextBlock({
   contextFillHeight?: boolean
   /** Kompaktere Typografie in Verbindungsliste. */
   dense?: boolean
+  /**
+   * `property` — gleiche Header-Ebene wie Beschreibung im Termin-Dialog
+   * (Icon-Größe, Einrückung, Großschreibung).
+   */
+  sectionHeaderVariant?: 'fold' | 'property'
 }): JSX.Element {
   const { t } = useTranslation()
   const anchorKey = useMemo(() => entityRefKey(anchor), [anchor])
@@ -290,6 +296,7 @@ export function EntityContextBlock({
               layout="toggle"
               fillHeight={noteEditorFillHeight}
               contentPaddingClass={contentPaddingClass}
+              sectionHeaderVariant={sectionHeaderVariant}
               onSectionExpandedChange={setNoteExpanded}
               className={
                 noteEditorFillHeight && (!resizableSections || noteExpanded)
@@ -323,6 +330,7 @@ export function EntityContextBlock({
         onToggle={toggleExpanded}
         summary={summaryNode}
         trailing={kontextTrailing}
+        headerVariant={sectionHeaderVariant}
         className={cn(
           showNote ? 'min-h-0 shrink-0' : 'border-t-0',
           contextFillHeight && 'flex min-h-0 flex-1 flex-col overflow-hidden'

@@ -76,15 +76,17 @@ export function patchCachedCalendarEventMeetingFields(
   const gid = graphEventId.trim()
   const existing = getCalendarEventByGraphEventId(accountId, gid)
   if (existing) {
-    upsertCalendarEvents([{ ...existing, joinUrl: fields.joinUrl }])
+    const nextJoinUrl = fields.joinUrl?.trim() || existing.joinUrl?.trim() || null
+    upsertCalendarEvents([{ ...existing, joinUrl: nextJoinUrl }])
   }
 
   const cached = getCalendarEventDetailsFromCache(accountId, gid)
   if (cached) {
+    const nextJoinUrl = fields.joinUrl?.trim() || cached.joinUrl?.trim() || null
     upsertCalendarEventDetails(accountId, gid, graphCalendarId ?? existing?.graphCalendarId ?? null, {
       ...cached,
-      joinUrl: fields.joinUrl,
-      isOnlineMeeting: fields.isOnlineMeeting
+      joinUrl: nextJoinUrl,
+      isOnlineMeeting: fields.isOnlineMeeting || cached.isOnlineMeeting === true
     })
     return
   }
@@ -158,12 +160,35 @@ export async function afterCalendarEventUpdated(
   const acc = accounts.find((a) => a.id === accountId)
   if (acc && (acc.provider === 'microsoft' || acc.provider === 'google')) {
     const links = readExistingEventLinks(accountId, input.graphEventId)
+    const details = getCalendarEventDetailsFromCache(accountId, input.graphEventId)
+    const joinUrl = links.joinUrl?.trim() || details?.joinUrl?.trim() || null
     const view = eventViewFromSaveInput(acc, input, {
       id: input.graphEventId,
       webLink: links.webLink
     })
-    view.joinUrl = links.joinUrl
+    view.joinUrl = joinUrl
     upsertCalendarEvents([view])
+
+    const teamsOn =
+      acc.provider === 'microsoft' && input.teamsMeeting === true && !input.isAllDay
+    const attendeeEmails = input.attendeeEmails?.filter((e) => e.trim().length > 0) ?? []
+    if (
+      details ||
+      attendeeEmails.length > 0 ||
+      Boolean(input.bodyHtml?.trim()) ||
+      teamsOn ||
+      joinUrl
+    ) {
+      upsertCalendarEventDetails(accountId, input.graphEventId, input.graphCalendarId ?? null, {
+        subject: input.subject.trim() || details?.subject || null,
+        attendeeEmails: attendeeEmails.length > 0 ? attendeeEmails : (details?.attendeeEmails ?? []),
+        joinUrl,
+        isOnlineMeeting: teamsOn || details?.isOnlineMeeting === true,
+        bodyHtml: input.bodyHtml?.trim()
+          ? input.bodyHtml.trim()
+          : (details?.bodyHtml ?? null)
+      })
+    }
   }
   broadcastCalendarChanged(accountId)
 }

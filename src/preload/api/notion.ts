@@ -151,15 +151,21 @@ import {
   type ClearLocalTasksCacheResult,
   type NotionAppendEventInput,
   type NotionAppendMailInput,
+  type NotionAppendNoteInput,
   type NotionAppendResult,
   type NotionConnectionStatus,
   type NotionCreateEventPageInput,
   type NotionCreateMailPageInput,
+  type NotionCreateNotePageInput,
   type NotionCreatePageInput,
   type NotionCreatePageResult,
   type NotionDestinationsConfig,
+  type NotionKurtrocksEventHit,
   type NotionSearchPageHit,
-  type NotionSavedDestination
+  type NotionSavedDestination,
+  type NotionUpdateKurtrocksEventLinksInput,
+  type NotionUpdateKurtrocksEventLinksResult,
+  type NotionWebinarImportResult
 } from '@shared/types'
 import type { ChronellEntityRef } from '@shared/entity-ref'
 import type {
@@ -217,5 +223,17 @@ getStatus: (): Promise<NotionConnectionStatus> => ipcRenderer.invoke(IPC.notion.
     createMailPage: (input: NotionCreateMailPageInput): Promise<NotionAppendResult> =>
       ipcRenderer.invoke(IPC.notion.createMailPage, input),
     createEventPage: (input: NotionCreateEventPageInput): Promise<NotionAppendResult> =>
-      ipcRenderer.invoke(IPC.notion.createEventPage, input)
+      ipcRenderer.invoke(IPC.notion.createEventPage, input),
+    appendNote: (input: NotionAppendNoteInput): Promise<NotionAppendResult> =>
+      ipcRenderer.invoke(IPC.notion.appendNote, input),
+    createNotePage: (input: NotionCreateNotePageInput): Promise<NotionAppendResult> =>
+      ipcRenderer.invoke(IPC.notion.createNotePage, input),
+    searchKurtrocksEvents: (query: string): Promise<NotionKurtrocksEventHit[]> =>
+      ipcRenderer.invoke(IPC.notion.searchKurtrocksEvents, query),
+    importKurtrocksEventForWebinar: (pageId: string): Promise<NotionWebinarImportResult> =>
+      ipcRenderer.invoke(IPC.notion.importKurtrocksEventForWebinar, pageId),
+    updateKurtrocksEventLinks: (
+      input: NotionUpdateKurtrocksEventLinksInput
+    ): Promise<NotionUpdateKurtrocksEventLinksResult> =>
+      ipcRenderer.invoke(IPC.notion.updateKurtrocksEventLinks, input)
 }

@@ -6,8 +6,18 @@ import type {
   CopilotChatMessageAttribution,
   CopilotRetrievalHit
 } from '@shared/types'
+import { isCopilotApiEngine, normalizeCopilotChatEngine } from '@shared/types'
 import { openExternalUrl } from '@/lib/open-external'
 import { resolveDefaultEventTimeZone } from '@/lib/calendar-event-timezone'
+import { resolveCopilotPrompt } from '@/lib/copilot-prompt-prefs'
+import {
+  defaultCopilotEngine,
+  listCopilotEngineOptions
+} from '@/lib/copilot-engine-options'
+import { useDefaultCopilotEnginePref } from '@/lib/copilot-engine-prefs'
+import { useAiConnectionsSettings } from '@/lib/use-ai-connections-settings'
+import { useWorkIqAvailable } from '@/lib/use-workiq-available'
+import { persistWorkIqAvailable } from '@/lib/workiq-availability'
 import { cn } from '@/lib/utils'
 import { CopilotMarkdown } from '@/components/copilot/CopilotMarkdown'
 import { CopilotSourcePills } from '@/components/copilot/CopilotSourcePills'
@@ -47,6 +57,14 @@ export function CopilotAssistPanel({
   noteTarget = null
 }: CopilotAssistPanelProps): JSX.Element | null {
   const { t, i18n } = useTranslation()
+  const { settings: aiSettings } = useAiConnectionsSettings()
+  const preferredEngine = useDefaultCopilotEnginePref()
+  const microsoftAccount = accountId.startsWith('ms:')
+  const workIqAvailable = useWorkIqAvailable(microsoftAccount ? accountId : null)
+  const engineOptions = useMemo(
+    () => listCopilotEngineOptions({ microsoftAccount, aiSettings, workIqAvailable }),
+    [aiSettings, microsoftAccount, workIqAvailable]
+  )
   const [expanded, setExpanded] = useState(!collapsedDefault)
   const [busy, setBusy] = useState(false)
   const [conversationId, setConversationId] = useState<string | null>(null)
@@ -55,17 +73,58 @@ export function CopilotAssistPanel({
   const [hits, setHits] = useState<CopilotRetrievalHit[]>([])
   const [error, setError] = useState<string | null>(null)
   const [followUp, setFollowUp] = useState('')
-  const [engine, setEngine] = useState<CopilotChatEngine>('graph')
+  const [engine, setEngine] = useState<CopilotChatEngine>(() =>
+    defaultCopilotEngine({
+      microsoftAccount,
+      aiSettings: null,
+      preferred: preferredEngine,
+      workIqAvailable: false
+    })
+  )
   const [cachedAt, setCachedAt] = useState<string | null>(null)
   const [cacheLoading, setCacheLoading] = useState(false)
   const [adopting, setAdopting] = useState(false)
   const [adoptedOk, setAdoptedOk] = useState(false)
 
-  const canUse = accountId.startsWith('ms:')
+  const canUse = engineOptions.length > 0
+
+  useEffect(() => {
+    if (engineOptions.length === 0) return
+    if (!engineOptions.some((o) => o.value === engine)) {
+      setEngine(
+        defaultCopilotEngine({
+          microsoftAccount,
+          aiSettings,
+          preferred: preferredEngine ?? engine,
+          workIqAvailable
+        })
+      )
+    }
+  }, [aiSettings, engine, engineOptions, microsoftAccount, preferredEngine, workIqAvailable])
+
+  // Settings-Default übernehmen, wenn noch keine Antwort läuft
+  useEffect(() => {
+    if (busy || replyText) return
+    if (!preferredEngine) return
+    if (!engineOptions.some((o) => o.value === preferredEngine)) return
+    setEngine(preferredEngine)
+  }, [busy, engineOptions, preferredEngine, replyText])
+
   const mailMessageId = useMemo(
     () => parseMailMessageIdFromContextKey(contextKey),
     [contextKey]
   )
+
+  const forbiddenLabelKey = useMemo((): string => {
+    if (engine === 'workiq') return 'copilot.assist.workIqForbidden'
+    if (isCopilotApiEngine(engine)) return 'copilot.assist.apiForbidden'
+    return 'copilot.assist.forbidden'
+  }, [engine])
+
+  const engineLabel = useMemo((): string => {
+    const hit = engineOptions.find((o) => o.value === engine)
+    return hit ? t(hit.labelKey) : t('copilot.assist.engineGraph')
+  }, [engine, engineOptions, t])
 
   useEffect(() => {
     setConversationId(null)
@@ -143,7 +202,7 @@ export function CopilotAssistPanel({
         }
         const promptWithEngine =
           engine === 'workiq'
-            ? `${text}\n\n${t('copilot.assist.workIqPromptExtra')}`
+            ? `${text}\n\n${resolveCopilotPrompt('assist.workIqExtra', t)}`
             : text
         const payloadMessage = embedContext
           ? buildGroundedCopilotMessage(promptWithEngine, contexts)
@@ -163,14 +222,15 @@ export function CopilotAssistPanel({
           setReplyText(res.replyText)
           setAttributions(attrs)
           setAdoptedOk(false)
+          if (engine === 'workiq') persistWorkIqAvailable(accountId, true)
           void persistCache(res.replyText, attrs)
           return
         }
         if (res.status === 'forbidden') {
           setError(
             res.errorMessage
-              ? `${t(engine === 'workiq' ? 'copilot.assist.workIqForbidden' : 'copilot.assist.forbidden')}\n${res.errorMessage}`
-              : t(engine === 'workiq' ? 'copilot.assist.workIqForbidden' : 'copilot.assist.forbidden')
+              ? `${t(forbiddenLabelKey)}\n${res.errorMessage}`
+              : t(forbiddenLabelKey)
           )
         } else if (res.status === 'unsupported') {
           setError(t('copilot.assist.unsupported'))
@@ -183,12 +243,12 @@ export function CopilotAssistPanel({
         setBusy(false)
       }
     },
-    [accountId, busy, canUse, contextTexts, conversationId, engine, persistCache, t]
+    [accountId, busy, canUse, contextTexts, conversationId, engine, forbiddenLabelKey, persistCache, t]
   )
 
   const runRetrieval = useCallback(async (): Promise<void> => {
     const q = retrievalQuery?.trim()
-    if (!q || !canUse) return
+    if (!q || !canUse || engine !== 'graph' || !microsoftAccount) return
     try {
       const retrieve = window.mailClient?.copilot?.retrieve
       if (typeof retrieve !== 'function') return
@@ -214,13 +274,13 @@ export function CopilotAssistPanel({
     } catch {
       // Retrieval is optional — chat can still succeed.
     }
-  }, [accountId, canUse, retrievalQuery, t])
+  }, [accountId, canUse, engine, microsoftAccount, retrievalQuery, t])
 
   const onPrimary = useCallback((): void => {
     setExpanded(true)
     void runChat(primaryPrompt, { resetConversation: true })
-    if (retrievalQuery?.trim()) void runRetrieval()
-  }, [primaryPrompt, retrievalQuery, runChat, runRetrieval])
+    if (retrievalQuery?.trim() && engine === 'graph') void runRetrieval()
+  }, [engine, primaryPrompt, retrievalQuery, runChat, runRetrieval])
 
   const onFollowUp = useCallback((): void => {
     const q = followUp.trim()
@@ -233,14 +293,13 @@ export function CopilotAssistPanel({
     if (!noteTarget || !replyText?.trim() || adopting) return
     setAdopting(true)
     setAdoptedOk(false)
-    const engineLabel =
-      engine === 'workiq' ? t('copilot.assist.engineWorkIq') : t('copilot.assist.engineGraph')
+    const engineLabelText = engineLabel
     void appendCopilotReplyToObjectNote({
       target: noteTarget,
       replyText,
       attributions,
       hits,
-      heading: t('copilot.assist.noteHeading', { engine: engineLabel }),
+      heading: t('copilot.assist.noteHeading', { engine: engineLabelText }),
       sourcesHeading: t('copilot.assist.sources')
     })
       .then(() => {
@@ -257,7 +316,7 @@ export function CopilotAssistPanel({
         )
       })
       .finally(() => setAdopting(false))
-  }, [adopting, attributions, engine, hits, noteTarget, replyText, t])
+  }, [adopting, attributions, engineLabel, hits, noteTarget, replyText, t])
 
   const cachedAtLabel = useMemo(() => {
     if (!cachedAt) return null
@@ -289,16 +348,19 @@ export function CopilotAssistPanel({
       <select
         className="max-w-[9.5rem] shrink-0 rounded-md border border-border/60 bg-background px-1.5 py-1 text-2xs text-foreground"
         value={engine}
-        disabled={busy}
+        disabled={busy || engineOptions.length === 0}
         aria-label={t('copilot.assist.engineLabel')}
         title={t('copilot.assist.engineHint')}
         onClick={(e): void => e.stopPropagation()}
         onChange={(e): void => {
-          setEngine(e.target.value === 'workiq' ? 'workiq' : 'graph')
+          setEngine(normalizeCopilotChatEngine(e.target.value))
         }}
       >
-        <option value="graph">{t('copilot.assist.engineGraph')}</option>
-        <option value="workiq">{t('copilot.assist.engineWorkIq')}</option>
+        {engineOptions.map((opt) => (
+          <option key={opt.value} value={opt.value}>
+            {t(opt.labelKey)}
+          </option>
+        ))}
       </select>
       <button
         type="button"
@@ -322,13 +384,7 @@ export function CopilotAssistPanel({
       onToggle={(): void => setExpanded((v) => !v)}
       iconClassName="text-primary"
       trailing={trailing}
-      summary={
-        replyText
-          ? t('copilot.assist.cachedLocal')
-          : engine === 'workiq'
-            ? t('copilot.assist.engineWorkIq')
-            : t('copilot.assist.engineGraph')
-      }
+      summary={replyText ? t('copilot.assist.cachedLocal') : engineLabel}
       className={cn('min-h-0', className)}
       contentClassName="space-y-3 text-sm"
     >
@@ -358,7 +414,12 @@ export function CopilotAssistPanel({
           </div>
         </div>
       ) : !busy && !error && !cacheLoading ? (
-        <p className="text-xs text-muted-foreground">{t('copilot.assist.hint')}</p>
+        <p className="text-xs text-muted-foreground">
+          {t('copilot.assist.hint')}
+          {!microsoftAccount ? (
+            <span className="mt-1 block text-2xs opacity-90">{t('copilot.assist.apiOnlyHint')}</span>
+          ) : null}
+        </p>
       ) : null}
 
       <CopilotSourcePills attributions={attributions} replyText={replyText} />

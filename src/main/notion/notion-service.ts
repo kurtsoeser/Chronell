@@ -6,10 +6,20 @@ import type {
   NotionCreatePageResult,
   NotionSearchPageHit
 } from '@shared/types'
+import {
+  notionTitleMatchesQuery,
+  parseNotionSearchQuery,
+  richTextSegmentsToPlain
+} from '@shared/notion-search'
 import { loginNotion } from '../auth/notion-oauth'
 import { loadConfig } from '../config'
 import { getMessageById } from '../db/messages-repo'
-import { buildCalendarEventNotionBlocks, buildMailNotionBlocks } from './notion-blocks'
+import {
+  buildCalendarEventNotionBlocks,
+  buildMailNotionBlocks,
+  buildNoteNotionBlocks
+} from './notion-blocks'
+import { getNoteById } from '../db/user-notes-repo'
 import { fetchCalendarEventDescription } from './notion-calendar-description'
 import {
   buildNotionAttachmentSectionBlocks,
@@ -30,12 +40,15 @@ import {
   writeNotionInternalToken
 } from './notion-internal-token-store'
 import { clearNotionTokens, readNotionTokens, writeNotionTokens } from './notion-token-store'
+import { clearKurtrocksEventsDatabaseCache } from './notion-kurtrocks-events'
 
 interface NotionSearchResponse {
   results: Array<{
     object: string
     id: string
     url?: string
+    created_time?: string
+    last_edited_time?: string
     icon?: { type: string; emoji?: string; external?: { url: string } } | null
     properties?: Record<string, unknown>
     title?: Array<{ plain_text?: string }>
@@ -45,21 +58,131 @@ interface NotionSearchResponse {
 }
 
 function pageTitleFromResult(r: NotionSearchResponse['results'][number]): string {
-  if (Array.isArray(r.title) && r.title[0]?.plain_text) {
-    return r.title[0].plain_text.trim()
-  }
+  const fromRoot = richTextSegmentsToPlain(r.title)
+  if (fromRoot) return fromRoot
+
   const props = r.properties
   if (props && typeof props === 'object') {
     for (const val of Object.values(props)) {
       if (val && typeof val === 'object' && 'title' in val) {
         const titles = (val as { title?: Array<{ plain_text?: string }> }).title
-        if (Array.isArray(titles) && titles[0]?.plain_text) {
-          return titles[0].plain_text.trim()
-        }
+        const plain = richTextSegmentsToPlain(titles)
+        if (plain) return plain
       }
     }
   }
   return 'Unbenannte Seite'
+}
+
+async function fetchNotionSearchPage(
+  query: string | undefined,
+  pageSize: number,
+  startCursor?: string | null
+): Promise<NotionSearchResponse> {
+  return notionJson<NotionSearchResponse>('/search', {
+    method: 'POST',
+    body: JSON.stringify({
+      query: query || undefined,
+      filter: { value: 'page', property: 'object' },
+      page_size: pageSize,
+      sort: { direction: 'descending', timestamp: 'last_edited_time' },
+      start_cursor: startCursor ?? undefined
+    })
+  })
+}
+
+function mapSearchHits(results: NotionSearchResponse['results']): NotionSearchPageHit[] {
+  const hits: NotionSearchPageHit[] = []
+  for (const r of results) {
+    if (r.object !== 'page' || !r.id) continue
+    hits.push({
+      id: r.id,
+      title: pageTitleFromResult(r),
+      url: r.url ?? null,
+      icon: iconFromResult(r),
+      kind: 'page',
+      createdTime: r.created_time ?? null,
+      lastEditedTime: r.last_edited_time ?? null
+    })
+  }
+  return hits
+}
+
+export async function searchNotionPages(
+  query: string,
+  options?: { maxResults?: number }
+): Promise<NotionSearchPageHit[]> {
+  const parsed = parseNotionSearchQuery(query)
+  const q = parsed.apiQuery
+  const maxResults = Math.min(Math.max(options?.maxResults ?? (q ? 40 : 75), 1), 100)
+
+  // Ohne Query: nur Recent-Pool.
+  if (!q) {
+    const hits: NotionSearchPageHit[] = []
+    let cursor: string | null = null
+    do {
+      const pageSize = Math.min(100, maxResults - hits.length)
+      const data = await fetchNotionSearchPage(undefined, pageSize, cursor)
+      hits.push(...mapSearchHits(data.results))
+      cursor =
+        data.has_more && data.next_cursor && hits.length < maxResults ? data.next_cursor : null
+    } while (cursor)
+    return hits.slice(0, maxResults)
+  }
+
+  // Mit Query: Notion-Suche + lokaler Titel-Filter auf Recent-Pool
+  // (Mentions im Titel, Tippfehler-Naehe, Phrasen mit Anfuehrungszeichen).
+  const [apiHits, recentHits] = await Promise.all([
+    (async (): Promise<NotionSearchPageHit[]> => {
+      const data = await fetchNotionSearchPage(q, Math.min(100, maxResults))
+      return mapSearchHits(data.results)
+    })(),
+    (async (): Promise<NotionSearchPageHit[]> => {
+      const hits: NotionSearchPageHit[] = []
+      let cursor: string | null = null
+      const poolMax = 75
+      do {
+        const pageSize = Math.min(100, poolMax - hits.length)
+        const data = await fetchNotionSearchPage(undefined, pageSize, cursor)
+        hits.push(...mapSearchHits(data.results))
+        cursor =
+          data.has_more && data.next_cursor && hits.length < poolMax ? data.next_cursor : null
+      } while (cursor)
+      return hits
+    })()
+  ])
+
+  const byId = new Map<string, NotionSearchPageHit>()
+  for (const hit of apiHits) {
+    byId.set(hit.id, hit)
+  }
+  for (const hit of recentHits) {
+    if (notionTitleMatchesQuery(hit.title, parsed) && !byId.has(hit.id)) {
+      byId.set(hit.id, hit)
+    }
+  }
+
+  // Bei Phrasensuche: API-Treffer ohne Phrase im (vollen) Titel ausblenden.
+  if (parsed.phrase) {
+    for (const [id, hit] of [...byId.entries()]) {
+      if (!notionTitleMatchesQuery(hit.title, parsed)) byId.delete(id)
+    }
+  }
+
+  const merged = [...byId.values()]
+  const qLower = q.toLowerCase()
+  merged.sort((a, b) => {
+    const at = a.title.toLowerCase()
+    const bt = b.title.toLowerCase()
+    const aStarts = at.startsWith(qLower) ? 0 : at.includes(qLower) ? 1 : 2
+    const bStarts = bt.startsWith(qLower) ? 0 : bt.includes(qLower) ? 1 : 2
+    if (aStarts !== bStarts) return aStarts - bStarts
+    const ae = a.lastEditedTime ? Date.parse(a.lastEditedTime) : 0
+    const be = b.lastEditedTime ? Date.parse(b.lastEditedTime) : 0
+    return be - ae
+  })
+
+  return merged.slice(0, maxResults)
 }
 
 function iconFromResult(r: NotionSearchResponse['results'][number]): string | null {
@@ -149,30 +272,8 @@ export async function connectNotionInternal(integrationToken: string): Promise<N
 export async function disconnectNotion(): Promise<NotionConnectionStatus> {
   await clearNotionTokens()
   await clearNotionInternalToken()
+  clearKurtrocksEventsDatabaseCache()
   return getNotionConnectionStatus()
-}
-
-export async function searchNotionPages(query: string): Promise<NotionSearchPageHit[]> {
-  const q = query.trim()
-  const data = await notionJson<NotionSearchResponse>('/search', {
-    method: 'POST',
-    body: JSON.stringify({
-      query: q || undefined,
-      filter: { value: 'page', property: 'object' },
-      page_size: 20,
-      sort: { direction: 'descending', timestamp: 'last_edited_time' }
-    })
-  })
-
-  return data.results
-    .filter((r) => r.object === 'page' && r.id)
-    .map((r) => ({
-      id: r.id,
-      title: pageTitleFromResult(r),
-      url: r.url ?? null,
-      icon: iconFromResult(r),
-      kind: 'page' as const
-    }))
 }
 
 export async function getNotionDestinations(): Promise<NotionDestinationsConfig> {
@@ -227,7 +328,7 @@ async function createNotionPageAtWorkspace(title: string): Promise<NotionCreateP
 
 function resolveNewPageParentCandidates(
   cfg: NotionDestinationsConfig,
-  kind: 'mail' | 'calendar',
+  kind: 'mail' | 'calendar' | 'note',
   explicitParent?: string | null
 ): string[] {
   const out: string[] = []
@@ -237,7 +338,11 @@ function resolveNewPageParentCandidates(
   }
   add(explicitParent)
   add(cfg.newPageParentId)
-  add(kind === 'mail' ? cfg.defaultMailPageId : cfg.defaultCalendarPageId)
+  if (kind === 'calendar') {
+    add(cfg.defaultCalendarPageId)
+  } else {
+    add(cfg.defaultMailPageId)
+  }
   add(cfg.lastUsedPageId)
   for (const f of cfg.favorites) add(f.id)
   return out
@@ -246,7 +351,7 @@ function resolveNewPageParentCandidates(
 export async function createNotionPage(
   title: string,
   parentPageId?: string | null,
-  kind: 'mail' | 'calendar' = 'mail'
+  kind: 'mail' | 'calendar' | 'note' = 'mail'
 ): Promise<NotionCreatePageResult> {
   const cfg = await readNotionDestinations()
   const explicit = parentPageId?.trim()
@@ -292,12 +397,12 @@ async function appendBlocksToPage(pageId: string, children: unknown[]): Promise<
 function resolveTargetPageId(
   pageId: string | null | undefined,
   cfg: NotionDestinationsConfig,
-  kind: 'mail' | 'calendar'
+  kind: 'mail' | 'calendar' | 'note'
 ): string {
   const explicit = pageId?.trim()
   if (explicit) return explicit
   const fallback =
-    kind === 'mail' ? cfg.defaultMailPageId : cfg.defaultCalendarPageId
+    kind === 'calendar' ? cfg.defaultCalendarPageId : cfg.defaultMailPageId
   const last = cfg.lastUsedPageId
   const id = fallback?.trim() || last?.trim()
   if (!id) {
@@ -384,6 +489,53 @@ export async function createCalendarEventAsNotionPage(
   const pageTitle = title.trim() || event.title?.trim() || (localeCode === 'de' ? 'Termin' : 'Event')
   const created = await createNotionPage(pageTitle, parentPageId, 'calendar')
   const pageUrl = await appendCalendarEventBlocksToPage(event, created.pageId, localeCode)
+  await touchNotionDestinationUsed(created.pageId)
+  return { pageId: created.pageId, pageUrl }
+}
+
+async function appendNoteBlocksToPage(
+  noteId: number,
+  targetId: string,
+  localeCode: 'de' | 'en'
+): Promise<string> {
+  const note = getNoteById(noteId)
+  if (!note) {
+    throw new Error('Notiz nicht gefunden.')
+  }
+  const blocks = buildNoteNotionBlocks(note, localeCode)
+  return appendBlocksToPage(targetId, blocks)
+}
+
+export async function appendNoteToNotion(
+  noteId: number,
+  pageId?: string | null,
+  localeCode: 'de' | 'en' = 'de'
+): Promise<NotionAppendResult> {
+  const note = getNoteById(noteId)
+  if (!note) {
+    throw new Error('Notiz nicht gefunden.')
+  }
+  const cfg = await readNotionDestinations()
+  const targetId = resolveTargetPageId(pageId, cfg, 'note')
+  const pageUrl = await appendNoteBlocksToPage(note.id, targetId, localeCode)
+  await touchNotionDestinationUsed(targetId)
+  return { pageId: targetId, pageUrl }
+}
+
+export async function createNoteAsNotionPage(
+  noteId: number,
+  title: string,
+  parentPageId?: string | null,
+  localeCode: 'de' | 'en' = 'de'
+): Promise<NotionAppendResult> {
+  const note = getNoteById(noteId)
+  if (!note) {
+    throw new Error('Notiz nicht gefunden.')
+  }
+  const pageTitle =
+    title.trim() || note.title?.trim() || (localeCode === 'de' ? 'Notiz' : 'Note')
+  const created = await createNotionPage(pageTitle, parentPageId, 'note')
+  const pageUrl = await appendNoteBlocksToPage(note.id, created.pageId, localeCode)
   await touchNotionDestinationUsed(created.pageId)
   return { pageId: created.pageId, pageUrl }
 }

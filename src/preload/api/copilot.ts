@@ -18,5 +18,12 @@ export const copilotApi = {
   cacheGet: (input: MessageCopilotCacheGetInput): Promise<MessageCopilotCacheEntry | null> =>
     ipcRenderer.invoke(IPC.copilot.cacheGet, input),
   cacheSet: (input: MessageCopilotCacheSetInput): Promise<MessageCopilotCacheEntry | null> =>
-    ipcRenderer.invoke(IPC.copilot.cacheSet, input)
+    ipcRenderer.invoke(IPC.copilot.cacheSet, input),
+  workIqStatus: (input: {
+    accountId: string
+  }): Promise<{ available: boolean }> => ipcRenderer.invoke(IPC.copilot.workIqStatus, input),
+  workIqEnable: (input: {
+    accountId: string
+  }): Promise<{ available: boolean; errorMessage?: string }> =>
+    ipcRenderer.invoke(IPC.copilot.workIqEnable, input)
 }

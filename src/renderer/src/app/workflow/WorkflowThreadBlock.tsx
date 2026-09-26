@@ -3,7 +3,7 @@ import type { ConnectedAccount, MailListItem } from '@shared/types'
 import { compareMessageChronoDesc } from '@/lib/thread-display-pick'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { MIME_THREAD_IDS } from '@/lib/workflow-dnd'
+import { writeMailDragPayload } from '@/lib/workflow-dnd'
 import {
   mailReadingPopoutOptsFromClick,
   openMailReadingPopout
@@ -53,12 +53,9 @@ export function WorkflowThreadBlock({
       <div
         draggable
         onDragStart={(e): void => {
-          const payload = JSON.stringify(conversationDragIds)
-          e.dataTransfer.setData(MIME_THREAD_IDS, payload)
-          e.dataTransfer.setData('text/plain', conversationDragIds.join(','))
-          e.dataTransfer.setData('text/mailclient-message-id', String(latest.id))
-          e.dataTransfer.setData('application/x-mailclient-message-id', String(latest.id))
-          e.dataTransfer.effectAllowed = 'move'
+          writeMailDragPayload(e.dataTransfer, conversationDragIds, {
+            todoAnchorIds: [latest.id]
+          })
         }}
         role="button"
         tabIndex={0}
@@ -159,12 +156,7 @@ export function WorkflowSubMessageRow({
     <div
       draggable
       onDragStart={(e): void => {
-        const id = String(message.id)
-        e.dataTransfer.setData(MIME_THREAD_IDS, JSON.stringify([message.id]))
-        e.dataTransfer.setData('text/plain', id)
-        e.dataTransfer.setData('text/mailclient-message-id', id)
-        e.dataTransfer.setData('application/x-mailclient-message-id', id)
-        e.dataTransfer.effectAllowed = 'move'
+        writeMailDragPayload(e.dataTransfer, [message.id])
       }}
       role="button"
       tabIndex={0}

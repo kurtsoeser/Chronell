@@ -27,7 +27,8 @@ export function applyOptimisticMailTodoScheduleToItems(
 export function syncFullCalendarMailTodoEventFromLayer(
   api: CalendarApi | null | undefined,
   mail: MailListItem,
-  accountColorById: Record<string, string>
+  accountColorById: Record<string, string>,
+  opts?: { syncDates?: boolean }
 ): void {
   if (!api) return
   const eventId = mailTodoFullCalendarEventId(mail)
@@ -53,7 +54,9 @@ export function syncFullCalendarMailTodoEventFromLayer(
         ? input.end
         : String(input.end)
 
-  existing.setAllDay(allDay)
-  existing.setDates(start, end, { allDay })
+  if (opts?.syncDates !== false) {
+    existing.setAllDay(allDay)
+    existing.setDates(start, end, { allDay })
+  }
   existing.setExtendedProp('mailMessage', mail)
 }

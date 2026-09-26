@@ -6,8 +6,8 @@ Dieses Dokument beschreibt den **aktuellen Funktionsumfang** der Desktop-App. Es
 |------|------|
 | **Produktname (UI)** | Chronell |
 | **Technischer Name / Installer** | MailClient |
-| **Version** | **1.2.0** |
-| **Stand** | **22. September 2026** |
+| **Version** | **1.3.0** |
+| **Stand** | **26. September 2026** |
 | **App-ID** | `at.kurtsoeser.chronell` |
 | **Zielplattform** | Windows 11 (primär) |
 | **Autor** | Kurt Soeser |
@@ -109,6 +109,7 @@ Die App gliedert sich in **zehn Hauptmodi** (obere Leiste, Reihenfolge anpassbar
 - **Composer** (0.9.20): modularer Aufbau, Pop-out-Fenster, **TipTap**-Editor mit Hell/Dunkel-Theme
 - **Absender:** Hauptkonto, Alias, freigegebenes Postfach (M365); **Nachrichtenoptionen** (Vertraulichkeit, Lese-/Zustellungsbestätigung, geplanter Versand)
 - **Textbausteine** im Composer; Signaturvorlagen wie zuvor
+- **Copilot-Entwürfe** (1.3.0): KI-gestützte Mail-Entwürfe im Composer (Work IQ / konfigurierte Provider)
 - **Anhänge:** lokal + **OneDrive / SharePoint** als Cloud-Link-Anhang oder Freigabe-Link im Text (Explorer, Favoriten, Link-Berechtigungen und Ablauf)
 - **Gruppen-Empfänger** (0.9.22): Suche mail-aktivierter Microsoft-365-Gruppen im Composer über erweiterten Graph-Query (`ConsistencyLevel: eventual`)
 - Entwürfe, Vorlagen mit Platzhaltern
@@ -138,6 +139,7 @@ Die App gliedert sich in **zehn Hauptmodi** (obere Leiste, Reihenfolge anpassbar
 
 - Sichtbarkeit einzelner Mail-Ordner in der Sidebar (Einstellungen)
 - Gefilterte „Markiert“-Ansicht (optional ohne Papierkorb/Junk)
+- **Kontakt-Copilot** (1.3.0): KI-Zusammenfassung zum Absender in der rechten Kontext-Sidebar
 
 ---
 
@@ -182,7 +184,8 @@ Das Modul **„Arbeit“** bündelt offene Punkte aus verschiedenen Quellen als 
 - Multi-Kalender (Microsoft, Google, **M365-Gruppenkalender**)
 - **Gruppenkalender** (0.9.22): Laden über `transitiveMemberOf` mit Fallback auf `memberOf` (direkte Mitgliedschaften); Advanced-Query-Header; klarere Fehlermeldungen bei fehlendem `GroupMember.Read.All`
 - **ICS-Import** (0.9.23): `.ics`-Dateien per Drag & Drop oder Dialog importieren — einzelne oder mehrere Termine in M365-/Google-Kalender anlegen
-- Termin-Dialog inkl. **Serien / Wiederholung** (0.9.21: überarbeiteter Dialog, klarere Felder, Termin aus Topbar); **0.9.23:** einheitlicher Chronell-Datums-Picker
+- Termin-Dialog inkl. **Serien / Wiederholung** (0.9.21: überarbeiteter Dialog, klarere Felder, Termin aus Topbar); **0.9.23:** einheitlicher Chronell-Datums-Picker; **1.3.0:** Ribbon, Teilnehmerfeld, Teams-Join-Link, Meeting-Vorlagen
+- **Webinar-Einladungen** (1.3.0): Layout-Themen, WYSIWYG-Editor, Notion-Import (KurtRocks), Microsoft-Forms-Picker, Teilnehmer-Vorschau und Speichern als Kalender-HTML
 - Drag & Resize mit Persistenz über Graph/Google
 - Sichtbarkeit und Sidebar-Einblendung pro Kalender (Einstellungen)
 - Zeitzonen-Unterstützung (Microsoft-Zeitzonenliste)
@@ -483,6 +486,14 @@ Marker-Datei nach Migration: `%APPDATA%\Chronell\.chronell-migrated-from-mailcli
 ---
 
 ## 20. Versionshistorie
+
+### 1.3.0 - 26. September 2026
+
+- **Webinare:** Einladungs-Editor mit Layout-Themen, WYSIWYG, Notion-Import und Microsoft-Forms-Anbindung
+- **Kalender:** Überarbeiteter Termin-Dialog mit Ribbon, Teams-Join-Link und Meeting-Vorlagen
+- **Copilot:** Entwürfe im Composer sowie Kontakt-Zusammenfassungen in der Mail-Sidebar
+- **Homepage:** Release-Texte, Timeline und Download auf 1.3.0
+
 
 ### 1.2.0 - 22. September 2026
 

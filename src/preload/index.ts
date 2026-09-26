@@ -25,6 +25,7 @@ import { composeApi } from './api/compose'
 import { calendarApi } from './api/calendar'
 import { tasksApi } from './api/tasks'
 import { bookingsApi } from './api/bookings'
+import { msFormsApi } from './api/msforms'
 import { peopleApi } from './api/people'
 import { workflowApi } from './api/workflow'
 import { vipApi } from './api/vip'
@@ -59,6 +60,7 @@ const api = {
   calendar: calendarApi,
   tasks: tasksApi,
   bookings: bookingsApi,
+  msForms: msFormsApi,
   people: peopleApi,
   workflow: workflowApi,
   vip: vipApi,

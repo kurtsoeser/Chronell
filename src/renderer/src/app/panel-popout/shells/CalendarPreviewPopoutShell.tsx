@@ -47,22 +47,29 @@ export function CalendarPreviewPopoutShell(): JSX.Element {
     void useMailStore.getState().initialize()
   }, [])
 
+  const panel = route?.panel
+  const instanceKey = route?.instanceKey ?? ''
+  const stashKey = route?.params.get('stashKey')?.trim() ?? ''
+
   useEffect(() => {
-    if (!route?.params.get('stashKey')) return
-    const key = route.params.get('stashKey')!.trim()
-    void window.mailClient.panelPopout.takePayload(key).then((raw) => {
+    if (!stashKey) return
+    let cancelled = false
+    void window.mailClient.panelPopout.takePayload(stashKey).then((raw) => {
+      if (cancelled) return
       const s = raw as CalendarPreviewPopoutStash | null
-      if (s) {
-        setStash(s)
-        if (s.focus === 'scheduling') {
-          setSchedulingSlots(s.slots)
-          setSchedulingAccountId(s.accountId)
-          setSchedulingDurationMin(s.durationMin)
-          setSchedulingMeetingTitle(s.meetingTitle)
-        }
+      if (!s) return
+      setStash(s)
+      if (s.focus === 'scheduling') {
+        setSchedulingSlots(s.slots)
+        setSchedulingAccountId(s.accountId)
+        setSchedulingDurationMin(s.durationMin)
+        setSchedulingMeetingTitle(s.meetingTitle)
       }
     })
-  }, [route])
+    return (): void => {
+      cancelled = true
+    }
+  }, [stashKey])
 
   useEffect(() => {
     if (!stash) return
@@ -131,9 +138,9 @@ export function CalendarPreviewPopoutShell(): JSX.Element {
   }, [stash])
 
   const close = useCallback((): void => {
-    if (!route) return
-    void window.mailClient.panelPopout.close({ panel: route.panel, instanceKey: route.instanceKey || undefined })
-  }, [route])
+    if (!panel) return
+    void window.mailClient.panelPopout.close({ panel, instanceKey: instanceKey || undefined })
+  }, [panel, instanceKey])
 
   const buildDockStash = useCallback((): CalendarPreviewPopoutStash => {
     if (stash?.focus === 'scheduling') {
@@ -174,13 +181,13 @@ export function CalendarPreviewPopoutShell(): JSX.Element {
   ])
 
   const popIn = useCallback((): void => {
-    if (!route) return
+    if (!panel) return
     void requestPanelPopoutDock({
       panel: 'calendar-preview',
-      instanceKey: route.instanceKey,
+      instanceKey,
       stashPayload: buildDockStash()
     })
-  }, [route, buildDockStash])
+  }, [panel, instanceKey, buildDockStash])
 
   const title = useMemo(() => {
     if (calendarEvent?.title?.trim()) return calendarEvent.title.trim()

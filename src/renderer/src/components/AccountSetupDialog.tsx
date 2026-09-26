@@ -109,6 +109,11 @@ const SettingsAiConnectionsSection = lazy(() =>
     default: m.SettingsAiConnectionsSection
   }))
 )
+const SettingsCopilotSection = lazy(() =>
+  import('@/components/account-setup/SettingsCopilotSection').then((m) => ({
+    default: m.SettingsCopilotSection
+  }))
+)
 import {
   DASHBOARD_GRID_STEP_DEFAULT_PX,
   DASHBOARD_GRID_STEP_MAX_PX,
@@ -184,6 +189,7 @@ import {
   FileSearch,
   Search,
   Settings,
+  Sparkles,
   StickyNote,
   Users,
   UserCircle
@@ -191,7 +197,17 @@ import {
 
 const SETTINGS_TAB_ICON_CLASS = 'h-3.5 w-3.5 shrink-0'
 
-type SettingsTab = 'general' | 'accounts' | 'mail' | 'calendar' | 'bookings' | 'contacts' | 'notes' | 'tasks' | 'info'
+type SettingsTab =
+  | 'general'
+  | 'accounts'
+  | 'mail'
+  | 'calendar'
+  | 'bookings'
+  | 'contacts'
+  | 'notes'
+  | 'tasks'
+  | 'ai'
+  | 'info'
 
 const SETTINGS_SUB_DEFAULT: Record<SettingsTab, string> = {
   general: 'language',
@@ -202,6 +218,7 @@ const SETTINGS_SUB_DEFAULT: Record<SettingsTab, string> = {
   contacts: 'workspace',
   notes: 'workspace',
   tasks: 'workspace',
+  ai: 'connections',
   info: 'about'
 }
 
@@ -290,6 +307,8 @@ interface Props {
   initialMailSubNav?: string
   /** Unterpunkt im Bookings-Tab (z. B. `personal`, `access`). */
   initialBookingsSubNav?: string
+  /** Unterpunkt im KI-Tab (z. B. `connections`, `mail`). */
+  initialAiSubNav?: string
 }
 
 export function AccountSetupDialog({
@@ -297,7 +316,8 @@ export function AccountSetupDialog({
   onClose,
   initialTab,
   initialMailSubNav,
-  initialBookingsSubNav
+  initialBookingsSubNav,
+  initialAiSubNav
 }: Props): JSX.Element | null {
   const {
     config,
@@ -387,6 +407,11 @@ export function AccountSetupDialog({
           id: 'tasks' as const,
           label: t('settings.tabTasks'),
           icon: <ListTodo className={SETTINGS_TAB_ICON_CLASS} />
+        },
+        {
+          id: 'ai' as const,
+          label: t('settings.tabAi'),
+          icon: <Sparkles className={SETTINGS_TAB_ICON_CLASS} />
         },
         {
           id: 'info' as const,
@@ -561,9 +586,12 @@ export function AccountSetupDialog({
     if (initialTab === 'bookings' && initialBookingsSubNav) {
       setSubNavId((prev) => ({ ...prev, bookings: initialBookingsSubNav }))
     }
+    if (initialTab === 'ai' && initialAiSubNav) {
+      setSubNavId((prev) => ({ ...prev, ai: initialAiSubNav }))
+    }
     setSettingsSearchQuery('')
     setSettingsSearchOpen(false)
-  }, [open, initialTab, initialMailSubNav, initialBookingsSubNav])
+  }, [open, initialTab, initialMailSubNav, initialBookingsSubNav, initialAiSubNav])
 
   useEffect(() => {
     if (!open) return
@@ -622,7 +650,6 @@ export function AccountSetupDialog({
           { id: 'weather', label: t('settings.weatherHeading') },
           { id: 'oauth', label: t('settings.oauthSummary') },
           { id: 'notion', label: t('settings.notionHeading') },
-          { id: 'aiConnections', label: t('settings.aiConnections.nav') },
           { id: 'cloudSync', label: t('settings.cloudSync.heading') },
           { id: 'demo', label: t('demo.settingsNav') },
           { id: 'backup', label: t('settings.backupHeading') }
@@ -693,6 +720,15 @@ export function AccountSetupDialog({
           { id: 'mail', label: t('settings.tasksMailHeading') },
           { id: 'detail', label: t('settings.tasksDetailHeading') },
           { id: 'sync', label: t('settings.tasksSyncHeading') }
+        ]
+      case 'ai':
+        return [
+          { id: 'connections', label: t('settings.ai.connectionsNav') },
+          { id: 'mail', label: t('settings.copilot.mailHeading') },
+          { id: 'compose', label: t('settings.copilot.composeHeading') },
+          { id: 'contact', label: t('settings.copilot.contactHeading') },
+          { id: 'meeting', label: t('settings.copilot.meetingHeading') },
+          { id: 'engine', label: t('settings.copilot.engineHeading') }
         ]
       case 'info':
         return [{ id: 'about', label: t('settings.infoAboutHeading') }]
@@ -1968,12 +2004,6 @@ export function AccountSetupDialog({
                 </Suspense>
               )}
 
-              {subNavId.general === 'aiConnections' && (
-                <Suspense fallback={<AccountSetupPanelFallback />}>
-                  <SettingsAiConnectionsSection />
-                </Suspense>
-              )}
-
               {subNavId.general === 'cloudSync' && <AccountSetupCloudSyncSection />}
 
               {subNavId.general === 'demo' && <SettingsDemoSection />}
@@ -2958,6 +2988,23 @@ export function AccountSetupDialog({
           {activeTab === 'tasks' && (
             <Suspense fallback={<AccountSetupPanelFallback />}>
               <AccountSetupTasksPanel section={subNavId.tasks} onClose={onClose} />
+            </Suspense>
+          )}
+
+          {activeTab === 'ai' && (
+            <Suspense fallback={<AccountSetupPanelFallback />}>
+              <div role="tabpanel" aria-label={t('settings.tabAi')} className="space-y-5">
+                {subNavId.ai === 'connections' ? <SettingsAiConnectionsSection /> : null}
+                {(subNavId.ai === 'mail' ||
+                  subNavId.ai === 'compose' ||
+                  subNavId.ai === 'contact' ||
+                  subNavId.ai === 'meeting' ||
+                  subNavId.ai === 'engine') && (
+                  <SettingsCopilotSection
+                    subNav={subNavId.ai as 'mail' | 'compose' | 'contact' | 'meeting' | 'engine'}
+                  />
+                )}
+              </div>
             </Suspense>
           )}
 

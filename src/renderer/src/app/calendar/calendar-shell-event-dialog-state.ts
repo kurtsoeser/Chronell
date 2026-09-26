@@ -13,6 +13,14 @@ export type CalendarShellEventDialogState =
         attendeeInput?: string
         descriptionHtml?: string
         teamsMeeting?: boolean
+        webinarMode?: boolean
+        /** Cover aus Notion als data:-URL. */
+        webinarHeroImageSrc?: string | null
+        webinarWebsiteUrl?: string
+        /** Beschreibung → Supplement-Block in der Einladung. */
+        webinarSupplementHtml?: string
+        /** Notion-Seiten-ID (#kurtrocks Events) fuer Link-Writeback. */
+        notionPageId?: string
       }
       createAccountId?: string
       createKind?: CalendarCreateQuickDraft['createKind']

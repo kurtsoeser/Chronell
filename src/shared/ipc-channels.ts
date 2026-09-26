@@ -138,7 +138,9 @@ export const IPC = {
     chat: 'copilot:chat',
     retrieve: 'copilot:retrieve',
     cacheGet: 'copilot:cache-get',
-    cacheSet: 'copilot:cache-set'
+    cacheSet: 'copilot:cache-set',
+    workIqStatus: 'copilot:workiq-status',
+    workIqEnable: 'copilot:workiq-enable'
   },
   notes: {
     getMail: 'notes:get-mail',
@@ -205,7 +207,7 @@ export const IPC = {
     saveAttachmentAs: 'mail:save-attachment-as',
     /** Laedt Anhang in den Drag-Cache (Originalname) fuer natives OS-Drag. */
     prepareAttachmentDrag: 'mail:prepare-attachment-drag',
-    /** Sync: startet webContents.startDrag waehrend dragstart. */
+    /** Async: startet webContents.startDrag (kein sendSync — friert Windows-DnD sonst ein). */
     startAttachmentDrag: 'mail:start-attachment-drag',
     syncAttachmentsFlag: 'mail:sync-attachments-flag',
     refreshNow: 'mail:refresh-now',
@@ -303,6 +305,7 @@ export const IPC = {
     listMicrosoft365GroupCalendars: 'calendar:list-ms365-group-calendars',
     patchCalendarColor: 'calendar:patch-calendar-color',
     createTeamsMeeting: 'calendar:create-teams-meeting',
+    createOnlineMeetingWithTemplate: 'calendar:create-online-meeting-with-template',
     suggestFromMessage: 'calendar:suggest-from-message',
     createEvent: 'calendar:create-event',
     updateEvent: 'calendar:update-event',
@@ -310,6 +313,7 @@ export const IPC = {
     resolveMeetingRecording: 'calendar:resolve-meeting-recording',
     getMeetingAiInsights: 'calendar:get-meeting-ai-insights',
     listEventAttachments: 'calendar:list-event-attachments',
+    fetchEventInlineImages: 'calendar:fetch-event-inline-images',
     openEventAttachment: 'calendar:open-event-attachment',
     saveEventAttachmentAs: 'calendar:save-event-attachment-as',
     deleteEvent: 'calendar:delete-event',
@@ -356,6 +360,9 @@ export const IPC = {
     listServices: 'bookings:list-services',
     listStaffMembers: 'bookings:list-staff-members',
     listAppointments: 'bookings:list-appointments'
+  },
+  msForms: {
+    listMine: 'msforms:list-mine'
   },
   people: {
     list: 'people:list',
@@ -441,7 +448,12 @@ export const IPC = {
     removeFavorite: 'notion:remove-favorite',
     createPage: 'notion:create-page',
     createMailPage: 'notion:create-mail-page',
-    createEventPage: 'notion:create-event-page'
+    createEventPage: 'notion:create-event-page',
+    appendNote: 'notion:append-note',
+    createNotePage: 'notion:create-note-page',
+    searchKurtrocksEvents: 'notion:search-kurtrocks-events',
+    importKurtrocksEventForWebinar: 'notion:import-kurtrocks-event-for-webinar',
+    updateKurtrocksEventLinks: 'notion:update-kurtrocks-event-links'
   },
   demo: {
     getStatus: 'demo:get-status',

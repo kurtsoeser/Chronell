@@ -1,4 +1,4 @@
-import { Copy, FilePlus2, FolderInput, Link2, Pin, PinOff, Trash2 } from 'lucide-react'
+import { Copy, FilePlus2, FolderInput, Link2, Pin, PinOff, SquareArrowOutUpRight, Trash2 } from 'lucide-react'
 import type { TFunction } from 'i18next'
 import type { NoteSection, UserNoteListItem } from '@shared/types'
 import type { ContextMenuItem } from '@/components/ContextMenu'
@@ -18,6 +18,8 @@ export interface NotesPageContextHandlers {
   onTogglePin?: (note: UserNoteListItem) => void | Promise<void>
   onCreateSubPage?: (note: UserNoteListItem) => void | Promise<void>
   onMoveToParent?: (note: UserNoteListItem, parentNoteId: number | null) => void | Promise<void>
+  onSendToNotion?: (note: UserNoteListItem) => void | Promise<void>
+  onSendToNotionAsNewPage?: (note: UserNoteListItem) => void | Promise<void>
 }
 
 function flattenSectionNodes(nodes: NoteSectionTreeNode[]): Array<{ id: number; label: string }> {
@@ -61,7 +63,9 @@ export function buildNotesPageContextMenuItems(handlers: NotesPageContextHandler
     onLink,
     onTogglePin,
     onCreateSubPage,
-    onMoveToParent
+    onMoveToParent,
+    onSendToNotion,
+    onSendToNotionAsNewPage
   } = handlers
   const tree = buildNoteSectionTree(sections, [])
   const sectionEntries = flattenSectionNodes(tree.roots)
@@ -172,6 +176,26 @@ export function buildNotesPageContextMenuItems(handlers: NotesPageContextHandler
     icon: Link2,
     onSelect: (): void => onLink(note)
   })
+
+  if (onSendToNotion || onSendToNotionAsNewPage) {
+    items.push({ id: 'sep-notes-notion', label: '', separator: true })
+    if (onSendToNotion) {
+      items.push({
+        id: 'notes-page-notion',
+        label: t('notion.contextSendNote'),
+        icon: SquareArrowOutUpRight,
+        onSelect: (): void => void onSendToNotion(note)
+      })
+    }
+    if (onSendToNotionAsNewPage) {
+      items.push({
+        id: 'notes-page-notion-new',
+        label: t('notion.contextSendNoteAsNewPage'),
+        icon: SquareArrowOutUpRight,
+        onSelect: (): void => void onSendToNotionAsNewPage(note)
+      })
+    }
+  }
 
   return items
 }

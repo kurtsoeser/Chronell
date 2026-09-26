@@ -1,10 +1,11 @@
-import type { CalendarEventView } from '@shared/types'
+import type { CalendarEventView, UserNoteListItem } from '@shared/types'
 import i18n from 'i18next'
 import type { MailContextHandlers } from '@/lib/mail-context-menu'
 import { toNotionAppUrl } from '@/lib/notion-url'
 import { openExternalUrl } from '@/lib/open-external'
 import { pickNotionDestination } from '@/stores/notion-destination-picker'
 import { showAppAlert, showAppChoice, showAppPrompt } from '@/stores/app-dialog'
+import { noteTitle } from '@/app/notes/notes-display-helpers'
 
 async function showNotionOpenDialog(
   successMessage: string,
@@ -21,7 +22,12 @@ async function showNotionOpenDialog(
   if (choice === 'web') {
     void openExternalUrl(pageUrl)
   } else if (choice === 'app') {
-    void openExternalUrl(toNotionAppUrl(pageUrl))
+    try {
+      void openExternalUrl(toNotionAppUrl(pageUrl))
+    } catch {
+      // Fallback: neue Notion-Hosts ggf. ohne Deep-Link — Web funktioniert immer.
+      void openExternalUrl(pageUrl)
+    }
   }
 }
 
@@ -49,6 +55,19 @@ export async function sendCalendarEventToNotion(
     localeCode
   })
   await showNotionOpenDialog(i18n.t('notion.appendSuccessEvent'), result.pageUrl)
+}
+
+export async function sendNoteToNotion(
+  noteId: number,
+  pageId?: string | null,
+  localeCode: 'de' | 'en' = 'de'
+): Promise<void> {
+  const result = await window.mailClient.notion.appendNote({
+    noteId,
+    pageId: pageId ?? null,
+    localeCode
+  })
+  await showNotionOpenDialog(i18n.t('notion.appendSuccessNote'), result.pageUrl)
 }
 
 export async function sendMailAsNewNotionPage(
@@ -98,6 +117,30 @@ export async function sendCalendarEventAsNewNotionPage(
   await showNotionOpenDialog(i18n.t('notion.createSuccessEvent'), result.pageUrl)
 }
 
+export async function sendNoteAsNewNotionPage(
+  noteId: number,
+  suggestedTitle?: string | null,
+  parentPageId?: string | null,
+  localeCode: 'de' | 'en' = 'de'
+): Promise<void> {
+  const defaultTitle = suggestedTitle?.trim() || i18n.t('notion.newPageDefaultNote')
+  const title = await showAppPrompt(i18n.t('notion.newPageTitlePrompt'), {
+    title: i18n.t('notion.contextSendNoteAsNewPage'),
+    defaultValue: defaultTitle,
+    placeholder: i18n.t('notion.newPageTitlePlaceholder'),
+    confirmLabel: i18n.t('common.create')
+  })
+  if (title === null) return
+
+  const result = await window.mailClient.notion.createNotePage({
+    noteId,
+    title: title.trim() || defaultTitle,
+    parentPageId: parentPageId ?? null,
+    localeCode
+  })
+  await showNotionOpenDialog(i18n.t('notion.createSuccessNote'), result.pageUrl)
+}
+
 export async function pickAndSendMailToNotion(
   messageId: number,
   webLink?: string | null,
@@ -130,6 +173,74 @@ export async function pickAndSendCalendarEventToNotion(
     return
   }
   await sendCalendarEventToNotion(event, pick.pageId, localeCode)
+}
+
+export async function pickAndSendNoteToNotion(
+  note: UserNoteListItem,
+  localeCode: 'de' | 'en' = 'de'
+): Promise<void> {
+  const untitled = i18n.t('notes.shell.untitled')
+  const pick = await pickNotionDestination('note', {
+    suggestedTitle: noteTitle(note, untitled),
+    noteId: note.id,
+    localeCode
+  })
+  if (!pick) return
+  if (pick.mode === 'created') {
+    await showNotionOpenDialog(i18n.t('notion.createSuccessNote'), pick.pageUrl)
+    return
+  }
+  await sendNoteToNotion(note.id, pick.pageId, localeCode)
+}
+
+/** Neue Notion-Seite anlegen: zuerst Elternseite waehlen. */
+export async function pickParentAndCreateMailNotionPage(
+  messageId: number,
+  suggestedTitle?: string | null,
+  webLink?: string | null
+): Promise<void> {
+  const pick = await pickNotionDestination('mail', {
+    intent: 'createUnder',
+    suggestedTitle: suggestedTitle ?? undefined,
+    messageId
+  })
+  if (!pick) return
+  if (pick.mode === 'created') {
+    await showNotionOpenDialog(i18n.t('notion.createSuccessMail'), pick.pageUrl)
+  }
+}
+
+export async function pickParentAndCreateCalendarEventNotionPage(
+  event: CalendarEventView,
+  localeCode: 'de' | 'en' = 'de'
+): Promise<void> {
+  const pick = await pickNotionDestination('calendar', {
+    intent: 'createUnder',
+    suggestedTitle: event.title?.trim() || undefined,
+    calendarEvent: event,
+    localeCode
+  })
+  if (!pick) return
+  if (pick.mode === 'created') {
+    await showNotionOpenDialog(i18n.t('notion.createSuccessEvent'), pick.pageUrl)
+  }
+}
+
+export async function pickParentAndCreateNoteNotionPage(
+  note: UserNoteListItem,
+  localeCode: 'de' | 'en' = 'de'
+): Promise<void> {
+  const untitled = i18n.t('notes.shell.untitled')
+  const pick = await pickNotionDestination('note', {
+    intent: 'createUnder',
+    suggestedTitle: noteTitle(note, untitled),
+    noteId: note.id,
+    localeCode
+  })
+  if (!pick) return
+  if (pick.mode === 'created') {
+    await showNotionOpenDialog(i18n.t('notion.createSuccessNote'), pick.pageUrl)
+  }
 }
 
 export async function runNotionSendWithErrorHandling(fn: () => Promise<void>): Promise<void> {
@@ -166,7 +277,29 @@ export function createMailSendAsNewNotionPageHandler(): NonNullable<
     void (async (): Promise<void> => {
       if (!(await ensureNotionConnected())) return
       await runNotionSendWithErrorHandling(() =>
-        sendMailAsNewNotionPage(msg.id, msg.subject?.trim() || null)
+        pickParentAndCreateMailNotionPage(msg.id, msg.subject?.trim() || null)
+      )
+    })()
+  }
+}
+
+export function createNoteSendToNotionHandler(): (note: UserNoteListItem) => void {
+  return (note): void => {
+    void (async (): Promise<void> => {
+      if (!(await ensureNotionConnected())) return
+      const localeCode = i18n.language?.startsWith('en') ? 'en' : 'de'
+      await runNotionSendWithErrorHandling(() => pickAndSendNoteToNotion(note, localeCode))
+    })()
+  }
+}
+
+export function createNoteSendAsNewNotionPageHandler(): (note: UserNoteListItem) => void {
+  return (note): void => {
+    void (async (): Promise<void> => {
+      if (!(await ensureNotionConnected())) return
+      const localeCode = i18n.language?.startsWith('en') ? 'en' : 'de'
+      await runNotionSendWithErrorHandling(() =>
+        pickParentAndCreateNoteNotionPage(note, localeCode)
       )
     })()
   }

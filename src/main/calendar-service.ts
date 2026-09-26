@@ -20,6 +20,10 @@ import {
   type CreateTeamsCalendarEventInput,
   type CreateTeamsCalendarEventResult
 } from './graph/calendar-graph'
+import {
+  graphCreateOnlineMeetingWithTemplate,
+  type CreateOnlineMeetingWithTemplateResult
+} from './graph/online-meeting-create'
 import { addCalendarEventAttachments } from './calendar-event-attachment-service'
 import { patchCachedCalendarEventMeetingFields } from './calendar-cache-mutations'
 import {
@@ -372,6 +376,18 @@ export async function createTeamsMeetingForAccount(
   return graphCreateTeamsCalendarEvent(accountId, input)
 }
 
+export async function createOnlineMeetingWithTemplateForAccount(
+  accountId: string,
+  input: {
+    subject: string
+    startIso: string
+    endIso: string
+    meetingTemplateId: string
+  }
+): Promise<CreateOnlineMeetingWithTemplateResult> {
+  return graphCreateOnlineMeetingWithTemplate(accountId, input)
+}
+
 export async function getCalendarEventForAccount(input: CalendarGetEventInput): Promise<CalendarGetEventResult> {
   const accounts = await listAccounts()
   const acc = accounts.find((a) => a.id === input.accountId)
@@ -389,7 +405,9 @@ export async function getCalendarEventForAccount(input: CalendarGetEventInput): 
   } else if (acc.provider !== 'microsoft') {
     throw new Error('Kalender-Termin-Details werden fuer dieses Konto nicht unterstuetzt.')
   } else {
-    detail = await graphGetCalendarEvent(input.accountId, graphEventId, graphCalendarId, acc.email)
+    detail = await runGraphMailboxRequest(input.accountId, 'getCalendarEvent', () =>
+      graphGetCalendarEvent(input.accountId, graphEventId, graphCalendarId, acc.email)
+    )
   }
   return detail
 }
@@ -409,6 +427,8 @@ export async function createSimpleCalendarEventForAccount(
       bodyHtml: input.bodyHtml,
       recurrence: input.recurrence ?? null,
       attendeeEmails: input.attendeeEmails,
+      optionalAttendeeEmails: input.optionalAttendeeEmails,
+      notifyAttendees: input.notifyAttendees ?? null,
       timeZone: input.timeZone ?? null,
       showAs: input.showAs ?? null,
       sensitivity: input.sensitivity ?? null
@@ -436,7 +456,13 @@ export async function createSimpleCalendarEventForAccount(
     reminderMinutesBeforeStart: input.reminderMinutesBeforeStart ?? null,
     timeZone: input.timeZone ?? null,
     showAs: input.showAs ?? null,
-    sensitivity: input.sensitivity ?? null
+    sensitivity: input.sensitivity ?? null,
+    hideAttendees: input.hideAttendees ?? null,
+    responseRequested: input.responseRequested ?? null,
+    allowForwarding: input.allowForwarding ?? null,
+    chronellWebinarInvitation: input.chronellWebinarInvitation ?? null,
+    optionalAttendeeEmails: input.optionalAttendeeEmails ?? null,
+    notifyAttendees: input.notifyAttendees ?? null
   })
   if (input.attachments?.length || input.referenceAttachments?.length) {
     await addCalendarEventAttachments(input.accountId, r.id, input.graphCalendarId ?? null, {
@@ -447,12 +473,24 @@ export async function createSimpleCalendarEventForAccount(
   return { id: r.id, webLink: r.webLink, joinUrl: r.joinUrl ?? null }
 }
 
+function sleepMs(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
 export async function refreshMicrosoftCalendarEventMeetingFields(
   accountId: string,
   graphEventId: string,
   graphCalendarId?: string | null
 ): Promise<{ joinUrl: string | null; isOnlineMeeting: boolean }> {
-  const detail = await graphGetCalendarEvent(accountId, graphEventId, graphCalendarId ?? null)
+  let detail = await graphGetCalendarEvent(accountId, graphEventId, graphCalendarId ?? null)
+  // Join-URL kommt bei frisch aktivierter Teams-Besprechung oft erst nach kurzer Verzoegerung.
+  if (detail.isOnlineMeeting && !detail.joinUrl?.trim()) {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      await sleepMs(attempt === 0 ? 400 : 800)
+      detail = await graphGetCalendarEvent(accountId, graphEventId, graphCalendarId ?? null)
+      if (detail.joinUrl?.trim()) break
+    }
+  }
   patchCachedCalendarEventMeetingFields(accountId, graphEventId, graphCalendarId ?? null, {
     joinUrl: detail.joinUrl,
     isOnlineMeeting: detail.isOnlineMeeting
@@ -476,6 +514,8 @@ export async function updateCalendarEventForAccount(input: CalendarUpdateEventIn
       location: input.location,
       bodyHtml: input.bodyHtml,
       attendeeEmails: input.attendeeEmails,
+      optionalAttendeeEmails: input.optionalAttendeeEmails,
+      notifyAttendees: input.notifyAttendees ?? null,
       recurrence: input.recurrence ?? null,
       timeZone: input.timeZone ?? null,
       showAs: input.showAs ?? null,
@@ -490,6 +530,17 @@ export async function updateCalendarEventForAccount(input: CalendarUpdateEventIn
     return
   }
   const { accountId, graphEventId, ...rest } = input
+  const inlineAttachments = rest.attachments?.filter((a) => a.isInline) ?? []
+  const regularAttachments = rest.attachments?.filter((a) => !a.isInline) ?? []
+  const referenceAttachments = rest.referenceAttachments
+
+  // Inline-Bilder (cid:) vor Body-PATCH — sonst fehlen Hero-Bilder in der Einladung.
+  if (inlineAttachments.length > 0) {
+    await addCalendarEventAttachments(accountId, graphEventId, rest.graphCalendarId ?? null, {
+      files: inlineAttachments
+    })
+  }
+
   await graphUpdateCalendarEvent(accountId, graphEventId, {
     subject: rest.subject,
     startIso: rest.startIso,
@@ -505,12 +556,18 @@ export async function updateCalendarEventForAccount(input: CalendarUpdateEventIn
     reminderMinutesBeforeStart: rest.reminderMinutesBeforeStart ?? null,
     timeZone: rest.timeZone ?? null,
     showAs: rest.showAs ?? null,
-    sensitivity: rest.sensitivity ?? null
+    sensitivity: rest.sensitivity ?? null,
+    hideAttendees: rest.hideAttendees ?? null,
+    responseRequested: rest.responseRequested ?? null,
+    allowForwarding: rest.allowForwarding ?? null,
+    chronellWebinarInvitation: rest.chronellWebinarInvitation ?? null,
+    optionalAttendeeEmails: rest.optionalAttendeeEmails ?? null,
+    notifyAttendees: rest.notifyAttendees ?? null
   })
-  if (input.attachments?.length || input.referenceAttachments?.length) {
-    await addCalendarEventAttachments(accountId, graphEventId, input.graphCalendarId ?? null, {
-      files: input.attachments,
-      references: input.referenceAttachments
+  if (regularAttachments.length > 0 || referenceAttachments?.length) {
+    await addCalendarEventAttachments(accountId, graphEventId, rest.graphCalendarId ?? null, {
+      files: regularAttachments,
+      references: referenceAttachments
     })
   }
   if (acc?.provider === 'microsoft' && typeof input.teamsMeeting === 'boolean' && !input.isAllDay) {

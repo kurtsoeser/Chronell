@@ -186,6 +186,8 @@ export function ianaToWindowsTimeZone(iana: string): string {
   buildIanaToWindows()
   const t = iana.trim()
   if (!t) return 'UTC'
+  // Bereits Windows-ID (z. B. aus aelteren Configs / Graph-Antworten).
+  if (Object.prototype.hasOwnProperty.call(WINDOWS_TO_IANA, t)) return t
   const hit = IANA_TO_WINDOWS_CACHE.get(t)
   if (hit) return hit
   return pickWindowsForIana(t)

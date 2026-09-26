@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Locale } from 'date-fns'
 import { addDays, format, isToday, parseISO, startOfDay, startOfWeek } from 'date-fns'
 import { useDateFnsLocale } from '@/lib/date-fns-locale'
@@ -37,6 +37,7 @@ import { applyCalendarEventDomColors } from '@/lib/calendar-event-chip-style'
 import {
   eventDatetimeLocalToMs,
   formatEventDatetimeLocal,
+  normalizeEventTimeZoneHint,
   parseEventDatetimeLocal,
   utcIsoToEventDatetimeLocal
 } from '@/lib/calendar-event-timezone'
@@ -116,7 +117,7 @@ export interface CalendarEventDialogDayPickerProps {
   onAllDayRangeChange: (nextDayStart: string, nextDayEndExcl: string) => void
 }
 
-export function CalendarEventDialogDayPicker({
+export const CalendarEventDialogDayPicker = memo(function CalendarEventDialogDayPicker({
   accountId,
   accounts,
   eventTimeZone,
@@ -252,12 +253,18 @@ export function CalendarEventDialogDayPicker({
     void (async (): Promise<void> => {
       try {
         const rows = calendarsByAccount[accountId] ?? []
-        let includeCalendars =
+        const includeCalendars =
           rows.length > 0
-            ? rows.map((c) => ({ accountId, graphCalendarId: c.id }))
-            : (await buildCalendarIncludeCalendars([acc])).filter((c) => c.accountId === accountId)
+            ? rows
+                .map((c) => ({ accountId, graphCalendarId: c.id.trim() }))
+                .filter((c) => Boolean(c.graphCalendarId))
+            : (await buildCalendarIncludeCalendars([acc])).filter(
+                (c) => c.accountId === accountId && Boolean(c.graphCalendarId?.trim())
+              )
         if (includeCalendars.length === 0) {
-          includeCalendars = [{ accountId, graphCalendarId: '' }]
+          // Kein listEvents mit [] oder graphCalendarId:'' — Cache behalten.
+          if (fetchSeqRef.current === seq) setRefreshedRangeEvents(null)
+          return
         }
         const events = await window.mailClient.calendar.listEvents({
           startIso: rangeStart,
@@ -272,6 +279,7 @@ export function CalendarEventDialogDayPicker({
       } catch (e) {
         if (fetchSeqRef.current !== seq) return
         setLoadError(e instanceof Error ? e.message : String(e))
+        setRefreshedRangeEvents(null)
       }
     })()
   }, [accountId, accounts, calendarListKey, rangeKey, calendarsByAccount, rangeStartMs, rangeEndExcl])
@@ -301,6 +309,11 @@ export function CalendarEventDialogDayPicker({
       ro.disconnect()
     }
   }, [])
+
+  const fcTimeZone = useMemo(() => {
+    const normalized = normalizeEventTimeZoneHint(eventTimeZone)
+    return normalized && normalized.includes('/') ? normalized : normalized || 'local'
+  }, [eventTimeZone])
 
   const draftPlaceholder = useMemo((): EventInput | null => {
     if (isAllDay || !dtStart || !dtEnd) return null
@@ -527,14 +540,14 @@ export function CalendarEventDialogDayPicker({
             )}
           >
             <FullCalendar
-              key={`${i18n.language}-${eventTimeZone}-${timeGridSlotMinutes}-${calSettings.slotMinTime}-${calSettings.slotMaxTime}-${pickerView}-${rangeKey}`}
+              key={`${i18n.language}-${fcTimeZone}-${timeGridSlotMinutes}-${calSettings.slotMinTime}-${calSettings.slotMaxTime}-${pickerView}-${rangeKey}`}
               ref={(inst): void => {
                 calendarRef.current = inst
               }}
               plugins={[timeGridPlugin, interactionPlugin, luxonPlugin]}
               locale={fcLocale}
               height="100%"
-              timeZone={eventTimeZone}
+              timeZone={fcTimeZone}
               headerToolbar={false}
               initialView={pickerView === 'week' ? 'timeGridWeek' : 'timeGridDay'}
               initialDate={rangeStartMs}
@@ -587,4 +600,4 @@ export function CalendarEventDialogDayPicker({
       </div>
     </div>
   )
-}
+})

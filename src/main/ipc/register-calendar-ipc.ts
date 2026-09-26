@@ -32,6 +32,7 @@ import {
   type CalendarRespondToEventResult
 } from '@shared/types'
 import {
+  fetchCalendarEventInlineImages,
   listCalendarEventAttachments,
   openCalendarEventAttachment,
   saveCalendarEventAttachmentAs
@@ -69,6 +70,7 @@ import {
 import {
   patchMicrosoftCalendarColor,
   createTeamsMeetingForAccount,
+  createOnlineMeetingWithTemplateForAccount,
   createSimpleCalendarEventForAccount,
   refreshMicrosoftCalendarEventMeetingFields,
   updateCalendarEventForAccount,
@@ -241,6 +243,33 @@ export function registerCalendarIpc(): void {
       return result
     }
   )
+
+  ipcMain.removeHandler(IPC.calendar.createOnlineMeetingWithTemplate)
+  ipcMain.handle(
+    IPC.calendar.createOnlineMeetingWithTemplate,
+    async (
+      _event,
+      args: import('@shared/types').CalendarCreateOnlineMeetingWithTemplateInput
+    ): Promise<import('@shared/types').CalendarCreateOnlineMeetingWithTemplateResult> => {
+      if (!args?.accountId?.trim()) {
+        throw new Error('accountId fehlt.')
+      }
+      if (!args?.meetingTemplateId?.trim()) {
+        throw new Error('meetingTemplateId fehlt.')
+      }
+      if (!args?.startIso?.trim() || !args?.endIso?.trim()) {
+        throw new Error('Zeitraum fehlt.')
+      }
+      assertAppOnline()
+      return createOnlineMeetingWithTemplateForAccount(args.accountId, {
+        subject: args.subject?.trim() || 'Besprechung',
+        startIso: args.startIso,
+        endIso: args.endIso,
+        meetingTemplateId: args.meetingTemplateId
+      })
+    }
+  )
+
   ipcMain.removeHandler(IPC.calendar.suggestFromMessage)
   ipcMain.handle(
     IPC.calendar.suggestFromMessage,
@@ -294,7 +323,13 @@ export function registerCalendarIpc(): void {
       const result = await createSimpleCalendarEventForAccount(input)
       let event = await afterCalendarEventCreated(input.accountId, input, result)
       let joinUrl = result.joinUrl ?? null
-      if (input.teamsMeeting === true && !input.isAllDay && input.accountId.trim().startsWith('ms:')) {
+      // Poll nur wenn Graph noch keine Join-URL geliefert hat (kritischer Pfad).
+      if (
+        input.teamsMeeting === true &&
+        !input.isAllDay &&
+        input.accountId.trim().startsWith('ms:') &&
+        !joinUrl?.trim()
+      ) {
         try {
           const meeting = await refreshMicrosoftCalendarEventMeetingFields(
             input.accountId,
@@ -308,6 +343,8 @@ export function registerCalendarIpc(): void {
         } catch (e) {
           console.warn('[calendar] Teams-Meeting-Felder nach Anlegen nicht aktualisiert:', e)
         }
+      } else if (event && joinUrl) {
+        event = { ...event, joinUrl }
       }
       const out: CalendarSaveEventResult = { ...result, joinUrl, event: event ?? undefined }
       if (input.recurrence) {
@@ -474,6 +511,25 @@ export function registerCalendarIpc(): void {
         throw new Error('Ungueltige Parameter fuer calendar:list-event-attachments.')
       }
       return listCalendarEventAttachments({
+        accountId: input.accountId.trim(),
+        graphEventId: input.graphEventId.trim(),
+        graphCalendarId: input.graphCalendarId?.trim() || null
+      })
+    }
+  )
+
+  ipcMain.removeHandler(IPC.calendar.fetchEventInlineImages)
+  ipcMain.handle(
+    IPC.calendar.fetchEventInlineImages,
+    async (
+      _event,
+      input: CalendarListEventAttachmentsInput
+    ): Promise<Record<string, string>> => {
+      assertAppOnline()
+      if (!input?.accountId?.trim() || !input.graphEventId?.trim()) {
+        throw new Error('Ungueltige Parameter fuer calendar:fetch-event-inline-images.')
+      }
+      return fetchCalendarEventInlineImages({
         accountId: input.accountId.trim(),
         graphEventId: input.graphEventId.trim(),
         graphCalendarId: input.graphCalendarId?.trim() || null

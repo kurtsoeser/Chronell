@@ -15,6 +15,7 @@ export * from './notion'
 export * from './compose'
 export * from './copilot'
 export * from './demo'
+export * from '../msforms-types'
 
 export type {
   BookingsAppointmentRow,

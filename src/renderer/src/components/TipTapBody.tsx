@@ -25,8 +25,7 @@ import {
 } from '@/components/ComposeTextSnippetEditorDialog'
 import { TipTapEditorContextMenu } from '@/components/TipTapEditorContextMenu'
 import {
-  getEditorSelectionSnippetHtml,
-  snippetHtmlToPlain
+  getEditorSelectionSnippetHtml
 } from '@/lib/compose-text-snippet-selection'
 import { TableContextToolbar } from '@/components/tiptap/TableContextToolbar'
 import { TableInsertMenu } from '@/components/tiptap/TableInsertMenu'
@@ -495,6 +494,19 @@ export function TipTapBody({
   useEffect(() => {
     if (!autoFocus || !editor || editor.isDestroyed) return
     if (autoFocusedRef.current) return
+    // An/Cc/Betreff nicht überschreiben, falls der Nutzer dort schon tippt.
+    const active = document.activeElement
+    if (
+      active instanceof HTMLElement &&
+      active !== document.body &&
+      !editor.view.dom.contains(active) &&
+      (active.tagName === 'INPUT' ||
+        active.tagName === 'TEXTAREA' ||
+        active.tagName === 'SELECT' ||
+        active.isContentEditable)
+    ) {
+      return
+    }
     autoFocusedRef.current = true
     editor.commands.focus('end')
   }, [autoFocus, editor])
@@ -862,7 +874,7 @@ export function TipTapBody({
             setSnippetEditorOpen({
               mode: 'create',
               name: '',
-              body: snippetHtmlToPlain(selectedHtml)
+              bodyHtml: selectedHtml
             })
           }}
         />

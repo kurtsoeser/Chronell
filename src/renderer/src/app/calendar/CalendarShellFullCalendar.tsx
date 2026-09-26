@@ -1,6 +1,15 @@
 import FullCalendar from '@fullcalendar/react'
 import type { EventChangeArg, EventContentArg, EventInput, EventSourceInput, LocaleInput } from '@fullcalendar/core'
-import type { RefObject, MutableRefObject, Dispatch, SetStateAction } from 'react'
+import {
+  memo,
+  useCallback,
+  useMemo,
+  useRef,
+  type RefObject,
+  type MutableRefObject,
+  type Dispatch,
+  type SetStateAction
+} from 'react'
 import type FullCalendarType from '@fullcalendar/react'
 import { startOfMonth } from 'date-fns'
 import type { TFunction } from 'i18next'
@@ -35,6 +44,7 @@ import {
   persistCalendarActiveFcView
 } from '@/app/calendar/calendar-active-fc-view-storage'
 import { syncFullCalendarWidth } from '@/app/calendar/sync-full-calendar-width'
+import { calendarShellFullCalendarPropsAreEqual } from '@/app/calendar/calendar-shell-full-calendar-props-equal'
 import { accountColorToCssBackground } from '@/lib/avatar-color'
 import {
   buildCalendarEventCategorySubmenuItems,
@@ -45,10 +55,9 @@ import {
 } from '@/lib/calendar-event-context-menu'
 import {
   pickAndSendCalendarEventToNotion,
-  runNotionSendWithErrorHandling,
-  sendCalendarEventAsNewNotionPage
+  pickParentAndCreateCalendarEventNotionPage,
+  runNotionSendWithErrorHandling
 } from '@/lib/notion-ui'
-import { deleteCalendarEventIpc } from '@/lib/calendar-ipc'
 import { respondToCalendarEventInvitation } from '@/lib/calendar-event-rsvp'
 import { applyCalendarEventDomColors } from '@/lib/calendar-event-chip-style'
 import { openExternalUrl } from '@/lib/open-external'
@@ -93,6 +102,9 @@ export interface CalendarShellFullCalendarProps {
   cloudTaskOverlay: boolean
   userNoteOverlay: boolean
   handleGraphEventChange: (info: EventChangeArg) => void | Promise<void>
+  deleteGraphCalendarEvent: (ev: CalendarEventView) => Promise<void>
+  /** Shared mit Shell: pinnt FC-EventSources während Drag/Resize. */
+  eventPointerManipulatingRef: MutableRefObject<boolean>
   canInteractInTimeGrid: boolean
   setError: (msg: string | null) => void
   setPreviewCloudTask: Dispatch<SetStateAction<CloudTaskListItem | null>>
@@ -191,7 +203,9 @@ function attachCalendarOverlayContextMenu(
   tagged._calCtxMenu = onCtx
 }
 
-export function CalendarShellFullCalendar(props: CalendarShellFullCalendarProps): JSX.Element {
+export const CalendarShellFullCalendar = memo(function CalendarShellFullCalendar(
+  props: CalendarShellFullCalendarProps
+): JSX.Element {
   const {
     fcTimeZone,
     i18nLanguage,
@@ -209,6 +223,8 @@ export function CalendarShellFullCalendar(props: CalendarShellFullCalendarProps)
     cloudTaskOverlay,
     userNoteOverlay,
     handleGraphEventChange,
+    deleteGraphCalendarEvent,
+    eventPointerManipulatingRef,
     canInteractInTimeGrid,
     setError,
     setPreviewCloudTask,
@@ -257,6 +273,127 @@ export function CalendarShellFullCalendar(props: CalendarShellFullCalendarProps)
     setRightPreviewOpen
   } = props
 
+  const handlersRef = useRef({
+    handleGraphEventChange,
+    deleteGraphCalendarEvent,
+    setError,
+    setPreviewCloudTask,
+    setPreviewCloudTaskPlannedFromTimeline,
+    setPreviewCalendarEvent,
+    addSchedulingSlot,
+    setQuickCreate,
+    reloadVisibleRange,
+    setEventDialog,
+    setMailNoteTarget,
+    setEventNoteTarget,
+    setCalendarFolderContextMenu,
+    setEventContextMenu,
+    clearSelectedMessage,
+    selectMessageWithThreadPreview,
+    persistRightPreviewOpen,
+    setRightPreviewOpen,
+    setActiveViewId,
+    setVisibleStart,
+    setMiniMonth,
+    setRangeTitle,
+    loadRange,
+    loadMailTodosForRange,
+    loadCloudTasksForRange,
+    loadUserNotesForRange,
+    t,
+    calendarCollatorLocale,
+    isDeCalendar,
+    clipboardDfLocale,
+    calendarFcEventContentRender
+  })
+  handlersRef.current = {
+    handleGraphEventChange,
+    deleteGraphCalendarEvent,
+    setError,
+    setPreviewCloudTask,
+    setPreviewCloudTaskPlannedFromTimeline,
+    setPreviewCalendarEvent,
+    addSchedulingSlot,
+    setQuickCreate,
+    reloadVisibleRange,
+    setEventDialog,
+    setMailNoteTarget,
+    setEventNoteTarget,
+    setCalendarFolderContextMenu,
+    setEventContextMenu,
+    clearSelectedMessage,
+    selectMessageWithThreadPreview,
+    persistRightPreviewOpen,
+    setRightPreviewOpen,
+    setActiveViewId,
+    setVisibleStart,
+    setMiniMonth,
+    setRangeTitle,
+    loadRange,
+    loadMailTodosForRange,
+    loadCloudTasksForRange,
+    loadUserNotesForRange,
+    t,
+    calendarCollatorLocale,
+    isDeCalendar,
+    clipboardDfLocale,
+    calendarFcEventContentRender
+  }
+
+  const views = useMemo(
+    () => ({
+      timeGrid: timeGridFcSlotOpts,
+      ...multiDayViews,
+      ...dayGridMonthView,
+      ...multiMonthViews
+    }),
+    [timeGridFcSlotOpts, multiDayViews, dayGridMonthView, multiMonthViews]
+  )
+
+  const clearPointerManipulatingSoon = useCallback((): void => {
+    // eventDragStop läuft vor eventDrop — Flag erst danach lösen, sonst Purge/Pin-Race.
+    queueMicrotask(() => {
+      eventPointerManipulatingRef.current = false
+    })
+  }, [eventPointerManipulatingRef])
+
+  const onEventDragStart = useCallback((): void => {
+    eventPointerManipulatingRef.current = true
+  }, [eventPointerManipulatingRef])
+
+  const onEventDrop = useCallback((info: EventChangeArg): void => {
+    void handlersRef.current.handleGraphEventChange(info)
+  }, [])
+
+  const onEventResize = useCallback((info: EventChangeArg): void => {
+    void handlersRef.current.handleGraphEventChange(info)
+  }, [])
+
+  const onEventAllow = useCallback((_span: unknown, movingEvent: { extendedProps?: Record<string, unknown> } | null): boolean => {
+    if (!movingEvent) return true
+    const kind = movingEvent.extendedProps?.calendarKind as string | undefined
+    if (kind === CALENDAR_KIND_MAIL_TODO) return true
+    if (kind === CALENDAR_KIND_CLOUD_TASK) return true
+    if (kind === CALENDAR_KIND_USER_NOTE) return true
+    const calEv = movingEvent.extendedProps?.calendarEvent as CalendarEventView | undefined
+    if (!calEv?.graphEventId || calEv.calendarCanEdit === false) return false
+    if (calEv.source === 'microsoft' || calEv.source === 'google') return true
+    return false
+  }, [])
+
+  const onEventsSet = useCallback((): void => {
+    if (graphCalendarReconcilingRef.current) return
+    if (eventPointerManipulatingRef.current) return
+    purgeDuplicateGraphCalendarEventsOnApi(calendarRef.current?.getApi())
+  }, [calendarRef, eventPointerManipulatingRef, graphCalendarReconcilingRef])
+
+  const calendarEditable =
+    !isMultiMonthActive &&
+    (calendarLinkedAccounts.length > 0 ||
+      mailTodoOverlay ||
+      cloudTaskOverlay ||
+      userNoteOverlay)
+
   return (
     <FullCalendar
       key={`${fcTimeZone}-${i18nLanguage}-${timeGridSlotMinutes}-${calSettings.weekStartsOn}-${calSettings.slotMinTime}-${calSettings.slotMaxTime}-${calSettings.hideWeekends}`}
@@ -269,12 +406,7 @@ export function CalendarShellFullCalendar(props: CalendarShellFullCalendarProps)
       headerToolbar={false}
       firstDay={calSettings.weekStartsOn}
       weekends={!calSettings.hideWeekends}
-      views={{
-        timeGrid: timeGridFcSlotOpts,
-        ...multiDayViews,
-        ...dayGridMonthView,
-        ...multiMonthViews
-      }}
+      views={views}
       initialView={readCalendarActiveFcView()}
       slotMinTime={calSettings.slotMinTime}
       slotMaxTime={calSettings.slotMaxTime}
@@ -283,39 +415,15 @@ export function CalendarShellFullCalendar(props: CalendarShellFullCalendarProps)
       snapDuration={timeGridFcSlotOpts.snapDuration}
       slotLabelInterval="01:00:00"
       nowIndicator
-      editable={
-        !isMultiMonthActive &&
-        (calendarLinkedAccounts.length > 0 ||
-          mailTodoOverlay ||
-          cloudTaskOverlay ||
-          userNoteOverlay)
-      }
-      eventResizableFromStart={
-        !isMultiMonthActive &&
-        (calendarLinkedAccounts.length > 0 ||
-          mailTodoOverlay ||
-          cloudTaskOverlay ||
-          userNoteOverlay)
-      }
-      eventDrop={(info): void => {
-        void handleGraphEventChange(info)
-      }}
-      eventResize={(info): void => {
-        void handleGraphEventChange(info)
-      }}
-      eventAllow={(_span, movingEvent): boolean => {
-        if (!movingEvent) return true
-        const kind = movingEvent.extendedProps?.calendarKind as string | undefined
-        if (kind === CALENDAR_KIND_MAIL_TODO) return true
-        if (kind === CALENDAR_KIND_CLOUD_TASK) return true
-        if (kind === CALENDAR_KIND_USER_NOTE) return true
-        const calEv = movingEvent.extendedProps?.calendarEvent as
-          | CalendarEventView
-          | undefined
-        if (!calEv?.graphEventId || calEv.calendarCanEdit === false) return false
-        if (calEv.source === 'microsoft' || calEv.source === 'google') return true
-        return false
-      }}
+      editable={calendarEditable}
+      eventResizableFromStart={calendarEditable}
+      eventDragStart={onEventDragStart}
+      eventDragStop={clearPointerManipulatingSoon}
+      eventResizeStart={onEventDragStart}
+      eventResizeStop={clearPointerManipulatingSoon}
+      eventDrop={onEventDrop}
+      eventResize={onEventResize}
+      eventAllow={onEventAllow}
       selectable={canInteractInTimeGrid}
       selectMirror={false}
       selectLongPressDelay={380}
@@ -356,10 +464,7 @@ export function CalendarShellFullCalendar(props: CalendarShellFullCalendarProps)
       }}
       dayMaxEvents
       eventSources={fcEventSources}
-      eventsSet={(): void => {
-        if (graphCalendarReconcilingRef.current) return
-        purgeDuplicateGraphCalendarEventsOnApi(calendarRef.current?.getApi())
-      }}
+      eventsSet={onEventsSet}
       eventContent={calendarFcEventContentRender}
       eventDidMount={(info): void => {
         if (
@@ -567,7 +672,7 @@ export function CalendarShellFullCalendar(props: CalendarShellFullCalendarProps)
                 },
                 onSendToNotionAsNewPage: (): void => {
                   void runNotionSendWithErrorHandling(() =>
-                    sendCalendarEventAsNewNotionPage(
+                    pickParentAndCreateCalendarEventNotionPage(
                       calEv,
                       isDeCalendar ? 'de' : 'en'
                     )
@@ -662,12 +767,7 @@ export function CalendarShellFullCalendar(props: CalendarShellFullCalendarProps)
                     if (!ok) return
                     try {
                       setError(null)
-                      await deleteCalendarEventIpc({
-                        accountId: calEv.accountId,
-                        graphEventId: gid,
-                        graphCalendarId: calEv.graphCalendarId ?? null
-                      })
-                      reloadVisibleRange()
+                      await deleteGraphCalendarEvent(calEv)
                     } catch (err) {
                       setError(err instanceof Error ? err.message : String(err))
                     }
@@ -842,4 +942,4 @@ export function CalendarShellFullCalendar(props: CalendarShellFullCalendarProps)
       }}
     />
   )
-}
+}, calendarShellFullCalendarPropsAreEqual)

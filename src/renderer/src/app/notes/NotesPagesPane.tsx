@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Loader2, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { NoteSection, UserNoteListItem } from '@shared/types'
@@ -13,6 +13,10 @@ import { NoteEntityLinkPickerDialog } from '@/app/notes/NoteEntityLinkPickerDial
 import { NotePageCreateMenu } from '@/components/NotePageCreateMenu'
 import type { NotesPagesSortKey } from '@/lib/notes-pages-sort'
 import { buildNotesPageContextMenuItems } from '@/lib/notes-page-context-menu'
+import {
+  createNoteSendAsNewNotionPageHandler,
+  createNoteSendToNotionHandler
+} from '@/lib/notion-ui'
 import { cn } from '@/lib/utils'
 import { ContextMenu } from '@/components/ContextMenu'
 import {
@@ -88,6 +92,8 @@ export function NotesPagesPane({
     null
   )
   const [linkNoteId, setLinkNoteId] = useState<number | null>(null)
+  const sendNoteToNotion = useMemo(() => createNoteSendToNotionHandler(), [])
+  const sendNoteAsNewNotionPage = useMemo(() => createNoteSendAsNewNotionPageHandler(), [])
 
   const openContextMenu = useCallback((note: UserNoteListItem, event: React.MouseEvent): void => {
     setContextMenu({ x: event.clientX, y: event.clientY, note })
@@ -106,6 +112,8 @@ export function NotesPagesPane({
           onTogglePin,
           onCreateSubPage,
           onMoveToParent,
+          onSendToNotion: sendNoteToNotion,
+          onSendToNotionAsNewPage: sendNoteAsNewNotionPage,
           onLink: (note): void => {
             setContextMenu(null)
             setLinkNoteId(note.id)

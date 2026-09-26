@@ -26,6 +26,7 @@ import {
   X
 } from 'lucide-react'
 import type { CalendarEventAttachmentMeta, CalendarEventView, MeetingAttendeePartStat } from '@shared/types'
+import { preferTeamsJoinUrl } from '@shared/teams-join-url'
 import { CalendarEventAttachmentRow } from '@/app/calendar/CalendarEventAttachmentRow'
 import { fullCalendarEventToPatchSchedule } from '@/app/calendar/calendar-shell-view-helpers'
 import {
@@ -33,6 +34,9 @@ import {
   resolveMeetingScheduleChange
 } from '@/app/calendar/calendar-meeting-schedule-change'
 import { openExternalUrl } from '@/lib/open-external'
+import { useResolvedCopilotPrompt } from '@/lib/copilot-prompt-prefs'
+import { listCopilotEngineOptions } from '@/lib/copilot-engine-options'
+import { useAiConnectionsSettings } from '@/lib/use-ai-connections-settings'
 import {
   calendarEventCanRespondAsAttendee,
   respondToCalendarEventInvitation
@@ -52,6 +56,15 @@ import {
 import { cn } from '@/lib/utils'
 import { EntityContextBlock } from '@/components/connections/EntityContextBlock'
 import { CalendarEventDescriptionPreview } from '@/app/calendar/CalendarEventDescriptionPreview'
+import { WebinarInvitationPreview } from '@/app/calendar/WebinarInvitationPreview'
+import {
+  buildWebinarAttendeePreviewHtml,
+  isWebinarInvitationHtmlLikelyGutted
+} from '@/lib/build-webinar-attendee-preview-html'
+import {
+  buildWebinarRepairPreviewHtml,
+  prepareWebinarRepairSaveBundle
+} from '@/lib/build-webinar-repair-preview'
 import { CalendarMeetingInsightsPanel } from '@/app/calendar/CalendarMeetingInsightsPanel'
 import { formatMeetingAiInsightsForCopilotContext } from '@/app/calendar/format-meeting-ai-insights-for-copilot'
 import { useMeetingAiInsights } from '@/app/calendar/use-meeting-ai-insights'
@@ -59,7 +72,13 @@ import { CopilotAssistPanel } from '@/components/copilot/CopilotAssistPanel'
 import { PreviewFoldSection } from '@/components/PreviewFoldSection'
 import { CalendarEventIconPicker } from '@/components/CalendarEventIconPicker'
 import { calendarEventIconIsExplicit, resolveCalendarEventIcon } from '@/lib/calendar-event-icons'
+import { isWebinarInvitationHtml } from '@/lib/parse-webinar-invitation-html'
+import { prepareWebinarInvitationBodyForGraph } from '@/lib/sanitize-webinar-invitation-html'
 import { sanitizeComposeHtmlFragment } from '@/lib/sanitize-compose-html'
+import {
+  prepareCalendarEventBodyHtmlForAttendeeDisplay,
+  prepareCalendarEventBodyHtmlForEditor
+} from '@/lib/prepare-calendar-event-body-html'
 import { prepareCalendarEventDescriptionFromEditorHtml } from '@shared/calendar-event-body-html'
 import { useThemeStore } from '@/stores/theme'
 
@@ -187,9 +206,20 @@ export function CalendarEventPreview(props: {
     className
   } = props
   const { t, i18n } = useTranslation()
+  const meetingPreparePrompt = useResolvedCopilotPrompt('meeting.prepare')
+  const meetingReviewPrompt = useResolvedCopilotPrompt('meeting.review')
+  const { settings: aiSettings } = useAiConnectionsSettings()
+  const meetingAiAssistAvailable =
+    listCopilotEngineOptions({
+      microsoftAccount: ev.accountId.startsWith('ms:'),
+      aiSettings
+    }).length > 0
   const viewerTheme = useThemeStore((s) => s.effective)
   const [err, setErr] = useState<string | null>(null)
   const [descHtml, setDescHtml] = useState('')
+  const [descIsWebinar, setDescIsWebinar] = useState(false)
+  const [descChronellWebinarInvitation, setDescChronellWebinarInvitation] = useState(false)
+  const [webinarRepairBusy, setWebinarRepairBusy] = useState(false)
   const [descLoading, setDescLoading] = useState(false)
   const [descErr, setDescErr] = useState<string | null>(null)
   const [descExpanded, setDescExpanded] = useState(false)
@@ -378,6 +408,8 @@ export function CalendarEventPreview(props: {
     const eventId = ev.graphEventId?.trim()
     if (!eventId) {
       setDescHtml('')
+      setDescIsWebinar(false)
+      setDescChronellWebinarInvitation(false)
       setDescLoading(false)
       setDescErr(null)
       setAttendeeEmails([])
@@ -396,6 +428,8 @@ export function CalendarEventPreview(props: {
     }
     if (ev.source === 'google' && !ev.graphCalendarId?.trim()) {
       setDescHtml('')
+      setDescIsWebinar(false)
+      setDescChronellWebinarInvitation(false)
       setDescLoading(false)
       setDescErr(null)
       setAttendeeEmails([])
@@ -424,13 +458,53 @@ export function CalendarEventPreview(props: {
         graphCalendarId: ev.graphCalendarId ?? null,
         forceRefresh: true
       })
-      .then((d) => {
+      .then(async (d) => {
         if (cancelled) return
-        const raw = d.bodyHtml?.trim() ? d.bodyHtml.trim() : ''
-        setDescHtml(raw ? sanitizeComposeHtmlFragment(raw) : '')
-        setAttendeeEmails(d.attendeeEmails)
+        let raw = d.bodyHtml?.trim() ? d.bodyHtml.trim() : ''
+        const isWebinarBody =
+          !!d.chronellWebinarInvitation || isWebinarInvitationHtml(raw)
+        if (
+          isWebinarBody &&
+          isWebinarInvitationHtmlLikelyGutted(raw, {
+            chronellWebinarInvitation: !!d.chronellWebinarInvitation
+          })
+        ) {
+          const fresh = await window.mailClient.calendar.getEvent({
+            accountId: ev.accountId,
+            graphEventId: eventId,
+            graphCalendarId: ev.graphCalendarId ?? null,
+            forceRefresh: true
+          })
+          if (cancelled) return
+          raw = fresh.bodyHtml?.trim() ? fresh.bodyHtml.trim() : raw
+        }
+        setDescIsWebinar(isWebinarBody)
+        setDescChronellWebinarInvitation(!!d.chronellWebinarInvitation)
+        try {
+          const prepared = await prepareCalendarEventBodyHtmlForAttendeeDisplay(raw, {
+            accountId: ev.accountId,
+            graphEventId: eventId,
+            graphCalendarId: ev.graphCalendarId ?? null,
+            resolveInlineImages: ev.source === 'microsoft'
+          })
+          if (cancelled) return
+          setDescHtml(prepared)
+        } catch (e) {
+          console.warn('[calendar-preview] prepare body:', e)
+          if (!cancelled) setDescHtml(raw)
+        }
+        setAttendeeEmails(
+          [...d.attendeeEmails, ...(d.optionalAttendeeEmails ?? [])].filter(
+            (addr, i, all) => all.indexOf(addr) === i
+          )
+        )
         setTeamsMeeting(!!d.isOnlineMeeting && !ev.isAllDay)
-        setDetailJoinUrl(d.joinUrl?.trim() || null)
+        setDetailJoinUrl(
+          preferTeamsJoinUrl({
+            joinUrl: d.joinUrl,
+            bodyHtml: d.bodyHtml
+          })
+        )
         setDetailLocation(d.location?.trim() || null)
         setDetailOrganizer(d.organizer?.trim() || null)
         setDetailIsOrganizer(typeof d.isOrganizer === 'boolean' ? d.isOrganizer : null)
@@ -439,10 +513,28 @@ export function CalendarEventPreview(props: {
         setSelfPartStat(d.selfPartStat ?? null)
         setSelfResponseAtIso(d.selfResponseAtIso?.trim() || null)
         setDescErr(null)
+
+        if (canLoadAttachments) {
+          try {
+            const attList = await window.mailClient.calendar.listEventAttachments({
+              accountId: ev.accountId,
+              graphEventId: eventId,
+              graphCalendarId: ev.graphCalendarId ?? null
+            })
+            if (!cancelled) setAttachments(attList.filter((a) => !a.isInline))
+          } catch (e) {
+            console.warn('[calendar-preview] attachments:', e)
+            if (!cancelled) setAttachments([])
+          } finally {
+            if (!cancelled) setAttachmentsLoading(false)
+          }
+        }
       })
       .catch((e) => {
         if (cancelled) return
         setDescHtml('')
+        setDescIsWebinar(false)
+        setDescChronellWebinarInvitation(false)
         setAttendeeEmails([])
         setTeamsMeeting(false)
         setDetailJoinUrl(null)
@@ -454,29 +546,12 @@ export function CalendarEventPreview(props: {
         setSelfPartStat(null)
         setSelfResponseAtIso(null)
         setDescErr(e instanceof Error ? e.message : String(e))
+        if (canLoadAttachments) setAttachmentsLoading(false)
       })
       .finally(() => {
         if (!cancelled) setDescLoading(false)
       })
 
-    if (canLoadAttachments) {
-      void window.mailClient.calendar
-        .listEventAttachments({
-          accountId: ev.accountId,
-          graphEventId: eventId,
-          graphCalendarId: ev.graphCalendarId ?? null
-        })
-        .then((attList) => {
-          if (!cancelled) setAttachments(attList)
-        })
-        .catch((e) => {
-          console.warn('[calendar-preview] attachments:', e)
-          if (!cancelled) setAttachments([])
-        })
-        .finally(() => {
-          if (!cancelled) setAttachmentsLoading(false)
-        })
-    }
     return (): void => {
       cancelled = true
     }
@@ -669,10 +744,12 @@ export function CalendarEventPreview(props: {
         isAllDay: ev.isAllDay,
         location: ev.location ?? null,
         bodyHtml: descHtml.trim()
-          ? prepareCalendarEventDescriptionFromEditorHtml(
-              descHtml,
-              sanitizeComposeHtmlFragment
-            )
+          ? descIsWebinar
+            ? prepareWebinarInvitationBodyForGraph(descHtml)
+            : prepareCalendarEventDescriptionFromEditorHtml(
+                descHtml,
+                sanitizeComposeHtmlFragment
+              )
           : null,
         categories: ev.categories ?? null
       })
@@ -688,10 +765,72 @@ export function CalendarEventPreview(props: {
     applyLocalEventPatch,
     cancelInlineEdit,
     descHtml,
+    descIsWebinar,
     ev,
     onSaved,
     t,
     titleDraft
+  ])
+
+  const handleRepairWebinarLayout = useCallback(async (): Promise<void> => {
+    const graphEventId = ev.graphEventId?.trim()
+    if (!graphEventId || !canEdit || webinarRepairBusy) return
+    setWebinarRepairBusy(true)
+    setInlineError(null)
+    try {
+      const bundle = prepareWebinarRepairSaveBundle({
+        title: ev.title?.trim() || t('calendar.eventDialog.untitled'),
+        startIso: ev.startIso,
+        endIso: ev.endIso,
+        isAllDay: ev.isAllDay,
+        locale: i18n.language,
+        joinUrl: meetingJoinUrl
+      })
+      await window.mailClient.calendar.updateEvent({
+        accountId: ev.accountId,
+        graphEventId,
+        graphCalendarId: ev.graphCalendarId ?? null,
+        subject: ev.title?.trim() || t('calendar.eventDialog.untitled'),
+        startIso: ev.startIso,
+        endIso: ev.endIso,
+        isAllDay: ev.isAllDay,
+        location: ev.location ?? null,
+        bodyHtml: bundle.bodyHtml,
+        categories: ev.categories ?? null,
+        teamsMeeting: teamsMeeting && !ev.isAllDay,
+        chronellWebinarInvitation: true,
+        ...(bundle.inlineAttachments.length > 0 ? { attachments: bundle.inlineAttachments } : {})
+      })
+      const d = await window.mailClient.calendar.getEvent({
+        accountId: ev.accountId,
+        graphEventId,
+        graphCalendarId: ev.graphCalendarId ?? null,
+        forceRefresh: true
+      })
+      const raw = d.bodyHtml?.trim() ? d.bodyHtml.trim() : ''
+      const prepared = await prepareCalendarEventBodyHtmlForAttendeeDisplay(raw, {
+        accountId: ev.accountId,
+        graphEventId,
+        graphCalendarId: ev.graphCalendarId ?? null,
+        resolveInlineImages: ev.source === 'microsoft'
+      })
+      setDescHtml(prepared)
+      setDescChronellWebinarInvitation(!!d.chronellWebinarInvitation)
+      onSaved?.()
+    } catch (e) {
+      setInlineError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setWebinarRepairBusy(false)
+    }
+  }, [
+    canEdit,
+    ev,
+    i18n.language,
+    meetingJoinUrl,
+    onSaved,
+    t,
+    teamsMeeting,
+    webinarRepairBusy
   ])
 
   const saveSchedule = useCallback(async (): Promise<void> => {
@@ -909,6 +1048,48 @@ export function CalendarEventPreview(props: {
     }
     return parts.length > 0 ? parts.join(' · ') : undefined
   }, [attachments.length, attendeeEmails.length, meetingJoinUrl, organizerLabel, t])
+
+  const descPreviewHtml = useMemo(
+    () => buildWebinarAttendeePreviewHtml('', descHtml),
+    [descHtml]
+  )
+  const descLikelyGutted = useMemo(
+    () =>
+      descIsWebinar &&
+      isWebinarInvitationHtmlLikelyGutted(descHtml, {
+        chronellWebinarInvitation: descChronellWebinarInvitation
+      }),
+    [descChronellWebinarInvitation, descHtml, descIsWebinar]
+  )
+
+  const webinarRepairPreviewHtml = useMemo(() => {
+    if (!descIsWebinar || !descLikelyGutted) return null
+    return buildWebinarRepairPreviewHtml({
+      title: ev.title?.trim() || t('calendar.eventDialog.untitled'),
+      startIso: ev.startIso,
+      endIso: ev.endIso,
+      isAllDay: ev.isAllDay,
+      locale: i18n.language,
+      joinUrl: meetingJoinUrl,
+      graphBodyHtml: descHtml
+    })
+  }, [
+    descHtml,
+    descIsWebinar,
+    descLikelyGutted,
+    ev.endIso,
+    ev.isAllDay,
+    ev.startIso,
+    ev.title,
+    i18n.language,
+    meetingJoinUrl,
+    t
+  ])
+
+  const descDisplayPreviewHtml =
+    descLikelyGutted && webinarRepairPreviewHtml
+      ? webinarRepairPreviewHtml
+      : descPreviewHtml
 
   const descriptionSummary = useMemo(() => {
     if (descLoading) return t('calendar.eventDialog.loadingEventDetails')
@@ -1374,7 +1555,10 @@ export function CalendarEventPreview(props: {
               </PreviewDetailRow>
             ) : null}
             {attendeeEmails.length > 0 ? (
-              <PreviewDetailRow icon={Users} label={t('calendar.eventPreview.attendeesLabel')}>
+              <PreviewDetailRow
+                icon={Users}
+                label={`${t('calendar.eventPreview.attendeesLabel')} (${attendeeEmails.length})`}
+              >
                 <div className="flex flex-wrap gap-1.5">
                   {attendeePreview.shown.map((addr) => (
                     <span
@@ -1537,14 +1721,12 @@ export function CalendarEventPreview(props: {
           </p>
         ) : null}
 
-        {ev.accountId.startsWith('ms:') ? (
+        {ev.accountId.startsWith('ms:') || meetingAiAssistAvailable ? (
           <CopilotAssistPanel
             accountId={ev.accountId}
             contextKey={`cal:${ev.accountId}:${ev.graphEventId ?? ev.id}`}
             contextTexts={meetingPrepContext}
-            primaryPrompt={t(
-              meetingEnded ? 'copilot.meeting.reviewPrompt' : 'copilot.meeting.preparePrompt'
-            )}
+            primaryPrompt={meetingEnded ? meetingReviewPrompt : meetingPreparePrompt}
             primaryActionLabel={t(
               meetingEnded ? 'copilot.meeting.review' : 'copilot.meeting.prepare'
             )}
@@ -1586,6 +1768,40 @@ export function CalendarEventPreview(props: {
               <p className="text-xs text-destructive" role="alert">
                 {descErr}
               </p>
+            ) : descIsWebinar ? (
+              <div className="space-y-2">
+                {descLikelyGutted ? (
+                  <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+                    <p>{t('calendar.eventPreview.webinarPreviewRepairHint')}</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {canEdit ? (
+                        <button
+                          type="button"
+                          disabled={webinarRepairBusy}
+                          onClick={(): void => {
+                            void handleRepairWebinarLayout()
+                          }}
+                          className="rounded-md border border-amber-400/50 bg-amber-500/20 px-2.5 py-1 text-xs font-medium text-amber-50 hover:bg-amber-500/30 disabled:opacity-50"
+                        >
+                          {webinarRepairBusy
+                            ? t('calendar.eventPreview.saving')
+                            : t('calendar.eventPreview.webinarRepairSave')}
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={onEdit}
+                        className="rounded-md border border-border/60 bg-background/40 px-2.5 py-1 text-xs font-medium text-foreground hover:bg-secondary"
+                      >
+                        {t('calendar.eventPreview.editButton')}
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+                {descDisplayPreviewHtml ? (
+                  <WebinarInvitationPreview html={descDisplayPreviewHtml} className="w-full" />
+                ) : null}
+              </div>
             ) : (
               <CalendarEventDescriptionPreview
                 html={descHtml}

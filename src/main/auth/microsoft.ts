@@ -10,6 +10,7 @@ import { invalidateMsalCacheMemory } from './msal-cache'
 import { awaitMicrosoftSilentGate, runMicrosoftInteractiveLogin } from './msal-silent-gate'
 import { withMicrosoftTokenLock } from './msal-token-lock'
 import { warmMicrosoftEwsTokenAfterLogin } from './microsoft-ews'
+import { warmMicrosoftFormsTokenAfterLogin } from './microsoft-forms'
 import { getPca } from './microsoft-pca'
 
 export const MICROSOFT_SCOPES = [
@@ -270,8 +271,11 @@ export async function loginMicrosoftWithScopes(
     invalidateMsalCacheMemory()
     const ewsOnly =
       scopes.length === 1 && scopes[0] === 'https://outlook.office365.com/EWS.AccessAsUser.All'
-    if (!ewsOnly) {
+    const formsOnly =
+      scopes.length === 1 && scopes[0] === 'https://forms.office.com/Forms.Read'
+    if (!ewsOnly && !formsOnly) {
       await warmMicrosoftEwsTokenAfterLogin(clientId, tokenResponse)
+      await warmMicrosoftFormsTokenAfterLogin(clientId, tokenResponse)
     }
     return tokenResponse
   })

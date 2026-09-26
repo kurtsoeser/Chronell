@@ -85,9 +85,11 @@ export function useCalendarShellFcEventSources(args: {
   }, [schedulingOpen, schedulingSlots])
 
   return useMemo((): EventSourceInput[] => {
+    // graphCalendarSourceRev: nach Create/Delete neue Source-Referenz erzwingen
+    void graphCalendarSourceRev
     const skipHeavyLayers = shouldSkipHeavyCalendarLayersForMultiMonth(activeViewId)
     const sources: EventSourceInput[] = [
-      { id: `graph-calendar-${graphCalendarSourceRev}`, events: graphFcEventsForFc }
+      { id: 'graph-calendar', events: graphFcEventsForFc }
     ]
     if (mailTodoOverlay && !skipHeavyLayers) {
       sources.push({ id: 'mail-todo', events: mailTodoFcEventsDisplayed })

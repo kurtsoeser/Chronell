@@ -74,7 +74,7 @@ export function useCalendarEventAttachments(opts: {
         graphEventId: eventId,
         graphCalendarId: graphCalendarId ?? null
       })
-      setExisting(list)
+      setExisting(list.filter((a) => !a.isInline))
     } catch (e) {
       console.warn('[calendar] listEventAttachments:', e)
       setExisting([])

@@ -56,7 +56,7 @@ export function ComposeCollapsibleSection({
           </span>
         ) : null}
       </button>
-      {!collapsed ? <div className="min-h-0 flex-1">{children}</div> : null}
+      {!collapsed ? <div className="min-h-0 shrink-0">{children}</div> : null}
     </div>
   )
 }

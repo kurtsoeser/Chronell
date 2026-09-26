@@ -24,7 +24,7 @@ import {
   mailReadingPopoutOptsFromClick,
   openMailReadingPopout
 } from '@/lib/open-mail-reading-popout'
-import { MIME_THREAD_IDS, readDraggedWorkflowMessageIds } from '@/lib/workflow-dnd'
+import { MIME_THREAD_IDS, readDraggedTodoAnchorMessageIds } from '@/lib/workflow-dnd'
 import {
   scheduleRemoveDuplicateFullCalendarEventsById,
   scheduleRemoveMailTodoCalendarEventsByMessageId
@@ -359,7 +359,7 @@ export function MailTodoCalendar({
       if (!dataTransferLooksLikeMailDrag(e.dataTransfer)) return
       const cell = findDateHostForDrop(e.target, e.clientX, e.clientY)
       if (!cell) return
-      const dragged = readDraggedWorkflowMessageIds(e.dataTransfer)
+      const dragged = readDraggedTodoAnchorMessageIds(e.dataTransfer)
       if (dragged.length === 0) return
       e.preventDefault()
       e.stopPropagation()

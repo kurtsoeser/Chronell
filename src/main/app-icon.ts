@@ -47,7 +47,23 @@ export function resolveAppWindowIcon(): NativeImage | undefined {
 export function resolveDragFileIcon(): NativeImage {
   const base = resolveAppWindowIcon()
   if (base && !base.isEmpty()) {
-    return base.resize({ width: 32, height: 32, quality: 'better' })
+    const resized = base.resize({ width: 32, height: 32, quality: 'better' })
+    if (!resized.isEmpty()) return resized
   }
-  return nativeImage.createEmpty()
+  // Windows verlangt ein gültiges Icon — leeres NativeImage kann DnD ruinieren.
+  return createFallbackDragIcon()
+}
+
+/** Minimales 32×32-PNG (grau), falls kein App-Icon geladen werden kann. */
+function createFallbackDragIcon(): NativeImage {
+  const png = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAPUlEQVR4nO3OMQEAIAwDsIF/z0MoK8hG0k3QwZ0kAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwhgF+3gAB7VQG3wAAAABJRU5ErkJggg==',
+    'base64'
+  )
+  const image = nativeImage.createFromBuffer(png)
+  if (!image.isEmpty()) return image
+  // Letzter Fallback: 1×1 Pixel
+  return nativeImage.createFromDataURL(
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+  )
 }

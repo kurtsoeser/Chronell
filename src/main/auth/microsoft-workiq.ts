@@ -57,3 +57,16 @@ export async function acquireWorkIqAccessToken(
     return retry.accessToken
   }
 }
+
+/** Silent-only: true wenn Scope bereits freigegeben und Token holbar (Tenant/App ok). */
+export async function probeWorkIqSilent(
+  clientId: string,
+  accountId: string
+): Promise<boolean> {
+  try {
+    await acquireWorkIqTokenSilent(clientId, homeAccountIdFromAccountId(accountId))
+    return true
+  } catch {
+    return false
+  }
+}

@@ -32,3 +32,6 @@ coverage/
 test-results/
 playwright-report/
 playwright/.cache/
+
+# Local scratch / debug HTML
+tmp/

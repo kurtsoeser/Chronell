@@ -3,6 +3,7 @@ import { format, getWeek } from 'date-fns'
 import { useCollatorLocale, useDateFnsLocale } from '@/lib/date-fns-locale'
 import { useTranslation } from 'react-i18next'
 import {
+  BookMarked,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -10,6 +11,7 @@ import {
   PanelLeftClose,
   Plus,
   Search,
+  Video,
   X
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -70,6 +72,10 @@ export interface CalendarShellHeaderProps {
   onLeftSidebarCollapsedChange: (collapsed: boolean) => void
   /** Kalender: neuer Termin (Erstellungsdialog). */
   onNewEventClick?: () => void
+  /** Kalender: Webinar-Assistent (3 Schritte). */
+  onNewWebinarClick?: () => void
+  /** Webinar aus Notion (#kurtrocks Events). */
+  onNewWebinarFromNotionClick?: () => void
   newEventDisabled?: boolean
   /** .ics-Datei importieren (Dateidialog). */
   onImportIcsClick?: () => void
@@ -110,6 +116,8 @@ export function CalendarShellHeader(props: CalendarShellHeaderProps): JSX.Elemen
     leftSidebarCollapsed,
     onLeftSidebarCollapsedChange,
     onNewEventClick,
+    onNewWebinarClick,
+    onNewWebinarFromNotionClick,
     newEventDisabled,
     onImportIcsClick,
     eventSearchQuery,
@@ -255,6 +263,52 @@ export function CalendarShellHeader(props: CalendarShellHeaderProps): JSX.Elemen
             <span className="calendar-shell-header-new-event-label">
               {t('calendar.shell.newEvent')}
             </span>
+          </button>
+        ) : null}
+        {onNewWebinarClick != null ? (
+          <button
+            type="button"
+            disabled={Boolean(newEventDisabled)}
+            title={
+              newEventDisabled
+                ? t('calendar.shell.noLinkedAccount')
+                : t('calendar.shell.newWebinar')
+            }
+            aria-label={t('calendar.shell.newWebinar')}
+            onClick={(): void => {
+              if (newEventDisabled) return
+              onNewWebinarClick()
+            }}
+            className={cn(
+              'flex shrink-0 items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-foreground hover:bg-secondary sm:gap-1.5 sm:px-2.5 sm:text-xs',
+              newEventDisabled && 'cursor-not-allowed opacity-45'
+            )}
+          >
+            <Video className={cn(moduleColumnHeaderIconGlyphClass, 'shrink-0 text-blue-500')} />
+            <span className="hidden sm:inline">{t('calendar.shell.newWebinar')}</span>
+          </button>
+        ) : null}
+        {onNewWebinarFromNotionClick != null ? (
+          <button
+            type="button"
+            disabled={Boolean(newEventDisabled)}
+            title={
+              newEventDisabled
+                ? t('calendar.shell.noLinkedAccount')
+                : t('calendar.shell.newWebinarFromNotion')
+            }
+            aria-label={t('calendar.shell.newWebinarFromNotion')}
+            onClick={(): void => {
+              if (newEventDisabled) return
+              onNewWebinarFromNotionClick()
+            }}
+            className={cn(
+              'flex shrink-0 items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-foreground hover:bg-secondary sm:gap-1.5 sm:px-2.5 sm:text-xs',
+              newEventDisabled && 'cursor-not-allowed opacity-45'
+            )}
+          >
+            <BookMarked className={cn(moduleColumnHeaderIconGlyphClass, 'shrink-0 text-amber-500')} />
+            <span className="hidden lg:inline">{t('calendar.shell.newWebinarFromNotion')}</span>
           </button>
         ) : null}
 

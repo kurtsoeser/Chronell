@@ -106,6 +106,9 @@ import { MailConversationPreview } from '@/app/layout/MailConversationPreview'
 import { useConversationThreadMessages } from '@/app/layout/use-conversation-thread-messages'
 import { MeetingInvitationPanel } from '@/app/layout/meeting-invitation/MeetingInvitationPanel'
 import { CopilotAssistPanel } from '@/components/copilot/CopilotAssistPanel'
+import { useResolvedCopilotPrompt } from '@/lib/copilot-prompt-prefs'
+import { listCopilotEngineOptions } from '@/lib/copilot-engine-options'
+import { useAiConnectionsSettings } from '@/lib/use-ai-connections-settings'
 import { looksLikeMeetingInvitationMail } from '@shared/meeting-invitation-detect'
 import { isMeetingCalendarAttachment } from '@shared/meeting-invitation-attachment'
 import { useCreateCloudTaskUiStore } from '@/stores/create-cloud-task-ui'
@@ -892,6 +895,13 @@ function MailReader({
   onScheduleMeeting: () => void
 }): JSX.Element {
   const { t } = useTranslation()
+  const mailSummarizePrompt = useResolvedCopilotPrompt('mail.summarize')
+  const { settings: aiSettings } = useAiConnectionsSettings()
+  const aiAssistAvailable =
+    listCopilotEngineOptions({
+      microsoftAccount: message.accountId.startsWith('ms:'),
+      aiSettings
+    }).length > 0
   const dfLocale = useDateFnsLocale()
   const foldersByAccount = useMailStore((s) => s.foldersByAccount)
   const {
@@ -1320,12 +1330,12 @@ function MailReader({
         />
       ) : null}
 
-      {message.accountId.startsWith('ms:') ? (
+      {message.accountId.startsWith('ms:') || aiAssistAvailable ? (
         <CopilotAssistPanel
           accountId={message.accountId}
           contextKey={`mail:${message.id}`}
           contextTexts={copilotMailContext}
-          primaryPrompt={t('copilot.mail.summarizePrompt')}
+          primaryPrompt={mailSummarizePrompt}
           primaryActionLabel={t('copilot.mail.summarize')}
           title={t('copilot.mail.title')}
           className="mx-4 mt-2"
@@ -1537,7 +1547,7 @@ function MailPreviewAttachmentsPanel({
                   onOpen={busyId === a.id ? undefined : (): void => void open(a)}
                   onSaveAs={busyId === a.id ? undefined : (): void => void saveAs(a)}
                   saveAsLabel={t('mail.readingPane.saveAttachmentAsTitle')}
-                  draggable
+                  draggable={Boolean(dragPath)}
                   dragPreparing={preparing}
                   onDragPrepare={(): void => void prepareDrag(a)}
                   onNativeDragStart={(): boolean => {

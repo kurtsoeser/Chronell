@@ -17,6 +17,7 @@ import { registerWeatherIpc } from './ipc/register-weather-ipc'
 import { registerLocationIpc } from './ipc/register-location-ipc'
 import { registerPeopleIpc } from './ipc/register-people-ipc'
 import { registerBookingsIpc } from './ipc/register-bookings-ipc'
+import { registerMsFormsIpc } from './ipc/register-msforms-ipc'
 import { registerNotionIpc } from './ipc/register-notion-ipc'
 import { registerTeamsChatPopoutIpc } from './ipc/register-teams-chat-popout-ipc'
 import { registerMailReadingPopoutIpc } from './ipc/register-mail-reading-popout-ipc'
@@ -48,6 +49,7 @@ export function registerIpcHandlers(): void {
   registerLocationIpc()
   registerPeopleIpc()
   registerBookingsIpc()
+  registerMsFormsIpc()
   registerNotionIpc()
   registerTeamsChatPopoutIpc()
   registerMailReadingPopoutIpc()

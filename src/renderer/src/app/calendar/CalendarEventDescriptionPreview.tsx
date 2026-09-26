@@ -13,10 +13,10 @@ import { cn } from '@/lib/utils'
 import { useMailPreviewZoom } from '@/hooks/use-mail-preview-zoom'
 import { useMailPreviewScaleStore } from '@/stores/mail-preview-scale'
 
-/** Cap fuer sehr lange Beschreibungen — Rest scrollbar. */
+/** Cap fuer sehr lange Beschreibungen (Webinare) — Rest scrollbar. */
 const DESCRIPTION_MAX_HEIGHT_PX = Math.min(
-  typeof window !== 'undefined' ? Math.round(window.innerHeight * 0.45) : 420,
-  560
+  typeof window !== 'undefined' ? Math.round(window.innerHeight * 0.55) : 520,
+  720
 )
 
 function measureShadowContentHeight(host: HTMLElement): number {

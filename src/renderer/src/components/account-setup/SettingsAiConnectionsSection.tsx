@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Loader2 } from 'lucide-react'
+import { ExternalLink, Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { AiLinkCustomDomainProfile } from '@shared/ai-link-domain'
 import type {
@@ -10,7 +10,14 @@ import type {
 } from '@shared/ai-connections'
 import type { EntityEmbeddingIndexStatus } from '@shared/entity-embeddings'
 import { isCompactOllamaModel } from '@shared/ai-prompt-tier'
+import { voidOpenExternalUrl } from '@/lib/open-external'
 import { cn } from '@/lib/utils'
+
+const SETUP_LINKS = {
+  gemini: 'https://aistudio.google.com/apikey',
+  openai: 'https://platform.openai.com/api-keys',
+  ollama: 'https://ollama.com/download'
+} as const
 
 export function SettingsAiConnectionsSection(): JSX.Element {
   const { t } = useTranslation()
@@ -21,6 +28,12 @@ export function SettingsAiConnectionsSection(): JSX.Element {
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [consentOpen, setConsentOpen] = useState(false)
+  const [consentMode, setConsentMode] = useState<'enable' | 'assist'>('enable')
+  const [pendingKeySave, setPendingKeySave] = useState<{
+    provider: AiConnectionsProvider
+    apiKey: string
+  } | null>(null)
+  const [pendingProvider, setPendingProvider] = useState<AiConnectionsProvider | null>(null)
   const [snippetConsentOpen, setSnippetConsentOpen] = useState(false)
   const [ollamaModels, setOllamaModels] = useState<OllamaModelEntry[]>([])
   const [ollamaModelsLoading, setOllamaModelsLoading] = useState(false)
@@ -131,10 +144,26 @@ export function SettingsAiConnectionsSection(): JSX.Element {
     apiKey: string
   ): Promise<void> {
     if (!apiKey.trim()) return
+    if (settings && !settings.consentGiven) {
+      setPendingKeySave({ provider, apiKey: apiKey.trim() })
+      setConsentMode('assist')
+      setConsentOpen(true)
+      return
+    }
+    await commitApiKey(provider, apiKey.trim())
+  }
+
+  async function commitApiKey(
+    provider: AiConnectionsProvider,
+    apiKey: string
+  ): Promise<void> {
     setBusy(true)
     setMessage(null)
     try {
-      const next = await window.mailClient.aiConnections.setApiKey({ provider, apiKey: apiKey.trim() })
+      const next = await window.mailClient.aiConnections.setApiKey({
+        provider,
+        apiKey
+      })
       setSettings(next)
       if (provider === 'gemini') setGeminiKeyDraft('')
       else setOpenAiKeyDraft('')
@@ -163,7 +192,23 @@ export function SettingsAiConnectionsSection(): JSX.Element {
 
   async function confirmConsent(): Promise<void> {
     setConsentOpen(false)
-    await persist({ consentGiven: true, enabled: true })
+    const mode = consentMode
+    const pending = pendingKeySave
+    const nextProvider = pendingProvider
+    setPendingKeySave(null)
+    setPendingProvider(null)
+    setConsentMode('enable')
+    if (mode === 'enable') {
+      await persist({ consentGiven: true, enabled: true })
+      return
+    }
+    await persist({
+      consentGiven: true,
+      ...(nextProvider ? { provider: nextProvider } : {})
+    })
+    if (pending) {
+      await commitApiKey(pending.provider, pending.apiKey)
+    }
   }
 
   async function confirmSnippetConsent(): Promise<void> {
@@ -204,6 +249,24 @@ export function SettingsAiConnectionsSection(): JSX.Element {
       <div>
         <h3 className="text-sm font-medium text-foreground">{t('settings.aiConnections.heading')}</h3>
         <p className="mt-1 text-xs text-muted-foreground">{t('settings.aiConnections.hint')}</p>
+        <p className="mt-1.5 text-2xs leading-relaxed text-muted-foreground">
+          {t('settings.aiConnections.assistHint')}
+        </p>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <SetupLinkButton
+          label={t('settings.aiConnections.setupGemini')}
+          onClick={(): void => voidOpenExternalUrl(SETUP_LINKS.gemini, 'aiSetupGemini')}
+        />
+        <SetupLinkButton
+          label={t('settings.aiConnections.setupOpenAi')}
+          onClick={(): void => voidOpenExternalUrl(SETUP_LINKS.openai, 'aiSetupOpenAi')}
+        />
+        <SetupLinkButton
+          label={t('settings.aiConnections.setupOllama')}
+          onClick={(): void => voidOpenExternalUrl(SETUP_LINKS.ollama, 'aiSetupOllama')}
+        />
       </div>
 
       <label className="flex cursor-pointer items-start gap-2">
@@ -215,13 +278,19 @@ export function SettingsAiConnectionsSection(): JSX.Element {
           onChange={(e): void => {
             const checked = e.target.checked
             if (checked && !settings.consentGiven) {
+              setConsentMode('enable')
               setConsentOpen(true)
               return
             }
             void persist({ enabled: checked })
           }}
         />
-        <span className="text-xs text-foreground">{t('settings.aiConnections.enable')}</span>
+        <span className="text-xs text-foreground">
+          <span className="font-medium">{t('settings.aiConnections.enable')}</span>
+          <span className="mt-0.5 block text-2xs text-muted-foreground">
+            {t('settings.aiConnections.enableHint')}
+          </span>
+        </span>
       </label>
 
       <div>
@@ -235,9 +304,16 @@ export function SettingsAiConnectionsSection(): JSX.Element {
           className="w-full max-w-xs rounded-md border border-border bg-background px-2 py-1.5 text-xs"
           value={settings.provider}
           disabled={busy}
-          onChange={(e): void =>
-            void persist({ provider: e.target.value as AiConnectionsProvider })
-          }
+          onChange={(e): void => {
+            const provider = e.target.value as AiConnectionsProvider
+            if (provider === 'ollama' && !settings.consentGiven) {
+              setPendingProvider('ollama')
+              setConsentMode('assist')
+              setConsentOpen(true)
+              return
+            }
+            void persist({ provider })
+          }}
         >
           <option value="gemini">Google Gemini</option>
           <option value="openai">OpenAI</option>
@@ -851,7 +927,12 @@ export function SettingsAiConnectionsSection(): JSX.Element {
             </button>
             <button
               type="button"
-              onClick={(): void => setConsentOpen(false)}
+              onClick={(): void => {
+                setConsentOpen(false)
+                setPendingKeySave(null)
+                setPendingProvider(null)
+                setConsentMode('enable')
+              }}
               className="rounded-md border border-border px-2 py-1 text-xs"
             >
               {t('common.cancel')}
@@ -860,6 +941,25 @@ export function SettingsAiConnectionsSection(): JSX.Element {
         </div>
       ) : null}
     </div>
+  )
+}
+
+function SetupLinkButton({
+  label,
+  onClick
+}: {
+  label: string
+  onClick: () => void
+}): JSX.Element {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-background px-2 py-1 text-2xs font-medium text-foreground hover:bg-secondary/40"
+    >
+      <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden />
+      {label}
+    </button>
   )
 }
 

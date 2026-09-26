@@ -4,7 +4,16 @@ import {
   formatUtcIsoAsLocalDateTime,
   utcIsoFromWallDateTime
 } from '@shared/calendar-datetime'
-import { prepareCalendarEventBodyHtml } from '@shared/calendar-event-body-html'
+import { prepareCalendarEventBodyHtml, mergeCalendarEventBodyPreservingTeamsMeetingBlob, extractRawTeamsOnlineMeetingBlob } from '@shared/calendar-event-body-html'
+import {
+  formatChronellWebinarDraftAttendees,
+  formatChronellWebinarInvitationFlag,
+  GRAPH_CHRONELL_WEBINAR_DRAFT_ATTENDEES_PROP_ID,
+  GRAPH_CHRONELL_WEBINAR_INVITATION_PROP_ID,
+  parseChronellWebinarDraftAttendees,
+  parseChronellWebinarInvitationFlag
+} from '@shared/chronell-webinar-calendar'
+import { preferTeamsJoinUrl } from '@shared/teams-join-url'
 import type {
   CalendarEventSensitivity,
   CalendarEventShowAs,
@@ -69,6 +78,11 @@ interface GraphEvent {
   seriesMasterId?: string | null
   showAs?: string | null
   sensitivity?: string | null
+  /** Outlook „Teilnehmerliste ausblenden“. */
+  hideAttendees?: boolean | null
+  /** Zeitzone beim Anlegen (bleibt auch wenn start/end als UTC geliefert werden). */
+  originalStartTimeZone?: string | null
+  originalEndTimeZone?: string | null
   /** Nur mit `$expand=calendar(...)` in calendarView. */
   calendar?: { id?: string | null; color?: string | null; hexColor?: string | null } | null
 }
@@ -561,7 +575,7 @@ export interface CreateTeamsCalendarEventInput {
   timeZone?: string
   /** Graph-Kalender-ID; optional = Standardkalender (`POST /me/events`). */
   graphCalendarId?: string | null
-  /** Einladungen (Graph `attendees`, max. ca. 40). */
+  /** Einladungen (Graph `attendees`, max. 500 laut Microsoft). */
   attendeeEmails?: string[] | null
 }
 
@@ -596,33 +610,93 @@ type GraphEventWriteFields = {
   showAs?: CalendarEventShowAs | null
   /** Microsoft: Vertraulichkeit (`sensitivity`). */
   sensitivity?: CalendarEventSensitivity | null
+  /** Microsoft: Teilnehmerliste ausblenden (`hideAttendees`). */
+  hideAttendees?: boolean | null
+  /** Microsoft: Antworten anfordern (`responseRequested`). */
+  responseRequested?: boolean | null
+  /** Microsoft: Weiterleitung zulassen (DoNotForward Extended Property, invertiert). */
+  allowForwarding?: boolean | null
+  /** Microsoft: Chronell-Webinar-Einladung (Extended Property). */
+  chronellWebinarInvitation?: boolean | null
+  /** Microsoft: optionale Teilnehmer (`attendees[].type = optional`). */
+  optionalAttendeeEmails?: string[] | null
+  /** Microsoft: Teilnehmer-Einladungen versenden (`false` = Entwurf speichern). */
+  notifyAttendees?: boolean | null
 }
 
-const MAX_GRAPH_EVENT_ATTENDEES = 40
+/** Graph Event `attendees` Collection — Microsoft Docs: max. 500. */
+const MAX_GRAPH_EVENT_ATTENDEES = 500
 
 const SIMPLE_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i
 
+function mergeUniqueEmails(
+  ...lists: Array<string[] | null | undefined>
+): string[] {
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const list of lists) {
+    for (const raw of list ?? []) {
+      const a = raw.trim().toLowerCase()
+      if (!a || !SIMPLE_EMAIL.test(a) || seen.has(a)) continue
+      seen.add(a)
+      out.push(a)
+    }
+  }
+  return out
+}
+
+/** Outlook „Weiterleitung zulassen“ aus = Extended Property DoNotForward. */
+export const GRAPH_DO_NOT_FORWARD_PROP_ID =
+  'Boolean {00020329-0000-0000-C000-000000000046} Name DoNotForward'
+
+export type GraphAttendeeType = 'required' | 'optional'
+
 /**
- * Graph `attendees` mit Typ `required`, dedupliziert (Lowercase), max. {@link MAX_GRAPH_EVENT_ATTENDEES}.
+ * Graph `attendees` mit Typ, dedupliziert (Lowercase), max. {@link MAX_GRAPH_EVENT_ATTENDEES}.
+ * `seen` erlaubt kombinierte required+optional-Listen ohne Doppeladressierung.
  */
-export function buildGraphAttendees(emails: string[] | null | undefined): {
+export function buildGraphAttendees(
+  emails: string[] | null | undefined,
+  type: GraphAttendeeType = 'required',
+  seen: Set<string> = new Set()
+): {
   emailAddress: { address: string; name: string }
-  type: 'required'
+  type: GraphAttendeeType
 }[] {
   if (!emails?.length) return []
-  const seen = new Set<string>()
-  const out: { emailAddress: { address: string; name: string }; type: 'required' }[] = []
+  const out: {
+    emailAddress: { address: string; name: string }
+    type: GraphAttendeeType
+  }[] = []
   for (const raw of emails) {
     const a = raw.trim().toLowerCase()
     if (!a || !SIMPLE_EMAIL.test(a) || seen.has(a)) continue
+    if (seen.size >= MAX_GRAPH_EVENT_ATTENDEES) {
+      throw new Error(
+        `Zu viele Teilnehmer (max. ${MAX_GRAPH_EVENT_ATTENDEES}). Bitte die Liste kürzen oder eine Verteilerliste nutzen.`
+      )
+    }
     seen.add(a)
     out.push({
       emailAddress: { address: a, name: a },
-      type: 'required'
+      type
     })
-    if (out.length >= MAX_GRAPH_EVENT_ATTENDEES) break
   }
   return out
+}
+
+/** Required + optional Teilnehmer (Required hat Vorrang bei Duplikaten). */
+export function buildGraphAttendeesMixed(
+  requiredEmails: string[] | null | undefined,
+  optionalEmails: string[] | null | undefined
+): {
+  emailAddress: { address: string; name: string }
+  type: GraphAttendeeType
+}[] {
+  const seen = new Set<string>()
+  const required = buildGraphAttendees(requiredEmails, 'required', seen)
+  const optional = buildGraphAttendees(optionalEmails, 'optional', seen)
+  return [...required, ...optional]
 }
 
 export type GraphTeamsMeetingPatchFields = {
@@ -631,15 +705,16 @@ export type GraphTeamsMeetingPatchFields = {
 }
 
 /**
- * Teams-Felder nur mitsenden, wenn sich der Online-Status wirklich aendert.
- * Verhindert doppelte Teams-Links bei erneutem Speichern.
+ * Teams-Felder fuer PATCH.
+ * Bei wantTeams immer `isOnlineMeeting: true` mitsenden — sonst kann ein Body-Update
+ * ohne Meeting-Blob die Online-Besprechung stillschweigend deaktivieren, und wir
+ * wuerden den Status nicht wiederherstellen (frueher: null wenn already online).
  */
 export function graphTeamsMeetingPatchFields(
   wantTeams: boolean,
   currentlyOnline: boolean
 ): GraphTeamsMeetingPatchFields | null {
   if (wantTeams) {
-    if (currentlyOnline) return null
     return { isOnlineMeeting: true, onlineMeetingProvider: 'teamsForBusiness' }
   }
   if (currentlyOnline) {
@@ -652,13 +727,96 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
+type GraphMeetingMetaForBodyPatch = {
+  isOnlineMeeting: boolean
+  onlineMeetingJoinUrl: string | null
+  bodyRaw: string | null
+  teamsBlob: string | null
+}
+
+async function fetchGraphEventMeetingMetaWithBlobRetries(
+  client: ReturnType<typeof createGraphClient>,
+  path: string,
+  options: { wantTeams: boolean; maxAttempts?: number }
+): Promise<GraphMeetingMetaForBodyPatch> {
+  const maxAttempts = options.maxAttempts ?? 4
+  let isOnlineMeeting = false
+  let onlineMeetingJoinUrl: string | null = null
+  let bodyRaw: string | null = null
+  let teamsBlob: string | null = null
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    if (attempt > 0) await sleep(300 * attempt)
+    const ev = (await client
+      .api(`${path}?$select=isOnlineMeeting,onlineMeeting,body`)
+      .get()) as GraphEvent
+    isOnlineMeeting = !!ev.isOnlineMeeting
+    onlineMeetingJoinUrl = ev.onlineMeeting?.joinUrl?.trim() || null
+    bodyRaw = ev.body?.content?.trim() || null
+    teamsBlob = extractRawTeamsOnlineMeetingBlob(bodyRaw)
+    if (teamsBlob) break
+    if (!options.wantTeams && !isOnlineMeeting && !onlineMeetingJoinUrl) break
+  }
+
+  return { isOnlineMeeting, onlineMeetingJoinUrl, bodyRaw, teamsBlob }
+}
+
+/**
+ * Body fuer Graph-PATCH bei (potenziellen) Online-Meetings.
+ * Ohne erkannten Meeting-Blob darf User-HTML den Termin nicht allein patchen —
+ * sonst deaktiviert Outlook die Teams-Besprechung.
+ */
+export function resolveGraphEventBodyForTeamsUpdate(input: {
+  wantTeams: boolean
+  isOnlineMeeting: boolean
+  onlineMeetingJoinUrl: string | null
+  existingBodyRaw: string | null
+  userBodyHtml: string | null
+  defaultBodyContent: string
+}): { bodyContent: string; omitBodyFromPrimaryPatch: boolean } {
+  const teamsBlob = extractRawTeamsOnlineMeetingBlob(input.existingBodyRaw)
+  const shouldPreserveTeamsMeeting =
+    input.wantTeams ||
+    input.isOnlineMeeting ||
+    !!teamsBlob ||
+    !!input.onlineMeetingJoinUrl?.trim()
+
+  if (!shouldPreserveTeamsMeeting) {
+    return { bodyContent: input.defaultBodyContent, omitBodyFromPrimaryPatch: false }
+  }
+  if (teamsBlob) {
+    return {
+      bodyContent: mergeCalendarEventBodyPreservingTeamsMeetingBlob(
+        input.userBodyHtml,
+        input.existingBodyRaw
+      ),
+      omitBodyFromPrimaryPatch: false
+    }
+  }
+  if (input.wantTeams) {
+    return { bodyContent: input.defaultBodyContent, omitBodyFromPrimaryPatch: true }
+  }
+  return {
+    bodyContent: mergeCalendarEventBodyPreservingTeamsMeetingBlob(
+      input.userBodyHtml,
+      input.existingBodyRaw
+    ),
+    omitBodyFromPrimaryPatch: false
+  }
+}
+
 async function resolveGraphEventJoinUrlAfterWrite(
   client: ReturnType<typeof createGraphClient>,
   eventPath: string,
   created: GraphEvent,
   wantTeams: boolean
 ): Promise<string | null> {
-  const immediate = created.onlineMeeting?.joinUrl?.trim()
+  // Kritischer Pfad: erste brauchbare Join-URL (auch langer meetup-join-Link).
+  // Kurzen /meet/…-Link und Body holt der Renderer im Hintergrund nach.
+  const joinFrom = (ev: GraphEvent): string | null =>
+    ev.onlineMeeting?.joinUrl?.trim() || null
+
+  const immediate = joinFrom(created)
   if (immediate) return immediate
   if (!wantTeams) return null
 
@@ -667,7 +825,7 @@ async function resolveGraphEventJoinUrlAfterWrite(
     const fresh = (await client
       .api(`${eventPath}?$select=onlineMeeting,isOnlineMeeting`)
       .get()) as GraphEvent
-    const url = fresh.onlineMeeting?.joinUrl?.trim()
+    const url = joinFrom(fresh)
     if (url) return url
   }
   return null
@@ -676,13 +834,114 @@ async function resolveGraphEventJoinUrlAfterWrite(
 /** Teilnehmer + Einladungs-Flags (unabhaengig von Teams-Besprechung). */
 export function applyGraphMeetingInviteToPayload(
   payload: Record<string, unknown>,
-  attendeeEmails: string[] | null | undefined
+  attendeeEmails: string[] | null | undefined,
+  options?: {
+    optionalAttendeeEmails?: string[] | null
+    responseRequested?: boolean | null
+  }
 ): void {
-  const att = buildGraphAttendees(attendeeEmails)
+  const att = buildGraphAttendeesMixed(attendeeEmails, options?.optionalAttendeeEmails)
   if (att.length > 0) {
     payload.attendees = att
-    payload.responseRequested = true
+    payload.responseRequested =
+      typeof options?.responseRequested === 'boolean' ? options.responseRequested : true
+  } else if (typeof options?.responseRequested === 'boolean') {
+    payload.responseRequested = options.responseRequested
   }
+}
+
+function applyGraphExtendedPropertiesToPayload(
+  payload: Record<string, unknown>,
+  options?: {
+    allowForwarding?: boolean | null
+    chronellWebinarInvitation?: boolean | null
+    chronellWebinarDraftAttendees?: string | null
+  }
+): void {
+  const props: Array<{ id: string; value: string }> = []
+  if (typeof options?.allowForwarding === 'boolean') {
+    props.push({
+      id: GRAPH_DO_NOT_FORWARD_PROP_ID,
+      value: options.allowForwarding ? 'false' : 'true'
+    })
+  }
+  if (typeof options?.chronellWebinarInvitation === 'boolean') {
+    props.push({
+      id: GRAPH_CHRONELL_WEBINAR_INVITATION_PROP_ID,
+      value: formatChronellWebinarInvitationFlag(options.chronellWebinarInvitation)
+    })
+  }
+  if (options?.chronellWebinarDraftAttendees !== undefined) {
+    props.push({
+      id: GRAPH_CHRONELL_WEBINAR_DRAFT_ATTENDEES_PROP_ID,
+      value: options.chronellWebinarDraftAttendees ?? ''
+    })
+  }
+  if (props.length > 0) {
+    payload.singleValueExtendedProperties = props
+  }
+}
+
+type GraphAttendeeWritePlan = {
+  patchAttendees: boolean
+  attendeeEmails: string[]
+  optionalAttendeeEmails: string[]
+  draftAttendeesJson: string | undefined
+}
+
+/** Entwurf speichern vs. Einladungen an Graph-Teilnehmer senden. */
+export function resolveGraphAttendeeWritePlan(input: GraphEventWriteFields): GraphAttendeeWritePlan {
+  const hasAttendeeFields =
+    input.attendeeEmails !== undefined || input.optionalAttendeeEmails !== undefined
+  if (!hasAttendeeFields) {
+    return {
+      patchAttendees: false,
+      attendeeEmails: [],
+      optionalAttendeeEmails: [],
+      draftAttendeesJson: undefined
+    }
+  }
+  const attendeeEmails = input.attendeeEmails ?? []
+  const optionalAttendeeEmails = input.optionalAttendeeEmails ?? []
+  if (input.notifyAttendees === false) {
+    return {
+      patchAttendees: false,
+      attendeeEmails,
+      optionalAttendeeEmails,
+      draftAttendeesJson: formatChronellWebinarDraftAttendees({
+        required: attendeeEmails,
+        optional: optionalAttendeeEmails
+      })
+    }
+  }
+  return {
+    patchAttendees: true,
+    attendeeEmails,
+    optionalAttendeeEmails,
+    draftAttendeesJson: ''
+  }
+}
+
+function applyGraphAttendeeWritePlanToPayload(
+  payload: Record<string, unknown>,
+  input: GraphEventWriteFields,
+  plan: GraphAttendeeWritePlan
+): void {
+  if (plan.patchAttendees) {
+    applyGraphMeetingInviteToPayload(payload, plan.attendeeEmails, {
+      optionalAttendeeEmails: plan.optionalAttendeeEmails,
+      responseRequested: input.responseRequested
+    })
+  } else if (typeof input.responseRequested === 'boolean') {
+    payload.responseRequested = input.responseRequested
+  }
+}
+
+function applyGraphAllowForwardingToPayload(
+  payload: Record<string, unknown>,
+  allowForwarding: boolean | null | undefined
+): void {
+  applyGraphExtendedPropertiesToPayload(payload, { allowForwarding })
 }
 
 export type GraphCalendarEventType =
@@ -694,6 +953,7 @@ export type GraphCalendarEventType =
 export interface GraphCalendarEventDetail {
   subject: string | null
   attendeeEmails: string[]
+  optionalAttendeeEmails: string[]
   joinUrl: string | null
   isOnlineMeeting: boolean
   bodyHtml: string | null
@@ -712,6 +972,11 @@ export interface GraphCalendarEventDetail {
   seriesMasterId?: string | null
   showAs?: CalendarEventShowAs | null
   sensitivity?: CalendarEventSensitivity | null
+  hideAttendees?: boolean | null
+  responseRequested?: boolean | null
+  allowForwarding?: boolean | null
+  chronellWebinarInvitation?: boolean | null
+  webinarInvitationsPending?: boolean | null
   recurrence?: CalendarSaveEventRecurrence | null
   selfPartStat?: MeetingAttendeePartStat | null
   selfResponseAtIso?: string | null
@@ -737,10 +1002,11 @@ async function applyGraphRecurrenceToPayload(
 ): Promise<void> {
   if (!input.recurrence) return
   const appCfg = await loadConfig()
-  const iana =
+  const iana = graphWindowsZoneToIana(
     input.timeZone?.trim() ||
-    appCfg.calendarTimeZone?.trim() ||
-    Intl.DateTimeFormat().resolvedOptions().timeZone
+      appCfg.calendarTimeZone?.trim() ||
+      Intl.DateTimeFormat().resolvedOptions().timeZone
+  )
   const graphWindowsTz = ianaToWindowsTimeZone(iana)
   const startLocal = input.isAllDay
     ? calendarZonedPartsFromDateOnly(input.startIso.trim().slice(0, 10), iana)
@@ -793,16 +1059,49 @@ function applyGraphShowAsSensitivityToPayload(
   }
 }
 
+function applyGraphHideAttendeesToPayload(
+  payload: Record<string, unknown>,
+  hideAttendees: boolean | null | undefined
+): void {
+  if (typeof hideAttendees === 'boolean') {
+    payload.hideAttendees = hideAttendees
+  }
+}
+
 export function normalizeGraphEventBodyHtml(
   body: { contentType?: string | null; content?: string | null } | null | undefined
 ): string | null {
   return prepareCalendarEventBodyHtml(body?.content)
 }
 
+/**
+ * Graph GET ohne `Prefer: outlook.timezone` liefert start/end oft als UTC.
+ * Die echte Zone steht in `originalStartTimeZone` (beim Speichern explizit setzen).
+ * Nicht-UTC-Werte haben Vorrang vor Prefer-losen UTC-Antworten.
+ */
+function resolveGraphEventStoredTimeZoneIana(ev: GraphEvent): string | null {
+  if (ev.isAllDay) return null
+  const candidates = [ev.originalStartTimeZone, ev.originalEndTimeZone, ev.start?.timeZone]
+  for (const raw of candidates) {
+    const t = raw?.trim()
+    if (!t || /^tzone:\/\//i.test(t) || /^UTC$/i.test(t)) continue
+    return graphWindowsZoneToIana(t)
+  }
+  for (const raw of candidates) {
+    const t = raw?.trim()
+    if (!t || /^tzone:\/\//i.test(t)) continue
+    return graphWindowsZoneToIana(t)
+  }
+  return null
+}
+
 async function graphEventDateFields(input: GraphEventWriteFields): Promise<{
   isAllDay: boolean
   start: GraphDateTimeTimeZone
   end: GraphDateTimeTimeZone
+  /** Explizit mitschreiben — sonst bleibt original* bei korrupten UTC-Terminen haengen. */
+  originalStartTimeZone?: string
+  originalEndTimeZone?: string
 }> {
   if (input.isAllDay) {
     const sd = input.startIso.trim().slice(0, 10)
@@ -817,10 +1116,11 @@ async function graphEventDateFields(input: GraphEventWriteFields): Promise<{
     }
   }
   const appCfg = await loadConfig()
-  const iana =
+  const iana = graphWindowsZoneToIana(
     input.timeZone?.trim() ||
-    appCfg.calendarTimeZone?.trim() ||
-    Intl.DateTimeFormat().resolvedOptions().timeZone
+      appCfg.calendarTimeZone?.trim() ||
+      Intl.DateTimeFormat().resolvedOptions().timeZone
+  )
   const graphWindowsTz = ianaToWindowsTimeZone(iana)
   const startLocal = formatUtcIsoAsLocalDateTime(input.startIso, iana)
   const endLocal = formatUtcIsoAsLocalDateTime(input.endIso, iana)
@@ -830,7 +1130,9 @@ async function graphEventDateFields(input: GraphEventWriteFields): Promise<{
   return {
     isAllDay: false,
     start: { dateTime: startLocal, timeZone: graphWindowsTz },
-    end: { dateTime: endLocal, timeZone: graphWindowsTz }
+    end: { dateTime: endLocal, timeZone: graphWindowsTz },
+    originalStartTimeZone: graphWindowsTz,
+    originalEndTimeZone: graphWindowsTz
   }
 }
 
@@ -845,6 +1147,8 @@ function eventWritePayload(input: GraphEventWriteFields): Promise<{
   isAllDay: boolean
   start: GraphDateTimeTimeZone
   end: GraphDateTimeTimeZone
+  originalStartTimeZone?: string
+  originalEndTimeZone?: string
   subject: string
   body: { contentType: 'HTML'; content: string }
   location?: { displayName: string }
@@ -901,20 +1205,41 @@ export async function graphGetCalendarEvent(
   const client = await getClientFor(accountId)
   const path = graphEventInstancePath(graphEventId, graphCalendarId)
   const sel = encodeURIComponent(
-    'id,subject,body,attendees,isOnlineMeeting,onlineMeeting,onlineMeetingProvider,start,end,isAllDay,location,organizer,isReminderOn,reminderMinutesBeforeStart,webLink,isOrganizer,type,seriesMasterId,showAs,sensitivity,recurrence,responseStatus'
+    'id,subject,body,attendees,isOnlineMeeting,onlineMeeting,onlineMeetingProvider,start,end,isAllDay,location,organizer,isReminderOn,reminderMinutesBeforeStart,webLink,isOrganizer,type,seriesMasterId,showAs,sensitivity,hideAttendees,responseRequested,recurrence,responseStatus,originalStartTimeZone,originalEndTimeZone'
   )
-  const ev = (await client.api(`${path}?$select=${sel}`).get()) as GraphEvent & {
+  const expand = encodeURIComponent(
+    `singleValueExtendedProperties($filter=id eq '${GRAPH_DO_NOT_FORWARD_PROP_ID}' or id eq '${GRAPH_CHRONELL_WEBINAR_INVITATION_PROP_ID}' or id eq '${GRAPH_CHRONELL_WEBINAR_DRAFT_ATTENDEES_PROP_ID}')`
+  )
+  const ev = (await client.api(`${path}?$select=${sel}&$expand=${expand}`).get()) as GraphEvent & {
     recurrence?: unknown
+    responseRequested?: boolean | null
     responseStatus?: { response?: string | null; time?: string | null } | null
+    singleValueExtendedProperties?: Array<{ id?: string | null; value?: string | null }> | null
   }
-  const emails: string[] = []
+  const requiredEmails: string[] = []
+  const optionalEmails: string[] = []
   const seen = new Set<string>()
   for (const at of ev.attendees ?? []) {
     const addr = at.emailAddress?.address?.trim().toLowerCase()
     if (!addr || !SIMPLE_EMAIL.test(addr) || seen.has(addr)) continue
     seen.add(addr)
-    emails.push(addr)
+    if ((at.type ?? '').trim().toLowerCase() === 'optional') {
+      optionalEmails.push(addr)
+    } else {
+      requiredEmails.push(addr)
+    }
   }
+  const doNotForward = (ev.singleValueExtendedProperties ?? []).find(
+    (p) => (p.id ?? '').trim() === GRAPH_DO_NOT_FORWARD_PROP_ID
+  )
+  const doNotForwardOn = (doNotForward?.value ?? '').trim().toLowerCase() === 'true'
+  const chronellWebinar = (ev.singleValueExtendedProperties ?? []).find(
+    (p) => (p.id ?? '').trim() === GRAPH_CHRONELL_WEBINAR_INVITATION_PROP_ID
+  )
+  const chronellDraftAttendees = (ev.singleValueExtendedProperties ?? []).find(
+    (p) => (p.id ?? '').trim() === GRAPH_CHRONELL_WEBINAR_DRAFT_ATTENDEES_PROP_ID
+  )
+  const draftAttendees = parseChronellWebinarDraftAttendees(chronellDraftAttendees?.value)
   const organizer =
     ev.organizer?.emailAddress?.address?.trim() ||
     ev.organizer?.emailAddress?.name?.trim() ||
@@ -964,19 +1289,34 @@ export async function graphGetCalendarEvent(
       }
     }
   }
+  const totalCap = MAX_GRAPH_EVENT_ATTENDEES
+  // Draft (noch nicht gesendet) mit Graph-Liste mergen — sonst verdecken alte Drafts
+  // neu in Outlook ergaenzte Teilnehmer.
+  const resolvedRequired = mergeUniqueEmails(
+    draftAttendees?.required,
+    requiredEmails
+  ).slice(0, totalCap)
+  const resolvedOptional = mergeUniqueEmails(
+    draftAttendees?.optional,
+    optionalEmails
+  )
+    .filter((e) => !resolvedRequired.includes(e))
+    .slice(0, Math.max(0, totalCap - resolvedRequired.length))
   return {
     subject: ev.subject ?? null,
-    attendeeEmails: emails.slice(0, MAX_GRAPH_EVENT_ATTENDEES),
-    joinUrl: ev.onlineMeeting?.joinUrl?.trim() || null,
+    attendeeEmails: resolvedRequired,
+    optionalAttendeeEmails: resolvedOptional,
+    joinUrl: preferTeamsJoinUrl({
+      joinUrl: ev.onlineMeeting?.joinUrl?.trim() || null,
+      bodyHtml: normalizeGraphEventBodyHtml(ev.body ?? null)
+    }),
     isOnlineMeeting: !!ev.isOnlineMeeting,
     bodyHtml: normalizeGraphEventBodyHtml(ev.body ?? null),
     location: ev.location?.displayName?.trim() || null,
     organizer,
     isReminderOn: !!ev.isReminderOn,
     reminderMinutesBeforeStart: reminderMinutes,
-    timeZone: ev.isAllDay
-      ? null
-      : graphWindowsZoneToIana(ev.start?.timeZone) || null,
+    timeZone: resolveGraphEventStoredTimeZoneIana(ev),
     startIso,
     endIso,
     isAllDay: allDay,
@@ -986,6 +1326,11 @@ export async function graphGetCalendarEvent(
     seriesMasterId,
     showAs: normalizeCalendarEventShowAs(ev.showAs) ?? 'busy',
     sensitivity: normalizeCalendarEventSensitivity(ev.sensitivity) ?? 'normal',
+    hideAttendees: !!ev.hideAttendees,
+    responseRequested: typeof ev.responseRequested === 'boolean' ? ev.responseRequested : true,
+    allowForwarding: doNotForward ? !doNotForwardOn : true,
+    chronellWebinarInvitation: parseChronellWebinarInvitationFlag(chronellWebinar?.value),
+    webinarInvitationsPending: draftAttendees != null,
     recurrence,
     selfPartStat,
     selfResponseAtIso
@@ -1049,14 +1394,29 @@ export async function graphCreateSimpleCalendarEvent(
     end: core.end,
     isAllDay: core.isAllDay,
     ...(core.location ? { location: core.location } : {}),
-    ...(core.categories !== undefined ? { categories: core.categories } : {})
+    ...(core.categories !== undefined ? { categories: core.categories } : {}),
+    ...(core.originalStartTimeZone
+      ? {
+          originalStartTimeZone: core.originalStartTimeZone,
+          originalEndTimeZone: core.originalEndTimeZone ?? core.originalStartTimeZone
+        }
+      : {})
   }
   const wantTeams = !!input.teamsMeeting && !core.isAllDay
   if (wantTeams) {
     payload.isOnlineMeeting = true
     payload.onlineMeetingProvider = 'teamsForBusiness'
   }
-  applyGraphMeetingInviteToPayload(payload, input.attendeeEmails)
+  const attendeePlan = resolveGraphAttendeeWritePlan(input)
+  applyGraphAttendeeWritePlanToPayload(payload, input, attendeePlan)
+  applyGraphHideAttendeesToPayload(payload, input.hideAttendees)
+  applyGraphExtendedPropertiesToPayload(payload, {
+    allowForwarding: input.allowForwarding,
+    chronellWebinarInvitation: input.chronellWebinarInvitation,
+    ...(attendeePlan.draftAttendeesJson !== undefined
+      ? { chronellWebinarDraftAttendees: attendeePlan.draftAttendeesJson }
+      : {})
+  })
   applyGraphReminderToPayload(payload, input.reminderMinutesBeforeStart)
   await applyGraphRecurrenceToPayload(payload, input)
   applyGraphShowAsSensitivityToPayload(payload, input)
@@ -1065,6 +1425,27 @@ export async function graphCreateSimpleCalendarEvent(
   if (input.recurrence) {
     await assertGraphEventIsSeriesMaster(client, eventPath)
   }
+
+  // Teams: Graph haengt den Meeting-Blob oft ans Body-Ende. Webinar braucht den Blob im Slot —
+  // sonst fehlen Umfrage/Hinweise in Outlook und der offizielle Block liegt unter der Karte.
+  if (wantTeams) {
+    const meetingMeta = await fetchGraphEventMeetingMetaWithBlobRetries(client, eventPath, {
+      wantTeams: true,
+      maxAttempts: 6
+    })
+    if (meetingMeta.teamsBlob || meetingMeta.bodyRaw) {
+      const bodyContent = mergeCalendarEventBodyPreservingTeamsMeetingBlob(
+        input.bodyHtml,
+        meetingMeta.bodyRaw
+      )
+      await client.api(eventPath).patch({
+        body: { contentType: 'HTML', content: bodyContent },
+        isOnlineMeeting: true,
+        onlineMeetingProvider: 'teamsForBusiness'
+      })
+    }
+  }
+
   const joinUrl = await resolveGraphEventJoinUrlAfterWrite(client, eventPath, created, wantTeams)
   return {
     id: created.id,
@@ -1080,12 +1461,39 @@ export async function graphUpdateCalendarEvent(
 ): Promise<void> {
   const client = await getClientFor(accountId)
   const core = await eventWritePayload(input)
+  const path = graphEventInstancePath(graphEventId, input.graphCalendarId)
+
+  const wantTeams = !!input.teamsMeeting && !core.isAllDay
+  let meetingMeta = await fetchGraphEventMeetingMetaWithBlobRetries(client, path, {
+    wantTeams
+  })
+  const bodyResolution = resolveGraphEventBodyForTeamsUpdate({
+    wantTeams,
+    isOnlineMeeting: meetingMeta.isOnlineMeeting,
+    onlineMeetingJoinUrl: meetingMeta.onlineMeetingJoinUrl,
+    existingBodyRaw: meetingMeta.bodyRaw,
+    userBodyHtml: input.bodyHtml ?? null,
+    defaultBodyContent: core.body.content
+  })
+  let bodyContent = bodyResolution.bodyContent
+  const omitBodyFromPrimaryPatch = bodyResolution.omitBodyFromPrimaryPatch
+  const deferInviteFields = omitBodyFromPrimaryPatch && wantTeams
+  const attendeePlan = resolveGraphAttendeeWritePlan(input)
+
   const payload: Record<string, unknown> = {
     subject: core.subject,
-    body: core.body,
+    ...(omitBodyFromPrimaryPatch
+      ? {}
+      : { body: { contentType: 'HTML', content: bodyContent } }),
     start: core.start,
     end: core.end,
-    isAllDay: core.isAllDay
+    isAllDay: core.isAllDay,
+    ...(core.originalStartTimeZone
+      ? {
+          originalStartTimeZone: core.originalStartTimeZone,
+          originalEndTimeZone: core.originalEndTimeZone ?? core.originalStartTimeZone
+        }
+      : {})
   }
   if (core.location) {
     payload.location = core.location
@@ -1093,27 +1501,27 @@ export async function graphUpdateCalendarEvent(
   if (core.categories !== undefined) {
     payload.categories = core.categories
   }
-  if (input.attendeeEmails !== undefined) {
-    const att = buildGraphAttendees(input.attendeeEmails ?? [])
-    payload.attendees = att
-    if (att.length > 0) {
-      payload.responseRequested = true
-    }
+  if (!deferInviteFields) {
+    applyGraphAttendeeWritePlanToPayload(payload, input, attendeePlan)
+    applyGraphHideAttendeesToPayload(payload, input.hideAttendees)
+    applyGraphExtendedPropertiesToPayload(payload, {
+      allowForwarding: input.allowForwarding,
+      chronellWebinarInvitation: input.chronellWebinarInvitation,
+      ...(attendeePlan.draftAttendeesJson !== undefined
+        ? { chronellWebinarDraftAttendees: attendeePlan.draftAttendeesJson }
+        : {})
+    })
   }
   applyGraphReminderToPayload(payload, input.reminderMinutesBeforeStart)
   applyGraphShowAsSensitivityToPayload(payload, input)
-  const path = graphEventInstancePath(graphEventId, input.graphCalendarId)
   if (typeof input.teamsMeeting === 'boolean') {
     if (core.isAllDay && !input.teamsMeeting) {
       payload.isOnlineMeeting = false
       payload.onlineMeetingProvider = 'unknown'
     } else if (!core.isAllDay) {
-      const current = (await client
-        .api(`${path}?$select=isOnlineMeeting,onlineMeeting`)
-        .get()) as GraphEvent
       const teamsPatch = graphTeamsMeetingPatchFields(
         input.teamsMeeting,
-        !!current.isOnlineMeeting || !!current.onlineMeeting?.joinUrl?.trim()
+        meetingMeta.isOnlineMeeting || !!meetingMeta.onlineMeetingJoinUrl?.trim()
       )
       if (teamsPatch) {
         payload.isOnlineMeeting = teamsPatch.isOnlineMeeting
@@ -1123,6 +1531,46 @@ export async function graphUpdateCalendarEvent(
   }
   // Zuerst Felder ohne Serie — Einzeltermin → Serie separat (zuverlässiger bei Graph).
   await client.api(path).patch(payload)
+
+  if (omitBodyFromPrimaryPatch && wantTeams) {
+    meetingMeta = await fetchGraphEventMeetingMetaWithBlobRetries(client, path, {
+      wantTeams: true,
+      maxAttempts: 6
+    })
+    if (!meetingMeta.teamsBlob && !meetingMeta.isOnlineMeeting) {
+      await client.api(path).patch({
+        isOnlineMeeting: true,
+        onlineMeetingProvider: 'teamsForBusiness'
+      })
+      meetingMeta = await fetchGraphEventMeetingMetaWithBlobRetries(client, path, {
+        wantTeams: true,
+        maxAttempts: 6
+      })
+    }
+    bodyContent = meetingMeta.teamsBlob
+      ? mergeCalendarEventBodyPreservingTeamsMeetingBlob(input.bodyHtml, meetingMeta.bodyRaw)
+      : (prepareCalendarEventBodyHtml(input.bodyHtml) ?? '<p></p>')
+    const bodyPatch: Record<string, unknown> = {
+      body: { contentType: 'HTML', content: bodyContent },
+      isOnlineMeeting: true,
+      onlineMeetingProvider: 'teamsForBusiness'
+    }
+    if (input.attendeeEmails !== undefined || input.optionalAttendeeEmails !== undefined) {
+      applyGraphAttendeeWritePlanToPayload(bodyPatch, input, attendeePlan)
+    } else if (typeof input.responseRequested === 'boolean') {
+      bodyPatch.responseRequested = input.responseRequested
+    }
+    applyGraphHideAttendeesToPayload(bodyPatch, input.hideAttendees)
+    applyGraphExtendedPropertiesToPayload(bodyPatch, {
+      allowForwarding: input.allowForwarding,
+      chronellWebinarInvitation: input.chronellWebinarInvitation,
+      ...(attendeePlan.draftAttendeesJson !== undefined
+        ? { chronellWebinarDraftAttendees: attendeePlan.draftAttendeesJson }
+        : {})
+    })
+    await client.api(path).patch(bodyPatch)
+  }
+
   if (input.recurrence) {
     const recurrencePatch: Record<string, unknown> = {
       start: core.start,
@@ -1156,7 +1604,13 @@ export async function graphPatchCalendarEventTimes(
   await client.api(path).patch({
     start: dates.start,
     end: dates.end,
-    isAllDay: dates.isAllDay
+    isAllDay: dates.isAllDay,
+    ...(dates.originalStartTimeZone
+      ? {
+          originalStartTimeZone: dates.originalStartTimeZone,
+          originalEndTimeZone: dates.originalEndTimeZone ?? dates.originalStartTimeZone
+        }
+      : {})
   })
 }
 
@@ -1215,12 +1669,12 @@ export async function graphCreateTeamsCalendarEvent(
 ): Promise<CreateTeamsCalendarEventResult> {
   const client = await getClientFor(accountId)
   const appCfg = await loadConfig()
-  const iana =
-    appCfg.calendarTimeZone?.trim() || Intl.DateTimeFormat().resolvedOptions().timeZone
-  const graphWindowsTz =
-    input.timeZone?.trim() && !input.timeZone.includes('/')
-      ? input.timeZone.trim()
-      : ianaToWindowsTimeZone(iana)
+  const ianaRaw =
+    input.timeZone?.trim() ||
+    appCfg.calendarTimeZone?.trim() ||
+    Intl.DateTimeFormat().resolvedOptions().timeZone
+  const iana = graphWindowsZoneToIana(ianaRaw)
+  const graphWindowsTz = ianaToWindowsTimeZone(iana)
 
   const startLocal = formatUtcIsoAsLocalDateTime(input.startIso, iana)
   const endLocal = formatUtcIsoAsLocalDateTime(input.endIso, iana)
@@ -1236,6 +1690,8 @@ export async function graphCreateTeamsCalendarEvent(
     },
     start: { dateTime: startLocal, timeZone: graphWindowsTz },
     end: { dateTime: endLocal, timeZone: graphWindowsTz },
+    originalStartTimeZone: graphWindowsTz,
+    originalEndTimeZone: graphWindowsTz,
     isOnlineMeeting: true,
     onlineMeetingProvider: 'teamsForBusiness'
   }

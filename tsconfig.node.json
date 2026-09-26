@@ -11,7 +11,8 @@
     "src/shared/note-audio-playback.test.ts",
     "src/shared/note-meeting-sync.ts",
     "src/shared/note-meeting-sync.test.ts",
-    "src/shared/note-cloud-task.test.ts"
+    "src/shared/note-cloud-task.test.ts",
+    "src/shared/webinar-recipient-body.regression.test.ts"
   ],
   "compilerOptions": {
     "composite": true,

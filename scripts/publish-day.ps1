@@ -48,12 +48,20 @@ function Read-PackageVersion([string] $PackageJsonPath) {
   return [string] $pkg.version
 }
 
-function Bump-SemVerPatch([string] $Version) {
+function Bump-SemVerString([string] $Version, [string] $Part) {
   if ($Version -notmatch '^(\d+)\.(\d+)\.(\d+)$') {
     throw "Ungueltige Version: $Version"
   }
-  $patch = [int] $Matches[3] + 1
-  return ('{0}.{1}.{2}' -f $Matches[1], $Matches[2], $patch)
+  $major = [int] $Matches[1]
+  $minor = [int] $Matches[2]
+  $patch = [int] $Matches[3]
+  switch ($Part) {
+    'major' { $major++; $minor = 0; $patch = 0 }
+    'minor' { $minor++; $patch = 0 }
+    'patch' { $patch++ }
+    default { throw "Unbekannter Bump-Typ: $Part" }
+  }
+  return ('{0}.{1}.{2}' -f $major, $minor, $patch)
 }
 
 function Get-GermanDateLabel {
@@ -196,7 +204,7 @@ Test-Preflight -RepoRoot $repoRoot
 
 $packageJson = Join-Path $repoRoot 'package.json'
 $currentVersion = Read-PackageVersion $packageJson
-$plannedVersion = if ($NoBump) { $currentVersion } else { Bump-SemVerPatch $currentVersion }
+$plannedVersion = if ($NoBump) { $currentVersion } else { Bump-SemVerString $currentVersion $Bump }
 
 if (-not $NotesFile) {
   Write-Step 'Release-Notizen'

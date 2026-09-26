@@ -280,30 +280,32 @@ function buildComposeOutgoingBundle(draft: ComposeDraft): ComposeOutgoingBundle 
   }
 }
 
-async function saveAndCloseReadingPaneDrafts(
-  get: () => ComposeState,
-  set: (fn: (s: ComposeState) => Partial<ComposeState>) => void
-): Promise<void> {
-  const existing = get().drafts.filter((d) => d.embedInReadingPane)
-  if (existing.length === 0) return
-
-  for (const d of existing) {
-    flushComposeEditor(d.id)
+async function saveDraftSnapshotQuietly(draft: ComposeDraft): Promise<void> {
+  if (!hasComposeDraftContent(draft)) return
+  const bundle = buildComposeOutgoingBundle(draft)
+  const acc = useAccountsStore.getState().accounts.find((a) => a.id === draft.accountId)
+  if (acc?.provider === 'google' && (draft.referenceAttachments?.length ?? 0) > 0) return
+  try {
+    await window.mailClient.compose.saveDraft({
+      accountId: draft.accountId,
+      sendFromEmail: draft.sendFromEmail ?? undefined,
+      subject: draft.subject || '(Kein Betreff)',
+      bodyHtml: bundle.bodyHtml,
+      to: bundle.to,
+      cc: bundle.cc.length ? bundle.cc : undefined,
+      bcc: bundle.bcc.length ? bundle.bcc : undefined,
+      attachments: bundle.allAttachments.length ? bundle.allAttachments : undefined,
+      referenceAttachments: bundle.referenceAttachments,
+      replyToRemoteId: draft.replyToRemoteId,
+      replyMode: draft.mode === 'new' ? undefined : draft.mode,
+      remoteDraftId: draft.savedRemoteDraftId ?? undefined,
+      importance: draft.importance,
+      isDeliveryReceiptRequested: draft.isDeliveryReceiptRequested,
+      isReadReceiptRequested: draft.isReadReceiptRequested
+    })
+  } catch (e) {
+    console.warn('[compose] background save of replaced reading-pane draft failed:', e)
   }
-
-  for (const d of existing) {
-    const current = get().drafts.find((x) => x.id === d.id)
-    if (current && hasComposeDraftContent(current)) {
-      await get().saveRemoteDraft(current.id)
-    }
-  }
-
-  const ids = new Set(existing.map((d) => d.id))
-  set((s) => {
-    const next = s.drafts.filter((d) => !ids.has(d.id))
-    const activeId = s.activeId && ids.has(s.activeId) ? (next[next.length - 1]?.id ?? null) : s.activeId
-    return { drafts: next, activeId }
-  })
 }
 
 function openReadingPaneDraft(
@@ -332,11 +334,22 @@ function openReadingPaneDraft(
     embedInReadingPane: true
   }
 
-  const existing = get().drafts.some((d) => d.embedInReadingPane)
-  if (existing) {
-    void saveAndCloseReadingPaneDrafts(get, set).then(() => {
-      set((s) => ({ drafts: [...s.drafts, draft], activeId: draft.id }))
-    })
+  const previous = get().drafts.filter((d) => d.embedInReadingPane)
+  if (previous.length > 0) {
+    // Sofort tauschen, damit Tippen nicht in den alten (bald verworfenen) Entwurf geht.
+    for (const d of previous) {
+      flushComposeEditor(d.id)
+    }
+    const snapshots = previous.map((d) => get().drafts.find((x) => x.id === d.id) ?? d)
+    set((s) => ({
+      drafts: [...s.drafts.filter((d) => !d.embedInReadingPane), draft],
+      activeId: draft.id
+    }))
+    void (async (): Promise<void> => {
+      for (const snap of snapshots) {
+        await saveDraftSnapshotQuietly(snap)
+      }
+    })()
     return draft.id
   }
 

@@ -28,7 +28,8 @@ import { getCalendarEventsSyncToken, setCalendarEventsSyncToken } from './google
 import { withGoogleUsageLimitRetry } from './google-api-usage-retry'
 
 const SIMPLE_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i
-const MAX_GOOGLE_EVENT_ATTENDEES = 40
+/** Google Calendar: gaengiges Limit ~200 Gaeste; stilles Abschneiden vermeiden. */
+const MAX_GOOGLE_EVENT_ATTENDEES = 200
 const GOOGLE_CAL_DESCRIPTION_MAX = 8192
 
 function resolveGoogleEventTimeZone(
@@ -56,19 +57,29 @@ function googleTimedStartEndFields(
   }
 }
 
-/** Google `attendees` (dedupliziert, max. 40). */
+/** Google `attendees` (dedupliziert, Required vor Optional). Wirft bei > {@link MAX_GOOGLE_EVENT_ATTENDEES}. */
 export function buildGoogleAttendees(
-  emails: string[] | null | undefined
+  emails: string[] | null | undefined,
+  optionalEmails?: string[] | null
 ): calendar_v3.Schema$EventAttendee[] {
-  if (!emails?.length) return []
   const seen = new Set<string>()
   const out: calendar_v3.Schema$EventAttendee[] = []
-  for (const raw of emails) {
+  const push = (raw: string, optional: boolean): void => {
     const a = raw.trim().toLowerCase()
-    if (!a || !SIMPLE_EMAIL.test(a) || seen.has(a)) continue
+    if (!a || !SIMPLE_EMAIL.test(a) || seen.has(a)) return
+    if (seen.size >= MAX_GOOGLE_EVENT_ATTENDEES) {
+      throw new Error(
+        `Zu viele Teilnehmer (max. ${MAX_GOOGLE_EVENT_ATTENDEES}). Bitte die Liste kürzen oder eine Verteilerliste nutzen.`
+      )
+    }
     seen.add(a)
-    out.push({ email: a })
-    if (out.length >= MAX_GOOGLE_EVENT_ATTENDEES) break
+    out.push(optional ? { email: a, optional: true } : { email: a })
+  }
+  for (const raw of emails ?? []) {
+    push(raw, false)
+  }
+  for (const raw of optionalEmails ?? []) {
+    push(raw, true)
   }
   return out
 }
@@ -291,6 +302,8 @@ export async function googleCreateEvent(
     bodyHtml?: string | null
     recurrence?: CalendarSaveEventRecurrence | null
     attendeeEmails?: string[] | null
+    optionalAttendeeEmails?: string[] | null
+    notifyAttendees?: boolean | null
     timeZone?: string | null
     showAs?: CalendarEventShowAs | null
     sensitivity?: CalendarEventSensitivity | null
@@ -334,14 +347,15 @@ export async function googleCreateEvent(
     body.visibility = googleVisibilityFromSensitivity(input.sensitivity)
   }
 
-  const attendees = buildGoogleAttendees(input.attendeeEmails)
+  const attendees = buildGoogleAttendees(input.attendeeEmails, input.optionalAttendeeEmails)
   if (attendees.length > 0) {
     body.attendees = attendees
   }
 
   const res = await calendar.events.insert({
     calendarId: calId,
-    sendUpdates: attendees.length > 0 ? 'all' : undefined,
+    sendUpdates:
+      attendees.length > 0 && input.notifyAttendees !== false ? 'all' : undefined,
     requestBody: body
   })
   return { id: res.data.id ?? '', webLink: res.data.htmlLink ?? null }
@@ -360,6 +374,8 @@ export async function googleUpdateEvent(
     bodyHtml?: string | null
     recurrence?: CalendarSaveEventRecurrence | null
     attendeeEmails?: string[] | null
+    optionalAttendeeEmails?: string[] | null
+    notifyAttendees?: boolean | null
     timeZone?: string | null
     showAs?: CalendarEventShowAs | null
     sensitivity?: CalendarEventSensitivity | null
@@ -401,10 +417,13 @@ export async function googleUpdateEvent(
   }
 
   let sendUpdates: 'all' | undefined
-  if (input.attendeeEmails !== undefined) {
-    const attendees = buildGoogleAttendees(input.attendeeEmails ?? [])
+  if (input.attendeeEmails !== undefined || input.optionalAttendeeEmails !== undefined) {
+    const attendees = buildGoogleAttendees(
+      input.attendeeEmails ?? [],
+      input.optionalAttendeeEmails ?? []
+    )
     body.attendees = attendees
-    sendUpdates = 'all'
+    sendUpdates = input.notifyAttendees !== false ? 'all' : undefined
   }
 
   await calendar.events.patch({
@@ -486,18 +505,19 @@ export async function googleGetCalendarEventDetail(
       calendarId,
       eventId,
       fields:
-        'summary,description,location,hangoutLink,conferenceData,attendees(email,responseStatus,self,organizer),organizer(email,displayName),start(timeZone,dateTime,date),end(timeZone,dateTime,date),htmlLink,recurrence,recurringEventId,transparency,visibility'
+        'summary,description,location,hangoutLink,conferenceData,attendees(email,optional,responseStatus,self,organizer),organizer(email,displayName),start(timeZone,dateTime,date),end(timeZone,dateTime,date),htmlLink,recurrence,recurringEventId,transparency,visibility'
     })
   )
   const ev = res.data
   const emails: string[] = []
+  const optionalEmails: string[] = []
   const seen = new Set<string>()
   for (const at of ev.attendees ?? []) {
     const addr = at.email?.trim().toLowerCase()
     if (!addr || !SIMPLE_EMAIL.test(addr) || seen.has(addr)) continue
     seen.add(addr)
-    emails.push(addr)
-    if (emails.length >= MAX_GOOGLE_EVENT_ATTENDEES) break
+    if (at.optional === true) optionalEmails.push(addr)
+    else emails.push(addr)
   }
   const joinUrl =
     ev.hangoutLink?.trim() ||
@@ -562,6 +582,7 @@ export async function googleGetCalendarEventDetail(
   return {
     subject: ev.summary ?? null,
     attendeeEmails: emails,
+    optionalAttendeeEmails: optionalEmails,
     joinUrl,
     isOnlineMeeting,
     bodyHtml: normalizeGoogleEventDescriptionHtml(ev.description ?? null),

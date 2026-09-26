@@ -219,6 +219,10 @@ listEvents: (args: CalendarListEventsInput): Promise<CalendarEventView[]> =>
       attendeeEmails?: string[] | null
     }): Promise<{ id: string; webLink: string | null; joinUrl: string | null }> =>
       ipcRenderer.invoke(IPC.calendar.createTeamsMeeting, args),
+    createOnlineMeetingWithTemplate: (
+      args: import('@shared/types').CalendarCreateOnlineMeetingWithTemplateInput
+    ): Promise<import('@shared/types').CalendarCreateOnlineMeetingWithTemplateResult> =>
+      ipcRenderer.invoke(IPC.calendar.createOnlineMeetingWithTemplate, args),
     suggestFromMessage: (messageId: number): Promise<CalendarSuggestionFromMail> =>
       ipcRenderer.invoke(IPC.calendar.suggestFromMessage, messageId),
     findLocalFreeSlots: (
@@ -251,6 +255,10 @@ listEvents: (args: CalendarListEventsInput): Promise<CalendarEventView[]> =>
       input: import('@shared/types').CalendarListEventAttachmentsInput
     ): Promise<import('@shared/types').CalendarEventAttachmentMeta[]> =>
       ipcRenderer.invoke(IPC.calendar.listEventAttachments, input),
+    fetchEventInlineImages: (
+      input: import('@shared/types').CalendarFetchEventInlineImagesInput
+    ): Promise<Record<string, string>> =>
+      ipcRenderer.invoke(IPC.calendar.fetchEventInlineImages, input),
     openEventAttachment: (
       input: import('@shared/types').CalendarEventAttachmentActionInput
     ): Promise<{ ok: boolean; error?: string }> =>

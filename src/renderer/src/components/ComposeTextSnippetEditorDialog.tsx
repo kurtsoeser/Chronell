@@ -1,17 +1,19 @@
 import { useTranslation } from 'react-i18next'
+import { TipTapBody } from '@/components/TipTapBody'
 import {
   loadCustomComposeTextSnippets,
   saveCustomComposeTextSnippets,
-  textToComposeSnippetHtml,
   upsertCustomComposeTextSnippet
 } from '@/lib/compose-text-snippets'
+import { isComposeSnippetHtmlEmpty } from '@/lib/compose-text-snippet-selection'
 import { showAppAlert } from '@/stores/app-dialog'
 
 export interface ComposeTextSnippetEditorState {
   mode: 'create' | 'edit'
   id?: string
   name: string
-  body: string
+  /** HTML-Inhalt (Formatierung + Inline-Bilder). */
+  bodyHtml: string
 }
 
 interface Props {
@@ -31,14 +33,13 @@ export function ComposeTextSnippetEditorDialog({
 
   const save = (): void => {
     const name = state.name.trim()
-    const body = state.body.trim()
     if (!name) {
       void showAppAlert(t('settings.textSnippets.nameRequired'), {
         title: t('settings.textSnippets.heading')
       })
       return
     }
-    if (!body) {
+    if (isComposeSnippetHtmlEmpty(state.bodyHtml)) {
       void showAppAlert(t('settings.textSnippets.bodyRequired'), {
         title: t('settings.textSnippets.heading')
       })
@@ -48,12 +49,14 @@ export function ComposeTextSnippetEditorDialog({
     const next = upsertCustomComposeTextSnippet(custom, {
       id: state.mode === 'edit' ? state.id : undefined,
       name,
-      html: textToComposeSnippetHtml(body)
+      html: state.bodyHtml
     })
     saveCustomComposeTextSnippets(next)
     onSaved?.()
     onClose()
   }
+
+  const editorKey = state.id ?? `new-${state.mode}`
 
   return (
     <div
@@ -62,7 +65,7 @@ export function ComposeTextSnippetEditorDialog({
       aria-modal="true"
       aria-labelledby="snippet-editor-title"
     >
-      <div className="flex w-full max-w-md flex-col gap-3 rounded-lg border border-border bg-card p-4 shadow-xl">
+      <div className="flex max-h-[90vh] w-full max-w-2xl flex-col gap-3 rounded-lg border border-border bg-card p-4 shadow-xl">
         <h2 id="snippet-editor-title" className="text-sm font-semibold text-foreground">
           {state.mode === 'create'
             ? t('settings.textSnippets.editorNewTitle')
@@ -78,15 +81,23 @@ export function ComposeTextSnippetEditorDialog({
             autoFocus
           />
         </label>
-        <label className="flex min-h-0 flex-1 flex-col gap-1 text-xs">
+        <div className="flex min-h-0 flex-1 flex-col gap-1 text-xs">
           <span className="text-muted-foreground">{t('settings.textSnippets.bodyLabel')}</span>
-          <textarea
-            value={state.body}
-            onChange={(e): void => onChange({ ...state, body: e.target.value })}
-            rows={8}
-            className="resize-y rounded border border-border bg-background px-2 py-1.5 text-sm leading-relaxed text-foreground"
-          />
-        </label>
+          <p className="text-2xs text-muted-foreground">{t('settings.textSnippets.bodyHint')}</p>
+          <div className="mt-1 max-h-[50vh] min-h-[220px] overflow-y-auto rounded-md border border-border bg-background">
+            <TipTapBody
+              key={editorKey}
+              documentKey={editorKey}
+              valueHtml={state.bodyHtml}
+              onChangeHtml={(html): void => onChange({ ...state, bodyHtml: html })}
+              placeholder={t('settings.textSnippets.bodyPlaceholder')}
+              editorMinHeightClass="min-h-[180px]"
+              fillHeight={false}
+              variant="compact"
+              className="!border-0"
+            />
+          </div>
+        </div>
         <div className="flex justify-end gap-2">
           <button
             type="button"

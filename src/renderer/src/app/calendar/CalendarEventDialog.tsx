@@ -18,21 +18,25 @@ import {
   AlignLeft,
   Bell,
   Calendar as CalendarIcon,
-  CheckSquare,
   CircleDot,
-  ExternalLink,
+  EyeOff,
   Globe,
   LayoutPanelLeft,
-  LayoutTemplate,
   Loader2,
-  Lock,
   MapPin,
+  Maximize2,
+  Minimize2,
   Repeat2,
   Send,
   SquareArrowOutUpRight,
+  Trash2,
   UserPlus,
+  Users,
+  ListChecks,
   Video,
-  X
+  X,
+  SlidersHorizontal,
+  Sparkles
 } from 'lucide-react'
 import type { ChronellEntityRef } from '@shared/entity-ref'
 import type {
@@ -59,6 +63,42 @@ import { cloudTaskStableKey } from '@shared/work-item-keys'
 import { applyCloudTaskPersistTarget } from '@/app/calendar/apply-cloud-task-persist'
 import { CalendarEventRecurrenceSection } from '@/app/calendar/CalendarEventRecurrenceSection'
 import { CalendarEventDialogDayPicker } from '@/app/calendar/CalendarEventDialogDayPicker'
+import { CalendarEventDialogSubjectRow } from '@/app/calendar/CalendarEventDialogSubjectRow'
+import { CalendarEventDialogAttendeeField } from '@/app/calendar/CalendarEventDialogAttendeeField'
+import { CalendarEventDialogTeamsJoinLink } from '@/app/calendar/CalendarEventDialogTeamsJoinLink'
+import { CalendarEventDialogWebinarContentForm, type WebinarContentFormValues } from '@/app/calendar/CalendarEventDialogWebinarContentForm'
+import { WebinarLayoutThemeSwatches } from '@/components/WebinarLayoutThemeSwatches'
+import {
+  buildWebinarInvitationHtml,
+  patchWebinarInvitationScheduleLabel,
+  patchWebinarInvitationTitle,
+  type WebinarLayoutThemeId
+} from '@/lib/build-webinar-invitation-html'
+import {
+  readWebinarInvitationDefaults,
+  resolveDefaultWebinarLayoutTheme
+} from '@/lib/webinar-invitation-defaults-storage'
+import {
+  getWebinarInvitationLayoutTemplateById,
+  readWebinarInvitationLayoutTemplates,
+  resolveWebinarLayoutTemplateHtml,
+  WEBINAR_BUILTIN_LAYOUT_TEMPLATE_ID,
+  type WebinarInvitationLayoutTemplate
+} from '@/lib/webinar-invitation-layout-templates-storage'
+import {
+  prepareWebinarInvitationSaveBundle,
+  mergeWebinarBodyWithTeamsProvision,
+  resolveCalendarEventBodyForGraph
+} from '@/lib/prepare-webinar-invitation-save'
+import {
+  isWebinarInvitationHtml,
+  parseWebinarInvitationHtml
+} from '@/lib/parse-webinar-invitation-html'
+import { buildWebinarAttendeePreviewHtml, isWebinarInvitationHtmlLikelyGutted } from '@/lib/build-webinar-attendee-preview-html'
+import { restoreWebinarTeamsSlotForEditor } from '@/lib/restore-webinar-invitation-for-editor'
+import { WebinarInvitationPreview } from '@/app/calendar/WebinarInvitationPreview'
+import { WebinarInvitationEditorPanel } from '@/app/calendar/WebinarInvitationEditorPanel'
+import { createCalendarEventDialogJoinUrlStore } from '@/app/calendar/calendar-event-dialog-join-url-store'
 import { CalendarEventCategoryPopover } from '@/app/calendar/CalendarEventCategoryPopover'
 import { CalendarFloatingPanel } from '@/app/calendar/CalendarFloatingPanel'
 import { loadUseOsFloatingPanelsDefault } from '@/lib/floating-panels-prefs'
@@ -108,27 +148,46 @@ import { resolvedAccountColorCss } from '@/lib/avatar-color'
 import { EntityContextBlock } from '@/components/connections/EntityContextBlock'
 import { TipTapBody } from '@/components/TipTapBody'
 import { EditorAttachmentActionBar } from '@/components/EditorAttachmentActionBar'
+import { blobToDataUrl } from '@/lib/blob-to-base64'
 import { sanitizeComposeHtmlFragment } from '@/lib/sanitize-compose-html'
+import {
+  prepareCalendarEventBodyHtmlForAttendeeDisplay,
+  prepareCalendarEventBodyHtmlForEditor,
+  resolveCalendarEventInlineCidImages
+} from '@/lib/prepare-calendar-event-body-html'
+import { showAppChoice, showAppConfirm, showAppPrompt } from '@/stores/app-dialog'
 import { useUndoStore } from '@/stores/undo'
 import {
+  createEmptyTemplate,
   readCalendarEventTemplates,
+  saveCalendarEventTemplate,
   type CalendarEventTemplate
 } from '@/lib/calendar-event-templates-storage'
-import { prepareCalendarEventDescriptionFromEditorHtml } from '@shared/calendar-event-body-html'
+import {
+  cleanTeamsMeetingJoinInformationHtml,
+  extractTeamsMeetingJoinBlockHtml,
+  htmlAlreadyHasTeamsMeetingJoinBlock,
+  prepareCalendarEventDescriptionFromEditorHtml
+} from '@shared/calendar-event-body-html'
+import { preferTeamsJoinUrl, isTeamsLongMeetupJoinUrl } from '@shared/teams-join-url'
 import { CalendarEventDescriptionPreview } from '@/app/calendar/CalendarEventDescriptionPreview'
+import { CalendarEventDialogRibbon } from '@/app/calendar/CalendarEventDialogRibbon'
+import { CalendarEventDescriptionCopilotDialog } from '@/app/calendar/CalendarEventDescriptionCopilotDialog'
+import { pickAndSendCalendarEventToNotion } from '@/lib/notion-ui'
+import { listCopilotEngineOptions } from '@/lib/copilot-engine-options'
+import { useAiConnectionsSettings } from '@/lib/use-ai-connections-settings'
+import { useWorkIqAvailable } from '@/lib/use-workiq-available'
+import { readTeamsMeetingTemplates } from '@/lib/teams-meeting-templates-storage'
 import {
   calendarEventScheduleChanged,
   confirmEventDialogMeetingReschedule
 } from '@/app/calendar/calendar-meeting-schedule-change'
-import { CalendarEventIconPicker } from '@/components/CalendarEventIconPicker'
 import { LocationAutocompleteInput } from '@/components/LocationAutocompleteInput'
 import { ChronellDateField } from '@/components/ChronellDateField'
 import { ChronellTimeField } from '@/components/ChronellTimeField'
 import { useResizableWidth, VerticalSplitter } from '@/components/ResizableSplitter'
-import {
-  RecipientTokenField,
-  type RecipientTokenFieldHandle
-} from '@/components/RecipientTokenField'
+import { type RecipientTokenFieldHandle } from '@/components/RecipientTokenField'
+import { FilterTabs } from '@/components/FilterTabs'
 import { formatRecipientsWithTail, parseRecipients } from '@/lib/compose-helpers'
 import { calendarEventIconIsExplicit } from '@/lib/calendar-event-icons'
 import { useThemeStore } from '@/stores/theme'
@@ -163,6 +222,32 @@ function isEffectivelyEmptyEditorHtml(html: string): boolean {
   return t.length === 0
 }
 
+function descriptionSnapshotKey(html: string): string {
+  return isEffectivelyEmptyEditorHtml(html) ? '' : html.trim()
+}
+
+function calendarEventDetailsLookCached(
+  d: {
+    bodyHtml?: string | null
+    joinUrl?: string | null
+    attendeeEmails?: string[]
+    optionalAttendeeEmails?: string[]
+    subject?: string | null
+    isOnlineMeeting?: boolean
+  }
+): boolean {
+  return Boolean(
+    d.bodyHtml?.trim() ||
+      d.joinUrl?.trim() ||
+      d.subject?.trim() ||
+      d.isOnlineMeeting ||
+      (d.attendeeEmails?.length ?? 0) > 0 ||
+      (d.optionalAttendeeEmails?.length ?? 0) > 0
+  )
+}
+
+const MAX_EVENT_DIALOG_ATTENDEES = 500
+
 function attendeeEmailsFromField(raw: string): string[] {
   const seen = new Set<string>()
   const out: string[] = []
@@ -171,9 +256,20 @@ function attendeeEmailsFromField(raw: string): string[] {
     if (!a || seen.has(a)) continue
     seen.add(a)
     out.push(a)
-    if (out.length >= 40) break
+    if (out.length >= MAX_EVENT_DIALOG_ATTENDEES) break
   }
   return out
+}
+
+/** Webinar-Standard: keine Antworten, keine Weiterleitung, Teilnehmerliste aus. */
+function applyWebinarTrackingDefaults(setters: {
+  setHideAttendees: (v: boolean) => void
+  setResponseRequested: (v: boolean) => void
+  setAllowForwarding: (v: boolean) => void
+}): void {
+  setters.setHideAttendees(true)
+  setters.setResponseRequested(false)
+  setters.setAllowForwarding(false)
 }
 
 /** Ein `<option>`-Wert: Konto + Graph-Kalender (leer = Standardkalender). */
@@ -236,6 +332,42 @@ function formatDurationMs(
   return tr('calendar.eventDialog.durationMin', { minutes: m })
 }
 
+/** Parst freie Dauer-Eingaben: `2h`, `2 h 30`, `90`, `1:30`, `120m`. Ergebnis in Minuten. */
+function parseDurationInputToMinutes(raw: string): number | null {
+  const s = raw.trim().toLowerCase().replace(',', '.').replace(/\s+/g, ' ')
+  if (!s) return null
+  const clock = s.match(/^(\d{1,3})\s*:\s*(\d{1,2})$/)
+  if (clock) {
+    const h = Number(clock[1])
+    const m = Number(clock[2])
+    if (!Number.isFinite(h) || !Number.isFinite(m) || m >= 60) return null
+    const total = h * 60 + m
+    return total > 0 ? total : null
+  }
+  const hThenM = s.match(/^(\d+(?:\.\d+)?)\s*h(?:ours?|r)?(?:\s*(\d+)\s*m(?:in(?:utes?)?)?)?$/)
+  if (hThenM) {
+    const h = Number(hThenM[1])
+    const m = hThenM[2] != null ? Number(hThenM[2]) : 0
+    if (!Number.isFinite(h) || !Number.isFinite(m)) return null
+    const total = Math.round(h * 60) + m
+    return total > 0 ? total : null
+  }
+  const minOnly = s.match(/^(\d+)\s*m(?:in(?:utes?)?)?$/)
+  if (minOnly) {
+    const m = Number(minOnly[1])
+    return Number.isFinite(m) && m > 0 ? m : null
+  }
+  const plain = s.match(/^(\d+(?:\.\d+)?)$/)
+  if (plain) {
+    const n = Number(plain[1])
+    if (!Number.isFinite(n) || n <= 0) return null
+    // Ganzzahlen ohne Einheit = Minuten; Dezimalzahl = Stunden (z. B. 1.5).
+    if (s.includes('.')) return Math.round(n * 60)
+    return Math.round(n)
+  }
+  return null
+}
+
 function taskDatetimeLocalToMs(dtLocal: string): number {
   const iso = datetimeLocalValueToIso(dtLocal)
   if (!iso) return Number.NaN
@@ -289,6 +421,13 @@ export interface CalendarEventDialogProps {
     descriptionHtml?: string
     teamsMeeting?: boolean
     attachments?: ComposeAttachment[]
+    /** 3-Schritt-Webinar-Assistent (Meeting → Text → Einladen). */
+    webinarMode?: boolean
+    webinarHeroImageSrc?: string | null
+    webinarWebsiteUrl?: string
+    webinarSupplementHtml?: string
+    /** Notion-Seiten-ID (#kurtrocks Events) fuer Link-Writeback. */
+    notionPageId?: string
   } | null
   initialCreateKind?: CalendarEventDialogCreateKind
   initialGraphCalendarId?: string
@@ -419,7 +558,6 @@ export function CalendarEventDialog({
     () => (systemTimeZone !== defaultEventTimeZone ? systemTimeZone : '')
   )
   const [templates, setTemplates] = useState<CalendarEventTemplate[]>([])
-  const [templateDropdownOpen, setTemplateDropdownOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [localError, setLocalError] = useState<string | null>(null)
   const [driveOpen, setDriveOpen] = useState(false)
@@ -429,8 +567,8 @@ export function CalendarEventDialog({
   const [dockWidth, setDockWidth] = useResizableWidth({
     storageKey: 'mailclient.calendar.eventDialog.dockWidth',
     defaultWidth: CAL_EVENT_DIALOG_DEFAULT_DOCK_W,
-    minWidth: 360,
-    maxWidth: 900
+    minWidth: 420,
+    maxWidth: typeof window !== 'undefined' ? Math.max(420, window.innerWidth - 32) : 2400
   })
   const [dayColumnWidth, setDayColumnWidth] = useResizableWidth({
     storageKey: CAL_EVENT_DIALOG_DAY_COLUMN_WIDTH_KEY,
@@ -458,8 +596,70 @@ export function CalendarEventDialog({
   )
 
   const [teamsMeeting, setTeamsMeeting] = useState(false)
+  /** Join-URL im Store — Updates rendern nur Join-Link/Ribbon-Button, nicht den ganzen Dialog. */
+  const joinUrlStoreRef = useRef(createCalendarEventDialogJoinUrlStore())
+  const setDialogJoinUrl = useCallback((url: string | null): void => {
+    joinUrlStoreRef.current.set(url)
+  }, [])
+  const getDialogJoinUrl = useCallback((): string | null => joinUrlStoreRef.current.getSnapshot(), [])
+  const [teamsProvisioning, setTeamsProvisioning] = useState(false)
+  /** Gemeinsame laufende Provision — Speichern wartet darauf statt parallel abzubrechen. */
+  const teamsProvisionInflightRef = useRef<Promise<boolean> | null>(null)
+  /** Webinar-Assistent: 1 Meeting, 2 Einladungstext, 3 Einladen. */
+  const [webinarMode, setWebinarMode] = useState(false)
+  const [chronellWebinarInvitation, setChronellWebinarInvitation] = useState(false)
+  const [webinarTemplateDialogOpen, setWebinarTemplateDialogOpen] = useState(false)
+  const [webinarLayoutTheme, setWebinarLayoutTheme] = useState<WebinarLayoutThemeId>(() =>
+    resolveDefaultWebinarLayoutTheme(readWebinarInvitationDefaults())
+  )
+  const [webinarLayoutTemplateId, setWebinarLayoutTemplateId] = useState(
+    () =>
+      readWebinarInvitationDefaults().defaultLayoutTemplateId ?? WEBINAR_BUILTIN_LAYOUT_TEMPLATE_ID
+  )
+  const [webinarImagesLoading, setWebinarImagesLoading] = useState(false)
+  const [graphBodyForPreview, setGraphBodyForPreview] = useState<string | null>(null)
+  const [attendeeDisplayHtml, setAttendeeDisplayHtml] = useState('')
+  const [webinarContent, setWebinarContent] = useState<WebinarContentFormValues>({
+    title: '',
+    heroImageSrc: null,
+    surveyUrl: '',
+    surveyLabel: '',
+    websiteUrl: '',
+    websiteLabel: ''
+  })
+  /** Notion-Beschreibung → Supplement-Block (nur diese Session). */
+  const [webinarSupplementHtml, setWebinarSupplementHtml] = useState<string | null>(null)
+  /** Notion-Seiten-ID aus „Webinar aus Notion“ — Links zurueckschreiben. */
+  const [notionSourcePageId, setNotionSourcePageId] = useState<string | null>(null)
+  const webinarHtmlEditorFlushRef = useRef<(() => string) | null>(null)
+  const pendingWebinarAutoRestoreRef = useRef(false)
+  /** Notion-/Prefill-Import: Einladung anwenden, sobald Content im State ist. */
+  const pendingWebinarPrefillApplyRef = useRef(false)
+  /**
+   * Create-Modus: Event-ID nach sofortigem Anlegen der Teams-Besprechung
+   * (Speichern wird danach zum Update).
+   */
+  const [provisionedEventId, setProvisionedEventId] = useState<string | null>(null)
+  /** Teams Premium: ausgewaehlte meetingTemplateId (Graph), leer = Standard. */
+  const [teamsMeetingTemplateId, setTeamsMeetingTemplateId] = useState('')
+  /** True wenn die aktuelle Teams-Besprechung ueber eine Premium-Vorlage lief. */
+  const [teamsProvisionedWithTemplate, setTeamsProvisionedWithTemplate] = useState(false)
+  const [teamsMeetingTemplates, setTeamsMeetingTemplates] = useState<
+    import('@/lib/teams-meeting-templates-storage').TeamsMeetingTemplate[]
+  >([])
+  const autoProvisionTeamsRef = useRef(false)
   const [attendeeInput, setAttendeeInput] = useState('')
+  const [optionalAttendeeInput, setOptionalAttendeeInput] = useState('')
+  const [attendeesInviteTab, setAttendeesInviteTab] = useState<
+    'required' | 'optional' | 'tracking'
+  >('required')
+  /** Termin-Dialog: Termin-Details vs. Ort/Teams. */
+  const [eventScheduleTab, setEventScheduleTab] = useState<
+    'appointment' | 'more' | 'location'
+  >('appointment')
+  const [descriptionCopilotOpen, setDescriptionCopilotOpen] = useState(false)
   const attendeeFieldRef = useRef<RecipientTokenFieldHandle>(null)
+  const optionalAttendeeFieldRef = useRef<RecipientTokenFieldHandle>(null)
   const [msEventDetailsLoading, setMsEventDetailsLoading] = useState(false)
   const [msEventDetailsError, setMsEventDetailsError] = useState<string | null>(null)
   /** Nach getEvent: Einzeltermin → Serie möglich; Serie/Vorkommen → Muster bearbeiten. */
@@ -481,6 +681,14 @@ export function CalendarEventDialog({
   >([])
   const [eventShowAs, setEventShowAs] = useState<CalendarEventShowAs>(DEFAULT_CALENDAR_EVENT_SHOW_AS)
   const [eventIsPrivate, setEventIsPrivate] = useState(false)
+  /** Microsoft 365: Graph `hideAttendees` (Teilnehmerliste ausblenden). */
+  const [hideAttendees, setHideAttendees] = useState(false)
+  /** Microsoft 365: Graph `responseRequested` (Antworten anfordern). */
+  const [responseRequested, setResponseRequested] = useState(true)
+  /** Microsoft 365: Weiterleitung zulassen (DoNotForward invertiert). */
+  const [allowForwarding, setAllowForwarding] = useState(true)
+  const [modalMaximized, setModalMaximized] = useState(false)
+  const modalSizeBeforeMaximizeRef = useRef<{ w: number; h: number } | null>(null)
 
   const [createKind, setCreateKind] = useState<CalendarEventDialogCreateKind>('event')
   const [taskAccountId, setTaskAccountId] = useState('')
@@ -493,6 +701,13 @@ export function CalendarEventDialog({
   const [taskPlannedEnd, setTaskPlannedEnd] = useState('')
   const taskTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
   const dragDepthRef = useRef(0)
+  const panelRef = useRef<HTMLElement>(null)
+  const baselineFieldsRef = useRef<string | null>(null)
+  const baselineDescriptionRef = useRef<string | null>(null)
+  const armBaselineRef = useRef(false)
+  /** Letzte aus Cache/Netz geladene Beschreibung — verhindert Force-Refresh-Overwrite beim Tippen. */
+  const loadedDescriptionBaselineRef = useRef<string | null>(null)
+  const calendarsWereLoadingRef = useRef(false)
 
   // Inhaltsbasierte Signatur der Eingangsdaten. Damit wird die Erstbefuellung
   // (inkl. setSubject) nur dann erneut ausgefuehrt, wenn sich der tatsaechliche
@@ -566,7 +781,6 @@ export function CalendarEventDialog({
     setEventTimeZone(defaultEventTimeZone)
     setSecondaryTimeZone(systemTimeZone !== defaultEventTimeZone ? systemTimeZone : '')
     setTemplates(readCalendarEventTemplates())
-    setTemplateDropdownOpen(false)
 
     if (mode === 'edit' && initialEvent) {
       setAccountId(initialEvent.accountId)
@@ -574,6 +788,10 @@ export function CalendarEventDialog({
       setEventIconId(initialEvent.icon?.trim() || undefined)
       setLocation(initialEvent.location ?? '')
       setIsAllDay(initialEvent.isAllDay)
+      setWebinarMode(false)
+      setChronellWebinarInvitation(false)
+      setWebinarSupplementHtml(null)
+      setNotionSourcePageId(null)
       setEventCategories(
         initialEvent.categories?.filter((c) => c.trim().length > 0) ?? []
       )
@@ -589,7 +807,17 @@ export function CalendarEventDialog({
         setDayEnd('')
       }
       setTeamsMeeting(false)
+      setDialogJoinUrl(null)
+      setTeamsProvisioning(false)
+      setProvisionedEventId(null)
+      setTeamsMeetingTemplateId('')
+      setTeamsProvisionedWithTemplate(false)
+      setTeamsMeetingTemplates(readTeamsMeetingTemplates())
+      autoProvisionTeamsRef.current = false
       setAttendeeInput('')
+      setOptionalAttendeeInput('')
+      setAttendeesInviteTab('required')
+      setEventScheduleTab('appointment')
       setMsEventDetailsError(null)
       setEditEventType(null)
       setEditEventTypeLoaded(false)
@@ -602,6 +830,9 @@ export function CalendarEventDialog({
       setRecurWeekdays([])
       setEventShowAs(DEFAULT_CALENDAR_EVENT_SHOW_AS)
       setEventIsPrivate(false)
+      setHideAttendees(false)
+      setResponseRequested(true)
+      setAllowForwarding(true)
       const calId = initialEvent.graphCalendarId?.trim() ?? ''
       setGraphCalendarId(calId)
       setDestinationSelectValue(calendarDestinationKey(initialEvent.accountId, calId))
@@ -664,8 +895,43 @@ export function CalendarEventDialog({
           ? calendarDestinationKey(acc, initialGraphCalendarId.trim())
           : ''
       )
-      setTeamsMeeting(createPrefill?.teamsMeeting === true)
+      setTeamsMeeting(createPrefill?.teamsMeeting === true || createPrefill?.webinarMode === true)
+      autoProvisionTeamsRef.current =
+        createPrefill?.teamsMeeting === true || createPrefill?.webinarMode === true
+      setDialogJoinUrl(null)
+      setTeamsProvisioning(false)
+      setProvisionedEventId(null)
+      setTeamsMeetingTemplateId('')
+      setTeamsProvisionedWithTemplate(false)
+      setTeamsMeetingTemplates(readTeamsMeetingTemplates())
+      const isWebinar = createPrefill?.webinarMode === true
+      setWebinarMode(isWebinar)
+      setChronellWebinarInvitation(false)
+      setWebinarContent({
+        title: createPrefill?.subject?.trim() || '',
+        heroImageSrc: createPrefill?.webinarHeroImageSrc?.trim() || null,
+        surveyUrl: '',
+        surveyLabel: '',
+        websiteUrl: createPrefill?.webinarWebsiteUrl?.trim() || '',
+        websiteLabel: ''
+      })
+      setWebinarSupplementHtml(createPrefill?.webinarSupplementHtml?.trim() || null)
+      setNotionSourcePageId(createPrefill?.notionPageId?.trim() || null)
+      if (
+        isWebinar &&
+        (createPrefill?.webinarHeroImageSrc ||
+          createPrefill?.webinarWebsiteUrl ||
+          createPrefill?.webinarSupplementHtml ||
+          createPrefill?.subject)
+      ) {
+        pendingWebinarPrefillApplyRef.current = true
+      } else {
+        pendingWebinarPrefillApplyRef.current = false
+      }
       setAttendeeInput(createPrefill?.attendeeInput?.trim() ? createPrefill.attendeeInput : '')
+      setOptionalAttendeeInput('')
+      setAttendeesInviteTab('required')
+      setEventScheduleTab('appointment')
       setMsEventDetailsError(null)
       setMsEventDetailsLoading(false)
       setEditEventType(null)
@@ -685,6 +951,14 @@ export function CalendarEventDialog({
       setRecurWeekdays([])
       setEventShowAs(DEFAULT_CALENDAR_EVENT_SHOW_AS)
       setEventIsPrivate(false)
+      // Webinar: Teilnehmerliste aus, keine Antworten, keine Weiterleitung
+      if (isWebinar) {
+        applyWebinarTrackingDefaults({ setHideAttendees, setResponseRequested, setAllowForwarding })
+      } else {
+        setHideAttendees(false)
+        setResponseRequested(true)
+        setAllowForwarding(true)
+      }
       const preferTaskAcc = resolvePreferredTaskAccountId(
         taskAccounts,
         defaultAccountId && taskAccounts.some((a) => a.id === defaultAccountId)
@@ -697,6 +971,12 @@ export function CalendarEventDialog({
       setTaskListId(initialTaskListId?.trim() ?? '')
       setTaskLists([])
       applyTaskScheduleFromRange(initialRange ?? null)
+    }
+
+    const needsRemoteDetails =
+      mode === 'edit' && Boolean(initialEvent?.graphEventId?.trim())
+    if (!needsRemoteDetails) {
+      armBaselineRef.current = true
     }
   }, [
     open,
@@ -838,14 +1118,39 @@ export function CalendarEventDialog({
     const endMs = eventDatetimeLocalToMs(dtEnd, eventTimeZone)
     if (Number.isNaN(startMs) || Number.isNaN(endMs)) return null
     const ms = endMs - startMs
+    const durationMinutes = Math.max(0, Math.round(ms / 60000))
     return {
       startHm: `${String(sp.hour).padStart(2, '0')}:${String(sp.minute).padStart(2, '0')}`,
       endHm: `${String(ep.hour).padStart(2, '0')}:${String(ep.minute).padStart(2, '0')}`,
       duration: formatDurationMs(ms, t),
+      durationMinutes,
       startYmd: sp.ymd,
       endYmd: ep.ymd
     }
   }, [isAllDay, dtStart, dtEnd, eventTimeZone, t])
+
+  const [durationDraft, setDurationDraft] = useState<string | null>(null)
+
+  useEffect(() => {
+    setDurationDraft(null)
+  }, [timedDisplay?.durationMinutes, isAllDay])
+
+  const applyEventDurationMinutes = useCallback(
+    (minutes: number): void => {
+      if (!dtStart.trim() || !Number.isFinite(minutes) || minutes <= 0) return
+      const capped = Math.min(Math.max(Math.round(minutes), 5), 24 * 60 * 14)
+      setDtEnd(addMinutesInEventZone(dtStart, capped, eventTimeZone))
+    },
+    [dtStart, eventTimeZone]
+  )
+
+  const commitDurationDraft = useCallback((): void => {
+    if (durationDraft == null) return
+    const parsed = parseDurationInputToMinutes(durationDraft)
+    setDurationDraft(null)
+    if (parsed == null) return
+    applyEventDurationMinutes(parsed)
+  }, [applyEventDurationMinutes, durationDraft])
 
   /** Formularfelder gesperrt (Busy oder Kalender nur lesbar). */
   const eventFieldsLocked = useMemo(
@@ -937,10 +1242,16 @@ export function CalendarEventDialog({
 
   const eventAttachmentsApi = useCalendarEventAttachments({
     account: selectedAccount,
-    graphEventId: mode === 'edit' ? initialEvent?.graphEventId : null,
+    graphEventId:
+      mode === 'edit'
+        ? initialEvent?.graphEventId
+        : provisionedEventId,
     graphCalendarId:
-      mode === 'edit' ? (initialEvent?.graphCalendarId ?? null) : graphCalendarId.trim() || null,
-    enabled: open && createKind === 'event'
+      mode === 'edit'
+        ? (initialEvent?.graphCalendarId ?? null)
+        : graphCalendarId.trim() || null,
+    // Create + Teams-Eager: Attachments erst nach Provision-Ende (sonst Extra-Roundtrip).
+    enabled: open && createKind === 'event' && !(mode === 'create' && teamsProvisioning)
   })
 
   function hasDraggedFiles(e: React.DragEvent<HTMLElement>): boolean {
@@ -951,11 +1262,39 @@ export function CalendarEventDialog({
 
   const handleEditorDrop = (e: React.DragEvent<HTMLDivElement>): void => {
     if (!hasDraggedFiles(e)) return
+    const files = Array.from(e.dataTransfer.files)
+    if (files.length === 0) return
+    const images = files.filter((f) => f.type.startsWith('image/'))
+    const nonImages = files.filter((f) => !f.type.startsWith('image/'))
     e.preventDefault()
     e.stopPropagation()
     dragDepthRef.current = 0
     setDraggingFiles(false)
-    void eventAttachmentsApi.addFiles(Array.from(e.dataTransfer.files))
+    if (images.length > 0) {
+      void (async (): Promise<void> => {
+        const chunks: string[] = []
+        for (const file of images) {
+          try {
+            const dataUrl = await blobToDataUrl(file)
+            if (!dataUrl) continue
+            const alt = file.name
+              .replace(/&/g, '&amp;')
+              .replace(/"/g, '&quot;')
+              .replace(/</g, '&lt;')
+            chunks.push(
+              `<p><img src="${dataUrl}" alt="${alt}" style="max-width:100%;height:auto;" /></p>`
+            )
+          } catch {
+            /* einzelne Datei ueberspringen */
+          }
+        }
+        if (chunks.length === 0) return
+        setDescriptionHtml((prev) => `${prev.trim() ? prev : ''}${chunks.join('')}`)
+      })()
+    }
+    if (nonImages.length > 0) {
+      void eventAttachmentsApi.addFiles(nonImages)
+    }
   }
 
   const handleEditorDragEnter = (e: React.DragEvent<HTMLDivElement>): void => {
@@ -989,6 +1328,8 @@ export function CalendarEventDialog({
       .map((item) => item.getAsFile())
       .filter((f): f is File => Boolean(f))
     if (files.length === 0) return
+    // Reine Bild-Pastes → TipTap als Inline-`<img>` (base64), nicht nur Attachment-Chip.
+    if (files.every((f) => f.type.startsWith('image/'))) return
     e.preventDefault()
     e.stopPropagation()
     void eventAttachmentsApi.addFiles(files)
@@ -1055,7 +1396,6 @@ export function CalendarEventDialog({
     return [...new Set([...fromMasters, ...extra])].sort((a, b) => a.localeCompare(b, collatorLocale))
   }, [masterCategories, eventCategories, collatorLocale])
 
-  const panelRef = useRef<HTMLElement>(null)
   const modalResizeDragRef = useRef<{
     startX: number
     startY: number
@@ -1098,73 +1438,269 @@ export function CalendarEventDialog({
     }
 
     let cancelled = false
+    loadedDescriptionBaselineRef.current = null
     setMsEventDetailsLoading(true)
     setMsEventDetailsError(null)
     setEditEventType(null)
     setEditEventTypeLoaded(false)
     setTeamsMeeting(!!initialEvent.joinUrl && !initialEvent.isAllDay)
-    void window.mailClient.calendar
-      .getEvent({
+    setDialogJoinUrl(
+      preferTeamsJoinUrl({
+        joinUrl: initialEvent.joinUrl,
+        bodyHtml: null
+      })
+    )
+
+    const applyEventDetails = (
+      d: Awaited<ReturnType<typeof window.mailClient.calendar.getEvent>>,
+      opts: { allowOverwriteDescription: boolean; resolveInlineImages: boolean }
+    ): void => {
+      if (cancelled) return
+      if (d.chronellWebinarInvitation) {
+        setChronellWebinarInvitation(true)
+        setWebinarMode(true)
+      }
+      setTeamsMeeting(!!d.isOnlineMeeting && !initialEvent.isAllDay)
+      {
+        const nextJoin = preferTeamsJoinUrl({
+          joinUrl: d.joinUrl,
+          bodyHtml: d.bodyHtml
+        })
+        // Stale Cache ohne Join-URL darf eine bereits bekannte URL nicht loeschen.
+        if (nextJoin || !getDialogJoinUrl()?.trim()) {
+          setDialogJoinUrl(nextJoin)
+        }
+      }
+      setAttendeeInput(
+        formatRecipientsWithTail(
+          d.attendeeEmails.map((email) => ({ address: email })),
+          ''
+        )
+      )
+      setOptionalAttendeeInput(
+        formatRecipientsWithTail(
+          (d.optionalAttendeeEmails ?? []).map((email) => ({ address: email })),
+          ''
+        )
+      )
+      if (initialEvent.source === 'microsoft') {
+        setReminderEnabled(!!d.isReminderOn)
+        setReminderMinutesBefore(
+          typeof d.reminderMinutesBeforeStart === 'number'
+            ? d.reminderMinutesBeforeStart
+            : CAL_EVENT_REMINDER_DEFAULT_MINUTES
+        )
+        if (d.chronellWebinarInvitation) {
+          applyWebinarTrackingDefaults({
+            setHideAttendees,
+            setResponseRequested,
+            setAllowForwarding
+          })
+        } else {
+          setHideAttendees(d.hideAttendees === true)
+          setResponseRequested(d.responseRequested !== false)
+          setAllowForwarding(d.allowForwarding !== false)
+        }
+      }
+      const loadedTimeZone = normalizeEventTimeZoneHint(d.timeZone)
+      if (!initialEvent.isAllDay && loadedTimeZone) {
+        setEventTimeZone(loadedTimeZone)
+        setDtStart(utcIsoToEventDatetimeLocal(initialEvent.startIso, loadedTimeZone))
+        setDtEnd(utcIsoToEventDatetimeLocal(initialEvent.endIso, loadedTimeZone))
+      }
+      setEditEventType(d.eventType ?? 'singleInstance')
+      setEditEventTypeLoaded(true)
+      setEditSeriesMasterId(d.seriesMasterId?.trim() || null)
+      setEventShowAs(d.showAs ?? DEFAULT_CALENDAR_EVENT_SHOW_AS)
+      setEventIsPrivate(calendarEventSensitivityIsPrivate(d.sensitivity))
+      if (initialEvent.source === 'google') {
+        setHideAttendees(false)
+        setResponseRequested(true)
+        setAllowForwarding(true)
+      }
+      const rec = d.recurrence ?? null
+      setLoadedRecurrence(rec)
+      if (rec) {
+        setRecurFreq(rec.frequency)
+        setRecurEnd(rec.rangeEnd)
+        setRecurUntilDate(rec.untilDate?.trim() || '')
+        setRecurCount(rec.count != null ? String(rec.count) : '10')
+        setRecurWeekdays(rec.weekdays?.length ? [...rec.weekdays] : [])
+      } else {
+        setRecurFreq('none')
+        setRecurEnd('never')
+        setRecurUntilDate('')
+        setRecurCount('10')
+        setRecurWeekdays([])
+      }
+
+      const raw = d.bodyHtml?.trim() ? d.bodyHtml.trim() : ''
+      setGraphBodyForPreview(raw || null)
+      if (
+        d.chronellWebinarInvitation &&
+        isWebinarInvitationHtmlLikelyGutted(raw, { chronellWebinarInvitation: true })
+      ) {
+        pendingWebinarAutoRestoreRef.current = true
+      }
+      const joinUrlForEditor = preferTeamsJoinUrl({
+        joinUrl: d.joinUrl,
+        bodyHtml: d.bodyHtml
+      })
+      const wantsInlineImages =
+        initialEvent.source === 'microsoft' &&
+        (d.chronellWebinarInvitation ||
+          isWebinarInvitationHtml(raw) ||
+          /cid:/i.test(raw))
+      if (wantsInlineImages && /cid:/i.test(raw) && opts.resolveInlineImages !== false) {
+        setWebinarImagesLoading(true)
+      }
+      void prepareCalendarEventBodyHtmlForAttendeeDisplay(raw, {
         accountId: initialEvent.accountId,
         graphEventId: eventId,
         graphCalendarId: initialEvent.graphCalendarId ?? null,
-        forceRefresh: true
+        resolveInlineImages: wantsInlineImages && opts.resolveInlineImages !== false
       })
-      .then((d) => {
+        .then((displayHtml) => {
+          if (!cancelled) setAttendeeDisplayHtml(displayHtml)
+        })
+        .catch((err) => {
+          console.warn('[calendar] prepareCalendarEventBodyHtmlForAttendeeDisplay:', err)
+        })
+      void prepareCalendarEventBodyHtmlForEditor(raw, {
+        accountId: initialEvent.accountId,
+        graphEventId: eventId,
+        graphCalendarId: initialEvent.graphCalendarId ?? null,
+        resolveInlineImages: wantsInlineImages && opts.resolveInlineImages !== false,
+        teamsJoinUrl: joinUrlForEditor
+      })
+        .then((prepared) => {
         if (cancelled) return
-        setTeamsMeeting(!!d.isOnlineMeeting && !initialEvent.isAllDay)
-        setAttendeeInput(
-          formatRecipientsWithTail(
-            d.attendeeEmails.map((email) => ({ address: email })),
-            ''
-          )
-        )
-        if (initialEvent.source === 'microsoft') {
-          setReminderEnabled(!!d.isReminderOn)
-          setReminderMinutesBefore(
-            typeof d.reminderMinutesBeforeStart === 'number'
-              ? d.reminderMinutesBeforeStart
-              : CAL_EVENT_REMINDER_DEFAULT_MINUTES
-          )
-        }
-        const loadedTimeZone = normalizeEventTimeZoneHint(d.timeZone)
-        if (!initialEvent.isAllDay && loadedTimeZone) {
-          setEventTimeZone(loadedTimeZone)
-          setDtStart(utcIsoToEventDatetimeLocal(initialEvent.startIso, loadedTimeZone))
-          setDtEnd(utcIsoToEventDatetimeLocal(initialEvent.endIso, loadedTimeZone))
-        }
-        const raw = d.bodyHtml?.trim() ? d.bodyHtml.trim() : ''
-        setDescriptionHtml(raw ? sanitizeComposeHtmlFragment(raw) : '')
-        setEditEventType(d.eventType ?? 'singleInstance')
-        setEditEventTypeLoaded(true)
-        setEditSeriesMasterId(d.seriesMasterId?.trim() || null)
-        setEventShowAs(d.showAs ?? DEFAULT_CALENDAR_EVENT_SHOW_AS)
-        setEventIsPrivate(calendarEventSensitivityIsPrivate(d.sensitivity))
-        const rec = d.recurrence ?? null
-        setLoadedRecurrence(rec)
-        if (rec) {
-          setRecurFreq(rec.frequency)
-          setRecurEnd(rec.rangeEnd)
-          setRecurUntilDate(rec.untilDate?.trim() || '')
-          setRecurCount(rec.count != null ? String(rec.count) : '10')
-          setRecurWeekdays(rec.weekdays?.length ? [...rec.weekdays] : [])
-        } else {
-          setRecurFreq('none')
-          setRecurEnd('never')
-          setRecurUntilDate('')
-          setRecurCount('10')
-          setRecurWeekdays([])
+        setDescriptionHtml((prev) => {
+          if (
+            !opts.allowOverwriteDescription &&
+            loadedDescriptionBaselineRef.current != null &&
+            prev !== loadedDescriptionBaselineRef.current
+          ) {
+            return prev
+          }
+          // Force-Refresh darf Baseline nicht als „dirty“ markieren, wenn User noch nicht tippte.
+          if (
+            baselineDescriptionRef.current != null &&
+            baselineDescriptionRef.current === descriptionSnapshotKey(prev)
+          ) {
+            baselineDescriptionRef.current = descriptionSnapshotKey(prepared)
+            setDebouncedDescriptionKey(baselineDescriptionRef.current)
+          }
+          loadedDescriptionBaselineRef.current = prepared
+          if (isWebinarInvitationHtml(prepared) || d.chronellWebinarInvitation) {
+            setWebinarMode(true)
+            setChronellWebinarInvitation(!!d.chronellWebinarInvitation)
+            const parsed = parseWebinarInvitationHtml(prepared)
+            if (parsed.parsed) {
+              setWebinarContent({
+                title: parsed.title,
+                heroImageSrc: parsed.heroImageSrc,
+                surveyUrl: parsed.surveyUrl,
+                surveyLabel: parsed.surveyLabel,
+                websiteUrl: parsed.websiteUrl,
+                websiteLabel: parsed.websiteLabel
+              })
+              if (parsed.title.trim()) {
+                setSubject((prev) => prev.trim() || parsed.title.trim())
+              }
+            }
+          }
+          return prepared
+        })
+        armBaselineRef.current = true
+      })
+        .catch((err) => {
+          console.warn('[calendar] prepareCalendarEventBodyHtmlForEditor:', err)
+        })
+        .finally(() => {
+          if (!cancelled) setWebinarImagesLoading(false)
+        })
+    }
+
+    const loadArgs = {
+      accountId: initialEvent.accountId,
+      graphEventId: eventId,
+      graphCalendarId: initialEvent.graphCalendarId ?? null
+    }
+
+    // Cache zuerst → UI schnell; Force-Refresh im Hintergrund.
+    void window.mailClient.calendar
+      .getEvent({ ...loadArgs, cacheOnly: true })
+      .then((cached) => {
+        if (cancelled || !calendarEventDetailsLookCached(cached)) return
+        const cachedRaw = cached.bodyHtml?.trim() ?? ''
+        applyEventDetails(cached, {
+          allowOverwriteDescription: true,
+          resolveInlineImages:
+            cached.chronellWebinarInvitation ||
+            isWebinarInvitationHtml(cachedRaw) ||
+            /cid:/i.test(cachedRaw)
+        })
+        setMsEventDetailsLoading(false)
+      })
+      .catch(() => {
+        /* Cache-Miss / Stub — Force-Refresh uebernimmt */
+      })
+
+    void window.mailClient.calendar
+      .getEvent({ ...loadArgs, forceRefresh: false })
+      .then(async (d) => {
+        if (cancelled) return
+        applyEventDetails(d, {
+          allowOverwriteDescription: false,
+          resolveInlineImages:
+            isWebinarInvitationHtml(d.bodyHtml ?? '') || /cid:/i.test(d.bodyHtml ?? '')
+        })
+        // Teams-Meeting ohne Join-URL: oft stale Cache nach Speichern — Force-Refresh.
+        if (
+          d.isOnlineMeeting &&
+          !preferTeamsJoinUrl({ joinUrl: d.joinUrl, bodyHtml: d.bodyHtml })?.trim()
+        ) {
+          for (let attempt = 0; attempt < 3; attempt++) {
+            if (cancelled) return
+            if (attempt > 0) {
+              await new Promise<void>((resolve) => setTimeout(resolve, attempt === 1 ? 400 : 800))
+            }
+            try {
+              const fresh = await window.mailClient.calendar.getEvent({
+                ...loadArgs,
+                forceRefresh: true
+              })
+              if (cancelled) return
+              const join = preferTeamsJoinUrl({
+                joinUrl: fresh.joinUrl,
+                bodyHtml: fresh.bodyHtml
+              })
+              if (join) {
+                applyEventDetails(fresh, {
+                  allowOverwriteDescription: false,
+                  resolveInlineImages: false
+                })
+                break
+              }
+            } catch {
+              break
+            }
+          }
         }
       })
       .catch((err) => {
         if (cancelled) return
         setMsEventDetailsError(err instanceof Error ? err.message : String(err))
-        setAttendeeInput('')
-        setDescriptionHtml('')
-        setEditEventType(null)
-        setEditEventTypeLoaded(false)
-        setEditSeriesMasterId(null)
-        setLoadedRecurrence(null)
+        if (loadedDescriptionBaselineRef.current == null) {
+          setAttendeeInput('')
+          setDescriptionHtml('')
+          setEditEventType(null)
+          setEditEventTypeLoaded(false)
+          setEditSeriesMasterId(null)
+          setLoadedRecurrence(null)
+          armBaselineRef.current = true
+        }
       })
       .finally(() => {
         if (!cancelled) setMsEventDetailsLoading(false)
@@ -1173,6 +1709,20 @@ export function CalendarEventDialog({
       cancelled = true
     }
   }, [open, mode, initialEvent, t])
+
+  useEffect(() => {
+    if (!open) return
+    if (chronellWebinarInvitation) {
+      setWebinarMode(true)
+      return
+    }
+    if (
+      isWebinarInvitationHtml(descriptionHtml) ||
+      isWebinarInvitationHtml(graphBodyForPreview ?? '')
+    ) {
+      setWebinarMode(true)
+    }
+  }, [open, chronellWebinarInvitation, descriptionHtml, graphBodyForPreview])
 
   const eventTimeZoneOptions = useMemo(() => {
     const opts = [...CALENDAR_TIMEZONE_UI_OPTIONS]
@@ -1239,25 +1789,617 @@ export function CalendarEventDialog({
     [dtEnd, dtStart, eventTimeZone, isAllDay]
   )
 
-  const handleTeamsMeetingChange = useCallback((checked: boolean): void => {
-    setTeamsMeeting(checked)
-    if (!checked && location.trim().toLowerCase() === 'online') {
-      setLocation('')
+  const resolveEventScheduleIsos = useCallback((): { startIso: string; endIso: string } | null => {
+    try {
+      if (isAllDay) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(dayStart) || !/^\d{4}-\d{2}-\d{2}$/.test(dayEnd)) {
+          return null
+        }
+        if (dayEnd <= dayStart) return null
+        return { startIso: dayStart, endIso: dayEnd }
+      }
+      const invalid = t('calendar.eventDialog.invalidDate')
+      const startIso = eventDatetimeLocalToUtcIso(dtStart, eventTimeZone, invalid)
+      const endIso = eventDatetimeLocalToUtcIso(dtEnd, eventTimeZone, invalid)
+      if (new Date(endIso) <= new Date(startIso)) return null
+      return { startIso, endIso }
+    } catch {
+      return null
     }
-  }, [location])
+  }, [isAllDay, dayStart, dayEnd, dtStart, dtEnd, eventTimeZone, t])
+
+  const applyTeamsMeetingBodyFromServer = useCallback(
+    async (input: {
+      accountId: string
+      graphEventId: string
+      graphCalendarId: string | null
+      joinUrl: string | null
+      bodyHtml: string | null
+    }): Promise<void> => {
+      const joinUrl = preferTeamsJoinUrl({
+        joinUrl: input.joinUrl,
+        bodyHtml: input.bodyHtml
+      })
+      if (joinUrl) setDialogJoinUrl(joinUrl)
+
+      const teamsBlockRaw = extractTeamsMeetingJoinBlockHtml(input.bodyHtml) || ''
+
+      let appendHtml = ''
+      if (teamsBlockRaw) {
+        // Ohne Inline-Bilder — CID spaeter lazy, damit Tippen nicht blockiert.
+        appendHtml = await prepareCalendarEventBodyHtmlForEditor(teamsBlockRaw, {
+          accountId: input.accountId,
+          graphEventId: input.graphEventId,
+          graphCalendarId: input.graphCalendarId,
+          resolveInlineImages: false
+        })
+      } else if (joinUrl) {
+        const safeHref = joinUrl
+          .replace(/&/g, '&amp;')
+          .replace(/"/g, '&quot;')
+          .replace(/</g, '&lt;')
+        const linkLabel = t('calendar.eventDialog.teamsJoinLinkLabel')
+        appendHtml = `<p><a href="${safeHref}">${linkLabel}</a></p>`
+      }
+
+      if (!appendHtml) return
+
+      setDescriptionHtml((prev) => {
+        if (isWebinarInvitationHtml(prev)) {
+          // Idempotent: immer genau einen Slot, keine doppelten Platzhalter.
+          return restoreWebinarTeamsSlotForEditor(prev, joinUrl)
+        }
+        if (htmlAlreadyHasTeamsMeetingJoinBlock(prev, joinUrl)) return prev
+        if (isEffectivelyEmptyEditorHtml(prev)) return appendHtml
+        return `${prev.trim()}${appendHtml}`
+      })
+
+      if (/cid:/i.test(appendHtml)) {
+        void resolveCalendarEventInlineCidImages(appendHtml, {
+          accountId: input.accountId,
+          graphEventId: input.graphEventId,
+          graphCalendarId: input.graphCalendarId
+        }).then((withImages) => {
+          if (withImages === appendHtml) return
+          setDescriptionHtml((prev) => {
+            if (!prev.includes(appendHtml)) return prev
+            return prev.replace(appendHtml, withImages)
+          })
+        })
+      }
+    },
+    [t]
+  )
+
+  /** Poll nur wenn noch keine Join-URL da ist — bricht bei erster brauchbarer URL ab (auch lang). */
+  const loadTeamsMeetingDetailsAfterWrite = useCallback(
+    async (input: {
+      accountId: string
+      graphEventId: string
+      graphCalendarId: string | null
+      /** Bereits bekannte URL — dann kein Poll. */
+      seedJoinUrl?: string | null
+    }): Promise<{ joinUrl: string | null; bodyHtml: string | null }> => {
+      const seed = input.seedJoinUrl?.trim() || null
+      if (seed) {
+        return { joinUrl: seed, bodyHtml: null }
+      }
+      let joinUrl: string | null = null
+      let bodyHtml: string | null = null
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (attempt > 0) {
+          await new Promise<void>((resolve) => setTimeout(resolve, attempt === 1 ? 400 : 800))
+        }
+        const d = await window.mailClient.calendar.getEvent({
+          accountId: input.accountId,
+          graphEventId: input.graphEventId,
+          graphCalendarId: input.graphCalendarId,
+          forceRefresh: true
+        })
+        bodyHtml = d.bodyHtml?.trim() || null
+        joinUrl = preferTeamsJoinUrl({
+          joinUrl: d.joinUrl,
+          bodyHtml
+        })
+        if (joinUrl) break
+      }
+      return { joinUrl, bodyHtml }
+    },
+    []
+  )
+
+  /**
+   * Short-Link + Teams-Body nach Unlock: max. 1 Retry, blockiert die UI nicht.
+   */
+  const enrichTeamsMeetingInBackground = useCallback(
+    (input: {
+      accountId: string
+      graphEventId: string
+      graphCalendarId: string | null
+      seedJoinUrl?: string | null
+      seedBodyHtml?: string | null
+    }): void => {
+      void (async () => {
+        try {
+          let joinUrl = preferTeamsJoinUrl({
+            joinUrl: input.seedJoinUrl,
+            bodyHtml: input.seedBodyHtml
+          })
+          let bodyHtml = input.seedBodyHtml?.trim() || null
+
+          const needsShortOrBody =
+            !bodyHtml || !joinUrl || isTeamsLongMeetupJoinUrl(joinUrl)
+
+          if (needsShortOrBody) {
+            const d = await window.mailClient.calendar.getEvent({
+              accountId: input.accountId,
+              graphEventId: input.graphEventId,
+              graphCalendarId: input.graphCalendarId,
+              forceRefresh: true
+            })
+            bodyHtml = d.bodyHtml?.trim() || bodyHtml
+            joinUrl = preferTeamsJoinUrl({
+              joinUrl: d.joinUrl ?? joinUrl,
+              bodyHtml
+            })
+
+            // Max. 1 Hintergrund-Retry nur wenn immer noch langer Link / kein Body.
+            if (
+              (!joinUrl || isTeamsLongMeetupJoinUrl(joinUrl) || !bodyHtml) &&
+              d.isOnlineMeeting
+            ) {
+              await new Promise<void>((resolve) => setTimeout(resolve, 400))
+              const d2 = await window.mailClient.calendar.getEvent({
+                accountId: input.accountId,
+                graphEventId: input.graphEventId,
+                graphCalendarId: input.graphCalendarId,
+                forceRefresh: true
+              })
+              bodyHtml = d2.bodyHtml?.trim() || bodyHtml
+              joinUrl = preferTeamsJoinUrl({
+                joinUrl: d2.joinUrl ?? joinUrl,
+                bodyHtml
+              })
+            }
+          }
+
+          await applyTeamsMeetingBodyFromServer({
+            accountId: input.accountId,
+            graphEventId: input.graphEventId,
+            graphCalendarId: input.graphCalendarId,
+            joinUrl,
+            bodyHtml
+          })
+        } catch (e) {
+          console.warn('[calendar] Teams-Meeting Hintergrund-Anreicherung fehlgeschlagen:', e)
+        }
+      })()
+    },
+    [applyTeamsMeetingBodyFromServer]
+  )
+
+  const provisionTeamsMeetingNow = useCallback(async (opts?: {
+    force?: boolean
+    /** Explizite Vorlage (State kann beim setTimeout noch alt sein). */
+    templateId?: string
+  }): Promise<boolean> => {
+    if (isAllDay) return false
+    if (!accountId.startsWith('ms:')) return false
+
+    const inflight = teamsProvisionInflightRef.current
+    if (inflight) {
+      // Parallel-Speichern wartet auf dieselbe Provision statt „Link fehlt“.
+      if (!opts?.force) return inflight
+      await inflight.catch(() => false)
+    }
+    if (getDialogJoinUrl()?.trim() && !opts?.force) return true
+
+    const schedule = resolveEventScheduleIsos()
+    if (!schedule) {
+      setLocalError(t('calendar.eventDialog.teamsNeedValidSchedule'))
+      setTeamsMeeting(false)
+      return false
+    }
+
+    const run = (async (): Promise<boolean> => {
+
+    const subjectForSave = subject.trim() || t('calendar.eventDialog.untitled')
+    const descriptionForProvision =
+      webinarHtmlEditorFlushRef.current?.() ?? descriptionHtml
+    const isWebinarProvision =
+      webinarMode ||
+      chronellWebinarInvitation ||
+      isWebinarInvitationHtml(descriptionForProvision)
+    const resolvedBody = resolveCalendarEventBodyForGraph(descriptionForProvision, {
+      isWebinar: isWebinarProvision
+    })
+    let bodyHtml = resolvedBody.bodyHtml
+    let provisionInlineAttachments = resolvedBody.inlineAttachments
+    // Wichtig: Provision OHNE Attendees — sonst sendet Graph sofort Einladungen.
+    const calId = graphCalendarId.trim() || null
+    const selectedTemplateId = (opts?.templateId ?? teamsMeetingTemplateId).trim()
+
+    setTeamsProvisioning(true)
+    setLocalError(null)
+    setMsEventDetailsError(null)
+    try {
+      let graphEventId: string | null =
+        (mode === 'edit' ? initialEvent?.graphEventId?.trim() : null) ||
+        provisionedEventId?.trim() ||
+        null
+
+      // Teams Premium: OnlineMeeting mit Vorlage, Kalender ohne zweites isOnlineMeeting.
+      if (selectedTemplateId) {
+        const online = await window.mailClient.calendar.createOnlineMeetingWithTemplate({
+          accountId: mode === 'edit' ? (initialEvent?.accountId ?? accountId) : accountId,
+          subject: subjectForSave,
+          startIso: schedule.startIso,
+          endIso: schedule.endIso,
+          meetingTemplateId: selectedTemplateId
+        })
+        const joinUrl = preferTeamsJoinUrl({
+          joinUrl: online.joinUrl,
+          joinInformationHtml: online.joinInformationHtml
+        })
+        if (joinUrl) setDialogJoinUrl(joinUrl)
+        setTeamsProvisionedWithTemplate(true)
+
+        let mergedBody = bodyHtml
+        if (isWebinarProvision && !isEffectivelyEmptyEditorHtml(descriptionForProvision)) {
+          const webinarMerged = mergeWebinarBodyWithTeamsProvision(
+            descriptionForProvision,
+            online.joinInformationHtml,
+            joinUrl,
+            t('calendar.eventDialog.teamsJoinLinkLabel')
+          )
+          mergedBody = webinarMerged.bodyHtml
+          provisionInlineAttachments = webinarMerged.inlineAttachments
+        } else {
+          const joinHtml = cleanTeamsMeetingJoinInformationHtml(
+            online.joinInformationHtml?.trim() || ''
+          )
+          if (joinHtml) {
+            mergedBody = isEffectivelyEmptyEditorHtml(descriptionHtml)
+              ? joinHtml
+              : `${descriptionHtml.trim()}${joinHtml}`
+          } else if (joinUrl && (!mergedBody || isEffectivelyEmptyEditorHtml(descriptionHtml))) {
+            const safeHref = joinUrl
+              .replace(/&/g, '&amp;')
+              .replace(/"/g, '&quot;')
+              .replace(/</g, '&lt;')
+            mergedBody = `<p><a href="${safeHref}">${t('calendar.eventDialog.teamsJoinLinkLabel')}</a></p>`
+          }
+        }
+
+        const locationForSave =
+          location.trim() || t('calendar.eventDialog.teamsMeetingToggle')
+
+        if (graphEventId) {
+          await window.mailClient.calendar.updateEvent({
+            accountId: mode === 'edit' ? (initialEvent?.accountId ?? accountId) : accountId,
+            graphEventId,
+            graphCalendarId:
+              mode === 'edit' ? (initialEvent?.graphCalendarId ?? calId) : calId,
+            subject: subjectForSave,
+            startIso: schedule.startIso,
+            endIso: schedule.endIso,
+            isAllDay: false,
+            location: locationForSave,
+            bodyHtml: mergedBody,
+            ...(provisionInlineAttachments.length > 0
+              ? { attachments: provisionInlineAttachments }
+              : {}),
+            categories: eventCategories,
+            teamsMeeting: true,
+            hideAttendees,
+            responseRequested,
+            allowForwarding,
+            showAs: eventShowAs,
+            sensitivity: calendarEventSensitivityFromPrivate(eventIsPrivate),
+            ...graphReminderPayload('microsoft', reminderEnabled, reminderMinutesBefore),
+            timeZone: eventTimeZone,
+            ...(webinarMode ? { chronellWebinarInvitation: true } : {})
+          })
+        } else {
+          const created = await window.mailClient.calendar.createEvent({
+            accountId,
+            graphCalendarId: calId,
+            subject: subjectForSave,
+            startIso: schedule.startIso,
+            endIso: schedule.endIso,
+            isAllDay: false,
+            location: locationForSave,
+            bodyHtml: mergedBody,
+            ...(provisionInlineAttachments.length > 0
+              ? { attachments: provisionInlineAttachments }
+              : {}),
+            categories: eventCategories,
+            teamsMeeting: true,
+            hideAttendees,
+            responseRequested,
+            allowForwarding,
+            showAs: eventShowAs,
+            sensitivity: calendarEventSensitivityFromPrivate(eventIsPrivate),
+            ...graphReminderPayload('microsoft', reminderEnabled, reminderMinutesBefore),
+            timeZone: eventTimeZone,
+            ...(webinarMode ? { chronellWebinarInvitation: true } : {})
+          })
+          graphEventId = created.id?.trim() || null
+          if (!graphEventId) {
+            throw new Error(t('calendar.eventDialog.teamsProvisionFailed'))
+          }
+          setProvisionedEventId(graphEventId)
+          if (!subject.trim()) setSubject(subjectForSave)
+        }
+
+        if (!location.trim()) setLocation(locationForSave)
+
+        const detailAccountId =
+          mode === 'edit' ? (initialEvent?.accountId ?? accountId) : accountId
+        const detailCalId =
+          mode === 'edit' ? (initialEvent?.graphCalendarId ?? calId) : calId
+        // UI sofort freigeben; Short-Link/Body im Hintergrund.
+        enrichTeamsMeetingInBackground({
+          accountId: detailAccountId,
+          graphEventId,
+          graphCalendarId: detailCalId,
+          seedJoinUrl: joinUrl,
+          seedBodyHtml: mergedBody
+        })
+
+        useUndoStore.getState().pushToast({
+          label: joinUrl
+            ? t('calendar.eventDialog.teamsLinkReadyToast')
+            : t('calendar.eventDialog.teamsLinkPendingToast'),
+          variant: joinUrl ? 'success' : 'info',
+          durationMs: 4000
+        })
+        armBaselineRef.current = true
+        return Boolean(getDialogJoinUrl()?.trim() || joinUrl?.trim())
+      }
+
+      let seedJoinUrl: string | null = null
+
+      if (graphEventId) {
+        await window.mailClient.calendar.updateEvent({
+          accountId: mode === 'edit' ? (initialEvent?.accountId ?? accountId) : accountId,
+          graphEventId,
+          graphCalendarId:
+            mode === 'edit' ? (initialEvent?.graphCalendarId ?? calId) : calId,
+          subject: subjectForSave,
+          startIso: schedule.startIso,
+          endIso: schedule.endIso,
+          isAllDay: false,
+          location: location.trim() || null,
+          bodyHtml,
+          ...(provisionInlineAttachments.length > 0
+            ? { attachments: provisionInlineAttachments }
+            : {}),
+          categories: eventCategories,
+          teamsMeeting: true,
+          hideAttendees,
+          responseRequested,
+          allowForwarding,
+          showAs: eventShowAs,
+          sensitivity: calendarEventSensitivityFromPrivate(eventIsPrivate),
+          ...graphReminderPayload('microsoft', reminderEnabled, reminderMinutesBefore),
+          timeZone: eventTimeZone,
+          ...(webinarMode ? { chronellWebinarInvitation: true } : {})
+        })
+        // Update + Main-Refresh: Join-URL oft schon im Cache — kein Force-Poll.
+        const cached = await window.mailClient.calendar.getEvent({
+          accountId: mode === 'edit' ? (initialEvent?.accountId ?? accountId) : accountId,
+          graphEventId,
+          graphCalendarId:
+            mode === 'edit' ? (initialEvent?.graphCalendarId ?? calId) : calId,
+          forceRefresh: false
+        })
+        seedJoinUrl = preferTeamsJoinUrl({
+          joinUrl: cached.joinUrl,
+          bodyHtml: cached.bodyHtml
+        })
+      } else {
+        const created = await window.mailClient.calendar.createEvent({
+          accountId,
+          graphCalendarId: calId,
+          subject: subjectForSave,
+          startIso: schedule.startIso,
+          endIso: schedule.endIso,
+          isAllDay: false,
+          location: location.trim() || null,
+          bodyHtml,
+          ...(provisionInlineAttachments.length > 0
+            ? { attachments: provisionInlineAttachments }
+            : {}),
+          categories: eventCategories,
+          teamsMeeting: true,
+          hideAttendees,
+          responseRequested,
+          allowForwarding,
+          showAs: eventShowAs,
+          sensitivity: calendarEventSensitivityFromPrivate(eventIsPrivate),
+          ...graphReminderPayload('microsoft', reminderEnabled, reminderMinutesBefore),
+          timeZone: eventTimeZone,
+          ...(webinarMode ? { chronellWebinarInvitation: true } : {})
+        })
+        graphEventId = created.id?.trim() || null
+        if (!graphEventId) {
+          throw new Error(t('calendar.eventDialog.teamsProvisionFailed'))
+        }
+        setProvisionedEventId(graphEventId)
+        if (!subject.trim()) setSubject(subjectForSave)
+        seedJoinUrl = preferTeamsJoinUrl({
+          joinUrl: created.joinUrl
+        })
+      }
+
+      setTeamsProvisionedWithTemplate(false)
+
+      const detailAccountId =
+        mode === 'edit' ? (initialEvent?.accountId ?? accountId) : accountId
+      const detailCalId =
+        mode === 'edit' ? (initialEvent?.graphCalendarId ?? calId) : calId
+
+      // Poll nur wenn noch keine Join-URL — sonst UI sofort entsperren.
+      if (!seedJoinUrl) {
+        const details = await loadTeamsMeetingDetailsAfterWrite({
+          accountId: detailAccountId,
+          graphEventId,
+          graphCalendarId: detailCalId
+        })
+        seedJoinUrl = details.joinUrl
+      }
+
+      if (seedJoinUrl) {
+        setDialogJoinUrl(seedJoinUrl)
+      }
+
+      enrichTeamsMeetingInBackground({
+        accountId: detailAccountId,
+        graphEventId,
+        graphCalendarId: detailCalId,
+        seedJoinUrl
+      })
+
+      if (seedJoinUrl?.trim()) {
+        useUndoStore.getState().pushToast({
+          label: t('calendar.eventDialog.teamsLinkReadyToast'),
+          variant: 'success',
+          durationMs: 4000
+        })
+      } else {
+        useUndoStore.getState().pushToast({
+          label: t('calendar.eventDialog.teamsLinkPendingToast'),
+          variant: 'info',
+          durationMs: 5000
+        })
+      }
+      armBaselineRef.current = true
+      return Boolean(getDialogJoinUrl()?.trim())
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      setLocalError(msg)
+      setMsEventDetailsError(msg)
+      setTeamsMeeting(false)
+      return false
+    } finally {
+      setTeamsProvisioning(false)
+    }
+    })()
+
+    teamsProvisionInflightRef.current = run
+    void run.finally(() => {
+      if (teamsProvisionInflightRef.current === run) {
+        teamsProvisionInflightRef.current = null
+      }
+    })
+    return run
+  }, [
+    isAllDay,
+    accountId,
+    getDialogJoinUrl,
+    resolveEventScheduleIsos,
+    t,
+    subject,
+    descriptionHtml,
+    graphCalendarId,
+    mode,
+    initialEvent,
+    provisionedEventId,
+    location,
+    eventCategories,
+    hideAttendees,
+    responseRequested,
+    allowForwarding,
+    eventShowAs,
+    eventIsPrivate,
+    reminderEnabled,
+    reminderMinutesBefore,
+    eventTimeZone,
+    teamsMeetingTemplateId,
+    loadTeamsMeetingDetailsAfterWrite,
+    enrichTeamsMeetingInBackground,
+    webinarMode,
+    chronellWebinarInvitation
+  ])
+
+  const handleTeamsMeetingChange = useCallback(
+    (checked: boolean): void => {
+      if (!checked) {
+        setTeamsMeeting(false)
+        if (location.trim().toLowerCase() === 'online') {
+          setLocation('')
+        }
+        return
+      }
+      setTeamsMeeting(true)
+      // Bestehenden Link nicht neu erzwingen — nur anlegen wenn noch keiner da ist.
+      void provisionTeamsMeetingNow({ force: false })
+    },
+    [location, provisionTeamsMeetingNow]
+  )
+
+  const handleTeamsTemplateChange = useCallback(
+    (nextTemplateId: string): void => {
+      setTeamsMeetingTemplateId(nextTemplateId)
+      if (isAllDay || !accountId.startsWith('ms:')) return
+      if (nextTemplateId.trim()) {
+        setTeamsMeeting(true)
+        window.setTimeout((): void => {
+          void provisionTeamsMeetingNow({ force: true, templateId: nextTemplateId })
+        }, 0)
+        return
+      }
+      if (teamsMeeting) {
+        window.setTimeout((): void => {
+          void provisionTeamsMeetingNow({ force: true, templateId: '' })
+        }, 0)
+      }
+    },
+    [isAllDay, accountId, teamsMeeting, provisionTeamsMeetingNow]
+  )
+
+  // Vorlage / Prefill: Teams sofort anlegen, sobald Konto und Zeit stehen.
+  useEffect(() => {
+    if (!open || !autoProvisionTeamsRef.current) return
+    if (isAllDay || !accountId.startsWith('ms:') || calendarsLoading) return
+    if (teamsProvisioning || getDialogJoinUrl()?.trim()) {
+      autoProvisionTeamsRef.current = false
+      return
+    }
+    autoProvisionTeamsRef.current = false
+    void provisionTeamsMeetingNow()
+  }, [
+    open,
+    isAllDay,
+    accountId,
+    calendarsLoading,
+    teamsProvisioning,
+    getDialogJoinUrl,
+    provisionTeamsMeetingNow
+  ])
 
   useEffect(() => {
-    if (!templateDropdownOpen) return
-    function close(): void { setTemplateDropdownOpen(false) }
-    document.addEventListener('mousedown', close)
-    return (): void => document.removeEventListener('mousedown', close)
-  }, [templateDropdownOpen])
+    if (!open) return
+    const refresh = (): void => setTeamsMeetingTemplates(readTeamsMeetingTemplates())
+    refresh()
+    window.addEventListener('mailclient:teams-meeting-templates-changed', refresh)
+    return (): void =>
+      window.removeEventListener('mailclient:teams-meeting-templates-changed', refresh)
+  }, [open])
 
   const applyTemplate = useCallback((tpl: CalendarEventTemplate): void => {
     if (tpl.defaultSubject.trim()) setSubject(tpl.defaultSubject.trim())
     if (tpl.defaultLocation.trim()) setLocation(tpl.defaultLocation.trim())
     if (tpl.descriptionHtml.trim()) setDescriptionHtml(tpl.descriptionHtml)
-    if (tpl.teamsMeeting && !isAllDay) setTeamsMeeting(true)
+    const premiumId = tpl.teamsMeetingTemplateId?.trim() || ''
+    if (premiumId) setTeamsMeetingTemplateId(premiumId)
+    if ((tpl.teamsMeeting || premiumId) && !isAllDay) {
+      setTeamsMeeting(true)
+      window.setTimeout((): void => {
+        void provisionTeamsMeetingNow({ force: true, templateId: premiumId })
+      }, 0)
+    }
     if (tpl.reminderMinutes >= 0) {
       setReminderEnabled(true)
       setReminderMinutesBefore(tpl.reminderMinutes)
@@ -1265,14 +2407,93 @@ export function CalendarEventDialog({
     if (tpl.durationMinutes > 0 && dtStart.trim()) {
       setDtEnd(addMinutesInEventZone(dtStart, tpl.durationMinutes, eventTimeZone))
     }
-    setTemplateDropdownOpen(false)
-  }, [dtStart, eventTimeZone, isAllDay])
+    if (tpl.hideAttendees === true || tpl.hideAttendees === false) {
+      setHideAttendees(tpl.hideAttendees)
+    }
+    if (tpl.responseRequested === true || tpl.responseRequested === false) {
+      setResponseRequested(tpl.responseRequested)
+    }
+    if (tpl.allowForwarding === true || tpl.allowForwarding === false) {
+      setAllowForwarding(tpl.allowForwarding)
+    }
+  }, [dtStart, eventTimeZone, isAllDay, provisionTeamsMeetingNow])
+
+  const applyTemplateById = useCallback(
+    (id: string): void => {
+      const fresh = readCalendarEventTemplates()
+      setTemplates(fresh)
+      const tpl = fresh.find((x) => x.id === id)
+      if (tpl) applyTemplate(tpl)
+    },
+    [applyTemplate]
+  )
+
+  useEffect(() => {
+    if (!open) return
+    const refresh = (): void => setTemplates(readCalendarEventTemplates())
+    refresh()
+    window.addEventListener('mailclient:calendar-templates-changed', refresh)
+    return (): void => window.removeEventListener('mailclient:calendar-templates-changed', refresh)
+  }, [open])
+
+  const saveCurrentAsTemplate = useCallback(async (): Promise<void> => {
+    const name = await showAppPrompt(t('calendar.eventDialog.saveAsTemplatePrompt'), {
+      title: t('calendar.eventDialog.saveAsTemplateTitle'),
+      defaultValue: subject.trim() || t('calendar.eventDialog.untitled'),
+      confirmLabel: t('common.save')
+    })
+    if (name == null || !name.trim()) return
+    const tpl = createEmptyTemplate()
+    tpl.name = name.trim().slice(0, 60)
+    tpl.emoji = teamsMeeting ? '🎥' : '📅'
+    tpl.defaultSubject = subject.trim()
+    tpl.defaultLocation = location.trim()
+    tpl.descriptionHtml = descriptionHtml
+    tpl.teamsMeeting = teamsMeeting
+    tpl.teamsMeetingTemplateId = teamsMeetingTemplateId.trim()
+    tpl.durationMinutes = 0
+    tpl.reminderMinutes = reminderEnabled ? reminderMinutesBefore : -1
+    tpl.hideAttendees = hideAttendees
+    tpl.responseRequested = responseRequested
+    tpl.allowForwarding = allowForwarding
+    saveCalendarEventTemplate(tpl)
+    setTemplates(readCalendarEventTemplates())
+  }, [
+    t,
+    subject,
+    location,
+    descriptionHtml,
+    teamsMeeting,
+    teamsMeetingTemplateId,
+    reminderEnabled,
+    reminderMinutesBefore,
+    hideAttendees,
+    responseRequested,
+    allowForwarding
+  ])
+
+  const toggleModalMaximize = useCallback((): void => {
+    if (modalMaximized) {
+      const prev = modalSizeBeforeMaximizeRef.current
+      if (prev) setModalSize(prev)
+      setModalMaximized(false)
+      return
+    }
+    modalSizeBeforeMaximizeRef.current = { ...modalSizeRef.current }
+    const margin = 16
+    setModalSize({
+      w: Math.max(640, window.innerWidth - margin * 2),
+      h: Math.max(480, window.innerHeight - margin * 2)
+    })
+    setModalMaximized(true)
+  }, [modalMaximized])
 
   const msTeamsUiLocked = useMemo(
     () =>
       eventFieldsLocked ||
+      teamsProvisioning ||
       (mode === 'edit' && initialEvent?.source === 'microsoft' && msEventDetailsLoading),
-    [eventFieldsLocked, mode, initialEvent?.source, msEventDetailsLoading]
+    [eventFieldsLocked, teamsProvisioning, mode, initialEvent?.source, msEventDetailsLoading]
   )
 
   const onModalResizeMove = useCallback((e: PointerEvent): void => {
@@ -1281,10 +2502,11 @@ export function CalendarEventDialog({
     const vw = window.innerWidth
     const vh = window.innerHeight
     const margin = 24
-    const maxW = Math.min(1200, vw - margin)
+    const maxW = Math.min(vw - margin, vw - margin)
     const maxH = Math.min(vh - margin, vh - margin)
     const w = Math.min(maxW, Math.max(640, d.startW + (e.clientX - d.startX)))
     const h = Math.min(maxH, Math.max(480, d.startH + (e.clientY - d.startY)))
+    setModalMaximized(false)
     setModalSize({ w, h })
   }, [])
 
@@ -1327,7 +2549,412 @@ export function CalendarEventDialog({
     return { x: Math.max(12, window.innerWidth - w - 16), y: 48 }
   }, [modalSize.w])
 
-  if (!open) return null
+  const { settings: aiSettings } = useAiConnectionsSettings()
+  const workIqAvailable = useWorkIqAvailable(
+    accountId.startsWith('ms:') ? accountId : null
+  )
+  const copilotAvailable =
+    !isTaskCreate &&
+    listCopilotEngineOptions({
+      microsoftAccount: accountId.startsWith('ms:'),
+      aiSettings,
+      workIqAvailable
+    }).length > 0
+
+  const fieldsSnapshot = useMemo(
+    () =>
+      JSON.stringify({
+        subject: subject.trim(),
+        location: location.trim(),
+        isAllDay,
+        dayStart,
+        dayEnd,
+        dtStart,
+        dtEnd,
+        eventTimeZone,
+        teamsMeeting,
+        attendeeInput: attendeeInput.trim(),
+        optionalAttendeeInput: optionalAttendeeInput.trim(),
+        reminderEnabled,
+        reminderMinutesBefore,
+        eventShowAs,
+        eventIsPrivate,
+        eventCategories: [...eventCategories].sort((a, b) => a.localeCompare(b)).join('\u0001'),
+        hideAttendees,
+        responseRequested,
+        allowForwarding,
+        recurFreq,
+        recurEnd,
+        recurUntilDate,
+        recurCount,
+        recurWeekdays: [...recurWeekdays].sort().join(','),
+        eventIconId: eventIconId ?? '',
+        destinationSelectValue,
+        createKind,
+        taskAccountId,
+        taskListId,
+        taskDue,
+        taskPlannedStart,
+        taskPlannedEnd,
+        taskNotes: taskNotes.trim()
+      }),
+    [
+      subject,
+      location,
+      isAllDay,
+      dayStart,
+      dayEnd,
+      dtStart,
+      dtEnd,
+      eventTimeZone,
+      teamsMeeting,
+      attendeeInput,
+      optionalAttendeeInput,
+      reminderEnabled,
+      reminderMinutesBefore,
+      eventShowAs,
+      eventIsPrivate,
+      eventCategories,
+      hideAttendees,
+      responseRequested,
+      allowForwarding,
+      recurFreq,
+      recurEnd,
+      recurUntilDate,
+      recurCount,
+      recurWeekdays,
+      eventIconId,
+      destinationSelectValue,
+      createKind,
+      taskAccountId,
+      taskListId,
+      taskDue,
+      taskPlannedStart,
+      taskPlannedEnd,
+      taskNotes
+    ]
+  )
+
+  /** Description erst nach kurzer Pause in den Dirty-Check — Tippen bleibt leicht. */
+  const [debouncedDescriptionKey, setDebouncedDescriptionKey] = useState('')
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedDescriptionKey(descriptionSnapshotKey(descriptionHtml))
+    }, 280)
+    return (): void => {
+      window.clearTimeout(timer)
+    }
+  }, [descriptionHtml])
+
+  useEffect(() => {
+    if (!open) {
+      baselineFieldsRef.current = null
+      baselineDescriptionRef.current = null
+      armBaselineRef.current = false
+      calendarsWereLoadingRef.current = false
+      loadedDescriptionBaselineRef.current = null
+      setDebouncedDescriptionKey('')
+    }
+  }, [open])
+
+  useEffect(() => {
+    if (!open || !armBaselineRef.current) return
+    armBaselineRef.current = false
+    baselineFieldsRef.current = fieldsSnapshot
+    baselineDescriptionRef.current = descriptionSnapshotKey(descriptionHtml)
+    setDebouncedDescriptionKey(baselineDescriptionRef.current)
+  }, [fieldsSnapshot, descriptionHtml, open])
+
+  useEffect(() => {
+    if (!open) return
+    if (calendarsLoading) {
+      calendarsWereLoadingRef.current = true
+      return
+    }
+    if (calendarsWereLoadingRef.current && mode === 'create') {
+      calendarsWereLoadingRef.current = false
+      armBaselineRef.current = true
+    }
+  }, [open, calendarsLoading, mode])
+
+  const requestClose = useCallback((): void => {
+    if (busy) return
+    const fieldsDirty =
+      baselineFieldsRef.current != null && fieldsSnapshot !== baselineFieldsRef.current
+    const descriptionDirty =
+      baselineDescriptionRef.current != null &&
+      debouncedDescriptionKey !== baselineDescriptionRef.current
+    const dirty = fieldsDirty || descriptionDirty
+    if (!dirty) {
+      onClose()
+      return
+    }
+    void (async (): Promise<void> => {
+      const hasInvite =
+        !isTaskCreate &&
+        (attendeeEmailsFromField(attendeeInput).length > 0 ||
+          attendeeEmailsFromField(optionalAttendeeInput).length > 0)
+      const choice = await showAppChoice(t('calendar.eventDialog.unsavedBody'), {
+        title: t('calendar.eventDialog.unsavedTitle'),
+        cancelLabel: t('calendar.eventDialog.unsavedKeepEditing'),
+        actions: [
+          {
+            id: 'save',
+            label: hasInvite
+              ? t('calendar.eventDialog.send')
+              : t('calendar.eventDialog.save'),
+            variant: 'primary'
+          },
+          {
+            id: 'discard',
+            label: t('calendar.eventDialog.unsavedDiscard'),
+            variant: 'secondary'
+          }
+        ]
+      })
+      if (choice === 'discard') {
+        onClose()
+        return
+      }
+      if (choice === 'save') {
+        const form = panelRef.current?.querySelector('form')
+        if (form instanceof HTMLFormElement) {
+          form.requestSubmit()
+        }
+      }
+    })()
+  }, [
+    attendeeInput,
+    busy,
+    debouncedDescriptionKey,
+    fieldsSnapshot,
+    isTaskCreate,
+    onClose,
+    optionalAttendeeInput,
+    t
+  ])
+
+  const formatWebinarScheduleLabel = useCallback((): string | null => {
+    if (isAllDay) {
+      if (!dayStart) return null
+      try {
+        return new Intl.DateTimeFormat(i18n.language, {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric'
+        }).format(parseISO(dayStart))
+      } catch {
+        return dayStart
+      }
+    }
+    if (!dtStart.trim() || !dtEnd.trim()) return null
+    try {
+      const invalid = t('calendar.eventDialog.invalidDate')
+      const startIso = eventDatetimeLocalToUtcIso(dtStart, eventTimeZone, invalid)
+      const endIso = eventDatetimeLocalToUtcIso(dtEnd, eventTimeZone, invalid)
+      const dayFmt = new Intl.DateTimeFormat(i18n.language, {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        timeZone: eventTimeZone
+      })
+      const timeFmt = new Intl.DateTimeFormat(i18n.language, {
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: eventTimeZone
+      })
+      return `${dayFmt.format(new Date(startIso))} | ${timeFmt.format(new Date(startIso))} – ${timeFmt.format(new Date(endIso))}`
+    } catch {
+      return null
+    }
+  }, [dayStart, dtEnd, dtStart, eventTimeZone, i18n.language, isAllDay, t])
+
+  const buildCurrentWebinarInvitationHtml = useCallback(
+    (theme: WebinarLayoutThemeId = webinarLayoutTheme): string => {
+      const defaults = readWebinarInvitationDefaults()
+      const title = webinarContent.title.trim() || subject.trim()
+      const layoutTpl = getWebinarInvitationLayoutTemplateById(webinarLayoutTemplateId)
+      return buildWebinarInvitationHtml({
+        title,
+        heroImageSrc: webinarContent.heroImageSrc ?? defaults.defaultHeroImageSrc,
+        surveyUrl: webinarContent.surveyUrl.trim() || defaults.defaultSurveyUrl,
+        surveyLabel:
+          webinarContent.surveyLabel.trim() ||
+          defaults.surveyLabel ||
+          t('calendar.eventDialog.webinarFieldSurveyLabelPlaceholder'),
+        websiteUrl: webinarContent.websiteUrl.trim() || defaults.defaultWebsiteUrl,
+        websiteLabel:
+          webinarContent.websiteLabel.trim() ||
+          defaults.websiteLabel ||
+          t('calendar.eventDialog.webinarFieldWebsiteLabelPlaceholder'),
+        scheduleLabel: formatWebinarScheduleLabel(),
+        teamsJoinUrl: getDialogJoinUrl(),
+        greetingHtml: defaults.greetingHtml,
+        tipsHtml: defaults.tipsHtml,
+        signOffHtml: defaults.signOffHtml,
+        supplementHtml: webinarSupplementHtml,
+        layoutHtmlTemplate: resolveWebinarLayoutTemplateHtml(layoutTpl),
+        layoutTheme: theme,
+        signatureHtml: defaults.signatureHtml
+      })
+    },
+    [
+      formatWebinarScheduleLabel,
+      getDialogJoinUrl,
+      subject,
+      t,
+      webinarContent,
+      webinarLayoutTemplateId,
+      webinarLayoutTheme,
+      webinarSupplementHtml
+    ]
+  )
+
+  const applyWebinarInvitationHtml = useCallback((): void => {
+    const title = webinarContent.title.trim() || subject.trim()
+    if (title && title !== subject.trim()) {
+      setSubject(title)
+    }
+    const nextHtml = buildCurrentWebinarInvitationHtml()
+    setDescriptionHtml(nextHtml)
+    setAttendeeDisplayHtml('')
+    useUndoStore.getState().pushToast({
+      label: t('calendar.eventDialog.webinarLayoutRestoredToast'),
+      variant: 'info',
+      durationMs: 6000
+    })
+  }, [buildCurrentWebinarInvitationHtml, subject, t, webinarContent.title])
+
+  const openWebinarTemplateDialog = useCallback((): void => {
+    setWebinarContent((prev) => ({
+      ...prev,
+      title: subject.trim() || prev.title.trim()
+    }))
+    const defaults = readWebinarInvitationDefaults()
+    setWebinarLayoutTheme(resolveDefaultWebinarLayoutTheme(defaults))
+    setWebinarLayoutTemplateId(
+      defaults.defaultLayoutTemplateId ?? WEBINAR_BUILTIN_LAYOUT_TEMPLATE_ID
+    )
+    setWebinarTemplateDialogOpen(true)
+  }, [subject])
+
+  useEffect(() => {
+    if (!webinarMode || !subject.trim()) return
+    setWebinarContent((prev) => {
+      if (prev.title.trim()) return prev
+      return { ...prev, title: subject.trim() }
+    })
+  }, [subject, webinarMode])
+
+  useEffect(() => {
+    if (!open || !pendingWebinarAutoRestoreRef.current) return
+    if (msEventDetailsLoading || webinarImagesLoading) return
+    pendingWebinarAutoRestoreRef.current = false
+    applyWebinarInvitationHtml()
+  }, [
+    applyWebinarInvitationHtml,
+    msEventDetailsLoading,
+    open,
+    webinarImagesLoading
+  ])
+
+  useEffect(() => {
+    if (!open || !pendingWebinarPrefillApplyRef.current) return
+    if (!webinarMode) return
+    // Warte auf State nach createPrefill (sonst leere Einladung).
+    if (
+      !webinarContent.title.trim() &&
+      !webinarContent.heroImageSrc &&
+      !webinarContent.websiteUrl.trim() &&
+      !webinarSupplementHtml?.trim()
+    ) {
+      return
+    }
+    pendingWebinarPrefillApplyRef.current = false
+    setChronellWebinarInvitation(true)
+    applyWebinarInvitationHtml()
+  }, [
+    applyWebinarInvitationHtml,
+    open,
+    webinarContent.heroImageSrc,
+    webinarContent.title,
+    webinarContent.websiteUrl,
+    webinarMode,
+    webinarSupplementHtml
+  ])
+
+  const webinarScheduleLabel = useMemo(
+    () => formatWebinarScheduleLabel(),
+    [formatWebinarScheduleLabel]
+  )
+
+  useEffect(() => {
+    if (!open) return
+    if (!webinarScheduleLabel) return
+    if (!webinarMode && !chronellWebinarInvitation) return
+    setDescriptionHtml((prev) => {
+      if (!isWebinarInvitationHtml(prev)) return prev
+      const next = patchWebinarInvitationScheduleLabel(prev, webinarScheduleLabel)
+      return next === prev ? prev : next
+    })
+  }, [chronellWebinarInvitation, open, webinarMode, webinarScheduleLabel])
+
+  const webinarTitleLabel = useMemo(
+    () => webinarContent.title.trim() || subject.trim(),
+    [subject, webinarContent.title]
+  )
+
+  useEffect(() => {
+    if (!open) return
+    if (!webinarTitleLabel) return
+    if (!webinarMode && !chronellWebinarInvitation) return
+    setDescriptionHtml((prev) => {
+      if (!isWebinarInvitationHtml(prev)) return prev
+      const next = patchWebinarInvitationTitle(prev, webinarTitleLabel)
+      return next === prev ? prev : next
+    })
+  }, [chronellWebinarInvitation, open, webinarMode, webinarTitleLabel])
+
+  const handleRibbonReminderChange = useCallback((enabled: boolean, minutes: number): void => {
+    setReminderEnabled(enabled)
+    setReminderMinutesBefore(minutes)
+  }, [])
+
+  const handleOpenRecurrenceDetails = useCallback((): void => {
+    setEventScheduleTab('more')
+  }, [])
+
+  const handleTemplatesMenuOpen = useCallback((): void => {
+    setTemplates(readCalendarEventTemplates())
+  }, [])
+
+  const handleSaveAsTemplateClick = useCallback((): void => {
+    void saveCurrentAsTemplate()
+  }, [saveCurrentAsTemplate])
+
+  const handleRibbonCopilot = useCallback((): void => {
+    setDescriptionCopilotOpen(true)
+  }, [])
+
+  const pickEventCategory = useCallback(
+    (name: string, multi: boolean): void => {
+      const trimmed = name.trim()
+      if (!trimmed) return
+      setEventCategories((prev) => {
+        if (multi) {
+          const next = new Set(prev)
+          if (next.has(trimmed)) next.delete(trimmed)
+          else next.add(trimmed)
+          return Array.from(next).sort((a, b) => a.localeCompare(b, collatorLocale))
+        }
+        if (prev.length === 1 && prev[0] === trimmed) return []
+        return [trimmed]
+      })
+    },
+    [collatorLocale]
+  )
 
   function toggleEventCategory(name: string): void {
     const trimmed = name.trim()
@@ -1361,7 +2988,36 @@ export function CalendarEventDialog({
     setCreateKind(next)
   }
 
-  async function handleSubmit(e: React.FormEvent): Promise<void> {
+  const handleDeleteEvent = useCallback(async (): Promise<void> => {
+    if (mode !== 'edit' || !initialEvent?.graphEventId?.trim()) return
+    if (initialEvent.calendarCanEdit === false) return
+    const ok = await showAppConfirm(t('calendar.confirm.deleteEventBody'), {
+      title: t('calendar.confirm.deleteEventTitle'),
+      variant: 'danger',
+      confirmLabel: t('calendar.confirm.deleteEventConfirm')
+    })
+    if (!ok) return
+    setBusy(true)
+    setLocalError(null)
+    try {
+      await window.mailClient.calendar.deleteEvent({
+        accountId: initialEvent.accountId,
+        graphEventId: initialEvent.graphEventId.trim(),
+        graphCalendarId: initialEvent.graphCalendarId ?? null
+      })
+      onSaved()
+      onClose()
+    } catch (err) {
+      setLocalError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setBusy(false)
+    }
+  }, [initialEvent, mode, onClose, onSaved, t])
+
+  async function handleSubmit(
+    e: React.FormEvent,
+    opts?: { notifyAttendees?: boolean }
+  ): Promise<void> {
     e.preventDefault()
     setLocalError(null)
 
@@ -1470,6 +3126,115 @@ export function CalendarEventDialog({
       setLocalError(t('calendar.eventDialog.enterTitle'))
       return
     }
+    if (webinarMode && !teamsMeeting) {
+      setLocalError(t('calendar.eventDialog.webinarNeedTeams'))
+      return
+    }
+    const preflightRequired = attendeeEmailsFromField(attendeeInput)
+    const preflightOptional = attendeeEmailsFromField(optionalAttendeeInput)
+    const preflightTotal = preflightRequired.length + preflightOptional.length
+    if (preflightTotal > MAX_EVENT_DIALOG_ATTENDEES) {
+      setLocalError(
+        t('calendar.eventDialog.tooManyAttendees', {
+          count: preflightTotal,
+          max: MAX_EVENT_DIALOG_ATTENDEES,
+          defaultValue:
+            'Zu viele Teilnehmer ({{count}}, max. {{max}}). Bitte kürzen oder eine Verteilerliste nutzen.'
+        })
+      )
+      return
+    }
+    if (webinarMode || chronellWebinarInvitation) {
+      const defaults = readWebinarInvitationDefaults()
+      const survey = (webinarContent.surveyUrl.trim() || defaults.defaultSurveyUrl).trim()
+      const website = (webinarContent.websiteUrl.trim() || defaults.defaultWebsiteUrl).trim()
+      const badUrl = (u: string): boolean =>
+        !!u && !/^https?:\/\//i.test(u) && !/^www\./i.test(u) && !/^mailto:/i.test(u)
+      if (badUrl(survey) || badUrl(website)) {
+        setLocalError(
+          t('calendar.eventDialog.webinarUrlNeedsHttps', {
+            defaultValue:
+              'Umfrage- und Veranstaltungs-Links müssen mit https:// beginnen (z. B. https://forms.office.com/…).'
+          })
+        )
+        return
+      }
+    }
+    if (
+      !isAllDay &&
+      teamsMeeting &&
+      accountId.startsWith('ms:') &&
+      !getDialogJoinUrl()?.trim()
+    ) {
+      const fromBody = preferTeamsJoinUrl({
+        joinUrl: null,
+        bodyHtml: webinarHtmlEditorFlushRef.current?.() ?? descriptionHtml
+      })
+      if (fromBody) setDialogJoinUrl(fromBody)
+
+      // Laufende Provision mitnehmen (nicht parallel abbrechen).
+      const inflight = teamsProvisionInflightRef.current
+      if (inflight && !getDialogJoinUrl()?.trim()) {
+        await inflight.catch(() => false)
+      }
+
+      const sendingInvites = opts?.notifyAttendees === true
+
+      if (sendingInvites && !getDialogJoinUrl()?.trim()) {
+        const graphEventId =
+          (mode === 'edit' ? initialEvent?.graphEventId?.trim() : null) ||
+          provisionedEventId?.trim() ||
+          null
+        if (graphEventId) {
+          try {
+            const fresh = await window.mailClient.calendar.getEvent({
+              accountId: mode === 'edit' ? (initialEvent?.accountId ?? accountId) : accountId,
+              graphEventId,
+              graphCalendarId:
+                mode === 'edit'
+                  ? (initialEvent?.graphCalendarId ?? (graphCalendarId.trim() || null))
+                  : graphCalendarId.trim() || null,
+              forceRefresh: true
+            })
+            const fromGraph = preferTeamsJoinUrl({
+              joinUrl: fresh.joinUrl,
+              bodyHtml: fresh.bodyHtml
+            })
+            if (fromGraph) setDialogJoinUrl(fromGraph)
+          } catch {
+            /* weiter: ggf. neu provisionieren */
+          }
+        }
+
+        if (!getDialogJoinUrl()?.trim()) {
+          await provisionTeamsMeetingNow({ force: false })
+          for (let i = 0; i < 10 && !getDialogJoinUrl()?.trim(); i++) {
+            await new Promise<void>((resolve) => setTimeout(resolve, 400))
+          }
+        }
+
+        if (!getDialogJoinUrl()?.trim()) {
+          await provisionTeamsMeetingNow({ force: true })
+          for (let i = 0; i < 8 && !getDialogJoinUrl()?.trim(); i++) {
+            await new Promise<void>((resolve) => setTimeout(resolve, 400))
+          }
+        }
+
+        if (!getDialogJoinUrl()?.trim()) {
+          setLocalError(t('calendar.eventDialog.teamsNeedJoinUrlBeforeSend'))
+          return
+        }
+      }
+
+      if (getDialogJoinUrl()?.trim()) setLocalError(null)
+    }
+    if (usesWebinarDescriptionUi && webinarMode) {
+      const flushed = webinarHtmlEditorFlushRef.current?.()
+      if (flushed != null && !flushed.trim() && !descriptionHtml.trim()) {
+        setLocalError(t('calendar.eventDialog.webinarPreviewEmpty'))
+        return
+      }
+    }
 
     if (mode === 'edit' && initialEvent?.calendarCanEdit === false) {
       setLocalError(t('calendar.eventDialog.calendarReadOnly'))
@@ -1504,14 +3269,43 @@ export function CalendarEventDialog({
       return
     }
 
-    const bodyHtml = isEffectivelyEmptyEditorHtml(descriptionHtml)
+    const isWebinarSave =
+      webinarMode ||
+      chronellWebinarInvitation ||
+      isWebinarInvitationHtml(descriptionHtml)
+    const descriptionForSave = (() => {
+      if (!isWebinarSave) return descriptionHtml
+      // Kanonische Quelle: Formularfelder + Standardlayout.
+      // Editor-Flush kann Sektionen verlieren; Outlook bricht an Teams-Blob leicht ab —
+      // deshalb beim Speichern immer frisch aus dem Formular bauen.
+      return buildCurrentWebinarInvitationHtml()
+    })()
+
+    const bodyPrepared = isEffectivelyEmptyEditorHtml(descriptionForSave)
       ? null
       : prepareCalendarEventDescriptionFromEditorHtml(
-          descriptionHtml,
+          descriptionForSave,
           sanitizeComposeHtmlFragment
         )
+    const webinarSaveBundle =
+      isWebinarSave && !isEffectivelyEmptyEditorHtml(descriptionForSave)
+        ? prepareWebinarInvitationSaveBundle(descriptionForSave)
+        : null
+    const bodyHtml = webinarSaveBundle?.bodyHtml ?? bodyPrepared
+    const attachmentPayload = eventAttachmentsApi.buildSavePayload()
+    const mergedAttachments = [
+      ...(attachmentPayload.attachments ?? []),
+      ...(webinarSaveBundle?.inlineAttachments ?? [])
+    ]
+    const saveAttachments = {
+      ...attachmentPayload,
+      ...(mergedAttachments.length > 0 ? { attachments: mergedAttachments } : {})
+    }
 
     const parsedAttendees = attendeeEmailsFromField(attendeeInput)
+    const parsedOptionalAttendees = attendeeEmailsFromField(optionalAttendeeInput)
+    // Nur bei explizitem Senden Einladungen rausschicken — Speichern = Entwurf.
+    const notifyAttendees = opts?.notifyAttendees === true
 
     let didRescheduleMeeting = false
     if (mode === 'edit' && initialEvent) {
@@ -1529,7 +3323,7 @@ export function CalendarEventDialog({
         next,
         attendeeEmails: parsedAttendees,
         teamsMeeting: !isAllDay && teamsMeeting,
-        joinUrl: initialEvent.joinUrl
+        joinUrl: getDialogJoinUrl() ?? initialEvent.joinUrl
       })
       if (!proceed) return
     }
@@ -1583,8 +3377,55 @@ export function CalendarEventDialog({
 
     setBusy(true)
     try {
+      const webinarTracking = isWebinarSave
+        ? ({ hideAttendees: true, responseRequested: false, allowForwarding: false } as const)
+        : ({ hideAttendees, responseRequested, allowForwarding } as const)
+      const msWebinarMeta =
+        accountId.startsWith('ms:') && isWebinarSave
+          ? { chronellWebinarInvitation: true }
+          : {}
       let createdForSaved: CalendarEventView | undefined
-      if (mode === 'create') {
+      if (mode === 'create' && provisionedEventId) {
+        await window.mailClient.calendar.updateEvent({
+          accountId,
+          graphEventId: provisionedEventId,
+          graphCalendarId: graphCalendarId.trim() || null,
+          subject: subject.trim(),
+          startIso,
+          endIso,
+          isAllDay,
+          location: location.trim() || null,
+          bodyHtml,
+          categories: eventCategories,
+          attendeeEmails: parsedAttendees,
+          optionalAttendeeEmails: parsedOptionalAttendees,
+          teamsMeeting: !isAllDay && teamsMeeting,
+          ...webinarTracking,
+          notifyAttendees,
+          ...saveAttachments,
+          ...(recurrence ? { recurrence } : {}),
+          showAs: eventShowAs,
+          sensitivity: calendarEventSensitivityFromPrivate(eventIsPrivate),
+          ...graphReminderPayload(selectedAccount?.provider, reminderEnabled, reminderMinutesBefore),
+          ...(!isAllDay ? { timeZone: eventTimeZone } : {}),
+          ...msWebinarMeta
+        })
+        writeCalendarEventReminder(
+          calendarEventReminderKey(accountId, provisionedEventId),
+          reminderEnabled ? { enabled: true, minutesBefore: reminderMinutesBefore } : { enabled: false }
+        )
+        if (calendarEventIconIsExplicit(eventIconId)) {
+          await window.mailClient.calendar.patchEventIcon({
+            accountId,
+            graphEventId: provisionedEventId,
+            iconId: eventIconId
+          })
+        }
+        onEntityCreated?.({
+          ref: { kind: 'calendar_event', accountId, graphEventId: provisionedEventId },
+          title: subject.trim() || t('calendar.eventDialog.untitled')
+        })
+      } else if (mode === 'create') {
         const created = await window.mailClient.calendar.createEvent({
           accountId,
           graphCalendarId: graphCalendarId.trim() || null,
@@ -1595,20 +3436,29 @@ export function CalendarEventDialog({
           location: location.trim() || null,
           bodyHtml,
           categories: eventCategories,
-          ...(parsedAttendees.length > 0 || selectedAccount?.provider === 'microsoft'
+          ...(parsedAttendees.length > 0 ||
+          parsedOptionalAttendees.length > 0 ||
+          selectedAccount?.provider === 'microsoft' ||
+          selectedAccount?.provider === 'google'
             ? {
                 attendeeEmails: parsedAttendees,
+                optionalAttendeeEmails: parsedOptionalAttendees,
                 ...(selectedAccount?.provider === 'microsoft'
-                  ? { teamsMeeting: !isAllDay && teamsMeeting }
-                  : {})
+                  ? {
+                      teamsMeeting: !isAllDay && teamsMeeting,
+                      ...webinarTracking
+                    }
+                  : {}),
+                notifyAttendees
               }
-            : {}),
-          ...eventAttachmentsApi.buildSavePayload(),
+            : { notifyAttendees }),
+          ...saveAttachments,
           ...(recurrence ? { recurrence } : {}),
           showAs: eventShowAs,
           sensitivity: calendarEventSensitivityFromPrivate(eventIsPrivate),
           ...graphReminderPayload(selectedAccount?.provider, reminderEnabled, reminderMinutesBefore),
-          ...(!isAllDay ? { timeZone: eventTimeZone } : {})
+          ...(!isAllDay ? { timeZone: eventTimeZone } : {}),
+          ...msWebinarMeta
         })
         const createdId = created.id?.trim()
         if (createdId) {
@@ -1618,6 +3468,14 @@ export function CalendarEventDialog({
           )
         }
         createdForSaved = created.event
+        if (created.joinUrl?.trim()) {
+          setDialogJoinUrl(
+            preferTeamsJoinUrl({
+              joinUrl: created.joinUrl,
+              bodyHtml: descriptionHtml
+            })
+          )
+        }
         if (calendarEventIconIsExplicit(eventIconId) && created.id?.trim()) {
           await window.mailClient.calendar.patchEventIcon({
             accountId,
@@ -1660,21 +3518,27 @@ export function CalendarEventDialog({
           bodyHtml,
           categories: eventCategories,
           ...(parsedAttendees.length > 0 ||
+          parsedOptionalAttendees.length > 0 ||
           initialEvent.source === 'microsoft' ||
           initialEvent.source === 'google'
             ? {
                 attendeeEmails: parsedAttendees,
+                optionalAttendeeEmails: parsedOptionalAttendees,
                 ...(initialEvent.source === 'microsoft'
-                  ? { teamsMeeting: !isAllDay && teamsMeeting }
-                  : {})
+                  ? {
+                      teamsMeeting: !isAllDay && teamsMeeting,
+                      ...webinarTracking
+                    }
+                  : {}),
+                notifyAttendees
               }
-            : {})
-          ,
-          ...eventAttachmentsApi.buildSavePayload(),
+            : { notifyAttendees }),
+          ...saveAttachments,
           showAs: eventShowAs,
           sensitivity: calendarEventSensitivityFromPrivate(eventIsPrivate),
           ...graphReminderPayload(initialEvent.source, reminderEnabled, reminderMinutesBefore),
-          ...(!isAllDay ? { timeZone: eventTimeZone } : {})
+          ...(!isAllDay ? { timeZone: eventTimeZone } : {}),
+          ...(initialEvent.source === 'microsoft' ? msWebinarMeta : {})
         }
 
         if (destinationChanged && parsedDest) {
@@ -1735,9 +3599,9 @@ export function CalendarEventDialog({
           })
         }
       }
-      const invitedCount = parsedAttendees.length
-      if (invitedCount > 0) {
-        const names = attendeeEmailsFromField(attendeeInput)
+      const invitedCount = parsedAttendees.length + parsedOptionalAttendees.length
+      if (notifyAttendees !== false && invitedCount > 0) {
+        const names = [...parsedAttendees, ...parsedOptionalAttendees]
           .slice(0, 3)
           .join(', ')
         const moreCount = invitedCount > 3 ? invitedCount - 3 : 0
@@ -1750,7 +3614,64 @@ export function CalendarEventDialog({
               ? t('calendar.eventDialog.invitationSentWithMore', { names, count: moreCount })
               : t('calendar.eventDialog.invitationSent', { names })
         useUndoStore.getState().pushToast({ label, variant: 'success', durationMs: 6000 })
+      } else if (
+        notifyAttendees === false &&
+        (parsedAttendees.length > 0 || parsedOptionalAttendees.length > 0)
+      ) {
+        useUndoStore.getState().pushToast({
+          label: t('calendar.eventDialog.draftSaved'),
+          variant: 'success',
+          durationMs: 6000
+        })
       }
+
+      // Notion-Writeback: Forms + Teams-Join in #kurtrocks Events (best effort)
+      const notionPageId = notionSourcePageId?.trim()
+      if (isWebinarSave && notionPageId) {
+        const surveyForNotion = (
+          webinarContent.surveyUrl.trim() ||
+          readWebinarInvitationDefaults().defaultSurveyUrl
+        ).trim()
+        const meetingForNotion = (
+          getDialogJoinUrl()?.trim() ||
+          createdForSaved?.joinUrl?.trim() ||
+          ''
+        ).trim()
+        if (surveyForNotion || meetingForNotion) {
+          void window.mailClient.notion
+            .updateKurtrocksEventLinks({
+              pageId: notionPageId,
+              surveyUrl: surveyForNotion || null,
+              meetingUrl: meetingForNotion || null
+            })
+            .then((res) => {
+              if (res.updatedSurvey || res.updatedMeeting) {
+                useUndoStore.getState().pushToast({
+                  label: t('calendar.eventDialog.notionLinksWrittenToast'),
+                  variant: 'success',
+                  durationMs: 5000
+                })
+              } else if (res.missingSurveyProperty || res.missingMeetingProperty) {
+                useUndoStore.getState().pushToast({
+                  label: t('calendar.eventDialog.notionLinksMissingPropsToast'),
+                  variant: 'info',
+                  durationMs: 7000
+                })
+              }
+            })
+            .catch((e) => {
+              useUndoStore.getState().pushToast({
+                label:
+                  e instanceof Error
+                    ? e.message
+                    : t('calendar.eventDialog.notionLinksWriteFailedToast'),
+                variant: 'error',
+                durationMs: 7000
+              })
+            })
+        }
+      }
+
       onSaved(createdForSaved)
       onClose()
     } catch (err) {
@@ -1762,6 +3683,7 @@ export function CalendarEventDialog({
 
   const submitDisabled =
     busy ||
+    teamsProvisioning ||
     (isTaskCreate
       ? taskAccounts.length === 0 ||
         !taskAccountId ||
@@ -1774,12 +3696,32 @@ export function CalendarEventDialog({
         (mode === 'edit' && Boolean(initialEvent?.graphEventId) && msEventDetailsLoading))
 
   const hasInviteAttendees =
-    !isTaskCreate && attendeeEmailsFromField(attendeeInput).length > 0
+    !isTaskCreate &&
+    (attendeeEmailsFromField(attendeeInput).length > 0 ||
+      attendeeEmailsFromField(optionalAttendeeInput).length > 0)
+  const requiredAttendeeCount = attendeeEmailsFromField(attendeeInput).length
+  const optionalAttendeeCount = attendeeEmailsFromField(optionalAttendeeInput).length
+  const trackingActiveCount =
+    (responseRequested ? 0 : 1) + (allowForwarding ? 0 : 1) + (hideAttendees ? 1 : 0)
   const submitLabel = isTaskCreate
     ? t('tasks.create.submit')
     : hasInviteAttendees
       ? t('calendar.eventDialog.send')
       : t('calendar.eventDialog.save')
+
+  /** Webinar-HTML im HtmlDocumentWysiwygEditor — TipTap wuerde Tabellen/Styles zerstoeren. */
+  const usesWebinarDescriptionUi =
+    webinarMode ||
+    chronellWebinarInvitation ||
+    isWebinarInvitationHtml(descriptionHtml) ||
+    isWebinarInvitationHtml(graphBodyForPreview ?? '')
+  /** Webinar mit Teilnehmern: Speichern (Entwurf) + Senden getrennt. */
+  const showWebinarSaveAndSend =
+    !isTaskCreate && usesWebinarDescriptionUi && hasInviteAttendees
+  const webinarAttendeePreviewHtml = useMemo(() => {
+    const graphForPreview = attendeeDisplayHtml.trim() || graphBodyForPreview?.trim() || ''
+    return buildWebinarAttendeePreviewHtml(descriptionHtml, graphForPreview || null)
+  }, [attendeeDisplayHtml, descriptionHtml, graphBodyForPreview])
 
   const isMicrosoftEventAccount =
     selectedAccount?.provider === 'microsoft' ||
@@ -1833,10 +3775,10 @@ export function CalendarEventDialog({
 
   const panelInner = (
     <div ref={panelRef as React.RefObject<HTMLDivElement>} className={panelShellClass}>
-        <header className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-4 py-3">
-          <div className="flex min-w-0 items-center gap-2">
+        <header className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-1.5">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
             {mode === 'create' && taskAccounts.length > 0 ? (
-              <div className="flex items-center gap-2">
+              <div className="flex shrink-0 items-center gap-2">
                 <span className="sr-only">{t('calendar.eventDialog.kindLabel')}</span>
                 <div className="flex items-center gap-0.5 rounded-md border border-border p-0.5">
                   <button
@@ -1868,10 +3810,63 @@ export function CalendarEventDialog({
                 </div>
               </div>
             ) : (
-              <span className="text-base font-medium text-muted-foreground">
+              <span className="shrink-0 text-sm font-medium text-muted-foreground">
                 {t('calendar.eventDialog.panelTitle')}
               </span>
             )}
+
+            {!isTaskCreate ? (
+              <CalendarEventDialogRibbon
+                embedded
+                disabled={busy}
+                eventFieldsLocked={eventFieldsLocked}
+                showRecurrence={showEventRecurrenceEditor || mode === 'create'}
+                recurFreq={recurFreq}
+                onRecurFreqChange={setRecurFreq}
+                onOpenRecurrenceDetails={handleOpenRecurrenceDetails}
+                eventShowAs={eventShowAs}
+                onShowAsChange={setEventShowAs}
+                reminderEnabled={reminderEnabled}
+                reminderMinutesBefore={reminderMinutesBefore}
+                onReminderChange={handleRibbonReminderChange}
+                eventIsPrivate={eventIsPrivate}
+                onPrivateChange={setEventIsPrivate}
+                categoryNames={useOutlookCategories ? categoryChoiceNames : undefined}
+                selectedCategories={useOutlookCategories ? eventCategories : undefined}
+                categoryColorByName={useOutlookCategories ? categoryColorByName : undefined}
+                categoriesLoading={useOutlookCategories ? mastersLoading : undefined}
+                onCategoryPick={useOutlookCategories ? pickEventCategory : undefined}
+                templates={templates}
+                onApplyTemplate={applyTemplateById}
+                onTemplatesMenuOpen={handleTemplatesMenuOpen}
+                onSaveAsTemplate={handleSaveAsTemplateClick}
+                onNotion={
+                  mode === 'edit' && initialEvent
+                    ? (): void => {
+                        void pickAndSendCalendarEventToNotion(
+                          {
+                            ...initialEvent,
+                            title: subject.trim() || initialEvent.title,
+                            location: location.trim() || initialEvent.location
+                          },
+                          i18n.language.startsWith('de') ? 'de' : 'en'
+                        )
+                      }
+                    : undefined
+                }
+                notionDisabled={busy || !(initialEvent?.graphEventId || provisionedEventId)}
+                onOpenInOutlook={
+                  mode === 'edit' && initialEvent?.webLink
+                    ? (): void => {
+                        voidOpenExternalUrl(initialEvent.webLink!)
+                      }
+                    : undefined
+                }
+                joinUrlStore={joinUrlStoreRef.current}
+                onCopilot={handleRibbonCopilot}
+                copilotAvailable={copilotAvailable}
+              />
+            ) : null}
 
             {mode === 'create' && createKind === 'task' && taskAccounts.length > 0 ? (
               <div className="flex min-w-0 items-center gap-2">
@@ -1882,7 +3877,7 @@ export function CalendarEventDialog({
                     disabled={busy || taskListsLoading}
                     onChange={(e): void => setTaskAccountId(e.target.value)}
                     aria-label={t('tasks.create.account')}
-                    className="h-9 max-w-[min(280px,32vw)] truncate rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="h-8 max-w-[min(280px,32vw)] truncate rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {taskAccounts.map((a) => (
                       <option key={a.id} value={a.id}>
@@ -1898,7 +3893,7 @@ export function CalendarEventDialog({
                     disabled={busy || taskListsLoading || taskLists.length === 0}
                     onChange={(e): void => setTaskListId(e.target.value)}
                     aria-label={t('tasks.create.list')}
-                    className="h-9 max-w-[min(220px,28vw)] truncate rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="h-8 max-w-[min(220px,28vw)] truncate rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {taskListsLoading ? (
                       <option value="">{t('calendar.eventDialog.loadingShort')}</option>
@@ -1913,7 +3908,7 @@ export function CalendarEventDialog({
                 </label>
               </div>
             ) : mode === 'create' && createKind === 'event' && calendarAccounts.length > 0 ? (
-              <label className="min-w-0">
+              <label className="min-w-0 shrink">
                 <span className="sr-only">{t('calendar.eventDialog.targetCalendarAria')}</span>
                 <select
                   value={destinationSelectValue}
@@ -1928,7 +3923,7 @@ export function CalendarEventDialog({
                     }
                   }}
                   aria-label={t('calendar.eventDialog.targetCalendarAria')}
-                  className="h-9 max-w-[min(420px,45vw)] truncate rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="h-8 max-w-[min(280px,28vw)] truncate rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {calendarsLoading ? (
                     <option value="">{t('calendar.eventDialog.submitLoadingCalendars')}</option>
@@ -1958,45 +3953,35 @@ export function CalendarEventDialog({
               </label>
             ) : null}
           </div>
-          <div className="flex items-center gap-0.5">
-            {/* Template-Auswahl – nur beim Erstellen von Events mit vorhandenen Templates */}
-            {mode === 'create' && !isTaskCreate && templates.length > 0 && (
-              <div className="relative">
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={(): void => setTemplateDropdownOpen((p) => !p)}
-                  className="inline-flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
-                  title={t('calendar.eventDialog.applyTemplateTitle')}
-                >
-                  <LayoutTemplate className="h-3.5 w-3.5" />
-                  {t('calendar.eventDialog.applyTemplateBtn')}
-                </button>
-                {templateDropdownOpen && (
-                  <div className="absolute right-0 top-9 z-30 min-w-[200px] rounded-md border border-border bg-popover shadow-lg">
-                    <p className="px-3 py-1.5 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      {t('calendar.eventDialog.applyTemplateTitle')}
-                    </p>
-                    {templates.map((tpl) => (
-                      <button
-                        key={tpl.id}
-                        type="button"
-                        onClick={(): void => applyTemplate(tpl)}
-                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-secondary"
-                      >
-                        <span className="shrink-0 text-base leading-none">{tpl.emoji || '📅'}</span>
-                        <span className="min-w-0 flex-1 truncate">{tpl.name}</span>
-                        {tpl.teamsMeeting && <Video className="h-3.5 w-3.5 shrink-0 text-blue-500" />}
-                      </button>
-                    ))}
-                  </div>
+          <div className="flex shrink-0 items-center gap-0.5">
+            {(placement === 'modal' || placement === 'float') && surface !== 'osWindow' ? (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={toggleModalMaximize}
+                className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                title={
+                  modalMaximized
+                    ? t('calendar.eventDialog.restoreSizeTitle')
+                    : t('calendar.eventDialog.maximizeTitle')
+                }
+                aria-label={
+                  modalMaximized
+                    ? t('calendar.eventDialog.restoreSizeTitle')
+                    : t('calendar.eventDialog.maximizeTitle')
+                }
+              >
+                {modalMaximized ? (
+                  <Minimize2 className="h-4 w-4" />
+                ) : (
+                  <Maximize2 className="h-4 w-4" />
                 )}
-              </div>
-            )}
+              </button>
+            ) : null}
             {headerDockButton}
             <button
               type="button"
-              onClick={onClose}
+              onClick={requestClose}
               className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
               aria-label={t('calendar.eventDialog.closeAria')}
             >
@@ -2007,39 +3992,68 @@ export function CalendarEventDialog({
 
         <form
           className={cn('flex min-h-0 flex-1', showEventDayColumn && 'flex-row')}
-          onSubmit={(ev): void => void handleSubmit(ev)}
+          onSubmit={(ev): void => {
+            void handleSubmit(ev, {
+              notifyAttendees: showWebinarSaveAndSend ? false : hasInviteAttendees
+            })
+          }}
         >
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           <div className="min-h-0 flex-1 space-y-0 overflow-y-auto px-4 py-3">
-            <div className="border-b border-border pb-3">
-              <div className="flex items-stretch gap-2">
-                {mode === 'create' && createKind === 'task' ? (
-                  <CheckSquare className="my-auto h-4 w-4 shrink-0 text-muted-foreground" />
-                ) : (
-                  <CalendarEventIconPicker
-                    layout="compact"
-                    iconId={eventIconId}
-                    title={subject}
-                    disabled={eventFieldsLocked}
-                    onIconChange={setEventIconId}
-                    compactButtonClassName="h-[44px] w-[44px]"
+            {(mode === 'create' || (mode === 'edit' && initialEvent?.source === 'microsoft')) &&
+            createKind === 'event' &&
+            accountId.startsWith('ms:') ? (
+              <div className="mb-3 space-y-2 rounded-md border border-border/80 bg-muted/20 px-3 py-2">
+                <label className="flex cursor-pointer items-center gap-2 text-xs font-medium">
+                  <input
+                    type="checkbox"
+                    checked={webinarMode}
+                    disabled={busy || eventFieldsLocked}
+                    onChange={(e): void => {
+                      const on = e.target.checked
+                      setWebinarMode(on)
+                      if (on) {
+                        applyWebinarTrackingDefaults({
+                          setHideAttendees,
+                          setResponseRequested,
+                          setAllowForwarding
+                        })
+                        setTeamsMeeting(true)
+                        setWebinarContent((prev) => ({
+                          ...prev,
+                          title: prev.title.trim() || subject.trim()
+                        }))
+                        void provisionTeamsMeetingNow()
+                      } else {
+                        setChronellWebinarInvitation(false)
+                      }
+                    }}
                   />
-                )}
-                <input
-                  type="text"
-                  value={subject}
-                  onChange={(e): void => setSubject(e.target.value)}
-                  disabled={eventFieldsLocked}
-                  placeholder={
-                    mode === 'create' && createKind === 'task'
-                      ? t('calendar.eventDialog.taskTitlePlaceholder')
-                      : t('calendar.eventDialog.titlePlaceholder')
-                  }
-                  aria-label={t('calendar.eventDialog.titleAria')}
-                  className="min-w-0 flex-1 rounded-md border border-border/60 bg-secondary/20 px-2.5 py-2 text-[17px] font-semibold leading-snug text-foreground outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60"
-                />
+                  {t('calendar.eventDialog.webinarModeToggle')}
+                </label>
+                {webinarMode ? (
+                  <p className="text-2xs text-muted-foreground">
+                    {t('calendar.eventDialog.webinarSinglePageHint')}
+                  </p>
+                ) : null}
+                {webinarMode && mode === 'edit' ? (
+                  <p className="text-2xs text-muted-foreground">
+                    {t('calendar.eventDialog.webinarEditCancelHint')}
+                  </p>
+                ) : null}
               </div>
-              {useOutlookCategories ? (
+            ) : null}
+            <div className="border-b border-border pb-3">
+              <CalendarEventDialogSubjectRow
+                mode={mode}
+                isTaskCreate={isTaskCreate}
+                subject={subject}
+                eventIconId={eventIconId}
+                eventFieldsLocked={eventFieldsLocked}
+                onSubjectChange={setSubject}
+                onIconChange={setEventIconId}
+              />
+              {isTaskCreate && useOutlookCategories ? (
                 <div className="mt-2 pl-[52px]">
                   <CalendarEventCategoryPopover
                     categoryNames={categoryChoiceNames}
@@ -2053,59 +4067,57 @@ export function CalendarEventDialog({
               ) : null}
             </div>
 
-            {/* Teams-Meeting Toggle – prominent nach dem Titel für schnellen Webinar-Workflow */}
-            {(mode !== 'create' || createKind === 'event') && isMicrosoftEventAccount ? (
-              <div className={cn(
-                'border-b border-border py-2',
-                teamsMeeting && 'bg-blue-500/5'
-              )}>
-                <label className={cn(
-                  'flex cursor-pointer items-center gap-3 px-1 py-1 rounded-md transition-colors',
-                  teamsMeeting
-                    ? 'text-blue-600 dark:text-blue-400'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}>
-                  <Video className={cn('h-4 w-4 shrink-0', teamsMeeting && 'text-blue-500')} />
-                  <input
-                    type="checkbox"
-                    checked={teamsMeeting}
-                    disabled={isAllDay || msTeamsUiLocked || eventFieldsLocked}
-                    onChange={(e): void => handleTeamsMeetingChange(e.target.checked)}
-                    className="h-4 w-4 shrink-0 rounded border-border accent-blue-500"
-                  />
-                  <span className="text-sm font-medium leading-snug">
-                    {t('calendar.eventDialog.teamsMeetingToggle')}
-                  </span>
-                  {teamsMeeting && !isAllDay && (
-                    <span className="ml-auto rounded-full bg-blue-500/15 px-2 py-0.5 text-xs font-medium text-blue-600 dark:text-blue-400">
-                      {t('calendar.eventDialog.teamsMeetingActive')}
-                    </span>
-                  )}
-                  {isAllDay && (
-                    <span className="ml-2 text-xs text-muted-foreground">
-                      {t('calendar.eventDialog.teamsDisabledAllDay')}
-                    </span>
-                  )}
-                </label>
-                {msEventDetailsError ? (
-                  <p className="mt-1 px-1 text-2xs text-destructive" role="status">
-                    {msEventDetailsError}
-                  </p>
-                ) : null}
+            {/* Zielkalender / Aufgabenliste ist im Header (Create). */}
+
+            {!isTaskCreate ? (
+              <div className="pt-2">
+                <FilterTabs
+                  size="compact"
+                  ariaLabel={t('calendar.eventDialog.scheduleTabsAria')}
+                  value={eventScheduleTab}
+                  onChange={setEventScheduleTab}
+                  options={[
+                    {
+                      id: 'appointment' as const,
+                      label: t('calendar.eventDialog.appointmentHeading'),
+                      icon: <CalendarIcon className="h-3.5 w-3.5" />
+                    },
+                    {
+                      id: 'location' as const,
+                      label: t('calendar.eventDialog.locationRowLabel'),
+                      icon: <MapPin className="h-3.5 w-3.5" />
+                    },
+                    {
+                      id: 'more' as const,
+                      label: t('calendar.eventDialog.moreTab'),
+                      icon: <SlidersHorizontal className="h-3.5 w-3.5" />
+                    }
+                  ]}
+                />
               </div>
             ) : null}
 
-            {/* Zielkalender / Aufgabenliste ist im Header (Create). */}
-
+            {isTaskCreate ||
+            webinarMode ||
+            eventScheduleTab === 'appointment' ||
+            eventScheduleTab === 'more' ? (
             <div className="border-b border-border py-3">
-              <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-6">
-                <div className="min-w-0 lg:col-span-2">
+              <div
+                className={cn(
+                  'grid grid-cols-1 items-start gap-4',
+                  !isTaskCreate && eventScheduleTab === 'more' && 'lg:grid-cols-2',
+                  isTaskCreate && 'lg:grid-cols-6',
+                  !isTaskCreate && eventScheduleTab === 'appointment' && 'max-w-2xl'
+                )}
+              >
+                {isTaskCreate || eventScheduleTab === 'appointment' || eventScheduleTab === 'more' || webinarMode ? (
+                <div className={cn('min-w-0', isTaskCreate && 'lg:col-span-2')}>
+                  {isTaskCreate ? (
                   <div className={eventDialogSectionHeadingClass}>
                     <CalendarIcon className="h-3.5 w-3.5 shrink-0" />
-                    {isTaskCreate
-                      ? t('tasks.create.planned')
-                      : t('calendar.eventDialog.appointmentHeading')}
+                    {t('tasks.create.planned')}
                   </div>
+                  ) : null}
                   <div className="space-y-2">
                     {isTaskCreate && taskTimedDisplay ? (
                       <div className="space-y-1.5">
@@ -2183,128 +4195,291 @@ export function CalendarEventDialog({
                     ) : isTaskCreate ? (
                       <p className="text-xs text-muted-foreground">{t('calendar.eventDialog.summaryDash')}</p>
                     ) : !isAllDay && timedDisplay ? (
-                      <div className="space-y-1.5">
-                        <div className="flex items-center gap-2">
-                          <span className="w-12 shrink-0 text-right text-xs text-muted-foreground">
-                            {t('calendar.eventDialog.labelBegin')}:
-                          </span>
-                          <div className="grid min-w-0 flex-1 grid-cols-2 gap-2">
-                            <ChronellDateField
-                              disabled={eventFieldsLocked}
-                              value={timedDisplay.startYmd}
-                              onChange={(v): void => {
-                                if (!v) return
-                                const nextStart = mergeYmdIntoEventDatetimeLocal(dtStart, v)
-                                setDtStart(nextStart)
-                                if (
-                                  eventDatetimeLocalToMs(dtEnd, eventTimeZone) <=
-                                  eventDatetimeLocalToMs(nextStart, eventTimeZone)
-                                ) {
-                                  setDtEnd(addMinutesInEventZone(nextStart, 15, eventTimeZone))
-                                }
-                              }}
-                              className={cn(eventDialogPanelSelectClass, 'min-w-0 tabular-nums')}
-                            />
-                            <ChronellTimeField
-                              disabled={eventFieldsLocked}
-                              value={timedDisplay.startHm}
-                              aria-label={t('calendar.eventDialog.editStartTimeAria')}
-                              className={cn(eventDialogPanelSelectClass, 'min-w-0 tabular-nums')}
-                              onChange={(hm): void => {
-                                const nextStart = mergeTimeIntoEventStart(dtStart, hm)
-                                setDtStart(nextStart)
-                                if (
-                                  eventDatetimeLocalToMs(dtEnd, eventTimeZone) <=
-                                  eventDatetimeLocalToMs(nextStart, eventTimeZone)
-                                ) {
-                                  setDtEnd(addMinutesInEventZone(nextStart, 15, eventTimeZone))
-                                }
-                              }}
-                            />
+                      <div className="flex items-stretch gap-2">
+                        <div className="min-w-0 flex-1 space-y-1.5">
+                          <div className="flex items-center gap-2">
+                            <span className="w-12 shrink-0 text-right text-xs text-muted-foreground">
+                              {t('calendar.eventDialog.labelBegin')}:
+                            </span>
+                            <div className="grid min-w-0 flex-1 grid-cols-2 gap-2">
+                              <ChronellDateField
+                                disabled={eventFieldsLocked}
+                                value={timedDisplay.startYmd}
+                                onChange={(v): void => {
+                                  if (!v) return
+                                  const nextStart = mergeYmdIntoEventDatetimeLocal(dtStart, v)
+                                  const keepMin =
+                                    timedDisplay.durationMinutes > 0
+                                      ? timedDisplay.durationMinutes
+                                      : 60
+                                  setDtStart(nextStart)
+                                  setDtEnd(
+                                    addMinutesInEventZone(nextStart, keepMin, eventTimeZone)
+                                  )
+                                }}
+                                className={cn(eventDialogPanelSelectClass, 'min-w-0 tabular-nums')}
+                              />
+                              <ChronellTimeField
+                                disabled={eventFieldsLocked}
+                                value={timedDisplay.startHm}
+                                aria-label={t('calendar.eventDialog.editStartTimeAria')}
+                                className={cn(eventDialogPanelSelectClass, 'min-w-0 tabular-nums')}
+                                onChange={(hm): void => {
+                                  const nextStart = mergeTimeIntoEventStart(dtStart, hm)
+                                  const keepMin =
+                                    timedDisplay.durationMinutes > 0
+                                      ? timedDisplay.durationMinutes
+                                      : 60
+                                  setDtStart(nextStart)
+                                  setDtEnd(
+                                    addMinutesInEventZone(nextStart, keepMin, eventTimeZone)
+                                  )
+                                }}
+                              />
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="w-12 shrink-0 text-right text-xs text-muted-foreground">
+                              {t('calendar.eventDialog.labelEnd')}:
+                            </span>
+                            <div className="grid min-w-0 flex-1 grid-cols-2 gap-2">
+                              <ChronellDateField
+                                disabled={eventFieldsLocked}
+                                value={timedDisplay.endYmd}
+                                min={timedDisplay.startYmd}
+                                onChange={(v): void => {
+                                  if (!v) return
+                                  const nextEnd = mergeYmdIntoEventDatetimeLocal(dtEnd, v)
+                                  if (
+                                    eventDatetimeLocalToMs(nextEnd, eventTimeZone) <=
+                                    eventDatetimeLocalToMs(dtStart, eventTimeZone)
+                                  ) {
+                                    setDtEnd(addMinutesInEventZone(dtStart, 15, eventTimeZone))
+                                  } else {
+                                    setDtEnd(nextEnd)
+                                  }
+                                }}
+                                className={cn(eventDialogPanelSelectClass, 'min-w-0 tabular-nums')}
+                              />
+                              <ChronellTimeField
+                                disabled={eventFieldsLocked}
+                                value={timedDisplay.endHm}
+                                aria-label={t('calendar.eventDialog.editEndTimeAria')}
+                                className={cn(eventDialogPanelSelectClass, 'min-w-0 tabular-nums')}
+                                onChange={(hm): void => {
+                                  setDtEnd(
+                                    mergeTimeIntoEventEnd(dtStart, dtEnd, hm, eventTimeZone)
+                                  )
+                                }}
+                              />
+                            </div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="w-12 shrink-0 text-right text-xs text-muted-foreground">
-                            {t('calendar.eventDialog.labelEnd')}:
-                          </span>
-                          <div className="grid min-w-0 flex-1 grid-cols-2 gap-2">
-                            <ChronellDateField
+
+                        <div
+                          className="flex shrink-0 flex-col justify-center self-stretch py-0.5"
+                          aria-hidden
+                        >
+                          <div className="h-full min-h-[2.5rem] w-2 rounded-r-md border border-l-0 border-border/70" />
+                        </div>
+
+                        <div className="flex shrink-0 flex-col items-stretch justify-center gap-2">
+                          <label className="flex flex-col gap-0.5">
+                            <span className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
+                              {t('calendar.eventDialog.durationLabel')}
+                            </span>
+                            <input
+                              type="text"
                               disabled={eventFieldsLocked}
-                              value={timedDisplay.endYmd}
-                              min={timedDisplay.startYmd}
-                              onChange={(v): void => {
-                                if (!v) return
-                                const nextEnd = mergeYmdIntoEventDatetimeLocal(dtEnd, v)
-                                if (
-                                  eventDatetimeLocalToMs(nextEnd, eventTimeZone) <=
-                                  eventDatetimeLocalToMs(dtStart, eventTimeZone)
-                                ) {
-                                  setDtEnd(addMinutesInEventZone(dtStart, 15, eventTimeZone))
+                              value={durationDraft ?? timedDisplay.duration}
+                              aria-label={t('calendar.eventDialog.durationAria')}
+                              title={t('calendar.eventDialog.durationHint')}
+                              placeholder={t('calendar.eventDialog.durationPlaceholder')}
+                              onChange={(e): void => setDurationDraft(e.target.value)}
+                              onBlur={(): void => commitDurationDraft()}
+                              onKeyDown={(e): void => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault()
+                                  commitDurationDraft()
+                                  ;(e.target as HTMLInputElement).blur()
+                                } else if (e.key === 'Escape') {
+                                  setDurationDraft(null)
+                                  ;(e.target as HTMLInputElement).blur()
+                                }
+                              }}
+                              className={cn(
+                                eventDialogPanelSelectClass,
+                                'w-[5.5rem] px-1.5 text-center text-xs tabular-nums'
+                              )}
+                            />
+                          </label>
+                          <label
+                            className={cn(
+                              'flex cursor-pointer items-center gap-1.5 text-xs font-medium',
+                              eventFieldsLocked && 'cursor-not-allowed opacity-50'
+                            )}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isAllDay}
+                              disabled={eventFieldsLocked}
+                              onChange={(e): void => {
+                                const nextAllDay = e.target.checked
+                                if (nextAllDay) {
+                                  if (dtStart && dtEnd) {
+                                    const sp = parseEventDatetimeLocal(dtStart)
+                                    const ep = parseEventDatetimeLocal(dtEnd)
+                                    if (sp && ep) {
+                                      const startDay = sp.ymd
+                                      const endDay = ep.ymd
+                                      const lastInclusive = endDay >= startDay ? endDay : startDay
+                                      setDayStart(startDay)
+                                      setDayEnd(
+                                        format(
+                                          addDays(parseISO(`${lastInclusive}T12:00:00`), 1),
+                                          'yyyy-MM-dd'
+                                        )
+                                      )
+                                    }
+                                  }
+                                  setIsAllDay(true)
                                 } else {
-                                  setDtEnd(nextEnd)
+                                  if (dayStart) {
+                                    setDtStart(`${dayStart}T09:00`)
+                                    setDtEnd(
+                                      addMinutesInEventZone(
+                                        `${dayStart}T09:00`,
+                                        60,
+                                        eventTimeZone
+                                      )
+                                    )
+                                  }
+                                  setIsAllDay(false)
                                 }
                               }}
-                              className={cn(eventDialogPanelSelectClass, 'min-w-0 tabular-nums')}
+                              className="rounded border-border"
                             />
-                            <ChronellTimeField
-                              disabled={eventFieldsLocked}
-                              value={timedDisplay.endHm}
-                              aria-label={t('calendar.eventDialog.editEndTimeAria')}
-                              className={cn(eventDialogPanelSelectClass, 'min-w-0 tabular-nums')}
-                              onChange={(hm): void => {
-                                setDtEnd(mergeTimeIntoEventEnd(dtStart, dtEnd, hm, eventTimeZone))
-                              }}
-                            />
-                          </div>
+                            <span
+                              className={cn(
+                                isAllDay ? 'text-foreground' : 'text-muted-foreground'
+                              )}
+                            >
+                              {t('calendar.eventDialog.allDay')}
+                            </span>
+                          </label>
                         </div>
-                        <p className="pl-14 text-xs tabular-nums text-muted-foreground">
-                          {timedDisplay.duration}
-                        </p>
                       </div>
                     ) : isAllDay && dayStart && dayEnd ? (
-                      <div className="space-y-1.5">
-                        <div className="flex items-center gap-2">
-                          <span className="w-12 shrink-0 text-right text-xs text-muted-foreground">
-                            {t('calendar.eventDialog.labelBegin')}:
-                          </span>
-                          <ChronellDateField
-                            disabled={eventFieldsLocked}
-                            value={dayStart}
-                            onChange={(v): void => {
-                              if (!v) return
-                              setDayStart(v)
-                              if (dayEnd <= v) {
-                                setDayEnd(format(addDays(parseISO(`${v}T12:00:00`), 1), 'yyyy-MM-dd'))
-                              }
-                            }}
-                            className={cn(eventDialogPanelSelectClass, 'min-w-0 flex-1 tabular-nums')}
-                          />
+                      <div className="flex items-start gap-3">
+                        <div className="min-w-0 flex-1 space-y-1.5">
+                          <div className="flex items-center gap-2">
+                            <span className="w-12 shrink-0 text-right text-xs text-muted-foreground">
+                              {t('calendar.eventDialog.labelBegin')}:
+                            </span>
+                            <ChronellDateField
+                              disabled={eventFieldsLocked}
+                              value={dayStart}
+                              onChange={(v): void => {
+                                if (!v) return
+                                setDayStart(v)
+                                if (dayEnd <= v) {
+                                  setDayEnd(
+                                    format(addDays(parseISO(`${v}T12:00:00`), 1), 'yyyy-MM-dd')
+                                  )
+                                }
+                              }}
+                              className={cn(
+                                eventDialogPanelSelectClass,
+                                'min-w-0 flex-1 tabular-nums'
+                              )}
+                            />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="w-12 shrink-0 text-right text-xs text-muted-foreground">
+                              {t('calendar.eventDialog.labelEnd')}:
+                            </span>
+                            <ChronellDateField
+                              disabled={eventFieldsLocked}
+                              min={dayStart}
+                              value={format(
+                                addDays(parseISO(`${dayEnd}T12:00:00`), -1),
+                                'yyyy-MM-dd'
+                              )}
+                              onChange={(v): void => {
+                                if (!v) return
+                                const excl = format(
+                                  addDays(parseISO(`${v}T12:00:00`), 1),
+                                  'yyyy-MM-dd'
+                                )
+                                if (excl <= dayStart) {
+                                  setDayEnd(
+                                    format(
+                                      addDays(parseISO(`${dayStart}T12:00:00`), 1),
+                                      'yyyy-MM-dd'
+                                    )
+                                  )
+                                } else {
+                                  setDayEnd(excl)
+                                }
+                              }}
+                              className={cn(
+                                eventDialogPanelSelectClass,
+                                'min-w-0 flex-1 tabular-nums'
+                              )}
+                            />
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="w-12 shrink-0 text-right text-xs text-muted-foreground">
-                            {t('calendar.eventDialog.labelEnd')}:
-                          </span>
-                          <ChronellDateField
+                        <label
+                          className={cn(
+                            'mt-1 flex shrink-0 cursor-pointer items-center gap-1.5 text-xs font-medium',
+                            eventFieldsLocked && 'cursor-not-allowed opacity-50'
+                          )}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isAllDay}
                             disabled={eventFieldsLocked}
-                            min={dayStart}
-                            value={format(addDays(parseISO(`${dayEnd}T12:00:00`), -1), 'yyyy-MM-dd')}
-                            onChange={(v): void => {
-                              if (!v) return
-                              const excl = format(addDays(parseISO(`${v}T12:00:00`), 1), 'yyyy-MM-dd')
-                              if (excl <= dayStart) {
-                                setDayEnd(format(addDays(parseISO(`${dayStart}T12:00:00`), 1), 'yyyy-MM-dd'))
+                            onChange={(e): void => {
+                              const nextAllDay = e.target.checked
+                              if (nextAllDay) {
+                                if (dtStart && dtEnd) {
+                                  const sp = parseEventDatetimeLocal(dtStart)
+                                  const ep = parseEventDatetimeLocal(dtEnd)
+                                  if (sp && ep) {
+                                    const startDay = sp.ymd
+                                    const endDay = ep.ymd
+                                    const lastInclusive = endDay >= startDay ? endDay : startDay
+                                    setDayStart(startDay)
+                                    setDayEnd(
+                                      format(
+                                        addDays(parseISO(`${lastInclusive}T12:00:00`), 1),
+                                        'yyyy-MM-dd'
+                                      )
+                                    )
+                                  }
+                                }
+                                setIsAllDay(true)
                               } else {
-                                setDayEnd(excl)
+                                if (dayStart) {
+                                  setDtStart(`${dayStart}T09:00`)
+                                  setDtEnd(
+                                    addMinutesInEventZone(`${dayStart}T09:00`, 60, eventTimeZone)
+                                  )
+                                }
+                                setIsAllDay(false)
                               }
                             }}
-                            className={cn(eventDialogPanelSelectClass, 'min-w-0 flex-1 tabular-nums')}
+                            className="rounded border-border"
                           />
-                        </div>
+                          <span className={cn(isAllDay ? 'text-foreground' : 'text-muted-foreground')}>
+                            {t('calendar.eventDialog.allDay')}
+                          </span>
+                        </label>
                       </div>
                     ) : (
                       <p className="text-xs text-muted-foreground">{t('calendar.eventDialog.summaryDash')}</p>
                     )}
-                    {!isTaskCreate ? (
+                    {!isTaskCreate && !timedDisplay && !(isAllDay && dayStart && dayEnd) ? (
                     <label
                       className={cn(
                         'flex cursor-pointer items-center gap-2 text-xs font-medium',
@@ -2349,7 +4524,10 @@ export function CalendarEventDialog({
                     ) : null}
                   </div>
                 </div>
+                ) : null}
 
+                {isTaskCreate || eventScheduleTab === 'more' ? (
+                <>
                 <div className="min-w-0">
                   {isTaskCreate ? (
                     <>
@@ -2485,67 +4663,16 @@ export function CalendarEventDialog({
                   </div>
                 )}
 
+                {isTaskCreate ? (
+                <>
                 <div className="min-w-0">
                   <div className={eventDialogSectionHeadingClass}>
                     <CircleDot className="h-3.5 w-3.5 shrink-0" />
                     {t('calendar.eventDialog.statusHeading')}
                   </div>
-                  {isTaskCreate ? (
-                    <p className={cn(eventDialogPanelSelectClass, 'flex items-center text-muted-foreground')}>
-                      {t('calendar.eventDialog.summaryDash')}
-                    </p>
-                  ) : (
-                    <div className="space-y-2">
-                      <select
-                        aria-label={t('calendar.eventDialog.statusShowAsAria')}
-                        value={eventShowAs}
-                        disabled={eventFieldsLocked || (mode === 'edit' && msEventDetailsLoading)}
-                        onChange={(e): void => {
-                          const v = e.target.value
-                          if (
-                            v === 'free' ||
-                            v === 'tentative' ||
-                            v === 'busy' ||
-                            v === 'oof' ||
-                            v === 'workingElsewhere'
-                          ) {
-                            setEventShowAs(v)
-                          }
-                        }}
-                        className={eventDialogPanelSelectClass}
-                      >
-                        {CALENDAR_EVENT_SHOW_AS_OPTIONS.map((opt) => (
-                          <option key={opt} value={opt}>
-                            {t(`calendar.eventDialog.statusShowAs.${opt}`)}
-                          </option>
-                        ))}
-                      </select>
-                      <label
-                        className={cn(
-                          'flex cursor-pointer items-center gap-2 text-xs font-medium',
-                          (eventFieldsLocked || (mode === 'edit' && msEventDetailsLoading)) &&
-                            'cursor-not-allowed opacity-50'
-                        )}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={eventIsPrivate}
-                          disabled={eventFieldsLocked || (mode === 'edit' && msEventDetailsLoading)}
-                          onChange={(e): void => setEventIsPrivate(e.target.checked)}
-                          className="rounded border-border"
-                        />
-                        <Lock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
-                        <span className={cn(eventIsPrivate ? 'text-foreground' : 'text-muted-foreground')}>
-                          {t('calendar.eventDialog.statusPrivate')}
-                        </span>
-                      </label>
-                      {selectedAccount?.provider === 'google' ? (
-                        <p className="text-2xs leading-snug text-muted-foreground">
-                          {t('calendar.eventDialog.statusGoogleHint')}
-                        </p>
-                      ) : null}
-                    </div>
-                  )}
+                  <p className={cn(eventDialogPanelSelectClass, 'flex items-center text-muted-foreground')}>
+                    {t('calendar.eventDialog.summaryDash')}
+                  </p>
                 </div>
 
                 <div className="min-w-0">
@@ -2553,95 +4680,19 @@ export function CalendarEventDialog({
                     <Bell className="h-3.5 w-3.5 shrink-0" />
                     {t('calendar.eventDialog.reminderHeading')}
                   </div>
-                  {isTaskCreate ? (
-                    <p className={cn(eventDialogPanelSelectClass, 'flex items-center text-muted-foreground')}>
-                      {t('calendar.eventDialog.summaryDash')}
-                    </p>
-                  ) : (
-                    <>
-                  <select
-                    aria-label={t('calendar.eventDialog.reminderHeading')}
-                    value={reminderEnabled ? String(reminderMinutesBefore) : 'none'}
-                    disabled={eventFieldsLocked || (isAllDay && !isMicrosoftEventAccount)}
-                    onChange={(e): void => {
-                      const v = e.target.value
-                      if (v === 'none') {
-                        setReminderEnabled(false)
-                        return
-                      }
-                      setReminderEnabled(true)
-                      setReminderMinutesBefore(Math.max(0, Math.round(Number(v) || 0)))
-                    }}
-                    className={eventDialogPanelSelectClass}
-                  >
-                    <option value="none">{t('calendar.eventDialog.reminderNone')}</option>
-                    {OUTLOOK_REMINDER_MINUTES_OPTIONS.map((m) => (
-                      <option key={m} value={String(m)}>
-                        {formatOutlookReminderMinutes(m, t)}
-                      </option>
-                    ))}
-                  </select>
-                  {isMicrosoftEventAccount && reminderEnabled ? (
-                    <p className="mt-2 text-2xs text-muted-foreground">
-                      {t('calendar.eventDialog.reminderDesktopHint')}
-                    </p>
-                  ) : null}
-                  {isAllDay && !isMicrosoftEventAccount ? (
-                    <p className="mt-2 text-2xs text-muted-foreground">{t('calendar.eventDialog.reminderDisabledAllDay')}</p>
-                  ) : null}
-                    </>
-                  )}
+                  <p className={cn(eventDialogPanelSelectClass, 'flex items-center text-muted-foreground')}>
+                    {t('calendar.eventDialog.summaryDash')}
+                  </p>
                 </div>
+                </>
+                ) : null}
+                </>
+                ) : null}
               </div>
             </div>
+            ) : null}
 
-
-            {(mode !== 'create' || createKind === 'event') &&
-            (selectedAccount?.provider === 'google' ? (
-              <div className="border-b border-border py-1">
-                <PropertyRow
-                  icon={UserPlus}
-                  label={t('calendar.eventDialog.attendeesRowLabel')}
-                  onIconClick={(): void => attendeeFieldRef.current?.openContactPicker()}
-                  iconActionLabel={t('calendar.eventDialog.attendeesPickContacts')}
-                >
-                  <div className="mt-1 rounded-md border border-border bg-background px-2 py-1.5">
-                    <RecipientTokenField
-                      ref={attendeeFieldRef}
-                      hideLabelColumn
-                      label={t('calendar.eventDialog.attendeesRowLabel')}
-                      value={attendeeInput}
-                      onChange={setAttendeeInput}
-                      accountId={accountId}
-                      className="border-0 px-0 py-0"
-                    />
-                  </div>
-                </PropertyRow>
-              </div>
-            ) : selectedAccount?.provider === 'microsoft' ? (
-              <div className="border-b border-border py-1">
-                <PropertyRow
-                  icon={UserPlus}
-                  label={t('calendar.eventDialog.attendeesRowLabel')}
-                  onIconClick={(): void => attendeeFieldRef.current?.openContactPicker()}
-                  iconActionLabel={t('calendar.eventDialog.attendeesPickContacts')}
-                >
-                  <div className="mt-1 rounded-md border border-border bg-background px-2 py-1.5">
-                    <RecipientTokenField
-                      ref={attendeeFieldRef}
-                      hideLabelColumn
-                      label={t('calendar.eventDialog.attendeesRowLabel')}
-                      value={attendeeInput}
-                      onChange={setAttendeeInput}
-                      accountId={accountId}
-                      className="border-0 px-0 py-0"
-                    />
-                  </div>
-                </PropertyRow>
-              </div>
-            ) : null)}
-
-            {mode === 'edit' && calendarAccounts.length > 0 ? (
+            {!isTaskCreate && eventScheduleTab === 'more' && mode === 'edit' && calendarAccounts.length > 0 ? (
               <div className="border-b border-border py-3">
                 <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   {t('calendar.eventDialog.destinationHeadingShort')}
@@ -2694,14 +4745,88 @@ export function CalendarEventDialog({
               </div>
             ) : null}
 
-            {(mode !== 'create' || createKind === 'event') ? (
-            <div className="border-b border-border py-1">
-              <div
-                className={cn(
-                  'grid grid-cols-1 gap-x-6 gap-y-3',
-                  isMicrosoftEventAccount && 'md:grid-cols-2'
-                )}
-              >
+            {!isTaskCreate && (webinarMode || eventScheduleTab === 'location') ? (
+              <div className="space-y-3 border-b border-border py-3">
+                {isMicrosoftEventAccount ? (
+                  <div className={cn(teamsMeeting && 'rounded-md bg-blue-500/5 px-1 py-1')}>
+                    <label
+                      className={cn(
+                        'flex cursor-pointer items-center gap-3 rounded-md px-1 py-1 transition-colors',
+                        teamsMeeting
+                          ? 'text-blue-600 dark:text-blue-400'
+                          : 'text-muted-foreground hover:text-foreground'
+                      )}
+                    >
+                      <Video className={cn('h-4 w-4 shrink-0', teamsMeeting && 'text-blue-500')} />
+                      <input
+                        type="checkbox"
+                        checked={teamsMeeting}
+                        disabled={
+                          isAllDay || msTeamsUiLocked || eventFieldsLocked || teamsProvisioning
+                        }
+                        onChange={(e): void => handleTeamsMeetingChange(e.target.checked)}
+                        className="h-4 w-4 shrink-0 rounded border-border accent-blue-500"
+                      />
+                      <span className="text-sm font-medium leading-snug">
+                        {t('calendar.eventDialog.teamsMeetingToggle')}
+                      </span>
+                      {teamsProvisioning ? (
+                        <span className="ml-auto flex items-center gap-1.5 text-xs font-medium text-blue-600 dark:text-blue-400">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          {t('calendar.eventDialog.teamsProvisioning')}
+                        </span>
+                      ) : teamsMeeting && !isAllDay ? (
+                        <span className="ml-auto rounded-full bg-blue-500/15 px-2 py-0.5 text-xs font-medium text-blue-600 dark:text-blue-400">
+                          {t('calendar.eventDialog.teamsMeetingActive')}
+                        </span>
+                      ) : null}
+                      {isAllDay ? (
+                        <span className="ml-2 text-xs text-muted-foreground">
+                          {t('calendar.eventDialog.teamsDisabledAllDay')}
+                        </span>
+                      ) : null}
+                    </label>
+                    {isMicrosoftEventAccount && !isAllDay ? (
+                      <div className="mt-2 space-y-1 px-1">
+                        <label className="block text-xs font-medium text-foreground">
+                          {t('calendar.eventDialog.teamsTemplateLabel')}
+                          <select
+                            value={teamsMeetingTemplateId}
+                            disabled={teamsProvisioning || eventFieldsLocked}
+                            onChange={(e): void => handleTeamsTemplateChange(e.target.value)}
+                            className={cn(eventDialogPanelSelectClass, 'mt-1 w-full')}
+                          >
+                            <option value="">{t('calendar.eventDialog.teamsTemplateNone')}</option>
+                            {teamsMeetingTemplates.map((tpl) => (
+                              <option key={tpl.id} value={tpl.meetingTemplateId}>
+                                {tpl.name}
+                                {tpl.builtin
+                                  ? ` (${t('settings.teamsMeetingTemplates.builtinBadge')})`
+                                  : ''}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <p className="text-2xs text-muted-foreground">
+                          {teamsMeetingTemplates.length === 0
+                            ? t('calendar.eventDialog.teamsTemplateEmptyHint')
+                            : t('calendar.eventDialog.teamsTemplateHint')}
+                        </p>
+                      </div>
+                    ) : null}
+                    <CalendarEventDialogTeamsJoinLink
+                      store={joinUrlStoreRef.current}
+                      teamsMeeting={teamsMeeting}
+                      isAllDay={isAllDay}
+                      teamsProvisioning={teamsProvisioning}
+                    />
+                    {msEventDetailsError ? (
+                      <p className="mt-1 px-1 text-2xs text-destructive" role="status">
+                        {msEventDetailsError}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
                 <PropertyRow icon={MapPin} label={t('calendar.eventDialog.locationRowLabel')}>
                   <LocationAutocompleteInput
                     value={location}
@@ -2710,10 +4835,189 @@ export function CalendarEventDialog({
                     inputClassName={eventDialogPanelSelectClass}
                   />
                 </PropertyRow>
-                {/* Teams-Toggle wurde nach oben (unter Titel) verschoben */}
               </div>
+            ) : null}
+
+            {(mode !== 'create' || createKind === 'event') &&
+            (selectedAccount?.provider === 'google' ||
+            selectedAccount?.provider === 'microsoft' ? (
+              <div className="space-y-2 border-b border-border py-2">
+                <FilterTabs
+                  size="compact"
+                  ariaLabel={t('calendar.eventDialog.attendeesTabsAria')}
+                  value={
+                    selectedAccount?.provider !== 'microsoft' && attendeesInviteTab === 'tracking'
+                      ? 'required'
+                      : attendeesInviteTab
+                  }
+                  onChange={setAttendeesInviteTab}
+                  options={[
+                    {
+                      id: 'required' as const,
+                      label: t('calendar.eventDialog.attendeesRowLabel'),
+                      icon: <UserPlus className="h-3.5 w-3.5" />,
+                      count: requiredAttendeeCount
+                    },
+                    {
+                      id: 'optional' as const,
+                      label: t('calendar.eventDialog.optionalAttendeesRowLabel'),
+                      icon: <Users className="h-3.5 w-3.5" />,
+                      count: optionalAttendeeCount
+                    },
+                    ...(selectedAccount?.provider === 'microsoft'
+                      ? [
+                          {
+                            id: 'tracking' as const,
+                            label: t('calendar.eventDialog.trackingHeading'),
+                            icon: <ListChecks className="h-3.5 w-3.5" />,
+                            count: trackingActiveCount
+                          }
+                        ]
+                      : [])
+                  ]}
+                />
+                {attendeesInviteTab === 'required' ? (
+                  <CalendarEventDialogAttendeeField
+                    fieldRef={attendeeFieldRef}
+                    label={t('calendar.eventDialog.attendeesRowLabel')}
+                    value={attendeeInput}
+                    onChange={setAttendeeInput}
+                    accountId={accountId}
+                    eventFieldsLocked={eventFieldsLocked}
+                    pickContactsLabel={t('calendar.eventDialog.attendeesPickContacts')}
+                  />
+                ) : null}
+                {attendeesInviteTab === 'optional' ? (
+                  <div>
+                    <CalendarEventDialogAttendeeField
+                      fieldRef={optionalAttendeeFieldRef}
+                      label={t('calendar.eventDialog.optionalAttendeesRowLabel')}
+                      value={optionalAttendeeInput}
+                      onChange={setOptionalAttendeeInput}
+                      accountId={accountId}
+                      eventFieldsLocked={eventFieldsLocked}
+                      pickContactsLabel={t('calendar.eventDialog.attendeesPickContacts')}
+                    />
+                    <p className="mt-1.5 text-2xs text-muted-foreground">
+                      {t('calendar.eventDialog.optionalAttendeesHint')}
+                    </p>
+                  </div>
+                ) : null}
+                {attendeesInviteTab === 'tracking' &&
+                selectedAccount?.provider === 'microsoft' ? (
+                  <div className="space-y-2 rounded-md border border-border/70 bg-muted/15 px-2.5 py-2">
+                    {(
+                      [
+                        {
+                          key: 'responseRequested',
+                          checked: responseRequested,
+                          set: setResponseRequested,
+                          label: 'responseRequested',
+                          hint: 'responseRequestedHint'
+                        },
+                        {
+                          key: 'allowForwarding',
+                          checked: allowForwarding,
+                          set: setAllowForwarding,
+                          label: 'allowForwarding',
+                          hint: 'allowForwardingHint'
+                        },
+                        {
+                          key: 'hideAttendees',
+                          checked: hideAttendees,
+                          set: setHideAttendees,
+                          label: 'hideAttendees',
+                          hint: 'hideAttendeesHint',
+                          icon: EyeOff
+                        }
+                      ] as const
+                    ).map((opt) => (
+                      <label
+                        key={opt.key}
+                        className={cn(
+                          'flex cursor-pointer items-start gap-2 text-xs font-medium',
+                          (eventFieldsLocked || (mode === 'edit' && msEventDetailsLoading)) &&
+                            'cursor-not-allowed opacity-50'
+                        )}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={opt.checked}
+                          disabled={eventFieldsLocked || (mode === 'edit' && msEventDetailsLoading)}
+                          onChange={(e): void => opt.set(e.target.checked)}
+                          className="mt-0.5 rounded border-border"
+                        />
+                        {'icon' in opt && opt.icon ? (
+                          <opt.icon
+                            className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground"
+                            aria-hidden
+                          />
+                        ) : null}
+                        <span className="min-w-0">
+                          <span
+                            className={cn(
+                              'block',
+                              opt.checked ? 'text-foreground' : 'text-muted-foreground'
+                            )}
+                          >
+                            {t(`calendar.eventDialog.${opt.label}`)}
+                          </span>
+                          <span className="mt-0.5 block text-2xs font-normal leading-snug text-muted-foreground">
+                            {t(`calendar.eventDialog.${opt.hint}`)}
+                          </span>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : null)}
+
+            {(mode !== 'create' || createKind === 'event') ? (
+            <div className="border-b border-border py-1">
               <PropertyRow icon={AlignLeft} label={t('calendar.eventDialog.description')}>
                 <div className="mt-1 min-w-0 space-y-2">
+                  {usesWebinarDescriptionUi ? (
+                    <>
+                      {webinarMode && !eventFieldsLocked ? (
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={(): void => openWebinarTemplateDialog()}
+                          className="rounded-md border border-border bg-background px-2.5 py-1 text-xs font-medium text-foreground hover:bg-secondary"
+                        >
+                          {t('calendar.eventDialog.webinarLoadTemplate')}
+                        </button>
+                      ) : null}
+                      {!eventFieldsLocked ? (
+                        <>
+                          <p className="text-2xs text-muted-foreground">
+                            {t('calendar.eventDialog.webinarWysiwygHint')}
+                          </p>
+                          <WebinarInvitationEditorPanel
+                            descriptionHtml={descriptionHtml}
+                            onChangeHtml={setDescriptionHtml}
+                            flushRef={webinarHtmlEditorFlushRef}
+                            attendeePreviewHtml={webinarAttendeePreviewHtml}
+                            disabled={busy || eventFieldsLocked}
+                            imagesLoading={webinarImagesLoading}
+                          />
+                        </>
+                      ) : webinarAttendeePreviewHtml.trim() ? (
+                        <WebinarInvitationPreview html={webinarAttendeePreviewHtml} className="w-full" />
+                      ) : descriptionHtml.trim() ? (
+                        <WebinarInvitationPreview html={descriptionHtml} className="w-full" />
+                      ) : null}
+                    </>
+                  ) : (
+                    <>
+                  {!usesWebinarDescriptionUi &&
+                  descriptionHtml.trim() &&
+                  (teamsMeeting || descriptionHtml.includes('bgcolor="#121212"')) ? (
+                    <p className="mb-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+                      {t('calendar.eventDialog.webinarEnableAssistantHint')}
+                    </p>
+                  ) : null}
                   {mode === 'edit' && Boolean(initialEvent?.graphEventId) && msEventDetailsLoading ? (
                     <p className="inline-flex items-center gap-2 text-xs text-muted-foreground">
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -2731,7 +5035,7 @@ export function CalendarEventDialog({
                       viewerTheme={viewerTheme}
                       className="w-full"
                     />
-                  ) : (
+                  ) : usesWebinarDescriptionUi ? null : (
                     <div
                       className={cn(
                         'rounded-md transition-colors',
@@ -2745,7 +5049,8 @@ export function CalendarEventDialog({
                     >
                       {!eventFieldsLocked &&
                       (eventAttachmentsApi.supportsFileAttachments ||
-                        eventAttachmentsApi.supportsCloudAttachments) ? (
+                        eventAttachmentsApi.supportsCloudAttachments ||
+                        copilotAvailable) ? (
                         <EditorAttachmentActionBar
                           compact
                           disabled={busy}
@@ -2762,6 +5067,21 @@ export function CalendarEventDialog({
                           }
                           attachmentCount={eventAttachmentsApi.newFiles.length}
                           cloudAttachmentCount={eventAttachmentsApi.newReferences.length}
+                          leadingActions={
+                            copilotAvailable ? (
+                              <button
+                                type="button"
+                                disabled={busy}
+                                title={t('calendar.eventDialog.ribbonCopilot')}
+                                aria-label={t('calendar.eventDialog.ribbonCopilot')}
+                                onClick={(): void => setDescriptionCopilotOpen(true)}
+                                className="inline-flex items-center gap-1 rounded-md border border-primary/30 bg-primary/5 px-1.5 py-0.5 text-[10px] font-medium text-foreground hover:bg-primary/10 disabled:opacity-50"
+                              >
+                                <Sparkles className="h-3 w-3 text-primary" />
+                                {t('copilot.compose.button')}
+                              </button>
+                            ) : null
+                          }
                           className="rounded-t-md border border-b-0 border-border"
                         />
                       ) : null}
@@ -2774,7 +5094,8 @@ export function CalendarEventDialog({
                           'min-h-[260px] rounded-md border border-border bg-background !border-t-0',
                           !eventFieldsLocked &&
                             (eventAttachmentsApi.supportsFileAttachments ||
-                              eventAttachmentsApi.supportsCloudAttachments) &&
+                              eventAttachmentsApi.supportsCloudAttachments ||
+                              copilotAvailable) &&
                             'rounded-t-none border-t-0'
                         )}
                       />
@@ -2785,6 +5106,8 @@ export function CalendarEventDialog({
                         className="px-2 pb-2"
                       />
                     </div>
+                  )}
+                    </>
                   )}
                 </div>
               </PropertyRow>
@@ -2825,40 +5148,12 @@ export function CalendarEventDialog({
                   eventTitleSnapshot: subject.trim() || initialEvent.title,
                   eventStartIsoSnapshot: initialEvent.startIso
                 }}
-                contentPaddingClass="px-4"
+                contentPaddingClass="px-1"
+                sectionHeaderVariant="property"
                 sectionCollapsedDefault
                 className="border-b border-border"
               />
             ) : null}
-
-            {mode === 'edit' && initialEvent && (initialEvent.webLink || initialEvent.joinUrl) && (
-              <div className="flex flex-wrap gap-2 border-b border-border py-3">
-                {initialEvent.webLink && (
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground"
-                    onClick={(): void => {
-                      voidOpenExternalUrl(initialEvent.webLink!)
-                    }}
-                  >
-                    <ExternalLink className="h-3.5 w-3.5" />
-                    {t('calendar.eventDialog.openInOutlook')}
-                  </button>
-                )}
-                {initialEvent.joinUrl && (
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground"
-                    onClick={(): void => {
-                      voidOpenExternalUrl(initialEvent.joinUrl!)
-                    }}
-                  >
-                    <Video className="h-3.5 w-3.5" />
-                    {t('calendar.eventDialog.joinTeamsShort')}
-                  </button>
-                )}
-              </div>
-            )}
 
             {localError && (
               <p className="py-2 text-xs text-destructive" role="alert">
@@ -2868,16 +5163,38 @@ export function CalendarEventDialog({
           </div>
 
           <footer className="flex shrink-0 items-center justify-between gap-3 border-t border-border bg-card px-4 py-3 shadow-[0_-8px_24px_-4px_hsl(0_0%_0%/0.25)]">
+            <div className="flex min-w-0 items-center gap-3">
+              {mode === 'edit' &&
+              initialEvent?.graphEventId?.trim() &&
+              initialEvent.calendarCanEdit !== false ? (
+                <button
+                  type="button"
+                  disabled={busy || msEventDetailsLoading}
+                  onClick={(): void => {
+                    void handleDeleteEvent()
+                  }}
+                  className="inline-flex items-center gap-1.5 text-base font-medium text-destructive hover:text-destructive/90 disabled:opacity-50"
+                >
+                  <Trash2 className="h-4 w-4" aria-hidden />
+                  {t('calendar.eventDialog.deleteEventButton')}
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={requestClose}
+                className="text-base font-medium text-muted-foreground hover:text-foreground"
+              >
+                {t('calendar.eventDialog.cancel')}
+              </button>
+            </div>
             <button
               type="button"
-              onClick={onClose}
-              className="text-base font-medium text-muted-foreground hover:text-foreground"
-            >
-              {t('calendar.eventDialog.cancel')}
-            </button>
-            <button
-              type="submit"
               disabled={submitDisabled}
+              onClick={(ev): void => {
+                void handleSubmit(ev, {
+                  notifyAttendees: showWebinarSaveAndSend ? false : hasInviteAttendees
+                })
+              }}
               title={
                 isTaskCreate
                   ? taskAccounts.length === 0
@@ -2893,20 +5210,41 @@ export function CalendarEventDialog({
                         ? t('calendar.eventDialog.submitReadOnly')
                         : mode === 'edit' && Boolean(initialEvent?.graphEventId) && msEventDetailsLoading
                           ? t('calendar.eventDialog.loadingEventDetails')
-                          : undefined
+                          : showWebinarSaveAndSend
+                            ? t('calendar.eventDialog.webinarSaveDraftTitle')
+                            : undefined
               }
               className={cn(
-                'inline-flex min-w-[100px] items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-base font-medium text-primary-foreground hover:bg-primary/90',
+                'inline-flex min-w-[100px] items-center justify-center gap-2 rounded-lg px-4 py-2 text-base font-medium',
+                showWebinarSaveAndSend
+                  ? 'border border-border bg-background text-foreground hover:bg-muted'
+                  : 'bg-primary text-primary-foreground hover:bg-primary/90',
                 submitDisabled && 'cursor-not-allowed opacity-50'
               )}
             >
-              {busy ? (
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-              ) : hasInviteAttendees ? (
-                <Send className="h-4 w-4" aria-hidden />
-              ) : null}
-              {submitLabel}
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
+              {showWebinarSaveAndSend
+                ? t('calendar.eventDialog.save')
+                : submitLabel}
             </button>
+            {showWebinarSaveAndSend ? (
+              <button
+                type="button"
+                disabled={submitDisabled}
+                onClick={(ev): void => {
+                  void handleSubmit(ev, { notifyAttendees: true })
+                }}
+                title={t('calendar.eventDialog.webinarSendInvitationsTitle')}
+                className={cn(
+                  'inline-flex min-w-[100px] items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-base font-medium text-primary-foreground hover:bg-primary/90',
+                  submitDisabled && 'cursor-not-allowed opacity-50'
+                )}
+              >
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
+                {!busy ? <Send className="h-4 w-4" aria-hidden /> : null}
+                {t('calendar.eventDialog.send')}
+              </button>
+            ) : null}
           </footer>
           </div>
 
@@ -2958,6 +5296,123 @@ export function CalendarEventDialog({
     />
   ) : null
 
+  const descriptionCopilotPortal = (
+    <CalendarEventDescriptionCopilotDialog
+      open={descriptionCopilotOpen}
+      accountId={accountId}
+      subject={subject}
+      location={location}
+      existingHtml={descriptionHtml}
+      onApply={(html, mode): void => {
+        if (mode === 'replace') {
+          setDescriptionHtml(html)
+          return
+        }
+        setDescriptionHtml((prev) => (prev.trim() ? `${prev}${html}` : html))
+      }}
+      onClose={(): void => setDescriptionCopilotOpen(false)}
+    />
+  )
+
+  const webinarTemplatePortal = webinarTemplateDialogOpen ? (
+    <div
+      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 p-4"
+      onClick={(): void => setWebinarTemplateDialogOpen(false)}
+      role="presentation"
+    >
+      <div
+        className="max-h-[min(90dvh,720px)] w-full max-w-lg overflow-y-auto rounded-lg border border-border bg-card p-4 shadow-lg"
+        onClick={(e): void => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="webinar-template-dialog-title"
+      >
+        <h3 id="webinar-template-dialog-title" className="text-sm font-semibold text-foreground">
+          {t('calendar.eventDialog.webinarLoadTemplateTitle')}
+        </h3>
+        <p className="mt-2 text-xs text-muted-foreground">
+          {t('calendar.eventDialog.webinarFormIntro')}
+        </p>
+        <div className="mt-4 space-y-3">
+          <fieldset className="space-y-2">
+            <legend className="text-xs font-medium text-foreground">
+              {t('calendar.eventDialog.webinarLayoutTemplateLabel')}
+            </legend>
+            <div className="space-y-1" role="radiogroup" aria-label={t('calendar.eventDialog.webinarLayoutTemplateLabel')}>
+              {readWebinarInvitationLayoutTemplates().map((tpl: WebinarInvitationLayoutTemplate) => {
+                const selected = webinarLayoutTemplateId === tpl.id
+                return (
+                  <button
+                    key={tpl.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    disabled={busy || eventFieldsLocked}
+                    onClick={(): void => setWebinarLayoutTemplateId(tpl.id)}
+                    className={[
+                      'flex w-full items-center gap-2 rounded-md border px-2.5 py-2 text-left text-xs transition-colors',
+                      selected
+                        ? 'border-primary bg-primary/10 text-foreground'
+                        : 'border-border bg-background text-muted-foreground hover:bg-secondary'
+                    ].join(' ')}
+                  >
+                    <span className="min-w-0 flex-1 truncate font-medium">{tpl.name}</span>
+                    {tpl.builtin ? (
+                      <span className="shrink-0 rounded-full bg-secondary px-1.5 py-0.5 text-2xs">
+                        {t('calendar.eventDialog.webinarLayoutTemplateBuiltin')}
+                      </span>
+                    ) : null}
+                  </button>
+                )
+              })}
+            </div>
+          </fieldset>
+          <fieldset className="space-y-1.5">
+            <legend className="text-xs font-medium text-foreground">
+              {t('calendar.eventDialog.webinarLayoutThemeLabel')}
+            </legend>
+            <WebinarLayoutThemeSwatches
+              value={webinarLayoutTheme}
+              onChange={setWebinarLayoutTheme}
+              disabled={busy || eventFieldsLocked}
+              modeLabel={(mode): string => t(`calendar.eventDialog.webinarLayoutMode_${mode}`)}
+              colorLabel={(color): string =>
+                t(`calendar.eventDialog.webinarLayoutTheme_${color}`)
+              }
+            />
+          </fieldset>
+          <CalendarEventDialogWebinarContentForm
+            values={webinarContent}
+            onChange={setWebinarContent}
+            disabled={busy || eventFieldsLocked}
+            msAccountId={accountId.startsWith('ms:') ? accountId : null}
+          />
+          <div className="flex flex-wrap justify-end gap-2">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={(): void => setWebinarTemplateDialogOpen(false)}
+              className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary"
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              type="button"
+              disabled={busy || eventFieldsLocked}
+              onClick={(): void => {
+                applyWebinarInvitationHtml()
+                setWebinarTemplateDialogOpen(false)
+              }}
+              className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+            >
+              {t('calendar.eventDialog.webinarApplyPreview')}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  ) : null
+
   if (!open) return null
 
   if (surface === 'osWindow') {
@@ -2965,6 +5420,8 @@ export function CalendarEventDialog({
       <>
         <div className="flex h-full min-h-0 flex-col overflow-hidden">{panelInner}</div>
         {drivePortal}
+        {descriptionCopilotPortal}
+        {webinarTemplatePortal}
       </>
     )
   }
@@ -2972,7 +5429,7 @@ export function CalendarEventDialog({
   if (placement === 'dock') {
     return (
       <>
-        <div className="fixed inset-0 z-[95] flex justify-end bg-black/25" onClick={onClose} role="presentation" />
+        <div className="fixed inset-0 z-[95] flex justify-end bg-black/25" onClick={requestClose} role="presentation" />
         <div className="fixed inset-y-0 right-0 z-[100] flex">
           <VerticalSplitter
             ariaLabel={t('calendar.eventDialog.modalResizeAria')}
@@ -2980,13 +5437,15 @@ export function CalendarEventDialog({
           />
           <aside
             className="flex h-full min-h-0 flex-col border-l border-border bg-card shadow-2xl"
-            style={{ width: dockWidth }}
+            style={{ width: dockWidth, maxWidth: 'calc(100vw - 32px)' }}
             onClick={(e): void => e.stopPropagation()}
           >
             {panelInner}
           </aside>
         </div>
         {drivePortal}
+        {descriptionCopilotPortal}
+        {webinarTemplatePortal}
       </>
     )
   }
@@ -3001,18 +5460,21 @@ export function CalendarEventDialog({
           initialHeightPx={modalSize.h}
           minHeightPx={480}
           minResizeWidthPx={640}
-          maxResizeWidthPx={1200}
-          maxResizeHeightPx={Math.min(1000, window.innerHeight - 24)}
+          maxResizeWidthPx={Math.max(1200, window.innerWidth - 24)}
+          maxResizeHeightPx={Math.min(window.innerHeight - 24, window.innerHeight - 24)}
           persistSizeKey={CAL_EVENT_DIALOG_FLOAT_SIZE_KEY}
           defaultPosition={floatDefaultPos}
           zIndex={100}
           hideHeaderActions
-          onClose={onClose}
+          slideFromRight={false}
+          onClose={requestClose}
           onDock={(): void => setPlacementPersisted('dock')}
         >
           {panelInner}
         </CalendarFloatingPanel>
         {drivePortal}
+        {descriptionCopilotPortal}
+        {webinarTemplatePortal}
       </>
     )
   }
@@ -3022,7 +5484,7 @@ export function CalendarEventDialog({
       open={open}
       zIndex={100}
       centerClassName="justify-center bg-black/45 backdrop-blur-[2px] p-3 sm:p-6"
-      onBackdropClick={onClose}
+      onBackdropClick={requestClose}
     >
       <ModalPanel
         variant="center"
@@ -3048,6 +5510,8 @@ export function CalendarEventDialog({
         </div>
       </ModalPanel>
       {drivePortal}
+      {descriptionCopilotPortal}
+      {webinarTemplatePortal}
     </ModalRoot>
   )
 }

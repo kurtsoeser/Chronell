@@ -29,6 +29,7 @@ import {
 import { useComposeAutoSave, useComposeAutoSaveOnHide } from '@/hooks/useComposeAutoSave'
 import { useComposeDraftEditorFlush } from '@/hooks/useComposeDraftEditorFlush'
 import { arrayBufferToBase64 } from '@/lib/attachment-files'
+import { ComposeCopilotDraftButton } from '@/components/copilot/ComposeCopilotDraftButton'
 
 const MAX_ATTACHMENTS_TOTAL_BYTES = 24 * 1024 * 1024
 
@@ -227,6 +228,7 @@ export function ReadingPaneCompose({
                     onChange={(v): void => update(draft.id, { to: v })}
                     showToggle={!draft.showCcBcc}
                     onToggleCcBcc={(): void => update(draft.id, { showCcBcc: true })}
+                    autoFocus={draft.mode === 'new'}
                   />
                   {draft.showCcBcc && (
                     <>
@@ -267,6 +269,13 @@ export function ReadingPaneCompose({
                   onCloudAttach={isMicrosoft ? openDrive : undefined}
                   attachmentCount={draft.attachments.length}
                   cloudAttachmentCount={draft.referenceAttachments.length}
+                  leadingActions={
+                    <ComposeCopilotDraftButton
+                      draft={draft}
+                      disabled={draft.busy}
+                      inEditorSurface
+                    />
+                  }
                 />
                 <ComposeEditorThemedPane className="compose-mail-editor-section min-h-0 flex-1">
                   <TipTapBody
@@ -275,7 +284,7 @@ export function ReadingPaneCompose({
                     valueHtml={draft.prependRichHtml}
                     onChangeHtml={(v): void => update(draft.id, { prependRichHtml: v })}
                     flushRef={bodyFlushRef}
-                    autoFocus
+                    autoFocus={draft.mode !== 'new'}
                     fillHeight
                   />
                 </ComposeEditorThemedPane>
@@ -304,6 +313,7 @@ export function ReadingPaneCompose({
                       valueHtml={draft.signatureRichHtml}
                       onChangeHtml={(v): void => update(draft.id, { signatureRichHtml: v })}
                       flushRef={signatureFlushRef}
+                      editorMinHeightClass="min-h-[6rem]"
                     />
                   </ComposeEditorThemedPane>
                 </ComposeCollapsibleSection>

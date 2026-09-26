@@ -3,24 +3,32 @@ import {
   IPC,
   type NotionAppendEventInput,
   type NotionAppendMailInput,
+  type NotionAppendNoteInput,
   type NotionAppendResult,
   type NotionConnectionStatus,
   type NotionCreateEventPageInput,
   type NotionCreateMailPageInput,
+  type NotionCreateNotePageInput,
   type NotionCreatePageInput,
   type NotionCreatePageResult,
   type NotionDestinationsConfig,
+  type NotionKurtrocksEventHit,
   type NotionSearchPageHit,
-  type NotionSavedDestination
+  type NotionSavedDestination,
+  type NotionUpdateKurtrocksEventLinksInput,
+  type NotionUpdateKurtrocksEventLinksResult,
+  type NotionWebinarImportResult
 } from '@shared/types'
 import {
   addNotionFavorite,
   appendCalendarEventToNotion,
   appendMailToNotion,
+  appendNoteToNotion,
   connectNotion,
   connectNotionInternal,
   createCalendarEventAsNotionPage,
   createMailAsNotionPage,
+  createNoteAsNotionPage,
   createNotionPage,
   disconnectNotion,
   getNotionConnectionStatus,
@@ -29,6 +37,11 @@ import {
   searchNotionPages,
   setNotionDestinations
 } from '../notion/notion-service'
+import {
+  importKurtrocksEventForWebinar,
+  searchKurtrocksEvents,
+  updateKurtrocksEventLinks
+} from '../notion/notion-kurtrocks-events'
 
 export function registerNotionIpc(): void {
   ipcMain.handle(IPC.notion.getStatus, async (): Promise<NotionConnectionStatus> => {
@@ -120,7 +133,9 @@ export function registerNotionIpc(): void {
         throw new Error('Notion: Seitentitel fehlt.')
       }
       const kind =
-        input.kind === 'calendar' || input.kind === 'mail' ? input.kind : 'mail'
+        input.kind === 'calendar' || input.kind === 'mail' || input.kind === 'note'
+          ? input.kind
+          : 'mail'
       return createNotionPage(input.title, input.parentPageId, kind)
     }
   )
@@ -152,6 +167,69 @@ export function registerNotionIpc(): void {
         input.parentPageId,
         input.localeCode === 'en' ? 'en' : 'de'
       )
+    }
+  )
+
+  ipcMain.handle(
+    IPC.notion.appendNote,
+    async (_event, input: NotionAppendNoteInput): Promise<NotionAppendResult> => {
+      if (!input || typeof input.noteId !== 'number') {
+        throw new Error('Notion: noteId fehlt.')
+      }
+      return appendNoteToNotion(
+        input.noteId,
+        input.pageId,
+        input.localeCode === 'en' ? 'en' : 'de'
+      )
+    }
+  )
+
+  ipcMain.handle(
+    IPC.notion.createNotePage,
+    async (_event, input: NotionCreateNotePageInput): Promise<NotionAppendResult> => {
+      if (!input || typeof input.noteId !== 'number' || typeof input.title !== 'string') {
+        throw new Error('Notion: Notiz oder Seitentitel fehlt.')
+      }
+      return createNoteAsNotionPage(
+        input.noteId,
+        input.title,
+        input.parentPageId,
+        input.localeCode === 'en' ? 'en' : 'de'
+      )
+    }
+  )
+
+  ipcMain.handle(
+    IPC.notion.searchKurtrocksEvents,
+    async (_event, query: string): Promise<NotionKurtrocksEventHit[]> => {
+      return searchKurtrocksEvents(typeof query === 'string' ? query : '')
+    }
+  )
+
+  ipcMain.handle(
+    IPC.notion.importKurtrocksEventForWebinar,
+    async (_event, pageId: string): Promise<NotionWebinarImportResult> => {
+      if (typeof pageId !== 'string' || !pageId.trim()) {
+        throw new Error('Notion: pageId fehlt.')
+      }
+      return importKurtrocksEventForWebinar(pageId.trim())
+    }
+  )
+
+  ipcMain.handle(
+    IPC.notion.updateKurtrocksEventLinks,
+    async (
+      _event,
+      raw: NotionUpdateKurtrocksEventLinksInput
+    ): Promise<NotionUpdateKurtrocksEventLinksResult> => {
+      if (!raw || typeof raw.pageId !== 'string' || !raw.pageId.trim()) {
+        throw new Error('Notion: pageId fehlt.')
+      }
+      return updateKurtrocksEventLinks({
+        pageId: raw.pageId.trim(),
+        surveyUrl: typeof raw.surveyUrl === 'string' ? raw.surveyUrl : raw.surveyUrl ?? null,
+        meetingUrl: typeof raw.meetingUrl === 'string' ? raw.meetingUrl : raw.meetingUrl ?? null
+      })
     }
   )
 }

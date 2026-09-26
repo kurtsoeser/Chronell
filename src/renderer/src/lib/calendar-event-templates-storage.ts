@@ -17,10 +17,21 @@ export interface CalendarEventTemplate {
   durationMinutes: number
   /** Teams-Meeting automatisch aktivieren. */
   teamsMeeting: boolean
+  /**
+   * Teams Premium Besprechungsvorlage (`meetingTemplateId`), leer = Standard-Teams.
+   * Nur relevant wenn `teamsMeeting` true.
+   */
+  teamsMeetingTemplateId: string
   /** Beschreibung als HTML. */
   descriptionHtml: string
   /** Feste Erinnerung in Minuten vor dem Termin (−1 = keine Änderung). */
   reminderMinutes: number
+  /** Microsoft: Teilnehmerliste ausblenden (−1 = nicht setzen). */
+  hideAttendees: boolean | -1
+  /** Microsoft: Antworten anfordern (−1 = nicht setzen). */
+  responseRequested: boolean | -1
+  /** Microsoft: Weiterleitung zulassen (−1 = nicht setzen). */
+  allowForwarding: boolean | -1
   /** ISO-Zeitstempel der letzten Änderung. */
   updatedAt: string
 }
@@ -33,7 +44,7 @@ export function readCalendarEventTemplates(): CalendarEventTemplate[] {
     if (!raw) return []
     const parsed = JSON.parse(raw) as unknown
     if (!Array.isArray(parsed)) return []
-    return parsed.filter(isValidTemplate)
+    return parsed.filter(isValidTemplate).map(normalizeTemplate)
   } catch {
     return []
   }
@@ -51,7 +62,7 @@ export function writeCalendarEventTemplates(templates: CalendarEventTemplate[]):
 export function saveCalendarEventTemplate(template: CalendarEventTemplate): void {
   const all = readCalendarEventTemplates()
   const idx = all.findIndex((t) => t.id === template.id)
-  const next = { ...template, updatedAt: new Date().toISOString() }
+  const next = { ...normalizeTemplate(template), updatedAt: new Date().toISOString() }
   if (idx >= 0) {
     all[idx] = next
   } else {
@@ -74,9 +85,29 @@ export function createEmptyTemplate(): CalendarEventTemplate {
     defaultLocation: '',
     durationMinutes: 60,
     teamsMeeting: false,
+    teamsMeetingTemplateId: '',
     descriptionHtml: '',
     reminderMinutes: -1,
+    hideAttendees: -1,
+    responseRequested: -1,
+    allowForwarding: -1,
     updatedAt: new Date().toISOString()
+  }
+}
+
+function triStateFlag(v: unknown): boolean | -1 {
+  if (v === true || v === false) return v
+  return -1
+}
+
+function normalizeTemplate(t: CalendarEventTemplate): CalendarEventTemplate {
+  return {
+    ...t,
+    teamsMeetingTemplateId:
+      typeof t.teamsMeetingTemplateId === 'string' ? t.teamsMeetingTemplateId.trim() : '',
+    hideAttendees: triStateFlag(t.hideAttendees),
+    responseRequested: triStateFlag(t.responseRequested),
+    allowForwarding: triStateFlag(t.allowForwarding)
   }
 }
 

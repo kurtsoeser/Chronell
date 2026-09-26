@@ -16,7 +16,30 @@ export interface CopilotChatTurnResult {
   attributions: CopilotChatMessageAttribution[]
 }
 
-export type CopilotChatEngine = 'graph' | 'workiq'
+export type CopilotChatEngine = 'graph' | 'workiq' | 'gemini' | 'openai' | 'ollama'
+
+export const COPILOT_API_ENGINES = ['gemini', 'openai', 'ollama'] as const
+export type CopilotApiEngine = (typeof COPILOT_API_ENGINES)[number]
+
+export function isCopilotApiEngine(engine: string | null | undefined): engine is CopilotApiEngine {
+  return engine === 'gemini' || engine === 'openai' || engine === 'ollama'
+}
+
+export function isCopilotMicrosoftEngine(
+  engine: string | null | undefined
+): engine is 'graph' | 'workiq' {
+  return engine === 'graph' || engine === 'workiq'
+}
+
+export function normalizeCopilotChatEngine(
+  engine: string | null | undefined
+): CopilotChatEngine {
+  if (engine === 'workiq') return 'workiq'
+  if (engine === 'gemini') return 'gemini'
+  if (engine === 'openai') return 'openai'
+  if (engine === 'ollama') return 'ollama'
+  return 'graph'
+}
 
 export interface CopilotChatSendInput {
   accountId: string
@@ -31,7 +54,7 @@ export interface CopilotChatSendInput {
   disableWebSearch?: boolean | null
   /** OneDrive/SharePoint-Datei-URIs als Kontext. */
   fileUris?: string[] | null
-  /** Spike: Work IQ statt Graph Copilot Chat. */
+  /** Spike: Work IQ statt Graph Copilot Chat; gemini/openai/ollama = KI-Anbindung. */
   engine?: CopilotChatEngine | null
 }
 

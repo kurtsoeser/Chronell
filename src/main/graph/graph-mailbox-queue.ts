@@ -1,5 +1,5 @@
-/** Graph MailboxConcurrency: max. ~4 gleichzeitige Anfragen pro Postfach — konservativ 3. */
-export const GRAPH_MAILBOX_CONCURRENCY = 3
+/** Graph MailboxConcurrency: max. ~4 gleichzeitige Anfragen pro Postfach — konservativ 2. */
+export const GRAPH_MAILBOX_CONCURRENCY = 2
 
 type AccountQueue = {
   running: number

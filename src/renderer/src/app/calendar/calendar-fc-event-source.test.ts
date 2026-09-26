@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { CALENDAR_KIND_MAIL_TODO } from '@/app/calendar/mail-todo-calendar'
 import {
+  removeAllGraphCalendarEventsByGraphEventId,
   removeCloudTaskCalendarEventsByTaskKey,
   removeDuplicateFullCalendarEventsById,
   removeGraphCalendarEventsByGraphEventId,
@@ -47,6 +48,31 @@ describe('removeGraphCalendarEventsByGraphEventId', () => {
     )
     expect(stale.remove).toHaveBeenCalledOnce()
     expect(moved.remove).not.toHaveBeenCalled()
+    expect(other.remove).not.toHaveBeenCalled()
+  })
+})
+
+describe('removeAllGraphCalendarEventsByGraphEventId', () => {
+  it('entfernt alle FC-Einträge eines Graph-Termins', () => {
+    const a = {
+      id: 'acc:ev1',
+      extendedProps: { calendarEvent: { accountId: 'acc', graphEventId: 'ev1' } },
+      remove: vi.fn()
+    }
+    const b = {
+      id: 'acc:ev1-copy',
+      extendedProps: { calendarEvent: { accountId: 'acc', graphEventId: 'ev1' } },
+      remove: vi.fn()
+    }
+    const other = {
+      id: 'acc:ev2',
+      extendedProps: { calendarEvent: { accountId: 'acc', graphEventId: 'ev2' } },
+      remove: vi.fn()
+    }
+    const api = { getEvents: () => [a, b, other] }
+    removeAllGraphCalendarEventsByGraphEventId(api as never, 'acc', 'ev1')
+    expect(a.remove).toHaveBeenCalledOnce()
+    expect(b.remove).toHaveBeenCalledOnce()
     expect(other.remove).not.toHaveBeenCalled()
   })
 })

@@ -1508,12 +1508,34 @@ export const MIGRATIONS: Migration[] = [
     sql: `
       CREATE TABLE IF NOT EXISTS message_copilot_cache (
         message_id INTEGER NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
-        engine TEXT NOT NULL CHECK (engine IN ('graph', 'workiq')),
+        engine TEXT NOT NULL CHECK (engine IN ('graph', 'workiq', 'gemini', 'openai', 'ollama')),
         reply_text TEXT NOT NULL,
         attributions_json TEXT NOT NULL DEFAULT '[]',
         updated_at TEXT NOT NULL,
         PRIMARY KEY (message_id, engine)
       );
+      CREATE INDEX IF NOT EXISTS idx_message_copilot_cache_updated
+        ON message_copilot_cache(updated_at);
+    `
+  },
+  {
+    version: 54,
+    description: 'Copilot-Cache: Gemini/OpenAI/Ollama als Engines erlauben',
+    sql: `
+      CREATE TABLE message_copilot_cache_v54 (
+        message_id INTEGER NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+        engine TEXT NOT NULL CHECK (engine IN ('graph', 'workiq', 'gemini', 'openai', 'ollama')),
+        reply_text TEXT NOT NULL,
+        attributions_json TEXT NOT NULL DEFAULT '[]',
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (message_id, engine)
+      );
+      INSERT OR IGNORE INTO message_copilot_cache_v54
+        (message_id, engine, reply_text, attributions_json, updated_at)
+      SELECT message_id, engine, reply_text, attributions_json, updated_at
+      FROM message_copilot_cache;
+      DROP TABLE message_copilot_cache;
+      ALTER TABLE message_copilot_cache_v54 RENAME TO message_copilot_cache;
       CREATE INDEX IF NOT EXISTS idx_message_copilot_cache_updated
         ON message_copilot_cache(updated_at);
     `

@@ -7,8 +7,10 @@ import type {
   ComposeReferenceAttachment
 } from '@shared/types'
 import { listAccounts } from './accounts'
+import { runGraphMailboxRequest } from './graph/graph-account-request'
 import {
   downloadGraphEventAttachment,
+  fetchGraphEventInlineImages,
   graphAddEventAttachments,
   listGraphEventAttachments
 } from './graph/calendar-event-attachments'
@@ -36,7 +38,25 @@ export async function listCalendarEventAttachments(
   if (acc.provider !== 'microsoft') {
     return []
   }
-  return listGraphEventAttachments(input.accountId, graphEventId, graphCalendarId)
+  return runGraphMailboxRequest(input.accountId, 'listEventAttachments', () =>
+    listGraphEventAttachments(input.accountId, graphEventId, graphCalendarId)
+  )
+}
+
+/** Microsoft: Inline-Bilder fuer `cid:` im Termin-Body. Google: leer. */
+export async function fetchCalendarEventInlineImages(
+  input: CalendarListEventAttachmentsInput
+): Promise<Record<string, string>> {
+  const accounts = await listAccounts()
+  const acc = accounts.find((a) => a.id === input.accountId)
+  if (!acc || acc.provider !== 'microsoft') return {}
+  return runGraphMailboxRequest(input.accountId, 'fetchEventInlineImages', () =>
+    fetchGraphEventInlineImages(
+      input.accountId,
+      input.graphEventId.trim(),
+      input.graphCalendarId?.trim() || null
+    )
+  )
 }
 
 export async function addCalendarEventAttachments(

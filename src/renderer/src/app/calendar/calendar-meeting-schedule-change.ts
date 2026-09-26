@@ -128,6 +128,11 @@ export async function confirmEventDialogMeetingReschedule(input: {
   })
 }
 
+/**
+ * Nach Drag: Dialog nur bei klarem Meeting-Signal (Join-URL).
+ * Sonst kein getEvent-Roundtrip — der blockierte früher spürbar das Persist-Feeling.
+ * Teilnehmer ohne Teams-Link werden ohne Extra-Bestätigung mitnotify=false gepatcht.
+ */
 export async function resolveMeetingScheduleChange(
   ev: CalendarEventView,
   t: TFunction
@@ -136,18 +141,7 @@ export async function resolveMeetingScheduleChange(
     return { action: 'proceed', notifyAttendees: false }
   }
 
-  if (ev.source === 'google' && !ev.joinUrl?.trim()) {
-    return { action: 'proceed', notifyAttendees: false }
-  }
-
-  if (ev.joinUrl?.trim()) {
-    const save = await confirmMeetingScheduleChange(t)
-    if (!save) return { action: 'discard' }
-    return { action: 'proceed', notifyAttendees: true }
-  }
-
-  const detail = await loadCalendarEventDetailForMeetingCheck(ev)
-  if (!calendarEventLooksLikeMeeting(ev, detail)) {
+  if (!ev.joinUrl?.trim()) {
     return { action: 'proceed', notifyAttendees: false }
   }
 

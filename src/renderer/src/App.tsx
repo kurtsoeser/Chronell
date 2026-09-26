@@ -185,6 +185,9 @@ export function App(): JSX.Element {
   const [accountDialogInitialBookingsSubNav, setAccountDialogInitialBookingsSubNav] = useState<
     string | undefined
   >(undefined)
+  const [accountDialogInitialAiSubNav, setAccountDialogInitialAiSubNav] = useState<
+    string | undefined
+  >(undefined)
   const accounts = useAccountsStore((s) => s.accounts)
   const config = useAccountsStore((s) => s.config)
   const accountsLoading = useAccountsStore((s) => s.loading)
@@ -212,11 +215,13 @@ export function App(): JSX.Element {
   function openAccountSettings(
     tab: OpenAccountSettingsTab = 'general',
     mailSubNav?: string,
-    bookingsSubNav?: string
+    bookingsSubNav?: string,
+    aiSubNav?: string
   ): void {
     setAccountDialogInitialTab(tab)
     setAccountDialogInitialMailSubNav(mailSubNav)
     setAccountDialogInitialBookingsSubNav(bookingsSubNav)
+    setAccountDialogInitialAiSubNav(aiSubNav)
     setAccountDialogOpen(true)
   }
 
@@ -225,6 +230,7 @@ export function App(): JSX.Element {
     setAccountDialogInitialTab(undefined)
     setAccountDialogInitialMailSubNav(undefined)
     setAccountDialogInitialBookingsSubNav(undefined)
+    setAccountDialogInitialAiSubNav(undefined)
   }
 
   useEffect(() => {
@@ -295,11 +301,13 @@ export function App(): JSX.Element {
         tab?: OpenAccountSettingsTab
         mailSubNav?: string
         bookingsSubNav?: string
+        aiSubNav?: string
       }>
       const tab = ce.detail?.tab ?? 'general'
       setAccountDialogInitialTab(tab)
       setAccountDialogInitialMailSubNav(ce.detail?.mailSubNav)
       setAccountDialogInitialBookingsSubNav(ce.detail?.bookingsSubNav)
+      setAccountDialogInitialAiSubNav(ce.detail?.aiSubNav)
       setAccountDialogOpen(true)
     }
     window.addEventListener(OPEN_ACCOUNT_SETTINGS_EVENT, onOpenSettings as EventListener)
@@ -354,6 +362,7 @@ export function App(): JSX.Element {
             initialTab={accountDialogInitialTab}
             initialMailSubNav={accountDialogInitialMailSubNav}
             initialBookingsSubNav={accountDialogInitialBookingsSubNav}
+            initialAiSubNav={accountDialogInitialAiSubNav}
             onClose={closeAccountSettings}
           />
         </Suspense>

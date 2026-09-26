@@ -113,6 +113,8 @@ interface Props {
   className?: string
   /** Horizontales Padding des Inhalts bei `variant="section"` (Standard: px-6). */
   contentPaddingClass?: string
+  /** Header wie PropertyRow (Termin-Dialog: gleiche Ebene wie Beschreibung). */
+  sectionHeaderVariant?: 'fold' | 'property'
   /** Editor nutzt verfügbare Höhe im Container (z. B. Kalender-Vorschau). */
   fillHeight?: boolean
   /** Aufklapp-Status bei `variant="section"` (z. B. für resizable Layout). */
@@ -260,6 +262,7 @@ export function ObjectNoteEditor({
   showThemeToggle,
   className,
   contentPaddingClass = 'px-6',
+  sectionHeaderVariant = 'fold',
   fillHeight = false,
   onSectionExpandedChange,
   anchorAlign = 'left'
@@ -732,6 +735,7 @@ export function ObjectNoteEditor({
         expanded={sectionExpanded}
         onToggle={(): void => setSectionExpanded((v) => !v)}
         iconClassName={hasContent ? 'fill-amber-300 text-amber-500' : undefined}
+        headerVariant={sectionHeaderVariant}
         className={cn(
           'border-t-0',
           fillHeight && sectionExpanded && 'flex min-h-0 flex-1 flex-col',

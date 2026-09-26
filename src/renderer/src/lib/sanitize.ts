@@ -31,8 +31,6 @@ const ALLOWED_ATTR = [
   'xlink:href'
 ]
 
-let mailAnchorNeutralizeInstalled = false
-
 /** Abgestimmt auf styles/chronell-scrollbars.css (--chronell-scrollbar-size: 2px). */
 const MAIL_SHADOW_SCROLLBAR_LIGHT_CSS = `
     ::-webkit-scrollbar { width: 2px; height: 2px; }
@@ -50,22 +48,21 @@ const MAIL_SHADOW_SCROLLBAR_DARK_CSS = `
  * Erzwingt, dass externe Ziele nie als echtes `href` im Iframe landen (sonst CSP
  * ERR_BLOCKED_BY_CSP bevor `preventDefault` zuverlaessig greift). Stattdessen
  * `href="#"` + `data-mail-external` — der Renderer oeffnet per IPC im OS-Browser.
+ *
+ * Nur waehrend sanitizeMailHtml registrieren — DOMPurify-Hooks sind global und
+ * wuerden sonst Webinar-/Compose-Sanitize (echte https-hrefs) zerstoeren.
  */
-function installMailAnchorNeutralizer(): void {
-  if (mailAnchorNeutralizeInstalled) return
-  mailAnchorNeutralizeInstalled = true
-  DOMPurify.addHook('afterSanitizeAttributes', (node: Node) => {
-    if (node.nodeType !== 1) return
-    const el = node as Element
-    if (el.nodeName.toLowerCase() !== 'a') return
-    const raw = (el.getAttribute('href') || el.getAttribute('xlink:href') || '').trim()
-    if (!raw || raw === '#' || raw.startsWith('#')) return
-    const normalized = normalizeExternalOpenUrl(raw)
-    if (!normalized) return
-    el.setAttribute('data-mail-external', normalized)
-    el.setAttribute('href', '#')
-    el.removeAttribute('xlink:href')
-  })
+function neutralizeMailAnchorAttributes(node: Node): void {
+  if (node.nodeType !== 1) return
+  const el = node as Element
+  if (el.nodeName.toLowerCase() !== 'a') return
+  const raw = (el.getAttribute('href') || el.getAttribute('xlink:href') || '').trim()
+  if (!raw || raw === '#' || raw.startsWith('#')) return
+  const normalized = normalizeExternalOpenUrl(raw)
+  if (!normalized) return
+  el.setAttribute('data-mail-external', normalized)
+  el.setAttribute('href', '#')
+  el.removeAttribute('xlink:href')
 }
 
 /**
@@ -189,18 +186,22 @@ export function upgradeInsecureMailResourceUrls(html: string): string {
  */
 export function sanitizeMailHtml(html: string, options: { loadImages?: boolean } = {}): string {
   const loadImages = options.loadImages ?? false
-  installMailAnchorNeutralizer()
-
-  const cleaned = DOMPurify.sanitize(upgradeInsecureMailResourceUrls(html), {
-    ALLOWED_TAGS,
-    ALLOWED_ATTR,
-    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel|data):|(?:[a-z-]+):|#)/i,
-    FORBID_TAGS: ['script', 'style', 'iframe', 'object', 'embed', 'link', 'meta', 'form'],
-    FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur'],
-    KEEP_CONTENT: true,
-    RETURN_DOM: false,
-    RETURN_DOM_FRAGMENT: false
-  })
+  DOMPurify.addHook('afterSanitizeAttributes', neutralizeMailAnchorAttributes)
+  let cleaned: string
+  try {
+    cleaned = DOMPurify.sanitize(upgradeInsecureMailResourceUrls(html), {
+      ALLOWED_TAGS,
+      ALLOWED_ATTR,
+      ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel|data):|(?:[a-z-]+):|#)/i,
+      FORBID_TAGS: ['script', 'style', 'iframe', 'object', 'embed', 'link', 'meta', 'form'],
+      FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur'],
+      KEEP_CONTENT: true,
+      RETURN_DOM: false,
+      RETURN_DOM_FRAGMENT: false
+    })
+  } finally {
+    DOMPurify.removeHook('afterSanitizeAttributes')
+  }
 
   // `target=_blank` oeffnet sonst (mit allow-popups) ein Electron-Fenster unter App-CSP.
   const noBlankTargets = cleaned.replace(

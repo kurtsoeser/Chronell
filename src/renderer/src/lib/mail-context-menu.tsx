@@ -114,7 +114,11 @@ export interface MailContextMenuUi {
 
   /**
 
-   * Wenn gesetzt, wirken Massen-Aktionen (ToDo, Archiv, Loeschen, …) auf alle IDs.
+   * Wenn gesetzt, wirken Massen-Aktionen (Archiv, Loeschen, Lesen, …) auf alle IDs.
+
+   * ToDo-*setzen* nutzt bei Konversations-Kontext nur die Anker-Mail (`msg`);
+
+   * ToDo erledigen/entfernen weiterhin alle IDs.
 
    * Antworten/Weiterleiten bleiben auf der angezeigten Mail (`msg`).
 
@@ -183,6 +187,26 @@ function resolveTargetIds(msg: MailListItem, ui: MailContextMenuUi): number[] {
   if (raw.length === 0) return [msg.id]
 
   return [...new Set(raw)]
+
+}
+
+
+
+/**
+
+ * ToDo setzen: bei Konversations-Kontext nur die Anker-Mail (`msg`),
+
+ * damit eine Konversation genau ein ToDo ergibt (nicht eine Zeile pro Mail).
+
+ */
+
+function resolveTodoSetTargetIds(msg: MailListItem, ui: MailContextMenuUi): number[] {
+
+  const thread = ui.threadMessagesForContext
+
+  if (thread && thread.length > 1) return [msg.id]
+
+  return resolveTargetIds(msg, ui)
 
 }
 
@@ -338,6 +362,8 @@ export function buildMailContextItems(
 
   const ids = resolveTargetIds(msg, ui)
 
+  const todoSetIds = resolveTodoSetTargetIds(msg, ui)
+
   const isBulk = ids.length > 1
 
   const tr = ui.t
@@ -422,7 +448,7 @@ export function buildMailContextItems(
 
         void (async (): Promise<void> => {
 
-          for (const id of ids) await h.setTodoForMessage(id, 'today')
+          for (const id of todoSetIds) await h.setTodoForMessage(id, 'today')
 
         })()
 
@@ -444,7 +470,7 @@ export function buildMailContextItems(
 
         void (async (): Promise<void> => {
 
-          for (const id of ids) await h.setTodoForMessage(id, 'tomorrow')
+          for (const id of todoSetIds) await h.setTodoForMessage(id, 'tomorrow')
 
         })()
 
@@ -466,7 +492,7 @@ export function buildMailContextItems(
 
         void (async (): Promise<void> => {
 
-          for (const id of ids) await h.setTodoForMessage(id, 'this_week')
+          for (const id of todoSetIds) await h.setTodoForMessage(id, 'this_week')
 
         })()
 
@@ -488,7 +514,7 @@ export function buildMailContextItems(
 
         void (async (): Promise<void> => {
 
-          for (const id of ids) await h.setTodoForMessage(id, 'later')
+          for (const id of todoSetIds) await h.setTodoForMessage(id, 'later')
 
         })()
 

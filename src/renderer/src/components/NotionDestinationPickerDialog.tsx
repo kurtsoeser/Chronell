@@ -115,8 +115,10 @@ export function NotionDestinationPickerDialog(): JSX.Element | null {
   const { t } = useTranslation()
   const open = useNotionDestinationPickerStore((s) => s.open)
   const kind = useNotionDestinationPickerStore((s) => s.kind)
+  const intent = useNotionDestinationPickerStore((s) => s.intent)
   const suggestedTitle = useNotionDestinationPickerStore((s) => s.suggestedTitle)
   const messageId = useNotionDestinationPickerStore((s) => s.messageId)
+  const noteId = useNotionDestinationPickerStore((s) => s.noteId)
   const calendarEvent = useNotionDestinationPickerStore((s) => s.calendarEvent)
   const localeCode = useNotionDestinationPickerStore((s) => s.localeCode)
   const close = useNotionDestinationPickerStore((s) => s.close)
@@ -124,7 +126,9 @@ export function NotionDestinationPickerDialog(): JSX.Element | null {
   const [query, setQuery] = useState('')
   const [createBusy, setCreateBusy] = useState(false)
   const [searchBusy, setSearchBusy] = useState(false)
+  const [recentBusy, setRecentBusy] = useState(false)
   const [searchHits, setSearchHits] = useState<NotionSearchPageHit[]>([])
+  const [recentHits, setRecentHits] = useState<NotionSearchPageHit[]>([])
   const [favorites, setFavorites] = useState<NotionSavedDestination[]>([])
   const [defaultMailPageId, setDefaultMailPageId] = useState<string | null>(null)
   const [defaultCalendarPageId, setDefaultCalendarPageId] = useState<string | null>(null)
@@ -140,15 +144,32 @@ export function NotionDestinationPickerDialog(): JSX.Element | null {
     setLastUsedPageId(dest.lastUsedPageId)
   }, [])
 
+  const loadRecentPages = useCallback(async (): Promise<void> => {
+    setRecentBusy(true)
+    try {
+      // Leere Suche = pool nach last_edited_time; created_time sortieren wir lokal.
+      const hits = await window.mailClient.notion.searchPages('')
+      setRecentHits(hits)
+      setError(null)
+    } catch (e) {
+      setRecentHits([])
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setRecentBusy(false)
+    }
+  }, [])
+
   useEffect(() => {
     if (!open) return
     setQuery('')
     setSearchHits([])
+    setRecentHits([])
     setError(null)
     void loadDestinations()
+    void loadRecentPages()
     const tId = window.setTimeout(() => inputRef.current?.focus(), 0)
     return (): void => clearTimeout(tId)
-  }, [open, loadDestinations])
+  }, [open, loadDestinations, loadRecentPages])
 
   useEffect(() => {
     if (!open) return
@@ -177,7 +198,7 @@ export function NotionDestinationPickerDialog(): JSX.Element | null {
   }, [open, query])
 
   const defaultPageId =
-    kind === 'mail' ? defaultMailPageId : kind === 'calendar' ? defaultCalendarPageId : null
+    kind === 'calendar' ? defaultCalendarPageId : defaultMailPageId
 
   const suggestedRows = useMemo((): PickerRow[] => {
     if (query.trim()) return []
@@ -209,9 +230,9 @@ export function NotionDestinationPickerDialog(): JSX.Element | null {
         title: f?.title ?? t('notion.pickerDefault'),
         icon: f?.icon ?? null,
         badge:
-          kind === 'mail'
-            ? t('settings.notionBadgeMailDefault')
-            : t('settings.notionBadgeCalDefault')
+          kind === 'calendar'
+            ? t('settings.notionBadgeCalDefault')
+            : t('settings.notionBadgeMailDefault')
       })
     }
 
@@ -222,9 +243,9 @@ export function NotionDestinationPickerDialog(): JSX.Element | null {
         icon: f.icon,
         badge:
           f.id === defaultPageId
-            ? kind === 'mail'
-              ? t('settings.notionBadgeMailDefault')
-              : t('settings.notionBadgeCalDefault')
+            ? kind === 'calendar'
+              ? t('settings.notionBadgeCalDefault')
+              : t('settings.notionBadgeMailDefault')
             : undefined
       })
     }
@@ -239,6 +260,46 @@ export function NotionDestinationPickerDialog(): JSX.Element | null {
     t
   ])
 
+  const suggestedIdSet = useMemo(
+    () => new Set(suggestedRows.map((r) => r.id)),
+    [suggestedRows]
+  )
+
+  const recentCreatedRows = useMemo((): PickerRow[] => {
+    if (query.trim()) return []
+    return [...recentHits]
+      .filter((h) => !suggestedIdSet.has(h.id))
+      .sort((a, b) => {
+        const ta = Date.parse(a.createdTime || a.lastEditedTime || '') || 0
+        const tb = Date.parse(b.createdTime || b.lastEditedTime || '') || 0
+        return tb - ta
+      })
+      .slice(0, 20)
+      .map((h) => ({
+        id: h.id,
+        title: h.title,
+        icon: h.icon
+      }))
+  }, [query, recentHits, suggestedIdSet])
+
+  const recentCreatedIdSet = useMemo(
+    () => new Set(recentCreatedRows.map((r) => r.id)),
+    [recentCreatedRows]
+  )
+
+  const recentEditedRows = useMemo((): PickerRow[] => {
+    if (query.trim()) return []
+    // API liefert bereits nach last_edited_time; hier nur Duplikate zu „erstellt“ ausblenden.
+    return recentHits
+      .filter((h) => !suggestedIdSet.has(h.id) && !recentCreatedIdSet.has(h.id))
+      .slice(0, 20)
+      .map((h) => ({
+        id: h.id,
+        title: h.title,
+        icon: h.icon
+      }))
+  }, [query, recentHits, suggestedIdSet, recentCreatedIdSet])
+
   const searchRows = useMemo((): PickerRow[] => {
     if (!query.trim()) return []
     return searchHits.map((h) => ({
@@ -250,10 +311,6 @@ export function NotionDestinationPickerDialog(): JSX.Element | null {
 
   if (!kind) return null
 
-  function handlePick(pageId: string): void {
-    close({ mode: 'append', pageId })
-  }
-
   function handleClose(): void {
     close(null)
   }
@@ -262,9 +319,14 @@ export function NotionDestinationPickerDialog(): JSX.Element | null {
     if (!kind || createBusy) return
     const defaultTitle =
       suggestedTitle ||
-      (kind === 'mail' ? t('notion.newPageDefaultMail') : t('notion.newPageDefaultEvent'))
+      (kind === 'mail'
+        ? t('notion.newPageDefaultMail')
+        : kind === 'calendar'
+          ? t('notion.newPageDefaultEvent')
+          : t('notion.newPageDefaultNote'))
     const title = await showAppPrompt(t('notion.newPageTitlePrompt'), {
-      title: t('notion.pickerNewPage'),
+      title:
+        intent === 'createUnder' ? t('notion.pickerCreateUnderTitle') : t('notion.pickerNewPage'),
       defaultValue: defaultTitle,
       placeholder: t('notion.newPageTitlePlaceholder'),
       confirmLabel: t('common.create')
@@ -293,6 +355,16 @@ export function NotionDestinationPickerDialog(): JSX.Element | null {
         close({ mode: 'created', pageId: created.pageId, pageUrl: created.pageUrl })
         return
       }
+      if (kind === 'note' && noteId != null) {
+        const created = await window.mailClient.notion.createNotePage({
+          noteId,
+          title: pageTitle,
+          parentPageId: parentPageId ?? null,
+          localeCode
+        })
+        close({ mode: 'created', pageId: created.pageId, pageUrl: created.pageUrl })
+        return
+      }
       const created = await window.mailClient.notion.createPage({
         title: pageTitle,
         parentPageId: parentPageId ?? null,
@@ -306,8 +378,28 @@ export function NotionDestinationPickerDialog(): JSX.Element | null {
     }
   }
 
+  function handlePick(pageId: string): void {
+    if (intent === 'createUnder') {
+      void handleCreateNewPage(pageId)
+      return
+    }
+    close({ mode: 'append', pageId })
+  }
+
   const title =
-    kind === 'mail' ? t('notion.pickerTitleMail') : t('notion.pickerTitleCalendar')
+    intent === 'createUnder'
+      ? t('notion.pickerTitleCreateUnder')
+      : kind === 'mail'
+        ? t('notion.pickerTitleMail')
+        : kind === 'calendar'
+          ? t('notion.pickerTitleCalendar')
+          : t('notion.pickerTitleNote')
+
+  const listBusy = createBusy || recentBusy
+  const createUnderHandler =
+    intent === 'createUnder'
+      ? undefined
+      : (parentId: string): void => void handleCreateNewPage(parentId)
 
   return (
     <ModalRoot
@@ -334,7 +426,7 @@ export function NotionDestinationPickerDialog(): JSX.Element | null {
               placeholder={title}
               className="w-full rounded-lg border border-primary/40 bg-background py-2 pl-9 pr-8 text-sm text-foreground outline-none ring-0 placeholder:text-muted-foreground focus:border-primary"
             />
-            {searchBusy ? (
+            {searchBusy || recentBusy ? (
               <Loader2
                 className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground"
                 aria-hidden
@@ -360,7 +452,7 @@ export function NotionDestinationPickerDialog(): JSX.Element | null {
           <div className={cn('border-b px-1 py-1', listSubtleBorderClass)}>
             <button
               type="button"
-              disabled={createBusy || searchBusy}
+              disabled={createBusy || searchBusy || recentBusy}
               onClick={(): void => void handleCreateNewPage(null)}
               className={cn(
                 'flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm font-medium transition-colors',
@@ -372,20 +464,43 @@ export function NotionDestinationPickerDialog(): JSX.Element | null {
               ) : (
                 <FilePlus2 className="h-4 w-4 shrink-0" aria-hidden />
               )}
-              {t('notion.pickerNewPage')}
+              {intent === 'createUnder'
+                ? t('notion.pickerNewPageDefaultParent')
+                : t('notion.pickerNewPage')}
             </button>
           </div>
 
           {!query.trim() ? (
             <>
               <PickerListSection
-                title={t('notion.pickerSuggested')}
+                title={
+                  intent === 'createUnder'
+                    ? t('notion.pickerParentSuggested')
+                    : t('notion.pickerSuggested')
+                }
                 rows={suggestedRows}
-                busy={createBusy}
+                busy={listBusy}
                 onPick={handlePick}
-                onCreateUnder={(parentId): void => void handleCreateNewPage(parentId)}
+                onCreateUnder={createUnderHandler}
               />
-              {suggestedRows.length === 0 ? (
+              <PickerListSection
+                title={t('notion.pickerRecentCreated')}
+                rows={recentCreatedRows}
+                busy={listBusy}
+                onPick={handlePick}
+                onCreateUnder={createUnderHandler}
+              />
+              <PickerListSection
+                title={t('notion.pickerRecent')}
+                rows={recentEditedRows}
+                busy={listBusy}
+                onPick={handlePick}
+                onCreateUnder={createUnderHandler}
+              />
+              {!recentBusy &&
+              suggestedRows.length === 0 &&
+              recentCreatedRows.length === 0 &&
+              recentEditedRows.length === 0 ? (
                 <p className="px-3 py-6 text-center text-xs text-muted-foreground">
                   {t('notion.pickerEmpty')}
                 </p>
@@ -398,7 +513,7 @@ export function NotionDestinationPickerDialog(): JSX.Element | null {
                 rows={searchRows}
                 busy={searchBusy || createBusy}
                 onPick={handlePick}
-                onCreateUnder={(parentId): void => void handleCreateNewPage(parentId)}
+                onCreateUnder={createUnderHandler}
               />
               {!searchBusy && searchRows.length === 0 ? (
                 <p className="px-3 py-6 text-center text-xs text-muted-foreground">
@@ -416,7 +531,9 @@ export function NotionDestinationPickerDialog(): JSX.Element | null {
           )}
         >
           <Star className="h-3 w-3 fill-amber-400 text-amber-400" aria-hidden />
-          {t('notion.pickerFavoritesHint')}
+          {intent === 'createUnder'
+            ? t('notion.pickerCreateUnderHint')
+            : t('notion.pickerFavoritesHint')}
         </div>
       </ModalPanel>
     </ModalRoot>

@@ -115,7 +115,10 @@ export function LocalAttachmentChip({
   draggable?: boolean
   dragPreparing?: boolean
   onDragPrepare?: () => void
-  /** Sync: startet natives Drag; false = Drag abbrechen (Datei noch nicht bereit). */
+  /**
+   * Wird nach preventDefault aufgerufen.
+   * true = natives Drag via IPC gestartet; false = Datei noch nicht bereit.
+   */
   onNativeDragStart?: () => boolean
   dragTitle?: string
 }): JSX.Element {
@@ -152,12 +155,10 @@ export function LocalAttachmentChip({
       onDragStart={
         onNativeDragStart
           ? (e): void => {
-              if (!onNativeDragStart()) {
-                e.preventDefault()
-                return
-              }
-              e.dataTransfer.effectAllowed = 'copy'
-              e.dataTransfer.setData('text/plain', name)
+              // Electron-Pflicht: HTML5-Drag abbrechen, nur natives startDrag nutzen.
+              // Ohne preventDefault + mit sendSync friert Windows-DnD ein.
+              e.preventDefault()
+              onNativeDragStart()
             }
           : undefined
       }
