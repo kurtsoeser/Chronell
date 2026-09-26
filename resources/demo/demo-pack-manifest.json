@@ -1,6 +1,6 @@
 {
-  "version": 3,
-  "chronellMinVersion": "1.0.0",
+  "version": 4,
+  "chronellMinVersion": "1.3.0",
   "scenario": "nordlicht-consulting",
-  "builtAt": "2026-07-04T15:21:48+02:00"
+  "builtAt": "2026-09-26T20:02:53+02:00"
 }

@@ -73,6 +73,10 @@ import {
   registerNoteM365VideoProtocol,
   registerNoteM365VideoScheme
 } from './note-m365-video-protocol'
+import {
+  isHomepageCaptureRequested,
+  runHomepageScreenshotCapture
+} from './homepage-screenshot-capture'
 
 configureChronellAppPaths()
 
@@ -215,11 +219,12 @@ function applyWindowIcon(win: BrowserWindow): void {
 
 function createMainWindow(): void {
   const icon = resolveAppWindowIcon()
+  const capture = isHomepageCaptureRequested()
   mainWindow = new BrowserWindow({
-    width: 1400,
-    height: 900,
-    minWidth: 1000,
-    minHeight: 600,
+    width: capture ? 1280 : 1400,
+    height: capture ? 800 : 900,
+    minWidth: capture ? 1280 : 1000,
+    minHeight: capture ? 800 : 600,
     show: false,
     autoHideMenuBar: true,
     backgroundColor: '#0e0e12',
@@ -253,6 +258,12 @@ function createMainWindow(): void {
 
   mainWindow.webContents.once('did-finish-load', () => {
     notifyRendererOfPendingIcsFiles(mainWindow)
+    if (isHomepageCaptureRequested() && mainWindow) {
+      void runHomepageScreenshotCapture(mainWindow).catch((e) => {
+        console.error('[capture] fehlgeschlagen:', e)
+        app.exit(1)
+      })
+    }
   })
 }
 

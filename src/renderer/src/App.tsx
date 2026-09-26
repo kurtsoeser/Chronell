@@ -8,6 +8,7 @@ import { useGlobalShortcuts } from './lib/use-global-shortcuts'
 import { useZoomShortcuts } from './hooks/use-zoom-shortcuts'
 import { usePanelPopoutDockListener } from './hooks/use-panel-popout-dock-listener'
 import {
+  CLOSE_ACCOUNT_SETTINGS_EVENT,
   OPEN_ACCOUNT_SETTINGS_EVENT,
   type OpenAccountSettingsTab
 } from './lib/open-account-settings'
@@ -30,6 +31,7 @@ import { ProfileSyncBridge } from './components/ProfileSyncBridge'
 import { useSnoozeUiStore } from './stores/snooze-ui'
 import { useCreateCloudTaskUiStore } from './stores/create-cloud-task-ui'
 import { useNotionDestinationPickerStore } from './stores/notion-destination-picker'
+import { installHomepageCaptureBridge } from './lib/homepage-capture-bridge'
 
 const Topbar = lazy(async () => {
   const m = await import('./app/layout/Topbar')
@@ -182,6 +184,9 @@ export function App(): JSX.Element {
   const [accountDialogInitialMailSubNav, setAccountDialogInitialMailSubNav] = useState<
     string | undefined
   >(undefined)
+  const [accountDialogInitialGeneralSubNav, setAccountDialogInitialGeneralSubNav] = useState<
+    string | undefined
+  >(undefined)
   const [accountDialogInitialBookingsSubNav, setAccountDialogInitialBookingsSubNav] = useState<
     string | undefined
   >(undefined)
@@ -216,12 +221,14 @@ export function App(): JSX.Element {
     tab: OpenAccountSettingsTab = 'general',
     mailSubNav?: string,
     bookingsSubNav?: string,
-    aiSubNav?: string
+    aiSubNav?: string,
+    generalSubNav?: string
   ): void {
     setAccountDialogInitialTab(tab)
     setAccountDialogInitialMailSubNav(mailSubNav)
     setAccountDialogInitialBookingsSubNav(bookingsSubNav)
     setAccountDialogInitialAiSubNav(aiSubNav)
+    setAccountDialogInitialGeneralSubNav(generalSubNav)
     setAccountDialogOpen(true)
   }
 
@@ -231,12 +238,14 @@ export function App(): JSX.Element {
     setAccountDialogInitialMailSubNav(undefined)
     setAccountDialogInitialBookingsSubNav(undefined)
     setAccountDialogInitialAiSubNav(undefined)
+    setAccountDialogInitialGeneralSubNav(undefined)
   }
 
   useEffect(() => {
     useMailStore.getState().initialize()
     useCalendarSyncStore.getState().initialize()
     void useAccountsStore.getState().initialize()
+    installHomepageCaptureBridge()
 
     const views = readCustomViews()
     const topbarOrder = reconcileCustomViewTopbarOrder(views, readCustomViewTopbarOrder())
@@ -302,16 +311,25 @@ export function App(): JSX.Element {
         mailSubNav?: string
         bookingsSubNav?: string
         aiSubNav?: string
+        generalSubNav?: string
       }>
       const tab = ce.detail?.tab ?? 'general'
       setAccountDialogInitialTab(tab)
       setAccountDialogInitialMailSubNav(ce.detail?.mailSubNav)
       setAccountDialogInitialBookingsSubNav(ce.detail?.bookingsSubNav)
       setAccountDialogInitialAiSubNav(ce.detail?.aiSubNav)
+      setAccountDialogInitialGeneralSubNav(ce.detail?.generalSubNav)
       setAccountDialogOpen(true)
     }
+    const onCloseSettings = (): void => {
+      closeAccountSettings()
+    }
     window.addEventListener(OPEN_ACCOUNT_SETTINGS_EVENT, onOpenSettings as EventListener)
-    return (): void => window.removeEventListener(OPEN_ACCOUNT_SETTINGS_EVENT, onOpenSettings as EventListener)
+    window.addEventListener(CLOSE_ACCOUNT_SETTINGS_EVENT, onCloseSettings)
+    return (): void => {
+      window.removeEventListener(OPEN_ACCOUNT_SETTINGS_EVENT, onOpenSettings as EventListener)
+      window.removeEventListener(CLOSE_ACCOUNT_SETTINGS_EVENT, onCloseSettings)
+    }
   }, [])
 
   return (
@@ -360,6 +378,7 @@ export function App(): JSX.Element {
           <AccountSetupDialog
             open={accountDialogOpen}
             initialTab={accountDialogInitialTab}
+            initialGeneralSubNav={accountDialogInitialGeneralSubNav}
             initialMailSubNav={accountDialogInitialMailSubNav}
             initialBookingsSubNav={accountDialogInitialBookingsSubNav}
             initialAiSubNav={accountDialogInitialAiSubNav}

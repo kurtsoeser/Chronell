@@ -10,12 +10,12 @@ describe.skipIf(!sqliteOk)('buildDemoWebSnapshot', () => {
     { timeout: 60_000 },
     () => {
     const snap = buildDemoWebSnapshot()
-    expect(snap.version).toBeGreaterThanOrEqual(3)
-    expect(snap.messages.length).toBeGreaterThanOrEqual(10)
-    expect(snap.calendarEvents.length).toBeGreaterThanOrEqual(10)
-    expect(snap.cloudTasks.length).toBeGreaterThanOrEqual(15)
-    expect(snap.graphNodes.length).toBeGreaterThanOrEqual(10)
-    expect(snap.graphEdges.length).toBeGreaterThanOrEqual(10)
+    expect(snap.version).toBeGreaterThanOrEqual(4)
+    expect(snap.messages.length).toBeGreaterThanOrEqual(28)
+    expect(snap.calendarEvents.length).toBeGreaterThanOrEqual(20)
+    expect(snap.cloudTasks.length).toBeGreaterThanOrEqual(28)
+    expect(snap.graphNodes.length).toBeGreaterThanOrEqual(40)
+    expect(snap.graphEdges.length).toBeGreaterThanOrEqual(35)
     expect(snap.accounts).toHaveLength(2)
     for (const m of snap.messages) {
       expect(m.subject).toBeTruthy()

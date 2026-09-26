@@ -5,18 +5,27 @@ PNG-Dateien für die Sektion **Chronell in Aktion** auf der Marketing-Homepage (
 | Datei | Modul |
 |-------|--------|
 | `mail-triage.png` | Mail · Posteingang + Lesefenster |
-| `calendar.png` | Kalender · Zeitliste + Termin-Vorschau |
-| `design.png` | Fluent Design · Presets & Ebenen |
-| `connections.png` | Verbindungen · Graph + Notiz-Vorschau |
+| `calendar.png` | Kalender · Woche + Termine |
+| `design.png` | Fluent Design · Einstellungen Darstellung |
+| `connections.png` | Verbindungen · Graph |
 | `work.png` | Alle Arbeit · Kanban |
 | `dashboard.png` | Home · Dashboard-Kacheln |
 
-**Erzeugen** (SVG-Mockups im Chronell-Look, 1280×800):
+## Echte App-Screenshots (empfohlen)
+
+Mit dem erweiterten Demo-Seed (Nordlicht Consulting):
+
+```powershell
+npm run demo:build-pack
+npm run capture:homepage-screenshots
+```
+
+Startet die Demo-App, wechselt die Module und schreibt PNGs (1280×800) nach `docs/assets/screenshots/`.
+
+## SVG-Mockups (Fallback)
 
 ```powershell
 node scripts/generate-homepage-screenshots.mjs
 ```
 
-Anschließend `docs/assets/screenshots/*.png` committen und pushen (GitHub Pages).
-
-Für echte App-Screenshots: Fenster in Chronell öffnen, PNG ablegen und obige Dateinamen beibehalten — dann `index.html` nicht anpassen (Pfade bleiben gleich).
+Anschließend committen und pushen (GitHub Pages / chronell.app).

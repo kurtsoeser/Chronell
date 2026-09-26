@@ -42,6 +42,7 @@ export function DemoModeBanner(): JSX.Element | null {
 
   return (
     <div
+      data-demo-banner
       role="status"
       className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-sm text-amber-950 dark:text-amber-100"
     >

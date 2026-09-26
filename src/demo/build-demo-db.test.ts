@@ -32,32 +32,32 @@ describe.skipIf(!sqliteOk)('build-demo-db', () => {
         const messageCount = (
           db.prepare('SELECT COUNT(*) AS c FROM messages').get() as { c: number }
         ).c
-        expect(messageCount).toBeGreaterThanOrEqual(12)
+        expect(messageCount).toBeGreaterThanOrEqual(30)
 
         const linkCount = (
           db.prepare('SELECT COUNT(*) AS c FROM entity_links').get() as { c: number }
         ).c
-        expect(linkCount).toBeGreaterThanOrEqual(10)
+        expect(linkCount).toBeGreaterThanOrEqual(35)
 
         const noteCount = (
           db.prepare('SELECT COUNT(*) AS c FROM user_notes').get() as { c: number }
         ).c
-        expect(noteCount).toBeGreaterThanOrEqual(8)
+        expect(noteCount).toBeGreaterThanOrEqual(14)
 
         const eventCount = (
           db.prepare('SELECT COUNT(*) AS c FROM calendar_events').get() as { c: number }
         ).c
-        expect(eventCount).toBeGreaterThanOrEqual(12)
+        expect(eventCount).toBeGreaterThanOrEqual(20)
 
         const taskCount = (
           db.prepare('SELECT COUNT(*) AS c FROM cloud_tasks').get() as { c: number }
         ).c
-        expect(taskCount).toBeGreaterThanOrEqual(18)
+        expect(taskCount).toBeGreaterThanOrEqual(28)
 
         const mailTodoCount = (
           db.prepare('SELECT COUNT(*) AS c FROM todos').get() as { c: number }
         ).c
-        expect(mailTodoCount).toBeGreaterThanOrEqual(8)
+        expect(mailTodoCount).toBeGreaterThanOrEqual(14)
 
         for (const row of db.prepare('SELECT ref_a_key, ref_b_key FROM entity_links').all() as Array<{
           ref_a_key: string

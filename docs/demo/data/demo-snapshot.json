@@ -1,6 +1,6 @@
 {
-  "version": 3,
-  "builtAt": "2026-07-04T13:21:49.729Z",
+  "version": 4,
+  "builtAt": "2026-09-26T18:02:56.393Z",
   "scenario": "nordlicht-consulting",
   "accounts": [
     {
@@ -32,17 +32,137 @@
   ],
   "messages": [
     {
+      "id": 33,
+      "accountId": "demo-nordlicht-google",
+      "subject": "Re: Design System — Dark Mode Kontrast",
+      "fromName": "Nina Hofer",
+      "fromAddr": "nina.hofer@nordlicht-demo.local",
+      "snippet": "Kontrast-Fix für Bug #145 liegt bereit.",
+      "isRead": false,
+      "isFlagged": false,
+      "hasAttachments": false,
+      "importance": "normal",
+      "receivedAt": "2026-09-26T14:00:00.000Z",
+      "snoozedUntil": null,
+      "waitingForReplyUntil": null
+    },
+    {
+      "id": 21,
+      "accountId": "demo-nordlicht-m365",
+      "subject": "Re: NDA — Freigabe Legal",
+      "fromName": "Peter Lang",
+      "fromAddr": "peter.lang@nordlicht-demo.local",
+      "snippet": "Legal freigegeben — bitte an Schmidt AG senden.",
+      "isRead": false,
+      "isFlagged": false,
+      "hasAttachments": true,
+      "importance": "normal",
+      "receivedAt": "2026-09-26T12:00:00.000Z",
+      "snoozedUntil": null,
+      "waitingForReplyUntil": null
+    },
+    {
+      "id": 27,
+      "accountId": "demo-nordlicht-m365",
+      "subject": "Reisekosten Offsite Salzburg — Freigabe",
+      "fromName": "Sarah Klein",
+      "fromAddr": "sarah.klein@nordlicht-demo.local",
+      "snippet": "Hotel und Bahn für Team-Offsite zur Freigabe.",
+      "isRead": false,
+      "isFlagged": false,
+      "hasAttachments": true,
+      "importance": "normal",
+      "receivedAt": "2026-09-26T10:00:00.000Z",
+      "snoozedUntil": null,
+      "waitingForReplyUntil": null
+    },
+    {
+      "id": 16,
+      "accountId": "demo-nordlicht-m365",
+      "subject": "Re: Budget Q3 — Freigabe erteilt (bedingt)",
+      "fromName": "Finanzen Nordlicht",
+      "fromAddr": "finance@nordlicht-demo.local",
+      "snippet": "Bedingte Freigabe: Marketing bleibt in Q4, Rest freigegeben.",
+      "isRead": false,
+      "isFlagged": false,
+      "hasAttachments": false,
+      "importance": "high",
+      "receivedAt": "2026-09-26T09:00:00.000Z",
+      "snoozedUntil": null,
+      "waitingForReplyUntil": null
+    },
+    {
+      "id": 26,
+      "accountId": "demo-nordlicht-m365",
+      "subject": "Vorstellung — Schmidt AG / Digitalisierungsprojekt",
+      "fromName": "Clara Schmidt",
+      "fromAddr": "clara.schmidt@extern-demo.local",
+      "snippet": "Freut mich auf die Zusammenarbeit — Terminvorschlag nächste Woche.",
+      "isRead": false,
+      "isFlagged": true,
+      "hasAttachments": false,
+      "importance": "high",
+      "receivedAt": "2026-09-26T08:00:00.000Z",
+      "snoozedUntil": null,
+      "waitingForReplyUntil": null
+    },
+    {
       "id": 13,
       "accountId": "demo-nordlicht-google",
       "subject": "Re: Alpha — Offene Bugs",
       "fromName": "Marc Weber",
       "fromAddr": "marc.weber@nordlicht-demo.local",
-      "snippet": "3 Blocker für Release …",
+      "snippet": "3 Blocker für Release — bitte priorisieren.",
       "isRead": false,
       "isFlagged": true,
       "hasAttachments": false,
       "importance": "high",
-      "receivedAt": "2026-07-04T07:00:00.000Z",
+      "receivedAt": "2026-09-26T07:00:00.000Z",
+      "snoozedUntil": null,
+      "waitingForReplyUntil": null
+    },
+    {
+      "id": 36,
+      "accountId": "demo-nordlicht-m365",
+      "subject": "Bookings: Neue Buchung — Beratungsgespräch",
+      "fromName": "Microsoft Bookings",
+      "fromAddr": "noreply@bookings-demo.local",
+      "snippet": "Neue Buchung: Di 14:00 — Clara Schmidt.",
+      "isRead": false,
+      "isFlagged": false,
+      "hasAttachments": false,
+      "importance": "normal",
+      "receivedAt": "2026-09-26T07:00:00.000Z",
+      "snoozedUntil": null,
+      "waitingForReplyUntil": null
+    },
+    {
+      "id": 15,
+      "accountId": "demo-nordlicht-m365",
+      "subject": "Re: Kick-off — Entscheidungsvorlage",
+      "fromName": "Lisa Hoffmann",
+      "fromAddr": "lisa.hoffmann@nordlicht-demo.local",
+      "snippet": "Bitte die Entscheidungsvorlage bis 11 Uhr gegenlesen.",
+      "isRead": false,
+      "isFlagged": true,
+      "hasAttachments": true,
+      "importance": "high",
+      "receivedAt": "2026-09-26T06:00:00.000Z",
+      "snoozedUntil": null,
+      "waitingForReplyUntil": null
+    },
+    {
+      "id": 31,
+      "accountId": "demo-nordlicht-google",
+      "subject": "Re: Alpha — Release Candidate",
+      "fromName": "Marc Weber",
+      "fromAddr": "marc.weber@nordlicht-demo.local",
+      "snippet": "RC1 morgen — bitte QA-Checkliste abhaken.",
+      "isRead": false,
+      "isFlagged": true,
+      "hasAttachments": false,
+      "importance": "high",
+      "receivedAt": "2026-09-26T05:00:00.000Z",
       "snoozedUntil": null,
       "waitingForReplyUntil": null
     },
@@ -52,14 +172,59 @@
       "subject": "Alpha — Staging Deployment",
       "fromName": "CI Pipeline",
       "fromAddr": "ci@nordlicht-demo.local",
-      "snippet": "Build #412 erfolgreich …",
+      "snippet": "Build #412 erfolgreich — Smoke-Tests grün.",
       "isRead": true,
       "isFlagged": false,
       "hasAttachments": false,
       "importance": "low",
-      "receivedAt": "2026-07-04T04:00:00.000Z",
+      "receivedAt": "2026-09-26T04:00:00.000Z",
       "snoozedUntil": null,
       "waitingForReplyUntil": null
+    },
+    {
+      "id": 35,
+      "accountId": "demo-nordlicht-google",
+      "subject": "Security Scan Staging — 2 Medium Findings",
+      "fromName": "Security Bot",
+      "fromAddr": "security@nordlicht-demo.local",
+      "snippet": "Zwei Medium-Findings vor RC1 schließen.",
+      "isRead": false,
+      "isFlagged": true,
+      "hasAttachments": true,
+      "importance": "high",
+      "receivedAt": "2026-09-26T03:00:00.000Z",
+      "snoozedUntil": null,
+      "waitingForReplyUntil": null
+    },
+    {
+      "id": 28,
+      "accountId": "demo-nordlicht-m365",
+      "subject": "Lieferant: Verzögerung Modul X",
+      "fromName": "TechSupply GmbH",
+      "fromAddr": "vendor@extern-demo.local",
+      "snippet": "Lieferung verschiebt sich um 5 Werktage — Entschuldigung.",
+      "isRead": false,
+      "isFlagged": true,
+      "hasAttachments": true,
+      "importance": "high",
+      "receivedAt": "2026-09-25T14:00:00.000Z",
+      "snoozedUntil": null,
+      "waitingForReplyUntil": null
+    },
+    {
+      "id": 18,
+      "accountId": "demo-nordlicht-m365",
+      "subject": "Re: Angebot Müller — Gegenangebot",
+      "fromName": "Kunde Müller GmbH",
+      "fromAddr": "kunde.mueller@extern-demo.local",
+      "snippet": "Gegenangebot: 8 % Rabatt bei 24-Monats-Laufzeit.",
+      "isRead": false,
+      "isFlagged": true,
+      "hasAttachments": true,
+      "importance": "high",
+      "receivedAt": "2026-09-25T13:00:00.000Z",
+      "snoozedUntil": null,
+      "waitingForReplyUntil": "2026-09-28T08:00:00.000Z"
     },
     {
       "id": 6,
@@ -67,12 +232,12 @@
       "subject": "Re: Kick-off — Raum & Catering",
       "fromName": "Sarah Klein",
       "fromAddr": "sarah.klein@nordlicht-demo.local",
-      "snippet": "Raum B ist reserviert, Catering kommt …",
+      "snippet": "Raum B ist reserviert, Catering für 12 Personen bestätigt.",
       "isRead": false,
       "isFlagged": false,
       "hasAttachments": false,
       "importance": "normal",
-      "receivedAt": "2026-07-03T12:00:00.000Z",
+      "receivedAt": "2026-09-25T12:00:00.000Z",
       "snoozedUntil": null,
       "waitingForReplyUntil": null
     },
@@ -82,12 +247,42 @@
       "subject": "Alpha — Sprint Review",
       "fromName": "Dev Team",
       "fromAddr": "dev@nordlicht-demo.local",
-      "snippet": "Zusammenfassung der Review …",
+      "snippet": "Zusammenfassung der Review — Demo-Daten und offene Punkte.",
       "isRead": false,
       "isFlagged": false,
       "hasAttachments": false,
       "importance": "normal",
-      "receivedAt": "2026-07-03T11:00:00.000Z",
+      "receivedAt": "2026-09-25T11:00:00.000Z",
+      "snoozedUntil": null,
+      "waitingForReplyUntil": null
+    },
+    {
+      "id": 20,
+      "accountId": "demo-nordlicht-m365",
+      "subject": "Re: NDA — Rückfrage Haftung",
+      "fromName": "Anna Weber",
+      "fromAddr": "anna.weber@nordlicht-demo.local",
+      "snippet": "Haftungsdeckelung auf Auftragswert ok? Bitte bestätigen.",
+      "isRead": true,
+      "isFlagged": false,
+      "hasAttachments": false,
+      "importance": "normal",
+      "receivedAt": "2026-09-25T09:00:00.000Z",
+      "snoozedUntil": null,
+      "waitingForReplyUntil": null
+    },
+    {
+      "id": 17,
+      "accountId": "demo-nordlicht-m365",
+      "subject": "Re: Stakeholder-Update — Kommentare",
+      "fromName": "Thomas Berger",
+      "fromAddr": "thomas.berger@nordlicht-demo.local",
+      "snippet": "Grafik auf Seite 3 angepasst — bitte finalisieren.",
+      "isRead": false,
+      "isFlagged": false,
+      "hasAttachments": true,
+      "importance": "normal",
+      "receivedAt": "2026-09-25T07:00:00.000Z",
       "snoozedUntil": null,
       "waitingForReplyUntil": null
     },
@@ -97,13 +292,28 @@
       "subject": "IT: VPN-Zugang für Externe",
       "fromName": "IT Nordlicht",
       "fromAddr": "it@nordlicht-demo.local",
-      "snippet": "Formular ausfüllen bis nächste Woche …",
+      "snippet": "Formular für externe Berater bis nächste Woche ausfüllen.",
       "isRead": false,
       "isFlagged": false,
       "hasAttachments": true,
       "importance": "normal",
-      "receivedAt": "2026-07-03T06:00:00.000Z",
-      "snoozedUntil": "2026-07-06T07:00:00.000Z",
+      "receivedAt": "2026-09-25T06:00:00.000Z",
+      "snoozedUntil": "2026-09-28T07:00:00.000Z",
+      "waitingForReplyUntil": null
+    },
+    {
+      "id": 32,
+      "accountId": "demo-nordlicht-google",
+      "subject": "Design System Alpha — Tokens Review",
+      "fromName": "Nina Hofer",
+      "fromAddr": "nina.hofer@nordlicht-demo.local",
+      "snippet": "Farb- und Spacing-Tokens zur Freigabe.",
+      "isRead": true,
+      "isFlagged": false,
+      "hasAttachments": false,
+      "importance": "normal",
+      "receivedAt": "2026-09-24T13:00:00.000Z",
+      "snoozedUntil": null,
       "waitingForReplyUntil": null
     },
     {
@@ -112,12 +322,27 @@
       "subject": "Einladung: Steering Montag 09:00",
       "fromName": "Lisa Hoffmann",
       "fromAddr": "lisa.hoffmann@nordlicht-demo.local",
-      "snippet": "Microsoft Teams-Besprechung …",
+      "snippet": "Microsoft Teams-Besprechung — bitte Zusage bestätigen.",
       "isRead": false,
       "isFlagged": false,
       "hasAttachments": false,
       "importance": "normal",
-      "receivedAt": "2026-07-02T13:00:00.000Z",
+      "receivedAt": "2026-09-24T13:00:00.000Z",
+      "snoozedUntil": null,
+      "waitingForReplyUntil": null
+    },
+    {
+      "id": 19,
+      "accountId": "demo-nordlicht-m365",
+      "subject": "NDA Schmidt AG — Entwurf zur Prüfung",
+      "fromName": "Peter Lang",
+      "fromAddr": "peter.lang@nordlicht-demo.local",
+      "snippet": "Bitte Vertraulichkeitsklausel und Haftung gegenlesen.",
+      "isRead": false,
+      "isFlagged": true,
+      "hasAttachments": true,
+      "importance": "high",
+      "receivedAt": "2026-09-24T12:00:00.000Z",
       "snoozedUntil": null,
       "waitingForReplyUntil": null
     },
@@ -127,12 +352,27 @@
       "subject": "Re: Budget Q3 — Rückfrage Marketing",
       "fromName": "Anna Weber",
       "fromAddr": "anna.weber@nordlicht-demo.local",
-      "snippet": "Marketing-Posten bitte auf Q4 verschieben …",
+      "snippet": "Marketing-Posten bitte auf Q4 verschieben — siehe Anhang.",
       "isRead": true,
       "isFlagged": false,
       "hasAttachments": true,
       "importance": "normal",
-      "receivedAt": "2026-07-02T08:00:00.000Z",
+      "receivedAt": "2026-09-24T08:00:00.000Z",
+      "snoozedUntil": null,
+      "waitingForReplyUntil": null
+    },
+    {
+      "id": 23,
+      "accountId": "demo-nordlicht-m365",
+      "subject": "Re: Onboarding — Startdatum bestätigt",
+      "fromName": "Elena Vogt",
+      "fromAddr": "elena.vogt@nordlicht-demo.local",
+      "snippet": "Start am 1. des Monats — Willkommensmail vorbereiten?",
+      "isRead": false,
+      "isFlagged": false,
+      "hasAttachments": false,
+      "importance": "normal",
+      "receivedAt": "2026-09-24T08:00:00.000Z",
       "snoozedUntil": null,
       "waitingForReplyUntil": null
     },
@@ -142,12 +382,27 @@
       "subject": "Re: Kick-off Projekt Nordlicht — Agenda",
       "fromName": "Thomas Berger",
       "fromAddr": "thomas.berger@nordlicht-demo.local",
-      "snippet": "Ich nehme den Budget-Block mit …",
+      "snippet": "Ich nehme den Budget-Block mit — Folien sind im Anhang.",
       "isRead": false,
       "isFlagged": false,
-      "hasAttachments": false,
+      "hasAttachments": true,
       "importance": "normal",
-      "receivedAt": "2026-07-02T07:00:00.000Z",
+      "receivedAt": "2026-09-24T07:00:00.000Z",
+      "snoozedUntil": null,
+      "waitingForReplyUntil": null
+    },
+    {
+      "id": 34,
+      "accountId": "demo-nordlicht-google",
+      "subject": "Alpha — Performance Report",
+      "fromName": "Dev Team",
+      "fromAddr": "dev@nordlicht-demo.local",
+      "snippet": "LCP −18 % gegenüber letzter Woche.",
+      "isRead": true,
+      "isFlagged": false,
+      "hasAttachments": true,
+      "importance": "low",
+      "receivedAt": "2026-09-23T15:00:00.000Z",
       "snoozedUntil": null,
       "waitingForReplyUntil": null
     },
@@ -157,12 +412,27 @@
       "subject": "Stakeholder-Update — Entwurf",
       "fromName": "Lisa Hoffmann",
       "fromAddr": "lisa.hoffmann@nordlicht-demo.local",
-      "snippet": "Bitte bis morgen kommentieren …",
+      "snippet": "Bitte bis morgen kommentieren — Fokus Meilensteine und Risiken.",
       "isRead": false,
       "isFlagged": true,
       "hasAttachments": true,
       "importance": "high",
-      "receivedAt": "2026-07-01T14:00:00.000Z",
+      "receivedAt": "2026-09-23T14:00:00.000Z",
+      "snoozedUntil": null,
+      "waitingForReplyUntil": null
+    },
+    {
+      "id": 25,
+      "accountId": "demo-nordlicht-m365",
+      "subject": "Re: Launch — A/B-Test Varianten",
+      "fromName": "Julia Reiter",
+      "fromAddr": "julia.reiter@nordlicht-demo.local",
+      "snippet": "Zwei Headline-Varianten — welche bevorzugst du?",
+      "isRead": false,
+      "isFlagged": false,
+      "hasAttachments": true,
+      "importance": "normal",
+      "receivedAt": "2026-09-23T10:00:00.000Z",
       "snoozedUntil": null,
       "waitingForReplyUntil": null
     },
@@ -172,12 +442,27 @@
       "subject": "Kick-off Projekt Nordlicht — Agenda",
       "fromName": "Lisa Hoffmann",
       "fromAddr": "lisa.hoffmann@nordlicht-demo.local",
-      "snippet": "Hallo Anna, anbei die Agenda für Montag …",
+      "snippet": "Hallo Anna, anbei die Agenda für Montag — bitte offene Steering-Punkte vorbereiten.",
       "isRead": false,
       "isFlagged": true,
       "hasAttachments": true,
       "importance": "high",
-      "receivedAt": "2026-07-01T09:00:00.000Z",
+      "receivedAt": "2026-09-23T09:00:00.000Z",
+      "snoozedUntil": null,
+      "waitingForReplyUntil": null
+    },
+    {
+      "id": 22,
+      "accountId": "demo-nordlicht-m365",
+      "subject": "Onboarding Praktikantin — Checkliste",
+      "fromName": "Elena Vogt",
+      "fromAddr": "elena.vogt@nordlicht-demo.local",
+      "snippet": "Laptop, Zugang und Mentorin bitte bis Montag klären.",
+      "isRead": true,
+      "isFlagged": false,
+      "hasAttachments": true,
+      "importance": "normal",
+      "receivedAt": "2026-09-23T08:00:00.000Z",
       "snoozedUntil": null,
       "waitingForReplyUntil": null
     },
@@ -187,27 +472,42 @@
       "subject": "Budget Q3 — Freigabe erforderlich",
       "fromName": "Finanzen Nordlicht",
       "fromAddr": "finance@nordlicht-demo.local",
-      "snippet": "Bitte bis Freitag freigeben …",
+      "snippet": "Bitte bis Freitag freigeben. Details in der angehängten Tabelle.",
       "isRead": true,
       "isFlagged": false,
       "hasAttachments": true,
       "importance": "high",
-      "receivedAt": "2026-06-30T14:00:00.000Z",
+      "receivedAt": "2026-09-22T14:00:00.000Z",
+      "snoozedUntil": null,
+      "waitingForReplyUntil": null
+    },
+    {
+      "id": 24,
+      "accountId": "demo-nordlicht-m365",
+      "subject": "Launch-Kampagne Q3 — Assets",
+      "fromName": "Julia Reiter",
+      "fromAddr": "julia.reiter@nordlicht-demo.local",
+      "snippet": "Landing-Page und Social-Assets zur Freigabe.",
+      "isRead": true,
+      "isFlagged": false,
+      "hasAttachments": true,
+      "importance": "normal",
+      "receivedAt": "2026-09-22T10:00:00.000Z",
       "snoozedUntil": null,
       "waitingForReplyUntil": null
     },
     {
       "id": 4,
       "accountId": "demo-nordlicht-m365",
-      "subject": "Chronell Insights — Newsletter Juli",
+      "subject": "Chronell Insights — Newsletter September",
       "fromName": "Chronell Demo",
       "fromAddr": "news@chronell-demo.local",
-      "snippet": "Neu in 1.0: Notizen, Verbindungs-Graph …",
+      "snippet": "Neu in 1.3: Webinar-Einladungen, Teams-Vorlagen und Copilot im Composer.",
       "isRead": true,
       "isFlagged": false,
       "hasAttachments": false,
       "importance": "low",
-      "receivedAt": "2026-06-29T05:00:00.000Z",
+      "receivedAt": "2026-09-21T05:00:00.000Z",
       "snoozedUntil": null,
       "waitingForReplyUntil": null
     },
@@ -217,27 +517,51 @@
       "subject": "Angebot Kunde Müller — Rückmeldung?",
       "fromName": "Kunde Müller GmbH",
       "fromAddr": "kunde.mueller@extern-demo.local",
-      "snippet": "Wir warten noch auf Ihr Feedback …",
+      "snippet": "Wir warten noch auf Ihr Feedback zum Angebot vom letzten Montag.",
       "isRead": true,
       "isFlagged": false,
       "hasAttachments": false,
       "importance": "normal",
-      "receivedAt": "2026-06-28T09:00:00.000Z",
+      "receivedAt": "2026-09-20T09:00:00.000Z",
       "snoozedUntil": null,
-      "waitingForReplyUntil": "2026-07-07T08:00:00.000Z"
+      "waitingForReplyUntil": "2026-09-29T08:00:00.000Z"
     }
   ],
   "calendarEvents": [
+    {
+      "id": "demo-nordlicht-m365:evt-training",
+      "accountId": "demo-nordlicht-m365",
+      "accountEmail": "anna.weber@nordlicht-demo.local",
+      "colorClass": "bg-blue-500",
+      "title": "Schulung Chronell 1.3",
+      "startIso": "2026-09-15T11:00:00.000Z",
+      "endIso": "2026-09-15T15:00:00.000Z",
+      "isAllDay": false,
+      "location": "Raum B",
+      "organizer": "Thomas Berger"
+    },
     {
       "id": "demo-nordlicht-m365:evt-standup",
       "accountId": "demo-nordlicht-m365",
       "accountEmail": "anna.weber@nordlicht-demo.local",
       "colorClass": "bg-blue-500",
       "title": "Daily Stand-up Nordlicht",
-      "startIso": "2026-06-29T07:00:00.000Z",
-      "endIso": "2026-06-29T08:00:00.000Z",
+      "startIso": "2026-09-21T07:00:00.000Z",
+      "endIso": "2026-09-21T08:00:00.000Z",
       "isAllDay": false,
       "location": "Teams",
+      "organizer": "Lisa Hoffmann"
+    },
+    {
+      "id": "demo-nordlicht-m365:evt-offsite",
+      "accountId": "demo-nordlicht-m365",
+      "accountEmail": "anna.weber@nordlicht-demo.local",
+      "colorClass": "bg-blue-500",
+      "title": "Team-Offsite (Ganztägig)",
+      "startIso": "2026-09-21T22:00:00.000Z",
+      "endIso": "2026-09-22T21:59:00.000Z",
+      "isAllDay": true,
+      "location": "Salzburg",
       "organizer": "Lisa Hoffmann"
     },
     {
@@ -246,11 +570,47 @@
       "accountEmail": "anna.weber@nordlicht-demo.local",
       "colorClass": "bg-blue-500",
       "title": "Steering Projekt Nordlicht",
-      "startIso": "2026-06-30T07:00:00.000Z",
-      "endIso": "2026-06-30T08:00:00.000Z",
+      "startIso": "2026-09-22T07:00:00.000Z",
+      "endIso": "2026-09-22T08:00:00.000Z",
       "isAllDay": false,
       "location": "Teams",
       "organizer": "Lisa Hoffmann"
+    },
+    {
+      "id": "demo-nordlicht-m365:evt-bookings-clara",
+      "accountId": "demo-nordlicht-m365",
+      "accountEmail": "anna.weber@nordlicht-demo.local",
+      "colorClass": "bg-blue-500",
+      "title": "Beratung — Clara Schmidt (Bookings)",
+      "startIso": "2026-09-22T12:00:00.000Z",
+      "endIso": "2026-09-22T13:00:00.000Z",
+      "isAllDay": false,
+      "location": "Teams",
+      "organizer": "Anna Weber"
+    },
+    {
+      "id": "demo-nordlicht-m365:evt-finance",
+      "accountId": "demo-nordlicht-m365",
+      "accountEmail": "anna.weber@nordlicht-demo.local",
+      "colorClass": "bg-blue-500",
+      "title": "Budget-Nachbesprechung Finanzen",
+      "startIso": "2026-09-22T14:00:00.000Z",
+      "endIso": "2026-09-22T15:00:00.000Z",
+      "isAllDay": false,
+      "location": "Teams",
+      "organizer": "Finanzen Nordlicht"
+    },
+    {
+      "id": "demo-nordlicht-m365:evt-marketing",
+      "accountId": "demo-nordlicht-m365",
+      "accountEmail": "anna.weber@nordlicht-demo.local",
+      "colorClass": "bg-blue-500",
+      "title": "Launch-Kampagne Sync",
+      "startIso": "2026-09-23T06:00:00.000Z",
+      "endIso": "2026-09-23T07:00:00.000Z",
+      "isAllDay": false,
+      "location": "Teams",
+      "organizer": "Julia Reiter"
     },
     {
       "id": "demo-nordlicht-m365:evt-workshop",
@@ -258,8 +618,8 @@
       "accountEmail": "anna.weber@nordlicht-demo.local",
       "colorClass": "bg-blue-500",
       "title": "Workshop Anforderungen",
-      "startIso": "2026-07-01T08:00:00.000Z",
-      "endIso": "2026-07-01T13:00:00.000Z",
+      "startIso": "2026-09-23T08:00:00.000Z",
+      "endIso": "2026-09-23T13:00:00.000Z",
       "isAllDay": false,
       "location": "Raum A",
       "organizer": "Thomas Berger"
@@ -270,8 +630,8 @@
       "accountEmail": "projekt-alpha@nordlicht-demo.local",
       "colorClass": "bg-emerald-500",
       "title": "Sprint Review Alpha",
-      "startIso": "2026-07-01T13:00:00.000Z",
-      "endIso": "2026-07-01T14:00:00.000Z",
+      "startIso": "2026-09-23T13:00:00.000Z",
+      "endIso": "2026-09-23T14:00:00.000Z",
       "isAllDay": false,
       "location": "Raum Gelb",
       "organizer": "Dev Team"
@@ -282,11 +642,47 @@
       "accountEmail": "anna.weber@nordlicht-demo.local",
       "colorClass": "bg-blue-500",
       "title": "1:1 mit Lisa",
-      "startIso": "2026-07-02T09:00:00.000Z",
-      "endIso": "2026-07-02T10:00:00.000Z",
+      "startIso": "2026-09-24T09:00:00.000Z",
+      "endIso": "2026-09-24T10:00:00.000Z",
       "isAllDay": false,
       "location": "Büro",
       "organizer": "Lisa Hoffmann"
+    },
+    {
+      "id": "demo-nordlicht-m365:evt-legal-sync",
+      "accountId": "demo-nordlicht-m365",
+      "accountEmail": "anna.weber@nordlicht-demo.local",
+      "colorClass": "bg-blue-500",
+      "title": "Legal Sync — NDA Schmidt",
+      "startIso": "2026-09-24T11:00:00.000Z",
+      "endIso": "2026-09-24T12:00:00.000Z",
+      "isAllDay": false,
+      "location": "Teams",
+      "organizer": "Peter Lang"
+    },
+    {
+      "id": "demo-nordlicht-m365:evt-hr-onboard",
+      "accountId": "demo-nordlicht-m365",
+      "accountEmail": "anna.weber@nordlicht-demo.local",
+      "colorClass": "bg-blue-500",
+      "title": "Onboarding-Abstimmung HR",
+      "startIso": "2026-09-24T13:00:00.000Z",
+      "endIso": "2026-09-24T14:00:00.000Z",
+      "isAllDay": false,
+      "location": "Büro",
+      "organizer": "Elena Vogt"
+    },
+    {
+      "id": "demo-nordlicht-google:evt-alpha-standup",
+      "accountId": "demo-nordlicht-google",
+      "accountEmail": "projekt-alpha@nordlicht-demo.local",
+      "colorClass": "bg-emerald-500",
+      "title": "Alpha Stand-up",
+      "startIso": "2026-09-25T07:00:00.000Z",
+      "endIso": "2026-09-25T08:00:00.000Z",
+      "isAllDay": false,
+      "location": "Teams",
+      "organizer": "Marc Weber"
     },
     {
       "id": "demo-nordlicht-m365:evt-week-close",
@@ -294,10 +690,22 @@
       "accountEmail": "anna.weber@nordlicht-demo.local",
       "colorClass": "bg-blue-500",
       "title": "Wochenabschluss — Status",
-      "startIso": "2026-07-03T12:00:00.000Z",
-      "endIso": "2026-07-03T14:00:00.000Z",
+      "startIso": "2026-09-25T12:00:00.000Z",
+      "endIso": "2026-09-25T14:00:00.000Z",
       "isAllDay": false,
       "location": "Teams",
+      "organizer": "Anna Weber"
+    },
+    {
+      "id": "demo-nordlicht-m365:evt-mueller-call",
+      "accountId": "demo-nordlicht-m365",
+      "accountEmail": "anna.weber@nordlicht-demo.local",
+      "colorClass": "bg-blue-500",
+      "title": "Anruf — Gegenangebot Müller",
+      "startIso": "2026-09-26T09:00:00.000Z",
+      "endIso": "2026-09-26T10:00:00.000Z",
+      "isAllDay": false,
+      "location": "Telefon",
       "organizer": "Anna Weber"
     },
     {
@@ -305,11 +713,59 @@
       "accountId": "demo-nordlicht-m365",
       "accountEmail": "anna.weber@nordlicht-demo.local",
       "colorClass": "bg-blue-500",
-      "title": "Fokuszeit — Budget",
-      "startIso": "2026-07-04T12:00:00.000Z",
-      "endIso": "2026-07-04T14:00:00.000Z",
+      "title": "Fokuszeit — Budget & Stakeholder",
+      "startIso": "2026-09-26T12:00:00.000Z",
+      "endIso": "2026-09-26T14:00:00.000Z",
       "isAllDay": false,
       "location": null,
+      "organizer": "Anna Weber"
+    },
+    {
+      "id": "demo-nordlicht-google:evt-qa-sync",
+      "accountId": "demo-nordlicht-google",
+      "accountEmail": "projekt-alpha@nordlicht-demo.local",
+      "colorClass": "bg-emerald-500",
+      "title": "QA Sync vor RC1",
+      "startIso": "2026-09-26T14:00:00.000Z",
+      "endIso": "2026-09-26T15:00:00.000Z",
+      "isAllDay": false,
+      "location": "Teams",
+      "organizer": "Marc Weber"
+    },
+    {
+      "id": "demo-nordlicht-m365:evt-month-review",
+      "accountId": "demo-nordlicht-m365",
+      "accountEmail": "anna.weber@nordlicht-demo.local",
+      "colorClass": "bg-blue-500",
+      "title": "Monats-Review Nordlicht",
+      "startIso": "2026-09-28T07:00:00.000Z",
+      "endIso": "2026-09-28T09:00:00.000Z",
+      "isAllDay": false,
+      "location": "Teams",
+      "organizer": "Lisa Hoffmann"
+    },
+    {
+      "id": "demo-nordlicht-m365:evt-vendor",
+      "accountId": "demo-nordlicht-m365",
+      "accountEmail": "anna.weber@nordlicht-demo.local",
+      "colorClass": "bg-blue-500",
+      "title": "Lieferanten-Call TechSupply",
+      "startIso": "2026-09-29T08:00:00.000Z",
+      "endIso": "2026-09-29T09:00:00.000Z",
+      "isAllDay": false,
+      "location": "Teams",
+      "organizer": "Thomas Berger"
+    },
+    {
+      "id": "demo-nordlicht-m365:evt-client",
+      "accountId": "demo-nordlicht-m365",
+      "accountEmail": "anna.weber@nordlicht-demo.local",
+      "colorClass": "bg-blue-500",
+      "title": "Kundentermin Müller GmbH",
+      "startIso": "2026-09-30T07:00:00.000Z",
+      "endIso": "2026-09-30T08:00:00.000Z",
+      "isAllDay": false,
+      "location": "Teams",
       "organizer": "Anna Weber"
     },
     {
@@ -318,23 +774,23 @@
       "accountEmail": "projekt-alpha@nordlicht-demo.local",
       "colorClass": "bg-emerald-500",
       "title": "Sprint Planning Alpha",
-      "startIso": "2026-07-09T08:00:00.000Z",
-      "endIso": "2026-07-09T10:00:00.000Z",
+      "startIso": "2026-09-30T08:00:00.000Z",
+      "endIso": "2026-09-30T10:00:00.000Z",
       "isAllDay": false,
       "location": "Teams",
       "organizer": "Marc Weber"
     },
     {
-      "id": "demo-nordlicht-m365:evt-client",
+      "id": "demo-nordlicht-m365:evt-schmidt-kick",
       "accountId": "demo-nordlicht-m365",
       "accountEmail": "anna.weber@nordlicht-demo.local",
       "colorClass": "bg-blue-500",
-      "title": "Kundentermin Müller GmbH",
-      "startIso": "2026-07-12T07:00:00.000Z",
-      "endIso": "2026-07-12T08:00:00.000Z",
+      "title": "Kennenlernen Schmidt AG",
+      "startIso": "2026-09-30T09:00:00.000Z",
+      "endIso": "2026-09-30T10:00:00.000Z",
       "isAllDay": false,
       "location": "Teams",
-      "organizer": "Anna Weber"
+      "organizer": "Clara Schmidt"
     },
     {
       "id": "demo-nordlicht-google:evt-retro",
@@ -342,60 +798,26 @@
       "accountEmail": "projekt-alpha@nordlicht-demo.local",
       "colorClass": "bg-emerald-500",
       "title": "Sprint Retrospektive Alpha",
-      "startIso": "2026-07-14T13:00:00.000Z",
-      "endIso": "2026-07-14T14:00:00.000Z",
+      "startIso": "2026-09-30T13:00:00.000Z",
+      "endIso": "2026-09-30T14:00:00.000Z",
       "isAllDay": false,
       "location": "Raum Gelb",
       "organizer": "Marc Weber"
     },
     {
-      "id": "demo-nordlicht-m365:evt-training",
-      "accountId": "demo-nordlicht-m365",
-      "accountEmail": "anna.weber@nordlicht-demo.local",
-      "colorClass": "bg-blue-500",
-      "title": "Schulung Chronell 1.0",
-      "startIso": "2026-07-15T11:00:00.000Z",
-      "endIso": "2026-07-15T15:00:00.000Z",
+      "id": "demo-nordlicht-google:evt-design-crit",
+      "accountId": "demo-nordlicht-google",
+      "accountEmail": "projekt-alpha@nordlicht-demo.local",
+      "colorClass": "bg-emerald-500",
+      "title": "Design Critique — Tokens",
+      "startIso": "2026-09-30T14:00:00.000Z",
+      "endIso": "2026-09-30T15:00:00.000Z",
       "isAllDay": false,
-      "location": "Raum B",
-      "organizer": "Thomas Berger"
-    },
-    {
-      "id": "demo-nordlicht-m365:evt-offsite",
-      "accountId": "demo-nordlicht-m365",
-      "accountEmail": "anna.weber@nordlicht-demo.local",
-      "colorClass": "bg-blue-500",
-      "title": "Team-Offsite (Ganztägig)",
-      "startIso": "2026-07-21T22:00:00.000Z",
-      "endIso": "2026-07-22T21:59:00.000Z",
-      "isAllDay": true,
-      "location": "Salzburg",
-      "organizer": "Lisa Hoffmann"
-    },
-    {
-      "id": "demo-nordlicht-m365:evt-month-review",
-      "accountId": "demo-nordlicht-m365",
-      "accountEmail": "anna.weber@nordlicht-demo.local",
-      "colorClass": "bg-blue-500",
-      "title": "Monats-Review Nordlicht",
-      "startIso": "2026-07-28T07:00:00.000Z",
-      "endIso": "2026-07-28T09:00:00.000Z",
-      "isAllDay": false,
-      "location": "Teams",
-      "organizer": "Lisa Hoffmann"
+      "location": "Figma + Teams",
+      "organizer": "Nina Hofer"
     }
   ],
   "cloudTasks": [
-    {
-      "accountId": "demo-nordlicht-m365",
-      "listId": "todo-default",
-      "listName": "Aufgaben",
-      "taskId": "t4",
-      "title": "Angebot Müller nachfassen",
-      "completed": false,
-      "dueIso": "2026-07-02",
-      "notes": "Überfällig"
-    },
     {
       "accountId": "demo-nordlicht-google",
       "listId": "google-bugs",
@@ -403,7 +825,7 @@
       "taskId": "g8",
       "title": "Bug #140 — Kalender-Sync",
       "completed": false,
-      "dueIso": "2026-07-03",
+      "dueIso": "2026-09-25",
       "notes": "Überfällig"
     },
     {
@@ -413,8 +835,18 @@
       "taskId": "g1",
       "title": "API-Mock für Alpha",
       "completed": false,
-      "dueIso": "2026-07-04",
+      "dueIso": "2026-09-26",
       "notes": "Heute"
+    },
+    {
+      "accountId": "demo-nordlicht-m365",
+      "listId": "todo-default",
+      "listName": "Aufgaben",
+      "taskId": "t4",
+      "title": "Angebot Müller — Gegenangebot beantworten",
+      "completed": false,
+      "dueIso": "2026-09-26",
+      "notes": "Überfällig / Waiting for"
     },
     {
       "accountId": "demo-nordlicht-m365",
@@ -423,8 +855,8 @@
       "taskId": "t1",
       "title": "Budget Q3 freigeben",
       "completed": false,
-      "dueIso": "2026-07-04",
-      "notes": "Heute — aus Mail Finance"
+      "dueIso": "2026-09-26",
+      "notes": "Heute — bedingte Freigabe prüfen"
     },
     {
       "accountId": "demo-nordlicht-google",
@@ -433,8 +865,58 @@
       "taskId": "g4",
       "title": "Bug #127 — Login Timeout",
       "completed": false,
-      "dueIso": "2026-07-04",
+      "dueIso": "2026-09-26",
       "notes": "Blocker — heute"
+    },
+    {
+      "accountId": "demo-nordlicht-google",
+      "listId": "google-bugs",
+      "listName": "Alpha Bugs",
+      "taskId": "g13",
+      "title": "Bug #152 — Attachment Preview",
+      "completed": false,
+      "dueIso": "2026-09-26",
+      "notes": "Blocker RC1"
+    },
+    {
+      "accountId": "demo-nordlicht-m365",
+      "listId": "todo-default",
+      "listName": "Aufgaben",
+      "taskId": "t15",
+      "title": "Lieferverzögerung Modul X eskalieren",
+      "completed": false,
+      "dueIso": "2026-09-26",
+      "notes": "Risiko im Stakeholder-Update"
+    },
+    {
+      "accountId": "demo-nordlicht-m365",
+      "listId": "todo-default",
+      "listName": "Aufgaben",
+      "taskId": "t12",
+      "title": "NDA Schmidt AG versenden",
+      "completed": false,
+      "dueIso": "2026-09-26",
+      "notes": "Legal freigegeben"
+    },
+    {
+      "accountId": "demo-nordlicht-google",
+      "listId": "google-tasks-1",
+      "listName": "Alpha Backlog",
+      "taskId": "g10",
+      "title": "QA-Checkliste RC1 abhaken",
+      "completed": false,
+      "dueIso": "2026-09-26",
+      "notes": "Vor morgen"
+    },
+    {
+      "accountId": "demo-nordlicht-google",
+      "listId": "google-tasks-1",
+      "listName": "Alpha Backlog",
+      "taskId": "g12",
+      "title": "Security Findings schließen",
+      "completed": false,
+      "dueIso": "2026-09-26",
+      "notes": "2 Medium"
     },
     {
       "accountId": "demo-nordlicht-m365",
@@ -443,18 +925,48 @@
       "taskId": "t8",
       "title": "Steering-Unterlagen senden",
       "completed": false,
-      "dueIso": "2026-07-04",
+      "dueIso": "2026-09-26",
       "notes": null
     },
     {
       "accountId": "demo-nordlicht-m365",
       "listId": "todo-default",
       "listName": "Aufgaben",
-      "taskId": "t3",
-      "title": "Stakeholder-Update vorbereiten",
+      "taskId": "t13",
+      "title": "Terminvorschlag Clara Schmidt",
       "completed": false,
-      "dueIso": "2026-07-05",
-      "notes": "Morgen"
+      "dueIso": "2026-09-26",
+      "notes": "Aus Intro-Mail"
+    },
+    {
+      "accountId": "demo-nordlicht-google",
+      "listId": "google-bugs",
+      "listName": "Alpha Bugs",
+      "taskId": "g9",
+      "title": "Bug #145 — Dark Mode Kontrast",
+      "completed": false,
+      "dueIso": "2026-09-27",
+      "notes": "Fix von Nina bereit"
+    },
+    {
+      "accountId": "demo-nordlicht-m365",
+      "listId": "todo-default",
+      "listName": "Aufgaben",
+      "taskId": "t14",
+      "title": "Reisekosten Offsite freigeben",
+      "completed": false,
+      "dueIso": "2026-09-27",
+      "notes": "Sarah wartet"
+    },
+    {
+      "accountId": "demo-nordlicht-m365",
+      "listId": "todo-default",
+      "listName": "Aufgaben",
+      "taskId": "t3",
+      "title": "Stakeholder-Update finalisieren",
+      "completed": false,
+      "dueIso": "2026-09-27",
+      "notes": "Morgen — Grafik Seite 3"
     },
     {
       "accountId": "demo-nordlicht-google",
@@ -463,8 +975,28 @@
       "taskId": "g2",
       "title": "UI-Review Notizen",
       "completed": false,
-      "dueIso": "2026-07-05",
+      "dueIso": "2026-09-27",
       "notes": "Siehe Chronell-Notiz"
+    },
+    {
+      "accountId": "demo-nordlicht-google",
+      "listId": "google-tasks-1",
+      "listName": "Alpha Backlog",
+      "taskId": "g11",
+      "title": "Design Tokens freigeben",
+      "completed": false,
+      "dueIso": "2026-09-28",
+      "notes": "Nina"
+    },
+    {
+      "accountId": "demo-nordlicht-m365",
+      "listId": "todo-default",
+      "listName": "Aufgaben",
+      "taskId": "t16",
+      "title": "Launch-Headline wählen",
+      "completed": false,
+      "dueIso": "2026-09-28",
+      "notes": "Julia Marketing"
     },
     {
       "accountId": "demo-nordlicht-google",
@@ -473,7 +1005,7 @@
       "taskId": "g6",
       "title": "Staging-Smoke-Tests",
       "completed": false,
-      "dueIso": "2026-07-06",
+      "dueIso": "2026-09-28",
       "notes": null
     },
     {
@@ -483,7 +1015,7 @@
       "taskId": "t5",
       "title": "VPN-Formular IT",
       "completed": false,
-      "dueIso": "2026-07-06",
+      "dueIso": "2026-09-28",
       "notes": "Mail gesnoozed"
     },
     {
@@ -493,7 +1025,7 @@
       "taskId": "g7",
       "title": "Demo-Datenpaket reviewen",
       "completed": false,
-      "dueIso": "2026-07-07",
+      "dueIso": "2026-09-29",
       "notes": null
     },
     {
@@ -503,47 +1035,27 @@
       "taskId": "t9",
       "title": "Feedback Workshop einholen",
       "completed": false,
-      "dueIso": "2026-07-07",
-      "notes": null
-    },
-    {
-      "accountId": "demo-nordlicht-google",
-      "listId": "google-bugs",
-      "listName": "Alpha Bugs",
-      "taskId": "g9",
-      "title": "Bug #145 — Dark Mode Kontrast",
-      "completed": false,
-      "dueIso": "2026-07-08",
+      "dueIso": "2026-09-29",
       "notes": null
     },
     {
       "accountId": "demo-nordlicht-m365",
       "listId": "todo-default",
       "listName": "Aufgaben",
-      "taskId": "t10",
-      "title": "Projektstatus für Lisa",
+      "taskId": "t17",
+      "title": "Onboarding Willkommensmail",
       "completed": false,
-      "dueIso": "2026-07-08",
-      "notes": null
-    },
-    {
-      "accountId": "demo-nordlicht-m365",
-      "listId": "todo-planning",
-      "listName": "Planung",
-      "taskId": "t6",
-      "title": "Risikoliste aktualisieren",
-      "completed": false,
-      "dueIso": "2026-07-09",
-      "notes": null
+      "dueIso": "2026-09-29",
+      "notes": "HR Elena"
     },
     {
       "accountId": "demo-nordlicht-google",
-      "listId": "google-tasks-1",
-      "listName": "Alpha Backlog",
-      "taskId": "g3",
-      "title": "Release Notes Alpha",
+      "listId": "google-bugs",
+      "listName": "Alpha Bugs",
+      "taskId": "g14",
+      "title": "Bug #158 — Search lag",
       "completed": false,
-      "dueIso": "2026-07-10",
+      "dueIso": "2026-09-30",
       "notes": null
     },
     {
@@ -553,8 +1065,58 @@
       "taskId": "t7",
       "title": "Meilenstein-Plan Monatsende",
       "completed": false,
-      "dueIso": "2026-07-16",
+      "dueIso": "2026-09-30",
       "notes": "Im aktuellen Monat"
+    },
+    {
+      "accountId": "demo-nordlicht-m365",
+      "listId": "todo-default",
+      "listName": "Aufgaben",
+      "taskId": "t10",
+      "title": "Projektstatus für Lisa",
+      "completed": false,
+      "dueIso": "2026-09-30",
+      "notes": null
+    },
+    {
+      "accountId": "demo-nordlicht-m365",
+      "listId": "todo-planning",
+      "listName": "Planung",
+      "taskId": "t6",
+      "title": "Risikoliste aktualisieren",
+      "completed": false,
+      "dueIso": "2026-10-01",
+      "notes": "Lieferant + Budget"
+    },
+    {
+      "accountId": "demo-nordlicht-google",
+      "listId": "google-tasks-1",
+      "listName": "Alpha Backlog",
+      "taskId": "g3",
+      "title": "Release Notes Alpha",
+      "completed": false,
+      "dueIso": "2026-10-02",
+      "notes": null
+    },
+    {
+      "accountId": "demo-nordlicht-m365",
+      "listId": "todo-planning",
+      "listName": "Planung",
+      "taskId": "t18",
+      "title": "Q4 Budget-Vorschau skizzieren",
+      "completed": false,
+      "dueIso": "2026-10-06",
+      "notes": null
+    },
+    {
+      "accountId": "demo-nordlicht-m365",
+      "listId": "todo-planning",
+      "listName": "Planung",
+      "taskId": "t19",
+      "title": "Offsite Agenda vorbereiten",
+      "completed": false,
+      "dueIso": "2026-10-10",
+      "notes": "Salzburg"
     },
     {
       "accountId": "demo-nordlicht-m365",
@@ -573,7 +1135,7 @@
       "taskId": "g5",
       "title": "Bug #131 — Export CSV",
       "completed": true,
-      "dueIso": "2026-07-01",
+      "dueIso": "2026-09-23",
       "notes": null
     },
     {
@@ -583,7 +1145,7 @@
       "taskId": "t2",
       "title": "Kick-off Agenda prüfen",
       "completed": true,
-      "dueIso": "2026-07-03",
+      "dueIso": "2026-09-25",
       "notes": null
     }
   ],
@@ -599,141 +1161,407 @@
       "id": "note:2",
       "kind": "note",
       "label": "Notiz zur Kick-off-Mail",
-      "x": 324,
-      "y": 57
+      "x": 296,
+      "y": 51
     },
     {
       "id": "contact:1",
       "kind": "contact",
       "label": "Lisa Hoffmann",
-      "x": 364,
-      "y": 76
+      "x": 312,
+      "y": 53
     },
     {
       "id": "note:1",
       "kind": "note",
       "label": "Projektübersicht",
-      "x": 397,
-      "y": 106
-    },
-    {
-      "id": "contact:3",
-      "kind": "contact",
-      "label": "Finanzen",
-      "x": 420,
-      "y": 145
-    },
-    {
-      "id": "mail:3",
-      "kind": "mail",
-      "label": "Budget Q3 — Freigabe erforderlich",
-      "x": 430,
-      "y": 189
-    },
-    {
-      "id": "event:evt-steering",
-      "kind": "calendar",
-      "label": "Steering Projekt Nordlicht",
-      "x": 426,
-      "y": 233
-    },
-    {
-      "id": "mail:5",
-      "kind": "mail",
-      "label": "Einladung: Steering Montag 09:00",
-      "x": 410,
-      "y": 275
-    },
-    {
-      "id": "note:6",
-      "kind": "note",
-      "label": "Meeting-Notiz Steering",
-      "x": 382,
-      "y": 310
-    },
-    {
-      "id": "task:demo-nordlicht-m365:todo-default:t1",
-      "kind": "task",
-      "label": "Budget Q3 freigeben",
-      "x": 345,
-      "y": 335
-    },
-    {
-      "id": "mail:9",
-      "kind": "mail",
-      "label": "Angebot Kunde Müller — Rückmeldung?",
-      "x": 302,
-      "y": 348
-    },
-    {
-      "id": "task:demo-nordlicht-m365:todo-default:t4",
-      "kind": "task",
-      "label": "Angebot Müller nachfassen",
-      "x": 258,
-      "y": 348
-    },
-    {
-      "id": "mail:8",
-      "kind": "mail",
-      "label": "Stakeholder-Update — Entwurf",
-      "x": 215,
-      "y": 335
+      "x": 327,
+      "y": 58
     },
     {
       "id": "note:4",
       "kind": "note",
       "label": "Stakeholder-Update",
-      "x": 178,
-      "y": 310
+      "x": 342,
+      "y": 63
+    },
+    {
+      "id": "note:11",
+      "kind": "note",
+      "label": "Risiken & Lieferanten",
+      "x": 356,
+      "y": 71
+    },
+    {
+      "id": "contact:3",
+      "kind": "contact",
+      "label": "Finanzen",
+      "x": 369,
+      "y": 80
+    },
+    {
+      "id": "mail:3",
+      "kind": "mail",
+      "label": "Budget Q3 — Freigabe erforderlich",
+      "x": 382,
+      "y": 90
+    },
+    {
+      "id": "event:evt-steering",
+      "kind": "calendar",
+      "label": "Steering Projekt Nordlicht",
+      "x": 393,
+      "y": 101
+    },
+    {
+      "id": "mail:5",
+      "kind": "mail",
+      "label": "Einladung: Steering Montag 09:00",
+      "x": 403,
+      "y": 114
+    },
+    {
+      "id": "note:6",
+      "kind": "note",
+      "label": "Meeting-Notiz Steering",
+      "x": 411,
+      "y": 127
+    },
+    {
+      "id": "task:demo-nordlicht-m365:todo-default:t1",
+      "kind": "task",
+      "label": "Budget Q3 freigeben",
+      "x": 418,
+      "y": 142
+    },
+    {
+      "id": "task:demo-nordlicht-m365:todo-default:t8",
+      "kind": "task",
+      "label": "Steering-Unterlagen senden",
+      "x": 424,
+      "y": 157
+    },
+    {
+      "id": "event:evt-1on1",
+      "kind": "calendar",
+      "label": "1:1 mit Lisa",
+      "x": 427,
+      "y": 172
+    },
+    {
+      "id": "mail:8",
+      "kind": "mail",
+      "label": "Stakeholder-Update — Entwurf",
+      "x": 430,
+      "y": 188
+    },
+    {
+      "id": "task:demo-nordlicht-m365:todo-default:t3",
+      "kind": "task",
+      "label": "Stakeholder-Update finalisieren",
+      "x": 430,
+      "y": 204
+    },
+    {
+      "id": "mail:9",
+      "kind": "mail",
+      "label": "Angebot Kunde Müller — Rückmeldung?",
+      "x": 429,
+      "y": 220
+    },
+    {
+      "id": "task:demo-nordlicht-m365:todo-default:t4",
+      "kind": "task",
+      "label": "Angebot Müller — Gegenangebot beantworten",
+      "x": 426,
+      "y": 236
     },
     {
       "id": "contact:5",
       "kind": "contact",
-      "label": "Kunde Müller",
-      "x": 150,
-      "y": 275
+      "label": "Hans Müller",
+      "x": 421,
+      "y": 251
+    },
+    {
+      "id": "note:9",
+      "kind": "note",
+      "label": "Kunde Müller — Verhandlung",
+      "x": 415,
+      "y": 266
+    },
+    {
+      "id": "event:evt-mueller-call",
+      "kind": "calendar",
+      "label": "Anruf — Gegenangebot Müller",
+      "x": 407,
+      "y": 280
+    },
+    {
+      "id": "mail:18",
+      "kind": "mail",
+      "label": "Re: Angebot Müller — Gegenangebot",
+      "x": 398,
+      "y": 293
+    },
+    {
+      "id": "event:evt-client",
+      "kind": "calendar",
+      "label": "Kundentermin Müller GmbH",
+      "x": 387,
+      "y": 305
+    },
+    {
+      "id": "contact:9",
+      "kind": "contact",
+      "label": "Peter Lang",
+      "x": 376,
+      "y": 315
+    },
+    {
+      "id": "mail:19",
+      "kind": "mail",
+      "label": "NDA Schmidt AG — Entwurf zur Prüfung",
+      "x": 363,
+      "y": 325
+    },
+    {
+      "id": "note:12",
+      "kind": "note",
+      "label": "NDA Checkliste",
+      "x": 349,
+      "y": 333
+    },
+    {
+      "id": "task:demo-nordlicht-m365:todo-default:t12",
+      "kind": "task",
+      "label": "NDA Schmidt AG versenden",
+      "x": 335,
+      "y": 340
+    },
+    {
+      "id": "contact:12",
+      "kind": "contact",
+      "label": "Clara Schmidt",
+      "x": 319,
+      "y": 345
+    },
+    {
+      "id": "mail:26",
+      "kind": "mail",
+      "label": "Vorstellung — Schmidt AG / Digital…",
+      "x": 304,
+      "y": 348
+    },
+    {
+      "id": "note:10",
+      "kind": "note",
+      "label": "Schmidt AG — Pipeline",
+      "x": 288,
+      "y": 350
+    },
+    {
+      "id": "event:evt-bookings-clara",
+      "kind": "calendar",
+      "label": "Beratung — Clara Schmidt (Bookings)",
+      "x": 272,
+      "y": 350
+    },
+    {
+      "id": "event:evt-legal-sync",
+      "kind": "calendar",
+      "label": "Legal Sync — NDA Schmidt",
+      "x": 256,
+      "y": 348
+    },
+    {
+      "id": "contact:13",
+      "kind": "contact",
+      "label": "TechSupply GmbH",
+      "x": 241,
+      "y": 345
+    },
+    {
+      "id": "mail:28",
+      "kind": "mail",
+      "label": "Lieferant: Verzögerung Modul X",
+      "x": 225,
+      "y": 340
+    },
+    {
+      "id": "task:demo-nordlicht-m365:todo-default:t15",
+      "kind": "task",
+      "label": "Lieferverzögerung Modul X eskalieren",
+      "x": 211,
+      "y": 333
+    },
+    {
+      "id": "event:evt-vendor",
+      "kind": "calendar",
+      "label": "Lieferanten-Call TechSupply",
+      "x": 197,
+      "y": 325
+    },
+    {
+      "id": "contact:10",
+      "kind": "contact",
+      "label": "Elena Vogt",
+      "x": 184,
+      "y": 315
+    },
+    {
+      "id": "mail:22",
+      "kind": "mail",
+      "label": "Onboarding Praktikantin — Checkliste",
+      "x": 173,
+      "y": 305
+    },
+    {
+      "id": "note:13",
+      "kind": "note",
+      "label": "Onboarding Praktikantin",
+      "x": 162,
+      "y": 293
+    },
+    {
+      "id": "mail:24",
+      "kind": "mail",
+      "label": "Launch-Kampagne Q3 — Assets",
+      "x": 153,
+      "y": 280
+    },
+    {
+      "id": "note:15",
+      "kind": "note",
+      "label": "Launch-Kampagne Q3",
+      "x": 145,
+      "y": 266
+    },
+    {
+      "id": "contact:11",
+      "kind": "contact",
+      "label": "Julia Reiter",
+      "x": 139,
+      "y": 251
+    },
+    {
+      "id": "event:evt-offsite",
+      "kind": "calendar",
+      "label": "Team-Offsite (Ganztägig)",
+      "x": 134,
+      "y": 236
+    },
+    {
+      "id": "mail:27",
+      "kind": "mail",
+      "label": "Reisekosten Offsite Salzburg — Fre…",
+      "x": 131,
+      "y": 220
     },
     {
       "id": "note:3",
       "kind": "note",
       "label": "Alpha Sprint 12",
-      "x": 134,
-      "y": 233
+      "x": 130,
+      "y": 204
     },
     {
       "id": "task:demo-nordlicht-google:google-bugs:g4",
       "kind": "task",
       "label": "Bug #127 — Login Timeout",
       "x": 130,
-      "y": 189
+      "y": 188
+    },
+    {
+      "id": "task:demo-nordlicht-google:google-bugs:g13",
+      "kind": "task",
+      "label": "Bug #152 — Attachment Preview",
+      "x": 133,
+      "y": 172
     },
     {
       "id": "contact:7",
       "kind": "contact",
       "label": "Marc Weber",
-      "x": 140,
-      "y": 145
+      "x": 136,
+      "y": 157
     },
     {
       "id": "event:evt-review",
       "kind": "calendar",
       "label": "Sprint Review Alpha",
-      "x": 163,
-      "y": 106
-    },
-    {
-      "id": "task:demo-nordlicht-m365:todo-default:t8",
-      "kind": "task",
-      "label": "Steering-Unterlagen senden",
-      "x": 196,
-      "y": 76
+      "x": 142,
+      "y": 142
     },
     {
       "id": "mail:13",
       "kind": "mail",
       "label": "Re: Alpha — Offene Bugs",
-      "x": 236,
-      "y": 57
+      "x": 149,
+      "y": 127
+    },
+    {
+      "id": "mail:31",
+      "kind": "mail",
+      "label": "Re: Alpha — Release Candidate",
+      "x": 157,
+      "y": 114
+    },
+    {
+      "id": "task:demo-nordlicht-google:google-tasks-1:g10",
+      "kind": "task",
+      "label": "QA-Checkliste RC1 abhaken",
+      "x": 167,
+      "y": 101
+    },
+    {
+      "id": "mail:35",
+      "kind": "mail",
+      "label": "Security Scan Staging — 2 Medium F…",
+      "x": 178,
+      "y": 90
+    },
+    {
+      "id": "task:demo-nordlicht-google:google-tasks-1:g12",
+      "kind": "task",
+      "label": "Security Findings schließen",
+      "x": 191,
+      "y": 80
+    },
+    {
+      "id": "contact:14",
+      "kind": "contact",
+      "label": "Nina Hofer",
+      "x": 204,
+      "y": 71
+    },
+    {
+      "id": "note:14",
+      "kind": "note",
+      "label": "Design System Tokens",
+      "x": 218,
+      "y": 63
+    },
+    {
+      "id": "task:demo-nordlicht-google:google-bugs:g9",
+      "kind": "task",
+      "label": "Bug #145 — Dark Mode Kontrast",
+      "x": 233,
+      "y": 58
+    },
+    {
+      "id": "event:evt-qa-sync",
+      "kind": "calendar",
+      "label": "QA Sync vor RC1",
+      "x": 248,
+      "y": 53
+    },
+    {
+      "id": "task:demo-nordlicht-m365:todo-planning:t6",
+      "kind": "task",
+      "label": "Risikoliste aktualisieren",
+      "x": 264,
+      "y": 51
     }
   ],
   "graphEdges": [
@@ -744,6 +1572,14 @@
     {
       "from": "contact:1",
       "to": "note:1"
+    },
+    {
+      "from": "note:1",
+      "to": "note:4"
+    },
+    {
+      "from": "note:1",
+      "to": "note:11"
     },
     {
       "from": "contact:3",
@@ -762,20 +1598,116 @@
       "to": "task:demo-nordlicht-m365:todo-default:t1"
     },
     {
-      "from": "mail:9",
-      "to": "task:demo-nordlicht-m365:todo-default:t4"
+      "from": "event:evt-steering",
+      "to": "task:demo-nordlicht-m365:todo-default:t8"
+    },
+    {
+      "from": "event:evt-1on1",
+      "to": "contact:1"
     },
     {
       "from": "mail:8",
       "to": "note:4"
     },
     {
+      "from": "note:4",
+      "to": "task:demo-nordlicht-m365:todo-default:t3"
+    },
+    {
+      "from": "mail:9",
+      "to": "task:demo-nordlicht-m365:todo-default:t4"
+    },
+    {
       "from": "contact:5",
       "to": "mail:9"
     },
     {
+      "from": "contact:5",
+      "to": "note:9"
+    },
+    {
+      "from": "event:evt-mueller-call",
+      "to": "note:9"
+    },
+    {
+      "from": "mail:18",
+      "to": "note:9"
+    },
+    {
+      "from": "event:evt-client",
+      "to": "contact:5"
+    },
+    {
+      "from": "contact:9",
+      "to": "mail:19"
+    },
+    {
+      "from": "mail:19",
+      "to": "note:12"
+    },
+    {
+      "from": "note:12",
+      "to": "task:demo-nordlicht-m365:todo-default:t12"
+    },
+    {
+      "from": "contact:12",
+      "to": "mail:26"
+    },
+    {
+      "from": "contact:12",
+      "to": "note:10"
+    },
+    {
+      "from": "event:evt-bookings-clara",
+      "to": "contact:12"
+    },
+    {
+      "from": "event:evt-legal-sync",
+      "to": "note:12"
+    },
+    {
+      "from": "contact:13",
+      "to": "mail:28"
+    },
+    {
+      "from": "mail:28",
+      "to": "note:11"
+    },
+    {
+      "from": "note:11",
+      "to": "task:demo-nordlicht-m365:todo-default:t15"
+    },
+    {
+      "from": "event:evt-vendor",
+      "to": "contact:13"
+    },
+    {
+      "from": "contact:10",
+      "to": "mail:22"
+    },
+    {
+      "from": "contact:10",
+      "to": "note:13"
+    },
+    {
+      "from": "mail:24",
+      "to": "note:15"
+    },
+    {
+      "from": "contact:11",
+      "to": "note:15"
+    },
+    {
+      "from": "event:evt-offsite",
+      "to": "mail:27"
+    },
+    {
       "from": "note:3",
       "to": "task:demo-nordlicht-google:google-bugs:g4"
+    },
+    {
+      "from": "note:3",
+      "to": "task:demo-nordlicht-google:google-bugs:g13"
     },
     {
       "from": "contact:7",
@@ -786,12 +1718,32 @@
       "to": "note:3"
     },
     {
-      "from": "event:evt-steering",
-      "to": "task:demo-nordlicht-m365:todo-default:t8"
-    },
-    {
       "from": "contact:7",
       "to": "mail:13"
+    },
+    {
+      "from": "mail:31",
+      "to": "task:demo-nordlicht-google:google-tasks-1:g10"
+    },
+    {
+      "from": "mail:35",
+      "to": "task:demo-nordlicht-google:google-tasks-1:g12"
+    },
+    {
+      "from": "contact:14",
+      "to": "note:14"
+    },
+    {
+      "from": "note:14",
+      "to": "task:demo-nordlicht-google:google-bugs:g9"
+    },
+    {
+      "from": "event:evt-qa-sync",
+      "to": "note:3"
+    },
+    {
+      "from": "note:1",
+      "to": "task:demo-nordlicht-m365:todo-planning:t6"
     }
   ]
 }

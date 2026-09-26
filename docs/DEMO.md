@@ -1,6 +1,6 @@
 # Chronell Demo-Umgebung
 
-Die Demo-Umgebung ist eine **isolierte Installation** mit fiktiven Beispieldaten (Szenario „Nordlicht Consulting“). Echte Konten und Daten in `%AppData%\Chronell` bleiben unberührt.
+Die Demo-Umgebung ist eine **isolierte Installation** mit fiktiven Beispieldaten (Szenario „Nordlicht Consulting“ — umfangreicher Seed für Screenshots und öffentliche Demo). Echte Konten und Daten in `%AppData%\Chronell` bleiben unberührt.
 
 ## Demo starten
 
@@ -16,7 +16,8 @@ Profilordner: `%AppData%\Chronell-Demo`
 ## Inhalt des Szenarios
 
 - Zwei Demo-Konten (Anna Weber / Projekt Alpha) — Provider `demo`, kein OAuth
-- Mail, Kalender, Aufgaben, Notizen, Kontakte und Verbindungs-Graph mit festen Beispiel-IDs
+- **Volumen:** ~33 Inbox-Mails, 24 Termine, 33 Cloud-Tasks, 16 Notizen, 16 Kontakte, 45 Graph-Kanten (~59 Knoten)
+- Storylines: Projekt Nordlicht, Kunde Müller, Schmidt AG / NDA, Sprint Alpha (Release Candidate), Marketing & HR
 - Kein Versand an Microsoft/Google; Sync ist deaktiviert
 
 ## Zurücksetzen
@@ -45,10 +46,15 @@ Im Demo-Banner oder in den Einstellungen: **Produktiv-Profil** — startet Chron
 
 ## Homepage-Screenshots
 
-Mit laufender Demo-Instanz:
+Echte Screenshots aus der Demo-App (empfohlen):
 
 ```bash
-npm run demo:launch
+npm run capture:homepage-screenshots
+```
+
+Fallback (SVG-Mockups):
+
+```bash
 npm run generate:homepage-screenshots
 ```
 

@@ -31,6 +31,7 @@
     "publish:day:dry": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/publish-day.ps1 -DryRun -NoPrompt",
     "release:notes": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/generate-release-notes.ps1",
     "generate:homepage-screenshots": "node scripts/generate-homepage-screenshots.mjs",
+    "capture:homepage-screenshots": "node scripts/capture-homepage-screenshots.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",

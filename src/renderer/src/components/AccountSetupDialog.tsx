@@ -303,6 +303,8 @@ interface Props {
   onClose: () => void
   /** Beim Oeffnen direkt einen Tab anzeigen (z. B. von Hinweisdialog «Triage-Ordner»). */
   initialTab?: SettingsTab
+  /** Unterpunkt im Allgemein-Tab (z. B. `appearance`). */
+  initialGeneralSubNav?: string
   /** Unterpunkt im Mail-Tab (z. B. `rules`). */
   initialMailSubNav?: string
   /** Unterpunkt im Bookings-Tab (z. B. `personal`, `access`). */
@@ -315,6 +317,7 @@ export function AccountSetupDialog({
   open,
   onClose,
   initialTab,
+  initialGeneralSubNav,
   initialMailSubNav,
   initialBookingsSubNav,
   initialAiSubNav
@@ -580,6 +583,9 @@ export function AccountSetupDialog({
   useEffect(() => {
     if (!open) return
     setActiveTab(initialTab ?? 'general')
+    if ((initialTab == null || initialTab === 'general') && initialGeneralSubNav) {
+      setSubNavId((prev) => ({ ...prev, general: initialGeneralSubNav }))
+    }
     if (initialTab === 'mail' && initialMailSubNav) {
       setSubNavId((prev) => ({ ...prev, mail: initialMailSubNav }))
     }
@@ -591,7 +597,7 @@ export function AccountSetupDialog({
     }
     setSettingsSearchQuery('')
     setSettingsSearchOpen(false)
-  }, [open, initialTab, initialMailSubNav, initialBookingsSubNav, initialAiSubNav])
+  }, [open, initialTab, initialGeneralSubNav, initialMailSubNav, initialBookingsSubNav, initialAiSubNav])
 
   useEffect(() => {
     if (!open) return
