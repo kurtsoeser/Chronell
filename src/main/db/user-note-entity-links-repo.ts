@@ -6,14 +6,13 @@ import type {
   NoteLinksBundle
 } from '@shared/note-entity-links'
 import type { SettingsBackupEntityLinkSnapshot } from '@shared/types'
-import { noteEntityLinkTargetsEqual, noteEntityLinkTargetKey } from '@shared/note-entity-links'
+import { noteEntityLinkTargetKey } from '@shared/note-entity-links'
 import {
   addEntityLink,
   deleteAllEntityLinksForRef,
   listEntityLinksForAnchor,
   noteEntityRef,
-  removeEntityLinkIfMatches,
-  resolveEntityRefTitleSubtitle
+  removeEntityLinkIfMatches
 } from './entity-links-repo'
 
 interface EntityLinkRow {

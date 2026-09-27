@@ -5,10 +5,6 @@ import { join, normalize, resolve } from 'node:path'
 
 const CONTACT_PHOTO_MAX_BYTES = 4 * 1024 * 1024
 
-function contactPhotosRoot(): string {
-  return join(app.getPath('userData'), 'contact-photos')
-}
-
 /**
  * Nur Zeichen, die in Windows/macOS/Linux in einem Verzeichnisnamen sicher sind.
  * Konto-IDs wie `ms:…` / `google:…` enthalten `:` — unter Windows in Ordnernamen verboten (mkdir ENOENT).

@@ -39,15 +39,6 @@ export const CALENDAR_CACHE_STALE_MS = 120_000
 let refreshSeq = 0
 const inflightByKey = new Map<string, Promise<void>>()
 
-function effectiveFetchEndForAccount(acc: ConnectedAccount, viewEnd: Date): Date {
-  if (acc.calendarLoadAheadDays === null) {
-    return viewEnd
-  }
-  const days = acc.calendarLoadAheadDays ?? DEFAULT_CALENDAR_LOAD_AHEAD_DAYS
-  const cap = addDays(startOfDay(new Date()), days)
-  return cap.getTime() < viewEnd.getTime() ? cap : viewEnd
-}
-
 export function getDefaultCalendarSyncWindow(): { startIso: string; endIso: string } {
   const start = subDays(startOfDay(new Date()), CALENDAR_CACHE_PAST_DAYS)
   const end = addDays(startOfDay(new Date()), DEFAULT_CALENDAR_LOAD_AHEAD_DAYS)

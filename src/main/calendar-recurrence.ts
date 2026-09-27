@@ -29,10 +29,6 @@ function normalizedWeekdays(
   return valid.length > 0 ? Array.from(new Set(valid)) : [fallback]
 }
 
-function googleByDay(parts: CalendarZonedParts): string {
-  return GOOGLE_BYDAY[parts.weekday - 1]!
-}
-
 /**
  * Microsoft Graph `event.recurrence` = PatternedRecurrence (`pattern` + `range`).
  */

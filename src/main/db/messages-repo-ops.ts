@@ -10,7 +10,7 @@ import {
   buildSqlPhraseRankCase,
   normalizeFtsTokenOrPhraseMatchQuery
 } from '@shared/search-token-query'
-import { LIST_COLUMNS, normalizeMessagesFtsMatchQuery } from './messages-repo-list'
+import { LIST_COLUMNS } from './messages-repo-list'
 export function setMessageReadLocal(id: number, isRead: boolean): void {
   const db = getDb()
   db.prepare('UPDATE messages SET is_read = ? WHERE id = ?').run(isRead ? 1 : 0, id)

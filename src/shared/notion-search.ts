@@ -28,7 +28,7 @@ export function parseNotionSearchQuery(raw: string): {
   }
 
   // Gerade und typografische Anfuehrungszeichen (DE: „…“, EN: “…”, «…»).
-  const quoted = trimmed.match(/^[\"„“«]([\s\S]+)[\"”“»]$/)
+  const quoted = trimmed.match(/^["„“«]([\s\S]+)["”“»]$/)
   if (quoted) {
     const phrase = quoted[1].replace(/\s+/g, ' ').trim()
     return {
@@ -39,7 +39,7 @@ export function parseNotionSearchQuery(raw: string): {
   }
 
   const cleaned = trimmed
-    .replace(/[\"„“”«»]/g, ' ')
+    .replace(/["„“”«»]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
   const tokens = cleaned

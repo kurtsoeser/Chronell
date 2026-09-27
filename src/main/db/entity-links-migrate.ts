@@ -1,6 +1,5 @@
 import type { Database as DbType } from 'better-sqlite3'
 import type { ChronellEntityRef } from '@shared/entity-ref'
-import { entityRefKey } from '@shared/entity-ref'
 import {
   addEntityLink,
   cloudTaskEntityRef,

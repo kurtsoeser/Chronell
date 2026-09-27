@@ -53,11 +53,6 @@ import { setPanelSuggestionCount } from './entity-link-suggestion-counts'
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000
 
-interface CachedAiSuggest {
-  savedAt: number
-  suggestions: EntityLinkSuggestion[]
-}
-
 function cacheDir(): string {
   return join(app.getPath('userData'), 'ai-link-suggest-cache')
 }
@@ -67,24 +62,8 @@ function cacheFilePath(key: string): string {
   return join(cacheDir(), `${hash}.json`)
 }
 
-async function readCache(key: string): Promise<EntityLinkSuggestion[] | null> {
-  const path = cacheFilePath(key)
-  if (!existsSync(path)) return null
-  try {
-    const raw = await readFile(path, 'utf8')
-    const parsed = JSON.parse(raw) as CachedAiSuggest
-    if (Date.now() - parsed.savedAt > CACHE_TTL_MS) return null
-    return parsed.suggestions
-  } catch {
-    return null
-  }
-}
-
-async function writeCache(key: string, suggestions: EntityLinkSuggestion[]): Promise<void> {
-  const dir = cacheDir()
-  await mkdir(dir, { recursive: true })
-  const payload: CachedAiSuggest = { savedAt: Date.now(), suggestions }
-  await writeFile(cacheFilePath(key), JSON.stringify(payload), 'utf8')
+async function ensureSuggestCacheDir(): Promise<void> {
+  await mkdir(cacheDir(), { recursive: true })
 }
 
 async function filterDismissedSuggestions(
@@ -261,6 +240,7 @@ export async function runAiSuggestForAnchor(
       suggestions: intersectAiSuggestions(gemini.suggestions, openai.suggestions),
       chains: intersectAiChains(gemini.chains, openai.chains)
     }
+    await ensureSuggestCacheDir()
     await writeFile(
       path,
       JSON.stringify({ savedAt: Date.now(), ...result } satisfies CachedAiSuggestFull),
@@ -277,6 +257,7 @@ export async function runAiSuggestForAnchor(
     useExcerpt,
     domainId
   )
+  await ensureSuggestCacheDir()
   await writeFile(
     path,
     JSON.stringify({ savedAt: Date.now(), ...result } satisfies CachedAiSuggestFull),
