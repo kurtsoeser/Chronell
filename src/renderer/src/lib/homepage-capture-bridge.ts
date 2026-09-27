@@ -8,6 +8,7 @@ import {
   requestOpenAccountSettings
 } from '@/lib/open-account-settings'
 import { useAppModeStore, type AppShellMode } from '@/stores/app-mode'
+import { useAccountsStore } from '@/stores/accounts'
 import { useMailStore } from '@/stores/mail'
 
 export type HomepageCaptureShotId =
@@ -42,6 +43,11 @@ async function waitUntil(predicate: () => boolean, timeoutMs = 20_000): Promise<
 
 async function closeOverlays(): Promise<void> {
   requestCloseAccountSettings()
+  try {
+    await useAccountsStore.getState().dismissWorkflowMailFoldersIntro()
+  } catch {
+    // ignore — Demo-Config setzt den Flag bereits
+  }
   await sleep(350)
 }
 
@@ -61,7 +67,8 @@ async function prepareMailTriage(): Promise<void> {
 
 async function prepareCalendar(): Promise<void> {
   useAppModeStore.getState().setMode('calendar')
-  await sleep(1400)
+  await waitUntil(() => useAccountsStore.getState().accounts.length > 0, 20_000)
+  await sleep(1600)
 }
 
 async function prepareDesign(): Promise<void> {

@@ -1,8 +1,8 @@
-### 1.3.0 - 26. September 2026
+### 1.3.1 - 27. September 2026
 
-- **Webinare:** Einladungs-Editor mit Layout-Themen, WYSIWYG, Notion-Import und Microsoft-Forms-Anbindung
-- **Kalender:** Überarbeiteter Termin-Dialog mit Ribbon, Teams-Join-Link und Meeting-Vorlagen
-- **Copilot:** Entwürfe im Composer sowie Kontakt-Zusammenfassungen in der Mail-Sidebar
-- **Homepage:** Release-Texte, Timeline und Download auf 1.3.0
+- **Aufgaben:** Aufgaben-Modul und Cloud-Tasks-Sync (1 Datei(en) geaendert)
+- **Home:** Home-Dashboard und Kacheln (1 Datei(en) geaendert)
+- **Kalender:** Kalender und Termine: Dialog, Vorschau, Kategorien und Shell (1 Datei(en) geaendert)
+- **Homepage:** Release-Texte, Homepage-Timeline und Download auf 1.3.1
 
 Download: https://chronell.app/

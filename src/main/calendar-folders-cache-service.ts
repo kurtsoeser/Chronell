@@ -15,6 +15,7 @@ import { listMicrosoft365GroupCalendars, listMicrosoftCalendars } from './calend
 import { isAppOnline } from './network-status'
 import { warnProviderAuthOnce } from './auth/auth-errors'
 import { runGraphMailboxRequest } from './graph/graph-account-request'
+import { isDemoAccount } from './demo/demo-accounts'
 
 export const CALENDAR_FOLDERS_CACHE_STALE_MS = 120_000
 
@@ -83,6 +84,7 @@ export async function syncCalendarFoldersForAccount(accountId: string): Promise<
   const accounts = await listAccounts()
   const acc = accounts.find((a) => a.id === accountId)
   if (!acc || (acc.provider !== 'microsoft' && acc.provider !== 'google')) return
+  if (isDemoAccount(acc)) return
 
   await fetchStandardFoldersFromCloudDeduped(accountId)
   if (acc.provider === 'microsoft') {
@@ -96,6 +98,7 @@ export async function syncAllCalendarFoldersAccounts(): Promise<void> {
   const accounts = await listAccounts()
   for (const acc of accounts) {
     if (acc.provider !== 'microsoft' && acc.provider !== 'google') continue
+    if (isDemoAccount(acc)) continue
     try {
       await syncCalendarFoldersForAccount(acc.id)
     } catch (e) {
@@ -109,6 +112,11 @@ export async function listCalendarsCached(
   opts?: { forceRefresh?: boolean }
 ): Promise<CalendarGraphCalendarRow[]> {
   const cached = listStandardCalendarFoldersFromCache(accountId)
+  const accounts = await listAccounts()
+  const acc = accounts.find((a) => a.id === accountId)
+  if (acc && isDemoAccount(acc)) {
+    return cached
+  }
   const force = opts?.forceRefresh === true
   const fresh = isCalendarFoldersSyncFresh(accountId, CALENDAR_FOLDERS_CACHE_STALE_MS)
 
@@ -136,8 +144,13 @@ export async function listM365GroupCalendarsCached(
 ): Promise<CalendarM365GroupCalendarsPage> {
   const offset = Math.max(0, opts?.offset ?? 0)
   const limit = Math.max(1, opts?.limit ?? M365_GROUP_PAGE_SIZE)
-  const force = opts?.forceRefresh === true
   const cachedPage = listM365GroupCalendarFoldersPageFromCache(accountId, offset, limit)
+  const accounts = await listAccounts()
+  const acc = accounts.find((a) => a.id === accountId)
+  if (acc && isDemoAccount(acc)) {
+    return cachedPage
+  }
+  const force = opts?.forceRefresh === true
   const fresh = isCalendarFoldersSyncFresh(accountId, CALENDAR_FOLDERS_CACHE_STALE_MS)
   const hasAnyGroups = countM365GroupCalendarFolders(accountId) > 0
   const st = getCalendarFoldersSyncState(accountId)

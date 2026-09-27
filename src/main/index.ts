@@ -341,6 +341,7 @@ app.whenReady().then(async () => {
         const msalAccounts = await listMsalAccounts(cfg.microsoftClientId)
         const msalIds = new Set(msalAccounts.map((a) => `ms:${a.homeAccountId}`))
         for (const account of accounts) {
+          if (isDemoAccount(account)) continue
           if (account.provider !== 'microsoft' || msalIds.has(account.id)) continue
           warnProviderAuthOnce(
             'startup',

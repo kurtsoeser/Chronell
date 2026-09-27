@@ -22,11 +22,13 @@ import {
   pruneCalendarEventsInRange,
   upsertCalendarEvents
 } from './db/calendar-events-repo'
+import { listStandardCalendarFoldersFromCache } from './db/calendar-folders-repo'
 import { broadcastCalendarChanged, broadcastCalendarSyncStatus } from './ipc/ipc-broadcasts'
 import { getActiveSchedulePatchGuard } from './calendar-schedule-patch-guard'
 import { isAppOnline } from './network-status'
 import { warnProviderAuthOnce } from './auth/auth-errors'
 import { googleListCalendars } from './google/calendar-google'
+import { isDemoAccount } from './demo/demo-accounts'
 
 /** Vergangenheit im lokalen Cache (Tage). */
 export const CALENDAR_CACHE_PAST_DAYS = 90
@@ -55,6 +57,12 @@ export function getDefaultCalendarSyncWindow(): { startIso: string; endIso: stri
 async function listAllCalendarsForAccount(
   acc: ConnectedAccount
 ): Promise<CalendarIncludeCalendarRef[]> {
+  if (isDemoAccount(acc)) {
+    return listStandardCalendarFoldersFromCache(acc.id).map((c) => ({
+      accountId: acc.id,
+      graphCalendarId: c.id
+    }))
+  }
   if (acc.provider === 'microsoft') {
     const rows = await listMicrosoftCalendars(acc.id)
     return rows.map((c) => ({ accountId: acc.id, graphCalendarId: c.id }))
@@ -134,18 +142,24 @@ async function fetchFromCloudAndPersist(
   googleIncremental: boolean
 ): Promise<CalendarEventView[]> {
   const include = await resolveIncludeCalendars(options)
+  const demoFiltered = Array.isArray(include)
+    ? await filterOutDemoIncludeCalendars(include)
+    : include
+  if (Array.isArray(demoFiltered) && demoFiltered.length === 0 && Array.isArray(include)) {
+    return listCalendarEventsInRange(startIso, endIso, include)
+  }
   const events = applySchedulePatchGuards(
     await listMergedCalendarEvents(startIso, endIso, {
       ...options,
-      includeCalendars: include ?? undefined,
+      includeCalendars: demoFiltered ?? undefined,
       googleIncremental
     })
   )
 
   upsertCalendarEvents(events)
 
-  if (Array.isArray(include) && include.length > 0) {
-    const byAcc = calendarsByAccount(include)
+  if (Array.isArray(demoFiltered) && demoFiltered.length > 0) {
+    const byAcc = calendarsByAccount(demoFiltered)
     for (const [accountId, calIds] of byAcc) {
       const keep = new Set(
         events
@@ -159,6 +173,17 @@ async function fetchFromCloudAndPersist(
   }
 
   return events
+}
+
+async function filterOutDemoIncludeCalendars(
+  include: CalendarIncludeCalendarRef[]
+): Promise<CalendarIncludeCalendarRef[]> {
+  const accounts = await listAccounts()
+  const byId = new Map(accounts.map((a) => [a.id, a]))
+  return include.filter((ref) => {
+    const acc = byId.get(ref.accountId)
+    return !acc || !isDemoAccount(acc)
+  })
 }
 
 function rangeKey(startIso: string, endIso: string, includeKey: string): string {
@@ -212,6 +237,17 @@ export async function listCalendarEventsCached(
   const cached = listCalendarEventsInRange(startIso, endIso, include)
   const force = options?.forceRefresh === true
 
+  const accounts = await listAccounts()
+  const byId = new Map(accounts.map((a) => [a.id, a]))
+  const allDemo =
+    accountIds.length > 0 && accountIds.every((id) => {
+      const acc = byId.get(id)
+      return acc != null && isDemoAccount(acc)
+    })
+  if (allDemo) {
+    return cached
+  }
+
   const covered = isCalendarRangeCoveredBySync(accountIds, startIso, endIso)
   const staleMs = getCalendarSyncStalestMs(accountIds)
   const isStale = staleMs == null || staleMs >= CALENDAR_CACHE_STALE_MS
@@ -258,6 +294,7 @@ export async function syncAllCalendarAccounts(
   if (linked.length === 0) return
 
   for (const acc of linked) {
+    if (isDemoAccount(acc)) continue
     try {
       await syncCalendarAccount(acc.id, opts)
     } catch (e) {
@@ -274,6 +311,7 @@ export async function syncCalendarAccount(
   const accounts = await listAccounts()
   const acc = accounts.find((a) => a.id === accountId)
   if (!acc || (acc.provider !== 'microsoft' && acc.provider !== 'google')) return
+  if (isDemoAccount(acc)) return
 
   const { startIso, endIso } = getDefaultCalendarSyncWindow()
   const include = await listAllCalendarsForAccount(acc)

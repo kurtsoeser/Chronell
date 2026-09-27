@@ -9,6 +9,7 @@ import {
 } from '../account-photo'
 import { loadConfig } from '../config'
 import { listAccounts, upsertAccount } from '../accounts'
+import { isDemoAccount } from '../demo/demo-accounts'
 import {
   attachCategoriesToMailItems,
   attachCategoriesToFull
@@ -70,6 +71,7 @@ async function ensureMicrosoftProfilePhotosForMissing(): Promise<void> {
   let changed = false
   for (const a of accounts) {
     if (a.provider !== 'microsoft' || a.profilePhotoFile) continue
+    if (isDemoAccount(a)) continue
     try {
       const homeId = a.id.replace(/^ms:/, '')
       const buf = await fetchMicrosoftProfilePhoto(config.microsoftClientId, homeId)
@@ -91,6 +93,7 @@ async function ensureGoogleProfilePhotosForMissing(): Promise<void> {
   let changed = false
   for (const a of accounts) {
     if (a.provider !== 'google' || a.profilePhotoFile) continue
+    if (isDemoAccount(a)) continue
     const creds = await getGoogleCredentials(a.id)
     if (!creds) continue
     const idt = creds.id_token?.trim()

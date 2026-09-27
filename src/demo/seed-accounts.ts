@@ -13,7 +13,9 @@ export function buildDemoAccounts(): ConnectedAccount[] {
   return [
     {
       id: DEMO_ACCOUNT_M365_ID,
-      provider: 'demo',
+      // microsoft/google damit Kalender-/Aufgaben-UI die Konten als verknüpft erkennt;
+      // Schreibschutz über isDemo (nicht über provider === 'demo').
+      provider: 'microsoft',
       email: DEMO_ACCOUNT_M365_EMAIL,
       displayName: 'Anna Weber',
       color: 'bg-blue-500',
@@ -26,7 +28,7 @@ export function buildDemoAccounts(): ConnectedAccount[] {
     },
     {
       id: DEMO_ACCOUNT_GOOGLE_ID,
-      provider: 'demo',
+      provider: 'google',
       email: DEMO_ACCOUNT_GOOGLE_EMAIL,
       displayName: 'Projekt Alpha',
       color: 'bg-emerald-500',

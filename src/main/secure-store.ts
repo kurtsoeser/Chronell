@@ -8,6 +8,11 @@ import { join, dirname } from 'node:path'
  * Refresh-Tokens, Account-Liste). Nutzt Electrons safeStorage, das unter
  * Windows DPAPI (dieselbe Mechanik wie der Windows Credential Manager)
  * verwendet.
+ *
+ * Demo-Packs und portable Archives legen oft `secure/<name>.json` ab.
+ * Wenn Encryption verfuegbar ist, aber noch kein `.bin` existiert, wird
+ * die Plaintext-Datei gelesen (und beim naechsten Schreibvorgang nach `.bin`
+ * migriert).
  */
 
 function storePath(name: string): string {
@@ -22,22 +27,7 @@ function encryptionAvailable(): boolean {
   return safeStorage.isEncryptionAvailable()
 }
 
-export async function readSecure(name: string): Promise<string | null> {
-  if (encryptionAvailable()) {
-    const path = storePath(name)
-    if (!existsSync(path)) return null
-    try {
-      const blob = await readFile(path)
-      return safeStorage.decryptString(blob)
-    } catch (e) {
-      console.warn(
-        `[secure-store] Entschluesselung fehlgeschlagen (${name}) — Token-Cache leer, erneute Anmeldung noetig:`,
-        e instanceof Error ? e.message : e
-      )
-      return null
-    }
-  }
-
+async function readPlainFile(name: string): Promise<string | null> {
   const path = plainPath(name)
   if (!existsSync(path)) return null
   try {
@@ -45,6 +35,40 @@ export async function readSecure(name: string): Promise<string | null> {
   } catch {
     return null
   }
+}
+
+export async function readSecure(name: string): Promise<string | null> {
+  if (encryptionAvailable()) {
+    const path = storePath(name)
+    if (existsSync(path)) {
+      try {
+        const blob = await readFile(path)
+        return safeStorage.decryptString(blob)
+      } catch (e) {
+        console.warn(
+          `[secure-store] Entschluesselung fehlgeschlagen (${name}) — Token-Cache leer, erneute Anmeldung noetig:`,
+          e instanceof Error ? e.message : e
+        )
+        return null
+      }
+    }
+    // Fallback: Demo-Pack / Import mit plaintext secure/<name>.json
+    const plain = await readPlainFile(name)
+    if (plain != null) {
+      try {
+        await writeSecure(name, plain)
+        await unlink(plainPath(name)).catch(() => undefined)
+      } catch (e) {
+        console.warn(
+          `[secure-store] Migration plaintext→bin fehlgeschlagen (${name}):`,
+          e instanceof Error ? e.message : e
+        )
+      }
+    }
+    return plain
+  }
+
+  return readPlainFile(name)
 }
 
 export async function writeSecure(name: string, value: string): Promise<void> {

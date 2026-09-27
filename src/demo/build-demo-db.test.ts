@@ -49,6 +49,16 @@ describe.skipIf(!sqliteOk)('build-demo-db', () => {
         ).c
         expect(eventCount).toBeGreaterThanOrEqual(20)
 
+        const calendarFolderCount = (
+          db.prepare('SELECT COUNT(*) AS c FROM calendar_folders').get() as { c: number }
+        ).c
+        expect(calendarFolderCount).toBeGreaterThanOrEqual(2)
+
+        const calendarSyncCount = (
+          db.prepare('SELECT COUNT(*) AS c FROM calendar_sync_state').get() as { c: number }
+        ).c
+        expect(calendarSyncCount).toBeGreaterThanOrEqual(2)
+
         const taskCount = (
           db.prepare('SELECT COUNT(*) AS c FROM cloud_tasks').get() as { c: number }
         ).c
@@ -95,10 +105,12 @@ describe.skipIf(!sqliteOk)('build-demo-db', () => {
 })
 
 describe('demo accounts', () => {
-  it('markiert Demo-Konten als schreibgeschützt', () => {
-    for (const acc of buildDemoAccounts()) {
+  it('markiert Demo-Konten als schreibgeschützt (microsoft/google + isDemo)', () => {
+    const accounts = buildDemoAccounts()
+    expect(accounts.map((a) => a.provider).sort()).toEqual(['google', 'microsoft'])
+    for (const acc of accounts) {
       expect(isDemoAccount(acc)).toBe(true)
-      expect(acc.provider).toBe('demo')
+      expect(acc.isDemo).toBe(true)
     }
   })
 })

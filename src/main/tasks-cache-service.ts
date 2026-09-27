@@ -1,6 +1,7 @@
 import type { TaskItemRow, TaskListRow } from '@shared/types'
 import { listAccounts } from './accounts'
 import { warnProviderAuthOnce } from './auth/auth-errors'
+import { isDemoAccount } from './demo/demo-accounts'
 import {
   deleteCloudTask,
   getTaskListSyncState,
@@ -171,6 +172,11 @@ export async function listTaskListsCached(
   if (isTasksRemovalBlocked(accountId)) {
     return listTaskListsFromCache(accountId)
   }
+  const accounts = await listAccounts()
+  const acc = accounts.find((a) => a.id === accountId)
+  if (acc && isDemoAccount(acc)) {
+    return listTaskListsFromCache(accountId)
+  }
   const cached = listTaskListsFromCache(accountId)
   const force = opts?.forceRefresh === true
   const fresh = isTaskListsSyncFresh(accountId, TASKS_CACHE_STALE_MS)
@@ -247,6 +253,9 @@ export async function listTasksCached(
 
 export async function syncTasksForAccount(accountId: string): Promise<void> {
   if (!isAppOnline() || isTasksRemovalBlocked(accountId)) return
+  const accounts = await listAccounts()
+  const acc = accounts.find((a) => a.id === accountId)
+  if (acc && isDemoAccount(acc)) return
   const lists = await fetchListsFromCloudAndPersist(accountId)
   for (const list of lists) {
     try {
@@ -266,6 +275,7 @@ export async function syncAllTasksAccounts(): Promise<void> {
   const accounts = await listAccounts()
   for (const acc of accounts) {
     if (acc.provider !== 'microsoft' && acc.provider !== 'google') continue
+    if (isDemoAccount(acc)) continue
     try {
       await syncTasksForAccount(acc.id)
     } catch (e) {

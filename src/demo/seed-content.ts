@@ -935,6 +935,55 @@ export function seedDemoCalendar(db: Database.Database): DemoCalendarSeedResult 
   ]
 
   for (const ev of events) stmt.run(ev)
+
+  // Kalender-Ordner + Sync-State: ohne Folders liefert listCalendarsCached [] und die UI
+  // filtert includeCalendars → keine Termine; Sync-State verhindert Cloud-Abruf/Prune.
+  const folderStmt = db.prepare(`
+    INSERT INTO calendar_folders (
+      account_id, calendar_id, name, is_default, color, hex_color, can_edit,
+      provider, access_role, calendar_kind, group_sort_index, synced_at
+    ) VALUES (
+      @account_id, @calendar_id, @name, @is_default, @color, @hex_color, 1,
+      @provider, 'owner', 'standard', NULL, datetime('now')
+    )
+  `)
+  folderStmt.run({
+    account_id: DEMO_ACCOUNT_M365_ID,
+    calendar_id: 'cal-primary',
+    name: 'Kalender',
+    is_default: 1,
+    color: 'auto',
+    hex_color: '#0078d4',
+    provider: 'microsoft'
+  })
+  folderStmt.run({
+    account_id: DEMO_ACCOUNT_GOOGLE_ID,
+    calendar_id: 'primary',
+    name: 'Projekt Alpha',
+    is_default: 1,
+    color: null,
+    hex_color: '#0f9d58',
+    provider: 'google'
+  })
+
+  const foldersSyncStmt = db.prepare(`
+    INSERT INTO calendar_folders_sync_state (account_id, last_synced_at, m365_groups_total)
+    VALUES (@account_id, datetime('now'), @m365_groups_total)
+  `)
+  foldersSyncStmt.run({ account_id: DEMO_ACCOUNT_M365_ID, m365_groups_total: 0 })
+  foldersSyncStmt.run({ account_id: DEMO_ACCOUNT_GOOGLE_ID, m365_groups_total: 0 })
+
+  const syncStmt = db.prepare(`
+    INSERT INTO calendar_sync_state (account_id, window_start_iso, window_end_iso, last_synced_at)
+    VALUES (@account_id, @window_start_iso, @window_end_iso, datetime('now'))
+  `)
+  const syncWindow = {
+    window_start_iso: '2020-01-01T00:00:00.000Z',
+    window_end_iso: '2035-12-31T00:00:00.000Z'
+  }
+  syncStmt.run({ account_id: DEMO_ACCOUNT_M365_ID, ...syncWindow })
+  syncStmt.run({ account_id: DEMO_ACCOUNT_GOOGLE_ID, ...syncWindow })
+
   return { eventIds: events.map((e) => e.graph_event_id) }
 }
 
@@ -1295,6 +1344,7 @@ export function seedDemoEntityLinks(
 export function seedDemoConfig(): Record<string, unknown> {
   return {
     firstRunSetupCompleted: true,
+    workflowMailFoldersIntroDismissed: true,
     configSchemaVersion: 1,
     syncWindowDays: 30,
     mailPollIntervalSeconds: 120,
