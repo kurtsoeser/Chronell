@@ -3546,8 +3546,29 @@ main {
   margin: 0;
 }
 
-.showcase-row--featured .mockup-body--connections {
-  min-height: 18rem;
+.showcase-shot-frame {
+  margin: 0;
+  overflow: hidden;
+  border-radius: var(--radius-xl);
+  border: 1px solid hsl(var(--glass-border));
+  background: hsl(220 8% 8%);
+  box-shadow: var(--glass-shadow);
+}
+
+.showcase-shot {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  object-position: top center;
+  vertical-align: middle;
+}
+
+.showcase-row--featured .showcase-shot-frame {
+  box-shadow:
+    var(--glass-shadow),
+    0 0 40px hsl(var(--chronell-primary) / 0.22);
 }
 
 @media (max-width: 899px) {
