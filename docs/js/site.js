@@ -40,6 +40,11 @@ function applyTranslations() {
     const value = get(strings, key)
     if (value != null) el.setAttribute('alt', value)
   })
+  document.querySelectorAll('[data-i18n-aria]').forEach((el) => {
+    const key = el.getAttribute('data-i18n-aria')
+    const value = get(strings, key)
+    if (value != null) el.setAttribute('aria-label', value)
+  })
   const title = get(strings, 'meta.title')
   if (title) document.title = title
   document.querySelectorAll('.lang-toggle button').forEach((btn) => {
@@ -119,6 +124,116 @@ function setupHeroDemo() {
 
   const initial = root.querySelector('[data-demo-tab].active')?.dataset.demoTab ?? 'mail'
   activate(initial)
+}
+
+function setupScreenshotLightbox() {
+  const dialog = document.getElementById('screenshot-lightbox')
+  const imgEl = document.getElementById('shot-lightbox-img')
+  const captionEl = document.getElementById('shot-lightbox-caption')
+  if (!dialog || !imgEl || !captionEl || typeof dialog.showModal !== 'function') return
+
+  /** @type {{ src: string, alt: string, caption: string }[]} */
+  let items = []
+  let index = 0
+
+  function collectItems() {
+    const nodes = document.querySelectorAll('[data-lightbox]')
+    items = Array.from(nodes)
+      .map((el) => {
+        if (!(el instanceof HTMLImageElement)) return null
+        const src = el.currentSrc || el.src
+        if (!src) return null
+        const alt = el.getAttribute('alt') || ''
+        const label =
+          el.closest('.screenshot-frame')?.querySelector('.screenshot-label')?.textContent?.trim() ||
+          alt
+        return { src, alt, caption: label }
+      })
+      .filter(Boolean)
+  }
+
+  function render() {
+    const item = items[index]
+    if (!item) return
+    imgEl.src = item.src
+    imgEl.alt = item.alt
+    captionEl.textContent = item.caption
+  }
+
+  function openAt(i) {
+    collectItems()
+    if (items.length === 0) return
+    index = ((i % items.length) + items.length) % items.length
+    render()
+    if (!dialog.open) dialog.showModal()
+    document.documentElement.classList.add('lightbox-open')
+  }
+
+  function close() {
+    if (dialog.open) dialog.close()
+    document.documentElement.classList.remove('lightbox-open')
+  }
+
+  function step(delta) {
+    if (items.length === 0) return
+    index = (index + delta + items.length) % items.length
+    render()
+  }
+
+  document.querySelectorAll('[data-lightbox]').forEach((el) => {
+    if (!(el instanceof HTMLImageElement)) return
+    el.setAttribute('tabindex', '0')
+    el.setAttribute('role', 'button')
+    const open = () => {
+      collectItems()
+      const src = el.currentSrc || el.src
+      const i = items.findIndex((it) => it.src === src)
+      openAt(i >= 0 ? i : 0)
+    }
+    el.addEventListener('click', (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+      open()
+    })
+    el.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault()
+        open()
+      }
+    })
+  })
+
+  // Whole screenshot card is clickable
+  document.querySelectorAll('.screenshot-frame--lightbox').forEach((frame) => {
+    frame.addEventListener('click', (e) => {
+      if (e.target.closest('a, button')) return
+      const img = frame.querySelector('[data-lightbox]')
+      if (img instanceof HTMLImageElement) img.click()
+    })
+  })
+
+  dialog.querySelector('[data-lightbox-close]')?.addEventListener('click', close)
+  dialog.querySelector('[data-lightbox-prev]')?.addEventListener('click', () => step(-1))
+  dialog.querySelector('[data-lightbox-next]')?.addEventListener('click', () => step(1))
+
+  dialog.addEventListener('click', (e) => {
+    if (e.target === dialog) close()
+  })
+
+  dialog.addEventListener('close', () => {
+    document.documentElement.classList.remove('lightbox-open')
+  })
+
+  document.addEventListener('keydown', (e) => {
+    if (!dialog.open) return
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault()
+      step(-1)
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault()
+      step(1)
+    }
+  })
 }
 
 function setupReveal() {
@@ -337,6 +452,7 @@ async function init() {
   }
   await setupDownloadLinks()
   setupHeroDemo()
+  setupScreenshotLightbox()
   setupReveal()
 }
 

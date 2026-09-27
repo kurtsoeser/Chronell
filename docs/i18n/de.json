@@ -528,7 +528,7 @@
   "screenshots": {
     "eyebrow": "Vorschau",
     "title": "Chronell in Aktion",
-    "lead": "Echte Screenshots aus der Demo-Umgebung: Mail-Triage, Kalender, Fluent-Themes, Verbindungs-Graph, Alle Arbeit und Dashboard.",
+    "lead": "Echte Screenshots aus der Demo-Umgebung: Mail-Triage, Kalender, Fluent-Themes, Verbindungs-Graph, Alle Arbeit und Dashboard. Tippe auf ein Bild zum Vergrößern.",
     "placeholder": "Screenshot folgt",
     "triage": "Mail-Triage",
     "calendar": "Einheitlicher Kalender",
@@ -536,7 +536,13 @@
     "connections": "Verbindungen & Graph",
     "bookings": "Microsoft Bookings",
     "work": "Alle Arbeit",
-    "dashboard": "Home-Dashboard"
+    "dashboard": "Home-Dashboard",
+    "lightbox": {
+      "close": "Bildbetrachtung schließen",
+      "prev": "Vorheriges Bild",
+      "next": "Nächstes Bild",
+      "hint": "Zum Vergrößern anklicken"
+    }
   },
   "modules": {
     "eyebrow": "Ein Fenster",

@@ -528,7 +528,7 @@
   "screenshots": {
     "eyebrow": "Preview",
     "title": "See Chronell in action",
-    "lead": "Real screenshots from the demo environment: mail triage, calendar, Fluent themes, connection graph, All Work, and dashboard.",
+    "lead": "Real screenshots from the demo environment: mail triage, calendar, Fluent themes, connection graph, All Work, and dashboard. Click an image to enlarge.",
     "placeholder": "Screenshot coming soon",
     "triage": "Mail triage",
     "calendar": "Unified calendar",
@@ -536,7 +536,13 @@
     "connections": "Connections & graph",
     "bookings": "Microsoft Bookings",
     "work": "All Work",
-    "dashboard": "Home dashboard"
+    "dashboard": "Home dashboard",
+    "lightbox": {
+      "close": "Close image viewer",
+      "prev": "Previous image",
+      "next": "Next image",
+      "hint": "Click to enlarge"
+    }
   },
   "modules": {
     "eyebrow": "One window",
