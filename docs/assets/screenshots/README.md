@@ -1,6 +1,6 @@
 # Screenshots (Homepage)
 
-PNG-Dateien für die Sektion **Chronell in Aktion** auf der Marketing-Homepage (`docs/index.html`).
+PNG-Dateien für Hero-Tabs und die Sektion **Chronell in Aktion** auf der Marketing-Homepage (`docs/index.html`).
 
 | Datei | Modul |
 |-------|--------|

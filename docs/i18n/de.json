@@ -50,18 +50,26 @@
       "tabs": {
         "mail": "Mail",
         "calendar": "Kalender",
-        "tasks": "Aufgaben",
-        "notes": "Notizen",
-        "contacts": "Kontakte",
-        "connections": "Verbindungen"
+        "work": "Arbeit",
+        "design": "Design",
+        "connections": "Verbindungen",
+        "dashboard": "Dashboard"
       },
       "caption": {
         "mail": "Triage statt Dauer-Posteingang — mehrere Mails markieren, als ToDo planen oder snoozen, ohne jeden Thread einzeln zu öffnen.",
         "calendar": "Termine, Mail-ToDos und Cloud-Tasks in einer Woche — mit Zeitliste und Mail-Kontext in der gleichen Ansicht.",
-        "tasks": "Microsoft To Do und Google Tasks neben Mail und Kalender — Fälligkeit, Serien und geplante Blöcke in einem Fenster.",
-        "notes": "Kernnotizen an Mails und Terminen — Markdown mit Vorschau und direkte Verknüpfung in den Graph.",
-        "contacts": "Kontakte mit verknüpften Mails und Aufgaben — Personen als Knoten im Arbeitsnetz, nicht nur Adressbuch.",
-        "connections": "Dein einzigartiges Arbeitsnetz: Mail, Termine, Tasks und Notizen als Graph — mit KI-Vorschlägen, die du bestätigst."
+        "work": "Alle Arbeit als Kanban — Mail-ToDos, Cloud-Tasks und geplante Blöcke in einem Board.",
+        "design": "Fluent Design nach deinem Geschmack — Farben, Dichte und Darstellung in den Einstellungen.",
+        "connections": "Dein einzigartiges Arbeitsnetz: Mail, Termine, Tasks und Notizen als Graph — mit KI-Vorschlägen, die du bestätigst.",
+        "dashboard": "Der Startbildschirm mit dem, was heute zählt — nächste Termine, offene Arbeit und Kontext auf einen Blick."
+      },
+      "alt": {
+        "mail": "Chronell Mail-Triage mit Posteingang und Lesefenster",
+        "calendar": "Chronell Kalender mit Wochenansicht und Terminen",
+        "work": "Chronell Alle-Arbeit-Ansicht als Kanban-Board",
+        "design": "Chronell Design-Einstellungen (Fluent)",
+        "connections": "Chronell Verbindungen-Graph",
+        "dashboard": "Chronell Dashboard mit Kacheln"
       }
     }
   },

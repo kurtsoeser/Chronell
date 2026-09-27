@@ -35,6 +35,11 @@ function applyTranslations() {
       el.textContent = value
     }
   })
+  document.querySelectorAll('[data-i18n-alt]').forEach((el) => {
+    const key = el.getAttribute('data-i18n-alt')
+    const value = get(strings, key)
+    if (value != null) el.setAttribute('alt', value)
+  })
   const title = get(strings, 'meta.title')
   if (title) document.title = title
   document.querySelectorAll('.lang-toggle button').forEach((btn) => {
