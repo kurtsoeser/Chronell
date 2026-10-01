@@ -4434,6 +4434,7 @@
       "sidebarHiddenCalendarLoading": "Kalender wird geladen…",
       "slotDurationLabel": "Zeitraster (Tag/Woche)",
       "slotMinutesOption": "{{count}} Min.",
+      "slotMinutesMenuOption": "{{count}} Minuten",
       "slotDurationShortcuts": "Strg bzw. ⌘ + Umschalt+. = feineres Raster, Strg bzw. ⌘ + Umschalt+, = gröberes Raster.",
       "nDaysMenu": "{{count}} Tage",
       "importIcs": "Termin aus .ics importieren…"
@@ -4657,6 +4658,13 @@
       "body": "Die Besprechung wurde auf einen neuen Zeitpunkt verschoben. Beim Speichern erhalten alle Teilnehmer eine Aktualisierung (erneute Einladung) mit dem neuen Termin.",
       "saveAndNotify": "Speichern & an alle senden",
       "discard": "Verwerfen",
+      "cancel": "Abbrechen"
+    },
+    "inviteNotifyDialog": {
+      "title": "Einladungen senden",
+      "body": "Es sind bereits {{invited}} Teilnehmer eingeladen. Neu: {{added}}, entfernt: {{removed}}. An wen soll die Aktualisierung gehen?",
+      "sendToAll": "An alle Teilnehmer senden",
+      "sendToChanged": "Nur an neu hinzugefügte oder entfernte",
       "cancel": "Abbrechen"
     },
     "context": {
@@ -5205,6 +5213,8 @@
       "unsavedKeepEditing": "Weiter bearbeiten",
       "invitationSent": "Einladung gesendet an {{names}}",
       "invitationSentWithMore": "Einladung gesendet an {{names}} und {{count}} weitere",
+      "invitationSentChanged": "Aktualisierung an neue/entfernte Teilnehmer: {{names}}",
+      "invitationSentChangedWithMore": "Aktualisierung an neue/entfernte Teilnehmer: {{names}} und {{count}} weitere",
       "rescheduleUpdateSent": "Terminaktualisierung gesendet an {{names}}",
       "rescheduleUpdateSentWithMore": "Terminaktualisierung gesendet an {{names}} und {{count}} weitere",
       "teamsDisabledAllDay": "Teams ist bei ganztägigen Terminen nicht verfügbar.",

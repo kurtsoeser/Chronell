@@ -1,10 +1,16 @@
 import type { TFunction } from 'i18next'
-import { showAppConfirm } from '@/stores/app-dialog'
+import { showAppChoice, showAppConfirm } from '@/stores/app-dialog'
 import type { CalendarEventView, CalendarGetEventResult, CalendarPatchScheduleInput } from '@shared/types'
 
 export type MeetingScheduleChangeResolution =
   | { action: 'proceed'; notifyAttendees: boolean }
   | { action: 'discard' }
+
+export type MeetingInviteNotifyScope = 'all' | 'changed'
+
+export type MeetingInviteNotifyResolution =
+  | { action: 'cancel' }
+  | { action: 'proceed'; notifyAttendeeScope: MeetingInviteNotifyScope }
 
 export type CalendarEventScheduleSnapshot = {
   startIso: string
@@ -31,6 +37,43 @@ export function calendarEventScheduleChanged(
     scheduleInstantKey(prev.endIso, next.isAllDay) !==
       scheduleInstantKey(next.endIso, next.isAllDay)
   )
+}
+
+function normalizeEmailSet(emails: string[]): Set<string> {
+  const out = new Set<string>()
+  for (const raw of emails) {
+    const a = raw.trim().toLowerCase()
+    if (a) out.add(a)
+  }
+  return out
+}
+
+/** Teilnehmerliste geaendert (hinzugefuegt oder entfernt). */
+export function calendarAttendeeSetChanged(previous: string[], next: string[]): boolean {
+  const a = normalizeEmailSet(previous)
+  const b = normalizeEmailSet(next)
+  if (a.size !== b.size) return true
+  for (const e of a) {
+    if (!b.has(e)) return true
+  }
+  return false
+}
+
+export function calendarAttendeeDiffCounts(
+  previous: string[],
+  next: string[]
+): { added: number; removed: number } {
+  const a = normalizeEmailSet(previous)
+  const b = normalizeEmailSet(next)
+  let added = 0
+  let removed = 0
+  for (const e of b) {
+    if (!a.has(e)) added += 1
+  }
+  for (const e of a) {
+    if (!b.has(e)) removed += 1
+  }
+  return { added, removed }
 }
 
 export function calendarEventLooksLikeMeeting(
@@ -126,6 +169,66 @@ export async function confirmEventDialogMeetingReschedule(input: {
   return confirmMeetingScheduleChange(input.t, {
     cancelLabel: input.t('calendar.scheduleChangeDialog.cancel')
   })
+}
+
+/**
+ * Beim Senden: wenn schon Eingeladene existieren und die Liste sich aendert,
+ * Outlook-aehnliche Wahl (alle vs. nur neu hinzugefuegte/entfernte).
+ * `changed` nur bei Microsoft (Graph attendees-only PATCH).
+ */
+export async function confirmMeetingInviteNotifyScope(input: {
+  t: TFunction
+  source: CalendarEventView['source']
+  previouslyInvitedEmails: string[]
+  nextAttendeeEmails: string[]
+}): Promise<MeetingInviteNotifyResolution> {
+  if (input.source !== 'microsoft' && input.source !== 'google') {
+    return { action: 'proceed', notifyAttendeeScope: 'all' }
+  }
+  if (input.previouslyInvitedEmails.length === 0) {
+    return { action: 'proceed', notifyAttendeeScope: 'all' }
+  }
+  if (!calendarAttendeeSetChanged(input.previouslyInvitedEmails, input.nextAttendeeEmails)) {
+    return { action: 'proceed', notifyAttendeeScope: 'all' }
+  }
+
+  const { added, removed } = calendarAttendeeDiffCounts(
+    input.previouslyInvitedEmails,
+    input.nextAttendeeEmails
+  )
+  const supportsChanged = input.source === 'microsoft'
+  const id = await showAppChoice(
+    input.t('calendar.inviteNotifyDialog.body', {
+      added,
+      removed,
+      invited: input.previouslyInvitedEmails.length
+    }),
+    {
+      title: input.t('calendar.inviteNotifyDialog.title'),
+      cancelLabel: input.t('calendar.inviteNotifyDialog.cancel'),
+      actions: [
+        {
+          id: 'all',
+          label: input.t('calendar.inviteNotifyDialog.sendToAll'),
+          variant: 'primary'
+        },
+        ...(supportsChanged
+          ? [
+              {
+                id: 'changed',
+                label: input.t('calendar.inviteNotifyDialog.sendToChanged'),
+                variant: 'secondary' as const
+              }
+            ]
+          : [])
+      ]
+    }
+  )
+  if (id === 'all') return { action: 'proceed', notifyAttendeeScope: 'all' }
+  if (id === 'changed' && supportsChanged) {
+    return { action: 'proceed', notifyAttendeeScope: 'changed' }
+  }
+  return { action: 'cancel' }
 }
 
 /**

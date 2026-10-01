@@ -193,6 +193,13 @@ export interface CalendarSaveEventInput {
    * `true`/`undefined`: bisheriges Verhalten — Einladungen versenden.
    */
   notifyAttendees?: boolean | null
+  /**
+   * Wen benachrichtigen, wenn `notifyAttendees` nicht `false` ist.
+   * `all` (Default): Update an alle Teilnehmer (Graph: Felder + attendees in einem PATCH).
+   * `changed`: nur neu hinzugefügte/entfernte (Microsoft Graph: PATCH nur `attendees`).
+   * Google: `changed` entfällt praktisch — API kennt nur `sendUpdates=all|none`.
+   */
+  notifyAttendeeScope?: 'all' | 'changed' | null
   /** Microsoft 365: Teams-Besprechung (`isOnlineMeeting` / `onlineMeetingProvider`) — nicht fuer Ganztage. Einladungen unabhaengig davon. */
   teamsMeeting?: boolean | null
   /**
@@ -353,6 +360,11 @@ export interface CalendarGetEventResult {
   chronellWebinarInvitation?: boolean | null
   /** Microsoft 365: Teilnehmer stehen im Entwurf — noch nicht eingeladen. */
   webinarInvitationsPending?: boolean | null
+  /**
+   * Bereits eingeladene Teilnehmer (Graph-/Google-`attendees`, ohne Draft-only).
+   * Für „nur neu hinzugefügte benachrichtigen“.
+   */
+  invitedAttendeeEmails?: string[]
   /** Serienmuster (Master; bei Vorkommen vom Master geladen). */
   recurrence?: CalendarSaveEventRecurrence | null
   /** Eigene Teilnahmeantwort (Graph `responseStatus` / Google self-attendee). */

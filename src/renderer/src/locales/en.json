@@ -4461,6 +4461,7 @@
       "sidebarHiddenCalendarLoading": "Loading calendar…",
       "slotDurationLabel": "Time grid (day/week)",
       "slotMinutesOption": "{{count}} min",
+      "slotMinutesMenuOption": "{{count}} minutes",
       "slotDurationShortcuts": "Ctrl or ⌘ + Shift+. = finer grid, Ctrl or ⌘ + Shift+, = coarser grid.",
       "nDaysMenu": "{{count}} days",
       "importIcs": "Import event from .ics…"
@@ -4684,6 +4685,13 @@
       "body": "This meeting was moved to a new time. Saving will send an update (re-invitation) with the new time to all attendees.",
       "saveAndNotify": "Save & send to all",
       "discard": "Discard",
+      "cancel": "Cancel"
+    },
+    "inviteNotifyDialog": {
+      "title": "Send invitations",
+      "body": "{{invited}} attendees are already invited. Added: {{added}}, removed: {{removed}}. Who should receive the update?",
+      "sendToAll": "Send to all attendees",
+      "sendToChanged": "Only added or removed attendees",
       "cancel": "Cancel"
     },
     "context": {
@@ -5232,6 +5240,8 @@
       "unsavedKeepEditing": "Keep editing",
       "invitationSent": "Invitation sent to {{names}}",
       "invitationSentWithMore": "Invitation sent to {{names}} and {{count}} more",
+      "invitationSentChanged": "Update sent to added/removed attendees: {{names}}",
+      "invitationSentChangedWithMore": "Update sent to added/removed attendees: {{names}} and {{count}} more",
       "rescheduleUpdateSent": "Meeting update sent to {{names}}",
       "rescheduleUpdateSentWithMore": "Meeting update sent to {{names}} and {{count}} more",
       "teamsDisabledAllDay": "Teams is not available for all-day events.",

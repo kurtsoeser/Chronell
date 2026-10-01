@@ -177,33 +177,39 @@
 }
 
 .calendar-notion-shell .fc-timegrid-slot {
-  height: 3rem;
+  height: 1.5rem;
 }
 
 /* Tag/Woche: Slot-Hoehe je nach gewaehlter Rasterweite (Klasse `cal-slot-*` am Shell-Wrapper). */
 .calendar-notion-shell.cal-slot-5 .fc-timegrid-slot {
-  height: 1.05rem;
+  height: 0.525rem;
 }
 .calendar-notion-shell.cal-slot-6 .fc-timegrid-slot {
-  height: 1.125rem;
+  height: 0.5625rem;
 }
 .calendar-notion-shell.cal-slot-10 .fc-timegrid-slot {
-  height: 1.25rem;
+  height: 0.625rem;
 }
 .calendar-notion-shell.cal-slot-12 .fc-timegrid-slot {
-  height: 1.35rem;
+  height: 0.675rem;
 }
 .calendar-notion-shell.cal-slot-15 .fc-timegrid-slot {
-  height: 1.5rem;
+  height: 0.75rem;
 }
 .calendar-notion-shell.cal-slot-20 .fc-timegrid-slot {
-  height: 1.75rem;
+  height: 0.875rem;
 }
 .calendar-notion-shell.cal-slot-30 .fc-timegrid-slot {
-  height: 3rem;
+  height: 1.5rem;
 }
 .calendar-notion-shell.cal-slot-60 .fc-timegrid-slot {
-  height: 3.25rem;
+  height: 1.625rem;
+}
+
+/* Zeitskala (Uhrzeiten-Spalte): Rechtsklick → Rasterweite wie in Outlook. */
+.calendar-notion-shell .fc-timegrid-axis,
+.calendar-notion-shell .fc-timegrid-slot-label {
+  cursor: context-menu;
 }
 
 .calendar-notion-shell .fc-timegrid-slot-minor {

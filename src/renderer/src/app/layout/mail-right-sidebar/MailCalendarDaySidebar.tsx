@@ -45,6 +45,9 @@ import {
 import { useCalendarFcEventContent } from '@/app/calendar/use-calendar-fc-event-content'
 import { useCalendarSettingsPrefs } from '@/lib/use-calendar-settings-prefs'
 import { timeGridFcSnapOptions } from '@/app/calendar/calendar-shell-storage'
+import { useSyncedTimeGridSlotMinutes } from '@/hooks/use-synced-time-grid-slot-minutes'
+import { useTimeGridSlotScaleContextMenu } from '@/hooks/use-time-grid-slot-scale-context-menu'
+import { ContextMenu, type ContextMenuItem } from '@/components/ContextMenu'
 import { accountColorToCssBackground } from '@/lib/avatar-color'
 import {
   buildCalendarDisplayHexByKey,
@@ -130,6 +133,12 @@ export function MailCalendarDaySidebar({
   const calendarFcEventContentRender = useCalendarFcEventContent()
   const calendarRef = useRef<FullCalendar | null>(null)
   const calendarHostRef = useRef<HTMLDivElement | null>(null)
+  const [timeGridSlotMinutes, setTimeGridSlotMinutes] = useSyncedTimeGridSlotMinutes()
+  const [slotScaleContextMenu, setSlotScaleContextMenu] = useState<{
+    x: number
+    y: number
+    items: ContextMenuItem[]
+  } | null>(null)
 
   const accounts = useAccountsStore((s) => s.accounts)
   const calendarLinkedAccounts = useMemo(
@@ -448,9 +457,20 @@ export function MailCalendarDaySidebar({
   }, [ensureEventRangeInCache, dayStart, dayEndExcl])
 
   const timeGridFcSlotOpts = useMemo(
-    () => timeGridFcSnapOptions(calSettings.defaultTimeGridSlotMinutes),
-    [calSettings.defaultTimeGridSlotMinutes]
+    () => timeGridFcSnapOptions(timeGridSlotMinutes),
+    [timeGridSlotMinutes]
   )
+
+  useTimeGridSlotScaleContextMenu(calendarHostRef, {
+    enabled: isTimeGridView,
+    slotMinutes: timeGridSlotMinutes,
+    onSlotMinutesChange: setTimeGridSlotMinutes,
+    labelForMinutes: (minutes): string =>
+      t('calendar.header.slotMinutesMenuOption', { count: minutes }),
+    onOpen: (x, y, items): void => {
+      setSlotScaleContextMenu({ x, y, items })
+    }
+  })
 
   const fcLocale = useCalendarFcLocale()
 
@@ -584,10 +604,10 @@ export function MailCalendarDaySidebar({
           ) : null}
           <div
             ref={calendarHostRef}
-            className="calendar-notion-shell calendar-notion-shell--mail-day h-full min-h-0 flex-1"
+            className={`calendar-notion-shell calendar-notion-shell--mail-day cal-slot-${timeGridSlotMinutes} h-full min-h-0 flex-1`}
           >
             <FullCalendar
-              key={`${i18n.language}-${viewMode}-${calSettings.defaultTimeGridSlotMinutes}-${calSettings.slotMinTime}-${calSettings.slotMaxTime}-${calSettings.scrollTime}-${calSettings.weekStartsOn}-${calSettings.hideWeekends}`}
+              key={`${i18n.language}-${viewMode}-${timeGridSlotMinutes}-${calSettings.slotMinTime}-${calSettings.slotMaxTime}-${calSettings.scrollTime}-${calSettings.weekStartsOn}-${calSettings.hideWeekends}`}
               ref={(inst): void => {
                 calendarRef.current = inst
               }}
@@ -697,6 +717,15 @@ export function MailCalendarDaySidebar({
         onClose={(): void => setEventDialog(null)}
         onSaved={reloadDayData}
       />
+
+      {slotScaleContextMenu ? (
+        <ContextMenu
+          x={slotScaleContextMenu.x}
+          y={slotScaleContextMenu.y}
+          items={slotScaleContextMenu.items}
+          onClose={(): void => setSlotScaleContextMenu(null)}
+        />
+      ) : null}
     </div>
   )
 }

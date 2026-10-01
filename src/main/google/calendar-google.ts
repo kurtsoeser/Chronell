@@ -579,6 +579,7 @@ export async function googleGetCalendarEventDetail(
         selfPartStat = null
     }
   }
+  const invitedAttendeeEmails = [...emails, ...optionalEmails]
   return {
     subject: ev.summary ?? null,
     attendeeEmails: emails,
@@ -602,6 +603,7 @@ export async function googleGetCalendarEventDetail(
     seriesMasterId: recurringEventId,
     showAs: showAsFromGoogleTransparency(ev.transparency),
     sensitivity: sensitivityFromGoogleVisibility(ev.visibility),
+    invitedAttendeeEmails,
     recurrence,
     selfPartStat,
     selfResponseAtIso: null

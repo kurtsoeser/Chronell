@@ -622,6 +622,11 @@ type GraphEventWriteFields = {
   optionalAttendeeEmails?: string[] | null
   /** Microsoft: Teilnehmer-Einladungen versenden (`false` = Entwurf speichern). */
   notifyAttendees?: boolean | null
+  /**
+   * `changed`: Einladungen nur an geänderte Teilnehmer (separater attendees-only PATCH).
+   * Default / `all`: mit übrigen Feldern zusammen (Update oft an alle).
+   */
+  notifyAttendeeScope?: 'all' | 'changed' | null
 }
 
 /** Graph Event `attendees` Collection — Microsoft Docs: max. 500. */
@@ -977,6 +982,8 @@ export interface GraphCalendarEventDetail {
   allowForwarding?: boolean | null
   chronellWebinarInvitation?: boolean | null
   webinarInvitationsPending?: boolean | null
+  /** Graph-`attendees` ohne Draft-Merge (bereits eingeladen). */
+  invitedAttendeeEmails?: string[]
   recurrence?: CalendarSaveEventRecurrence | null
   selfPartStat?: MeetingAttendeePartStat | null
   selfResponseAtIso?: string | null
@@ -1331,6 +1338,7 @@ export async function graphGetCalendarEvent(
     allowForwarding: doNotForward ? !doNotForwardOn : true,
     chronellWebinarInvitation: parseChronellWebinarInvitationFlag(chronellWebinar?.value),
     webinarInvitationsPending: draftAttendees != null,
+    invitedAttendeeEmails: mergeUniqueEmails(requiredEmails, optionalEmails),
     recurrence,
     selfPartStat,
     selfResponseAtIso
@@ -1479,6 +1487,9 @@ export async function graphUpdateCalendarEvent(
   const omitBodyFromPrimaryPatch = bodyResolution.omitBodyFromPrimaryPatch
   const deferInviteFields = omitBodyFromPrimaryPatch && wantTeams
   const attendeePlan = resolveGraphAttendeeWritePlan(input)
+  // Graph: PATCH nur `attendees` → Update nur an geaenderte TN (Outlook „nur neu hinzugefuegte“).
+  const attendeesOnlyNotify =
+    attendeePlan.patchAttendees && input.notifyAttendeeScope === 'changed'
 
   const payload: Record<string, unknown> = {
     subject: core.subject,
@@ -1502,12 +1513,16 @@ export async function graphUpdateCalendarEvent(
     payload.categories = core.categories
   }
   if (!deferInviteFields) {
-    applyGraphAttendeeWritePlanToPayload(payload, input, attendeePlan)
+    if (!attendeesOnlyNotify) {
+      applyGraphAttendeeWritePlanToPayload(payload, input, attendeePlan)
+    } else if (typeof input.responseRequested === 'boolean') {
+      payload.responseRequested = input.responseRequested
+    }
     applyGraphHideAttendeesToPayload(payload, input.hideAttendees)
     applyGraphExtendedPropertiesToPayload(payload, {
       allowForwarding: input.allowForwarding,
       chronellWebinarInvitation: input.chronellWebinarInvitation,
-      ...(attendeePlan.draftAttendeesJson !== undefined
+      ...(!attendeesOnlyNotify && attendeePlan.draftAttendeesJson !== undefined
         ? { chronellWebinarDraftAttendees: attendeePlan.draftAttendeesJson }
         : {})
     })
@@ -1555,8 +1570,12 @@ export async function graphUpdateCalendarEvent(
       isOnlineMeeting: true,
       onlineMeetingProvider: 'teamsForBusiness'
     }
-    if (input.attendeeEmails !== undefined || input.optionalAttendeeEmails !== undefined) {
-      applyGraphAttendeeWritePlanToPayload(bodyPatch, input, attendeePlan)
+    if (!attendeesOnlyNotify) {
+      if (input.attendeeEmails !== undefined || input.optionalAttendeeEmails !== undefined) {
+        applyGraphAttendeeWritePlanToPayload(bodyPatch, input, attendeePlan)
+      } else if (typeof input.responseRequested === 'boolean') {
+        bodyPatch.responseRequested = input.responseRequested
+      }
     } else if (typeof input.responseRequested === 'boolean') {
       bodyPatch.responseRequested = input.responseRequested
     }
@@ -1564,11 +1583,22 @@ export async function graphUpdateCalendarEvent(
     applyGraphExtendedPropertiesToPayload(bodyPatch, {
       allowForwarding: input.allowForwarding,
       chronellWebinarInvitation: input.chronellWebinarInvitation,
-      ...(attendeePlan.draftAttendeesJson !== undefined
+      ...(!attendeesOnlyNotify && attendeePlan.draftAttendeesJson !== undefined
         ? { chronellWebinarDraftAttendees: attendeePlan.draftAttendeesJson }
         : {})
     })
     await client.api(path).patch(bodyPatch)
+  }
+
+  if (attendeesOnlyNotify) {
+    const attendeesPatch: Record<string, unknown> = {}
+    applyGraphAttendeeWritePlanToPayload(attendeesPatch, input, attendeePlan)
+    applyGraphExtendedPropertiesToPayload(attendeesPatch, {
+      ...(attendeePlan.draftAttendeesJson !== undefined
+        ? { chronellWebinarDraftAttendees: attendeePlan.draftAttendeesJson }
+        : {})
+    })
+    await client.api(path).patch(attendeesPatch)
   }
 
   if (input.recurrence) {

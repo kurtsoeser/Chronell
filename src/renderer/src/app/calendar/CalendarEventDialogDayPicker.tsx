@@ -17,13 +17,13 @@ import {
 } from '@/app/calendar/calendar-quick-create-placeholder'
 import { useCalendarFcEventContent } from '@/app/calendar/use-calendar-fc-event-content'
 import {
-  persistTimeGridSlotMinutes,
-  readTimeGridSlotMinutesFromStorage,
-  timeGridFcSnapOptions,
-  type TimeGridSlotMinutes
+  timeGridFcSnapOptions
 } from '@/app/calendar/calendar-shell-storage'
+import { useSyncedTimeGridSlotMinutes } from '@/hooks/use-synced-time-grid-slot-minutes'
 import { useCalendarSettingsPrefs } from '@/lib/use-calendar-settings-prefs'
 import { useTimeGridSlotZoom } from '@/hooks/use-time-grid-slot-zoom'
+import { useTimeGridSlotScaleContextMenu } from '@/hooks/use-time-grid-slot-scale-context-menu'
+import { ContextMenu, type ContextMenuItem } from '@/components/ContextMenu'
 import { cn } from '@/lib/utils'
 import { useCalendarListByAccount } from '@/lib/use-calendar-list-by-account'
 import { buildCalendarIncludeCalendars } from '@/lib/build-calendar-include-calendars'
@@ -139,18 +139,27 @@ export const CalendarEventDialogDayPicker = memo(function CalendarEventDialogDay
   const calendarRef = useRef<FullCalendar | null>(null)
   const calendarHostRef = useRef<HTMLDivElement | null>(null)
   const fetchSeqRef = useRef(0)
-  const [timeGridSlotMinutes, setTimeGridSlotMinutes] = useState<TimeGridSlotMinutes>(
-    readTimeGridSlotMinutesFromStorage
-  )
+  const [timeGridSlotMinutes, setTimeGridSlotMinutes] = useSyncedTimeGridSlotMinutes()
+  const [slotScaleContextMenu, setSlotScaleContextMenu] = useState<{
+    x: number
+    y: number
+    items: ContextMenuItem[]
+  } | null>(null)
   const [pickerView, setPickerView] = useState<PickerViewMode>(() => readPickerView())
-
-  useEffect(() => {
-    persistTimeGridSlotMinutes(timeGridSlotMinutes)
-  }, [timeGridSlotMinutes])
 
   useTimeGridSlotZoom(calendarHostRef, dayPickerRootRef, {
     slotMinutes: timeGridSlotMinutes,
     onSlotMinutesChange: setTimeGridSlotMinutes
+  })
+
+  useTimeGridSlotScaleContextMenu(calendarHostRef, {
+    slotMinutes: timeGridSlotMinutes,
+    onSlotMinutesChange: setTimeGridSlotMinutes,
+    labelForMinutes: (minutes): string =>
+      t('calendar.header.slotMinutesMenuOption', { count: minutes }),
+    onOpen: (x, y, items): void => {
+      setSlotScaleContextMenu({ x, y, items })
+    }
   })
 
   const linkedAccount = useMemo(
@@ -598,6 +607,15 @@ export const CalendarEventDialogDayPicker = memo(function CalendarEventDialogDay
           </div>
         )}
       </div>
+
+      {slotScaleContextMenu ? (
+        <ContextMenu
+          x={slotScaleContextMenu.x}
+          y={slotScaleContextMenu.y}
+          items={slotScaleContextMenu.items}
+          onClose={(): void => setSlotScaleContextMenu(null)}
+        />
+      ) : null}
     </div>
   )
 })

@@ -180,7 +180,8 @@ import { useWorkIqAvailable } from '@/lib/use-workiq-available'
 import { readTeamsMeetingTemplates } from '@/lib/teams-meeting-templates-storage'
 import {
   calendarEventScheduleChanged,
-  confirmEventDialogMeetingReschedule
+  confirmEventDialogMeetingReschedule,
+  confirmMeetingInviteNotifyScope
 } from '@/app/calendar/calendar-meeting-schedule-change'
 import { LocationAutocompleteInput } from '@/components/LocationAutocompleteInput'
 import { ChronellDateField } from '@/components/ChronellDateField'
@@ -650,6 +651,8 @@ export function CalendarEventDialog({
   const autoProvisionTeamsRef = useRef(false)
   const [attendeeInput, setAttendeeInput] = useState('')
   const [optionalAttendeeInput, setOptionalAttendeeInput] = useState('')
+  /** Bereits eingeladene TN (Graph/Google attendees, ohne Draft-only) — Basis fuer Notify-Scope. */
+  const [previouslyInvitedEmails, setPreviouslyInvitedEmails] = useState<string[]>([])
   const [attendeesInviteTab, setAttendeesInviteTab] = useState<
     'required' | 'optional' | 'tracking'
   >('required')
@@ -816,6 +819,7 @@ export function CalendarEventDialog({
       autoProvisionTeamsRef.current = false
       setAttendeeInput('')
       setOptionalAttendeeInput('')
+      setPreviouslyInvitedEmails([])
       setAttendeesInviteTab('required')
       setEventScheduleTab('appointment')
       setMsEventDetailsError(null)
@@ -930,6 +934,7 @@ export function CalendarEventDialog({
       }
       setAttendeeInput(createPrefill?.attendeeInput?.trim() ? createPrefill.attendeeInput : '')
       setOptionalAttendeeInput('')
+      setPreviouslyInvitedEmails([])
       setAttendeesInviteTab('required')
       setEventScheduleTab('appointment')
       setMsEventDetailsError(null)
@@ -1482,6 +1487,14 @@ export function CalendarEventDialog({
           (d.optionalAttendeeEmails ?? []).map((email) => ({ address: email })),
           ''
         )
+      )
+      setPreviouslyInvitedEmails(
+        (d.invitedAttendeeEmails != null
+          ? d.invitedAttendeeEmails
+          : [...d.attendeeEmails, ...(d.optionalAttendeeEmails ?? [])]
+        )
+          .map((e) => e.trim().toLowerCase())
+          .filter(Boolean)
       )
       if (initialEvent.source === 'microsoft') {
         setReminderEnabled(!!d.isReminderOn)
@@ -3306,6 +3319,7 @@ export function CalendarEventDialog({
     const parsedOptionalAttendees = attendeeEmailsFromField(optionalAttendeeInput)
     // Nur bei explizitem Senden Einladungen rausschicken — Speichern = Entwurf.
     const notifyAttendees = opts?.notifyAttendees === true
+    let notifyAttendeeScope: 'all' | 'changed' = 'all'
 
     let didRescheduleMeeting = false
     if (mode === 'edit' && initialEvent) {
@@ -3321,11 +3335,32 @@ export function CalendarEventDialog({
         source: initialEvent.source,
         previous,
         next,
-        attendeeEmails: parsedAttendees,
+        attendeeEmails: [...parsedAttendees, ...parsedOptionalAttendees],
         teamsMeeting: !isAllDay && teamsMeeting,
         joinUrl: getDialogJoinUrl() ?? initialEvent.joinUrl
       })
       if (!proceed) return
+    }
+
+    if (notifyAttendees) {
+      const eventSource =
+        mode === 'edit' && initialEvent
+          ? initialEvent.source
+          : selectedAccount?.provider === 'google'
+            ? 'google'
+            : selectedAccount?.provider === 'microsoft'
+              ? 'microsoft'
+              : null
+      if (eventSource === 'microsoft' || eventSource === 'google') {
+        const inviteResolution = await confirmMeetingInviteNotifyScope({
+          t,
+          source: eventSource,
+          previouslyInvitedEmails,
+          nextAttendeeEmails: [...parsedAttendees, ...parsedOptionalAttendees]
+        })
+        if (inviteResolution.action === 'cancel') return
+        notifyAttendeeScope = inviteResolution.notifyAttendeeScope
+      }
     }
 
     let recurrence: CalendarSaveEventRecurrence | undefined
@@ -3402,6 +3437,7 @@ export function CalendarEventDialog({
           teamsMeeting: !isAllDay && teamsMeeting,
           ...webinarTracking,
           notifyAttendees,
+          ...(notifyAttendees ? { notifyAttendeeScope } : {}),
           ...saveAttachments,
           ...(recurrence ? { recurrence } : {}),
           showAs: eventShowAs,
@@ -3449,9 +3485,10 @@ export function CalendarEventDialog({
                       ...webinarTracking
                     }
                   : {}),
-                notifyAttendees
+                notifyAttendees,
+                ...(notifyAttendees ? { notifyAttendeeScope } : {})
               }
-            : { notifyAttendees }),
+            : { notifyAttendees, ...(notifyAttendees ? { notifyAttendeeScope } : {}) }),
           ...saveAttachments,
           ...(recurrence ? { recurrence } : {}),
           showAs: eventShowAs,
@@ -3530,9 +3567,10 @@ export function CalendarEventDialog({
                       ...webinarTracking
                     }
                   : {}),
-                notifyAttendees
+                notifyAttendees,
+                ...(notifyAttendees ? { notifyAttendeeScope } : {})
               }
-            : { notifyAttendees }),
+            : { notifyAttendees, ...(notifyAttendees ? { notifyAttendeeScope } : {}) }),
           ...saveAttachments,
           showAs: eventShowAs,
           sensitivity: calendarEventSensitivityFromPrivate(eventIsPrivate),
@@ -3601,6 +3639,9 @@ export function CalendarEventDialog({
       }
       const invitedCount = parsedAttendees.length + parsedOptionalAttendees.length
       if (notifyAttendees !== false && invitedCount > 0) {
+        setPreviouslyInvitedEmails(
+          [...parsedAttendees, ...parsedOptionalAttendees].map((e) => e.trim().toLowerCase())
+        )
         const names = [...parsedAttendees, ...parsedOptionalAttendees]
           .slice(0, 3)
           .join(', ')
@@ -3610,9 +3651,18 @@ export function CalendarEventDialog({
             ? moreCount > 0
               ? t('calendar.eventDialog.rescheduleUpdateSentWithMore', { names, count: moreCount })
               : t('calendar.eventDialog.rescheduleUpdateSent', { names })
-            : moreCount > 0
-              ? t('calendar.eventDialog.invitationSentWithMore', { names, count: moreCount })
-              : t('calendar.eventDialog.invitationSent', { names })
+            : notifyAttendeeScope === 'changed'
+              ? moreCount > 0
+                ? t('calendar.eventDialog.invitationSentChangedWithMore', {
+                    names,
+                    count: moreCount
+                  })
+                : t('calendar.eventDialog.invitationSentChanged', {
+                    names
+                  })
+              : moreCount > 0
+                ? t('calendar.eventDialog.invitationSentWithMore', { names, count: moreCount })
+                : t('calendar.eventDialog.invitationSent', { names })
         useUndoStore.getState().pushToast({ label, variant: 'success', durationMs: 6000 })
       } else if (
         notifyAttendees === false &&
@@ -5013,6 +5063,7 @@ export function CalendarEventDialog({
                     <>
                   {!usesWebinarDescriptionUi &&
                   descriptionHtml.trim() &&
+                  requiredAttendeeCount + optionalAttendeeCount > 8 &&
                   (teamsMeeting || descriptionHtml.includes('bgcolor="#121212"')) ? (
                     <p className="mb-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
                       {t('calendar.eventDialog.webinarEnableAssistantHint')}

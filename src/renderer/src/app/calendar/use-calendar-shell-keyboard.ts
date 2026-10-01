@@ -2,7 +2,6 @@ import { useEffect, type Dispatch, type RefObject, type SetStateAction } from 'r
 import { startOfMonth } from 'date-fns'
 import type FullCalendar from '@fullcalendar/react'
 import {
-  persistTimeGridSlotMinutes,
   stepTimeGridSlotMinutes,
   type TimeGridSlotMinutes
 } from '@/app/calendar/calendar-shell-storage'
@@ -30,13 +29,9 @@ export interface UseCalendarShellKeyboardOptions {
 
 /** Ctrl/Cmd+Shift+,/. — Zeitraster feiner/grober. */
 export function useCalendarShellTimeGridSlotKeyboard(
-  timeGridSlotMinutes: TimeGridSlotMinutes,
+  _timeGridSlotMinutes: TimeGridSlotMinutes,
   setTimeGridSlotMinutes: Dispatch<SetStateAction<TimeGridSlotMinutes>>
 ): void {
-  useEffect(() => {
-    persistTimeGridSlotMinutes(timeGridSlotMinutes)
-  }, [timeGridSlotMinutes])
-
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if (!(e.ctrlKey || e.metaKey) || !e.shiftKey) return

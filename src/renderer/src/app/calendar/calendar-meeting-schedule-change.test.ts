@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
+  calendarAttendeeDiffCounts,
+  calendarAttendeeSetChanged,
   calendarEventDialogLooksLikeMeeting,
   calendarEventLooksLikeMeeting,
   calendarEventScheduleChanged,
@@ -140,6 +142,22 @@ describe('calendarEventDialogLooksLikeMeeting', () => {
         teamsMeeting: false
       })
     ).toBe(false)
+  })
+})
+
+describe('calendarAttendeeSetChanged', () => {
+  it('erkennt hinzugefuegte und entfernte Teilnehmer', () => {
+    expect(calendarAttendeeSetChanged(['a@x.org'], ['a@x.org', 'b@x.org'])).toBe(true)
+    expect(calendarAttendeeSetChanged(['a@x.org', 'b@x.org'], ['a@x.org'])).toBe(true)
+    expect(calendarAttendeeSetChanged(['A@X.org'], ['a@x.org'])).toBe(false)
+  })
+})
+
+describe('calendarAttendeeDiffCounts', () => {
+  it('zaehlt Added und Removed', () => {
+    expect(
+      calendarAttendeeDiffCounts(['a@x.org', 'b@x.org'], ['b@x.org', 'c@x.org'])
+    ).toEqual({ added: 1, removed: 1 })
   })
 })
 

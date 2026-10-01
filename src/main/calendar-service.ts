@@ -462,7 +462,8 @@ export async function createSimpleCalendarEventForAccount(
     allowForwarding: input.allowForwarding ?? null,
     chronellWebinarInvitation: input.chronellWebinarInvitation ?? null,
     optionalAttendeeEmails: input.optionalAttendeeEmails ?? null,
-    notifyAttendees: input.notifyAttendees ?? null
+    notifyAttendees: input.notifyAttendees ?? null,
+    notifyAttendeeScope: input.notifyAttendeeScope ?? null
   })
   if (input.attachments?.length || input.referenceAttachments?.length) {
     await addCalendarEventAttachments(input.accountId, r.id, input.graphCalendarId ?? null, {
@@ -562,7 +563,8 @@ export async function updateCalendarEventForAccount(input: CalendarUpdateEventIn
     allowForwarding: rest.allowForwarding ?? null,
     chronellWebinarInvitation: rest.chronellWebinarInvitation ?? null,
     optionalAttendeeEmails: rest.optionalAttendeeEmails ?? null,
-    notifyAttendees: rest.notifyAttendees ?? null
+    notifyAttendees: rest.notifyAttendees ?? null,
+    notifyAttendeeScope: rest.notifyAttendeeScope ?? null
   })
   if (regularAttachments.length > 0 || referenceAttachments?.length) {
     await addCalendarEventAttachments(accountId, graphEventId, rest.graphCalendarId ?? null, {

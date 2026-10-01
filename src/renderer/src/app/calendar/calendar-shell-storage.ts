@@ -258,9 +258,17 @@ export function migrateLegacyCalendarShellSource(): boolean {
 /** Tag/Woche: Rasterbreite in Minuten (FullCalendar `slotDuration`). */
 export const CAL_TIME_GRID_SLOT_MINUTES_KEY = 'mailclient.calendar.timeGridSlotMinutes'
 
+/** Same-tab Sync wenn die Rasterweite geändert wird (CustomEvent.detail = Minuten). */
+export const TIME_GRID_SLOT_MINUTES_CHANGED_EVENT = 'mailclient:timeGridSlotMinutes'
+
 export const TIME_GRID_SLOT_MINUTES_OPTIONS = [5, 6, 10, 12, 15, 20, 30, 60] as const
 
 export type TimeGridSlotMinutes = (typeof TIME_GRID_SLOT_MINUTES_OPTIONS)[number]
+
+/** Outlook-ähnliche Zeitskala-Reihenfolge (grob → fein) für Rechtsklick-Menü. */
+export const TIME_GRID_SLOT_MINUTES_MENU_ORDER: readonly TimeGridSlotMinutes[] = [
+  60, 30, 15, 10, 6, 5
+]
 
 export function isTimeGridSlotMinutes(n: number): n is TimeGridSlotMinutes {
   return (TIME_GRID_SLOT_MINUTES_OPTIONS as readonly number[]).includes(n)
@@ -279,7 +287,13 @@ export function readTimeGridSlotMinutesFromStorage(): TimeGridSlotMinutes {
 
 export function persistTimeGridSlotMinutes(min: TimeGridSlotMinutes): void {
   try {
+    const prev = window.localStorage.getItem(CAL_TIME_GRID_SLOT_MINUTES_KEY)
     window.localStorage.setItem(CAL_TIME_GRID_SLOT_MINUTES_KEY, String(min))
+    if (prev !== String(min)) {
+      window.dispatchEvent(
+        new CustomEvent<TimeGridSlotMinutes>(TIME_GRID_SLOT_MINUTES_CHANGED_EVENT, { detail: min })
+      )
+    }
   } catch {
     // ignore
   }

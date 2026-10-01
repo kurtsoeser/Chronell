@@ -159,6 +159,17 @@ describe('resolveGraphAttendeeWritePlan', () => {
     expect(plan.patchAttendees).toBe(true)
     expect(plan.draftAttendeesJson).toBe('')
   })
+
+  it('patchAttendees bleibt true bei notifyAttendeeScope=changed', () => {
+    const plan = resolveGraphAttendeeWritePlan({
+      ...base,
+      attendeeEmails: ['a@x.org', 'b@x.org'],
+      notifyAttendees: true,
+      notifyAttendeeScope: 'changed'
+    })
+    expect(plan.patchAttendees).toBe(true)
+    expect(plan.attendeeEmails).toEqual(['a@x.org', 'b@x.org'])
+  })
 })
 
 describe('resolveGraphEventBodyForTeamsUpdate', () => {

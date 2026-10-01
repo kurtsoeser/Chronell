@@ -199,12 +199,12 @@ import {
   persistCloudTaskOverlay,
   persistRightPreviewOpen,
   readLeftSidebarCollapsedFromStorage,
-  readTimeGridSlotMinutesFromStorage,
   persistLeftSidebarCollapsed,
   SIDEBAR_DEFAULT_CAL_ID,
-  timeGridFcSnapOptions,
-  type TimeGridSlotMinutes
+  timeGridFcSnapOptions
 } from '@/app/calendar/calendar-shell-storage'
+import { useSyncedTimeGridSlotMinutes } from '@/hooks/use-synced-time-grid-slot-minutes'
+import { useTimeGridSlotScaleContextMenu } from '@/hooks/use-time-grid-slot-scale-context-menu'
 import {
   fullCalendarEventToPatchSchedule,
   GANTT_TIMELINE_VIEW_ID,
@@ -349,9 +349,7 @@ export function CalendarShell(): JSX.Element {
     setFcEventSourcesReleaseEpoch((n) => n + 1)
   }, [])
 
-  const [timeGridSlotMinutes, setTimeGridSlotMinutes] = useState<TimeGridSlotMinutes>(
-    readTimeGridSlotMinutesFromStorage
-  )
+  const [timeGridSlotMinutes, setTimeGridSlotMinutes] = useSyncedTimeGridSlotMinutes()
 
   const msAccounts = useMemo(() => accounts.filter((a) => a.provider === 'microsoft'), [accounts])
 
@@ -1316,6 +1314,17 @@ export function CalendarShell(): JSX.Element {
     dismissQuickCreate,
     setMiniMonth,
     scrollCalendarTodayIntoView
+  })
+
+  useTimeGridSlotScaleContextMenu(calendarDropRootRef, {
+    slotMinutes: timeGridSlotMinutes,
+    onSlotMinutesChange: setTimeGridSlotMinutes,
+    labelForMinutes: (minutes): string =>
+      t('calendar.header.slotMinutesMenuOption', { count: minutes }),
+    onOpen: (x, y, items): void => {
+      setCalendarFolderContextMenu(null)
+      setEventContextMenu({ x, y, items })
+    }
   })
 
   const graphEventKey = useCallback(
