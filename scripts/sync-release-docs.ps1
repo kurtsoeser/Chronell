@@ -203,7 +203,8 @@ function Update-I18nFile {
     $prevVersion = $Matches[1]
   }
   if ($prevVersion -and $prevVersion -ne $Info.Version) {
-    $raw = $raw -replace [regex]::Escape($prevVersion), $Info.Version
+    # Nur die Produktbeschreibung oben anheben — nicht historische Update-Karten umschreiben.
+    $raw = $raw -replace ("(Chronell\s+)$([regex]::Escape($prevVersion))"), "`${1}$($Info.Version)"
   }
 
   $title = if ($Locale -eq 'en') { $Info.TitleEn } else { $Info.TitleDe }
@@ -211,7 +212,13 @@ function Update-I18nFile {
   $b1 = ConvertTo-I18nBullet $bullets[0]
   $b2 = if ($bullets.Count -gt 1) { ConvertTo-I18nBullet $bullets[1] } else { '' }
   $b3 = if ($bullets.Count -gt 2) { ConvertTo-I18nBullet $bullets[2] } else { '' }
-  $b4 = if ($bullets.Count -gt 3) { ConvertTo-I18nBullet $bullets[3] } else { $b3 }
+  $b4 = if ($bullets.Count -gt 3) {
+    ConvertTo-I18nBullet $bullets[3]
+  } elseif ($Locale -eq 'en') {
+    "Download: Windows installer $($Info.Version) on chronell.app and GitHub Releases"
+  } else {
+    "Download: Windows-Installer $($Info.Version) auf chronell.app und GitHub Releases"
+  }
 
   $key = $Info.VersionKey
   $badgeVal = if ($Locale -eq 'de') { 'Aktuell' } else { 'Current' }
