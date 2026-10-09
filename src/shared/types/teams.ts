@@ -7,6 +7,10 @@ export interface TeamsChatSummary {
   lastUpdatedDateTime: string | null
   /** Bei 1:1 ohne Thema: Anzeigename des Gegenuebers aus Chat-Mitgliedern, sonst null. */
   peerDisplayName: string | null
+  /** Graph: lastMessagePreview neuer als viewpoint.lastMessageReadDateTime. */
+  hasUnread?: boolean
+  lastMessagePreviewAt?: string | null
+  lastMessagePreviewSnippet?: string | null
 }
 
 /** Microsoft Graph `chatMessage`, fuer die Anzeige reduziert. */

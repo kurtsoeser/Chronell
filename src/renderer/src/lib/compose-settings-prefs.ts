@@ -4,6 +4,7 @@ import {
   resolveComposeFontFamilyValue
 } from '@/lib/compose-font-families'
 import { COMPOSE_FONT_SIZES_PT, normalizeComposeFontSizePt } from '@/lib/compose-font-sizes'
+import { LANGUAGE_TOOL_PUBLIC_API_BASE, normalizeLanguageToolApiBaseUrl } from '@shared/languagetool'
 import type { MailImportance } from '@shared/types'
 
 const STORAGE_KEY = 'mailclient.compose.settingsPrefs.v1'
@@ -27,6 +28,14 @@ export interface ComposeSettingsPrefsV1 {
   defaultTextColor: string
   defaultImportance: MailImportance
   requestReadReceiptByDefault: boolean
+  /** LanguageTool API-Basis (z. B. https://api.languagetool.org/v2 oder lokaler Server). */
+  languageToolApiBaseUrl: string
+  /** LanguageTool Premium: Konto-E-Mail (API-Key liegt verschlüsselt im Main-Prozess). */
+  languageToolUsername: string
+  /** Hunspell-Autokorrektur beim Leerzeichen (nur klare Tippfehler). */
+  composeAutoCorrectOnSpace: boolean
+  /** Wörter, die nie automatisch korrigiert werden (Zeilen oder Komma getrennt). */
+  composeAutoCorrectBlocklistText: string
 }
 
 const DEFAULTS: ComposeSettingsPrefsV1 = {
@@ -34,7 +43,16 @@ const DEFAULTS: ComposeSettingsPrefsV1 = {
   defaultFontFamilyId: COMPOSE_DEFAULT_FONT_FAMILY_ID,
   defaultTextColor: COMPOSE_DEFAULT_TEXT_COLOR,
   defaultImportance: 'normal',
-  requestReadReceiptByDefault: false
+  requestReadReceiptByDefault: false,
+  languageToolApiBaseUrl: LANGUAGE_TOOL_PUBLIC_API_BASE,
+  languageToolUsername: '',
+  composeAutoCorrectOnSpace: false,
+  composeAutoCorrectBlocklistText: ''
+}
+
+function normalizeLanguageToolPrefUrl(raw: unknown): string {
+  if (typeof raw !== 'string' || !raw.trim()) return DEFAULTS.languageToolApiBaseUrl
+  return normalizeLanguageToolApiBaseUrl(raw) ?? DEFAULTS.languageToolApiBaseUrl
 }
 
 function normalizeHexColor(raw: unknown, fallback: string): string {
@@ -60,8 +78,22 @@ function parsePrefs(raw: string): ComposeSettingsPrefsV1 {
     defaultFontFamilyId: normalizeFontFamilyId(parsed.defaultFontFamilyId),
     defaultTextColor: normalizeHexColor(parsed.defaultTextColor, DEFAULTS.defaultTextColor),
     defaultImportance: normalizeImportance(parsed.defaultImportance),
-    requestReadReceiptByDefault: parsed.requestReadReceiptByDefault === true
+    requestReadReceiptByDefault: parsed.requestReadReceiptByDefault === true,
+    languageToolApiBaseUrl: normalizeLanguageToolPrefUrl(parsed.languageToolApiBaseUrl),
+    languageToolUsername:
+      typeof parsed.languageToolUsername === 'string' ? parsed.languageToolUsername.trim() : '',
+    composeAutoCorrectOnSpace: parsed.composeAutoCorrectOnSpace === true,
+    composeAutoCorrectBlocklistText:
+      typeof parsed.composeAutoCorrectBlocklistText === 'string'
+        ? parsed.composeAutoCorrectBlocklistText
+        : DEFAULTS.composeAutoCorrectBlocklistText
   }
+}
+
+export function resolvedLanguageToolApiBaseUrl(
+  prefs: ComposeSettingsPrefsV1 = readComposeSettingsPrefs()
+): string {
+  return prefs.languageToolApiBaseUrl
 }
 
 export function readComposeSettingsPrefs(): ComposeSettingsPrefsV1 {

@@ -43,6 +43,7 @@ import {
   NOTE_EMBED_HTTP_ORIGIN
 } from '@shared/note-embed-frame'
 import { attachChromiumZoomShortcutGuard } from './zoom-shortcut-guard'
+import { attachChromiumContextMenuSpellCapture } from './chromium-context-menu-spell'
 import { resolveAppWindowIcon } from './app-icon'
 import { mainWindowTitleBarOptions } from './window-titlebar'
 import { attachWindowMaximizedEvents } from './window-state-events'
@@ -77,6 +78,7 @@ import {
   isHomepageCaptureRequested,
   runHomepageScreenshotCapture
 } from './homepage-screenshot-capture'
+import { configureDefaultSessionSpellChecker } from './chromium-spellchecker'
 
 configureChronellAppPaths()
 
@@ -243,6 +245,7 @@ function createMainWindow(): void {
   })
 
   attachChromiumZoomShortcutGuard(mainWindow.webContents)
+  attachChromiumContextMenuSpellCapture(mainWindow.webContents)
   attachWindowMaximizedEvents(mainWindow)
 
   mainWindow.on('ready-to-show', () => {
@@ -275,6 +278,8 @@ app.whenReady().then(async () => {
   if (migration.status === 'migrated') {
     console.log('[migration] Konten & Einstellungen übernommen von', migration.from)
   }
+
+  configureDefaultSessionSpellChecker(session.defaultSession)
 
   registerMailFrameExternalRedirect()
   registerNoteEmbedRequestHeaders()

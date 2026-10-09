@@ -74,6 +74,7 @@ const DEFAULTS: TasksSettingsPrefsV1 = {
 
 const VALID_ARRANGE = new Set<TaskListArrangeBy>([
   'calendar_day',
+  'timeline_period',
   'todo_bucket',
   'due_date',
   'item_type',

@@ -7,10 +7,23 @@ import {
 import type { AdvancedMailSearchCriteria, MailFull, MailListItem, SearchHit } from '@shared/types'
 import { rowToListItem, rowToFull, type MessageRow } from './messages-repo-core'
 import {
-  buildSqlPhraseRankCase,
+  buildSqlPhraseRankCaseMulti,
   normalizeFtsTokenOrPhraseMatchQuery
 } from '@shared/search-token-query'
+
+const MAIL_SEARCH_PHRASE_RANK_COLUMNS = [
+  'm.subject',
+  "IFNULL(m.snippet, '')",
+  "IFNULL(m.from_name, '')",
+  "IFNULL(m.to_addrs, '')",
+  "IFNULL(m.cc_addrs, '')"
+]
+
+function buildMailSearchPhraseRank(rawQuery: string) {
+  return buildSqlPhraseRankCaseMulti(MAIL_SEARCH_PHRASE_RANK_COLUMNS, rawQuery)
+}
 import { LIST_COLUMNS } from './messages-repo-list'
+import { buildMailKeywordMatchSql } from './mail-search-keyword-match'
 export function setMessageReadLocal(id: number, isRead: boolean): void {
   const db = getDb()
   db.prepare('UPDATE messages SET is_read = ? WHERE id = ?').run(isRead ? 1 : 0, id)
@@ -236,18 +249,18 @@ export function setMessageWaitingForReplyUntilLocal(id: number, untilIso: string
 }
 
 /**
- * FTS5-Volltextsuche ueber `subject`, `from_*`, `snippet` und `body_text` aller Mails.
+ * FTS5-Volltextsuche ueber Betreff, Absender, Empfaenger (An/Cc/Bcc), Snippet und Body.
  * Eingabe-Query wird zu einer Prefix-Suche pro Token gewandelt
  * ("kurt sept" -> "kurt* sept*").
  */
 export function searchMessages(rawQuery: string, limit = 30): SearchHit[] {
-  const cleaned = normalizeFtsTokenOrPhraseMatchQuery(rawQuery)
-  if (!cleaned) return []
+  const keywordMatch = buildMailKeywordMatchSql(rawQuery)
+  if (!keywordMatch) return []
 
-  const phraseRank = buildSqlPhraseRankCase('m.subject', "IFNULL(m.snippet, '')", rawQuery)
+  const phraseRank = buildMailSearchPhraseRank(rawQuery)
   const orderSql = phraseRank
-    ? `${phraseRank.sql}, bm25(messages_fts), m.received_at DESC NULLS LAST`
-    : `bm25(messages_fts), m.received_at DESC NULLS LAST`
+    ? `${phraseRank.sql}, m.received_at DESC NULLS LAST, m.id DESC`
+    : `m.received_at DESC NULLS LAST, m.id DESC`
 
   const db = getDb()
   const rows = db
@@ -259,14 +272,13 @@ export function searchMessages(rawQuery: string, limit = 30): SearchHit[] {
          m.sent_at, m.received_at, m.is_read, m.is_flagged, m.has_attachments, m.importance,
          m.snoozed_until, m.waiting_for_reply_until, m.list_unsubscribe, m.list_unsubscribe_post,
          f.name as folder_name, f.well_known as folder_well_known
-       FROM messages_fts fts
-       JOIN messages m ON m.id = fts.rowid
+       FROM messages m
        LEFT JOIN folders f ON f.id = m.folder_id
-       WHERE messages_fts MATCH ?
+       WHERE ${keywordMatch.sql}
        ORDER BY ${orderSql}
        LIMIT ?`
     )
-    .all(cleaned, ...(phraseRank?.params ?? []), limit) as Array<
+    .all(...keywordMatch.params, ...(phraseRank?.params ?? []), limit) as Array<
       MessageRow & { folder_name: string | null; folder_well_known: string | null }
     >
 
@@ -301,8 +313,13 @@ export function advancedMailSearchCriteriaHasFilter(c: AdvancedMailSearchCriteri
   if (dayBoundIso(c.dateTo ?? '', true)) return true
   if (c.readStatus === 'unread' || c.readStatus === 'read') return true
   if (c.hasAttachmentsOnly) return true
-  if ((c.scopeFolderIds ?? []).some((id) => Number.isFinite(id) && id > 0)) return true
+  if (likeContainsParam(c.categoryContains ?? '')) return true
+  if (c.scopeFolderIds !== undefined) return true
   return false
+}
+
+function advancedSearchDateColumn(criteria: AdvancedMailSearchCriteria): string {
+  return criteria.dateKind === 'sent' ? 'm.sent_at' : 'm.received_at'
 }
 
 /**
@@ -316,9 +333,9 @@ export function searchMessagesAdvanced(
 
   const clauses: string[] = []
   const params: unknown[] = []
-  const scope = (criteria.scopeFolderIds ?? []).filter((id) => Number.isFinite(id) && id > 0)
-
-  if (scope.length > 0) {
+  if (criteria.scopeFolderIds !== undefined) {
+    const scope = criteria.scopeFolderIds.filter((id) => Number.isFinite(id) && id > 0)
+    if (scope.length === 0) return []
     clauses.push(`m.folder_id IN (${scope.map(() => '?').join(',')})`)
     params.push(...scope)
   } else {
@@ -348,15 +365,27 @@ export function searchMessagesAdvanced(
     params.push(subjectLike)
   }
 
+  const dateCol = advancedSearchDateColumn(criteria)
   const dateFrom = dayBoundIso(criteria.dateFrom ?? '', false)
   if (dateFrom) {
-    clauses.push(`m.received_at IS NOT NULL AND m.received_at >= ?`)
+    clauses.push(`${dateCol} IS NOT NULL AND ${dateCol} >= ?`)
     params.push(dateFrom)
   }
   const dateTo = dayBoundIso(criteria.dateTo ?? '', true)
   if (dateTo) {
-    clauses.push(`m.received_at IS NOT NULL AND m.received_at <= ?`)
+    clauses.push(`${dateCol} IS NOT NULL AND ${dateCol} <= ?`)
     params.push(dateTo)
+  }
+
+  const categoryLike = likeContainsParam(criteria.categoryContains ?? '')
+  if (categoryLike) {
+    clauses.push(
+      `m.id IN (
+         SELECT message_id FROM message_tags
+         WHERE LOWER(tag) LIKE LOWER(?) ESCAPE '\\'
+       )`
+    )
+    params.push(categoryLike)
   }
 
   if (criteria.readStatus === 'unread') {
@@ -369,22 +398,17 @@ export function searchMessagesAdvanced(
     clauses.push(`m.has_attachments = 1`)
   }
 
-  const fts = normalizeFtsTokenOrPhraseMatchQuery(criteria.keywords ?? '')
-  let fromSql = `FROM messages m
+  const keywordMatch = buildMailKeywordMatchSql(criteria.keywords ?? '')
+  const fromSql = `FROM messages m
        LEFT JOIN folders f ON f.id = m.folder_id`
-  if (fts) {
-    fromSql = `FROM messages_fts fts
-       JOIN messages m ON m.id = fts.rowid
-       LEFT JOIN folders f ON f.id = m.folder_id`
-    clauses.push(`messages_fts MATCH ?`)
-    params.push(fts)
+  if (keywordMatch) {
+    clauses.push(keywordMatch.sql)
+    params.push(...keywordMatch.params)
   }
 
   const lim = Number.isFinite(limit) && limit > 0 ? Math.min(Math.floor(limit), 500) : 200
 
-  const phraseRank = fts
-    ? buildSqlPhraseRankCase('m.subject', "IFNULL(m.snippet, '')", criteria.keywords ?? '')
-    : null
+  const phraseRank = keywordMatch ? buildMailSearchPhraseRank(criteria.keywords ?? '') : null
   const orderSql = phraseRank
     ? `${phraseRank.sql}, m.received_at DESC NULLS LAST, m.id DESC`
     : `m.received_at DESC NULLS LAST, m.id DESC`

@@ -53,12 +53,23 @@ export const composeMailBodyShellClass =
 /** Mail-Text / Signatur im Composer (weiße Kachel, rounded-xl). */
 export const composeMailBodyTileClass = 'compose-mail-body-tile'
 
+/** Kompakte Status-Pills (Mail-ToDo, Heute/Morgen, …) in Listen. */
+export const chronellPillBadgeClass =
+  'inline-flex shrink-0 items-center gap-0.5 rounded-full px-1.5 py-px text-2xs font-medium leading-none'
+
 /** Zeitliste / chronologische Listen: Zeilen- und Gruppentrenner. */
 export const listDivideClass =
   'divide-y divide-white/[0.04] dark:divide-white/[0.04]'
 
 export const listSubtleBorderClass =
   'border-white/[0.04] dark:border-white/[0.04]'
+
+/** Panel-Trennung in Mehrspalten-Layouts (Custom View, Workspace). */
+export const chronellPanelDividerClass = 'chronell-panel-divider'
+
+/** Sticky Kopfzeile in Layout-Zonen (Icon + Titel). */
+export const chronellLayoutZoneHeaderClass =
+  'sticky top-0 z-[2] flex shrink-0 items-center gap-2 border-b bg-card/90 px-2 py-1.5 backdrop-blur-sm chronell-panel-divider'
 
 /** Einstellungen: Gruppierung per Hintergrund (ohne Kachelrahmen). */
 export const settingsSectionClass = 'rounded-md bg-background/60'

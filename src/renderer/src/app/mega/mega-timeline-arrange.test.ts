@@ -28,7 +28,9 @@ function megaCtx(labelPassthrough = true): WorkListArrangeContext {
 
     mailSourceLabel: 'Mail',
 
-    formatCalendarDayGroupLabel: labelPassthrough ? (d) => d : undefined
+    formatCalendarDayGroupLabel: labelPassthrough ? (d) => d : undefined,
+    timeZone: TZ,
+    timelinePeriodLabel: (k) => k
 
   }
 
@@ -193,6 +195,24 @@ describe('computeMegaTimelineGroups', () => {
     )
     expect(groups[0]?.dayLabel).toBe('2026-05-16')
     expect(groups[0]?.dayLabel).not.toMatch(/heute|morgen|woche/i)
+  })
+
+  it('gruppiert nach Zeiträumen (Heute, Morgen, …)', () => {
+    const event = calendarEventToWorkItem(sampleEvent())
+    const groups = computeMegaTimelineGroups(
+      [event],
+      'all',
+      'oldest_on_top',
+      'timeline_period',
+      'de',
+      megaCtx(),
+      new Map(),
+      TZ,
+      Date.parse('2026-05-15T12:00:00.000Z')
+    )
+    expect(groups).toHaveLength(1)
+    expect(groups[0]?.dayLabel).toBe('today')
+    expect(groups[0]?.groupCollapseKey).toBe('timeline_period:today')
   })
 })
 

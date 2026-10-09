@@ -14,7 +14,8 @@ import {
 import { getDb } from './db/index'
 import { decorateMailListLike } from './ipc/ipc-helpers'
 import { normalizeMessagesFtsMatchQuery } from './db/messages-repo'
-import { searchMessages } from './db/messages-repo'
+import { mailSearchQueryUsesFieldSyntax } from '@shared/mail-search-query-parse'
+import { searchMessagesUnified } from './db/mail-search-unified'
 import { searchNotes } from './db/user-notes-repo'
 import { getPeopleContactById } from './db/people-repo'
 
@@ -224,11 +225,12 @@ export function globalSearch(
     tasks: [],
     contacts: []
   }
-  if (!fts && splitSearchTokens(query).length === 0) return empty
+  const mailFieldSyntax = mailSearchQueryUsesFieldSyntax(query)
+  if (!fts && !mailFieldSyntax && splitSearchTokens(query).length === 0) return empty
 
   const mails: SearchHit[] =
-    wantsKind(kindSet, 'mails') && fts
-      ? decorateMailListLike(searchMessages(query, limitPerKind))
+    wantsKind(kindSet, 'mails') && (fts || mailFieldSyntax)
+      ? decorateMailListLike(searchMessagesUnified(query, limitPerKind))
       : []
 
   const noteItems =

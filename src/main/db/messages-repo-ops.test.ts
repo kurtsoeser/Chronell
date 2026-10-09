@@ -1,7 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type Database from 'better-sqlite3'
 import { createInMemoryTestDb, isInMemorySqliteAvailable } from '../../test-fixtures/db'
-import { insertTestFolder, insertTestMessage } from '../../test-fixtures/db-mail-seed'
+import {
+  insertTestAttachment,
+  insertTestFolder,
+  insertTestMessage,
+  insertTestMessageParticipant,
+  insertTestMessageTag
+} from '../../test-fixtures/db-mail-seed'
 
 const { testDbRef } = vi.hoisted(() => ({
   testDbRef: { current: null as Database.Database | null }
@@ -20,6 +26,7 @@ import {
   listDueSnoozes,
   listSnoozedMessages,
   searchMessages,
+  searchMessagesAdvanced,
   setMessageSnooze
 } from './messages-repo-ops'
 
@@ -75,6 +82,114 @@ describe.skipIf(!isInMemorySqliteAvailable())('messages-repo-ops', () => {
     expect(hits[0]!.id).toBe(target.id)
     expect(hits[0]!.folderName).toBe('Inbox')
     expect(hits[0]!.folderWellKnown).toBe('inbox')
+  })
+
+  it('searchMessages findet Mails per FTS ueber Empfaenger-Anzeigename', () => {
+    const db = testDbRef.current!
+    const sent = insertTestFolder(db, {
+      accountId: ACCOUNT,
+      remoteId: 'sent',
+      name: 'Sent',
+      wellKnown: 'sentitems'
+    })
+    const target = insertTestMessage(db, {
+      accountId: ACCOUNT,
+      folderId: sent.id,
+      remoteId: 'm-to-monika',
+      subject: 'Kurze Notiz',
+      bodyText: 'ohne Namen im Text',
+      toAddrs: 'Monika Beispiel <monika.beispiel@example.com>'
+    })
+    insertTestMessage(db, {
+      accountId: ACCOUNT,
+      folderId: sent.id,
+      remoteId: 'm-other',
+      subject: 'Andere Mail',
+      bodyText: 'neutral',
+      toAddrs: 'peter@example.com'
+    })
+
+    const hits = searchMessages('Monika')
+    expect(hits.some((h) => h.id === target.id)).toBe(true)
+  })
+
+  it('searchMessages findet Mails per Anhang-Dateiname', () => {
+    const db = testDbRef.current!
+    const inbox = insertTestFolder(db, {
+      accountId: ACCOUNT,
+      remoteId: 'inbox',
+      name: 'Inbox',
+      wellKnown: 'inbox'
+    })
+    const target = insertTestMessage(db, {
+      accountId: ACCOUNT,
+      folderId: inbox.id,
+      remoteId: 'm-att',
+      subject: 'Ohne Treffer im Text',
+      bodyText: 'neutral'
+    })
+    insertTestAttachment(db, { messageId: target.id, name: 'Vertrag_Monika_2024.pdf' })
+
+    const hits = searchMessages('Vertrag Monika')
+    expect(hits.some((h) => h.id === target.id)).toBe(true)
+  })
+
+  it('searchMessages findet Mails per Teilnehmer-E-Mail', () => {
+    const db = testDbRef.current!
+    const inbox = insertTestFolder(db, {
+      accountId: ACCOUNT,
+      remoteId: 'inbox2',
+      name: 'Inbox',
+      wellKnown: 'inbox'
+    })
+    const target = insertTestMessage(db, {
+      accountId: ACCOUNT,
+      folderId: inbox.id,
+      remoteId: 'm-participant',
+      subject: 'Kurz',
+      bodyText: 'x',
+      toAddrs: null
+    })
+    insertTestMessageParticipant(db, {
+      messageId: target.id,
+      accountId: ACCOUNT,
+      email: 'monika.schmidt@firma.example'
+    })
+
+    const hits = searchMessages('monika.schmidt')
+    expect(hits.some((h) => h.id === target.id)).toBe(true)
+  })
+
+  it('searchMessagesAdvanced filtert Kategorie und Gesendet-Datum', () => {
+    const db = testDbRef.current!
+    const sent = insertTestFolder(db, {
+      accountId: ACCOUNT,
+      remoteId: 'sent2',
+      name: 'Sent',
+      wellKnown: 'sentitems'
+    })
+    const target = insertTestMessage(db, {
+      accountId: ACCOUNT,
+      folderId: sent.id,
+      remoteId: 'm-cat',
+      subject: 'Mit Kategorie',
+      bodyText: 'body',
+      receivedAt: '2026-01-01T10:00:00.000Z'
+    })
+    db.prepare('UPDATE messages SET sent_at = ? WHERE id = ?').run(
+      '2026-03-15T14:00:00.000Z',
+      target.id
+    )
+    insertTestMessageTag(db, { messageId: target.id, accountId: ACCOUNT, tag: 'Wichtig' })
+
+    const hits = searchMessagesAdvanced({
+      categoryContains: 'Wicht',
+      dateKind: 'sent',
+      dateFrom: '2026-03-15',
+      dateTo: '2026-03-15'
+    })
+    expect(hits).toHaveLength(1)
+    expect(hits[0]!.id).toBe(target.id)
   })
 
   it('setMessageSnooze und clearMessageSnooze', () => {

@@ -8,6 +8,7 @@ import type { TasksCollapsedGroupsMode, TasksNoDuePlacement, TasksOverdueMode } 
 
 export type TaskListArrangeBy =
   | 'calendar_day'
+  | 'timeline_period'
   | 'todo_bucket'
   | 'due_date'
   | 'item_type'

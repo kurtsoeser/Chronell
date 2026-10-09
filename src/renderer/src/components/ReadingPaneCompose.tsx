@@ -30,6 +30,8 @@ import { useComposeAutoSave, useComposeAutoSaveOnHide } from '@/hooks/useCompose
 import { useComposeDraftEditorFlush } from '@/hooks/useComposeDraftEditorFlush'
 import { arrayBufferToBase64 } from '@/lib/attachment-files'
 import { ComposeCopilotDraftButton } from '@/components/copilot/ComposeCopilotDraftButton'
+import { ComposeTextProofreadButton } from '@/components/compose-proofread/ComposeTextProofreadButton'
+import { useComposeDraftBodyHtmlGetter } from '@/hooks/useComposeDraftBodyHtmlGetter'
 
 const MAX_ATTACHMENTS_TOTAL_BYTES = 24 * 1024 * 1024
 
@@ -56,6 +58,7 @@ export function ReadingPaneCompose({
 
   const [attachmentError, setAttachmentError] = useState<string | null>(null)
   const { bodyFlushRef, signatureFlushRef } = useComposeDraftEditorFlush(draft.id)
+  const getBodyHtml = useComposeDraftBodyHtmlGetter(draft.id, bodyFlushRef)
 
   useComposeAutoSave(draft.id, visible)
   useComposeAutoSaveOnHide(draft.id, visible)
@@ -254,6 +257,7 @@ export function ReadingPaneCompose({
                     </span>
                     <input
                       type="text"
+                      spellCheck
                       value={draft.subject}
                       onChange={(e): void => update(draft.id, { subject: e.target.value })}
                       placeholder={t('mail.composeTile.noSubjectPlaceholder')}
@@ -270,11 +274,20 @@ export function ReadingPaneCompose({
                   attachmentCount={draft.attachments.length}
                   cloudAttachmentCount={draft.referenceAttachments.length}
                   leadingActions={
-                    <ComposeCopilotDraftButton
-                      draft={draft}
-                      disabled={draft.busy}
-                      inEditorSurface
-                    />
+                    <>
+                      <ComposeTextProofreadButton
+                        accountId={draft.accountId}
+                        disabled={draft.busy}
+                        inEditorSurface
+                        getBodyHtml={getBodyHtml}
+                        onReplaceBody={(html): void => update(draft.id, { prependRichHtml: html })}
+                      />
+                      <ComposeCopilotDraftButton
+                        draft={draft}
+                        disabled={draft.busy}
+                        inEditorSurface
+                      />
+                    </>
                   }
                 />
                 <ComposeEditorThemedPane className="compose-mail-editor-section min-h-0 flex-1">

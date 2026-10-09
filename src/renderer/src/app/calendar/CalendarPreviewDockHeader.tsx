@@ -1,10 +1,14 @@
-import { PanelRightClose, SquareArrowOutUpRight } from 'lucide-react'
+import { SquareArrowOutUpRight, X } from 'lucide-react'
 import {
   ModuleColumnHeaderIconButton,
   moduleColumnHeaderDockBarRowClass,
   moduleColumnHeaderIconGlyphClass,
   moduleColumnHeaderUppercaseLabelClass
 } from '@/components/ModuleColumnHeader'
+import {
+  CalendarShellColumnHeaderDragSurface,
+  calendarColumnHeaderNoDragProps
+} from '@/app/calendar/calendar-shell-column-dnd'
 import { cn } from '@/lib/utils'
 
 export function CalendarPreviewDockHeader({
@@ -23,11 +27,8 @@ export function CalendarPreviewDockHeader({
   className?: string
 }): JSX.Element {
   return (
-    <div
-      className={cn(
-        'calendar-shell-column-header flex shrink-0 flex-col justify-center border-b border-border/30 px-2 py-1',
-        className
-      )}
+    <CalendarShellColumnHeaderDragSurface
+      className={cn('calendar-shell-dock-column-header px-2', className)}
     >
       <div className={moduleColumnHeaderDockBarRowClass}>
         <span
@@ -35,17 +36,17 @@ export function CalendarPreviewDockHeader({
         >
           {label}
         </span>
-        <div className="flex shrink-0 items-center gap-0.5">
+        <div className="flex shrink-0 items-center gap-0.5" {...calendarColumnHeaderNoDragProps}>
           {onUndock ? (
             <ModuleColumnHeaderIconButton title={undockTitle} onClick={onUndock}>
               <SquareArrowOutUpRight className={moduleColumnHeaderIconGlyphClass} />
             </ModuleColumnHeaderIconButton>
           ) : null}
           <ModuleColumnHeaderIconButton title={hideTitle} onClick={onHide}>
-            <PanelRightClose className={moduleColumnHeaderIconGlyphClass} />
+            <X className={moduleColumnHeaderIconGlyphClass} />
           </ModuleColumnHeaderIconButton>
         </div>
       </div>
-    </div>
+    </CalendarShellColumnHeaderDragSurface>
   )
 }

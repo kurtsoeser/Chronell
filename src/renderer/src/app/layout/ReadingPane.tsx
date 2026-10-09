@@ -23,7 +23,8 @@ import {
   CheckSquare,
   Unlink,
   SquareArrowOutUpRight,
-  PanelRightClose
+  PanelRightClose,
+  Sparkles
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -96,7 +97,10 @@ import {
   mailReadingContextHeightMax,
   MAIL_READING_CONTEXT_HEIGHT_KEY
 } from '@/app/layout/mail-reading-context-storage'
-import { moduleColumnHeaderReadingToolbarClass } from '@/components/ModuleColumnHeader'
+import {
+  moduleColumnHeaderReadingToolbarClass,
+  moduleColumnHeaderToolbarToggleClass
+} from '@/components/ModuleColumnHeader'
 import {
   mailConversationMessageTileClass,
   mailConversationStackClass,
@@ -171,6 +175,8 @@ export function ReadingPane({
 }: ReadingPaneProps = {}): JSX.Element {
   const toolbarRef = useRef<HTMLDivElement>(null)
   const [toolbarNarrow, setToolbarNarrow] = useState(compactToolbar)
+  const [copilotRailOpen, setCopilotRailOpen] = useState(false)
+  const { settings: aiSettings } = useAiConnectionsSettings()
 
   useEffect(() => {
     const el = toolbarRef.current
@@ -197,6 +203,16 @@ export function ReadingPane({
   )
   const selectedMessage = isolatedView?.selectedMessage ?? storeMail.selectedMessage
   const selectedMessageId = isolatedView?.selectedMessageId ?? storeMail.selectedMessageId
+  const mailCopilotAvailable = useMemo((): boolean => {
+    if (!selectedMessage) return false
+    if (selectedMessage.accountId.startsWith('ms:')) return true
+    return (
+      listCopilotEngineOptions({
+        microsoftAccount: false,
+        aiSettings
+      }).length > 0
+    )
+  }, [aiSettings, selectedMessage])
   const listKind = storeMail.listKind
   const foldersByAccount = storeMail.foldersByAccount
   const messageLoading = isolatedView?.messageLoading ?? storeMail.messageLoading
@@ -661,6 +677,19 @@ export function ReadingPane({
           />
         ) : null}
 
+        {mailCopilotAvailable ? (
+          <button
+            type="button"
+            aria-pressed={copilotRailOpen}
+            title={t('copilot.readingPane.copilotToggleTitle')}
+            aria-label={t('copilot.readingPane.copilotToggle')}
+            className={moduleColumnHeaderToolbarToggleClass(copilotRailOpen)}
+            onClick={(): void => setCopilotRailOpen((v) => !v)}
+          >
+            <Sparkles className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />
+          </button>
+        ) : null}
+
         <span className="mx-0.5 h-5 w-px shrink-0 bg-border" aria-hidden />
 
         {actionGroups.map((group, gi) => (
@@ -769,6 +798,7 @@ export function ReadingPane({
               autoLoadImages={autoLoadImages}
               bodyPending={messageLoading}
               hideEntityConnections
+              copilotRailOpen={copilotRailOpen}
               onReply={(): void => openReply('reply', selectedMessage)}
               onReplyAll={(): void => openReply('replyAll', selectedMessage)}
               onForward={(): void => openForward(selectedMessage)}
@@ -796,6 +826,7 @@ export function ReadingPane({
                   autoLoadImages={autoLoadImages}
                   bodyPending={messageLoading && expanded.id === selectedMessageId}
                   conversationTile
+                  copilotRailOpen={copilotRailOpen}
                   onReply={(): void => openReply('reply', expanded)}
                   onReplyAll={(): void => openReply('replyAll', expanded)}
                   onForward={(): void => openForward(expanded)}
@@ -814,6 +845,7 @@ export function ReadingPane({
                   autoLoadImages={autoLoadImages}
                   bodyPending={messageLoading}
                   conversationTile
+                  copilotRailOpen={copilotRailOpen}
                   onReply={(): void => openReply('reply', selectedMessage)}
                   onReplyAll={(): void => openReply('replyAll', selectedMessage)}
                   onForward={(): void => openForward(selectedMessage)}
@@ -874,6 +906,7 @@ function MailReader({
   bodyPending = false,
   hideEntityConnections = false,
   conversationTile = false,
+  copilotRailOpen = false,
   onReply,
   onReplyAll,
   onForward,
@@ -889,6 +922,7 @@ function MailReader({
   hideEntityConnections?: boolean
   /** Konversations-Kachel: kein Vollbild-Flex, keine Kopf-Trennlinie. */
   conversationTile?: boolean
+  copilotRailOpen?: boolean
   onReply: () => void
   onReplyAll: () => void
   onForward: () => void
@@ -1028,6 +1062,14 @@ function MailReader({
       attachments.some(isMeetingCalendarAttachment) || looksLikeMeetingInvitationMail(message),
     [attachments, message]
   )
+
+  const meetingMailBodyPlainLength = useMemo(() => {
+    const plain = message.bodyText?.trim()
+    if (plain) return plain.length
+    const html = message.bodyHtml
+    if (!html?.trim()) return 0
+    return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().length
+  }, [message.bodyHtml, message.bodyText])
 
   // Anhang-Bar nur zeigen, wenn auch wirklich etwas da ist. Den Lade-
   // Indikator zeigen wir bewusst NUR, wenn die DB schon weiss, dass die
@@ -1177,13 +1219,24 @@ function MailReader({
     importance: message.importance
   }
 
+  const showCopilotRail =
+    copilotRailOpen && (message.accountId.startsWith('ms:') || aiAssistAvailable)
+
   return (
     <div
       className={cn(
-        'flex flex-col overflow-hidden',
-        conversationTile ? 'shrink-0' : 'min-h-0 flex-1'
+        'flex overflow-hidden',
+        conversationTile ? 'shrink-0 flex-col' : 'min-h-0 flex-1',
+        showCopilotRail && !conversationTile && 'flex-row'
       )}
     >
+      <div
+        className={cn(
+          'flex min-w-0 flex-col overflow-hidden',
+          conversationTile ? 'shrink-0' : 'min-h-0 flex-1',
+          showCopilotRail && !conversationTile && 'min-w-0 flex-1'
+        )}
+      >
       <header
         className={cn(
           'shrink-0 space-y-3 px-6 py-4',
@@ -1318,36 +1371,18 @@ function MailReader({
             loading={showAttachmentLoading}
           />
         )}
+
+        {mayShowMeetingInvitation ? (
+          <MeetingInvitationPanel
+            messageId={message.id}
+            account={account}
+            bodyPlainLength={meetingMailBodyPlainLength}
+            onReply={onReply}
+            onReplyAll={onReplyAll}
+            onForward={onForward}
+          />
+        ) : null}
       </header>
-
-      {mayShowMeetingInvitation ? (
-        <MeetingInvitationPanel
-          messageId={message.id}
-          account={account}
-          onReply={onReply}
-          onReplyAll={onReplyAll}
-          onForward={onForward}
-        />
-      ) : null}
-
-      {message.accountId.startsWith('ms:') || aiAssistAvailable ? (
-        <CopilotAssistPanel
-          accountId={message.accountId}
-          contextKey={`mail:${message.id}`}
-          contextTexts={copilotMailContext}
-          primaryPrompt={mailSummarizePrompt}
-          primaryActionLabel={t('copilot.mail.summarize')}
-          title={t('copilot.mail.title')}
-          className="mx-4 mt-2"
-          retrievalQuery={message.subject?.trim() || null}
-          collapsedDefault
-          noteTarget={{
-            kind: 'mail',
-            messageId: message.id,
-            title: message.subject || t('common.noSubject')
-          }}
-        />
-      ) : null}
 
       {bodyPending && !message.bodyHtml?.trim() && !message.bodyText?.trim() ? (
         <LoadingIndicator
@@ -1445,6 +1480,26 @@ function MailReader({
         />
       ) : null}
 
+      </div>
+
+      {showCopilotRail && !conversationTile ? (
+        <CopilotAssistPanel
+          layout="rail"
+          accountId={message.accountId}
+          contextKey={`mail:${message.id}`}
+          contextTexts={copilotMailContext}
+          primaryPrompt={mailSummarizePrompt}
+          primaryActionLabel={t('copilot.mail.summarize')}
+          title={t('copilot.mail.title')}
+          retrievalQuery={message.subject?.trim() || null}
+          collapsedDefault={false}
+          noteTarget={{
+            kind: 'mail',
+            messageId: message.id,
+            title: message.subject || t('common.noSubject')
+          }}
+        />
+      ) : null}
     </div>
   )
 }

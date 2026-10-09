@@ -14,6 +14,7 @@ import {
   buildDefaultGraphCalendarIdByAccount,
   resolveGraphEventDisplayHex
 } from '@/lib/calendar-event-display-hex'
+import { displayMeetingSummary } from '@shared/meeting-invitation-display'
 import { useCalendarListByAccount } from '@/lib/use-calendar-list-by-account'
 import { applyCalendarEventDomColors } from '@/lib/calendar-event-chip-style'
 import { useCalendarSettingsPrefs } from '@/lib/use-calendar-settings-prefs'
@@ -25,11 +26,14 @@ export const MEETING_INVITATION_PREVIEW_EVENT_ID = 'meeting-invitation-preview'
 export function MeetingInvitationDayPreview({
   invitation,
   dayEvents,
-  loading
+  loading,
+  previewHeightPx = 220
 }: {
   invitation: MeetingInvitationView
   dayEvents: CalendarEventView[]
   loading?: boolean
+  /** Höhe der Tagesvorschau (kompakter im Lesebereich). */
+  previewHeightPx?: number
 }): JSX.Element | null {
   const { i18n } = useTranslation()
   const startIso = invitation.startIso
@@ -129,7 +133,7 @@ export function MeetingInvitationDayPreview({
     if (!startIso || !endIso) return null
     return {
       id: MEETING_INVITATION_PREVIEW_EVENT_ID,
-      title: invitation.summary,
+      title: displayMeetingSummary(invitation.summary),
       start: startIso,
       end: endIso,
       allDay: invitation.isAllDay,
@@ -171,11 +175,11 @@ export function MeetingInvitationDayPreview({
     <div
       ref={hostRef}
       className={[
-        'meeting-invitation-day-preview relative overflow-hidden rounded-lg border border-border/80 bg-background/40',
+        'meeting-invitation-day-preview relative overflow-hidden rounded-sm border border-border/60 bg-background/50',
         loading ? 'opacity-70' : ''
       ].join(' ')}
     >
-      <div className="h-[220px] min-h-[180px]">
+      <div style={{ height: previewHeightPx, minHeight: Math.min(160, previewHeightPx) }}>
         <FullCalendar
           ref={calendarRef}
           plugins={[timeGridPlugin, luxonPlugin]}

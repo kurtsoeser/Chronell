@@ -47,33 +47,23 @@ import { syncFullCalendarWidth } from '@/app/calendar/sync-full-calendar-width'
 import { calendarShellFullCalendarPropsAreEqual } from '@/app/calendar/calendar-shell-full-calendar-props-equal'
 import { accountColorToCssBackground } from '@/lib/avatar-color'
 import {
-  buildCalendarEventCategorySubmenuItems,
-  buildCalendarEventStatusSubmenuItems,
-  buildCalendarEventTransferSubmenuItems,
-  buildCalendarEventContextItems,
-  formatCalendarEventClipboardText
-} from '@/lib/calendar-event-context-menu'
-import {
-  pickAndSendCalendarEventToNotion,
-  pickParentAndCreateCalendarEventNotionPage,
-  runNotionSendWithErrorHandling
-} from '@/lib/notion-ui'
-import { respondToCalendarEventInvitation } from '@/lib/calendar-event-rsvp'
+  attachCalendarOverlayContextMenu,
+  attachGraphCalendarEventContextMenu,
+  detachCalendarFcContextMenu
+} from '@/app/calendar/calendar-fc-event-context-menu-mount'
 import { applyCalendarEventDomColors } from '@/lib/calendar-event-chip-style'
-import { openExternalUrl } from '@/lib/open-external'
 import {
   mailReadingPopoutOptsFromClick,
   openMailReadingPopout
 } from '@/lib/open-mail-reading-popout'
-import { showAppConfirm } from '@/stores/app-dialog'
 import { useNotesPendingFocusStore } from '@/stores/notes-pending-focus'
 import { useAppModeStore } from '@/stores/app-mode'
 import type { CloudTaskListItem } from '@/app/tasks/tasks-types'
 import { cloudTaskStableKey } from '@shared/work-item-keys'
+import { previewStableKeyFromFcEvent } from '@/app/calendar/calendar-preview-focus'
 import type { Locale } from 'date-fns'
 import type { ContextMenuItem } from '@/components/ContextMenu'
 import type { CalendarOverlayContextMenuOptions } from '@/app/calendar/calendar-overlay-context-menu'
-import { buildCalendarOverlayContextMenuItems } from '@/app/calendar/calendar-overlay-context-menu'
 import type { ObjectNoteTarget } from '@/components/ObjectNoteEditor'
 import { type TimeGridSlotMinutes } from '@/app/calendar/calendar-shell-storage'
 import type { IdBulkSelection } from '@/lib/id-bulk-selection'
@@ -162,46 +152,11 @@ export interface CalendarShellFullCalendarProps {
   clearSelectedMessage: () => void
   selectMessageWithThreadPreview: (messageId: number) => void | Promise<void>
   persistRightPreviewOpen: (open: boolean) => void
-  setRightPreviewOpen: Dispatch<SetStateAction<boolean>>
+  setRightPreviewOpen: (open: boolean) => void
+  previewFocusStableKey: string | null
 }
 
 import type { WorkItemPlannedSchedule } from '@shared/work-item'
-
-function attachCalendarOverlayContextMenu(
-  el: HTMLElement,
-  overlay:
-    | { kind: 'cloud_task'; task: CloudTaskListItem }
-    | { kind: 'mail_todo'; mail: MailListItem },
-  opts: {
-    setError: (msg: string | null) => void
-    setCalendarFolderContextMenu: Dispatch<
-      SetStateAction<{ x: number; y: number; items: ContextMenuItem[] } | null>
-    >
-    setEventContextMenu: Dispatch<
-      SetStateAction<{ x: number; y: number; items: ContextMenuItem[] } | null>
-    >
-    overlayContextMenuOptionsRef: MutableRefObject<CalendarOverlayContextMenuOptions>
-  }
-): void {
-  const onCtx = (e: MouseEvent): void => {
-    e.preventDefault()
-    e.stopPropagation()
-    opts.setError(null)
-    opts.setCalendarFolderContextMenu(null)
-    void (async (): Promise<void> => {
-      const anchor = { x: e.clientX, y: e.clientY }
-      const items = await buildCalendarOverlayContextMenuItems(
-        overlay,
-        anchor,
-        opts.overlayContextMenuOptionsRef.current
-      )
-      opts.setEventContextMenu({ x: anchor.x, y: anchor.y, items })
-    })()
-  }
-  el.addEventListener('contextmenu', onCtx)
-  const tagged = el as HTMLElement & { _calCtxMenu?: (ev: MouseEvent) => void }
-  tagged._calCtxMenu = onCtx
-}
 
 export const CalendarShellFullCalendar = memo(function CalendarShellFullCalendar(
   props: CalendarShellFullCalendarProps
@@ -270,7 +225,8 @@ export const CalendarShellFullCalendar = memo(function CalendarShellFullCalendar
     clearSelectedMessage,
     selectMessageWithThreadPreview,
     persistRightPreviewOpen,
-    setRightPreviewOpen
+    setRightPreviewOpen,
+    previewFocusStableKey
   } = props
 
   const handlersRef = useRef({
@@ -577,218 +533,21 @@ export const CalendarShellFullCalendar = memo(function CalendarShellFullCalendar
           accountTailwindBgClass: tw ?? null
         })
         if (!calEv) return
-        const onCtx = (e: MouseEvent): void => {
-          e.preventDefault()
-          e.stopPropagation()
-          setError(null)
-          void (async (): Promise<void> => {
-            const cat = await buildCalendarEventCategorySubmenuItems(
-              calEv,
-              reloadVisibleRange,
-              t,
-              calendarCollatorLocale
-            )
-            const statusMenu = buildCalendarEventStatusSubmenuItems(calEv, reloadVisibleRange, t)
-            const copyTo = await buildCalendarEventTransferSubmenuItems(
-              calEv,
-              'copy',
-              calendarLinkedAccounts,
-              reloadVisibleRange,
-              t,
-              calendarCollatorLocale
-            )
-            const moveTo = await buildCalendarEventTransferSubmenuItems(
-              calEv,
-              'move',
-              calendarLinkedAccounts,
-              reloadVisibleRange,
-              t,
-              calendarCollatorLocale
-            )
-            const hasGraphEvent = Boolean(calEv.graphEventId?.trim())
-            const canMutateEvent =
-              calEv.calendarCanEdit !== false &&
-              hasGraphEvent &&
-              (calEv.source === 'microsoft' || calEv.source === 'google')
-            const canCopyToOtherCalendar =
-              hasGraphEvent &&
-              copyTo.length > 0 &&
-              (calEv.source === 'microsoft' || calEv.source === 'google')
-            const canMoveToOtherCalendar =
-              canMutateEvent && moveTo.length > 0
-            const items = buildCalendarEventContextItems(
-              calEv,
-              canMutateEvent,
-              canCopyToOtherCalendar,
-              canMoveToOtherCalendar,
-              calendarLinkedAccounts.length > 0,
-              {
-                onEdit: (): void => {
-                  setError(null)
-                  setEventDialog({ mode: 'edit', event: calEv })
-                },
-                onDuplicate: (): void => {
-                  const titleTrim = calEv.title?.trim()
-                  setError(null)
-                  setEventDialog({
-                    mode: 'create',
-                    range: {
-                      start: new Date(calEv.startIso),
-                      end: new Date(calEv.endIso),
-                      allDay: calEv.isAllDay
-                    },
-                    createPrefill: {
-                      subject: titleTrim
-                        ? `${titleTrim}${t('calendar.context.duplicateSuffix')}`
-                        : t('calendar.context.duplicateEmptyTitle'),
-                      location: calEv.location ?? ''
-                    },
-                    createAccountId: calEv.accountId
-                  })
-                },
-                onOpenNote: (): void => {
-                  const eventRemoteId = calEv.graphEventId?.trim()
-                  if (!eventRemoteId) return
-                  setError(null)
-                  setMailNoteTarget(null)
-                  setEventNoteTarget({
-                    kind: 'calendar',
-                    accountId: calEv.accountId,
-                    calendarSource: calEv.source,
-                    calendarRemoteId: calEv.graphCalendarId?.trim() || 'default',
-                    eventRemoteId,
-                    title: calEv.title,
-                    eventTitleSnapshot: calEv.title,
-                    eventStartIsoSnapshot: calEv.startIso
-                  })
-                },
-                onSendToNotion: (): void => {
-                  void runNotionSendWithErrorHandling(() =>
-                    pickAndSendCalendarEventToNotion(
-                      calEv,
-                      isDeCalendar ? 'de' : 'en'
-                    )
-                  )
-                },
-                onSendToNotionAsNewPage: (): void => {
-                  void runNotionSendWithErrorHandling(() =>
-                    pickParentAndCreateCalendarEventNotionPage(
-                      calEv,
-                      isDeCalendar ? 'de' : 'en'
-                    )
-                  )
-                },
-                onCopyDetails: (): void => {
-                  const text = formatCalendarEventClipboardText(
-                    calEv,
-                    t,
-                    clipboardDfLocale,
-                    isDeCalendar
-                  )
-                  if (!navigator.clipboard?.writeText) {
-                    setError(t('calendar.errors.clipboardUnsupported'))
-                    return
-                  }
-                  void navigator.clipboard.writeText(text).catch(() => {
-                    setError(t('calendar.errors.clipboardWriteFailed'))
-                  })
-                },
-                onCopyWebLink: (): void => {
-                  const u = calEv.webLink?.trim()
-                  if (!u) return
-                  if (!navigator.clipboard?.writeText) {
-                    setError(t('calendar.errors.clipboardUnsupported'))
-                    return
-                  }
-                  void navigator.clipboard.writeText(u).catch(() => {
-                    setError(t('calendar.errors.clipboardWriteFailed'))
-                  })
-                },
-                onCopyJoinUrl: (): void => {
-                  const u = calEv.joinUrl?.trim()
-                  if (!u) return
-                  if (!navigator.clipboard?.writeText) {
-                    setError(t('calendar.errors.clipboardUnsupported'))
-                    return
-                  }
-                  void navigator.clipboard.writeText(u).catch(() => {
-                    setError(t('calendar.errors.clipboardWriteFailed'))
-                  })
-                },
-                onOpenWeb: (): void => {
-                  const u = calEv.webLink?.trim()
-                  if (u) {
-                    void openExternalUrl(u).catch((err) => {
-                      setError(err instanceof Error ? err.message : String(err))
-                    })
-                  }
-                },
-                onOpenTeams: (): void => {
-                  const u = calEv.joinUrl?.trim()
-                  if (u) {
-                    void openExternalUrl(u).catch((err) => {
-                      setError(err instanceof Error ? err.message : String(err))
-                    })
-                  }
-                },
-                onAcceptInvitation: (): void => {
-                  void (async (): Promise<void> => {
-                    setError(null)
-                    const res = await respondToCalendarEventInvitation(calEv, 'accept', { t })
-                    if (res?.ok) reloadVisibleRange()
-                  })()
-                },
-                onTentativeInvitation: (): void => {
-                  void (async (): Promise<void> => {
-                    setError(null)
-                    const res = await respondToCalendarEventInvitation(calEv, 'tentative', { t })
-                    if (res?.ok) reloadVisibleRange()
-                  })()
-                },
-                onDeclineInvitation: (): void => {
-                  void (async (): Promise<void> => {
-                    setError(null)
-                    const res = await respondToCalendarEventInvitation(calEv, 'decline', { t })
-                    if (res?.ok) reloadVisibleRange()
-                  })()
-                },
-                onDelete: (): void => {
-                  const gid = calEv.graphEventId
-                  if (!gid) return
-                  void (async (): Promise<void> => {
-                    const ok = await showAppConfirm(
-                      t('calendar.confirm.deleteEventBody'),
-                      {
-                        title: t('calendar.confirm.deleteEventTitle'),
-                        variant: 'danger',
-                        confirmLabel: t('calendar.confirm.deleteEventConfirm')
-                      }
-                    )
-                    if (!ok) return
-                    try {
-                      setError(null)
-                      await deleteGraphCalendarEvent(calEv)
-                    } catch (err) {
-                      setError(err instanceof Error ? err.message : String(err))
-                    }
-                  })()
-                }
-              },
-              t,
-              {
-                categorySubmenu: cat.length > 0 ? cat : undefined,
-                statusSubmenu: statusMenu.length > 0 ? statusMenu : undefined,
-                copyToSubmenu: copyTo.length > 0 ? copyTo : undefined,
-                moveToSubmenu: moveTo.length > 0 ? moveTo : undefined
-              }
-            )
-            setCalendarFolderContextMenu(null)
-            setEventContextMenu({ x: e.clientX, y: e.clientY, items })
-          })()
-        }
-        info.el.addEventListener('contextmenu', onCtx)
-        const el = info.el as HTMLElement & { _calCtxMenu?: (ev: MouseEvent) => void }
-        el._calCtxMenu = onCtx
+        attachGraphCalendarEventContextMenu(info.el, calEv, {
+          t,
+          calendarCollatorLocale,
+          isDeCalendar,
+          clipboardDfLocale,
+          calendarLinkedAccounts,
+          reloadVisibleRange,
+          setError,
+          setEventDialog,
+          setMailNoteTarget,
+          setEventNoteTarget,
+          deleteGraphCalendarEvent,
+          setCalendarFolderContextMenu,
+          setEventContextMenu
+        })
       }}
       eventWillUnmount={(info): void => {
         const kind = info.event.extendedProps.calendarKind as string | undefined
@@ -799,14 +558,8 @@ export const CalendarShellFullCalendar = memo(function CalendarShellFullCalendar
               : ''
           if (key) cloudTaskElByKeyRef.current.delete(key)
         }
-        const el = info.el as HTMLElement & {
-          _calCtxMenu?: (ev: MouseEvent) => void
-          _calMailDblclick?: (ev: MouseEvent) => void
-        }
-        if (el._calCtxMenu) {
-          info.el.removeEventListener('contextmenu', el._calCtxMenu)
-          delete el._calCtxMenu
-        }
+        const el = info.el as HTMLElement & { _calMailDblclick?: (ev: MouseEvent) => void }
+        detachCalendarFcContextMenu(info.el)
         if (el._calMailDblclick) {
           info.el.removeEventListener('dblclick', el._calMailDblclick)
           delete el._calMailDblclick
@@ -866,11 +619,17 @@ export const CalendarShellFullCalendar = memo(function CalendarShellFullCalendar
         }
       }}
       eventClassNames={(arg): string[] => {
-        const kind = arg.event.extendedProps.calendarKind as string | undefined
-        if (kind) return []
-        const ev = arg.event.extendedProps.calendarEvent as CalendarEventView | undefined
-        if (!ev) return []
         const classes: string[] = []
+        if (previewFocusStableKey) {
+          const focusKey = previewStableKeyFromFcEvent(arg.event)
+          if (focusKey && focusKey === previewFocusStableKey) {
+            classes.push('fc-event--preview-focus')
+          }
+        }
+        const kind = arg.event.extendedProps.calendarKind as string | undefined
+        if (kind) return classes
+        const ev = arg.event.extendedProps.calendarEvent as CalendarEventView | undefined
+        if (!ev) return classes
         if (ev.showAs === 'free') classes.push('fc-cal-event--free')
         if (
           ev.sensitivity === 'private' ||

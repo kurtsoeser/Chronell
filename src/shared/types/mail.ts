@@ -208,6 +208,10 @@ export interface AdvancedMailSearchCriteria {
   dateFrom?: string
   /** Empfangsdatum bis (YYYY-MM-DD oder ISO). */
   dateTo?: string
+  /** Datumsfilter auf Gesendet- statt Empfangszeit. */
+  dateKind?: 'received' | 'sent'
+  /** Teilstring Outlook-Kategorie (`message_tags.tag`). */
+  categoryContains?: string
   /** Lesestatus: alle | ungelesen | gelesen. */
   readStatus?: 'all' | 'unread' | 'read'
   /** Nur Mails mit Anlagen. */

@@ -248,6 +248,8 @@ function calendarEventDetailsLookCached(
 }
 
 const MAX_EVENT_DIALOG_ATTENDEES = 500
+/** Mehr Pflicht-Teilnehmer → Webinar-Nachverfolgung (MS Graph). */
+const LARGE_MEETING_AUTO_TRACKING_ATTENDEE_THRESHOLD = 8
 
 function attendeeEmailsFromField(raw: string): string[] {
   const seen = new Set<string>()
@@ -2898,6 +2900,24 @@ export function CalendarEventDialog({
     webinarSupplementHtml
   ])
 
+  useEffect(() => {
+    if (!open) return
+    if (createKind === 'task') return
+    if (!accountId.startsWith('ms:')) return
+    if (eventFieldsLocked) return
+    if (
+      attendeeEmailsFromField(attendeeInput).length <=
+      LARGE_MEETING_AUTO_TRACKING_ATTENDEE_THRESHOLD
+    ) {
+      return
+    }
+    applyWebinarTrackingDefaults({
+      setHideAttendees,
+      setResponseRequested,
+      setAllowForwarding
+    })
+  }, [open, createKind, accountId, attendeeInput, eventFieldsLocked])
+
   const webinarScheduleLabel = useMemo(
     () => formatWebinarScheduleLabel(),
     [formatWebinarScheduleLabel]
@@ -3412,9 +3432,14 @@ export function CalendarEventDialog({
 
     setBusy(true)
     try {
-      const webinarTracking = isWebinarSave
-        ? ({ hideAttendees: true, responseRequested: false, allowForwarding: false } as const)
-        : ({ hideAttendees, responseRequested, allowForwarding } as const)
+      const isLargeMicrosoftMeeting =
+        accountId.startsWith('ms:') &&
+        attendeeEmailsFromField(attendeeInput).length >
+          LARGE_MEETING_AUTO_TRACKING_ATTENDEE_THRESHOLD
+      const webinarTracking =
+        isWebinarSave || isLargeMicrosoftMeeting
+          ? ({ hideAttendees: true, responseRequested: false, allowForwarding: false } as const)
+          : ({ hideAttendees, responseRequested, allowForwarding } as const)
       const msWebinarMeta =
         accountId.startsWith('ms:') && isWebinarSave
           ? { chronellWebinarInvitation: true }

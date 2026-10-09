@@ -1539,5 +1539,71 @@ export const MIGRATIONS: Migration[] = [
       CREATE INDEX IF NOT EXISTS idx_message_copilot_cache_updated
         ON message_copilot_cache(updated_at);
     `
+  },
+  {
+    version: 55,
+    description: 'Mail-FTS: Empfaenger (An/Cc/Bcc) in Volltextindex',
+    sql: `
+      DROP TRIGGER IF EXISTS messages_ai;
+      DROP TRIGGER IF EXISTS messages_ad;
+      DROP TRIGGER IF EXISTS messages_au;
+      DROP TABLE IF EXISTS messages_fts;
+
+      CREATE VIRTUAL TABLE messages_fts USING fts5(
+        subject,
+        from_addr,
+        from_name,
+        to_addrs,
+        cc_addrs,
+        bcc_addrs,
+        body_text,
+        snippet,
+        content='messages',
+        content_rowid='id'
+      );
+
+      CREATE TRIGGER messages_ai AFTER INSERT ON messages BEGIN
+        INSERT INTO messages_fts (
+          rowid, subject, from_addr, from_name, to_addrs, cc_addrs, bcc_addrs, body_text, snippet
+        )
+        VALUES (
+          new.id, new.subject, new.from_addr, new.from_name,
+          new.to_addrs, new.cc_addrs, new.bcc_addrs, new.body_text, new.snippet
+        );
+      END;
+
+      CREATE TRIGGER messages_ad AFTER DELETE ON messages BEGIN
+        INSERT INTO messages_fts (
+          messages_fts, rowid, subject, from_addr, from_name,
+          to_addrs, cc_addrs, bcc_addrs, body_text, snippet
+        )
+        VALUES (
+          'delete', old.id, old.subject, old.from_addr, old.from_name,
+          old.to_addrs, old.cc_addrs, old.bcc_addrs, old.body_text, old.snippet
+        );
+      END;
+
+      CREATE TRIGGER messages_au AFTER UPDATE OF
+        subject, from_addr, from_name, to_addrs, cc_addrs, bcc_addrs, body_text, snippet
+      ON messages BEGIN
+        INSERT INTO messages_fts (
+          messages_fts, rowid, subject, from_addr, from_name,
+          to_addrs, cc_addrs, bcc_addrs, body_text, snippet
+        )
+        VALUES (
+          'delete', old.id, old.subject, old.from_addr, old.from_name,
+          old.to_addrs, old.cc_addrs, old.bcc_addrs, old.body_text, old.snippet
+        );
+        INSERT INTO messages_fts (
+          rowid, subject, from_addr, from_name, to_addrs, cc_addrs, bcc_addrs, body_text, snippet
+        )
+        VALUES (
+          new.id, new.subject, new.from_addr, new.from_name,
+          new.to_addrs, new.cc_addrs, new.bcc_addrs, new.body_text, new.snippet
+        );
+      END;
+
+      INSERT INTO messages_fts(messages_fts) VALUES('rebuild');
+    `
   }
 ]

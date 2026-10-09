@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { Loader2, PanelRightClose, RefreshCw, SquareArrowOutUpRight } from 'lucide-react'
+import { Loader2, RefreshCw, SquareArrowOutUpRight, X } from 'lucide-react'
 import type { WorkItem } from '@shared/work-item'
 import { cn } from '@/lib/utils'
 import {
@@ -9,6 +9,10 @@ import {
   moduleColumnHeaderLabelWithIconClass
 } from '@/components/ModuleColumnHeader'
 import { CalendarTimelinePane } from '@/app/calendar/CalendarTimelinePane'
+import {
+  CalendarShellColumnHeaderDragSurface,
+  calendarColumnHeaderNoDragProps
+} from '@/app/calendar/calendar-shell-column-dnd'
 
 export interface CalendarRightZeitlistePanelProps {
   open: boolean
@@ -23,6 +27,7 @@ export interface CalendarRightZeitlistePanelProps {
   className?: string
   onRequestUndock?: () => void
   hideChrome?: boolean
+  previewFocusStableKey?: string | null
 }
 
 /**
@@ -38,7 +43,8 @@ export function CalendarRightZeitlistePanel({
   onRequestClose,
   className,
   onRequestUndock,
-  hideChrome
+  hideChrome,
+  previewFocusStableKey = null
 }: CalendarRightZeitlistePanelProps): JSX.Element | null {
   const { t } = useTranslation()
 
@@ -52,12 +58,15 @@ export function CalendarRightZeitlistePanel({
       )}
     >
       {!hideChrome ? (
-        <div className="calendar-shell-column-header flex shrink-0 flex-col justify-center border-b border-border/30 px-2 py-1">
+        <CalendarShellColumnHeaderDragSurface className="calendar-shell-dock-column-header px-2">
           <div className={moduleColumnHeaderDockBarRowClass}>
             <div className={moduleColumnHeaderLabelWithIconClass}>
               <span className="truncate font-medium">{t('mega.shell.title')}</span>
             </div>
-            <div className="flex shrink-0 items-center gap-0.5">
+            <div
+              className="flex shrink-0 items-center gap-0.5"
+              {...calendarColumnHeaderNoDragProps}
+            >
               <ModuleColumnHeaderIconButton
                 title={t('mega.shell.refresh')}
                 disabled={Boolean(listRefreshing)}
@@ -81,11 +90,11 @@ export function CalendarRightZeitlistePanel({
                 title={t('calendar.posteingangUi.hideColumn')}
                 onClick={onRequestClose}
               >
-                <PanelRightClose className={moduleColumnHeaderIconGlyphClass} />
+                <X className={moduleColumnHeaderIconGlyphClass} />
               </ModuleColumnHeaderIconButton>
             </div>
           </div>
-        </div>
+        </CalendarShellColumnHeaderDragSurface>
       ) : null}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <CalendarTimelinePane
@@ -94,6 +103,7 @@ export function CalendarRightZeitlistePanel({
           onLoadingChange={onTimelineLoadingChange}
           reloadRef={reloadRef}
           onWorkItemFocused={onWorkItemFocused}
+          previewFocusStableKey={previewFocusStableKey}
         />
       </div>
     </div>

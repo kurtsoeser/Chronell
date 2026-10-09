@@ -1,5 +1,5 @@
 import { PenLine, RotateCcw } from 'lucide-react'
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { COMPOSE_FONT_FAMILIES } from '@/lib/compose-font-families'
 import {
@@ -54,6 +54,14 @@ export function SettingsMailComposeSection(): JSX.Element {
   const setEditorThemePref = useComposeEditorThemeStore((s) => s.setPreference)
   const [, bump] = useState(0)
   const refresh = useCallback((): void => bump((n) => n + 1), [])
+  const [languageToolHasApiKey, setLanguageToolHasApiKey] = useState(false)
+  const [languageToolApiKeyDraft, setLanguageToolApiKeyDraft] = useState('')
+
+  useEffect(() => {
+    const fn = window.mailClient?.languageTool?.getCredentialsStatus
+    if (typeof fn !== 'function') return
+    void fn().then((status) => setLanguageToolHasApiKey(status.hasApiKey)).catch(() => undefined)
+  }, [])
 
   const apply = useCallback(
     (patch: Partial<ComposeSettingsPrefsV1>): void => {
@@ -173,6 +181,124 @@ export function SettingsMailComposeSection(): JSX.Element {
             {t('settings.mailCompose.editorScaleShortcuts')}
           </p>
         </div>
+
+        <SettingsField
+          label={t('settings.mailCompose.languageToolApiLabel')}
+          hint={t('settings.mailCompose.languageToolApiHint')}
+        >
+          <input
+            type="url"
+            value={prefs.languageToolApiBaseUrl}
+            onChange={(e): void => apply({ languageToolApiBaseUrl: e.target.value })}
+            className={selectClass}
+            spellCheck={false}
+          />
+        </SettingsField>
+
+        <SettingsField
+          label={t('settings.mailCompose.languageToolUsernameLabel')}
+          hint={t('settings.mailCompose.languageToolUsernameHint')}
+        >
+          <input
+            type="email"
+            autoComplete="off"
+            value={prefs.languageToolUsername}
+            onChange={(e): void => apply({ languageToolUsername: e.target.value })}
+            className={selectClass}
+            spellCheck={false}
+            placeholder="name@example.com"
+          />
+        </SettingsField>
+
+        <SettingsField
+          label={t('settings.mailCompose.languageToolApiKeyLabel')}
+          hint={t('settings.mailCompose.languageToolApiKeyHint')}
+        >
+          <div className="flex max-w-md flex-col gap-2">
+            <input
+              type="password"
+              autoComplete="new-password"
+              value={languageToolApiKeyDraft}
+              onChange={(e): void => setLanguageToolApiKeyDraft(e.target.value)}
+              className={selectClass}
+              spellCheck={false}
+              placeholder={
+                languageToolHasApiKey
+                  ? t('settings.mailCompose.languageToolApiKeyPlaceholderSet')
+                  : t('settings.mailCompose.languageToolApiKeyPlaceholder')
+              }
+            />
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-secondary"
+                onClick={(): void => {
+                  const setKey = window.mailClient?.languageTool?.setApiKey
+                  if (typeof setKey !== 'function') return
+                  void setKey({
+                    apiKey: languageToolApiKeyDraft.trim() || null
+                  }).then((status) => {
+                    setLanguageToolHasApiKey(status.hasApiKey)
+                    setLanguageToolApiKeyDraft('')
+                  })
+                }}
+              >
+                {t('settings.mailCompose.languageToolApiKeySave')}
+              </button>
+              {languageToolHasApiKey ? (
+                <button
+                  type="button"
+                  className="rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-secondary"
+                  onClick={(): void => {
+                    const setKey = window.mailClient?.languageTool?.setApiKey
+                    if (typeof setKey !== 'function') return
+                    void setKey({ apiKey: null }).then((status) => {
+                      setLanguageToolHasApiKey(status.hasApiKey)
+                      setLanguageToolApiKeyDraft('')
+                    })
+                  }}
+                >
+                  {t('settings.mailCompose.languageToolApiKeyClear')}
+                </button>
+              ) : null}
+            </div>
+            {languageToolHasApiKey ? (
+              <p className="text-2xs text-muted-foreground">
+                {t('settings.mailCompose.languageToolApiKeyStored')}
+              </p>
+            ) : null}
+          </div>
+        </SettingsField>
+
+        <label className="flex cursor-pointer items-start gap-3 rounded-md border border-border/60 bg-background/80 p-3">
+          <input
+            type="checkbox"
+            checked={prefs.composeAutoCorrectOnSpace}
+            onChange={(e): void => apply({ composeAutoCorrectOnSpace: e.target.checked })}
+            className="mt-0.5 h-4 w-4 cursor-pointer accent-primary"
+          />
+          <span className="flex-1 text-xs">
+            <span className="block font-medium text-foreground">
+              {t('settings.mailCompose.autoCorrectOnSpaceTitle')}
+            </span>
+            <span className="mt-0.5 block leading-relaxed text-muted-foreground">
+              {t('settings.mailCompose.autoCorrectOnSpaceHint')}
+            </span>
+          </span>
+        </label>
+
+        <SettingsField
+          label={t('settings.mailCompose.autoCorrectBlocklistLabel')}
+          hint={t('settings.mailCompose.autoCorrectBlocklistHint')}
+        >
+          <textarea
+            value={prefs.composeAutoCorrectBlocklistText}
+            onChange={(e): void => apply({ composeAutoCorrectBlocklistText: e.target.value })}
+            rows={3}
+            className={cn(selectClass, 'max-w-md resize-y font-mono text-2xs')}
+            spellCheck={false}
+          />
+        </SettingsField>
 
         <SettingsField
           label={t('settings.mailCompose.defaultImportanceLabel')}

@@ -18,6 +18,8 @@ import { panelPopoutApi } from './api/panel-popout'
 import { entityLinksApi } from './api/entity-links'
 import { aiConnectionsApi } from './api/ai-connections'
 import { copilotApi } from './api/copilot'
+import { languageToolApi } from './api/languagetool'
+import { spellcheckApi } from './api/spellcheck'
 import { notesApi } from './api/notes'
 import { mailApi } from './api/mail'
 import { folderApi } from './api/folder'
@@ -53,6 +55,8 @@ const api = {
   entityLinks: entityLinksApi,
   aiConnections: aiConnectionsApi,
   copilot: copilotApi,
+  languageTool: languageToolApi,
+  spellcheck: spellcheckApi,
   notes: notesApi,
   mail: mailApi,
   folder: folderApi,

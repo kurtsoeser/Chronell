@@ -11,7 +11,8 @@ export interface CalendarDockStripFrameProps {
   onExitTransitionComplete?: () => void
   /** Nach max-width-Transition (oeffnen oder schliessen) — z. B. FullCalendar updateSize. */
   onWidthTransitionEnd?: () => void
-  splitter: ReactNode
+  /** Optional — Shell platziert Splitter zwischen Spalten, nicht am linken Rand. */
+  splitter?: ReactNode | null
   children: ReactNode
   /** Zusaetzliche Klassen auf dem aeusseren max-width-Wrapper (z. B. `self-stretch`). */
   className?: string
@@ -32,7 +33,8 @@ export function CalendarDockStripFrame({
 }: CalendarDockStripFrameProps): JSX.Element {
   const safePanelW =
     typeof panelWidthPx === 'number' && Number.isFinite(panelWidthPx) ? Math.max(0, panelWidthPx) : 0
-  const innerW = safePanelW + CALENDAR_DOCK_SPLITTER_W
+  const hasSplitter = splitter != null
+  const innerW = safePanelW + (hasSplitter ? CALENDAR_DOCK_SPLITTER_W : 0)
   const onExitRef = useRef(onExitTransitionComplete)
   onExitRef.current = onExitTransitionComplete
 

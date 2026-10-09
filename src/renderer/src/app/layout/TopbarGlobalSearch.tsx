@@ -49,11 +49,13 @@ import { persistTasksViewSelection } from '@/app/tasks/tasks-view-storage'
 import { useIdBulkSelection } from '@/lib/id-bulk-selection'
 import { cn } from '@/lib/utils'
 import {
+  advancedSearchDraftHasFilter,
   draftToAdvancedCriteria,
   emptyAdvancedSearchDraft,
-  TopbarAdvancedSearchPanel,
   type AdvancedSearchDraft
-} from '@/app/layout/TopbarAdvancedSearchPanel'
+} from '@shared/mail-advanced-search'
+import { TopbarAdvancedSearchPanel } from '@/app/layout/TopbarAdvancedSearchPanel'
+import { fetchMailBodyIndexStatus } from '@/lib/mail-body-index-client'
 
 type SearchResultTab = 'all' | GlobalSearchKind
 
@@ -114,6 +116,9 @@ export function TopbarGlobalSearch(): JSX.Element {
   const selectSearchView = useMailStore((s) => s.selectSearchView)
   const selectAdvancedSearchView = useMailStore((s) => s.selectAdvancedSearchView)
   const clearMailSearch = useMailStore((s) => s.clearMailSearch)
+  const foldersByAccount = useMailStore((s) => s.foldersByAccount)
+  const selectedFolderId = useMailStore((s) => s.selectedFolderId)
+  const selectedFolderAccountId = useMailStore((s) => s.selectedFolderAccountId)
   const calendarSearchQuery = useCalendarEventSearchStore((s) => s.query)
   const setCalendarSearchQuery = useCalendarEventSearchStore((s) => s.setQuery)
   const clearCalendarSearch = useCalendarEventSearchStore((s) => s.clear)
@@ -134,6 +139,7 @@ export function TopbarGlobalSearch(): JSX.Element {
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const [advancedDraft, setAdvancedDraft] = useState<AdvancedSearchDraft>(() => emptyAdvancedSearchDraft())
   const [recents, setRecents] = useState<string[]>(() => readRecentSearches())
+  const [bodyIndexEnabled, setBodyIndexEnabled] = useState<boolean | null>(null)
 
   const containerRef = useRef<HTMLDivElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
@@ -233,6 +239,13 @@ export function TopbarGlobalSearch(): JSX.Element {
     }, 180)
     return (): void => window.clearTimeout(handle)
   }, [query, apiKinds, resultTab])
+
+  useEffect(() => {
+    if (!expanded && !advancedOpen) return
+    void fetchMailBodyIndexStatus()
+      .then((status) => setBodyIndexEnabled(status.enabled))
+      .catch(() => setBodyIndexEnabled(null))
+  }, [expanded, advancedOpen])
 
   useEffect(() => {
     function onDown(e: MouseEvent): void {
@@ -401,9 +414,12 @@ export function TopbarGlobalSearch(): JSX.Element {
   }
 
   function runAdvancedSearch(): void {
-    const criteria = draftToAdvancedCriteria(advancedDraft)
-    const hasAny = Object.keys(criteria).length > 0
-    if (!hasAny) return
+    if (!advancedSearchDraftHasFilter(advancedDraft)) return
+    const criteria = draftToAdvancedCriteria(advancedDraft, {
+      foldersByAccount,
+      selectedFolderAccountId,
+      selectedFolderId
+    })
     const label =
       criteria.keywords ||
       criteria.subjectContains ||
@@ -779,6 +795,9 @@ export function TopbarGlobalSearch(): JSX.Element {
               <div className="min-h-0 flex-1 overflow-y-auto">
                 {showRecents ? (
                   <div className="py-1">
+                    <p className="border-b border-border/50 px-3 py-2 text-[10px] leading-snug text-muted-foreground">
+                      {t('topbar.searchSyntaxHint')}
+                    </p>
                     {recents.length === 0 ? (
                       <div className="px-3 py-3 text-xs text-muted-foreground">
                         {t('topbar.searchRecentsEmpty')}
@@ -800,6 +819,12 @@ export function TopbarGlobalSearch(): JSX.Element {
                       ))
                     )}
                   </div>
+                ) : null}
+
+                {showResults && bodyIndexEnabled === false ? (
+                  <p className="border-b border-amber-500/25 bg-amber-500/10 px-3 py-2 text-[11px] leading-snug text-foreground">
+                    {t('topbar.searchBodyIndexOffHint')}
+                  </p>
                 ) : null}
 
                 {showResults ? (
@@ -837,6 +862,7 @@ export function TopbarGlobalSearch(): JSX.Element {
         open={advancedOpen}
         draft={advancedDraft}
         onDraftChange={setAdvancedDraft}
+        bodyIndexEnabled={bodyIndexEnabled}
         onClose={(): void => setAdvancedOpen(false)}
         onSearch={runAdvancedSearch}
         onClear={(): void => setAdvancedDraft(emptyAdvancedSearchDraft())}

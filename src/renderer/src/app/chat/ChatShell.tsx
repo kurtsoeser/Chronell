@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useRef, useState, type ComponentType } from 'react'
-import { ExternalLink, MessageCircle, MessageSquare, RefreshCw } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { ExternalLink, Layers, MessageCircle, MessageSquare, RefreshCw } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { AccountAvatarBadge } from '@/components/AccountAvatarBadge'
+import { useAccountsStore } from '@/stores/accounts'
 import {
   ModuleColumnHeaderIconButton,
   moduleColumnHeaderIconButtonClass,
@@ -8,6 +10,15 @@ import {
   moduleColumnHeaderShellBarClass
 } from '@/components/ModuleColumnHeader'
 import { TeamsChatPanel } from './TeamsChatPanel'
+import {
+  persistChatActiveMessengerRailId,
+  parseChatMessengerRailId,
+  resolveDefaultChatMessengerRailId,
+  teamsChatAccountOptionLabel,
+  teamsMessengerRailId,
+  UNIFIED_TEAMS_MESSENGER_RAIL_ID,
+  type ChatMessengerRailId
+} from './teams-chat-helpers'
 import { GLOBAL_CREATE_EVENT, useGlobalCreateNavigateStore } from '@/lib/global-create'
 import { openExternalUrl } from '@/lib/open-external'
 
@@ -20,57 +31,70 @@ type WebviewEl = HTMLElement & {
   reload?: () => void
 }
 
-export type ChatServiceId = 'teams' | 'whatsapp'
-
-type ServiceEntry = {
-  id: ChatServiceId
-  label: string
-  /** Kurz fuer Tooltip / Screenreader-Kontext */
-  description: string
-  Icon: ComponentType<{ className?: string }>
-  /** Kreis-Hintergrund + Iconfarbe (Icon meist weiss) */
-  avatarClass: string
+function messengerRailButtonClass(active: boolean): string {
+  return cn(
+    'relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-transform',
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+    active
+      ? 'scale-100 ring-2 ring-primary ring-offset-2 ring-offset-background'
+      : 'opacity-90 hover:scale-[1.03] hover:opacity-100 hover:ring-2 hover:ring-border hover:ring-offset-2 hover:ring-offset-background'
+  )
 }
-
-/**
- * Registrierte Chat-Dienste (links als runde Avatare).
- * Weitere Anbieter: hier einen Eintrag ergaenzen und `surface`-Rendering unten erweitern.
- */
-const CHAT_SERVICES: ServiceEntry[] = [
-  {
-    id: 'teams',
-    label: 'Microsoft Teams',
-    description: 'Teams-Chats ueber Microsoft Graph',
-    Icon: MessageSquare,
-    avatarClass: 'bg-[#6264A7] text-white shadow-md shadow-[#6264A7]/25'
-  },
-  {
-    id: 'whatsapp',
-    label: 'WhatsApp',
-    description: 'WhatsApp Web im eingebetteten Fenster',
-    Icon: MessageCircle,
-    avatarClass: 'bg-[#25D366] text-white shadow-md shadow-[#25D366]/20'
-  }
-]
 
 interface Props {
   onOpenAccountDialog?: () => void
 }
 
 /**
- * Chat-Modul: linke Dienst-Leiste (Avatar-Buttons), rechts der jeweilige Inhalt.
+ * Chat-Modul: eine Messenger-Leiste (Teams pro Konto + WhatsApp), rechts der jeweilige Inhalt.
  */
 export function ChatShell({ onOpenAccountDialog }: Props): JSX.Element {
-  const [surface, setSurface] = useState<ChatServiceId>('teams')
   const webviewRef = useRef<WebviewEl | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
 
+  const accounts = useAccountsStore((s) => s.accounts)
+  const accountDisplayAvatarDataUrls = useAccountsStore((s) => s.accountDisplayAvatarDataUrls)
+  const msAccounts = useMemo(() => accounts.filter((a) => a.id.startsWith('ms:')), [accounts])
+  const msAccountIds = useMemo(() => msAccounts.map((a) => a.id), [msAccounts])
+
+  const [activeMessengerId, setActiveMessengerId] = useState<ChatMessengerRailId>(() =>
+    resolveDefaultChatMessengerRailId(msAccountIds)
+  )
+
+  useEffect(() => {
+    const parsed = parseChatMessengerRailId(activeMessengerId)
+    const valid =
+      parsed?.kind === 'whatsapp' ||
+      (parsed?.kind === 'teams-unified' && msAccountIds.length >= 2) ||
+      (parsed?.kind === 'teams' && msAccountIds.includes(parsed.accountId))
+    if (valid) return
+    const next = resolveDefaultChatMessengerRailId(msAccountIds)
+    setActiveMessengerId(next)
+    persistChatActiveMessengerRailId(next)
+  }, [activeMessengerId, msAccountIds])
+
+  const selectMessenger = useCallback((id: ChatMessengerRailId): void => {
+    setActiveMessengerId(id)
+    persistChatActiveMessengerRailId(id)
+  }, [])
+
+  const activeParsed = parseChatMessengerRailId(activeMessengerId)
+  const isWhatsApp = activeParsed?.kind === 'whatsapp'
+  const isUnifiedTeams = activeParsed?.kind === 'teams-unified'
+  const teamsAccountId =
+    activeParsed?.kind === 'teams' && !isUnifiedTeams ? activeParsed.accountId : null
+
+  const handleTeamsAccountIdChange = useCallback((id: string | null): void => {
+    if (id) selectMessenger(teamsMessengerRailId(id))
+  }, [selectMessenger])
+
   const openTeamsNewChat = useCallback((): void => {
-    setSurface('teams')
+    const first = msAccounts[0]?.id
+    if (first) selectMessenger(teamsMessengerRailId(first))
     void openExternalUrl('https://teams.microsoft.com/l/chat/0/0').catch((e) => {
       console.warn('[ChatShell] open new Teams chat failed', e)
     })
-  }, [])
+  }, [msAccounts, selectMessenger])
 
   useEffect(() => {
     const pending = useGlobalCreateNavigateStore.getState().takePendingAfterNavigate()
@@ -113,6 +137,25 @@ export function ChatShell({ onOpenAccountDialog }: Props): JSX.Element {
     webviewRef.current?.reload?.()
   }, [])
 
+  const messengerRailItems = useMemo(() => {
+    const items: { id: ChatMessengerRailId; ariaLabel: string; title: string }[] = msAccounts.map(
+      (acc) => {
+        const label = teamsChatAccountOptionLabel(acc)
+        return {
+          id: teamsMessengerRailId(acc.id),
+          ariaLabel: `Microsoft Teams — ${label}`,
+          title: `Microsoft Teams — ${label}`
+        }
+      }
+    )
+    items.push({
+      id: 'whatsapp',
+      ariaLabel: 'WhatsApp Web',
+      title: 'WhatsApp Web — im eingebetteten Fenster'
+    })
+    return items
+  }, [msAccounts])
+
   return (
     <main
       className="flex min-h-0 flex-1 flex-row bg-background"
@@ -120,29 +163,83 @@ export function ChatShell({ onOpenAccountDialog }: Props): JSX.Element {
     >
       <nav
         className="flex w-[56px] shrink-0 flex-col border-r border-border bg-card/90 py-3"
-        aria-label="Chat-Dienste"
+        aria-label="Messenger"
       >
-        <div className="flex flex-1 flex-col items-center gap-2.5 px-2">
-          {CHAT_SERVICES.map(({ id, label, description, Icon, avatarClass }) => {
-            const active = surface === id
+        <div className="flex flex-1 flex-col items-center gap-2.5 overflow-y-auto px-2">
+          {msAccounts.length >= 2 && (
+            <button
+              type="button"
+              onClick={(): void => selectMessenger(UNIFIED_TEAMS_MESSENGER_RAIL_ID)}
+              title="Microsoft Teams — alle Konten (gemeinsame Chatliste)"
+              aria-label="Microsoft Teams — alle Konten"
+              aria-current={activeMessengerId === UNIFIED_TEAMS_MESSENGER_RAIL_ID ? 'page' : undefined}
+              className={cn(
+                messengerRailButtonClass(activeMessengerId === UNIFIED_TEAMS_MESSENGER_RAIL_ID),
+                'bg-[#6264A7] text-white shadow-md shadow-[#6264A7]/25'
+              )}
+            >
+              <Layers className="h-[22px] w-[22px]" aria-hidden />
+              <span className="pointer-events-none absolute -bottom-0.5 -right-0.5 flex -space-x-1">
+                {msAccounts.slice(0, 3).map((acc, index) => (
+                  <AccountAvatarBadge
+                    key={acc.id}
+                    account={acc}
+                    imageSrc={accountDisplayAvatarDataUrls[acc.id]}
+                    size="xs"
+                    className={cn('ring-2 ring-[#6264A7]', index === 1 && 'z-[2]', index === 2 && 'z-[3]', index === 0 && 'z-[1]')}
+                  />
+                ))}
+              </span>
+            </button>
+          )}
+
+          {messengerRailItems.map((item) => {
+            const active = item.id === activeMessengerId
+            if (item.id === 'whatsapp') {
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={(): void => selectMessenger('whatsapp')}
+                  title={item.title}
+                  aria-label={item.ariaLabel}
+                  aria-current={active ? 'page' : undefined}
+                  className={cn(
+                    messengerRailButtonClass(active),
+                    'bg-[#25D366] text-white shadow-md shadow-[#25D366]/20'
+                  )}
+                >
+                  <MessageCircle className="h-[22px] w-[22px]" aria-hidden />
+                </button>
+              )
+            }
+
+            const accountId = item.id.slice('teams:'.length)
+            const acc = msAccounts.find((a) => a.id === accountId)
+            if (!acc) return null
+
             return (
               <button
-                key={id}
+                key={item.id}
                 type="button"
-                onClick={(): void => setSurface(id)}
-                title={`${label} — ${description}`}
-                aria-label={label}
+                onClick={(): void => selectMessenger(item.id)}
+                title={item.title}
+                aria-label={item.ariaLabel}
                 aria-current={active ? 'page' : undefined}
-                className={cn(
-                  'relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-transform',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-                  avatarClass,
-                  active
-                    ? 'scale-100 ring-2 ring-primary ring-offset-2 ring-offset-background'
-                    : 'opacity-90 hover:scale-[1.03] hover:opacity-100 hover:ring-2 hover:ring-border hover:ring-offset-2 hover:ring-offset-background'
-                )}
+                className={messengerRailButtonClass(active)}
               >
-                <Icon className="h-[22px] w-[22px]" aria-hidden />
+                <AccountAvatarBadge
+                  account={acc}
+                  imageSrc={accountDisplayAvatarDataUrls[acc.id]}
+                  size="sm"
+                  className="h-9 w-9"
+                />
+                <span
+                  className="pointer-events-none absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[#6264A7] text-white ring-2 ring-card"
+                  aria-hidden
+                >
+                  <MessageSquare className="h-2.5 w-2.5" />
+                </span>
               </button>
             )
           })}
@@ -150,7 +247,7 @@ export function ChatShell({ onOpenAccountDialog }: Props): JSX.Element {
       </nav>
 
       <section className="flex min-h-0 min-w-0 flex-1 flex-col">
-        {surface === 'whatsapp' && (
+        {isWhatsApp && (
           <header className={moduleColumnHeaderShellBarClass}>
             <div className="min-w-0 flex-1">
               <div className="truncate text-xs font-semibold text-foreground">WhatsApp Web</div>
@@ -176,8 +273,14 @@ export function ChatShell({ onOpenAccountDialog }: Props): JSX.Element {
         )}
 
         <div className="relative flex min-h-0 flex-1 flex-col">
-          {surface === 'teams' ? (
-            <TeamsChatPanel onOpenAccountDialog={onOpenAccountDialog} />
+          {!isWhatsApp ? (
+            <TeamsChatPanel
+              onOpenAccountDialog={onOpenAccountDialog}
+              accountId={teamsAccountId}
+              onAccountIdChange={handleTeamsAccountIdChange}
+              hideAccountSelector
+              unifiedInbox={isUnifiedTeams}
+            />
           ) : (
             <>
               {loadError != null && (

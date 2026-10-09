@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useResizableWidth, VerticalSplitter } from '@/components/ResizableSplitter'
 import { cn } from '@/lib/utils'
 import { modulePaneStackClass, moduleShellClass } from '@/components/module-shell-layout'
+import { chronellPanelDividerClass } from '@/lib/chronell-ui-classes'
 import { useModuleNavColumnWidth } from '@/lib/module-nav-column-width'
 import {
   MAIL_LEFT_SIDEBAR_COLLAPSED_KEY,
@@ -177,7 +178,10 @@ export function MailWorkspace(props: { onOpenAccountDialog: () => void }): JSX.E
         </>
       ) : null}
       <div className={cn(modulePaneStackClass, 'flex-row')}>
-      <div style={{ width: listWidth }} className="h-full shrink-0">
+      <div
+        style={{ width: listWidth }}
+        className={cn('h-full shrink-0 border-r', chronellPanelDividerClass)}
+      >
         <MailList
           leftSidebarCollapsed={leftSidebarCollapsed}
           onLeftSidebarCollapsedChange={setLeftSidebarCollapsed}
@@ -186,7 +190,12 @@ export function MailWorkspace(props: { onOpenAccountDialog: () => void }): JSX.E
       <VerticalSplitter onDrag={onDragList} ariaLabel={t('mail.workspace.splitterList')} />
       <div className="flex min-w-0 flex-1 overflow-hidden">
         {dockedReading ? (
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          <div
+            className={cn(
+              'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden',
+              dockedCalendar && cn('border-r', chronellPanelDividerClass)
+            )}
+          >
             <ReadingPane
               previewDetached={false}
               onTogglePreviewDetach={requestReadingUndock}

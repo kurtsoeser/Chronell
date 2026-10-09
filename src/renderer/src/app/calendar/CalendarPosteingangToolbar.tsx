@@ -1,4 +1,4 @@
-import { PanelRightClose, PanelRightOpen, BookOpen, LayoutDashboard } from 'lucide-react'
+import { BookOpen, LayoutPanelLeft, ListTree } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import {
   moduleColumnHeaderIconGlyphClass,
@@ -8,8 +8,9 @@ import {
 export function CalendarPosteingangToolbarButton(props: {
   open: boolean
   onOpenChange: (next: boolean) => void
+  buttonClassName?: (pressed: boolean) => string
 }): JSX.Element {
-  const { open, onOpenChange } = props
+  const { open, onOpenChange, buttonClassName } = props
   const { t } = useTranslation()
   return (
     <button
@@ -17,13 +18,11 @@ export function CalendarPosteingangToolbarButton(props: {
       title={open ? t('calendar.posteingangUi.toggleInboxHide') : t('calendar.posteingangUi.toggleInboxShow')}
       aria-pressed={open}
       onClick={(): void => onOpenChange(!open)}
-      className={moduleColumnHeaderToolbarToggleClass(open)}
+      className={
+        buttonClassName ? buttonClassName(open) : moduleColumnHeaderToolbarToggleClass(open)
+      }
     >
-      {open ? (
-        <PanelRightClose className={moduleColumnHeaderIconGlyphClass} />
-      ) : (
-        <PanelRightOpen className={moduleColumnHeaderIconGlyphClass} />
-      )}
+      <ListTree className={moduleColumnHeaderIconGlyphClass} />
     </button>
   )
 }
@@ -31,8 +30,9 @@ export function CalendarPosteingangToolbarButton(props: {
 export function CalendarContextSidebarToolbarButton(props: {
   open: boolean
   onOpenChange: (next: boolean) => void
+  buttonClassName?: (pressed: boolean) => string
 }): JSX.Element {
-  const { open, onOpenChange } = props
+  const { open, onOpenChange, buttonClassName } = props
   const { t } = useTranslation()
   return (
     <button
@@ -44,9 +44,11 @@ export function CalendarContextSidebarToolbarButton(props: {
       }
       aria-pressed={open}
       onClick={(): void => onOpenChange(!open)}
-      className={moduleColumnHeaderToolbarToggleClass(open)}
+      className={
+        buttonClassName ? buttonClassName(open) : moduleColumnHeaderToolbarToggleClass(open)
+      }
     >
-      <LayoutDashboard className={moduleColumnHeaderIconGlyphClass} />
+      <LayoutPanelLeft className={moduleColumnHeaderIconGlyphClass} />
     </button>
   )
 }
@@ -57,8 +59,9 @@ export function CalendarPreviewPaneToolbarButton(props: {
   /** Vollständige i18n-Keys; Standard: Kalender-Vorschau (Mail/Termin). */
   hideTitleKey?: string
   showTitleKey?: string
+  buttonClassName?: (pressed: boolean) => string
 }): JSX.Element {
-  const { open, onOpenChange, hideTitleKey, showTitleKey } = props
+  const { open, onOpenChange, hideTitleKey, showTitleKey, buttonClassName } = props
   const { t } = useTranslation()
   const hideKey = hideTitleKey ?? 'calendar.posteingangUi.togglePreviewHide'
   const showKey = showTitleKey ?? 'calendar.posteingangUi.togglePreviewShow'
@@ -68,7 +71,9 @@ export function CalendarPreviewPaneToolbarButton(props: {
       title={open ? t(hideKey) : t(showKey)}
       aria-pressed={open}
       onClick={(): void => onOpenChange(!open)}
-      className={moduleColumnHeaderToolbarToggleClass(open)}
+      className={
+        buttonClassName ? buttonClassName(open) : moduleColumnHeaderToolbarToggleClass(open)
+      }
     >
       <BookOpen className={moduleColumnHeaderIconGlyphClass} />
     </button>

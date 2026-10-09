@@ -22,6 +22,7 @@ const DEFAULT: WorkListViewPrefsV1 = {
 
 const ARRANGE_VALUES = new Set<TaskListArrangeBy>([
   'calendar_day',
+  'timeline_period',
   'todo_bucket',
   'due_date',
   'item_type',

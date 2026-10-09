@@ -1,6 +1,11 @@
 import type { TodoDueKindList } from '@shared/types'
 import type { WorkItemView } from '@shared/work-item'
 import { format, parseISO } from 'date-fns'
+import {
+  classifyTimelinePeriodFromIso,
+  TIMELINE_PERIOD_GROUP_RANK,
+  type TimelinePeriodGroupKey
+} from '@shared/timeline-period-group'
 import { groupLabelTodoDueBucketDe, rankOpenTodoBucket } from '@/lib/todo-due-bucket'
 import type {
   TaskListArrangeBy,
@@ -32,6 +37,10 @@ export interface WorkListArrangeContext {
   typeNoteLabel?: string
   /** Kalendertag (yyyy-MM-dd): Lesbare Gruppenüberschrift für Zeitliste / Arbeit. */
   formatCalendarDayGroupLabel?: (dayKeyYyyyMmDd: string) => string
+  /** IANA-Zeitzone für `timeline_period`-Gruppierung. */
+  timeZone?: string
+  /** Überschriften für Zeitliste: Heute, Morgen, diese Woche, … */
+  timelinePeriodLabel?: (key: TimelinePeriodGroupKey) => string
 }
 
 function calendarDayKeyFromIso(iso: string): string | null {
@@ -118,7 +127,8 @@ function bucketKey(label: string, sortKey: string | number): string {
 function groupKeyForView(
   item: WorkItemView,
   arrange: WorkListArrangeBy,
-  ctx: WorkListArrangeContext
+  ctx: WorkListArrangeContext,
+  nowMs: number
 ): { key: string; label: string; sortKey: string | number; todoKind: TodoDueKindList | null } {
   switch (arrange) {
     case 'todo_bucket': {
@@ -133,6 +143,20 @@ function groupKeyForView(
       )
     case 'calendar_day':
       return calendarDayGroupForView(item.effectiveSortIso?.trim(), ctx)
+    case 'timeline_period': {
+      const tz = ctx.timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone
+      const periodKey = classifyTimelinePeriodFromIso(item.effectiveSortIso?.trim(), tz, nowMs)
+      const label =
+        periodKey === 'no_date'
+          ? ctx.noDueLabel
+          : (ctx.timelinePeriodLabel?.(periodKey) ?? periodKey)
+      return {
+        key: periodKey,
+        label,
+        sortKey: TIMELINE_PERIOD_GROUP_RANK[periodKey],
+        todoKind: null
+      }
+    }
     case 'item_type': {
       if (item.kind === 'mail_todo') {
         return {
@@ -225,6 +249,14 @@ function sortGroups(
     g.sort((a, b) => (rank[a.key] ?? 99) - (rank[b.key] ?? 99))
     return g
   }
+  if (arrange === 'timeline_period') {
+    g.sort(
+      (a, b) =>
+        (TIMELINE_PERIOD_GROUP_RANK[a.key as TimelinePeriodGroupKey] ?? 99) -
+        (TIMELINE_PERIOD_GROUP_RANK[b.key as TimelinePeriodGroupKey] ?? 99)
+    )
+    return g
+  }
   if (arrange === 'due_date' || arrange === 'calendar_day') {
     g.sort((a, b) => {
       const empty = (k: string): boolean => k.startsWith('zzzz') || k === 'unknown'
@@ -244,7 +276,8 @@ export function computeWorkItemListLayout(
   arrange: WorkListArrangeBy,
   chrono: WorkListChronoOrder,
   filter: WorkListFilter,
-  ctx: WorkListArrangeContext
+  ctx: WorkListArrangeContext,
+  nowMs = Date.now()
 ): WorkListGroup[] {
   const filtered = filterViews(items, filter)
   if (arrange === 'none') {
@@ -255,7 +288,7 @@ export function computeWorkItemListLayout(
 
   const map = new Map<string, WorkListGroup>()
   for (const item of filtered) {
-    const { key, label, sortKey, todoKind } = groupKeyForView(item, arrange, ctx)
+    const { key, label, sortKey, todoKind } = groupKeyForView(item, arrange, ctx, nowMs)
     const mapKey = bucketKey(label, sortKey)
     const ex = map.get(mapKey)
     if (ex) ex.items.push(item)

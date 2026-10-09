@@ -24,18 +24,19 @@ import type { DateSelectArg, EventClickArg, EventInput } from '@fullcalendar/cor
 import type { DateClickArg } from '@fullcalendar/interaction'
 import type { CalendarEventView, MailListItem, TaskListRow } from '@shared/types'
 import {
-  CalendarCreateQuickPopover,
-  type CalendarCreateQuickDraft
+  CalendarCreateQuickPopover
 } from '@/app/calendar/CalendarCreateQuickPopover'
 import { CalendarEventDialog } from '@/app/calendar/CalendarEventDialog'
+import type { CalendarShellEventDialogState } from '@/app/calendar/calendar-shell-event-dialog-state'
+import { useMailCalendarDaySidebarFcInteractions } from '@/app/layout/mail-right-sidebar/use-mail-calendar-day-sidebar-fc-interactions'
+import { ObjectNoteDialog } from '@/components/ObjectNoteEditor'
 import {
   QUICK_CREATE_PLACEHOLDER_EVENT_ID,
   quickCreateRangeToFcPlaceholder
 } from '@/app/calendar/calendar-quick-create-placeholder'
 import type { CalendarCreateRange } from '@/app/tasks/tasks-calendar-create-range'
 import { useAccountsStore } from '@/stores/accounts'
-import { useAppModeStore } from '@/stores/app-mode'
-import { focusContextPreviewMailMessage, openCalendarEventInCustomViewOrModule } from '@/lib/focus-context-preview'
+import { focusContextPreviewMailMessage } from '@/lib/focus-context-preview'
 import { useInboxCalendarAgendaCacheStore } from '@/stores/inbox-calendar-agenda-cache'
 import { buildCalendarIncludeCalendars } from '@/lib/build-calendar-include-calendars'
 import {
@@ -48,13 +49,11 @@ import { timeGridFcSnapOptions } from '@/app/calendar/calendar-shell-storage'
 import { useSyncedTimeGridSlotMinutes } from '@/hooks/use-synced-time-grid-slot-minutes'
 import { useTimeGridSlotScaleContextMenu } from '@/hooks/use-time-grid-slot-scale-context-menu'
 import { ContextMenu, type ContextMenuItem } from '@/components/ContextMenu'
-import { accountColorToCssBackground } from '@/lib/avatar-color'
 import {
   buildCalendarDisplayHexByKey,
   buildDefaultGraphCalendarIdByAccount,
   resolveGraphEventDisplayHex
 } from '@/lib/calendar-event-display-hex'
-import { applyCalendarEventDomColors } from '@/lib/calendar-event-chip-style'
 import { useCalendarListByAccount } from '@/lib/use-calendar-list-by-account'
 import { useMailStore } from '@/stores/mail'
 import { openScheduleMeetingFromMail } from '@/lib/mail-schedule-meeting-action'
@@ -170,7 +169,6 @@ export function MailCalendarDaySidebar({
   const calError = useInboxCalendarAgendaCacheStore((s) => s.error)
   const loadAgendaFromCache = useInboxCalendarAgendaCacheStore((s) => s.loadAgenda)
 
-  const setAppMode = useAppModeStore((s) => s.setMode)
   const selectedMessage = useMailStore((s) => s.selectedMessage)
 
   const [anchorDay, setAnchorDay] = useState(() => readDay())
@@ -261,11 +259,6 @@ export function MailCalendarDaySidebar({
     anchor: { x: number; y: number }
     range: CalendarCreateRange
   } | null>(null)
-  const [eventDialog, setEventDialog] = useState<{
-    range: CalendarCreateRange
-    draft: CalendarCreateQuickDraft
-  } | null>(null)
-
   const dismissQuickCreate = useCallback((): void => {
     calendarRef.current?.getApi()?.unselect()
     setQuickCreate(null)
@@ -319,13 +312,6 @@ export function MailCalendarDaySidebar({
       cancelled = true
     }
   }, [dayStart, dayEndExcl])
-
-  const openCalendarEvent = useCallback(
-    (ev: CalendarEventView): void => {
-      openCalendarEventInCustomViewOrModule(ev, setAppMode)
-    },
-    [setAppMode]
-  )
 
   const ensureEventRangeInCache = useCallback(async (): Promise<void> => {
     if (calendarLinkedAccounts.length === 0) return
@@ -407,8 +393,7 @@ export function MailCalendarDaySidebar({
           displayColorHex: resolvedDisplayHex,
           joinUrl: ev.joinUrl,
           calendarEvent: ev
-        },
-        editable: false
+        }
       })
     }
     return out
@@ -456,6 +441,40 @@ export function MailCalendarDaySidebar({
       })
   }, [ensureEventRangeInCache, dayStart, dayEndExcl])
 
+  const fcInteractions = useMailCalendarDaySidebarFcInteractions({
+    calendarRef,
+    calendarLinkedAccounts,
+    taskAccounts,
+    accountColorById,
+    defaultGraphCalendarIdByAccount,
+    rangeStart: dayStart,
+    rangeEndExcl: dayEndExcl,
+    isTimeGridView,
+    canInteractInTimeGrid,
+    setMailTodos,
+    reloadDayData
+  })
+
+  const {
+    calendarEditable,
+    eventContextMenu,
+    setEventContextMenu,
+    eventDialog,
+    setEventDialog,
+    eventNoteTarget,
+    setEventNoteTarget,
+    mailNoteTarget,
+    setMailNoteTarget,
+    interactionError,
+    onEventDrop,
+    onEventResize,
+    onEventAllow,
+    onEventDragStart,
+    clearPointerManipulatingSoon,
+    eventDidMount: fcEventDidMount,
+    eventWillUnmount: fcEventWillUnmount
+  } = fcInteractions
+
   const timeGridFcSlotOpts = useMemo(
     () => timeGridFcSnapOptions(timeGridSlotMinutes),
     [timeGridSlotMinutes]
@@ -493,6 +512,7 @@ export function MailCalendarDaySidebar({
   const onEventClick = useCallback(
     (info: EventClickArg): void => {
       if (info.event.id === QUICK_CREATE_PLACEHOLDER_EVENT_ID) return
+      if (info.jsEvent.button !== 0) return
       info.jsEvent.preventDefault()
       const kind = info.event.extendedProps?.calendarKind as string | undefined
       if (kind === CALENDAR_KIND_MAIL_TODO) {
@@ -501,9 +521,11 @@ export function MailCalendarDaySidebar({
         return
       }
       const cal = info.event.extendedProps?.calendarEvent as CalendarEventView | undefined
-      if (cal) openCalendarEvent(cal)
+      if (cal) {
+        setEventDialog({ mode: 'edit', event: cal })
+      }
     },
-    [openCalendarEvent]
+    [setEventDialog]
   )
 
   const onMonthDateClick = useCallback((info: DateClickArg): void => {
@@ -588,8 +610,10 @@ export function MailCalendarDaySidebar({
       </div>
 
       <div className="min-h-0 flex-1 overflow-hidden">
-        {calError ? (
-          <p className="px-3 py-2 text-2xs leading-snug text-destructive">{calError}</p>
+        {calError || interactionError ? (
+          <p className="px-3 py-2 text-2xs leading-snug text-destructive">
+            {interactionError ?? calError}
+          </p>
         ) : null}
         {mailTodosErr ? (
           <p className="px-3 py-2 text-2xs leading-snug text-destructive">{mailTodosErr}</p>
@@ -630,7 +654,15 @@ export function MailCalendarDaySidebar({
               allDaySlot={viewMode !== 'month'}
               dayMaxEvents={viewMode === 'month'}
               views={dayGridMonthView}
-              editable={false}
+              editable={calendarEditable}
+              eventResizableFromStart={calendarEditable}
+              eventDragStart={onEventDragStart}
+              eventDragStop={clearPointerManipulatingSoon}
+              eventResizeStart={onEventDragStart}
+              eventResizeStop={clearPointerManipulatingSoon}
+              eventDrop={onEventDrop}
+              eventResize={onEventResize}
+              eventAllow={onEventAllow}
               selectable={canInteractInTimeGrid}
               selectMirror={false}
               selectLongPressDelay={380}
@@ -639,40 +671,8 @@ export function MailCalendarDaySidebar({
               dateClick={viewMode === 'month' ? onMonthDateClick : undefined}
               events={fcEvents}
               eventContent={calendarFcEventContentRender}
-              eventDidMount={(info): void => {
-                if (
-                  info.event.id === QUICK_CREATE_PLACEHOLDER_EVENT_ID ||
-                  info.el.classList.contains('fc-event-mirror')
-                ) {
-                  return
-                }
-                const kind = info.event.extendedProps.calendarKind as string | undefined
-                if (kind === CALENDAR_KIND_MAIL_TODO) {
-                  const raw = info.event.extendedProps.accountColor as string | undefined
-                  const bg = accountColorToCssBackground(raw)
-                  if (bg) {
-                    info.el.style.backgroundColor = bg
-                    info.el.style.borderColor = 'transparent'
-                    info.el.style.color = '#fafafa'
-                  } else {
-                    info.el.style.borderLeft = '4px solid hsl(var(--primary))'
-                  }
-                  return
-                }
-                const calEv = info.event.extendedProps.calendarEvent as
-                  | CalendarEventView
-                  | undefined
-                const displayHex =
-                  (info.event.extendedProps.displayColorHex as string | null | undefined) ??
-                  calEv?.displayColorHex
-                const tw =
-                  (info.event.extendedProps.accountColor as string | undefined) ??
-                  calEv?.accountColorClass
-                applyCalendarEventDomColors(info.el as HTMLElement, {
-                  displayColorHex: displayHex ?? null,
-                  accountTailwindBgClass: tw ?? null
-                })
-              }}
+              eventDidMount={fcEventDidMount}
+              eventWillUnmount={fcEventWillUnmount}
               eventClick={onEventClick}
             />
           </div>
@@ -693,7 +693,16 @@ export function MailCalendarDaySidebar({
               onSaved={reloadDayData}
               onOpenDetails={(draft): void => {
                 dismissQuickCreate()
-                setEventDialog({ range: draft.range, draft })
+                const next: CalendarShellEventDialogState = {
+                  mode: 'create',
+                  range: draft.range,
+                  createPrefill: { subject: draft.subject, location: '' },
+                  createAccountId: draft.accountId,
+                  createKind: draft.createKind,
+                  createGraphCalendarId: draft.graphCalendarId,
+                  createTaskListId: draft.taskListId
+                }
+                setEventDialog(next)
               }}
             />,
             document.body
@@ -702,21 +711,47 @@ export function MailCalendarDaySidebar({
 
       <CalendarEventDialog
         open={eventDialog != null}
-        mode="create"
+        mode={eventDialog?.mode ?? 'create'}
         accounts={calendarLinkedAccounts}
-        defaultAccountId={eventDialog?.draft.accountId ?? calendarLinkedAccounts[0]?.id}
-        initialRange={eventDialog?.range ?? undefined}
-        createPrefill={
-          eventDialog ? { subject: eventDialog.draft.subject, location: '' } : undefined
+        defaultAccountId={
+          eventDialog?.mode === 'create'
+            ? (eventDialog.createAccountId ?? calendarLinkedAccounts[0]?.id)
+            : undefined
         }
-        initialCreateKind={eventDialog?.draft.createKind}
-        initialGraphCalendarId={eventDialog?.draft.graphCalendarId || undefined}
-        initialTaskListId={eventDialog?.draft.taskListId || undefined}
+        initialRange={eventDialog?.mode === 'create' ? (eventDialog.range ?? undefined) : undefined}
+        createPrefill={eventDialog?.mode === 'create' ? eventDialog.createPrefill : undefined}
+        initialCreateKind={
+          eventDialog?.mode === 'create' ? eventDialog.createKind : undefined
+        }
+        initialGraphCalendarId={
+          eventDialog?.mode === 'create' ? eventDialog.createGraphCalendarId : undefined
+        }
+        initialTaskListId={
+          eventDialog?.mode === 'create' ? eventDialog.createTaskListId : undefined
+        }
+        initialEvent={eventDialog?.mode === 'edit' ? eventDialog.event : undefined}
         taskAccounts={taskAccounts}
         loadListsForAccount={loadTaskListsForAccount}
         onClose={(): void => setEventDialog(null)}
         onSaved={reloadDayData}
       />
+
+      <ObjectNoteDialog
+        target={mailNoteTarget ?? eventNoteTarget}
+        onClose={(): void => {
+          setMailNoteTarget(null)
+          setEventNoteTarget(null)
+        }}
+      />
+
+      {eventContextMenu ? (
+        <ContextMenu
+          x={eventContextMenu.x}
+          y={eventContextMenu.y}
+          items={eventContextMenu.items}
+          onClose={(): void => setEventContextMenu(null)}
+        />
+      ) : null}
 
       {slotScaleContextMenu ? (
         <ContextMenu

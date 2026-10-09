@@ -70,6 +70,11 @@ const SECTION_PROMPTS: Record<
       id: 'compose.forward',
       labelKey: 'settings.copilot.composeForwardLabel',
       hintKey: 'settings.copilot.composeForwardHint'
+    },
+    {
+      id: 'compose.proofread',
+      labelKey: 'settings.copilot.composeProofreadLabel',
+      hintKey: 'settings.copilot.composeProofreadHint'
     }
   ],
   contact: [

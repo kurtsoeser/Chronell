@@ -89,6 +89,12 @@ import {
   isComposeBodyEffectivelyEmpty
 } from '@/lib/compose-default-body'
 import { useComposeSettingsPrefs } from '@/lib/use-compose-settings-prefs'
+import { ComposeAutoCorrectExtension } from '@/components/tiptap-compose-autocorrect'
+import {
+  parseComposeAutoCorrectBlocklistText,
+  setComposeAutoCorrectRuntime
+} from '@/lib/compose-autocorrect-runtime'
+import { addWordToComposeAutoCorrectBlocklist } from '@/lib/compose-autocorrect-blocklist'
 import {
   composeEditorScalePercent,
   useComposeEditorScaleStore
@@ -107,6 +113,9 @@ const TIPTAP_CONTENT_BLOCK_CLASS = cn(
   '[&_img]:rounded [&_img]:my-2 [&_hr]:my-3 [&_hr]:border-border',
   '[&_table_td>p]:mb-0 [&_table_td>p]:mt-0 [&_table_th>p]:mb-0 [&_table_th>p]:mt-0'
 )
+
+/** DOM-Attribut für Chromium/Electron-Rechtschreibprüfung (Sprachen im Main-Prozess). */
+const TIPTAP_EDITOR_SPELLCHECK_ATTR = { spellcheck: 'true' }
 
 /** Überschrift anwenden und Compose-Standard-Schriftgröße entfernen (sonst zu klein). */
 function applyTiptapHeading(editor: Editor, level: 1 | 2 | 3): void {
@@ -255,15 +264,24 @@ export function TipTapBody({
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const attachmentInputRef = useRef<HTMLInputElement | null>(null)
   const [colorPickerOpen, setColorPickerOpen] = useState<'text' | 'highlight' | null>(null)
-  const [editorContextMenu, setEditorContextMenu] = useState<{ x: number; y: number } | null>(
-    null
-  )
+  const [editorContextMenu, setEditorContextMenu] = useState<{
+    x: number
+    y: number
+    spelling: { misspelledWord: string; suggestions: string[] } | null
+  } | null>(null)
   const [snippetEditorOpen, setSnippetEditorOpen] = useState<ComposeTextSnippetEditorState | null>(
     null
   )
   const openEditorContextMenuRef = useRef<(x: number, y: number) => void>(() => {})
   openEditorContextMenuRef.current = (x, y): void => {
-    setEditorContextMenu({ x, y })
+    const fetchSpell = window.mailClient?.spellcheck?.getContextMenuSpell
+    if (typeof fetchSpell !== 'function') {
+      setEditorContextMenu({ x, y, spelling: null })
+      return
+    }
+    void fetchSpell({ x, y }).then((spelling) => {
+      setEditorContextMenu({ x, y, spelling })
+    })
   }
   const composeScale = useComposeEditorScaleStore((s) => s.scale)
   const composeEditorTheme = useComposeEditorEffectiveTheme()
@@ -282,6 +300,21 @@ export function TipTapBody({
     () => (inEditorSurface ? composeEditorSurfaceStyle(composePrefs, composeEditorTheme) : null),
     [composePrefs, composeEditorTheme, inEditorSurface]
   )
+
+  useEffect(() => {
+    if (!inEditorSurface) {
+      setComposeAutoCorrectRuntime({ enabled: false, blocklist: new Set() })
+      return
+    }
+    setComposeAutoCorrectRuntime({
+      enabled: composePrefs.composeAutoCorrectOnSpace,
+      blocklist: parseComposeAutoCorrectBlocklistText(composePrefs.composeAutoCorrectBlocklistText)
+    })
+  }, [
+    inEditorSurface,
+    composePrefs.composeAutoCorrectOnSpace,
+    composePrefs.composeAutoCorrectBlocklistText
+  ])
 
   const extensions = useMemo(
     () => [
@@ -341,9 +374,19 @@ export function TipTapBody({
               onLinkError: noteEntityMentions?.onLinkError
             })
           ]
-        : [])
+        : []),
+      ...(inEditorSurface ? [ComposeAutoCorrectExtension] : [])
     ],
-    [placeholder, enableTaskList, enableWikiLinks, enableEntityMentions, wikiLinkCurrentNoteId, noteWikiLinks, noteEntityMentions]
+    [
+      placeholder,
+      enableTaskList,
+      enableWikiLinks,
+      enableEntityMentions,
+      wikiLinkCurrentNoteId,
+      noteWikiLinks,
+      noteEntityMentions,
+      inEditorSurface
+    ]
   )
 
   useEffect(() => {
@@ -425,6 +468,7 @@ export function TipTapBody({
           TIPTAP_CONTENT_BLOCK_CLASS,
           !inEditorSurface && '[&_a]:text-primary'
         ),
+        ...TIPTAP_EDITOR_SPELLCHECK_ATTR,
         ...(editorSurfaceStyle
           ? {
               style: `font-family:${editorSurfaceStyle.fontFamily};font-size:${editorSurfaceStyle.fontSize};color:${editorSurfaceStyle.color};line-height:${editorSurfaceStyle.lineHeight}`
@@ -464,6 +508,7 @@ export function TipTapBody({
             contentMinHeight,
             TIPTAP_CONTENT_BLOCK_CLASS
           ),
+          ...TIPTAP_EDITOR_SPELLCHECK_ATTR,
           style: `font-family:${style.fontFamily};font-size:${style.fontSize};color:${style.color};line-height:${style.lineHeight}`
         }
       }
@@ -862,7 +907,21 @@ export function TipTapBody({
           editor={editor}
           x={editorContextMenu.x}
           y={editorContextMenu.y}
+          spelling={editorContextMenu.spelling}
           onClose={(): void => setEditorContextMenu(null)}
+          onAddToAutoCorrectBlocklist={
+            inEditorSurface
+              ? (word): void => {
+                  const added = addWordToComposeAutoCorrectBlocklist(word)
+                  void showAppAlert(
+                    added
+                      ? t('editorContextMenu.autoCorrectBlocklistAdded', { word })
+                      : t('editorContextMenu.autoCorrectBlocklistAlready', { word }),
+                    { title: t('editorContextMenu.autoCorrectBlocklistTitle') }
+                  )
+                }
+              : undefined
+          }
           onAdoptAsSnippet={(): void => {
             const selectedHtml = getEditorSelectionSnippetHtml(editor)
             if (!selectedHtml) {

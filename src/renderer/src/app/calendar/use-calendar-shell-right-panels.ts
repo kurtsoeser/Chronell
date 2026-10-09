@@ -6,10 +6,6 @@ import type { CloudTaskListItem } from '@/app/tasks/tasks-types'
 import {
   CAL_SIDE_PANEL_MIN_WIDTH_PX,
   calendarSidePanelMaxWidthPx,
-  persistRightInboxOpen,
-  persistRightPreviewOpen,
-  readRightInboxOpenFromStorage,
-  readRightPreviewOpenFromStorage
 } from '@/app/calendar/calendar-shell-storage'
 import { useResizableWidth } from '@/components/ResizableSplitter'
 import { useCalendarPanelLayoutStore } from '@/stores/calendar-panel-layout'
@@ -59,8 +55,10 @@ export function useCalendarShellRightPanels({
   setPreviewCloudTaskPlannedFromTimeline,
   setError
 }: UseCalendarShellRightPanelsParams) {
-  const [rightInboxOpen, setRightInboxOpen] = useState(readRightInboxOpenFromStorage)
-  const [rightPreviewOpen, setRightPreviewOpen] = useState(readRightPreviewOpenFromStorage)
+  const rightInboxOpen = useCalendarPanelLayoutStore((s) => s.rightInboxOpen)
+  const setRightInboxOpen = useCalendarPanelLayoutStore((s) => s.setRightInboxOpen)
+  const rightPreviewOpen = useCalendarPanelLayoutStore((s) => s.rightPreviewOpen)
+  const setRightPreviewOpen = useCalendarPanelLayoutStore((s) => s.setRightPreviewOpen)
   const [sidePanelMaxWidth, setSidePanelMaxWidth] = useState(() => calendarSidePanelMaxWidthPx())
 
   useEffect(() => {
@@ -203,24 +201,28 @@ export function useCalendarShellRightPanels({
   const undockPreviewPanel = useCallback((): void => {
     if (useOsFloatingPanels) {
       void openCalendarPreviewOsPopout(buildPreviewPopoutStash(), previewColumnLabel)
-      persistRightPreviewOpen(false)
       setRightPreviewOpen(false)
       setPreviewPlacement('dock')
       return
     }
     setPreviewPlacement('float')
-  }, [useOsFloatingPanels, buildPreviewPopoutStash, previewColumnLabel, setPreviewPlacement])
+  }, [
+    useOsFloatingPanels,
+    buildPreviewPopoutStash,
+    previewColumnLabel,
+    setPreviewPlacement,
+    setRightPreviewOpen
+  ])
 
   const undockInboxPanel = useCallback((): void => {
     if (useOsFloatingPanels) {
       void openCalendarZeitlisteOsPopout(t('mega.shell.title'))
-      persistRightInboxOpen(false)
       setRightInboxOpen(false)
       setInboxPlacement('dock')
       return
     }
     setInboxPlacement('float')
-  }, [useOsFloatingPanels, t, setInboxPlacement])
+  }, [useOsFloatingPanels, t, setInboxPlacement, setRightInboxOpen])
 
   const previewFloatPos = useMemo(() => {
     const x = Math.max(12, window.innerWidth - previewFloatWidth - 20)
@@ -267,7 +269,6 @@ export function useCalendarShellRightPanels({
         }
         setPreviewCloudTaskPlannedFromTimeline(item.planned)
         setPreviewCloudTask(task)
-        persistRightPreviewOpen(true)
         setRightPreviewOpen(true)
         return
       }
@@ -276,7 +277,6 @@ export function useCalendarShellRightPanels({
         setPreviewCloudTask(null)
         setPreviewCloudTaskPlannedFromTimeline(null)
         void selectMessageWithThreadPreview(item.messageId)
-        persistRightPreviewOpen(true)
         setRightPreviewOpen(true)
         return
       }
@@ -284,7 +284,6 @@ export function useCalendarShellRightPanels({
       setPreviewCloudTask(null)
       setPreviewCloudTaskPlannedFromTimeline(null)
       setPreviewCalendarEvent(item.event)
-      persistRightPreviewOpen(true)
       setRightPreviewOpen(true)
     },
     [
@@ -293,29 +292,32 @@ export function useCalendarShellRightPanels({
       setError,
       setPreviewCalendarEvent,
       setPreviewCloudTask,
-      setPreviewCloudTaskPlannedFromTimeline
+      setPreviewCloudTaskPlannedFromTimeline,
+      setRightPreviewOpen
     ]
   )
 
-  const onRightInboxOpenChange = useCallback((next: boolean): void => {
-    persistRightInboxOpen(next)
-    setRightInboxOpen(next)
-  }, [])
+  const onRightInboxOpenChange = useCallback(
+    (next: boolean): void => {
+      setRightInboxOpen(next)
+    },
+    [setRightInboxOpen]
+  )
 
-  const onRightPreviewOpenChange = useCallback((next: boolean): void => {
-    persistRightPreviewOpen(next)
-    setRightPreviewOpen(next)
-  }, [])
+  const onRightPreviewOpenChange = useCallback(
+    (next: boolean): void => {
+      setRightPreviewOpen(next)
+    },
+    [setRightPreviewOpen]
+  )
 
   const closeRightInbox = useCallback((): void => {
-    persistRightInboxOpen(false)
     setRightInboxOpen(false)
-  }, [])
+  }, [setRightInboxOpen])
 
   const closeRightPreview = useCallback((): void => {
-    persistRightPreviewOpen(false)
     setRightPreviewOpen(false)
-  }, [])
+  }, [setRightPreviewOpen])
 
   return {
     rightInboxOpen,

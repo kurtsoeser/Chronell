@@ -66,7 +66,8 @@ export const IPC = {
     getMe: 'graph:get-me',
     listTeamsChats: 'graph:list-teams-chats',
     listTeamsChatMessages: 'graph:list-teams-chat-messages',
-    sendTeamsChatMessage: 'graph:send-teams-chat-message'
+    sendTeamsChatMessage: 'graph:send-teams-chat-message',
+    markTeamsChatReadForUser: 'graph:mark-teams-chat-read-for-user'
   },
   teamsChatPopout: {
     open: 'teams-chat-popout:open',
@@ -141,6 +142,17 @@ export const IPC = {
     cacheSet: 'copilot:cache-set',
     workIqStatus: 'copilot:workiq-status',
     workIqEnable: 'copilot:workiq-enable'
+  },
+  languageTool: {
+    check: 'languagetool:check',
+    getCredentialsStatus: 'languagetool:get-credentials-status',
+    setApiKey: 'languagetool:set-api-key'
+  },
+  spellcheck: {
+    suggest: 'spellcheck:suggest',
+    getContextMenuSpell: 'spellcheck:get-context-menu-spell',
+    replaceMisspelling: 'spellcheck:replace-misspelling',
+    addWordToDictionary: 'spellcheck:add-word-to-dictionary'
   },
   notes: {
     getMail: 'notes:get-mail',

@@ -14,6 +14,8 @@ export * from './notes'
 export * from './notion'
 export * from './compose'
 export * from './copilot'
+export * from './languagetool'
+export * from './spellcheck'
 export * from './demo'
 export * from '../msforms-types'
 

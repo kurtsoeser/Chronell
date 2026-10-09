@@ -1,0 +1,115 @@
+/**
+ * Angedockte Kalender-Spalten (Zeitliste · Kalender · Vorschau · Kontext).
+ * Linke Nav (Mini-Kalender) bleibt außerhalb — siehe `.module-nav-column`.
+ */
+
+.calendar-shell-workspace .chronell-module-pane-stack.calendar-shell-dock-row {
+  border-top-left-radius: 0;
+  background: transparent;
+}
+
+.calendar-shell-dock-column {
+  background: color-mix(in srgb, var(--chronell-bg-card-solid) 96%, transparent);
+  box-sizing: border-box;
+}
+
+.dark .calendar-shell-workspace .calendar-shell-dock-column {
+  background: color-mix(in srgb, var(--chronell-bg-card-solid) 94%, transparent);
+}
+
+.calendar-shell-dock-column--calendar {
+  min-width: 17.5rem;
+}
+
+/** Einheitliche Kopfzeilen-Höhe aller Dock-Spalten (40px). */
+.calendar-shell-workspace {
+  --calendar-shell-dock-header-h: 2.5rem;
+}
+
+.calendar-shell-dock-column-header {
+  display: flex;
+  height: var(--calendar-shell-dock-header-h);
+  max-height: var(--calendar-shell-dock-header-h);
+  min-height: var(--calendar-shell-dock-header-h);
+  flex-shrink: 0;
+  align-items: center;
+  border-bottom: 1px solid var(--chronell-panel-divider);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.calendar-shell-dock-column-header .chronell-column-header--card {
+  height: 100%;
+  min-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.calendar-shell-dock-subtoolbar {
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--chronell-panel-divider);
+}
+
+/* Kalender-Spalte: gleiche Höhe wie Zeitliste/Vorschau — eine Zeile, kein zweizeiliges Grid */
+.calendar-shell-workspace .calendar-shell-header-container {
+  height: var(--calendar-shell-dock-header-h);
+  max-height: var(--calendar-shell-dock-header-h);
+  min-height: var(--calendar-shell-dock-header-h);
+  flex-shrink: 0;
+  /* Ansichtsmenü (Woche/Tag/…) darf unter der Zeile aufklappen */
+  overflow: visible;
+  position: relative;
+  z-index: 20;
+  border-bottom: 1px solid var(--chronell-panel-divider);
+}
+
+.calendar-shell-workspace .calendar-shell-header-container > header.calendar-shell-dock-column-header {
+  display: flex;
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
+  align-items: center;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+  overflow: visible;
+}
+
+.calendar-shell-workspace .calendar-shell-header-bar {
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+  gap: 0.375rem;
+}
+
+.calendar-shell-workspace .calendar-shell-header-area-date {
+  min-width: 0;
+  max-width: min(100%, 22rem);
+}
+
+.calendar-shell-workspace .calendar-shell-header-area-date .chronell-type-calendar-range-subtitle {
+  display: none;
+}
+
+.calendar-shell-workspace .calendar-shell-header-area-date .chronell-type-calendar-range-title {
+  margin: 0;
+  line-height: 1.25rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.calendar-shell-workspace .calendar-shell-header-area-actions {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: visible;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.calendar-shell-workspace .calendar-shell-header-area-actions::-webkit-scrollbar {
+  display: none;
+}

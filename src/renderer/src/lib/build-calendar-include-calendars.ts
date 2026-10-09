@@ -10,6 +10,38 @@ import {
  * (sichtbare = alle ausser in `hiddenKeys` bzw. localStorage ausgeblendete;
  * zusaetzlich ohne in `sidebarHiddenKeys` entfernte Seitenleisten-Kalender).
  */
+export function buildCalendarIncludeCalendarsSync(
+  linkedAccounts: ConnectedAccount[],
+  calendarsByAccount: Record<string, CalendarGraphCalendarRow[] | undefined>,
+  hiddenKeys: Set<string>,
+  sidebarHiddenKeys: Set<string>
+): { accountId: string; graphCalendarId: string }[] {
+  const out: { accountId: string; graphCalendarId: string }[] = []
+  for (const acc of linkedAccounts) {
+    if (acc.provider !== 'microsoft' && acc.provider !== 'google') continue
+    const rows = calendarsByAccount[acc.id]
+    if (!rows?.length) continue
+    for (const cal of rows) {
+      const vk = calendarVisibilityKey(acc.id, cal.id)
+      if (!hiddenKeys.has(vk) && !sidebarHiddenKeys.has(vk)) {
+        out.push({ accountId: acc.id, graphCalendarId: cal.id })
+      }
+    }
+  }
+  return out
+}
+
+export function calendarLinkedAccountsHaveCalendarRows(
+  linkedAccounts: ConnectedAccount[],
+  calendarsByAccount: Record<string, CalendarGraphCalendarRow[] | undefined>
+): boolean {
+  for (const acc of linkedAccounts) {
+    if (acc.provider !== 'microsoft' && acc.provider !== 'google') continue
+    if (!(calendarsByAccount[acc.id]?.length ?? 0)) return false
+  }
+  return true
+}
+
 export async function buildCalendarIncludeCalendars(
   linkedAccounts: ConnectedAccount[],
   calendarsByAccount?: Record<string, CalendarGraphCalendarRow[]>,

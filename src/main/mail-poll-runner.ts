@@ -21,6 +21,10 @@ export function setActivePollFolder(folderId: number | null): void {
   activeFolderId = folderId
 }
 
+export function getActivePollFolder(): number | null {
+  return activeFolderId
+}
+
 function resolvePollIntervalMs(): number {
   const sec = loadConfigSync().mailPollIntervalSeconds ?? 30
   return clampMailPollIntervalSeconds(sec) * 1000

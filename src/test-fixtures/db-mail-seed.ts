@@ -66,6 +66,7 @@ export function insertTestMessage(
     hasAttachments?: boolean
     fromAddr?: string | null
     fromName?: string | null
+    toAddrs?: string | null
     bodyText?: string | null
     receivedAt?: string
   }
@@ -73,9 +74,9 @@ export function insertTestMessage(
   const res = db
     .prepare(
       `INSERT INTO messages (
-         account_id, folder_id, remote_id, subject, from_addr, from_name,
+         account_id, folder_id, remote_id, subject, from_addr, from_name, to_addrs,
          body_text, is_read, is_flagged, has_attachments, received_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       input.accountId,
@@ -84,6 +85,7 @@ export function insertTestMessage(
       input.subject,
       input.fromAddr ?? null,
       input.fromName ?? null,
+      input.toAddrs ?? null,
       input.bodyText ?? null,
       input.isRead ? 1 : 0,
       input.isFlagged ? 1 : 0,
@@ -100,4 +102,35 @@ export function insertTestMessage(
     hasAttachments: input.hasAttachments ?? false,
     fromAddr: input.fromAddr ?? null
   }
+}
+
+export function insertTestAttachment(
+  db: Database.Database,
+  input: { messageId: number; name: string; remoteId?: string }
+): number {
+  const res = db
+    .prepare(
+      `INSERT INTO attachments (message_id, remote_id, name, mime, size, is_inline)
+       VALUES (?, ?, ?, 'application/octet-stream', 0, 0)`
+    )
+    .run(input.messageId, input.remoteId ?? `att-${input.messageId}`, input.name)
+  return Number(res.lastInsertRowid)
+}
+
+export function insertTestMessageTag(
+  db: Database.Database,
+  input: { messageId: number; accountId: string; tag: string }
+): void {
+  db.prepare(
+    `INSERT INTO message_tags (message_id, account_id, tag) VALUES (?, ?, ?)`
+  ).run(input.messageId, input.accountId, input.tag)
+}
+
+export function insertTestMessageParticipant(
+  db: Database.Database,
+  input: { messageId: number; accountId: string; email: string }
+): void {
+  db.prepare(
+    `INSERT OR IGNORE INTO message_participants (message_id, account_id, email) VALUES (?, ?, ?)`
+  ).run(input.messageId, input.accountId, input.email)
 }

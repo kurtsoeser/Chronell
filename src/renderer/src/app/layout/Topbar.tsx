@@ -107,7 +107,7 @@ import {
 import { TopbarTabsOverflowMeasureButton } from '@/app/layout/TopbarTabsOverflowMeasureButton'
 import { ContextMenu, type ContextMenuItem } from '@/components/ContextMenu'
 import { useMailWorkspaceLayoutStore } from '@/stores/mail-workspace-layout'
-import { useCalendarPanelLayoutStore } from '@/stores/calendar-panel-layout'
+import { CalendarShellTopbarToggles } from '@/app/calendar/CalendarShellTopbarToggles'
 import { useConnectivityStore } from '@/stores/connectivity'
 import { TopbarGlobalSearch } from '@/app/layout/TopbarGlobalSearch'
 import {
@@ -898,9 +898,6 @@ export function Topbar({ onOpenAccountDialog }: Props): JSX.Element {
 
   const readingOpenMw = useMailWorkspaceLayoutStore((s) => s.readingOpen)
   const calendarOpenMw = useMailWorkspaceLayoutStore((s) => s.calendarOpen)
-  const contextOpenCal = useCalendarPanelLayoutStore((s) => s.contextOpen)
-  const setContextOpenCal = useCalendarPanelLayoutStore((s) => s.setContextOpen)
-  const setContextPlacementCal = useCalendarPanelLayoutStore((s) => s.setContextPlacement)
   const setReadingOpenMw = useMailWorkspaceLayoutStore((s) => s.setReadingOpen)
   const setCalendarOpenMw = useMailWorkspaceLayoutStore((s) => s.setCalendarOpen)
   const setReadingPlacementMw = useMailWorkspaceLayoutStore((s) => s.setReadingPlacement)
@@ -1124,20 +1121,7 @@ export function Topbar({ onOpenAccountDialog }: Props): JSX.Element {
             <Calendar className="h-4 w-4" />
           </button>
         ) : null}
-        {mode === 'calendar' && !contextOpenCal ? (
-          <button
-            type="button"
-            title={t('topbar.contextSidebarShowTitle')}
-            onClick={(): void => {
-              setContextOpenCal(true)
-              setContextPlacementCal('dock')
-            }}
-            className="flex h-8 w-8 items-center justify-center rounded-md border border-dashed border-border text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-            aria-label={t('topbar.contextSidebarShowAria')}
-          >
-            <LayoutDashboard className="h-4 w-4" />
-          </button>
-        ) : null}
+        {mode === 'calendar' ? <CalendarShellTopbarToggles /> : null}
 
         <button
           type="button"

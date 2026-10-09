@@ -1099,7 +1099,7 @@ export function MailList(props: {
                   {todoKind != null ? (
                     <TodoDueBucketBadge kind={todoKind} />
                   ) : (
-                    <span className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    <span className="chronell-type-date-group-label">
                       {label}
                     </span>
                   )}
@@ -1540,8 +1540,8 @@ const ThreadHeadRow = memo(function ThreadHeadRow({
                 />
                 <span
                   className={cn(
-                    'min-w-0 flex-1 truncate text-xs',
-                    isUnread ? 'font-semibold text-foreground' : 'text-muted-foreground'
+                    'chronell-type-list-secondary min-w-0 flex-1 truncate font-medium',
+                    isUnread ? 'text-foreground' : 'opacity-80'
                   )}
                 >
                   {senderLabel}
@@ -1582,8 +1582,8 @@ const ThreadHeadRow = memo(function ThreadHeadRow({
             <div className="flex w-full items-center gap-1.5">
               <span
                 className={cn(
-                  'min-w-0 flex-1 truncate text-xs',
-                  isUnread ? 'font-semibold text-foreground' : 'text-foreground/85'
+                  'chronell-type-list-primary min-w-0 flex-1 truncate',
+                  !isUnread && 'font-medium'
                 )}
               >
                 {root.subject || t('common.noSubject')}
@@ -1597,7 +1597,7 @@ const ThreadHeadRow = memo(function ThreadHeadRow({
             </div>
             <MailCategoryBadges categories={latest.categories} />
             {latest.snippet && (
-              <div className="line-clamp-1 text-2xs text-muted-foreground/85">
+              <div className="chronell-type-list-meta line-clamp-1">
                 {latest.snippet}
               </div>
             )}

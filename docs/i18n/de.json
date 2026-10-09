@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Chronell — Manage deine Zeit, nicht deine Inbox",
-    "description": "Chronell 1.3.2: Individuelle Ansichten mit Layout-Assistent, Mail- und Kalender-Arbeitsbereich — Desktop-Arbeitszentrale für Windows 11 mit Microsoft 365 und Google."
+    "description": "Chronell 1.3.3: Individuelle Ansichten mit Layout-Assistent, Mail- und Kalender-Arbeitsbereich — Desktop-Arbeitszentrale für Windows 11 mit Microsoft 365 und Google."
   },
   "nav": {
     "method": "Die Methode",
@@ -188,8 +188,15 @@
     "eyebrow": "Release-Überblick",
     "title": "Was in den letzten Updates passiert ist",
     "lead": "Vom neuen Fluent-Look über den Verbindungs-Graph bis zum Profil-Sync — Chronell wächst schnell, ohne deine Mails in die Cloud zu legen.",
-    "v132": {
+    "v133": {
       "badge": "Aktuell",
+      "date": "Oktober 2026",
+      "title": "Kalender und Mail",
+      "b1": "Kalender: Kalender und Termine: Dialog, Vorschau, Kategorien und Shell (ueberarbeiteter Termin-Dialog; Termin-Vorschau)",
+      "b2": "Mail: Mail-Arbeitsbereich: Sidebar, Anhaenge, EWS und Aktionen (Kontext-Sidebar in Mail (Kontakt, Historie, Kalender); Composer und Lesefenster)",
+      "b3": "Plattform: App-Shell, Sync und IPC (10 Datei(en) geaendert)",
+      "b4": "Homepage: Release-Texte, Homepage-Timeline und Download auf 1.3.3"
+    },"v132": {
       "date": "Oktober 2026",
       "title": "Kalender-Zeitskala und Meeting-Updates",
       "b1": "Kalender: Niedrigeres Zeitraster in Woche und Kontextleiste; Rechtsklick auf die Uhrzeiten-Spalte wählt die Zeitskala (5–60 Min, wie in Outlook)",

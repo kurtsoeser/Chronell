@@ -2,6 +2,7 @@ import { app, BrowserWindow, screen } from 'electron'
 import { resolveAppWindowIcon } from './app-icon'
 import { popoutWindowTitleBarOptions } from './window-titlebar'
 import { attachChromiumZoomShortcutGuard } from './zoom-shortcut-guard'
+import { attachChromiumContextMenuSpellCapture } from './chromium-context-menu-spell'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -96,6 +97,7 @@ export function openQuickCapturePopout(): void {
 
   quickCaptureWindow = win
   attachChromiumZoomShortcutGuard(win.webContents)
+  attachChromiumContextMenuSpellCapture(win.webContents)
 
   win.on('closed', () => {
     if (quickCaptureWindow === win) quickCaptureWindow = null

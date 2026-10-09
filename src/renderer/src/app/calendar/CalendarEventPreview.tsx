@@ -1733,6 +1733,7 @@ export function CalendarEventPreview(props: {
             title={t(meetingEnded ? 'copilot.meeting.reviewTitle' : 'copilot.meeting.title')}
             retrievalQuery={ev.title?.trim() || null}
             collapsedDefault
+            className="mx-4 mb-3 rounded-xl border border-white/[0.06] bg-secondary/[0.03] dark:border-white/[0.08]"
             noteTarget={noteTarget}
           />
         ) : null}

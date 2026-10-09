@@ -7,15 +7,22 @@ import {
   moduleColumnHeaderOutlineSmClass,
   moduleColumnHeaderShellBarClass
 } from '@/components/ModuleColumnHeader'
+import { AccountAvatarBadge } from '@/components/AccountAvatarBadge'
+import { AccountColorStripe } from '@/components/AccountColorStripe'
+import { MAIL_LIST_UNIFIED_INBOX_STRIPE_BAR } from '@/lib/mail-list-ui'
 import { useAccountsStore } from '@/stores/accounts'
-import type { TeamsChatMessageView, TeamsChatSummary } from '@shared/types'
+import type { ConnectedAccount, TeamsChatMessageView, TeamsChatSummary } from '@shared/types'
 import { TeamsChatMessageRow, type TeamsChatMessageRowCtx } from './TeamsChatMessageRow'
 import {
   chatTitle,
   dayKey,
   formatDay,
   formatTime,
-  titleBucketKey
+  teamsChatAccountOptionLabel,
+  teamsChatSelectionKey,
+  titleBucketKey,
+  type TeamsChatListEntry,
+  type TeamsChatSelection
 } from './teams-chat-helpers'
 import { useTeamsChatPopoutState } from './use-teams-chat-popout-state'
 import { TeamsChatPopoutDock } from './TeamsChatPopoutDock'
@@ -25,7 +32,7 @@ interface GraphMe {
   displayName?: string
 }
 
-type TeamsChatListFilter = 'all' | 'oneOnOne' | 'group' | 'meeting'
+type TeamsChatListFilter = 'all' | 'unread' | 'oneOnOne' | 'group' | 'meeting'
 type TeamsChatListGroupMode = 'none' | 'by_date' | 'by_title'
 
 const CHAT_LIST_VIEW_STORAGE_KEY = 'mailclient.teamsChat.chatListView'
@@ -36,7 +43,12 @@ function loadTeamsChatListPrefs(): { filter: TeamsChatListFilter; groupMode: Tea
     if (!raw) return { filter: 'all', groupMode: 'none' }
     const j = JSON.parse(raw) as { filter?: string; groupMode?: string }
     const filter: TeamsChatListFilter =
-      j.filter === 'oneOnOne' || j.filter === 'group' || j.filter === 'meeting' ? j.filter : 'all'
+      j.filter === 'unread' ||
+      j.filter === 'oneOnOne' ||
+      j.filter === 'group' ||
+      j.filter === 'meeting'
+        ? j.filter
+        : 'all'
     const groupMode: TeamsChatListGroupMode =
       j.groupMode === 'by_date' || j.groupMode === 'by_title' ? j.groupMode : 'none'
     return { filter, groupMode }
@@ -47,6 +59,7 @@ function loadTeamsChatListPrefs(): { filter: TeamsChatListFilter; groupMode: Tea
 
 function chatMatchesListFilter(c: TeamsChatSummary, f: TeamsChatListFilter): boolean {
   if (f === 'all') return true
+  if (f === 'unread') return c.hasUnread === true
   const t = (c.chatType ?? '').toLowerCase()
   if (f === 'oneOnOne') return t === 'oneonone'
   if (f === 'group') return t === 'group'
@@ -54,7 +67,7 @@ function chatMatchesListFilter(c: TeamsChatSummary, f: TeamsChatListFilter): boo
   return true
 }
 
-function sortChatsByLastActivityDesc(list: TeamsChatSummary[]): TeamsChatSummary[] {
+function sortChatsByLastActivityDesc<T extends TeamsChatSummary>(list: T[]): T[] {
   return [...list].sort((a, b) => {
     const tb = b.lastUpdatedDateTime ? Date.parse(b.lastUpdatedDateTime) : 0
     const ta = a.lastUpdatedDateTime ? Date.parse(a.lastUpdatedDateTime) : 0
@@ -62,12 +75,12 @@ function sortChatsByLastActivityDesc(list: TeamsChatSummary[]): TeamsChatSummary
   })
 }
 
-function buildChatListDateGroups(chats: TeamsChatSummary[]): {
+function buildChatListDateGroups<T extends TeamsChatSummary>(chats: T[]): {
   dayKey: string
   dayLabel: string
-  items: TeamsChatSummary[]
+  items: T[]
 }[] {
-  const byDay = new Map<string, TeamsChatSummary[]>()
+  const byDay = new Map<string, T[]>()
   const keys: string[] = []
   for (const c of chats) {
     const dk = dayKey(c.lastUpdatedDateTime ?? '') || '_nodate'
@@ -91,8 +104,11 @@ function buildChatListDateGroups(chats: TeamsChatSummary[]): {
   })
 }
 
-function buildChatListTitleGroups(chats: TeamsChatSummary[]): { bucket: string; items: TeamsChatSummary[] }[] {
-  const byBucket = new Map<string, TeamsChatSummary[]>()
+function buildChatListTitleGroups<T extends TeamsChatSummary>(chats: T[]): {
+  bucket: string
+  items: T[]
+}[] {
+  const byBucket = new Map<string, T[]>()
   for (const c of chats) {
     const k = titleBucketKey(c)
     if (!byBucket.has(k)) byBucket.set(k, [])
@@ -122,34 +138,82 @@ function TeamsChatListRow({
   c,
   active,
   poppedOut,
+  accountBadge,
+  accountBadgeTitle,
+  accountBadgeImageSrc,
+  showAccountColorStripe,
   onSelect
 }: {
   c: TeamsChatSummary
   active: boolean
   poppedOut?: boolean
+  accountBadge?: ConnectedAccount
+  accountBadgeTitle?: string
+  accountBadgeImageSrc?: string
+  showAccountColorStripe?: boolean
   onSelect: () => void
 }): JSX.Element {
+  const showStripe = showAccountColorStripe === true && accountBadge != null
   return (
     <li>
       <button
         type="button"
         onClick={onSelect}
+        title={accountBadgeTitle}
         className={cn(
-          'flex w-full flex-col items-start gap-0.5 border-b border-border/60 px-3 py-2 text-left text-xs transition-colors',
+          'relative flex w-full flex-col items-start gap-0.5 overflow-hidden border-b border-border/60 py-2 text-left text-xs transition-colors',
+          showStripe ? 'pl-3.5 pr-3' : 'px-3',
           active ? 'bg-primary/15 text-foreground' : 'hover:bg-muted/50',
           poppedOut && !active && 'opacity-80'
         )}
       >
+        {showStripe && (
+          <AccountColorStripe color={accountBadge.color} className={MAIL_LIST_UNIFIED_INBOX_STRIPE_BAR} />
+        )}
         <span className="flex w-full items-start gap-1.5">
-          <span className="line-clamp-2 min-w-0 flex-1 font-medium">{chatTitle(c)}</span>
+          {accountBadge != null && (
+            <AccountAvatarBadge
+              account={accountBadge}
+              imageSrc={accountBadgeImageSrc}
+              size="xs"
+              className="mt-0.5 shrink-0"
+              title={accountBadgeTitle}
+            />
+          )}
+          <span
+            className={cn(
+              'line-clamp-2 min-w-0 flex-1',
+              c.hasUnread ? 'font-semibold text-foreground' : 'font-medium'
+            )}
+          >
+            {chatTitle(c)}
+          </span>
+          {c.hasUnread && (
+            <span
+              className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary shadow-sm shadow-primary/40"
+              title="Ungelesene Nachrichten"
+              aria-label="Ungelesen"
+            />
+          )}
           {poppedOut && (
             <span title="In eigenem Fenster geoeffnet" aria-hidden>
               <PanelRightOpen className="mt-0.5 h-3 w-3 shrink-0 text-primary" />
             </span>
           )}
         </span>
+        {c.lastMessagePreviewSnippet?.trim() && (
+          <span
+            className={cn(
+              'line-clamp-1 text-[10px]',
+              accountBadge != null && 'pl-6',
+              c.hasUnread ? 'text-foreground/80' : 'text-muted-foreground'
+            )}
+          >
+            {c.lastMessagePreviewSnippet}
+          </span>
+        )}
         {c.lastUpdatedDateTime != null && (
-          <span className="text-[10px] text-muted-foreground">
+          <span className={cn('text-[10px] text-muted-foreground', accountBadge != null && 'pl-6')}>
             {formatDay(c.lastUpdatedDateTime)} · {formatTime(c.lastUpdatedDateTime)}
           </span>
         )}
@@ -160,36 +224,65 @@ function TeamsChatListRow({
 
 interface Props {
   onOpenAccountDialog?: () => void
+  accountId?: string | null
+  onAccountIdChange?: (accountId: string | null) => void
+  /** Konto nur in der Messenger-Leiste waehlen (kein Dropdown im Kopf). */
+  hideAccountSelector?: boolean
+  /** Chats aller Microsoft-Konten in einer Liste. */
+  unifiedInbox?: boolean
 }
 
 /**
  * Microsoft Teams: persoenliche Chats ueber Graph (`Chat.ReadWrite`, `Chat.Create`, /me/chats).
  */
-export function TeamsChatPanel({ onOpenAccountDialog }: Props): JSX.Element {
+export function TeamsChatPanel({
+  onOpenAccountDialog,
+  accountId: accountIdProp,
+  onAccountIdChange,
+  hideAccountSelector = false,
+  unifiedInbox = false
+}: Props): JSX.Element {
   const accounts = useAccountsStore((s) => s.accounts)
+  const accountDisplayAvatarDataUrls = useAccountsStore((s) => s.accountDisplayAvatarDataUrls)
   const msAccounts = useMemo(() => accounts.filter((a) => a.id.startsWith('ms:')), [accounts])
 
-  const [accountId, setAccountId] = useState<string | null>(null)
+  const [internalAccountId, setInternalAccountId] = useState<string | null>(null)
+  const accountIdControlled = accountIdProp !== undefined
+  const accountId = accountIdControlled ? accountIdProp : internalAccountId
+
+  const setAccountId = useCallback(
+    (id: string | null): void => {
+      onAccountIdChange?.(id)
+      if (!accountIdControlled) setInternalAccountId(id)
+    },
+    [accountIdControlled, onAccountIdChange]
+  )
+
   useEffect(() => {
+    if (unifiedInbox) return
     if (accountId != null && msAccounts.some((a) => a.id === accountId)) return
     setAccountId(msAccounts[0]?.id ?? null)
-  }, [msAccounts, accountId])
+  }, [unifiedInbox, msAccounts, accountId, setAccountId])
 
   const currentAccount = useMemo(
     () => (accountId != null ? msAccounts.find((a) => a.id === accountId) : undefined),
     [accountId, msAccounts]
   )
 
+  const [selectedChat, setSelectedChat] = useState<TeamsChatSelection | null>(null)
+  const activeMessageAccountId = unifiedInbox ? selectedChat?.accountId ?? null : accountId
+  const activeChatId = selectedChat?.chatId ?? null
+
   const [myGraphUserId, setMyGraphUserId] = useState<string | null>(null)
   useEffect(() => {
-    if (!accountId) {
+    if (!activeMessageAccountId) {
       setMyGraphUserId(null)
       return
     }
     let cancelled = false
     void (async (): Promise<void> => {
       try {
-        const me = (await window.mailClient.graph.getMe(accountId)) as GraphMe
+        const me = (await window.mailClient.graph.getMe(activeMessageAccountId)) as GraphMe
         if (!cancelled && me?.id) setMyGraphUserId(me.id)
       } catch {
         if (!cancelled) setMyGraphUserId(null)
@@ -198,13 +291,28 @@ export function TeamsChatPanel({ onOpenAccountDialog }: Props): JSX.Element {
     return (): void => {
       cancelled = true
     }
-  }, [accountId])
+  }, [activeMessageAccountId])
 
-  const [chats, setChats] = useState<TeamsChatSummary[]>([])
+  const [chats, setChats] = useState<TeamsChatListEntry[]>([])
   const [chatsLoading, setChatsLoading] = useState(false)
   const [chatsError, setChatsError] = useState<string | null>(null)
 
-  const [selectedChatId, setSelectedChatId] = useState<string | null>(null)
+  const inboxScopeKey = unifiedInbox ? '__unified__' : (accountId ?? '')
+  const lastInboxScopeKeyRef = useRef<string | undefined>(undefined)
+  useLayoutEffect(() => {
+    if (lastInboxScopeKeyRef.current === undefined) {
+      lastInboxScopeKeyRef.current = inboxScopeKey
+      return
+    }
+    if (lastInboxScopeKeyRef.current === inboxScopeKey) return
+    lastInboxScopeKeyRef.current = inboxScopeKey
+    setChats([])
+    setSelectedChat(null)
+    setMessages([])
+    setMessagesError(null)
+    setChatsError(null)
+  }, [inboxScopeKey])
+
   const [messages, setMessages] = useState<TeamsChatMessageView[]>([])
   const [messagesLoading, setMessagesLoading] = useState(false)
   const [messagesError, setMessagesError] = useState<string | null>(null)
@@ -223,55 +331,111 @@ export function TeamsChatPanel({ onOpenAccountDialog }: Props): JSX.Element {
   )
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
+  const inboxScopeKeyRef = useRef(inboxScopeKey)
+  const messageContextRef = useRef<TeamsChatSelection | null>(null)
+  inboxScopeKeyRef.current = inboxScopeKey
+  messageContextRef.current =
+    activeMessageAccountId && activeChatId
+      ? { accountId: activeMessageAccountId, chatId: activeChatId }
+      : null
 
   const loadChats = useCallback(async (): Promise<void> => {
-    if (!accountId) {
+    if (!unifiedInbox && !accountId) {
       setChats([])
       return
     }
+    if (unifiedInbox && msAccounts.length === 0) {
+      setChats([])
+      return
+    }
+    const reqScope = inboxScopeKey
     setChatsLoading(true)
     setChatsError(null)
     try {
-      const list = await window.mailClient.graph.listTeamsChats(accountId)
-      setChats(list)
-      setSelectedChatId((prev) => {
-        if (prev && list.some((c) => c.id === prev)) return prev
-        return list[0]?.id ?? null
+      let merged: TeamsChatListEntry[] = []
+      if (unifiedInbox) {
+        const parts = await Promise.all(
+          msAccounts.map(async (acc) => {
+            try {
+              const list = await window.mailClient.graph.listTeamsChats(acc.id)
+              return list.map((c) => ({ ...c, accountId: acc.id }))
+            } catch {
+              return [] as TeamsChatListEntry[]
+            }
+          })
+        )
+        merged = sortChatsByLastActivityDesc(parts.flat())
+      } else {
+        const list = await window.mailClient.graph.listTeamsChats(accountId!)
+        merged = list.map((c) => ({ ...c, accountId: accountId! }))
+      }
+      if (reqScope !== inboxScopeKeyRef.current) return
+      setChats(merged)
+      setSelectedChat((prev) => {
+        if (prev && merged.some((c) => c.accountId === prev.accountId && c.id === prev.chatId)) {
+          return prev
+        }
+        const first = merged[0]
+        return first ? { accountId: first.accountId, chatId: first.id } : null
       })
     } catch (e) {
+      if (reqScope !== inboxScopeKeyRef.current) return
       setChatsError(e instanceof Error ? e.message : String(e))
       setChats([])
-      setSelectedChatId(null)
+      setSelectedChat(null)
     } finally {
-      setChatsLoading(false)
+      if (reqScope === inboxScopeKeyRef.current) setChatsLoading(false)
     }
-  }, [accountId])
+  }, [accountId, unifiedInbox, msAccounts, inboxScopeKey])
 
   useEffect(() => {
     void loadChats()
   }, [loadChats])
 
   const loadMessages = useCallback(async (): Promise<void> => {
-    if (!accountId || !selectedChatId) {
+    if (!activeMessageAccountId || !activeChatId) {
       setMessages([])
+      setMessagesError(null)
       return
     }
+    const req: TeamsChatSelection = { accountId: activeMessageAccountId, chatId: activeChatId }
     setMessagesLoading(true)
     setMessagesError(null)
     try {
       const list = await window.mailClient.graph.listTeamsChatMessages({
-        accountId,
-        chatId: selectedChatId,
+        accountId: req.accountId,
+        chatId: req.chatId,
         limit: 50
       })
+      const cur = messageContextRef.current
+      if (!cur || teamsChatSelectionKey(cur) !== teamsChatSelectionKey(req)) return
       setMessages(list)
+      void window.mailClient.graph
+        .markTeamsChatReadForUser({ accountId: req.accountId, chatId: req.chatId })
+        .then((): void => {
+          setChats((prev) =>
+            prev.map((row) =>
+              row.accountId === req.accountId && row.id === req.chatId
+                ? { ...row, hasUnread: false }
+                : row
+            )
+          )
+        })
+        .catch(() => {
+          /* Graph-Fehler: Anzeige bleibt, naechster Refresh korrigiert */
+        })
     } catch (e) {
+      const cur = messageContextRef.current
+      if (!cur || teamsChatSelectionKey(cur) !== teamsChatSelectionKey(req)) return
       setMessagesError(e instanceof Error ? e.message : String(e))
       setMessages([])
     } finally {
-      setMessagesLoading(false)
+      const cur = messageContextRef.current
+      if (cur && teamsChatSelectionKey(cur) === teamsChatSelectionKey(req)) {
+        setMessagesLoading(false)
+      }
     }
-  }, [accountId, selectedChatId])
+  }, [activeMessageAccountId, activeChatId])
 
   useEffect(() => {
     void loadMessages()
@@ -289,9 +453,10 @@ export function TeamsChatPanel({ onOpenAccountDialog }: Props): JSX.Element {
   }, [chatListFilter, chatListGroupMode])
 
   async function handleRenewConsent(): Promise<void> {
-    if (!accountId) return
+    const renewId = activeMessageAccountId ?? accountId
+    if (!renewId) return
     try {
-      await window.mailClient.auth.refreshMicrosoft(accountId)
+      await window.mailClient.auth.refreshMicrosoft(renewId)
       await loadChats()
       await loadMessages()
     } catch (e) {
@@ -300,15 +465,15 @@ export function TeamsChatPanel({ onOpenAccountDialog }: Props): JSX.Element {
   }
 
   const handleSend = useCallback(async (): Promise<void> => {
-    if (!accountId || !selectedChatId || sending) return
+    if (!activeMessageAccountId || !activeChatId || sending) return
     const text = draft.trim()
     if (!text) return
     setSending(true)
     setMessagesError(null)
     try {
       await window.mailClient.graph.sendTeamsChatMessage({
-        accountId,
-        chatId: selectedChatId,
+        accountId: activeMessageAccountId,
+        chatId: activeChatId,
         text
       })
       setDraft('')
@@ -318,9 +483,24 @@ export function TeamsChatPanel({ onOpenAccountDialog }: Props): JSX.Element {
     } finally {
       setSending(false)
     }
-  }, [accountId, selectedChatId, draft, sending, loadMessages])
+  }, [activeMessageAccountId, activeChatId, draft, sending, loadMessages])
 
-  const rowAccountLabel = currentAccount?.displayName ?? currentAccount?.email ?? ''
+  const messageAccount = useMemo(
+    () =>
+      activeMessageAccountId != null
+        ? msAccounts.find((a) => a.id === activeMessageAccountId)
+        : currentAccount,
+    [activeMessageAccountId, currentAccount, msAccounts]
+  )
+
+  const rowAccountLabel = unifiedInbox
+    ? `Alle Konten (${msAccounts.length})`
+    : currentAccount != null
+      ? teamsChatAccountOptionLabel(currentAccount)
+      : ''
+
+  const msgAccountLabel =
+    messageAccount != null ? teamsChatAccountOptionLabel(messageAccount) : rowAccountLabel
 
   const chatsMatchingSearch = useMemo(() => {
     const needle = chatSidebarFilter.trim().toLowerCase()
@@ -362,15 +542,34 @@ export function TeamsChatPanel({ onOpenAccountDialog }: Props): JSX.Element {
     useTeamsChatPopoutState()
 
   const msgRowCtx = useMemo<TeamsChatMessageRowCtx>(
-    () => ({ myGraphUserId, accountLabel: rowAccountLabel }),
-    [myGraphUserId, rowAccountLabel]
+    () => ({ myGraphUserId, accountLabel: msgAccountLabel }),
+    [myGraphUserId, msgAccountLabel]
   )
 
-  const currentChatPoppedOut = isPoppedOut(accountId, selectedChatId)
+  const currentChatPoppedOut = isPoppedOut(activeMessageAccountId, activeChatId)
+
+  const renderChatListRow = (c: TeamsChatListEntry): JSX.Element => {
+    const acc = unifiedInbox ? msAccounts.find((a) => a.id === c.accountId) : undefined
+    const active =
+      selectedChat != null && selectedChat.accountId === c.accountId && selectedChat.chatId === c.id
+    return (
+      <TeamsChatListRow
+        key={teamsChatSelectionKey({ accountId: c.accountId, chatId: c.id })}
+        c={c}
+        active={active}
+        poppedOut={isPoppedOut(c.accountId, c.id)}
+        accountBadge={acc}
+        accountBadgeTitle={acc != null ? teamsChatAccountOptionLabel(acc) : undefined}
+        accountBadgeImageSrc={acc != null ? accountDisplayAvatarDataUrls[acc.id] : undefined}
+        showAccountColorStripe={unifiedInbox}
+        onSelect={(): void => setSelectedChat({ accountId: c.accountId, chatId: c.id })}
+      />
+    )
+  }
 
   useLayoutEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' })
-  }, [displayedMessages, selectedChatId, messageSearchQuery])
+  }, [displayedMessages, activeChatId, messageSearchQuery])
 
   if (msAccounts.length === 0) {
     return (
@@ -395,29 +594,43 @@ export function TeamsChatPanel({ onOpenAccountDialog }: Props): JSX.Element {
     )
   }
 
-  const selectedChat = selectedChatId != null ? chats.find((x) => x.id === selectedChatId) : undefined
+  const selectedChatEntry =
+    selectedChat != null
+      ? chats.find((x) => x.accountId === selectedChat.accountId && x.id === selectedChat.chatId)
+      : undefined
   const accountLabel = rowAccountLabel
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className={cn(moduleColumnHeaderShellBarClass, 'flex-wrap')}>
-        <label className="flex min-w-0 items-center gap-2 text-muted-foreground">
-          <span className="shrink-0">Konto</span>
-          <select
-            className="max-w-[220px] rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground"
-            value={accountId ?? ''}
-            onChange={(e): void => {
-              setAccountId(e.target.value || null)
-              setSelectedChatId(null)
-            }}
-          >
-            {msAccounts.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.displayName || a.email}
-              </option>
-            ))}
-          </select>
-        </label>
+        {hideAccountSelector ? (
+          <div className="min-w-0 flex-1">
+            <div className="text-xs font-semibold text-foreground">Microsoft Teams</div>
+            <p className="truncate text-[10px] text-muted-foreground">
+              {accountLabel}
+              {unifiedInbox && selectedChatEntry != null && messageAccount != null
+                ? ` · ${teamsChatAccountOptionLabel(messageAccount)}`
+                : null}
+            </p>
+          </div>
+        ) : (
+          <label className="flex min-w-0 flex-1 items-center gap-2 text-muted-foreground">
+            <span className="shrink-0">Konto</span>
+            <select
+              className="min-w-0 max-w-[min(100%,320px)] flex-1 rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground"
+              value={accountId ?? ''}
+              onChange={(e): void => {
+                setAccountId(e.target.value || null)
+              }}
+            >
+              {msAccounts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {teamsChatAccountOptionLabel(a)}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <div className="flex shrink-0 flex-wrap items-center gap-1">
           <button
             type="button"
@@ -458,8 +671,8 @@ export function TeamsChatPanel({ onOpenAccountDialog }: Props): JSX.Element {
       )}
 
       <TeamsChatPopoutDock
-        accountId={accountId}
-        selectedChatId={selectedChatId}
+        accountId={activeMessageAccountId}
+        selectedChatId={activeChatId}
         openPopouts={openPopouts}
         onFocus={(aid, cid): void => {
           void focusPopout(aid, cid)
@@ -475,7 +688,7 @@ export function TeamsChatPanel({ onOpenAccountDialog }: Props): JSX.Element {
       <div className="grid min-h-0 flex-1 grid-cols-[minmax(200px,280px)_1fr] divide-x divide-border">
         <div className="flex min-h-0 flex-col overflow-hidden bg-card/40">
           <div className="shrink-0 border-b border-border px-2 py-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-            Chats
+            {unifiedInbox ? 'Chats — alle Konten' : 'Chats'}
           </div>
           <div className="shrink-0 space-y-2 border-b border-border/80 px-2 py-1.5">
             <div className="relative">
@@ -501,6 +714,7 @@ export function TeamsChatPanel({ onOpenAccountDialog }: Props): JSX.Element {
                   onChange={(e): void => setChatListFilter(e.target.value as TeamsChatListFilter)}
                 >
                   <option value="all">Alle</option>
+                  <option value="unread">Ungelesen</option>
                   <option value="oneOnOne">Direkt</option>
                   <option value="group">Gruppe</option>
                   <option value="meeting">Besprechung</option>
@@ -531,17 +745,7 @@ export function TeamsChatPanel({ onOpenAccountDialog }: Props): JSX.Element {
             ) : chatsSortedForList.length === 0 ? (
               <p className="px-3 py-4 text-xs text-muted-foreground">Kein Chat passt zu Suche oder Filter.</p>
             ) : chatListGroupMode === 'none' ? (
-              <ul>
-                {chatsSortedForList.map((c) => (
-                  <TeamsChatListRow
-                    key={c.id}
-                    c={c}
-                    active={c.id === selectedChatId}
-                    poppedOut={isPoppedOut(accountId, c.id)}
-                    onSelect={(): void => setSelectedChatId(c.id)}
-                  />
-                ))}
-              </ul>
+              <ul>{chatsSortedForList.map((c) => renderChatListRow(c))}</ul>
             ) : chatListGroupMode === 'by_date' ? (
               <div className="flex flex-col gap-3 pb-2">
                 {chatListDateSections.map((sec) => (
@@ -551,17 +755,7 @@ export function TeamsChatPanel({ onOpenAccountDialog }: Props): JSX.Element {
                         {sec.dayLabel}
                       </span>
                     </div>
-                    <ul>
-                      {sec.items.map((c) => (
-                        <TeamsChatListRow
-                          key={c.id}
-                          c={c}
-                          active={c.id === selectedChatId}
-                          poppedOut={isPoppedOut(accountId, c.id)}
-                          onSelect={(): void => setSelectedChatId(c.id)}
-                        />
-                      ))}
-                    </ul>
+                    <ul>{sec.items.map((c) => renderChatListRow(c))}</ul>
                   </section>
                 ))}
               </div>
@@ -574,17 +768,7 @@ export function TeamsChatPanel({ onOpenAccountDialog }: Props): JSX.Element {
                         {sec.bucket}
                       </span>
                     </div>
-                    <ul>
-                      {sec.items.map((c) => (
-                        <TeamsChatListRow
-                          key={c.id}
-                          c={c}
-                          active={c.id === selectedChatId}
-                          poppedOut={isPoppedOut(accountId, c.id)}
-                          onSelect={(): void => setSelectedChatId(c.id)}
-                        />
-                      ))}
-                    </ul>
+                    <ul>{sec.items.map((c) => renderChatListRow(c))}</ul>
                   </section>
                 ))}
               </div>
@@ -597,24 +781,26 @@ export function TeamsChatPanel({ onOpenAccountDialog }: Props): JSX.Element {
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <h2 className="text-sm font-semibold text-foreground">
-                  {selectedChat != null ? chatTitle(selectedChat) : 'Kein Chat'}
+                  {selectedChatEntry != null ? chatTitle(selectedChatEntry) : 'Kein Chat'}
                 </h2>
                 <p className="text-[11px] text-muted-foreground">
-                  {selectedChatId != null
+                  {activeChatId != null
                     ? currentChatPoppedOut
                       ? 'Chat laeuft in einem eigenen Fenster.'
-                      : 'Nachrichten ueber Microsoft Graph — unten schreiben und senden.'
+                      : unifiedInbox && messageAccount != null
+                        ? `Konto: ${teamsChatAccountOptionLabel(messageAccount)}`
+                        : 'Nachrichten ueber Microsoft Graph — unten schreiben und senden.'
                     : 'Waehle links einen Chat.'}
                 </p>
               </div>
-              {selectedChat != null && accountId != null && selectedChatId != null && (
+              {selectedChatEntry != null && activeMessageAccountId != null && activeChatId != null && (
                 <ModuleColumnHeaderIconButton
                   type="button"
                   onClick={(): void => {
                     if (currentChatPoppedOut) {
-                      void focusPopout(accountId, selectedChatId)
+                      void focusPopout(activeMessageAccountId, activeChatId)
                     } else {
-                      void openPopout(accountId, selectedChatId, chatTitle(selectedChat))
+                      void openPopout(activeMessageAccountId, activeChatId, chatTitle(selectedChatEntry))
                     }
                   }}
                   title={
@@ -632,7 +818,7 @@ export function TeamsChatPanel({ onOpenAccountDialog }: Props): JSX.Element {
                 </ModuleColumnHeaderIconButton>
               )}
             </div>
-            {selectedChatId != null && !currentChatPoppedOut && (
+            {activeChatId != null && !currentChatPoppedOut && (
               <div className="relative max-w-md">
                 <Search
                   className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
@@ -667,7 +853,9 @@ export function TeamsChatPanel({ onOpenAccountDialog }: Props): JSX.Element {
                   type="button"
                   className={moduleColumnHeaderOutlineSmClass}
                   onClick={(): void => {
-                    if (accountId && selectedChatId) void focusPopout(accountId, selectedChatId)
+                    if (activeMessageAccountId && activeChatId) {
+                      void focusPopout(activeMessageAccountId, activeChatId)
+                    }
                   }}
                 >
                   Fenster anzeigen
@@ -676,7 +864,9 @@ export function TeamsChatPanel({ onOpenAccountDialog }: Props): JSX.Element {
                   type="button"
                   className={moduleColumnHeaderOutlineSmClass}
                   onClick={(): void => {
-                    if (accountId && selectedChatId) void closePopout(accountId, selectedChatId)
+                    if (activeMessageAccountId && activeChatId) {
+                      void closePopout(activeMessageAccountId, activeChatId)
+                    }
                   }}
                 >
                   Zurueck ins Modul
@@ -714,16 +904,16 @@ export function TeamsChatPanel({ onOpenAccountDialog }: Props): JSX.Element {
                 className={cn(
                   'min-h-[44px] flex-1 resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground',
                   'placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-                  (!selectedChatId || sending) && 'cursor-not-allowed opacity-60'
+                  (!activeChatId || sending) && 'cursor-not-allowed opacity-60'
                 )}
                 rows={2}
                 placeholder={
-                  selectedChatId != null
+                  activeChatId != null
                     ? 'Nachricht schreiben … (Umschalt+Enter fuer Zeilenumbruch)'
                     : 'Zuerst einen Chat auswaehlen …'
                 }
                 value={draft}
-                disabled={!selectedChatId || sending}
+                disabled={!activeChatId || sending}
                 onChange={(e): void => setDraft(e.target.value)}
                 onKeyDown={(e): void => {
                   if (e.key === 'Enter' && !e.shiftKey) {
@@ -734,7 +924,7 @@ export function TeamsChatPanel({ onOpenAccountDialog }: Props): JSX.Element {
               />
               <button
                 type="button"
-                disabled={!selectedChatId || sending || !draft.trim()}
+                disabled={!activeChatId || sending || !draft.trim()}
                 onClick={(): void => void handleSend()}
                 className={cn(
                   'flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm transition-opacity',

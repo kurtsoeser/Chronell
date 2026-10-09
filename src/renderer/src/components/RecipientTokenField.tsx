@@ -68,6 +68,10 @@ export const RecipientTokenField = forwardRef<
   const [pickerOpen, setPickerOpen] = useState(false)
   const debRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const inputRef = useRef<HTMLInputElement | null>(null)
+  /** Nach Vorschlags-Auswahl: Fokus ohne Dropdown wieder zu öffnen. */
+  const suppressOpenOnFocusRef = useRef(false)
+
+  const shouldShowSuggestions = open && (tail.trim().length > 0 || complete.length === 0)
 
   useImperativeHandle(ref, () => ({
     openContactPicker: (): void => setPickerOpen(true),
@@ -130,6 +134,11 @@ export const RecipientTokenField = forwardRef<
   )
 
   useEffect(() => {
+    if (tail.trim().length === 0 && complete.length > 0) {
+      setSuggestions([])
+      setOpen(false)
+      return
+    }
     if (debRef.current) clearTimeout(debRef.current)
     const delay = tail.trim().length === 0 ? 0 : 220
     debRef.current = setTimeout(() => {
@@ -138,7 +147,7 @@ export const RecipientTokenField = forwardRef<
     return (): void => {
       if (debRef.current) clearTimeout(debRef.current)
     }
-  }, [tail, fetchSuggest])
+  }, [tail, complete.length, fetchSuggest])
 
   const commitTail = (opts?: { pickFirstSuggestion?: boolean }): void => {
     const trimmed = tail.trim()
@@ -208,6 +217,7 @@ export const RecipientTokenField = forwardRef<
     const next = [...complete, { address: addr, name: s.displayName?.trim() || undefined }]
     onChange(formatRecipientsWithTail(next, ''))
     setOpen(false)
+    suppressOpenOnFocusRef.current = true
     inputRef.current?.focus()
   }
 
@@ -255,7 +265,7 @@ export const RecipientTokenField = forwardRef<
             if (document.activeElement === inputRef.current) return
             e.preventDefault()
             inputRef.current?.focus()
-            setOpen(true)
+            if (tail.trim().length > 0 || complete.length === 0) setOpen(true)
           }}
         >
           {complete.map((r, idx) => (
@@ -293,7 +303,13 @@ export const RecipientTokenField = forwardRef<
               onChange(formatRecipientsWithTail(complete, e.target.value))
               setOpen(true)
             }}
-            onFocus={(): void => setOpen(true)}
+            onFocus={(): void => {
+              if (suppressOpenOnFocusRef.current) {
+                suppressOpenOnFocusRef.current = false
+                return
+              }
+              if (tail.trim().length > 0 || complete.length === 0) setOpen(true)
+            }}
             onBlur={(): void => {
               commitTail()
               window.setTimeout(() => setOpen(false), 180)
@@ -345,7 +361,7 @@ export const RecipientTokenField = forwardRef<
             className="min-w-[120px] flex-1 bg-transparent py-0.5 text-xs text-foreground outline-none placeholder:text-muted-foreground"
           />
         </div>
-        {open && (dedupedSuggestions.length > 0 || loadingSuggest) && (
+        {shouldShowSuggestions && (dedupedSuggestions.length > 0 || loadingSuggest) && (
           <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-48 overflow-y-auto rounded-md border border-border bg-card py-1 shadow-lg">
             {loadingSuggest && dedupedSuggestions.length === 0 && (
               <div className="px-3 py-2 text-[11px] text-muted-foreground">Vorschläge werden geladen…</div>

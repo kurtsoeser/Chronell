@@ -69,11 +69,11 @@ import { triggerManualPoll, setActivePollFolder } from '../mail-poll-runner'
 import { assertAppOnline } from '../network-status'
 import { findFolderById } from '../db/folders-repo'
 import { peekLastUndoable, markUndone } from '../db/message-actions-repo'
+import { searchMessagesUnified } from '../db/mail-search-unified'
 import {
   listMessagesByAccount,
   getMessageById,
   setMessageHasAttachmentsLocal,
-  searchMessages,
   searchMessagesAdvanced,
   listSnoozedMessages,
   listWaitingMessages,
@@ -390,7 +390,7 @@ export function registerMailIpc(): void {
     IPC.mail.search,
     (_event, args: { query: string; limit?: number }): SearchHit[] => {
       const limit = args.limit ?? 30
-      return decorateMailListLike(searchMessages(args.query, limit))
+      return decorateMailListLike(searchMessagesUnified(args.query, limit))
     }
   )
 

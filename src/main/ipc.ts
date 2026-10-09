@@ -9,6 +9,8 @@ import { registerNotesIpc } from './ipc/register-notes-ipc'
 import { registerEntityLinksIpc } from './ipc/register-entity-links-ipc'
 import { registerAiConnectionsIpc } from './ipc/register-ai-connections-ipc'
 import { registerCopilotIpc } from './ipc/register-copilot-ipc'
+import { registerLanguageToolIpc } from './ipc/register-languagetool-ipc'
+import { registerSpellcheckIpc } from './ipc/register-spellcheck-ipc'
 import { registerWorkflowVipRulesIpc } from './ipc/register-workflow-vip-rules-ipc'
 import { registerSettingsBackupIpc } from './ipc/register-settings-backup-ipc'
 import { registerProfileSyncIpc } from './ipc/register-profile-sync-ipc'
@@ -41,6 +43,8 @@ export function registerIpcHandlers(): void {
   registerEntityLinksIpc()
   registerAiConnectionsIpc()
   registerCopilotIpc()
+  registerLanguageToolIpc()
+  registerSpellcheckIpc()
   registerWorkflowVipRulesIpc()
   registerSettingsBackupIpc()
   registerProfileSyncIpc()

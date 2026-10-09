@@ -6,13 +6,18 @@ import {
 } from '@/lib/compose-default-body'
 import type { ComposeSettingsPrefsV1 } from '@/lib/compose-settings-prefs'
 import { COMPOSE_DEFAULT_TEXT_COLOR } from '@/lib/compose-settings-prefs'
+import { LANGUAGE_TOOL_PUBLIC_API_BASE } from '@shared/languagetool'
 
 const SAMPLE_PREFS: ComposeSettingsPrefsV1 = {
   defaultFontSizePt: 12,
   defaultFontFamilyId: 'arial',
   defaultTextColor: COMPOSE_DEFAULT_TEXT_COLOR,
   defaultImportance: 'normal',
-  requestReadReceiptByDefault: false
+  requestReadReceiptByDefault: false,
+  languageToolApiBaseUrl: LANGUAGE_TOOL_PUBLIC_API_BASE,
+  languageToolUsername: '',
+  composeAutoCorrectOnSpace: false,
+  composeAutoCorrectBlocklistText: ''
 }
 
 describe('isComposeBodyEffectivelyEmpty', () => {

@@ -301,7 +301,7 @@ export function VerticalSplitter({ onDrag, ariaLabel, variant = 'default' }: Spl
           'pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 transition-colors',
           variant === 'moduleNav'
             ? 'bg-transparent group-hover:bg-primary/35'
-            : 'bg-border group-hover:bg-primary/50',
+            : 'bg-[color:var(--chronell-panel-divider)] group-hover:bg-primary/50',
           dragging && (variant === 'moduleNav' ? 'bg-primary/45' : 'bg-primary/70')
         )}
       />

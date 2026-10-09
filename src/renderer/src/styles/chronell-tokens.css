@@ -63,6 +63,7 @@
     --chronell-bg-card-hover: #f2f5fa;
     --chronell-bg-muted: var(--global-grey-200);
     --chronell-border-subtle: rgba(15, 23, 42, 0.08);
+    --chronell-panel-divider: rgba(15, 23, 42, 0.08);
     --chronell-border-strong: rgba(15, 23, 42, 0.14);
     --chronell-text-primary: #111318;
     --chronell-text-secondary: #3f4652;
@@ -119,6 +120,7 @@
     --chronell-bg-card-hover: color-mix(in srgb, hsl(var(--muted)) 55%, hsl(var(--card)));
     --chronell-bg-muted: hsl(var(--muted));
     --chronell-border-subtle: rgba(255, 255, 255, 0.075);
+    --chronell-panel-divider: rgba(255, 255, 255, 0.08);
     --chronell-border-strong: rgba(255, 255, 255, 0.14);
     --chronell-text-primary: #f5f5f7;
     --chronell-text-secondary: #c8cad0;
@@ -370,6 +372,11 @@
   [data-dashboard-tile] .border-border\/70,
   [data-dashboard-tile] .border-border\/80 {
     border-color: var(--chronell-border-subtle);
+  }
+
+  /** 1px-Trenner zwischen Workspace-/Layout-Panels */
+  .chronell-panel-divider {
+    border-color: var(--chronell-panel-divider);
   }
 
   /** Modul-Spaltenkoepfe (Mail, Kalender, …) */

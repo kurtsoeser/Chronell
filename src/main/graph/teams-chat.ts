@@ -1,4 +1,5 @@
 import type { TeamsChatMessageView, TeamsChatSummary } from '@shared/types'
+import { teamsChatHasUnreadMessages } from '@shared/teams-chat-unread'
 import { createGraphClient } from './client'
 import { isTeamsSystemEventPlaceholderBody, summarizeTeamsSystemEvent } from './teams-chat-system-summary'
 
@@ -6,11 +7,24 @@ interface ODataList<T> {
   value?: T[]
 }
 
+interface GraphChatViewpoint {
+  lastMessageReadDateTime?: string | null
+  isHidden?: boolean | null
+}
+
+interface GraphLastMessagePreview {
+  createdDateTime?: string | null
+  body?: GraphItemBody | null
+  messageType?: string | null
+}
+
 interface GraphChat {
   id: string
   topic?: string | null
   chatType?: string | null
   lastUpdatedDateTime?: string | null
+  viewpoint?: GraphChatViewpoint | null
+  lastMessagePreview?: GraphLastMessagePreview | null
 }
 
 interface GraphChatMember {
@@ -76,12 +90,18 @@ function mapFromDisplayName(from: GraphChatMessage['from']): string | null {
 }
 
 function mapChat(c: GraphChat): TeamsChatSummary {
+  const previewAt = c.lastMessagePreview?.createdDateTime ?? null
+  const lastRead = c.viewpoint?.lastMessageReadDateTime ?? null
+  const previewSnippet = previewFromChatBody(c.lastMessagePreview?.body ?? undefined)
   return {
     id: c.id,
     topic: c.topic ?? null,
     chatType: c.chatType ?? null,
     lastUpdatedDateTime: c.lastUpdatedDateTime ?? null,
-    peerDisplayName: null
+    peerDisplayName: null,
+    hasUnread: teamsChatHasUnreadMessages(previewAt, lastRead),
+    lastMessagePreviewAt: previewAt,
+    lastMessagePreviewSnippet: previewSnippet
   }
 }
 
@@ -171,8 +191,8 @@ export async function listTeamsChats(
   const client = createGraphClient(clientId, homeAccountId)
   const res = (await client
     .api('/me/chats')
+    .expand('lastMessagePreview')
     .top(limit)
-    .select(['id', 'topic', 'chatType', 'lastUpdatedDateTime'])
     .get()) as ODataList<GraphChat>
   const rows = (res.value ?? []).map(mapChat)
   rows.sort((a, b) => {
@@ -235,6 +255,32 @@ export async function listTeamsChatMessages(
 /**
  * Nachricht in einem Chat senden (`POST /chats/{id}/messages`).
  */
+/** Gelesen-Stand in Teams setzen (`POST .../markChatReadForUser`). */
+export async function markTeamsChatReadForUser(
+  clientId: string,
+  homeAccountId: string,
+  chatId: string
+): Promise<void> {
+  const client = createGraphClient(clientId, homeAccountId)
+  const path = `/chats/${encodeURIComponent(chatId)}/markChatReadForUser`
+  let meId: string | null = null
+  try {
+    const me = (await client.api('/me').select('id').get()) as { id?: string }
+    meId = me.id?.trim() || null
+  } catch {
+    meId = null
+  }
+  const body = meId
+    ? {
+        user: {
+          '@odata.type': '#microsoft.graph.teamworkUserIdentity',
+          id: meId
+        }
+      }
+    : {}
+  await client.api(path).post(body)
+}
+
 export async function sendTeamsChatMessage(
   clientId: string,
   homeAccountId: string,

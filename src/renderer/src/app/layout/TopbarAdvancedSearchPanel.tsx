@@ -1,49 +1,21 @@
 import { useState } from 'react'
 import { ArrowLeft, Plus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import type { AdvancedMailSearchCriteria } from '@shared/types'
+import {
+  advancedSearchDraftHasFilter,
+  emptyAdvancedSearchDraft,
+  mailSearchFolderScopeLabelKey,
+  draftToAdvancedCriteria,
+  type AdvancedSearchDraft,
+} from '@shared/mail-advanced-search'
+import type { MailSearchFolderScope } from '@shared/mail-search-scope'
 import { ModalPanel, ModalRoot } from '@/components/motion/Modal'
 import { cn } from '@/lib/utils'
 
-export type AdvancedSearchDraft = {
-  fromContains: string
-  toContains: string
-  ccContains: string
-  subjectContains: string
-  keywords: string
-  dateFrom: string
-  dateTo: string
-  readStatus: 'all' | 'unread' | 'read'
-  hasAttachmentsOnly: boolean
-}
+export type { AdvancedSearchDraft }
+export { emptyAdvancedSearchDraft, draftToAdvancedCriteria, advancedSearchDraftHasFilter }
 
-export function emptyAdvancedSearchDraft(): AdvancedSearchDraft {
-  return {
-    fromContains: '',
-    toContains: '',
-    ccContains: '',
-    subjectContains: '',
-    keywords: '',
-    dateFrom: '',
-    dateTo: '',
-    readStatus: 'all',
-    hasAttachmentsOnly: false
-  }
-}
-
-export function draftToAdvancedCriteria(d: AdvancedSearchDraft): AdvancedMailSearchCriteria {
-  const c: AdvancedMailSearchCriteria = {}
-  if (d.fromContains.trim().length >= 2) c.fromContains = d.fromContains.trim()
-  if (d.toContains.trim().length >= 2) c.toContains = d.toContains.trim()
-  if (d.ccContains.trim().length >= 2) c.ccContains = d.ccContains.trim()
-  if (d.subjectContains.trim().length >= 2) c.subjectContains = d.subjectContains.trim()
-  if (d.keywords.trim().length >= 2) c.keywords = d.keywords.trim()
-  if (d.dateFrom.trim()) c.dateFrom = d.dateFrom.trim()
-  if (d.dateTo.trim()) c.dateTo = d.dateTo.trim()
-  if (d.readStatus !== 'all') c.readStatus = d.readStatus
-  if (d.hasAttachmentsOnly) c.hasAttachmentsOnly = true
-  return c
-}
+const FOLDER_SCOPES: MailSearchFolderScope[] = ['all', 'inbox', 'sent', 'archive', 'current']
 
 function FieldRow({
   label,
@@ -67,6 +39,7 @@ export function TopbarAdvancedSearchPanel({
   open,
   draft,
   onDraftChange,
+  bodyIndexEnabled,
   onClose,
   onSearch,
   onClear
@@ -74,6 +47,7 @@ export function TopbarAdvancedSearchPanel({
   open: boolean
   draft: AdvancedSearchDraft
   onDraftChange: (next: AdvancedSearchDraft) => void
+  bodyIndexEnabled: boolean | null
   onClose: () => void
   onSearch: () => void
   onClear: () => void
@@ -84,6 +58,8 @@ export function TopbarAdvancedSearchPanel({
   function patch(partial: Partial<AdvancedSearchDraft>): void {
     onDraftChange({ ...draft, ...partial })
   }
+
+  const canSearch = advancedSearchDraftHasFilter(draft)
 
   return (
     <ModalRoot open={open} onBackdropClick={onClose} zIndex={420}>
@@ -100,9 +76,31 @@ export function TopbarAdvancedSearchPanel({
           <h2 className="flex-1 text-sm font-semibold text-foreground">{t('topbar.advancedSearchTitle')}</h2>
         </header>
 
+        {bodyIndexEnabled === false ? (
+          <p className="border-b border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] leading-snug text-foreground">
+            {t('topbar.searchBodyIndexOffHint')}
+          </p>
+        ) : (
+          <p className="border-b border-border/60 px-3 py-2 text-[11px] leading-snug text-muted-foreground">
+            {t('topbar.searchBodyIndexOnHint')}
+          </p>
+        )}
+
         <div className="max-h-[min(70vh,32rem)] overflow-y-auto px-3 py-1">
           <FieldRow label={t('topbar.advancedSearchIn')}>
-            <div className="text-sm text-foreground">{t('topbar.searchScopeAll')}</div>
+            <select
+              className={cn(inputClass, 'cursor-pointer')}
+              value={draft.folderScope}
+              onChange={(e): void =>
+                patch({ folderScope: e.target.value as MailSearchFolderScope })
+              }
+            >
+              {FOLDER_SCOPES.map((scope) => (
+                <option key={scope} value={scope}>
+                  {t(mailSearchFolderScopeLabelKey(scope))}
+                </option>
+              ))}
+            </select>
           </FieldRow>
           <FieldRow label={t('topbar.advancedFrom')}>
             <input
@@ -138,24 +136,46 @@ export function TopbarAdvancedSearchPanel({
               className={inputClass}
               value={draft.keywords}
               onChange={(e): void => patch({ keywords: e.target.value })}
+              placeholder={t('topbar.advancedKeywordsHint')}
+            />
+          </FieldRow>
+          <FieldRow label={t('topbar.advancedCategory')}>
+            <input
+              className={inputClass}
+              value={draft.categoryContains}
+              onChange={(e): void => patch({ categoryContains: e.target.value })}
+              placeholder={t('topbar.advancedCategoryHint')}
             />
           </FieldRow>
           <FieldRow label={t('topbar.advancedDate')}>
-            <div className="flex items-center gap-2">
-              <input
-                type="date"
-                className={cn(inputClass, 'min-w-0 flex-1')}
-                value={draft.dateFrom}
-                onChange={(e): void => patch({ dateFrom: e.target.value })}
-                aria-label={t('topbar.advancedDateFrom')}
-              />
-              <input
-                type="date"
-                className={cn(inputClass, 'min-w-0 flex-1')}
-                value={draft.dateTo}
-                onChange={(e): void => patch({ dateTo: e.target.value })}
-                aria-label={t('topbar.advancedDateTo')}
-              />
+            <div className="flex flex-col gap-2">
+              <select
+                className={cn(inputClass, 'cursor-pointer')}
+                value={draft.dateKind}
+                onChange={(e): void =>
+                  patch({ dateKind: e.target.value as AdvancedSearchDraft['dateKind'] })
+                }
+                aria-label={t('topbar.advancedDateKind')}
+              >
+                <option value="received">{t('topbar.advancedDateReceived')}</option>
+                <option value="sent">{t('topbar.advancedDateSent')}</option>
+              </select>
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  className={cn(inputClass, 'min-w-0 flex-1')}
+                  value={draft.dateFrom}
+                  onChange={(e): void => patch({ dateFrom: e.target.value })}
+                  aria-label={t('topbar.advancedDateFrom')}
+                />
+                <input
+                  type="date"
+                  className={cn(inputClass, 'min-w-0 flex-1')}
+                  value={draft.dateTo}
+                  onChange={(e): void => patch({ dateTo: e.target.value })}
+                  aria-label={t('topbar.advancedDateTo')}
+                />
+              </div>
             </div>
           </FieldRow>
           <FieldRow label={t('topbar.advancedReadStatus')}>
@@ -199,8 +219,9 @@ export function TopbarAdvancedSearchPanel({
           <div className="ml-auto flex items-center gap-2">
             <button
               type="button"
-              className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+              className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
               onClick={onSearch}
+              disabled={!canSearch}
             >
               {t('topbar.advancedSearchSubmit')}
             </button>

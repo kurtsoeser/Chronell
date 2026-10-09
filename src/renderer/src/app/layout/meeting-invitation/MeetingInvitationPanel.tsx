@@ -27,6 +27,7 @@ import type {
   MeetingInvitationView
 } from '@shared/types'
 import { cn } from '@/lib/utils'
+import { PreviewMetaDot, PreviewMetaRow } from '@/components/preview-meta-chrome'
 import { Avatar } from '@/components/Avatar'
 import { ContextMenu, type ContextMenuItem } from '@/components/ContextMenu'
 import { showAppAlert, showAppPrompt } from '@/stores/app-dialog'
@@ -42,8 +43,14 @@ import {
 } from '@/app/layout/meeting-invitation/MeetingProposeTimeDialog'
 import { MeetingRescheduleTimePopover } from '@/app/layout/meeting-invitation/MeetingRescheduleTimePopover'
 import '@/app/layout/meeting-invitation/meeting-invitation.css'
-
-const MEETING_PANEL_COLLAPSE_KEY = 'meetingInvitationPanel.collapsed'
+import {
+  displayMeetingSummary,
+  meetingAttendeeResponseSummary,
+  meetingInvitationIntroKey,
+  meetingInvitationIsCompactSummary,
+  meetingInvitationNeedsRsvp,
+  shouldHideMeetingInvitationPanel
+} from '@shared/meeting-invitation-display'
 
 function partStatIcon(stat: MeetingAttendeePartStat): JSX.Element {
   switch (stat) {
@@ -110,12 +117,15 @@ function canProposeNewTime(invitation: MeetingInvitationView): boolean {
 export function MeetingInvitationPanel({
   messageId,
   account,
+  bodyPlainLength = 0,
   onReply,
   onReplyAll,
   onForward
 }: {
   messageId: number
   account: ConnectedAccount | null
+  /** Grobe Länge des Mail-Fliesstexts (für Ausblenden bei Kurznachrichten). */
+  bodyPlainLength?: number
   onReply: () => void
   onReplyAll: () => void
   onForward: () => void
@@ -136,24 +146,14 @@ export function MeetingInvitationPanel({
     y: number
   } | null>(null)
   const moreBtnRef = useRef<HTMLButtonElement | null>(null)
-  const [collapsed, setCollapsed] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem(MEETING_PANEL_COLLAPSE_KEY) === '1'
-    } catch {
-      return false
-    }
-  })
+  const [detailsExpanded, setDetailsExpanded] = useState(false)
 
-  const toggleCollapsed = useCallback((): void => {
-    setCollapsed((prev) => {
-      const next = !prev
-      try {
-        localStorage.setItem(MEETING_PANEL_COLLAPSE_KEY, next ? '1' : '0')
-      } catch {
-        /* ignore */
-      }
-      return next
-    })
+  useEffect(() => {
+    setDetailsExpanded(false)
+  }, [messageId])
+
+  const toggleDetailsExpanded = useCallback((): void => {
+    setDetailsExpanded((prev) => !prev)
   }, [])
 
   const reload = useCallback(async (): Promise<void> => {
@@ -181,18 +181,13 @@ export function MeetingInvitationPanel({
     [invitation, dayEvents]
   )
 
-  const attendeeSummary = useMemo(() => {
-    if (!invitation) {
-      return { accepted: 0, declined: 0, tentative: 0, pending: 0 }
-    }
-    const accepted = invitation.attendees.filter((a) => a.partStat === 'accepted').length
-    const declined = invitation.attendees.filter((a) => a.partStat === 'declined').length
-    const tentative = invitation.attendees.filter((a) => a.partStat === 'tentative').length
-    const pending = invitation.attendees.filter(
-      (a) => a.partStat === 'needs-action' || a.partStat === 'unknown'
-    ).length
-    return { accepted, declined, tentative, pending }
-  }, [invitation])
+  const attendeeSummary = useMemo(
+    () =>
+      invitation
+        ? meetingAttendeeResponseSummary(invitation.attendees)
+        : { accepted: 0, declined: 0, tentative: 0, pending: 0 },
+    [invitation]
+  )
 
   const respond = useCallback(
     async (
@@ -325,10 +320,17 @@ export function MeetingInvitationPanel({
     return items
   }, [invitation, onForward, onReply, onReplyAll, respond, t])
 
+  const panelChromeClass = 'mt-1 overflow-hidden rounded-sm border border-border/60 bg-muted/30'
+
   if (loading) {
     return (
-      <div className="mx-6 mt-3 flex items-center gap-2 rounded-xl border border-border/70 bg-secondary/20 px-4 py-3 text-[12px] text-muted-foreground">
-        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+      <div
+        className={cn(
+          panelChromeClass,
+          'flex items-center gap-1.5 px-2 py-2 text-xs text-muted-foreground'
+        )}
+      >
+        <Loader2 className="h-3 w-3 animate-spin" />
         {t('mail.meetingInvitation.loading')}
       </div>
     )
@@ -337,159 +339,237 @@ export function MeetingInvitationPanel({
   if (!invitation) {
     if (loadWarnings.length === 0) return null
     return (
-      <div className="mx-6 mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-[12px] text-foreground">
+      <div className={cn(panelChromeClass, 'px-2 py-2 text-xs text-foreground')}>
         <p className="font-medium">{t('mail.meetingInvitation.loadFailedTitle')}</p>
-        <p className="mt-1 text-muted-foreground">{loadWarnings.join(' · ')}</p>
+        <p className="mt-0.5 text-muted-foreground">{loadWarnings.join(' · ')}</p>
       </div>
     )
+  }
+
+  if (shouldHideMeetingInvitationPanel(invitation, bodyPlainLength)) {
+    return null
   }
 
   const responseLabel = selfResponseLabel(invitation.selfPartStat, t)
   const proposedRangeLabel = formatMeetingProposedRangeLabel(invitation, dfLocale, i18n.language)
   const showPropose = canProposeNewTime(invitation)
+  const displayTitle = displayMeetingSummary(invitation.summary)
+  const introKey = meetingInvitationIntroKey(invitation)
+  const needsRsvp = meetingInvitationNeedsRsvp(invitation)
+  const compactSummary = meetingInvitationIsCompactSummary(invitation)
+  const showOrganizerActions = invitation.isOrganizer && !invitation.isCancelled
+  const showActionRow = needsRsvp || showOrganizerActions
+  const timeLabel = formatMeetingRange(
+    invitation,
+    dfLocale,
+    i18n.language,
+    t('mail.meetingInvitation.timeUnknown')
+  )
+
+  const moreButton = (
+    <button
+      ref={moreBtnRef}
+      type="button"
+      className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-border/70 bg-background text-muted-foreground hover:bg-secondary/70 hover:text-foreground"
+      aria-label={t('mail.meetingInvitation.moreActions')}
+      onClick={(e): void => {
+        const r = e.currentTarget.getBoundingClientRect()
+        setMoreMenu({ x: r.left, y: r.bottom + 4 })
+      }}
+    >
+      <MoreHorizontal className="h-3.5 w-3.5" />
+    </button>
+  )
 
   return (
     <section
-      className="meeting-invitation-panel mx-6 mt-3 shrink-0 overflow-hidden rounded-xl border border-violet-500/25 bg-gradient-to-b from-violet-500/[0.08] to-secondary/10"
+      className={cn('meeting-invitation-panel shrink-0', panelChromeClass)}
       aria-label={t('mail.meetingInvitation.ariaLabel')}
     >
-      <button
-        type="button"
-        onClick={toggleCollapsed}
-        aria-expanded={!collapsed}
-        aria-label={collapsed ? t('mail.meetingInvitation.expand') : t('mail.meetingInvitation.collapse')}
-        className="flex w-full items-start gap-2 px-4 py-2.5 text-left transition hover:bg-foreground/[0.03]"
-      >
-        <div className="min-w-0 flex-1 space-y-0.5">
-          <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-            {invitation.isCancelled
-              ? t('mail.meetingInvitation.cancelledIntro')
-              : t('mail.meetingInvitation.intro')}
-          </p>
-          <h2
-            className={cn(
-              'text-[14px] font-semibold leading-snug text-foreground',
-              collapsed && 'truncate'
-            )}
-          >
-            {invitation.summary}
-          </h2>
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] text-muted-foreground">
-            <span className="inline-flex items-center gap-1.5">
-              <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden />
-              {formatMeetingRange(invitation, dfLocale, i18n.language, t('mail.meetingInvitation.timeUnknown'))}
-            </span>
-            {responseLabel ? (
-              <span className="rounded-full bg-secondary/70 px-2 py-0.5 text-[11px] font-medium text-foreground">
-                {responseLabel}
-              </span>
-            ) : null}
-            {proposedRangeLabel ? (
-              <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:text-amber-300">
-                {t('mail.meetingInvitation.youProposed', { when: proposedRangeLabel })}
-              </span>
-            ) : null}
-          </div>
-        </div>
-        <ChevronDown
-          className={cn(
-            'mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform',
-            collapsed && '-rotate-90'
-          )}
-          aria-hidden
-        />
-      </button>
-
-      {collapsed ? null : (
-      <div className="space-y-3 px-4 pb-3.5">
-        {loadWarnings.length > 0 ? (
-          <p className="text-[11px] text-amber-600 dark:text-amber-400">{loadWarnings.join(' · ')}</p>
-        ) : null}
-
-        {!invitation.isCancelled ? (
-          <div className="flex flex-wrap items-center gap-2">
-            {invitation.isOrganizer ? (
-              <>
-                {invitation.canReschedule ? (
-                  <div ref={rescheduleBtnRef} className="inline-flex">
-                    <ResponseButton
-                      tone="tentative"
-                      label={t('mail.meetingInvitation.changeTime')}
-                      busy={false}
-                      disabled={false}
-                      onClick={(): void => setRescheduleOpen(true)}
-                      icon={CalendarClock}
-                    />
-                  </div>
-                ) : invitation.rescheduleUnsupportedReason ? (
-                  <span className="text-[11px] text-muted-foreground">
-                    {invitation.rescheduleUnsupportedReason}
+      <PreviewMetaRow label={t('mail.meetingInvitation.rowLabel')} className="border-b-0">
+        <div className="space-y-1.5 py-0.5">
+          {compactSummary ? (
+            <div className="flex min-w-0 items-center gap-1.5 text-xs text-foreground">
+              <button
+                type="button"
+                onClick={toggleDetailsExpanded}
+                aria-expanded={detailsExpanded}
+                aria-label={
+                  detailsExpanded
+                    ? t('mail.meetingInvitation.collapse')
+                    : t('mail.meetingInvitation.expand')
+                }
+                className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary/60"
+              >
+                <ChevronDown
+                  className={cn(
+                    'h-3.5 w-3.5 transition-transform',
+                    !detailsExpanded && '-rotate-90'
+                  )}
+                  aria-hidden
+                />
+              </button>
+              <Calendar className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+              <button
+                type="button"
+                onClick={toggleDetailsExpanded}
+                className="min-w-0 flex-1 truncate text-left font-medium hover:underline"
+              >
+                {displayTitle}
+              </button>
+              <PreviewMetaDot />
+              <span className="hidden shrink-0 text-muted-foreground sm:inline">{timeLabel}</span>
+              {responseLabel ? (
+                <>
+                  <PreviewMetaDot />
+                  <span className="shrink-0 text-muted-foreground">{responseLabel}</span>
+                </>
+              ) : null}
+              {attendeeSummary.accepted > 0 ? (
+                <>
+                  <PreviewMetaDot />
+                  <span className="hidden shrink-0 text-muted-foreground md:inline">
+                    {t('mail.meetingInvitation.acceptedCount', { count: attendeeSummary.accepted })}
                   </span>
-                ) : null}
-              </>
-            ) : (
-              <>
-                <ResponseSplitButton
-                  tone="accept"
-                  label={t('mail.meetingInvitation.accept')}
-                  busy={responding === 'accept'}
-                  disabled={!!responding || !invitation.canRespond}
-                  onPrimaryClick={(): void => {
-                    void respond('accept')
+                </>
+              ) : null}
+              {invitation.joinUrl && !detailsExpanded ? (
+                <button
+                  type="button"
+                  className="hidden shrink-0 font-medium text-primary hover:underline lg:inline"
+                  onClick={(): void => {
+                    void window.mailClient.app.openExternal(invitation.joinUrl!)
                   }}
-                  onOpenMenu={(x, y): void => setResponseMenu({ response: 'accept', x, y })}
+                >
+                  {t('mail.meetingInvitation.joinMeeting')}
+                </button>
+              ) : null}
+              {moreButton}
+            </div>
+          ) : (
+            <div className="flex items-start gap-1">
+              <button
+                type="button"
+                onClick={toggleDetailsExpanded}
+                aria-expanded={detailsExpanded}
+                aria-label={
+                  detailsExpanded
+                    ? t('mail.meetingInvitation.collapse')
+                    : t('mail.meetingInvitation.expand')
+                }
+                className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary/60"
+              >
+                <ChevronDown
+                  className={cn(
+                    'h-3.5 w-3.5 transition-transform',
+                    !detailsExpanded && '-rotate-90'
+                  )}
+                  aria-hidden
                 />
-                <ResponseSplitButton
+              </button>
+              <div className="min-w-0 flex-1 space-y-0.5">
+                <p className="text-[10px] text-muted-foreground">{t(`mail.meetingInvitation.${introKey}`)}</p>
+                <p className="text-xs font-medium leading-snug text-foreground">{displayTitle}</p>
+                <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] text-muted-foreground">
+                  <span className="inline-flex items-center gap-1">
+                    <Clock className="h-3 w-3 shrink-0" aria-hidden />
+                    {timeLabel}
+                  </span>
+                  {responseLabel ? (
+                    <>
+                      <PreviewMetaDot />
+                      <span>{responseLabel}</span>
+                    </>
+                  ) : null}
+                  {proposedRangeLabel ? (
+                    <>
+                      <PreviewMetaDot />
+                      <span className="text-amber-700 dark:text-amber-300">
+                        {t('mail.meetingInvitation.youProposed', { when: proposedRangeLabel })}
+                      </span>
+                    </>
+                  ) : null}
+                </div>
+              </div>
+              {!showActionRow ? moreButton : null}
+            </div>
+          )}
+
+      {showActionRow ? (
+        <div className="flex flex-wrap items-center gap-1">
+          {needsRsvp ? (
+            <>
+              <ResponseSplitButton
+                tone="accept"
+                label={t('mail.meetingInvitation.accept')}
+                busy={responding === 'accept'}
+                disabled={!!responding}
+                onPrimaryClick={(): void => {
+                  void respond('accept')
+                }}
+                onOpenMenu={(x, y): void => setResponseMenu({ response: 'accept', x, y })}
+              />
+              <ResponseSplitButton
+                tone="tentative"
+                label={t('mail.meetingInvitation.tentative')}
+                busy={responding === 'tentative'}
+                disabled={!!responding}
+                onPrimaryClick={(): void => {
+                  void respond('tentative')
+                }}
+                onOpenMenu={(x, y): void => setResponseMenu({ response: 'tentative', x, y })}
+              />
+              <ResponseSplitButton
+                tone="decline"
+                label={t('mail.meetingInvitation.decline')}
+                busy={responding === 'decline'}
+                disabled={!!responding}
+                onPrimaryClick={(): void => {
+                  void respond('decline')
+                }}
+                onOpenMenu={(x, y): void => setResponseMenu({ response: 'decline', x, y })}
+              />
+              {showPropose ? (
+                <ResponseButton
                   tone="tentative"
-                  label={t('mail.meetingInvitation.tentative')}
-                  busy={responding === 'tentative'}
-                  disabled={!!responding || !invitation.canRespond}
-                  onPrimaryClick={(): void => {
-                    void respond('tentative')
-                  }}
-                  onOpenMenu={(x, y): void => setResponseMenu({ response: 'tentative', x, y })}
+                  label={t('mail.meetingInvitation.proposeNewTime')}
+                  busy={responding === 'propose'}
+                  disabled={!!responding}
+                  onClick={(): void => setProposeOpen(true)}
+                  icon={CalendarClock}
                 />
-                <ResponseSplitButton
-                  tone="decline"
-                  label={t('mail.meetingInvitation.decline')}
-                  busy={responding === 'decline'}
-                  disabled={!!responding || !invitation.canRespond}
-                  onPrimaryClick={(): void => {
-                    void respond('decline')
-                  }}
-                  onOpenMenu={(x, y): void => setResponseMenu({ response: 'decline', x, y })}
-                />
-                {showPropose ? (
+              ) : null}
+            </>
+          ) : showOrganizerActions ? (
+            <>
+              {invitation.canReschedule ? (
+                <div ref={rescheduleBtnRef} className="inline-flex">
                   <ResponseButton
                     tone="tentative"
-                    label={t('mail.meetingInvitation.proposeNewTime')}
-                    busy={responding === 'propose'}
-                    disabled={!!responding}
-                    onClick={(): void => setProposeOpen(true)}
+                    label={t('mail.meetingInvitation.changeTime')}
+                    busy={false}
+                    disabled={false}
+                    onClick={(): void => setRescheduleOpen(true)}
                     icon={CalendarClock}
                   />
-                ) : null}
-                {!invitation.canRespond && invitation.respondUnsupportedReason ? (
-                  <span className="text-[11px] text-muted-foreground">
-                    {invitation.respondUnsupportedReason}
-                  </span>
-                ) : null}
-              </>
-            )}
-            <button
-              ref={moreBtnRef}
-              type="button"
-              className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-background/60 px-2.5 text-[12px] font-medium text-foreground hover:bg-secondary/60"
-              aria-label={t('mail.meetingInvitation.moreActions')}
-              onClick={(e): void => {
-                const r = e.currentTarget.getBoundingClientRect()
-                setMoreMenu({ x: r.left, y: r.bottom + 4 })
-              }}
-            >
-              <MoreHorizontal className="h-4 w-4" />
-              <ChevronDown className="h-3 w-3 opacity-60" aria-hidden />
-            </button>
-          </div>
+                </div>
+              ) : invitation.rescheduleUnsupportedReason ? (
+                <span className="text-[11px] text-muted-foreground">
+                  {invitation.rescheduleUnsupportedReason}
+                </span>
+              ) : null}
+            </>
+          ) : null}
+          {moreButton}
+        </div>
+      ) : null}
+        </div>
+      </PreviewMetaRow>
+
+      {detailsExpanded ? (
+      <div className="space-y-2 border-t border-border/50 bg-background px-2 py-2">
+        {loadWarnings.length > 0 ? (
+          <p className="text-[11px] text-amber-600 dark:text-amber-400">{loadWarnings.join(' · ')}</p>
         ) : null}
 
         {hasConflict && showPropose ? (
@@ -512,11 +592,13 @@ export function MeetingInvitationPanel({
           </p>
         ) : null}
 
-        <MeetingInvitationDayPreview
-          invitation={invitation}
-          dayEvents={dayEvents}
-          loading={dayLoading}
-        />
+        <div className="meeting-invitation-details-grid grid gap-3 lg:grid-cols-2">
+          <MeetingInvitationDayPreview
+            invitation={invitation}
+            dayEvents={dayEvents}
+            loading={dayLoading}
+            previewHeightPx={168}
+          />
 
         <div className="space-y-2 text-[12px]">
           {invitation.organizer ? (
@@ -559,12 +641,12 @@ export function MeetingInvitationPanel({
                 </div>
                 <button
                   type="button"
-                  className="inline-flex items-center gap-2 rounded-lg bg-[#5B5FC7] px-3 py-1.5 text-[12px] font-semibold text-white shadow-sm transition hover:bg-[#4f52b8]"
+                  className="inline-flex h-6 items-center gap-1 rounded-md border border-border bg-secondary/40 px-2 text-[10px] font-medium text-foreground hover:bg-secondary/70"
                   onClick={(): void => {
                     void window.mailClient.app.openExternal(invitation.joinUrl!)
                   }}
                 >
-                  <Video className="h-3.5 w-3.5" aria-hidden />
+                  <Video className="h-3 w-3" aria-hidden />
                   {t('mail.meetingInvitation.joinMeeting')}
                 </button>
               </div>
@@ -630,8 +712,9 @@ export function MeetingInvitationPanel({
             </div>
           ) : null}
         </div>
+        </div>
       </div>
-      )}
+      ) : null}
 
       {responseMenu ? (
         <ContextMenu
@@ -711,24 +794,24 @@ function ResponseSplitButton({
   const { t } = useTranslation()
   const toneClass =
     tone === 'accept'
-      ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 dark:text-emerald-300'
+      ? 'border-emerald-500/35 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/15 dark:text-emerald-400'
       : tone === 'decline'
-        ? 'border-rose-500/40 bg-rose-500/15 text-rose-700 hover:bg-rose-500/25 dark:text-rose-300'
-        : 'border-border bg-secondary/50 text-foreground hover:bg-secondary/80'
+        ? 'border-rose-500/35 bg-rose-500/10 text-rose-700 hover:bg-rose-500/15 dark:text-rose-400'
+        : 'border-border/80 bg-background text-foreground hover:bg-secondary/60'
 
   const dividerClass =
     tone === 'accept'
-      ? 'border-emerald-500/30'
+      ? 'border-emerald-500/25'
       : tone === 'decline'
-        ? 'border-rose-500/30'
-        : 'border-border/80'
+        ? 'border-rose-500/25'
+        : 'border-border/70'
 
   const Icon = IconOverride ?? (tone === 'accept' ? Check : tone === 'decline' ? X : Calendar)
 
   return (
     <div
       className={cn(
-        'inline-flex h-8 overflow-hidden rounded-lg border text-[12px] font-semibold transition disabled:opacity-50',
+        'inline-flex h-6 overflow-hidden rounded-md border text-[10px] font-medium transition disabled:opacity-50',
         toneClass,
         disabled ? 'opacity-50' : ''
       )}
@@ -737,9 +820,9 @@ function ResponseSplitButton({
         type="button"
         disabled={disabled}
         onClick={onPrimaryClick}
-        className="inline-flex h-full items-center gap-1.5 px-3 transition hover:brightness-95 disabled:pointer-events-none"
+        className="inline-flex h-full items-center gap-1 px-2 transition disabled:pointer-events-none"
       >
-        {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Icon className="h-3.5 w-3.5" />}
+        {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Icon className="h-3 w-3" />}
         {label}
       </button>
       <button
@@ -747,7 +830,7 @@ function ResponseSplitButton({
         disabled={disabled}
         aria-label={t('mail.meetingInvitation.respondMenuAria')}
         className={cn(
-          'inline-flex h-full items-center border-l px-1.5 transition hover:brightness-95 disabled:pointer-events-none',
+          'inline-flex h-full items-center border-l px-1 transition disabled:pointer-events-none',
           dividerClass
         )}
         onClick={(e): void => {
@@ -755,7 +838,7 @@ function ResponseSplitButton({
           onOpenMenu(r.left, r.bottom + 4)
         }}
       >
-        <ChevronDown className="h-3.5 w-3.5 opacity-80" aria-hidden />
+        <ChevronDown className="h-3 w-3 opacity-70" aria-hidden />
       </button>
     </div>
   )
@@ -778,10 +861,10 @@ function ResponseButton({
 }): JSX.Element {
   const toneClass =
     tone === 'accept'
-      ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 dark:text-emerald-300'
+      ? 'border-emerald-500/35 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/15 dark:text-emerald-400'
       : tone === 'decline'
-        ? 'border-rose-500/40 bg-rose-500/15 text-rose-700 hover:bg-rose-500/25 dark:text-rose-300'
-        : 'border-border bg-secondary/50 text-foreground hover:bg-secondary/80'
+        ? 'border-rose-500/35 bg-rose-500/10 text-rose-700 hover:bg-rose-500/15 dark:text-rose-400'
+        : 'border-border/80 bg-background text-foreground hover:bg-secondary/60'
 
   const Icon = IconOverride ?? (tone === 'accept' ? Check : tone === 'decline' ? X : Calendar)
 
@@ -791,11 +874,11 @@ function ResponseButton({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        'inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-[12px] font-semibold transition disabled:opacity-50',
+        'inline-flex h-6 items-center gap-1 rounded-md border px-2 text-[10px] font-medium transition disabled:opacity-50',
         toneClass
       )}
     >
-      {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Icon className="h-3.5 w-3.5" />}
+      {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Icon className="h-3 w-3" />}
       {label}
     </button>
   )

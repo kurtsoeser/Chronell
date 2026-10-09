@@ -2,6 +2,7 @@ import { app, BrowserWindow, screen } from 'electron'
 import { resolveAppWindowIcon } from './app-icon'
 import { popoutWindowTitleBarOptions } from './window-titlebar'
 import { attachChromiumZoomShortcutGuard } from './zoom-shortcut-guard'
+import { attachChromiumContextMenuSpellCapture } from './chromium-context-menu-spell'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { MailReadingPopoutKey, MailReadingPopoutOpenInput } from '@shared/types'
@@ -135,6 +136,7 @@ export function openMailReadingPopout(input: MailReadingPopoutOpenInput): void {
   }
 
   attachChromiumZoomShortcutGuard(win.webContents)
+  attachChromiumContextMenuSpellCapture(win.webContents)
 
   popoutWindows.set(key, win)
   popoutMeta.set(key, { title, alwaysOnTop })

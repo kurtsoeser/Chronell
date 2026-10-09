@@ -31,6 +31,7 @@ export function calendarShellFullCalendarPropsAreEqual(
     prev.isDeCalendar === next.isDeCalendar &&
     prev.clipboardDfLocale === next.clipboardDfLocale &&
     prev.eventPointerManipulatingRef === next.eventPointerManipulatingRef &&
-    prev.graphCalendarReconcilingRef === next.graphCalendarReconcilingRef
+    prev.graphCalendarReconcilingRef === next.graphCalendarReconcilingRef &&
+    prev.previewFocusStableKey === next.previewFocusStableKey
   )
 }

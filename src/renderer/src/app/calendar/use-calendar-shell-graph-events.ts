@@ -20,7 +20,15 @@ import {
   calendarVisibilityKey,
   parseCalendarVisibilityKey
 } from '@/lib/calendar-visibility-storage'
-import { buildCalendarIncludeCalendars } from '@/lib/build-calendar-include-calendars'
+import {
+  buildCalendarIncludeCalendars,
+  buildCalendarIncludeCalendarsSync,
+  calendarLinkedAccountsHaveCalendarRows
+} from '@/lib/build-calendar-include-calendars'
+import {
+  buildCalendarGraphRangeCacheKey,
+  useCalendarGraphRangeCacheStore
+} from '@/stores/calendar-graph-range-cache'
 
 export interface UseCalendarShellGraphEventsParams {
   calendarRef: RefObject<FullCalendar | null>
@@ -72,6 +80,26 @@ export function useCalendarShellGraphEvents({
     (opts?: { silent?: boolean; forceRefresh?: boolean }) => void
   >(() => {})
 
+  const includeCalendarsResolved = useMemo(() => {
+    if (!calendarLinkedAccountsHaveCalendarRows(calendarLinkedAccounts, calendarsByAccount)) {
+      return null
+    }
+    return buildCalendarIncludeCalendarsSync(
+      calendarLinkedAccounts,
+      calendarsByAccount,
+      hiddenCalendarKeys,
+      sidebarHiddenCalendarKeys
+    )
+  }, [
+    calendarLinkedAccounts,
+    calendarsByAccount,
+    hiddenCalendarKeys,
+    sidebarHiddenCalendarKeys
+  ])
+
+  const loadRangeInflightRef = useRef<Promise<void> | null>(null)
+  const loadRangeInflightKeyRef = useRef<string | null>(null)
+
   const defaultGraphCalendarIdByAccount = useMemo(() => {
     const m: Record<string, string | null> = {}
     for (const acc of calendarLinkedAccounts) {
@@ -91,32 +119,83 @@ export function useCalendarShellGraphEvents({
       end: Date,
       opts?: { silent?: boolean; forceRefresh?: boolean }
     ): Promise<void> => {
-      const silent = opts?.silent === true
-      if (!silent) setLoading(true)
-      setError(null)
-      try {
-        const includeCalendars = await buildCalendarIncludeCalendars(
+      const forceRefresh = opts?.forceRefresh === true
+      let silent = opts?.silent === true
+
+      const includeCalendars =
+        includeCalendarsResolved ??
+        (await buildCalendarIncludeCalendars(
           calendarLinkedAccounts,
           calendarsByAccount as Record<string, CalendarGraphCalendarRow[]>,
           hiddenCalendarKeys,
           sidebarHiddenCalendarKeys
-        )
-        const list = await window.mailClient.calendar.listEvents({
-          startIso: start.toISOString(),
-          endIso: end.toISOString(),
-          focusCalendar: null,
-          includeCalendars,
-          forceRefresh: opts?.forceRefresh === true
-        })
-        setEvents(deduplicateCalendarEventsByGraphEventId(list))
-      } catch (e) {
-        setError(e instanceof Error ? e.message : String(e))
-        if (!silent) setEvents([])
-      } finally {
-        if (!silent) setLoading(false)
+        ))
+
+      const cacheKey = buildCalendarGraphRangeCacheKey(
+        start,
+        end,
+        includeCalendars,
+        hiddenCalendarKeys,
+        sidebarHiddenCalendarKeys
+      )
+
+      if (!forceRefresh) {
+        const { getFreshEntry, getStaleEntry } = useCalendarGraphRangeCacheStore.getState()
+        const fresh = getFreshEntry(cacheKey)
+        if (fresh) {
+          setEvents(deduplicateCalendarEventsByGraphEventId(fresh.events))
+          return
+        }
+        const stale = getStaleEntry(cacheKey)
+        if (stale) {
+          setEvents(deduplicateCalendarEventsByGraphEventId(stale.events))
+          silent = true
+        }
       }
+
+      if (loadRangeInflightKeyRef.current === cacheKey && loadRangeInflightRef.current) {
+        await loadRangeInflightRef.current
+        return
+      }
+
+      if (!silent) setLoading(true)
+      setError(null)
+
+      const run = (async (): Promise<void> => {
+        try {
+          const list = await window.mailClient.calendar.listEvents({
+            startIso: start.toISOString(),
+            endIso: end.toISOString(),
+            focusCalendar: null,
+            includeCalendars,
+            forceRefresh
+          })
+          const deduped = deduplicateCalendarEventsByGraphEventId(list)
+          useCalendarGraphRangeCacheStore.getState().setEntry(cacheKey, deduped)
+          setEvents(deduped)
+        } catch (e) {
+          setError(e instanceof Error ? e.message : String(e))
+          if (!silent) setEvents([])
+        } finally {
+          if (!silent) setLoading(false)
+          if (loadRangeInflightKeyRef.current === cacheKey) {
+            loadRangeInflightKeyRef.current = null
+            loadRangeInflightRef.current = null
+          }
+        }
+      })()
+
+      loadRangeInflightKeyRef.current = cacheKey
+      loadRangeInflightRef.current = run
+      await run
     },
-    [calendarLinkedAccounts, calendarsByAccount, hiddenCalendarKeys, sidebarHiddenCalendarKeys]
+    [
+      calendarLinkedAccounts,
+      calendarsByAccount,
+      hiddenCalendarKeys,
+      sidebarHiddenCalendarKeys,
+      includeCalendarsResolved
+    ]
   )
 
   const reloadVisibleRange = useCallback(
@@ -210,6 +289,7 @@ export function useCalendarShellGraphEvents({
     const off = window.mailClient.events.onCalendarChanged(() => {
       if (graphCalendarPersistInFlightRef.current > 0) return
       if (Date.now() < skipCalendarReloadUntilRef.current) return
+      useCalendarGraphRangeCacheStore.getState().clear()
       reloadCalendarEventsOnly({ silent: true })
     })
     return off

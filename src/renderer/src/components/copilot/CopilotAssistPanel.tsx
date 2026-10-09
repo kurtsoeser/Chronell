@@ -19,6 +19,7 @@ import { useAiConnectionsSettings } from '@/lib/use-ai-connections-settings'
 import { useWorkIqAvailable } from '@/lib/use-workiq-available'
 import { persistWorkIqAvailable } from '@/lib/workiq-availability'
 import { cn } from '@/lib/utils'
+import { chronellPanelDividerClass } from '@/lib/chronell-ui-classes'
 import { CopilotMarkdown } from '@/components/copilot/CopilotMarkdown'
 import { CopilotSourcePills } from '@/components/copilot/CopilotSourcePills'
 import { buildGroundedCopilotMessage } from '@/components/copilot/build-grounded-copilot-message'
@@ -40,6 +41,8 @@ export interface CopilotAssistPanelProps {
   /** Optional retrieval query (SharePoint + OneDrive). */
   retrievalQuery?: string | null
   collapsedDefault?: boolean
+  /** `rail` — Seitenleiste (Mail-Lesevorschau); `fold` — eingeklappbar in Vorschauen. */
+  layout?: 'fold' | 'rail'
   /** Gebundene Chronell-Objektnotiz (Mail/Termin) für „In Notiz übernehmen“. */
   noteTarget?: ObjectNoteTarget | null
 }
@@ -54,6 +57,7 @@ export function CopilotAssistPanel({
   className,
   retrievalQuery,
   collapsedDefault = true,
+  layout = 'fold',
   noteTarget = null
 }: CopilotAssistPanelProps): JSX.Element | null {
   const { t, i18n } = useTranslation()
@@ -340,6 +344,9 @@ export function CopilotAssistPanel({
 
   if (!canUse) return null
 
+  const isRail = layout === 'rail'
+  const panelExpanded = isRail ? true : expanded
+
   const trailing = (
     <>
       {busy || cacheLoading ? (
@@ -376,18 +383,8 @@ export function CopilotAssistPanel({
     </>
   )
 
-  return (
-    <PreviewFoldSection
-      icon={Sparkles}
-      title={title}
-      expanded={expanded}
-      onToggle={(): void => setExpanded((v) => !v)}
-      iconClassName="text-primary"
-      trailing={trailing}
-      summary={replyText ? t('copilot.assist.cachedLocal') : engineLabel}
-      className={cn('min-h-0', className)}
-      contentClassName="space-y-3 text-sm"
-    >
+  const body = (
+    <>
       {error ? (
         <p className="whitespace-pre-wrap break-all text-xs text-destructive" role="alert">
           {error}
@@ -498,6 +495,47 @@ export function CopilotAssistPanel({
           {t('copilot.assist.send')}
         </button>
       </div>
+    </>
+  )
+
+  if (isRail) {
+    return (
+      <aside
+        className={cn(
+          'flex h-full min-h-0 w-[min(100%,22rem)] shrink-0 flex-col overflow-hidden border-l bg-secondary/[0.04]',
+          chronellPanelDividerClass,
+          className
+        )}
+        aria-label={title}
+      >
+        <div
+          className={cn(
+            'flex shrink-0 items-center gap-2 border-b px-3 py-2',
+            chronellPanelDividerClass
+          )}
+        >
+          <Sparkles className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">{title}</span>
+          <div className="flex shrink-0 items-center gap-1">{trailing}</div>
+        </div>
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-3 text-sm">{body}</div>
+      </aside>
+    )
+  }
+
+  return (
+    <PreviewFoldSection
+      icon={Sparkles}
+      title={title}
+      expanded={panelExpanded}
+      onToggle={(): void => setExpanded((v) => !v)}
+      iconClassName="text-primary"
+      trailing={trailing}
+      summary={replyText ? t('copilot.assist.cachedLocal') : engineLabel}
+      className={cn('min-h-0', className)}
+      contentClassName="space-y-3 text-sm"
+    >
+      {body}
     </PreviewFoldSection>
   )
 }

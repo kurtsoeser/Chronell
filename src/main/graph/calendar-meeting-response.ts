@@ -5,7 +5,11 @@ import { createGraphClient } from './client'
 import { runGraphMailboxRequest } from './graph-account-request'
 import { loadConfig } from '../config'
 import { graphEventInstancePath } from './calendar-graph'
-import { formatGraphErrorMessage, readGraphStatusCode } from './graph-request-errors'
+import {
+  formatGraphErrorMessage,
+  isGraphItemNotFound,
+  readGraphStatusCode
+} from './graph-request-errors'
 import { GraphError } from '@microsoft/microsoft-graph-client'
 
 async function getClientFor(accountId: string): Promise<ReturnType<typeof createGraphClient>> {
@@ -456,6 +460,14 @@ export async function respondToGraphCalendarEvent(
       client.api(`${targetPath}/${action}`).post(body)
     )
   } catch (e) {
+    if (response === 'decline' && isGraphItemNotFound(e)) {
+      return {
+        selfPartStat: 'declined',
+        respondedEventId: targetId,
+        scope,
+        removedWithoutResponse: true
+      }
+    }
     // Fallback: responseRequested oft falsch; Graph verlangt dann sendResponse:false (oder Loeschen).
     if (
       response === 'decline' &&
@@ -516,9 +528,14 @@ async function declineEventWhenOrganizerWantsNoResponse(
   } catch {
     // Manche Postfaecher akzeptieren auch silent decline nicht — dann nur loeschen.
   }
-  await runGraphMailboxRequest(accountId, 'calendarEventDeleteNoResponse', () =>
-    client.api(eventPath).delete()
-  )
+  try {
+    await runGraphMailboxRequest(accountId, 'calendarEventDeleteNoResponse', () =>
+      client.api(eventPath).delete()
+    )
+  } catch (e) {
+    // Decline entfernt den Termin bei vielen Postfaechern bereits — DELETE ist dann redundant.
+    if (!isGraphItemNotFound(e)) throw e
+  }
 }
 
 function normalizeGraphErrorText(value: string): string {

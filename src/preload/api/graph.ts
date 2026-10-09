@@ -206,5 +206,7 @@ getMe: (id: string): Promise<unknown> => ipcRenderer.invoke(IPC.graph.getMe, id)
       accountId: string
       chatId: string
       text: string
-    }): Promise<void> => ipcRenderer.invoke(IPC.graph.sendTeamsChatMessage, args)
+    }): Promise<void> => ipcRenderer.invoke(IPC.graph.sendTeamsChatMessage, args),
+    markTeamsChatReadForUser: (args: { accountId: string; chatId: string }): Promise<void> =>
+      ipcRenderer.invoke(IPC.graph.markTeamsChatReadForUser, args)
 }

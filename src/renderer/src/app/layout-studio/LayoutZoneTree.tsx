@@ -14,6 +14,11 @@ import {
 } from '@/app/layout-studio/layout-zone-dnd'
 import { layoutStudioPanelTitleKey } from '@/app/layout-studio/layout-studio-panel-ids'
 import type { LayoutStudioPanelId } from '@/app/layout-studio/layout-studio-panel-ids'
+import { getLayoutStudioPanelCatalogEntry } from '@/app/layout-studio/layout-studio-panel-catalog'
+import {
+  chronellLayoutZoneHeaderClass,
+  chronellPanelDividerClass
+} from '@/lib/chronell-ui-classes'
 
 export type LayoutZonePopoutConfig = {
   viewId: string
@@ -244,12 +249,15 @@ function ZoneLeafView({
   const isPopped = zonePopout?.isPopped(leaf.id) ?? false
   const canPopOut = zonePopout != null && leaf.panel !== 'none' && !isPopped
   const panelLabel = t(layoutStudioPanelTitleKey(leaf.panel))
+  const PanelIcon = getLayoutStudioPanelCatalogEntry(leaf.panel).Icon
+  const showZoneChrome = !editMode && leaf.panel !== 'none' && !isPopped
 
   return (
     <div
       ref={zoneRef}
       className={cn(
         'relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden',
+        showZoneChrome && cn('border-r', chronellPanelDividerClass),
         editMode && 'ring-inset',
         editMode && selected && 'ring-2 ring-primary/70',
         editMode && !selected && !dropOver && 'ring-1 ring-border/60',
@@ -290,9 +298,10 @@ function ZoneLeafView({
           : undefined
       }
     >
-      {zonePopout && !editMode && !isPopped ? (
-        <div className="flex shrink-0 items-center gap-1 border-b border-border bg-card/60 px-2 py-1">
-          <span className="min-w-0 flex-1 truncate text-[10px] font-medium text-muted-foreground">
+      {showZoneChrome ? (
+        <div className={cn(chronellLayoutZoneHeaderClass, chronellPanelDividerClass)}>
+          <PanelIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+          <span className="chronell-type-section-label min-w-0 flex-1 truncate text-foreground/80">
             {panelLabel}
           </span>
           {canPopOut ? (
@@ -300,7 +309,7 @@ function ZoneLeafView({
               type="button"
               title={t('customView.popout.popOutTitle')}
               aria-label={t('customView.popout.popOutAria', { module: panelLabel })}
-              onClick={(): void => zonePopout.onPopOut(leaf.id, leaf.panel)}
+              onClick={(): void => zonePopout?.onPopOut(leaf.id, leaf.panel)}
               className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-secondary hover:text-foreground"
             >
               <SquareArrowOutUpRight className="h-3.5 w-3.5" />

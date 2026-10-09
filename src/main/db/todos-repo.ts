@@ -59,30 +59,6 @@ function rowToTodoListItem(
   }
 }
 
-function todoItemOverlapsRange(
-  item: Pick<MailListItem, 'todoDueAt' | 'todoStartAt' | 'todoEndAt'>,
-  rangeStartIso: string,
-  rangeEndIso: string
-): boolean {
-  const r0 = new Date(rangeStartIso).getTime()
-  const r1 = new Date(rangeEndIso).getTime()
-  if (!Number.isFinite(r0) || !Number.isFinite(r1)) return false
-  const startIso = item.todoStartAt ?? item.todoDueAt
-  if (!startIso) return false
-  const s = new Date(startIso).getTime()
-  if (!Number.isFinite(s)) return false
-  let e: number
-  if (item.todoEndAt) {
-    e = new Date(item.todoEndAt).getTime()
-    if (!Number.isFinite(e) || e <= s) e = s + 60_000
-  } else if (item.todoStartAt) {
-    e = s + 60 * 60 * 1000
-  } else {
-    e = s + 25 * 60 * 1000
-  }
-  return s < r1 && e > r0
-}
-
 export function getOpenTodoByMessageId(messageId: number): OpenTodoRow | null {
   const db = getDb()
   const row = db
@@ -458,6 +434,15 @@ export function listTodoMessagesWithMeta(
 /**
  * Offene Mail-ToDos, die den sichtbaren Kalenderbereich schneiden (Start/Ende oder nur `due_at`).
  */
+/** Effektives Ende eines Mail-ToDos (entspricht `todoItemOverlapsRange`). */
+const TODO_VISUAL_END_SQL = `CASE
+  WHEN t.todo_end_at IS NOT NULL
+    AND datetime(t.todo_end_at) > datetime(COALESCE(t.todo_start_at, t.todo_due_at))
+    THEN t.todo_end_at
+  WHEN t.todo_start_at IS NOT NULL THEN datetime(t.todo_start_at, '+1 hour')
+  ELSE datetime(t.todo_due_at, '+25 minutes')
+END`
+
 export function listOpenTodoMessagesWithDueAtInRange(
   accountId: string | null,
   rangeStartIso: string,
@@ -466,16 +451,17 @@ export function listOpenTodoMessagesWithDueAtInRange(
 ): MailListItem[] {
   const db = getDb()
   const accountClause = accountId != null ? 'AND m.account_id = ?' : ''
-  const broadLimit = 4000
   const sql = `SELECT
      ${TODO_JOIN_SELECT},
      ${M_LIST}
    FROM todos t
    INNER JOIN messages m ON m.id = t.message_id
    WHERE t.status = 'open'
-     AND (t.due_at IS NOT NULL OR t.todo_start_at IS NOT NULL)
+     AND COALESCE(t.todo_start_at, t.todo_due_at) IS NOT NULL
+     AND COALESCE(t.todo_start_at, t.todo_due_at) < ?
+     AND ${TODO_VISUAL_END_SQL} > ?
      ${accountClause}
-   ORDER BY COALESCE(t.todo_start_at, t.due_at, '') DESC
+   ORDER BY COALESCE(t.todo_start_at, t.todo_due_at, '') ASC
    LIMIT ?`
 
   type Row = MessageRow & {
@@ -489,12 +475,10 @@ export function listOpenTodoMessagesWithDueAtInRange(
 
   const rows =
     accountId != null
-      ? (db.prepare(sql).all(accountId, broadLimit) as Row[])
-      : (db.prepare(sql).all(broadLimit) as Row[])
+      ? (db.prepare(sql).all(rangeEndIso, rangeStartIso, accountId, limit) as Row[])
+      : (db.prepare(sql).all(rangeEndIso, rangeStartIso, limit) as Row[])
 
-  const mapped = rows.map(rowToTodoListItem)
-  const filtered = mapped.filter((item) => todoItemOverlapsRange(item, rangeStartIso, rangeEndIso))
-  return filtered.slice(0, limit)
+  return rows.map(rowToTodoListItem)
 }
 
 export function countOpenTodosGlobal(timeZone: string): TodoOpenCounts {

@@ -139,7 +139,7 @@ export function computeMegaTimelineGroups(
 
   const views = workItemsToViews(filtered, accountsById, timeZone, nowMs)
 
-  const layout = computeWorkItemListLayout(views, arrange, chrono, 'all', arrangeCtx)
+  const layout = computeWorkItemListLayout(views, arrange, chrono, 'all', arrangeCtx, nowMs)
 
 
 

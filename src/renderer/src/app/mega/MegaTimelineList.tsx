@@ -7,9 +7,15 @@ import { MIME_THREAD_IDS } from '@/lib/workflow-dnd'
 import { setCloudTaskDragData } from '@/app/tasks/tasks-cloud-task-dnd'
 import { listDivideClass, listSubtleBorderClass } from '@/lib/chronell-ui-classes'
 import { cn } from '@/lib/utils'
-import { resolvedAccountColorCss } from '@/lib/avatar-color'
-import { AccountColorStripe } from '@/components/AccountColorStripe'
+import { MailTodoKindPill } from '@/components/MailTodoKindPill'
 import { TodoDueBucketBadge } from '@/components/TodoDueBucketBadge'
+import {
+  workItemTimelineAccentHex,
+  workItemTimelineIconWrapClass,
+  workItemTimelineIconWrapStyle,
+  workItemTimelineStripeClass,
+  workItemTimelineStripeStyle
+} from '@/lib/work-item-timeline-visual'
 import { classifyWorkItemBucket } from '@/app/work-items/work-item-bucket'
 import { workItemSourceLabel } from '@/app/work-items/work-item-mapper'
 import type { MegaDayGroup } from '@/app/mega/mega-timeline-arrange'
@@ -37,14 +43,14 @@ function MegaTimelineTimeCell({ display }: { display: MegaItemTimeDisplay }): JS
   }
   if (display.variant === 'label') {
     return (
-      <span className="min-w-[2.5rem] max-w-[3.25rem] shrink-0 self-center text-2xs leading-tight text-muted-foreground">
+      <span className="chronell-type-list-meta min-w-[2.5rem] max-w-[3.25rem] shrink-0 self-center leading-tight">
         {display.text}
       </span>
     )
   }
   return (
     <div
-      className="flex min-w-[2.5rem] shrink-0 flex-col items-start justify-center gap-px self-center text-2xs tabular-nums leading-none text-muted-foreground"
+      className="chronell-type-list-meta flex min-w-[2.5rem] shrink-0 flex-col items-start justify-center gap-px self-center tabular-nums leading-none"
       aria-label={`${display.start} – ${display.end}`}
     >
       <span>{display.start}</span>
@@ -139,7 +145,7 @@ export function MegaTimelineList({
               {group.todoKind != null ? (
                 <TodoDueBucketBadge kind={group.todoKind} />
               ) : (
-                <span className="chronell-type-section-label text-muted-foreground">
+                <span className="chronell-type-date-group-label">
                   {group.dayLabel}
                 </span>
               )}
@@ -154,7 +160,12 @@ export function MegaTimelineList({
               const KindIcon = kindIconComponent(item)
               const active = selectedKey === item.stableKey
               const account = accountById.get(item.accountId)
-              const accountColorCss = account ? resolvedAccountColorCss(account.color) : undefined
+              const accentHex = workItemTimelineAccentHex(item, account)
+              const typeStripeClass = workItemTimelineStripeClass(item)
+              const iconWrapClass = workItemTimelineIconWrapClass(item)
+              const stripeStyle = workItemTimelineStripeStyle(accentHex)
+              const iconWrapStyle = workItemTimelineIconWrapStyle(accentHex)
+              const isMailTodo = item.kind === 'mail_todo'
               const bucket = classifyWorkItemBucket(item, timeZone)
               const canToggle = Boolean(onToggleCompleted)
               const showBucketBadge = item.kind !== 'calendar_event' || arrange === 'todo_bucket'
@@ -183,13 +194,16 @@ export function MegaTimelineList({
                   <div
                     role="button"
                     tabIndex={0}
+                    data-work-item-stable-key={item.stableKey}
                     draggable={draggable}
                     onDragStart={onDragStart}
                     className={cn(
                       'group relative flex w-full cursor-pointer items-start gap-2 border-b px-3 py-2 text-left transition-colors',
                       listSubtleBorderClass,
                       draggable && 'cursor-grab active:cursor-grabbing',
-                      active ? 'bg-primary/10' : 'hover:bg-secondary/40'
+                      active
+                        ? 'bg-primary/15 ring-1 ring-inset ring-primary/35'
+                        : 'hover:bg-secondary/40'
                     )}
                     onClick={(): void => {
                       onSelect(item)
@@ -210,28 +224,24 @@ export function MegaTimelineList({
                         : undefined
                     }
                   >
-                    {account ? (
-                      <AccountColorStripe
-                        color={account.color}
-                        className="absolute bottom-1 left-0 top-1 w-0.5 rounded-full"
-                      />
-                    ) : null}
-                    <div className="mt-0.5 shrink-0">
+                    <span
+                      className={cn(
+                        'absolute bottom-1 left-0 top-1 w-0.5 rounded-full',
+                        !accentHex && typeStripeClass
+                      )}
+                      style={stripeStyle}
+                      aria-hidden
+                    />
+                    <div className="mt-0.5 shrink-0 pl-0.5">
                       <span
-                        className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-secondary/50 ring-1 ring-border/60"
-                        style={
-                          accountColorCss
-                            ? { color: accountColorCss, boxShadow: `inset 0 0 0 1px ${accountColorCss}33` }
-                            : undefined
-                        }
+                        className={cn(
+                          'flex h-6 w-6 shrink-0 items-center justify-center rounded-md',
+                          !accentHex && cn('ring-1', iconWrapClass)
+                        )}
+                        style={iconWrapStyle}
                         aria-hidden
                       >
-                        <KindIcon
-                          className={cn(
-                            'h-3.5 w-3.5',
-                            !accountColorCss && 'text-muted-foreground'
-                          )}
-                        />
+                        <KindIcon className="h-3.5 w-3.5" />
                       </span>
                     </div>
                     <div className="flex min-w-0 flex-1 gap-2">
@@ -242,17 +252,18 @@ export function MegaTimelineList({
                         <div className="flex min-w-0 items-center gap-1.5">
                           <span
                             className={cn(
-                              'min-w-0 truncate text-xs font-medium',
+                              'chronell-type-list-primary min-w-0 truncate',
                               item.completed && 'text-muted-foreground line-through'
                             )}
                           >
                             {item.title}
                           </span>
+                          {isMailTodo ? <MailTodoKindPill /> : null}
                           {showBucketBadge && bucket !== 'done' ? (
                             <TodoDueBucketBadge kind={bucket} />
                           ) : null}
                         </div>
-                        <p className="truncate text-2xs text-muted-foreground">
+                        <p className="chronell-type-list-meta truncate">
                           {workItemSourceLabel(item, accountById)}
                         </p>
                       </div>

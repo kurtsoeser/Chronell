@@ -37,6 +37,7 @@ import {
   type WorkListViewPrefsV1
 } from '@/app/work-items/work-list-view-storage'
 import type { WorkListArrangeContext } from '@/app/work-items/work-item-list-arrange'
+import type { TaskListArrangeBy } from '@/app/tasks/task-list-arrange'
 import {
   computeMegaTimelineGroups,
   megaTimelineFilterCounts
@@ -67,6 +68,8 @@ export interface CalendarTimelinePaneProps {
   reloadRef?: React.MutableRefObject<(() => void) | null>
   /** Auswahl → rechte Kalender-Vorschau (Mail / Termin / Cloud-Aufgabe). */
   onWorkItemFocused: (item: WorkItem) => void
+  /** Vorschau-Fokus von Kalender/Mail — Zeitliste markiert denselben Eintrag. */
+  previewFocusStableKey?: string | null
 }
 
 export function CalendarTimelinePane({
@@ -74,7 +77,8 @@ export function CalendarTimelinePane({
   reloadSignal,
   onLoadingChange,
   reloadRef,
-  onWorkItemFocused
+  onWorkItemFocused,
+  previewFocusStableKey = null
 }: CalendarTimelinePaneProps): JSX.Element {
   const { t, i18n } = useTranslation()
   const accounts = useAccountsStore((s) => s.accounts)
@@ -148,9 +152,20 @@ export function CalendarTimelinePane({
         } catch {
           return dayKey
         }
-      }
+      },
+      timeZone,
+      timelinePeriodLabel: (key) => t(`mega.shell.timelineGroup.${key}` as const)
     }
-  }, [accountById, t, dfLocale])
+  }, [accountById, t, dfLocale, timeZone])
+
+  const timelineGroupModeSelectValue: '' | 'calendar_day' | 'timeline_period' =
+    listViewPrefs.arrange === 'calendar_day' || listViewPrefs.arrange === 'timeline_period'
+      ? listViewPrefs.arrange
+      : ''
+
+  const handleTimelineGroupModeChange = useCallback((value: TaskListArrangeBy): void => {
+    setListViewPrefs((p) => ({ ...p, arrange: value }))
+  }, [])
 
   const groups = useMemo(
     () =>
@@ -422,6 +437,17 @@ export function CalendarTimelinePane({
     [onWorkItemFocused]
   )
 
+  useEffect(() => {
+    if (!previewFocusStableKey) return
+    const id = window.requestAnimationFrame(() => {
+      const el = document.querySelector(
+        `[data-work-item-stable-key="${CSS.escape(previewFocusStableKey)}"]`
+      )
+      el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    })
+    return (): void => window.cancelAnimationFrame(id)
+  }, [previewFocusStableKey])
+
   const handleToggleCompleted = useCallback(
     async (item: WorkItem): Promise<void> => {
       try {
@@ -560,8 +586,8 @@ export function CalendarTimelinePane({
 
       <div
         className={cn(
-          'flex shrink-0 flex-wrap items-center gap-2 border-b px-2 py-1.5',
-          variant === 'dock' ? 'border-border/30' : listSubtleBorderClass
+          'flex shrink-0 flex-wrap items-center gap-2 px-2 py-1.5',
+          variant === 'dock' ? 'calendar-shell-dock-subtoolbar' : cn('border-b', listSubtleBorderClass)
         )}
       >
         <div className="min-w-0 flex-1">
@@ -595,6 +621,29 @@ export function CalendarTimelinePane({
             }}
           />
           <span className="truncate">{t('mega.shell.autoDismissEnded')}</span>
+        </label>
+        <label className="flex shrink-0 items-center gap-1 text-2xs text-muted-foreground">
+          <span className="sr-only">{t('mega.shell.groupModeLabel')}</span>
+          <select
+            value={timelineGroupModeSelectValue}
+            disabled={loading}
+            onChange={(e): void => {
+              const v = e.target.value
+              if (v === 'calendar_day' || v === 'timeline_period') {
+                handleTimelineGroupModeChange(v)
+              }
+            }}
+            className="max-w-[8.5rem] rounded border border-border bg-background px-1.5 py-0.5 text-2xs text-foreground"
+            aria-label={t('mega.shell.groupModeLabel')}
+          >
+            {timelineGroupModeSelectValue === '' ? (
+              <option value="" disabled>
+                {t('tasks.listViewMenu.arrangeSection')}
+              </option>
+            ) : null}
+            <option value="calendar_day">{t('mega.shell.groupModeDay')}</option>
+            <option value="timeline_period">{t('mega.shell.groupModePeriod')}</option>
+          </select>
         </label>
         <label className="flex shrink-0 items-center gap-1 text-2xs text-muted-foreground">
           <span className="sr-only">{t('mega.shell.windowLabel')}</span>
@@ -650,7 +699,7 @@ export function CalendarTimelinePane({
             groups={groups}
             arrange={listViewPrefs.arrange}
             accounts={accounts}
-            selectedKey={selected?.stableKey ?? null}
+            selectedKey={previewFocusStableKey ?? selected?.stableKey ?? null}
             onSelect={handleSelect}
             onItemClick={handleSelect}
             onToggleCompleted={(item): void => void handleToggleCompleted(item)}

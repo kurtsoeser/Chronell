@@ -2,7 +2,12 @@ import { ipcMain } from 'electron'
 import { IPC, type TeamsChatSummary, type TeamsChatMessageView } from '@shared/types'
 import { loadConfig } from '../config'
 import { getMe } from '../graph/client'
-import { listTeamsChatMessages, listTeamsChats, sendTeamsChatMessage } from '../graph/teams-chat'
+import {
+  listTeamsChatMessages,
+  listTeamsChats,
+  markTeamsChatReadForUser,
+  sendTeamsChatMessage
+} from '../graph/teams-chat'
 
 export function registerGraphIpc(): void {
   ipcMain.handle(IPC.graph.getMe, async (_event, id: string) => {
@@ -82,6 +87,26 @@ export function registerGraphIpc(): void {
       }
       const homeAccountId = accountId.replace(/^ms:/, '')
       await sendTeamsChatMessage(config.microsoftClientId, homeAccountId, chatId.trim(), text)
+    }
+  )
+
+  ipcMain.handle(
+    IPC.graph.markTeamsChatReadForUser,
+    async (_event, args: { accountId: string; chatId: string }): Promise<void> => {
+      const accountId = typeof args?.accountId === 'string' ? args.accountId : ''
+      const chatId = typeof args?.chatId === 'string' ? args.chatId : ''
+      if (!accountId.startsWith('ms:')) {
+        throw new Error('Teams-Chats sind nur fuer Microsoft-Konten verfuegbar.')
+      }
+      if (!chatId.trim()) {
+        throw new Error('Keine Chat-ID.')
+      }
+      const config = await loadConfig()
+      if (!config.microsoftClientId) {
+        throw new Error('Keine Azure Client-ID konfiguriert.')
+      }
+      const homeAccountId = accountId.replace(/^ms:/, '')
+      await markTeamsChatReadForUser(config.microsoftClientId, homeAccountId, chatId.trim())
     }
   )
 }

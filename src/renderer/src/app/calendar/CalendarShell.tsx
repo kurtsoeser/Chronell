@@ -146,7 +146,14 @@ import { useNotesPendingFocusStore } from '@/stores/notes-pending-focus'
 import type { CloudTaskListItem } from '@/app/tasks/tasks-types'
 import { loadPlannedScheduleMapForTasks } from '@/app/work-items/load-planned-schedules'
 import { loadUnifiedCloudTasks } from '@/app/tasks/tasks-calendar-load'
-import { cloudTaskStableKey } from '@shared/work-item-keys'
+import {
+  cloudTaskStableKey,
+  mailTodoStableKey
+} from '@shared/work-item-keys'
+import {
+  previewStableKeyFromCalendarEvent,
+  previewStableKeyFromCloudTask
+} from '@/app/calendar/calendar-preview-focus'
 import type { WorkItemPlannedSchedule, WorkItem } from '@shared/work-item'
 import { cn } from '@/lib/utils'
 import { openExternalUrl } from '@/lib/open-external'
@@ -198,11 +205,10 @@ import { CalendarShellOverlayToggles } from '@/app/calendar/shell/CalendarShellO
 import {
   persistCloudTaskOverlay,
   persistRightPreviewOpen,
-  readLeftSidebarCollapsedFromStorage,
-  persistLeftSidebarCollapsed,
   SIDEBAR_DEFAULT_CAL_ID,
   timeGridFcSnapOptions
 } from '@/app/calendar/calendar-shell-storage'
+import { useCalendarPanelLayoutStore } from '@/stores/calendar-panel-layout'
 import { useSyncedTimeGridSlotMinutes } from '@/hooks/use-synced-time-grid-slot-minutes'
 import { useTimeGridSlotScaleContextMenu } from '@/hooks/use-time-grid-slot-scale-context-menu'
 import {
@@ -228,6 +234,7 @@ import { useCalendarSettingsPrefs } from '@/lib/use-calendar-settings-prefs'
 import { useUiScaleStore } from '@/stores/ui-scale'
 import { syncFullCalendarWidth } from '@/app/calendar/sync-full-calendar-width'
 import './notion-calendar.css'
+import './calendar-shell-dock.css'
 
 export function CalendarShell(): JSX.Element {
   const { t, i18n } = useTranslation()
@@ -302,7 +309,6 @@ export function CalendarShell(): JSX.Element {
   const calendarEventSearchQuery = useCalendarEventSearchStore((s) => s.query)
   const setCalendarEventSearchQuery = useCalendarEventSearchStore((s) => s.setQuery)
   const clearCalendarEventSearch = useCalendarEventSearchStore((s) => s.clear)
-  const viewMenuRef = useRef<HTMLDivElement>(null)
   const calendarSearchInputRef = useRef<HTMLInputElement>(null)
 
   const [eventDialog, setEventDialog] = useState<CalendarShellEventDialogState>(null)
@@ -476,9 +482,8 @@ export function CalendarShell(): JSX.Element {
   const calendarDropRootRef = useRef<HTMLDivElement>(null)
   const calendarViewZoomHostRef = useRef<HTMLDivElement>(null)
   const uiScale = useUiScaleStore((s) => s.scale)
-  const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useState(
-    readLeftSidebarCollapsedFromStorage
-  )
+  const leftSidebarCollapsed = useCalendarPanelLayoutStore((s) => s.leftSidebarCollapsed)
+  const calendarColumnOpen = useCalendarPanelLayoutStore((s) => s.calendarColumnOpen)
   const [moduleNavWidth, setModuleNavWidth] = useModuleNavColumnWidth()
   const onDragModuleNavWidth = useCallback(
     (delta: number) => setModuleNavWidth((w) => w + delta),
@@ -602,10 +607,6 @@ export function CalendarShell(): JSX.Element {
     [patchAccountColor, t]
   )
 
-  useEffect(() => {
-    persistLeftSidebarCollapsed(leftSidebarCollapsed)
-  }, [leftSidebarCollapsed])
-
   const previewCloudTaskAccountName = useMemo(() => {
     if (!previewCloudTask) return undefined
     return accounts.find((a) => a.id === previewCloudTask.accountId)?.displayName
@@ -715,6 +716,17 @@ export function CalendarShell(): JSX.Element {
     )
     return cloudTaskPlannedByKey.get(key) ?? previewCloudTaskPlannedFromTimeline ?? null
   }, [previewCloudTask, cloudTaskPlannedByKey, previewCloudTaskPlannedFromTimeline])
+
+  const previewFocusStableKey = useMemo((): string | null => {
+    if (previewCloudTask) return previewStableKeyFromCloudTask(previewCloudTask)
+    if (previewCalendarEvent) return previewStableKeyFromCalendarEvent(previewCalendarEvent)
+    if (selectedMessageId != null) return mailTodoStableKey(selectedMessageId)
+    return null
+  }, [previewCloudTask, previewCalendarEvent, selectedMessageId])
+
+  useEffect(() => {
+    setGanttSelectedKey(previewFocusStableKey)
+  }, [previewFocusStableKey])
 
   const rightPanels = useCalendarShellRightPanels({
     t,
@@ -1263,6 +1275,7 @@ export function CalendarShell(): JSX.Element {
     previewPlacement,
     contextPlacement,
     leftSidebarCollapsed,
+    calendarColumnOpen,
     moduleNavWidth,
     inboxColumnWidth,
     previewPaneWidth,
@@ -1353,21 +1366,9 @@ export function CalendarShell(): JSX.Element {
     return (): void => window.cancelAnimationFrame(id)
   }, [calendarEventSearchOpen])
 
-  useEffect(() => {
-    if (!viewMenuOpen) return
-    const onDoc = (e: MouseEvent): void => {
-      if (viewMenuRef.current?.contains(e.target as Node)) return
-      setViewMenuOpen(false)
-      setDaysSubOpen(false)
-      setSettingsSubOpen(false)
-    }
-    document.addEventListener('mousedown', onDoc)
-    return (): void => document.removeEventListener('mousedown', onDoc)
-  }, [viewMenuOpen])
-
   return (
     <>
-      <div className={moduleShellClass}>
+      <div className={cn(moduleShellClass, 'calendar-shell-workspace')}>
             {!leftSidebarCollapsed ? (
               <CalendarShellLeftSidebar
                 t={t}
@@ -1418,10 +1419,13 @@ export function CalendarShell(): JSX.Element {
               />
           ) : null}
 
-            <div className={cn(modulePaneStackClass, 'w-full flex-row')}>
+            <div className={cn(modulePaneStackClass, 'calendar-shell-dock-row w-full flex-row')}>
+        <CalendarShellRightPanels
+          t={t}
+          calendarColumn={
             <div
               className={cn(
-                'calendar-notion-shell flex h-full min-h-0 min-w-0 w-full flex-1 flex-col text-foreground',
+                'calendar-notion-shell flex h-full min-h-0 min-w-0 w-full flex-col text-foreground',
                 `cal-slot-${timeGridSlotMinutes}`,
                 activeViewId === MULTI_MONTH_YEAR_VIEW_ID &&
                   'calendar-notion-shell--multimonth-year',
@@ -1429,17 +1433,10 @@ export function CalendarShell(): JSX.Element {
                 schedulingOpen && 'calendar-notion-shell--scheduling-open'
               )}
             >
-              <div className="calendar-shell-header-container shrink-0 border-b border-border">
+              <div className="calendar-shell-header-container shrink-0">
                 <CalendarShellHeader
                   rangeTitle={rangeTitle}
                   visibleStart={visibleStart}
-                  rightInboxOpen={rightInboxOpen}
-                  onRightInboxOpenChange={onRightInboxOpenChange}
-                  rightPreviewOpen={rightPreviewOpen}
-                  onRightPreviewOpenChange={onRightPreviewOpenChange}
-                  rightContextOpen={rightContextOpen}
-                  onRightContextOpenChange={setRightContextOpen}
-                  viewMenuRef={viewMenuRef}
                   viewMenuOpen={viewMenuOpen}
                   setViewMenuOpen={setViewMenuOpen}
                   activeViewId={activeViewId}
@@ -1474,8 +1471,6 @@ export function CalendarShell(): JSX.Element {
                     }
                     calendarRef.current?.getApi().next()
                   }}
-                  leftSidebarCollapsed={leftSidebarCollapsed}
-                  onLeftSidebarCollapsedChange={setLeftSidebarCollapsed}
                   onNewEventClick={openCreateCalendarEventDialog}
                   onNewWebinarClick={msAccounts.length > 0 ? openCreateWebinarDialog : undefined}
                   onNewWebinarFromNotionClick={
@@ -1569,6 +1564,7 @@ export function CalendarShell(): JSX.Element {
                 selectMessageWithThreadPreview={selectMessageWithThreadPreview}
                 persistRightPreviewOpen={persistRightPreviewOpen}
                 setRightPreviewOpen={setRightPreviewOpen}
+                previewFocusStableKey={previewFocusStableKey}
               />
               </div>
                 </>
@@ -1595,10 +1591,8 @@ export function CalendarShell(): JSX.Element {
               </div>
             ) : null}
           </div>
-        </div>
-
-        <CalendarShellRightPanels
-          t={t}
+            </div>
+          }
           previewBody={previewBody}
           refreshCalendarSize={refreshCalendarSize}
           todoSideListRefreshKey={todoSideListRefreshKey}
@@ -1644,6 +1638,7 @@ export function CalendarShell(): JSX.Element {
           previewColumnLabel={previewColumnLabel}
           undockPreviewPanel={undockPreviewPanel}
           undockInboxPanel={undockInboxPanel}
+          previewFocusStableKey={previewFocusStableKey}
         />
         </div>
       </div>

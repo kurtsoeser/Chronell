@@ -59,7 +59,7 @@ export function SidebarNavItem({
         onClick={onClick}
         onContextMenu={onContextMenu}
         className={cn(
-          'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs font-medium transition-colors',
+          'chronell-type-list-secondary flex w-full items-center gap-2 rounded-md px-2 py-1.5 font-medium transition-colors',
           inactive
             ? 'cursor-not-allowed text-muted-foreground/60'
             : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground',

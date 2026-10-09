@@ -15,7 +15,7 @@ import {
 import { useAccountsStore } from '@/stores/accounts'
 import type { TeamsChatMessageView, TeamsChatSummary } from '@shared/types'
 import { parseTeamsChatPopoutRoute } from './teams-chat-popout-route'
-import { chatTitle } from './teams-chat-helpers'
+import { chatTitle, teamsChatAccountOptionLabel } from './teams-chat-helpers'
 import { TeamsChatMessageRow, type TeamsChatMessageRowCtx } from './TeamsChatMessageRow'
 
 interface GraphMe {
@@ -36,7 +36,8 @@ export function TeamsChatPopoutShell(): JSX.Element {
     () => (accountId != null ? msAccounts.find((a) => a.id === accountId) : undefined),
     [accountId, msAccounts]
   )
-  const accountLabel = currentAccount?.displayName ?? currentAccount?.email ?? ''
+  const accountLabel =
+    currentAccount != null ? teamsChatAccountOptionLabel(currentAccount) : ''
 
   const [chatSummary, setChatSummary] = useState<TeamsChatSummary | null>(null)
   const [myGraphUserId, setMyGraphUserId] = useState<string | null>(null)
@@ -110,6 +111,9 @@ export function TeamsChatPopoutShell(): JSX.Element {
         limit: 50
       })
       setMessages(list)
+      void window.mailClient.graph.markTeamsChatReadForUser({ accountId, chatId }).catch(() => {
+        /* optional */
+      })
     } catch (e) {
       setMessagesError(e instanceof Error ? e.message : String(e))
       setMessages([])

@@ -13,6 +13,10 @@ import {
   readUserNoteOverlayFromStorage
 } from '@/app/calendar/calendar-shell-storage'
 import { logIpcError } from '@/lib/ipc-error-log'
+import {
+  mailTodoCalendarDisplaySignature,
+  userNoteCalendarDisplaySignature
+} from '@/app/calendar/calendar-overlay-display-signature'
 
 export function useCalendarShellLightOverlays(
   accountColorById: Record<string, string>,
@@ -44,12 +48,34 @@ export function useCalendarShellLightOverlays(
 
   const [mailTodoItems, setMailTodoItems] = useState<MailListItem[]>([])
   const [userNoteRangeItems, setUserNoteRangeItems] = useState<UserNoteListItem[]>([])
+  const mailTodoLayerSigRef = useRef('')
+  const mailTodoRangeKeyRef = useRef('')
+  const userNoteLayerSigRef = useRef('')
+  const userNoteRangeKeyRef = useRef('')
 
   useEffect(() => {
     if (migrateLegacyCalendarShellSource()) {
       setMailTodoOverlay(true)
     }
   }, [setMailTodoOverlay])
+
+  const commitMailTodoLayer = useCallback((list: MailListItem[], start: Date, end: Date): void => {
+    const rangeKey = `${start.toISOString()}|${end.toISOString()}`
+    const sig = mailTodoCalendarDisplaySignature(list)
+    if (sig === mailTodoLayerSigRef.current && rangeKey === mailTodoRangeKeyRef.current) return
+    mailTodoLayerSigRef.current = sig
+    mailTodoRangeKeyRef.current = rangeKey
+    setMailTodoItems(list)
+  }, [])
+
+  const commitUserNoteLayer = useCallback((list: UserNoteListItem[], start: Date, end: Date): void => {
+    const rangeKey = `${start.toISOString()}|${end.toISOString()}`
+    const sig = userNoteCalendarDisplaySignature(list)
+    if (sig === userNoteLayerSigRef.current && rangeKey === userNoteRangeKeyRef.current) return
+    userNoteLayerSigRef.current = sig
+    userNoteRangeKeyRef.current = rangeKey
+    setUserNoteRangeItems(list)
+  }, [])
 
   const loadMailTodosForRange = useCallback(async (start: Date, end: Date): Promise<void> => {
     if (!mailTodoOverlayRef.current) return
@@ -60,12 +86,14 @@ export function useCalendarShellLightOverlays(
         rangeEndIso: end.toISOString(),
         limit: 500
       })
-      setMailTodoItems(list)
+      commitMailTodoLayer(list, start, end)
     } catch (err) {
       logIpcError('calendar.loadMailTodosForRange', err)
+      mailTodoLayerSigRef.current = ''
+      mailTodoRangeKeyRef.current = ''
       setMailTodoItems([])
     }
-  }, [])
+  }, [commitMailTodoLayer])
 
   const loadUserNotesForRange = useCallback(async (start: Date, end: Date): Promise<void> => {
     if (!userNoteOverlayRef.current) return
@@ -75,12 +103,14 @@ export function useCalendarShellLightOverlays(
         endIso: end.toISOString(),
         limit: 500
       })
-      setUserNoteRangeItems(list)
+      commitUserNoteLayer(list, start, end)
     } catch (err) {
       logIpcError('calendar.loadUserNotesForRange', err)
+      userNoteLayerSigRef.current = ''
+      userNoteRangeKeyRef.current = ''
       setUserNoteRangeItems([])
     }
-  }, [])
+  }, [commitUserNoteLayer])
 
   const mailTodoFcEvents = useMemo(
     () => mailTodoItemsToFullCalendarEvents(mailTodoItems, accountColorById),
@@ -94,6 +124,8 @@ export function useCalendarShellLightOverlays(
 
   useEffect(() => {
     if (!mailTodoOverlay) {
+      mailTodoLayerSigRef.current = ''
+      mailTodoRangeKeyRef.current = ''
       setMailTodoItems([])
       return
     }
@@ -104,16 +136,25 @@ export function useCalendarShellLightOverlays(
 
   useEffect(() => {
     if (!mailTodoOverlay) return
+    let debounceTimer: ReturnType<typeof setTimeout> | undefined
     const off = window.mailClient.events.onMailChanged(() => {
       const range = lastRangeRef.current
       if (!range) return
-      void loadMailTodosForRange(range.start, range.end)
+      if (debounceTimer) clearTimeout(debounceTimer)
+      debounceTimer = setTimeout(() => {
+        void loadMailTodosForRange(range.start, range.end)
+      }, 400)
     })
-    return off
+    return (): void => {
+      off()
+      if (debounceTimer) clearTimeout(debounceTimer)
+    }
   }, [mailTodoOverlay, loadMailTodosForRange, lastRangeRef])
 
   useEffect(() => {
     if (!userNoteOverlay) {
+      userNoteLayerSigRef.current = ''
+      userNoteRangeKeyRef.current = ''
       setUserNoteRangeItems([])
       return
     }
@@ -124,12 +165,19 @@ export function useCalendarShellLightOverlays(
 
   useEffect(() => {
     if (!userNoteOverlay) return
+    let debounceTimer: ReturnType<typeof setTimeout> | undefined
     const off = window.mailClient.events.onNotesChanged(() => {
       const range = lastRangeRef.current
       if (!range) return
-      void loadUserNotesForRange(range.start, range.end)
+      if (debounceTimer) clearTimeout(debounceTimer)
+      debounceTimer = setTimeout(() => {
+        void loadUserNotesForRange(range.start, range.end)
+      }, 400)
     })
-    return off
+    return (): void => {
+      off()
+      if (debounceTimer) clearTimeout(debounceTimer)
+    }
   }, [userNoteOverlay, loadUserNotesForRange, lastRangeRef])
 
   return {

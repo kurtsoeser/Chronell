@@ -8,9 +8,12 @@ import {
   FileText,
   Italic,
   Scissors,
+  SpellCheck,
   Strikethrough,
   Underline as UnderlineIcon
 } from 'lucide-react'
+import { getLastComposeAutoCorrect } from '@/lib/compose-autocorrect-runtime'
+import { wordAtEditorSelection } from '@/lib/tiptap-editor-word-selection'
 import { ContextMenu, type ContextMenuItem } from '@/components/ContextMenu'
 
 interface Props {
@@ -18,8 +21,12 @@ interface Props {
   x: number
   y: number
   onClose: () => void
+  /** Chromium-Rechtschreibvorschläge (Rechtsklick auf rot markiertes Wort). */
+  spelling?: { misspelledWord: string; suggestions: string[] } | null
   /** Auswahl als Textbaustein übernehmen (öffnet Snippet-Dialog). */
   onAdoptAsSnippet?: () => void
+  /** Wort zur Autokorrektur-Ausnahmeliste (Compose-Editor). */
+  onAddToAutoCorrectBlocklist?: (word: string) => void
 }
 
 function runClipboardCommand(editor: Editor, command: 'cut' | 'copy' | 'paste'): void {
@@ -36,12 +43,49 @@ export function TipTapEditorContextMenu({
   x,
   y,
   onClose,
-  onAdoptAsSnippet
+  onAdoptAsSnippet,
+  onAddToAutoCorrectBlocklist,
+  spelling
 }: Props): JSX.Element {
   const { t } = useTranslation()
   const hasSelection = !editor.state.selection.empty
 
   const items = useMemo((): ContextMenuItem[] => {
+    const spellingItems: ContextMenuItem[] = []
+    if (spelling && spelling.suggestions.length > 0) {
+      spellingItems.push({
+        id: 'spell-label',
+        label: t('editorContextMenu.spellingHeading', { word: spelling.misspelledWord }),
+        disabled: true
+      })
+      for (const [index, suggestion] of spelling.suggestions.slice(0, 8)) {
+        spellingItems.push({
+          id: `spell-suggestion-${index}`,
+          label: suggestion,
+          icon: SpellCheck,
+          onSelect: (): void => {
+            editor.view.focus()
+            const replace = window.mailClient?.spellcheck?.replaceMisspelling
+            if (typeof replace === 'function') {
+              void replace({ suggestion })
+            }
+          }
+        })
+      }
+      spellingItems.push({
+        id: 'spell-add-dictionary',
+        label: t('editorContextMenu.addToSpellingDictionary', { word: spelling.misspelledWord }),
+        onSelect: (): void => {
+          editor.view.focus()
+          const add = window.mailClient?.spellcheck?.addWordToDictionary
+          if (typeof add === 'function') {
+            void add({ word: spelling.misspelledWord })
+          }
+        }
+      })
+      spellingItems.push({ id: 'sep-spell', label: '', separator: true })
+    }
+
     const formatItems: ContextMenuItem[] = [
       {
         id: 'bold',
@@ -122,8 +166,34 @@ export function TipTapEditorContextMenu({
       )
     }
 
-    return formatItems
-  }, [editor, hasSelection, onAdoptAsSnippet, t])
+    if (onAddToAutoCorrectBlocklist) {
+      const word = wordAtEditorSelection(editor)
+      const last = getLastComposeAutoCorrect()
+      const blockOriginal =
+        last &&
+        word &&
+        word.toLowerCase() === last.to.toLowerCase() &&
+        last.from.toLowerCase() !== last.to.toLowerCase()
+          ? last.from
+          : null
+      const blockTarget = blockOriginal ?? word
+      if (blockTarget) {
+        formatItems.push(
+          { id: 'sep-autocorrect', label: '', separator: true },
+          {
+            id: 'autocorrect-blocklist',
+            label: blockOriginal
+              ? t('editorContextMenu.autoCorrectBlocklistTypo', { word: blockOriginal })
+              : t('editorContextMenu.autoCorrectBlocklistWord', { word: blockTarget }),
+            icon: SpellCheck,
+            onSelect: (): void => onAddToAutoCorrectBlocklist(blockTarget)
+          }
+        )
+      }
+    }
+
+    return [...spellingItems, ...formatItems]
+  }, [editor, hasSelection, onAdoptAsSnippet, onAddToAutoCorrectBlocklist, spelling, t])
 
   return <ContextMenu x={x} y={y} items={items} onClose={onClose} />
 }

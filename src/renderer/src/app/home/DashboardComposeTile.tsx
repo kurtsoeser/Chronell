@@ -18,6 +18,9 @@ import { RecipientTokenField } from '@/components/RecipientTokenField'
 import { cn } from '@/lib/utils'
 import { useComposeCloudDrive } from '@/hooks/useComposeCloudDrive'
 import { useComposeDraftEditorFlush } from '@/hooks/useComposeDraftEditorFlush'
+import { useComposeDraftBodyHtmlGetter } from '@/hooks/useComposeDraftBodyHtmlGetter'
+import { ComposeTextProofreadButton } from '@/components/compose-proofread/ComposeTextProofreadButton'
+import { ComposeCopilotDraftButton } from '@/components/copilot/ComposeCopilotDraftButton'
 import { useAccountsStore } from '@/stores/accounts'
 import { useComposeStore, type ComposeAttachmentFile } from '@/stores/compose'
 import { useComposeAutoSave } from '@/hooks/useComposeAutoSave'
@@ -53,6 +56,7 @@ export function DashboardComposeTile(): JSX.Element {
 
   useComposeAutoSave(draft?.id ?? '', Boolean(draft))
   const { bodyFlushRef, signatureFlushRef } = useComposeDraftEditorFlush(draft?.id ?? '')
+  const getBodyHtml = useComposeDraftBodyHtmlGetter(draft?.id ?? '', bodyFlushRef)
 
   const addFiles = useCallback(
     async (files: File[]): Promise<void> => {
@@ -207,6 +211,7 @@ export function DashboardComposeTile(): JSX.Element {
                 </span>
                 <input
                   type="text"
+                  spellCheck
                   value={draft.subject}
                   onChange={(e): void => update(draft.id, { subject: e.target.value })}
                   placeholder={t('mail.composeTile.noSubjectPlaceholder')}
@@ -224,6 +229,24 @@ export function DashboardComposeTile(): JSX.Element {
               attachmentCount={draft.attachments.length}
               cloudAttachmentCount={draft.referenceAttachments.length}
               className="px-2"
+              leadingActions={
+                <>
+                  <ComposeTextProofreadButton
+                    accountId={draft.accountId}
+                    disabled={draft.busy}
+                    compact
+                    inEditorSurface
+                    getBodyHtml={getBodyHtml}
+                    onReplaceBody={(html): void => update(draft.id, { prependRichHtml: html })}
+                  />
+                  <ComposeCopilotDraftButton
+                    draft={draft}
+                    disabled={draft.busy}
+                    compact
+                    inEditorSurface
+                  />
+                </>
+              }
             />
             <ComposeEditorThemedPane className="compose-mail-editor-section min-h-0 flex-1">
               <TipTapBody
