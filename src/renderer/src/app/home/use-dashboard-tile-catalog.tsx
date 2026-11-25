@@ -58,6 +58,7 @@ import {
   createMailSendToExistingNoteHandler,
   createMailSendToNewNoteHandler
 } from '@/lib/mail-to-note'
+import { createMailSendToOneNoteHandler } from '@/lib/onenote-ui'
 import { accountSupportsCloudTasks } from '@/lib/cloud-task-accounts'
 import { useAccountsStore } from '@/stores/accounts'
 import { useInboxCalendarAgendaCacheStore } from '@/stores/inbox-calendar-agenda-cache'
@@ -602,7 +603,8 @@ export function useDashboardTileCatalog(opts?: {
       refreshNow: async (): Promise<void> => {
         await refreshNow()
         refreshDashboardMailLists()
-      }
+      },
+      sendToOneNote: createMailSendToOneNoteHandler()
     }),
     [
       openReply,

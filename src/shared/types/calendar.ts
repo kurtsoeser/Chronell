@@ -246,6 +246,11 @@ export interface CalendarSaveEventInput {
    * Beim PATCH: zusammen mit `attendeeEmails` die gesamte Liste ersetzen.
    */
   optionalAttendeeEmails?: string[] | null
+  /**
+   * Microsoft 365: Organizer-/Absender-Postfach (SMTP), z. B. events@kurtrocks.com.
+   * Webinare: Einladungen kommen von diesem Postfach.
+   */
+  mailboxSmtp?: string | null
 }
 
 export interface CalendarSaveEventResult {
@@ -253,6 +258,10 @@ export interface CalendarSaveEventResult {
   webLink: string | null
   /** Microsoft 365: Teams-Beitrittslink (`onlineMeeting.joinUrl`), falls vorhanden. */
   joinUrl?: string | null
+  /** Tatsächlich genutzter Kalender (z. B. Shared Calendar von events@). */
+  graphCalendarId?: string | null
+  /** Organizer-Postfach, falls unter `/users/{smtp}` angelegt. */
+  mailboxSmtp?: string | null
   /** Sofort aus lokalem Cache — fuer optimistische Kalender-Aktualisierung in der UI. */
   event?: CalendarEventView
 }
@@ -282,6 +291,8 @@ export interface CalendarGetEventInput {
   accountId: string
   graphEventId: string
   graphCalendarId?: string | null
+  /** Organizer-Postfach (SMTP), wenn Termin unter `/users/{smtp}` liegt. */
+  mailboxSmtp?: string | null
   /** Cache ignorieren und von Graph neu laden (wenn online). */
   forceRefresh?: boolean
   /** Nur lokale Detail-Cache-Zeile (kein Netzwerk) — z. B. vor Drag/Resize. */
@@ -308,6 +319,8 @@ export interface CalendarListEventAttachmentsInput {
   accountId: string
   graphEventId: string
   graphCalendarId?: string | null
+  /** Organizer-Postfach (SMTP), wenn Termin unter `/users/{smtp}` liegt. */
+  mailboxSmtp?: string | null
 }
 
 /** Inline-Bilder als Data-URIs (`contentId` → `data:…`). */

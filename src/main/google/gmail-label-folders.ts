@@ -43,6 +43,12 @@ export async function gmailRenameMailLabel(
 
 export async function gmailDeleteMailLabel(accountId: string, labelId: string): Promise<void> {
   const { gmail } = await getGoogleApis(accountId)
-  await gmail.users.labels.delete({ userId: 'me', id: labelId })
+  try {
+    await gmail.users.labels.delete({ userId: 'me', id: labelId })
+  } catch (e) {
+    const status = (e as { code?: number; status?: number })?.code ?? (e as { status?: number })?.status
+    // 404: Label schon weg — lokaler Cleanup + Sync trotzdem.
+    if (status !== 404) throw e
+  }
   await syncGoogleFolders(accountId)
 }

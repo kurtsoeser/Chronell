@@ -1,5 +1,5 @@
 import type { TFunction } from 'i18next'
-import { Calendar, CheckSquare, ExternalLink, ListTodo, Mail, Trash2 } from 'lucide-react'
+import { Calendar, CheckSquare, ExternalLink, FolderInput, ListTodo, Mail, Trash2 } from 'lucide-react'
 import { useCreateCloudTaskUiStore } from '@/stores/create-cloud-task-ui'
 import { openExternalUrl } from '@/lib/open-external'
 import type { WorkItem } from '@shared/work-item'
@@ -9,6 +9,7 @@ import {
   buildMailContextItems,
   type MailContextHandlers
 } from '@/lib/mail-context-menu'
+import { sendCalendarEventToEventsOs } from '@/lib/events-os-ui'
 export interface WorkItemContextHandlers {
   t: TFunction
   mailHandlers: MailContextHandlers
@@ -51,8 +52,18 @@ export async function buildWorkItemContextMenuItems(
 
   if (item.kind === 'calendar_event') {
     const link = item.event.webLink?.trim()
+    const calendarEvent = item.event
     return [
       ...common,
+      {
+        id: 'mega-events-os',
+        label: h.t('eventsOs.contextCreateFromCalendar'),
+        icon: FolderInput,
+        disabled: !calendarEvent.graphEventId?.trim(),
+        onSelect: (): void => {
+          void sendCalendarEventToEventsOs(calendarEvent)
+        }
+      },
       ...(link
         ? [
             { id: 'mega-sep-cal-1', label: '', separator: true },

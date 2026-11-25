@@ -21,6 +21,8 @@ import { registerPeopleIpc } from './ipc/register-people-ipc'
 import { registerBookingsIpc } from './ipc/register-bookings-ipc'
 import { registerMsFormsIpc } from './ipc/register-msforms-ipc'
 import { registerNotionIpc } from './ipc/register-notion-ipc'
+import { registerEventsOsIpc } from './ipc/register-events-os-ipc'
+import { registerOneNoteIpc } from './ipc/register-onenote-ipc'
 import { registerTeamsChatPopoutIpc } from './ipc/register-teams-chat-popout-ipc'
 import { registerMailReadingPopoutIpc } from './ipc/register-mail-reading-popout-ipc'
 import { registerQuickCaptureIpc } from './ipc/register-quick-capture-ipc'
@@ -55,6 +57,8 @@ export function registerIpcHandlers(): void {
   registerBookingsIpc()
   registerMsFormsIpc()
   registerNotionIpc()
+  registerEventsOsIpc()
+  registerOneNoteIpc()
   registerTeamsChatPopoutIpc()
   registerMailReadingPopoutIpc()
   registerQuickCaptureIpc()

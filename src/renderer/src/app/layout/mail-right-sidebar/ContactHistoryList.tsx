@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ChevronDown, ChevronRight, CornerDownLeft, Loader2 } from 'lucide-react'
+import { ChevronDown, ChevronRight, CornerDownLeft, Loader2, Paperclip } from 'lucide-react'
 import type { MailCorrespondenceItem } from '@shared/types'
 import type { ContactHistoryDateBucketLabels } from '@/lib/contact-history-date-bucket'
 import { ContactHistoryHoverPreview } from '@/app/layout/mail-right-sidebar/ContactHistoryHoverPreview'
@@ -211,6 +211,12 @@ export function ContactHistoryList({
                     >
                       {rowLabel(item)}
                     </span>
+                    {item.hasAttachments ? (
+                      <Paperclip
+                        className="h-2.5 w-2.5 shrink-0 text-status-flagged"
+                        aria-label={t('mail.rightSidebar.contactHistoryHasAttachments')}
+                      />
+                    ) : null}
                     {reply ? (
                       <CornerDownLeft
                         className="h-2.5 w-2.5 shrink-0 text-muted-foreground"

@@ -164,6 +164,91 @@
   "mailBodyIndex": {
     "progressLabel": "Search: {{done}} of {{total}} mails prepared ({{pending}} remaining)"
   },
+  "eventsOs": {
+    "title": "Events OS",
+    "contextSend": "Send to Events OS…",
+    "contextCreateFromCalendar": "Add to Events OS",
+    "calendarCreated": "Event record created: {{title}}\n\nThe appointment is a draft in Events OS, not published on the website.",
+    "calendarUpdated": "Event record updated: {{title}}\n\nThis calendar appointment was already transferred.",
+    "calendarMissingId": "This appointment has no calendar id and cannot be transferred.",
+    "pickerTitle": "Send to event record…",
+    "pickerHint": "Search an event — the mail is stored in the lifecycle inbox (cancellations also under participants).",
+    "pickerEmpty": "No events found. Start Studio and load events once.",
+    "searchPlaceholder": "Title, code, date…",
+    "kindLabel": "Type",
+    "groupLabel": "Group by",
+    "group": {
+      "zeitraum": "Timeframe",
+      "monat": "Month",
+      "organisation": "Organization"
+    },
+    "kind": {
+      "sonstiges": "Detect automatically",
+      "email_abmeldung": "Cancellation (mail)",
+      "email_anmeldung": "Registration (mail)",
+      "email_anfrage": "Inquiry (mail)",
+      "honorar": "Fee note",
+      "anwesenheit": "Attendance",
+      "angebot": "Offer",
+      "note": "Note"
+    },
+    "sendSuccess": "Mail saved to the event record.",
+    "sendFailed": "Sending to Events OS failed:\n\n{{message}}",
+    "personLine": "Person: {{name}} <{{email}}>",
+    "attachmentsLine": "Attachments in inbox: {{count}}",
+    "attachmentsSkippedLine": "Partially skipped: {{detail}}",
+    "openAkte": "Open record",
+    "openAblage": "Open inbox"
+  },
+  "oneNote": {
+    "title": "OneNote",
+    "contextSend": "Send to OneNote…",
+    "pickerTitle": "Send to OneNote…",
+    "pickerHint": "Creates a page in the chosen notebook. Clicking a notebook uses the matching section; the arrow lists every section.",
+    "pickerEmpty": "No notebooks found.",
+    "pickerNoResults": "Nothing found.",
+    "searchPlaceholder": "Search notebook or section…",
+    "refresh": "Refresh",
+    "kindLabel": "Type",
+    "groupLabel": "Group by",
+    "accountLine": "Microsoft account: {{email}}",
+    "kind": {
+      "alle": "All",
+      "notebooks": "Notebooks",
+      "sections": "Sections"
+    },
+    "group": {
+      "used": "Recently used",
+      "opened": "Recently opened",
+      "modified": "Recently edited",
+      "notebook": "Notebook"
+    },
+    "bucket": {
+      "used": "Recently used",
+      "rest": "More",
+      "opened": "Recently opened",
+      "today": "Edited today",
+      "week": "Last 7 days",
+      "older": "Older",
+      "none": "No date",
+      "notebooks": "Notebooks"
+    },
+    "defaultAction": "Into default notebook",
+    "lastUsedAction": "Into last target",
+    "badgeDefault": "Default",
+    "badgeShared": "Shared",
+    "sectionCount": "{{count}} sections",
+    "sectionLine": "Section: {{name}}",
+    "newSectionLine": "New section “Chronell”",
+    "expandSections": "Show sections",
+    "collapseSections": "Hide sections",
+    "footerHint": "Recently used is remembered by Chronell. Recently opened comes from Microsoft, recently edited from OneNote.",
+    "sendSuccess": "Page created in {{notebook}} › {{section}}.",
+    "sendSuccessAttachments": "Attachments stay in the mail and are not copied.",
+    "sendFailed": "Sending to OneNote failed:\n\n{{message}}",
+    "openWeb": "Open in browser",
+    "openApp": "Open in OneNote"
+  },
   "notion": {
     "contextSend": "Send to Notion page…",
     "contextSendAsNewPage": "As new Notion page…",
@@ -3226,6 +3311,9 @@
     "webinarInvitation": {
       "title": "Webinar invitation (HTML template)",
       "intro": "Edit the full #kurtrocks invitation visually — same as in the event dialog. Gold-outlined areas (title, schedule, Teams, links) are filled automatically per event.",
+      "defaultFromMailbox": "From address (organizer)",
+      "defaultFromMailboxHint": "Microsoft 365: webinar invitations are sent from this mailbox (alias or shared mailbox), e.g. events@kurtrocks.com. Your account needs SendAs/calendar access.",
+      "defaultFromMailboxPlaceholder": "events@kurtrocks.com",
       "defaultThemeHeading": "Default template (color & light/dark)",
       "defaultThemeHint": "Pre-selected when you open “Load template…” on an event. Here you see the choice immediately in the preview — you can still pick another variant there.",
       "defaultLayoutMode": "Background",
@@ -3434,7 +3522,8 @@
       "removeTodoOnlyBulk": "Remove to-do entries ({{count}})",
       "aiConnections": "Check connections with AI",
       "createSenderContact": "Save sender as contact",
-      "openSenderContact": "Open contact"
+      "openSenderContact": "Open contact",
+      "openInWindow": "Open in own window"
     },
     "move": {
       "menu": "Move",
@@ -3506,7 +3595,7 @@
       "folderJunk": "Junk email",
       "noRecipient": "(No recipient)",
       "rowReplyTitle": "Reply (R)",
-      "rowPopoutTitle": "Open as pop-up (Shift+click: separate window)",
+      "rowPopoutTitle": "Open as pop-up (own window). Shift+click: float inside Chronell only.",
       "rowForwardTitle": "Forward",
       "rowSnoozeTitle": "Snooze",
       "rowTodoTitle": "To-do today",
@@ -3575,7 +3664,7 @@
       "quickStepPlaceholder": "Quick Step…",
       "undockPreviewTitle": "Undock preview to a window",
       "popoutTitle": "Open as pop-up (own window on screen, stays visible when switching modules). Shift+click: float inside Chronell only.",
-      "previewPopOutTitle": "Pop out preview as its own window on screen. Shift+click: float inside Chronell only.",
+      "previewPopOutTitle": "Open an additional window (preview stays). Shift+click: float inside Chronell only.",
       "previewPopOutTitleShort": "Pop out preview (floating panel)",
       "previewDockBackTitle": "Dock preview back",
       "contextSplitterAria": "Resize note and context height",
@@ -3739,6 +3828,7 @@
     "conversationPreview": {
       "collapsedAria": "{{from}}, {{date}} — click to expand",
       "collapsedNoSnippet": "(No preview)",
+      "hasAttachments": "Has attachments",
       "folderSent": "Sent Items",
       "folderDrafts": "Drafts",
       "folderArchive": "Archive",
@@ -3900,6 +3990,7 @@
       "contactHistoryYou": "You",
       "contactHistoryLoading": "Loading history…",
       "contactHistoryEmpty": "No messages with this address in this account yet.",
+      "contactHistoryHasAttachments": "Has attachments",
       "contactHistoryLoadMore": "Load {{count}} more",
       "contactHistoryCount": "{{shown}} of {{total}} messages",
       "contactSettingsTitle": "History options",
@@ -4661,6 +4752,7 @@
       "newEvent": "New event",
       "newWebinar": "Webinar",
       "newWebinarFromNotion": "From Notion",
+      "newWebinarFromEventsOs": "From Events OS",
       "colorReadonlyExplanation": "Colour: calendar is read-only (e.g. shared).",
       "contextHideFromSidebar": "Remove from sidebar…",
       "colorMicrosoftLabel": "Calendar colour (Microsoft 365)",
@@ -4687,6 +4779,13 @@
       "searchPlaceholder": "Search #kurtrocks Events…",
       "loading": "Loading events…",
       "empty": "No events found. Is the database shared with the Notion integration?"
+    },
+    "eventsOsWebinarImport": {
+      "title": "Webinar from Events OS",
+      "subtitle": "Pick an event from #kurtrocks Events OS — title, date, cover, description and the event page go into the same webinar template.",
+      "searchPlaceholder": "Search Events OS…",
+      "loading": "Loading events…",
+      "empty": "No events found. Is the Events OS studio running?"
     },
     "msFormsPicker": {
       "title": "Pick a Microsoft Form",
@@ -5257,6 +5356,7 @@
       "teamsProvisionFailed": "Could not create the Teams meeting.",
       "webinarModeToggle": "Webinar assistant",
       "webinarSinglePageHint": "Meeting, invitation, and invitees on one page. Load a template only when needed — editor text is saved as-is.",
+      "webinarFromMailboxHint": "Invitations are sent as {{email}} (organizer).",
       "webinarLoadTemplate": "Load template…",
       "webinarLoadTemplateTitle": "Load webinar template",
       "webinarLayoutThemeLabel": "Design template",
@@ -5279,6 +5379,7 @@
       "webinarImagesLoading": "Loading inline images …",
       "webinarLayoutRestoredToast": "Template restored in the editor — click Save now.",
       "notionLinksWrittenToast": "Forms and/or Teams link written back to Notion.",
+      "eventsOsLinksWrittenToast": "Forms and/or Teams link written to the event file.",
       "notionLinksMissingPropsToast": "Notion: property “Umfrage-Link” or “Meeting Link” is missing in the database.",
       "notionLinksWriteFailedToast": "Could not write links back to Notion.",
       "webinarStepsAria": "Webinar steps",

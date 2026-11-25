@@ -42,5 +42,17 @@ describe('mail-reading-preview-meta-fields', () => {
     expect(visible).toContain('from')
     expect(visible).not.toContain('cc')
     expect(visible).not.toContain('importance')
+    expect(visible).not.toContain('categories')
+  })
+
+  it('shows categories only when assigned', () => {
+    const prefs = {
+      order: [...DEFAULT_MAIL_READING_PREVIEW_META_FIELD_ORDER],
+      hidden: new Set<typeof DEFAULT_MAIL_READING_PREVIEW_META_FIELD_ORDER[number]>()
+    }
+    expect(getVisibleMailReadingPreviewMetaFields(prefs, baseCtx)).not.toContain('categories')
+    expect(
+      getVisibleMailReadingPreviewMetaFields(prefs, { ...baseCtx, categories: ['Wichtig'] })
+    ).toContain('categories')
   })
 })

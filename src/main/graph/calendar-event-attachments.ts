@@ -56,8 +56,12 @@ function mapGraphEventAttachment(a: GraphEventAttachment): CalendarEventAttachme
   }
 }
 
-function eventAttachmentsPath(graphEventId: string, graphCalendarId?: string | null): string {
-  return `${graphEventInstancePath(graphEventId, graphCalendarId)}/attachments`
+function eventAttachmentsPath(
+  graphEventId: string,
+  graphCalendarId?: string | null,
+  mailboxSmtp?: string | null
+): string {
+  return `${graphEventInstancePath(graphEventId, graphCalendarId, mailboxSmtp)}/attachments`
 }
 
 function partitionFileAttachments(atts: ComposeAttachment[]): {
@@ -117,10 +121,11 @@ async function uploadLargeGraphEventAttachment(
 export async function listGraphEventAttachments(
   accountId: string,
   graphEventId: string,
-  graphCalendarId?: string | null
+  graphCalendarId?: string | null,
+  mailboxSmtp?: string | null
 ): Promise<CalendarEventAttachmentMeta[]> {
   const client = await getClientFor(accountId)
-  const path = eventAttachmentsPath(graphEventId, graphCalendarId)
+  const path = eventAttachmentsPath(graphEventId, graphCalendarId, mailboxSmtp)
   const res = (await client.api(path).get()) as { value?: GraphEventAttachment[] }
   const out: CalendarEventAttachmentMeta[] = []
   for (const raw of res.value ?? []) {
@@ -137,10 +142,11 @@ export async function listGraphEventAttachments(
 export async function fetchGraphEventInlineImages(
   accountId: string,
   graphEventId: string,
-  graphCalendarId?: string | null
+  graphCalendarId?: string | null,
+  mailboxSmtp?: string | null
 ): Promise<Record<string, string>> {
   const client = await getClientFor(accountId)
-  const path = eventAttachmentsPath(graphEventId, graphCalendarId)
+  const path = eventAttachmentsPath(graphEventId, graphCalendarId, mailboxSmtp)
   const res = (await client.api(path).get()) as { value?: GraphEventAttachment[] }
   const inlineCandidates = (res.value ?? []).filter(
     (a) =>
@@ -201,14 +207,15 @@ export async function graphAddEventAttachments(
     files?: ComposeAttachment[] | null
     references?: ComposeReferenceAttachment[] | null
   },
-  graphCalendarId?: string | null
+  graphCalendarId?: string | null,
+  mailboxSmtp?: string | null
 ): Promise<void> {
   const files = input.files?.filter((a) => a.name?.trim() && a.dataBase64?.trim()) ?? []
   const references = input.references?.filter((r) => r.name?.trim() && r.sourceUrl?.trim()) ?? []
   if (files.length === 0 && references.length === 0) return
 
   const client = await getClientFor(accountId)
-  const path = eventAttachmentsPath(graphEventId, graphCalendarId)
+  const path = eventAttachmentsPath(graphEventId, graphCalendarId, mailboxSmtp)
   const { inline, large } = partitionFileAttachments(files)
 
   for (const att of inline) {

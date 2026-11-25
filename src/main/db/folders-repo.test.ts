@@ -17,6 +17,7 @@ vi.mock('./index', () => ({
 import {
   adjustFolderUnread,
   deleteFolderLocal,
+  deleteFoldersMissingFromRemote,
   findFolderById,
   findFolderByRemoteId,
   findFolderByWellKnown,
@@ -181,6 +182,26 @@ describe.skipIf(!isInMemorySqliteAvailable())('folders-repo', () => {
       .prepare('SELECT COUNT(*) AS c FROM messages WHERE folder_id = ?')
       .get(folder.id) as { c: number }
     expect(msgCount.c).toBe(0)
+  })
+
+  it('deleteFoldersMissingFromRemote entfernt Ghost-Ordner, behält Server-Ordner', () => {
+    upsertFolders([
+      folderInput('fld-live', 'Inbox', 'inbox'),
+      folderInput('fld-ghost-a', 'Clutter'),
+      folderInput('fld-ghost-b', 'Clutter')
+    ])
+
+    const removed = deleteFoldersMissingFromRemote(ACCOUNT, new Set(['fld-live']))
+
+    expect(removed.sort()).toEqual(['fld-ghost-a', 'fld-ghost-b'])
+    expect(listFoldersByAccount(ACCOUNT).map((f) => f.remoteId)).toEqual(['fld-live'])
+  })
+
+  it('deleteFoldersMissingFromRemote loescht nichts bei leerer remoteIds-Menge', () => {
+    upsertFolders([folderInput('fld-keep', 'Clutter')])
+
+    expect(deleteFoldersMissingFromRemote(ACCOUNT, new Set())).toEqual([])
+    expect(findFolderByRemoteId(ACCOUNT, 'fld-keep')).not.toBeNull()
   })
 
   it('insertFolderLocal gibt id zurueck und upsertet bei Konflikt', () => {

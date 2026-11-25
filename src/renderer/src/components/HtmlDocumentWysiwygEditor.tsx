@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type MutableRefObject,
@@ -122,9 +123,10 @@ export function HtmlDocumentWysiwygEditor({
     return raw ? sanitizeRef.current(raw) : ''
   }, [getDoc])
 
-  const writeBodyHtml = useCallback((html: string): void => {
-    const doc = iframeRef.current?.contentDocument ?? null
-    if (!doc) return
+  const writeBodyHtml = useCallback((html: string): boolean => {
+    const iframe = iframeRef.current
+    const doc = iframe?.contentDocument ?? null
+    if (!doc) return false
     const safe = sanitizeRef.current(html.trim())
     doc.open()
     doc.write(buildHtmlDocumentWysiwygShell(safe))
@@ -132,6 +134,7 @@ export function HtmlDocumentWysiwygEditor({
     doc.designMode = disabled ? 'off' : 'on'
     applyHtmlDocumentWysiwygProtectedRegions(doc, protectedRef.current)
     lastEmittedRef.current = safe
+    return true
   }, [disabled])
 
   const emitChange = useCallback((): string => {
@@ -187,12 +190,17 @@ export function HtmlDocumentWysiwygEditor({
     }
   }, [emitChange, flushRef])
 
-  /** iframe + Listener einmal mounten — nicht bei jedem valueHtml-Update neu aufbauen. */
-  useEffect(() => {
+  /**
+   * iframe + Listener einmal mounten — nicht bei jedem valueHtml-Update neu aufbauen.
+   * `about:blank` + Sandbox nur mit allow-same-origin: in Electron sonst oft kein
+   * contentDocument / designMode (weiße leere Fläche).
+   */
+  useLayoutEffect(() => {
     const iframe = iframeRef.current
     if (!iframe) return
 
     let detachDocListeners: (() => void) | undefined
+    let cancelled = false
 
     const bindDocument = (): void => {
       detachDocListeners?.()
@@ -228,18 +236,24 @@ export function HtmlDocumentWysiwygEditor({
       }
     }
 
-    const onIframeLoad = (): void => {
-      writeBodyHtml(valueHtmlRef.current)
+    const hydrateEditorDocument = (): void => {
+      if (cancelled) return
+      if (!writeBodyHtml(valueHtmlRef.current)) return
       bindDocument()
       iframeReadyRef.current = true
     }
 
+    const onIframeLoad = (): void => {
+      hydrateEditorDocument()
+    }
+
     iframe.addEventListener('load', onIframeLoad)
     if (iframe.contentDocument?.readyState === 'complete') {
-      onIframeLoad()
+      hydrateEditorDocument()
     }
 
     return (): void => {
+      cancelled = true
       iframe.removeEventListener('load', onIframeLoad)
       detachDocListeners?.()
       iframeReadyRef.current = false
@@ -381,8 +395,9 @@ export function HtmlDocumentWysiwygEditor({
         <iframe
           ref={iframeRef}
           title={t('htmlDocumentWysiwyg.iframeTitle')}
-          className={cn('block w-full border-0 bg-transparent', minHeightClass)}
-          sandbox="allow-same-origin allow-scripts"
+          src="about:blank"
+          className={cn('block w-full border-0 bg-[#0d0d0d]', minHeightClass)}
+          sandbox="allow-same-origin"
         />
       </div>
 

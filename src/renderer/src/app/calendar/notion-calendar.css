@@ -177,33 +177,39 @@
 }
 
 .calendar-notion-shell .fc-timegrid-slot {
-  height: 1.5rem;
+  height: 2.8rem;
 }
 
-/* Tag/Woche: Slot-Hoehe je nach gewaehlter Rasterweite (Klasse `cal-slot-*` am Shell-Wrapper). */
+/*
+ * Tag/Woche: Slot-Hoehe je nach Rasterweite (`cal-slot-*` am Shell-Wrapper).
+ * Ziel ~5.6 rem/Stunde: bei ui-scale 100 % (1rem = 11px) bleibt der 24h-Tag
+ * hoeher als der Viewport — sonst greifen scrollTime und Scrollen nicht
+ * (Tagesansicht klebt bei 0:00). Feine Raster (5/6/10) erreichen das schon
+ * durch mehr Slots; grobere brauchen hoehere Zeilen.
+ */
 .calendar-notion-shell.cal-slot-5 .fc-timegrid-slot {
-  height: 0.525rem;
+  height: 0.525rem; /* 6.3 rem/h */
 }
 .calendar-notion-shell.cal-slot-6 .fc-timegrid-slot {
-  height: 0.5625rem;
+  height: 0.5625rem; /* 5.625 rem/h */
 }
 .calendar-notion-shell.cal-slot-10 .fc-timegrid-slot {
-  height: 0.625rem;
+  height: 0.625rem; /* 3.75 rem/h — viele Slots, Gesamthoehe reicht */
 }
 .calendar-notion-shell.cal-slot-12 .fc-timegrid-slot {
-  height: 0.675rem;
+  height: 1.15rem; /* 5.75 rem/h */
 }
 .calendar-notion-shell.cal-slot-15 .fc-timegrid-slot {
-  height: 0.75rem;
+  height: 1.4rem; /* 5.6 rem/h */
 }
 .calendar-notion-shell.cal-slot-20 .fc-timegrid-slot {
-  height: 0.875rem;
+  height: 1.9rem; /* 5.7 rem/h */
 }
 .calendar-notion-shell.cal-slot-30 .fc-timegrid-slot {
-  height: 1.5rem;
+  height: 2.8rem; /* 5.6 rem/h */
 }
 .calendar-notion-shell.cal-slot-60 .fc-timegrid-slot {
-  height: 1.625rem;
+  height: 5.6rem; /* 5.6 rem/h */
 }
 
 /* Zeitskala (Uhrzeiten-Spalte): Rechtsklick → Rasterweite wie in Outlook. */

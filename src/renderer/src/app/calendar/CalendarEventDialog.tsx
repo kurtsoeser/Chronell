@@ -57,6 +57,7 @@ import {
   calendarEventSensitivityFromPrivate,
   calendarEventSensitivityIsPrivate
 } from '@shared/calendar-event-status'
+import { normalizeWebinarFromMailbox } from '@shared/webinar-from-mailbox'
 import { CALENDAR_TIMEZONE_UI_OPTIONS } from '@shared/microsoft-timezones'
 import { dueIsoFromClientInput } from '@shared/calendar-datetime'
 import { cloudTaskStableKey } from '@shared/work-item-keys'
@@ -275,6 +276,13 @@ function applyWebinarTrackingDefaults(setters: {
   setters.setAllowForwarding(false)
 }
 
+/** Absender-SMTP für neue Webinare (Settings oder Session). */
+function resolveWebinarFromMailboxForCreate(explicit?: string | null): string {
+  return normalizeWebinarFromMailbox(
+    explicit || readWebinarInvitationDefaults().defaultFromMailbox
+  )
+}
+
 /** Ein `<option>`-Wert: Konto + Graph-Kalender (leer = Standardkalender). */
 function calendarDestinationKey(accountId: string, graphCalendarId: string): string {
   return JSON.stringify({ accountId, graphCalendarId })
@@ -431,6 +439,8 @@ export interface CalendarEventDialogProps {
     webinarSupplementHtml?: string
     /** Notion-Seiten-ID (#kurtrocks Events) fuer Link-Writeback. */
     notionPageId?: string
+    /** Events-OS-EventId — Meeting/Forms zurück in die Akte. */
+    eventsOsEventId?: string
   } | null
   initialCreateKind?: CalendarEventDialogCreateKind
   initialGraphCalendarId?: string
@@ -634,6 +644,10 @@ export function CalendarEventDialog({
   const [webinarSupplementHtml, setWebinarSupplementHtml] = useState<string | null>(null)
   /** Notion-Seiten-ID aus „Webinar aus Notion“ — Links zurueckschreiben. */
   const [notionSourcePageId, setNotionSourcePageId] = useState<string | null>(null)
+  /** Events-OS-Event — Meeting/Forms in die Akte. */
+  const [eventsOsSourceEventId, setEventsOsSourceEventId] = useState<string | null>(null)
+  /** Verhindert doppelten Chronell→Events-OS-Writeback für denselben Join-Link. */
+  const eventsOsMeetingWrittenRef = useRef<string | null>(null)
   const webinarHtmlEditorFlushRef = useRef<(() => string) | null>(null)
   const pendingWebinarAutoRestoreRef = useRef(false)
   /** Notion-/Prefill-Import: Einladung anwenden, sobald Content im State ist. */
@@ -643,6 +657,17 @@ export function CalendarEventDialog({
    * (Speichern wird danach zum Update).
    */
   const [provisionedEventId, setProvisionedEventId] = useState<string | null>(null)
+  /**
+   * Webinar unter `/users/{smtp}` (Fallback ohne Shared-Kalender).
+   * Bei Shared-Kalender von events@ bleibt null — dann reicht graphCalendarId.
+   */
+  const [webinarMailboxSmtp, setWebinarMailboxSmtp] = useState<string | null>(null)
+  const webinarMailboxSmtpRef = useRef<string | null>(null)
+  const setWebinarMailboxSmtpBoth = useCallback((smtp: string | null): void => {
+    const next = smtp?.trim() ? normalizeWebinarFromMailbox(smtp) : null
+    webinarMailboxSmtpRef.current = next
+    setWebinarMailboxSmtp(next)
+  }, [])
   /** Teams Premium: ausgewaehlte meetingTemplateId (Graph), leer = Standard. */
   const [teamsMeetingTemplateId, setTeamsMeetingTemplateId] = useState('')
   /** True wenn die aktuelle Teams-Besprechung ueber eine Premium-Vorlage lief. */
@@ -815,6 +840,7 @@ export function CalendarEventDialog({
       setDialogJoinUrl(null)
       setTeamsProvisioning(false)
       setProvisionedEventId(null)
+      setWebinarMailboxSmtpBoth(null)
       setTeamsMeetingTemplateId('')
       setTeamsProvisionedWithTemplate(false)
       setTeamsMeetingTemplates(readTeamsMeetingTemplates())
@@ -855,6 +881,8 @@ export function CalendarEventDialog({
         }
       }
       // Details (Beschreibung, Teilnehmer, Teams) werden im getEvent-Effekt geladen.
+      setEventsOsSourceEventId(null)
+      eventsOsMeetingWrittenRef.current = null
       return
     }
 
@@ -907,6 +935,7 @@ export function CalendarEventDialog({
       setDialogJoinUrl(null)
       setTeamsProvisioning(false)
       setProvisionedEventId(null)
+      setWebinarMailboxSmtpBoth(null)
       setTeamsMeetingTemplateId('')
       setTeamsProvisionedWithTemplate(false)
       setTeamsMeetingTemplates(readTeamsMeetingTemplates())
@@ -923,6 +952,8 @@ export function CalendarEventDialog({
       })
       setWebinarSupplementHtml(createPrefill?.webinarSupplementHtml?.trim() || null)
       setNotionSourcePageId(createPrefill?.notionPageId?.trim() || null)
+      setEventsOsSourceEventId(createPrefill?.eventsOsEventId?.trim() || null)
+      eventsOsMeetingWrittenRef.current = null
       if (
         isWebinar &&
         (createPrefill?.webinarHeroImageSrc ||
@@ -1255,8 +1286,9 @@ export function CalendarEventDialog({
         : provisionedEventId,
     graphCalendarId:
       mode === 'edit'
-        ? (initialEvent?.graphCalendarId ?? null)
+        ? (initialEvent?.graphCalendarId ?? (graphCalendarId.trim() || null))
         : graphCalendarId.trim() || null,
+    mailboxSmtp: webinarMailboxSmtp,
     // Create + Teams-Eager: Attachments erst nach Provision-Ende (sonst Extra-Roundtrip).
     enabled: open && createKind === 'event' && !(mode === 'create' && teamsProvisioning)
   })
@@ -1640,7 +1672,8 @@ export function CalendarEventDialog({
     const loadArgs = {
       accountId: initialEvent.accountId,
       graphEventId: eventId,
-      graphCalendarId: initialEvent.graphCalendarId ?? null
+      graphCalendarId: initialEvent.graphCalendarId ?? null,
+      mailboxSmtp: webinarMailboxSmtpRef.current
     }
 
     // Cache zuerst → UI schnell; Force-Refresh im Hintergrund.
@@ -1892,6 +1925,7 @@ export function CalendarEventDialog({
       accountId: string
       graphEventId: string
       graphCalendarId: string | null
+      mailboxSmtp?: string | null
       /** Bereits bekannte URL — dann kein Poll. */
       seedJoinUrl?: string | null
     }): Promise<{ joinUrl: string | null; bodyHtml: string | null }> => {
@@ -1909,6 +1943,7 @@ export function CalendarEventDialog({
           accountId: input.accountId,
           graphEventId: input.graphEventId,
           graphCalendarId: input.graphCalendarId,
+          mailboxSmtp: input.mailboxSmtp ?? null,
           forceRefresh: true
         })
         bodyHtml = d.bodyHtml?.trim() || null
@@ -1926,11 +1961,62 @@ export function CalendarEventDialog({
   /**
    * Short-Link + Teams-Body nach Unlock: max. 1 Retry, blockiert die UI nicht.
    */
+  /** Teams-/Forms-Link → Events OS Akte (best effort, idempotent je Join-URL). */
+  const pushEventsOsMeetingWriteback = useCallback(
+    (input: {
+      meetingUrl?: string | null
+      surveyUrl?: string | null
+      graphEventId?: string | null
+      toastOnSuccess?: boolean
+    }): void => {
+      const eventId = eventsOsSourceEventId?.trim()
+      if (!eventId) return
+      const meetingUrl = String(input.meetingUrl || '').trim()
+      const surveyUrl = String(
+        input.surveyUrl ||
+          webinarContent.surveyUrl.trim() ||
+          readWebinarInvitationDefaults().defaultSurveyUrl ||
+          ''
+      ).trim()
+      if (!meetingUrl && !surveyUrl) return
+      if (meetingUrl && eventsOsMeetingWrittenRef.current === meetingUrl) return
+      if (meetingUrl) eventsOsMeetingWrittenRef.current = meetingUrl
+      void window.mailClient.eventsOs
+        .writeback({
+          eventId,
+          meetingUrl: meetingUrl || null,
+          surveyUrl: surveyUrl || null,
+          graphEventId: input.graphEventId?.trim() || null
+        })
+        .then((res) => {
+          if (res.ok && input.toastOnSuccess !== false) {
+            useUndoStore.getState().pushToast({
+              label: t('calendar.eventDialog.eventsOsLinksWrittenToast'),
+              variant: 'success',
+              durationMs: 5000
+            })
+          }
+        })
+        .catch((e) => {
+          if (meetingUrl && eventsOsMeetingWrittenRef.current === meetingUrl) {
+            eventsOsMeetingWrittenRef.current = null
+          }
+          useUndoStore.getState().pushToast({
+            label: e instanceof Error ? e.message : String(e),
+            variant: 'error',
+            durationMs: 7000
+          })
+        })
+    },
+    [eventsOsSourceEventId, t, webinarContent.surveyUrl]
+  )
+
   const enrichTeamsMeetingInBackground = useCallback(
     (input: {
       accountId: string
       graphEventId: string
       graphCalendarId: string | null
+      mailboxSmtp?: string | null
       seedJoinUrl?: string | null
       seedBodyHtml?: string | null
     }): void => {
@@ -1950,6 +2036,7 @@ export function CalendarEventDialog({
               accountId: input.accountId,
               graphEventId: input.graphEventId,
               graphCalendarId: input.graphCalendarId,
+              mailboxSmtp: input.mailboxSmtp ?? null,
               forceRefresh: true
             })
             bodyHtml = d.bodyHtml?.trim() || bodyHtml
@@ -1968,6 +2055,7 @@ export function CalendarEventDialog({
                 accountId: input.accountId,
                 graphEventId: input.graphEventId,
                 graphCalendarId: input.graphCalendarId,
+                mailboxSmtp: input.mailboxSmtp ?? null,
                 forceRefresh: true
               })
               bodyHtml = d2.bodyHtml?.trim() || bodyHtml
@@ -1985,12 +2073,21 @@ export function CalendarEventDialog({
             joinUrl,
             bodyHtml
           })
+
+          // Join-URL oft erst nach Provision fertig — dann in die Events-OS-Akte.
+          if (joinUrl?.trim()) {
+            pushEventsOsMeetingWriteback({
+              meetingUrl: joinUrl,
+              graphEventId: input.graphEventId,
+              toastOnSuccess: true
+            })
+          }
         } catch (e) {
           console.warn('[calendar] Teams-Meeting Hintergrund-Anreicherung fehlgeschlagen:', e)
         }
       })()
     },
-    [applyTeamsMeetingBodyFromServer]
+    [applyTeamsMeetingBodyFromServer, pushEventsOsMeetingWriteback]
   )
 
   const provisionTeamsMeetingNow = useCallback(async (opts?: {
@@ -2033,6 +2130,41 @@ export function CalendarEventDialog({
     // Wichtig: Provision OHNE Attendees — sonst sendet Graph sofort Einladungen.
     const calId = graphCalendarId.trim() || null
     const selectedTemplateId = (opts?.templateId ?? teamsMeetingTemplateId).trim()
+    let effectiveCalId =
+      mode === 'edit' ? (initialEvent?.graphCalendarId ?? calId) : calId
+    let effectiveMailboxSmtp = webinarMailboxSmtpRef.current
+    const webinarOrganizerCreate = isWebinarProvision
+      ? {
+          chronellWebinarInvitation: true as const,
+          mailboxSmtp: resolveWebinarFromMailboxForCreate(effectiveMailboxSmtp)
+        }
+      : {}
+    const webinarOrganizerUpdate =
+      isWebinarProvision || webinarMode
+        ? {
+            chronellWebinarInvitation: true as const,
+            ...(effectiveMailboxSmtp ? { mailboxSmtp: effectiveMailboxSmtp } : {})
+          }
+        : {}
+    const applyCreatedOrganizerTarget = (created: {
+      graphCalendarId?: string | null
+      mailboxSmtp?: string | null
+    }): void => {
+      if (!isWebinarProvision && !webinarMode) return
+      const nextCal = created.graphCalendarId?.trim()
+      if (nextCal) {
+        effectiveCalId = nextCal
+        setGraphCalendarId(nextCal)
+        if (accountId) {
+          setDestinationSelectValue(calendarDestinationKey(accountId, nextCal))
+        }
+      }
+      const nextSmtp = created.mailboxSmtp?.trim()
+        ? normalizeWebinarFromMailbox(created.mailboxSmtp)
+        : null
+      effectiveMailboxSmtp = nextSmtp
+      setWebinarMailboxSmtpBoth(nextSmtp)
+    }
 
     setTeamsProvisioning(true)
     setLocalError(null)
@@ -2093,8 +2225,7 @@ export function CalendarEventDialog({
           await window.mailClient.calendar.updateEvent({
             accountId: mode === 'edit' ? (initialEvent?.accountId ?? accountId) : accountId,
             graphEventId,
-            graphCalendarId:
-              mode === 'edit' ? (initialEvent?.graphCalendarId ?? calId) : calId,
+            graphCalendarId: effectiveCalId,
             subject: subjectForSave,
             startIso: schedule.startIso,
             endIso: schedule.endIso,
@@ -2113,12 +2244,12 @@ export function CalendarEventDialog({
             sensitivity: calendarEventSensitivityFromPrivate(eventIsPrivate),
             ...graphReminderPayload('microsoft', reminderEnabled, reminderMinutesBefore),
             timeZone: eventTimeZone,
-            ...(webinarMode ? { chronellWebinarInvitation: true } : {})
+            ...webinarOrganizerUpdate
           })
         } else {
           const created = await window.mailClient.calendar.createEvent({
             accountId,
-            graphCalendarId: calId,
+            graphCalendarId: effectiveCalId,
             subject: subjectForSave,
             startIso: schedule.startIso,
             endIso: schedule.endIso,
@@ -2137,12 +2268,13 @@ export function CalendarEventDialog({
             sensitivity: calendarEventSensitivityFromPrivate(eventIsPrivate),
             ...graphReminderPayload('microsoft', reminderEnabled, reminderMinutesBefore),
             timeZone: eventTimeZone,
-            ...(webinarMode ? { chronellWebinarInvitation: true } : {})
+            ...webinarOrganizerCreate
           })
           graphEventId = created.id?.trim() || null
           if (!graphEventId) {
             throw new Error(t('calendar.eventDialog.teamsProvisionFailed'))
           }
+          applyCreatedOrganizerTarget(created)
           setProvisionedEventId(graphEventId)
           if (!subject.trim()) setSubject(subjectForSave)
         }
@@ -2151,13 +2283,12 @@ export function CalendarEventDialog({
 
         const detailAccountId =
           mode === 'edit' ? (initialEvent?.accountId ?? accountId) : accountId
-        const detailCalId =
-          mode === 'edit' ? (initialEvent?.graphCalendarId ?? calId) : calId
         // UI sofort freigeben; Short-Link/Body im Hintergrund.
         enrichTeamsMeetingInBackground({
           accountId: detailAccountId,
           graphEventId,
-          graphCalendarId: detailCalId,
+          graphCalendarId: effectiveCalId,
+          mailboxSmtp: effectiveMailboxSmtp,
           seedJoinUrl: joinUrl,
           seedBodyHtml: mergedBody
         })
@@ -2179,8 +2310,7 @@ export function CalendarEventDialog({
         await window.mailClient.calendar.updateEvent({
           accountId: mode === 'edit' ? (initialEvent?.accountId ?? accountId) : accountId,
           graphEventId,
-          graphCalendarId:
-            mode === 'edit' ? (initialEvent?.graphCalendarId ?? calId) : calId,
+          graphCalendarId: effectiveCalId,
           subject: subjectForSave,
           startIso: schedule.startIso,
           endIso: schedule.endIso,
@@ -2199,14 +2329,14 @@ export function CalendarEventDialog({
           sensitivity: calendarEventSensitivityFromPrivate(eventIsPrivate),
           ...graphReminderPayload('microsoft', reminderEnabled, reminderMinutesBefore),
           timeZone: eventTimeZone,
-          ...(webinarMode ? { chronellWebinarInvitation: true } : {})
+          ...webinarOrganizerUpdate
         })
         // Update + Main-Refresh: Join-URL oft schon im Cache — kein Force-Poll.
         const cached = await window.mailClient.calendar.getEvent({
           accountId: mode === 'edit' ? (initialEvent?.accountId ?? accountId) : accountId,
           graphEventId,
-          graphCalendarId:
-            mode === 'edit' ? (initialEvent?.graphCalendarId ?? calId) : calId,
+          graphCalendarId: effectiveCalId,
+          mailboxSmtp: effectiveMailboxSmtp,
           forceRefresh: false
         })
         seedJoinUrl = preferTeamsJoinUrl({
@@ -2216,7 +2346,7 @@ export function CalendarEventDialog({
       } else {
         const created = await window.mailClient.calendar.createEvent({
           accountId,
-          graphCalendarId: calId,
+          graphCalendarId: effectiveCalId,
           subject: subjectForSave,
           startIso: schedule.startIso,
           endIso: schedule.endIso,
@@ -2235,12 +2365,13 @@ export function CalendarEventDialog({
           sensitivity: calendarEventSensitivityFromPrivate(eventIsPrivate),
           ...graphReminderPayload('microsoft', reminderEnabled, reminderMinutesBefore),
           timeZone: eventTimeZone,
-          ...(webinarMode ? { chronellWebinarInvitation: true } : {})
+          ...webinarOrganizerCreate
         })
         graphEventId = created.id?.trim() || null
         if (!graphEventId) {
           throw new Error(t('calendar.eventDialog.teamsProvisionFailed'))
         }
+        applyCreatedOrganizerTarget(created)
         setProvisionedEventId(graphEventId)
         if (!subject.trim()) setSubject(subjectForSave)
         seedJoinUrl = preferTeamsJoinUrl({
@@ -2252,15 +2383,14 @@ export function CalendarEventDialog({
 
       const detailAccountId =
         mode === 'edit' ? (initialEvent?.accountId ?? accountId) : accountId
-      const detailCalId =
-        mode === 'edit' ? (initialEvent?.graphCalendarId ?? calId) : calId
 
       // Poll nur wenn noch keine Join-URL — sonst UI sofort entsperren.
       if (!seedJoinUrl) {
         const details = await loadTeamsMeetingDetailsAfterWrite({
           accountId: detailAccountId,
           graphEventId,
-          graphCalendarId: detailCalId
+          graphCalendarId: effectiveCalId,
+          mailboxSmtp: effectiveMailboxSmtp
         })
         seedJoinUrl = details.joinUrl
       }
@@ -2272,7 +2402,8 @@ export function CalendarEventDialog({
       enrichTeamsMeetingInBackground({
         accountId: detailAccountId,
         graphEventId,
-        graphCalendarId: detailCalId,
+        graphCalendarId: effectiveCalId,
+        mailboxSmtp: effectiveMailboxSmtp,
         seedJoinUrl
       })
 
@@ -3227,6 +3358,7 @@ export function CalendarEventDialog({
                 mode === 'edit'
                   ? (initialEvent?.graphCalendarId ?? (graphCalendarId.trim() || null))
                   : graphCalendarId.trim() || null,
+              mailboxSmtp: webinarMailboxSmtpRef.current,
               forceRefresh: true
             })
             const fromGraph = preferTeamsJoinUrl({
@@ -3442,7 +3574,18 @@ export function CalendarEventDialog({
           : ({ hideAttendees, responseRequested, allowForwarding } as const)
       const msWebinarMeta =
         accountId.startsWith('ms:') && isWebinarSave
-          ? { chronellWebinarInvitation: true }
+          ? {
+              chronellWebinarInvitation: true as const,
+              ...(mode === 'create' && !provisionedEventId
+                ? {
+                    mailboxSmtp: resolveWebinarFromMailboxForCreate(
+                      webinarMailboxSmtpRef.current
+                    )
+                  }
+                : webinarMailboxSmtpRef.current
+                  ? { mailboxSmtp: webinarMailboxSmtpRef.current }
+                  : {})
+            }
           : {}
       let createdForSaved: CalendarEventView | undefined
       if (mode === 'create' && provisionedEventId) {
@@ -3527,6 +3670,18 @@ export function CalendarEventDialog({
           writeCalendarEventReminder(
             calendarEventReminderKey(accountId, createdId),
             reminderEnabled ? { enabled: true, minutesBefore: reminderMinutesBefore } : { enabled: false }
+          )
+        }
+        if (isWebinarSave) {
+          const nextCal = created.graphCalendarId?.trim()
+          if (nextCal) {
+            setGraphCalendarId(nextCal)
+            setDestinationSelectValue(calendarDestinationKey(accountId, nextCal))
+          }
+          setWebinarMailboxSmtpBoth(
+            created.mailboxSmtp?.trim()
+              ? normalizeWebinarFromMailbox(created.mailboxSmtp)
+              : null
           )
         }
         createdForSaved = created.event
@@ -3745,6 +3900,23 @@ export function CalendarEventDialog({
               })
             })
         }
+      }
+
+      if (isWebinarSave && eventsOsSourceEventId?.trim()) {
+        const meetingForOs = (
+          getDialogJoinUrl()?.trim() ||
+          createdForSaved?.joinUrl?.trim() ||
+          ''
+        ).trim()
+        pushEventsOsMeetingWriteback({
+          meetingUrl: meetingForOs || null,
+          surveyUrl: (
+            webinarContent.surveyUrl.trim() ||
+            readWebinarInvitationDefaults().defaultSurveyUrl
+          ).trim(),
+          graphEventId: createdForSaved?.graphEventId?.trim() || null,
+          toastOnSuccess: true
+        })
       }
 
       onSaved(createdForSaved)
@@ -4111,6 +4283,13 @@ export function CalendarEventDialog({
                     {t('calendar.eventDialog.webinarSinglePageHint')}
                   </p>
                 ) : null}
+                {webinarMode ? (
+                  <p className="text-2xs text-muted-foreground">
+                    {t('calendar.eventDialog.webinarFromMailboxHint', {
+                      email: resolveWebinarFromMailboxForCreate(webinarMailboxSmtp)
+                    })}
+                  </p>
+                ) : null}
                 {webinarMode && mode === 'edit' ? (
                   <p className="text-2xs text-muted-foreground">
                     {t('calendar.eventDialog.webinarEditCancelHint')}
@@ -4128,14 +4307,14 @@ export function CalendarEventDialog({
                 onSubjectChange={setSubject}
                 onIconChange={setEventIconId}
               />
-              {isTaskCreate && useOutlookCategories ? (
+              {useOutlookCategories ? (
                 <div className="mt-2 pl-[52px]">
                   <CalendarEventCategoryPopover
                     categoryNames={categoryChoiceNames}
                     selected={eventCategories}
                     categoryColorByName={categoryColorByName}
                     mastersLoading={mastersLoading}
-                    disabled={busy}
+                    disabled={busy || eventFieldsLocked}
                     onToggle={toggleEventCategory}
                   />
                 </div>

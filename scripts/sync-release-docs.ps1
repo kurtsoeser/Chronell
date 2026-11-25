@@ -190,6 +190,28 @@ function Escape-JsonString([string] $Value) {
   return ($Value -replace '\\', '\\\\' -replace '"', '\"')
 }
 
+function Update-PinnedMarketingVersions {
+  param(
+    $Info,
+    [string] $Raw
+  )
+
+  $ver = [string] $Info.Version
+  if ($ver -notmatch '^(\d+)\.(\d+)\.(\d+)$') {
+    return $Raw
+  }
+  $short = '{0}.{1}' -f $Matches[1], $Matches[2]
+
+  # Hero-Pille, Download-CTA und Highlights blieben bisher auf einer alten Version stehen
+  # (z. B. 1.3.1), während latest.json und die Timeline schon weiter waren.
+  $Raw = $Raw -replace '(?s)("whatsNew"\s*:\s*\{.*?"label"\s*:\s*"Version )\d+\.\d+\.\d+', "`${1}$ver"
+  $Raw = $Raw -replace '(?s)("cta"\s*:\s*\{.*?"body"\s*:\s*"(?:Lade Version |Download version ))\d+\.\d+\.\d+', "`${1}$ver"
+  $Raw = $Raw -replace '(?s)("highlights"\s*:\s*\{.*?"lead"\s*:\s*"(?:Mit Version |With version ))\d+\.\d+\.\d+', "`${1}$ver"
+  $Raw = $Raw -replace '(?s)("highlights"\s*:\s*\{.*?"eyebrow"\s*:\s*"Version )\d+\.\d+', "`${1}$short"
+  $Raw = $Raw -replace '(?s)("hero"\s*:\s*\{.*?"badge"\s*:\s*"Version )\d+\.\d+', "`${1}$short"
+  return $Raw
+}
+
 function Update-I18nFile {
   param(
     $Info,
@@ -255,6 +277,8 @@ function Update-I18nFile {
       Write-Host "  $Path : aeltester updates.$oldest entfernt (max. 7)." -ForegroundColor DarkGray
     }
   }
+
+  $raw = Update-PinnedMarketingVersions -Info $Info -Raw $raw
 
   if (-not $DryRun) {
     [System.IO.File]::WriteAllText($Path, $raw, [System.Text.UTF8Encoding]::new($false))

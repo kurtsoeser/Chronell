@@ -437,10 +437,10 @@ export function listTodoMessagesWithMeta(
 /** Effektives Ende eines Mail-ToDos (entspricht `todoItemOverlapsRange`). */
 const TODO_VISUAL_END_SQL = `CASE
   WHEN t.todo_end_at IS NOT NULL
-    AND datetime(t.todo_end_at) > datetime(COALESCE(t.todo_start_at, t.todo_due_at))
+    AND datetime(t.todo_end_at) > datetime(COALESCE(t.todo_start_at, t.due_at))
     THEN t.todo_end_at
   WHEN t.todo_start_at IS NOT NULL THEN datetime(t.todo_start_at, '+1 hour')
-  ELSE datetime(t.todo_due_at, '+25 minutes')
+  ELSE datetime(t.due_at, '+25 minutes')
 END`
 
 export function listOpenTodoMessagesWithDueAtInRange(
@@ -457,11 +457,11 @@ export function listOpenTodoMessagesWithDueAtInRange(
    FROM todos t
    INNER JOIN messages m ON m.id = t.message_id
    WHERE t.status = 'open'
-     AND COALESCE(t.todo_start_at, t.todo_due_at) IS NOT NULL
-     AND COALESCE(t.todo_start_at, t.todo_due_at) < ?
+     AND COALESCE(t.todo_start_at, t.due_at) IS NOT NULL
+     AND COALESCE(t.todo_start_at, t.due_at) < ?
      AND ${TODO_VISUAL_END_SQL} > ?
      ${accountClause}
-   ORDER BY COALESCE(t.todo_start_at, t.todo_due_at, '') ASC
+   ORDER BY COALESCE(t.todo_start_at, t.due_at, '') ASC
    LIMIT ?`
 
   type Row = MessageRow & {

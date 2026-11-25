@@ -43,6 +43,7 @@ import {
   megaTimelineFilterCounts
 } from '@/app/mega/mega-timeline-arrange'
 import type { MailContextHandlers } from '@/lib/mail-context-menu'
+import { createMailSendToOneNoteHandler } from '@/lib/onenote-ui'
 import { accountSupportsCloudTasks } from '@/lib/cloud-task-accounts'
 import { confirmDeleteCloudTasks } from '@/app/tasks/confirm-delete-cloud-task'
 import { persistCalendarContentViewMode } from '@/app/calendar/calendar-content-view-mode-storage'
@@ -483,7 +484,8 @@ export function CalendarTimelinePane({
       refreshNow: async (): Promise<void> => {
         await refreshNow()
         await reload()
-      }
+      },
+      sendToOneNote: createMailSendToOneNoteHandler()
     }),
     [
       openReply,

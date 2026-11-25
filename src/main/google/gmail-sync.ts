@@ -3,6 +3,7 @@ import { loadConfig } from '../config'
 import {
   upsertFolders,
   reconcileAllFolderUnreadForAccount,
+  deleteFoldersMissingFromRemote,
   findFolderByRemoteId,
   findFolderByWellKnown,
   setFolderMailboxCountsLocal,
@@ -14,6 +15,7 @@ import {
 } from '../db/messages-repo'
 import { upsertMailMessagesReconcilingTodos } from '../mail-upsert-with-todo-reconcile'
 import { getFolderSyncState, upsertFolderSyncState } from '../db/sync-state-repo'
+import { clearWorkflowFolderPrefsIfRemoteFolderRemoved } from '../db/workflow-folders-repo'
 import { getGoogleApis } from './google-auth-client'
 import { getGmailHistoryId, updateGmailHistoryId } from './google-sync-meta-store'
 
@@ -195,6 +197,13 @@ export async function syncGoogleFolders(accountId: string): Promise<number> {
     }
   }
   upsertFolders(batch)
+  const removedRemoteIds = deleteFoldersMissingFromRemote(
+    accountId,
+    new Set(batch.map((f) => f.remoteId))
+  )
+  for (const remoteId of removedRemoteIds) {
+    clearWorkflowFolderPrefsIfRemoteFolderRemoved(accountId, remoteId)
+  }
   reconcileAllFolderUnreadForAccount(accountId)
   return batch.length
 }

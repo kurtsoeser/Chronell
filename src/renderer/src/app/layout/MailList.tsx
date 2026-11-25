@@ -55,6 +55,8 @@ import {
   createMailSendAsNewNotionPageHandler,
   createMailSendToNotionHandler
 } from '@/lib/notion-ui'
+import { createMailSendToEventsOsHandler } from '@/lib/events-os-ui'
+import { createMailSendToOneNoteHandler } from '@/lib/onenote-ui'
 import {
   createMailSendToExistingNoteHandler,
   createMailSendToNewNoteHandler
@@ -385,6 +387,8 @@ export function MailList(props: {
       refreshNow,
       sendToNotion: createMailSendToNotionHandler(),
       sendToNotionAsNewPage: createMailSendAsNewNotionPageHandler(),
+      sendToEventsOs: createMailSendToEventsOsHandler(),
+      sendToOneNote: createMailSendToOneNoteHandler(),
       createContactFromSender: (message): void => {
         useCreateContactFromMailStore.getState().openFromMessage(message)
       },

@@ -467,6 +467,21 @@ export const IPC = {
     importKurtrocksEventForWebinar: 'notion:import-kurtrocks-event-for-webinar',
     updateKurtrocksEventLinks: 'notion:update-kurtrocks-event-links'
   },
+  /** Mail → #kurtrocks Events OS Lifecycle-Akte */
+  eventsOs: {
+    searchEvents: 'events-os:search-events',
+    sendMail: 'events-os:send-mail',
+    ping: 'events-os:ping',
+    importWebinar: 'events-os:import-webinar',
+    writeback: 'events-os:writeback',
+    drainWebinarLaunches: 'events-os:drain-webinar-launches',
+    createFromCalendar: 'events-os:create-from-calendar'
+  },
+  /** Mail → Microsoft OneNote (Graph). */
+  onenote: {
+    listCatalog: 'onenote:list-catalog',
+    sendMail: 'onenote:send-mail'
+  },
   demo: {
     getStatus: 'demo:get-status',
     enter: 'demo:enter',

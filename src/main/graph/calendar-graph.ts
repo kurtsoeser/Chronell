@@ -577,6 +577,8 @@ export interface CreateTeamsCalendarEventInput {
   graphCalendarId?: string | null
   /** Einladungen (Graph `attendees`, max. 500 laut Microsoft). */
   attendeeEmails?: string[] | null
+  /** Organizer-Postfach (SMTP), z. B. events@kurtrocks.com. */
+  mailboxSmtp?: string | null
 }
 
 export interface CreateTeamsCalendarEventResult {
@@ -627,6 +629,11 @@ type GraphEventWriteFields = {
    * Default / `all`: mit übrigen Feldern zusammen (Update oft an alle).
    */
   notifyAttendeeScope?: 'all' | 'changed' | null
+  /**
+   * Organizer-Postfach (SMTP), z. B. events@kurtrocks.com.
+   * Schreibt unter `/users/{smtp}/…` wenn kein freigegebener /me-Kalender gewählt ist.
+   */
+  mailboxSmtp?: string | null
 }
 
 /** Graph Event `attendees` Collection — Microsoft Docs: max. 500. */
@@ -1178,39 +1185,95 @@ function eventWritePayload(input: GraphEventWriteFields): Promise<{
   })
 }
 
-function eventPostPath(graphCalendarId?: string | null): string {
+/**
+ * Graph-Root für Kalender-Writes.
+ * Shared/Alias-Postfach: `/users/{smtp}`; sonst `/me`.
+ */
+export function graphCalendarMailboxRoot(mailboxSmtp?: string | null): string {
+  const smtp = mailboxSmtp?.trim()
+  if (!smtp) return '/me'
+  return `/users/${encodeURIComponent(smtp)}`
+}
+
+function eventPostPath(
+  graphCalendarId?: string | null,
+  mailboxSmtp?: string | null
+): string {
   const calId = graphCalendarId?.trim() ?? ''
   const groupId = parseM365GroupIdFromCalendarRef(calId)
   if (groupId) {
     return `/groups/${encodeURIComponent(groupId)}/events`
   }
-  return calId ? `/me/calendars/${encodeURIComponent(calId)}/events` : '/me/events'
+  const root = graphCalendarMailboxRoot(mailboxSmtp)
+  return calId
+    ? `${root}/calendars/${encodeURIComponent(calId)}/events`
+    : `${root}/events`
 }
 
 /**
  * GET/PATCH/DELETE fuer Termine.
  * Mit `graphCalendarId`: kalenderbezogener Pfad (wichtig fuer Abos, freigegebene und Group-Kalender).
+ * Mit `mailboxSmtp`: Termin im Shared-/Alias-Postfach (`/users/{smtp}/…`).
  */
-export function graphEventInstancePath(graphEventId: string, graphCalendarId?: string | null): string {
+export function graphEventInstancePath(
+  graphEventId: string,
+  graphCalendarId?: string | null,
+  mailboxSmtp?: string | null
+): string {
   const calId = graphCalendarId?.trim() ?? ''
   const gid = parseM365GroupIdFromCalendarRef(calId)
   if (gid) {
     return `/groups/${encodeURIComponent(gid)}/events/${encodeURIComponent(graphEventId)}`
   }
+  const root = graphCalendarMailboxRoot(mailboxSmtp)
   if (calId) {
-    return `/me/calendars/${encodeURIComponent(calId)}/events/${encodeURIComponent(graphEventId)}`
+    return `${root}/calendars/${encodeURIComponent(calId)}/events/${encodeURIComponent(graphEventId)}`
   }
-  return `/me/events/${encodeURIComponent(graphEventId)}`
+  return `${root}/events/${encodeURIComponent(graphEventId)}`
+}
+
+/**
+ * Freigegebenen Kalender unter /me finden, dessen Owner die SMTP-Adresse ist
+ * (dann Organizer = Postfach, Termin bleibt in Chronell sichtbar).
+ */
+export async function graphResolveCalendarIdOwnedByMailbox(
+  accountId: string,
+  mailboxSmtp: string
+): Promise<string | null> {
+  const want = mailboxSmtp.trim().toLowerCase()
+  if (!want) return null
+  const client = await getClientFor(accountId)
+  try {
+    const res = (await client
+      .api('/me/calendars')
+      .select('id,canEdit,owner')
+      .get()) as {
+      value?: Array<{
+        id?: string | null
+        canEdit?: boolean | null
+        owner?: { address?: string | null; name?: string | null } | null
+      }>
+    }
+    for (const c of res.value ?? []) {
+      if (!c.id || c.canEdit === false) continue
+      const addr = c.owner?.address?.trim().toLowerCase()
+      if (addr === want) return c.id
+    }
+  } catch (e) {
+    console.warn('[calendar] Shared-Kalender für Webinar-Absender nicht auflösbar:', e)
+  }
+  return null
 }
 
 export async function graphGetCalendarEvent(
   accountId: string,
   graphEventId: string,
   graphCalendarId?: string | null,
-  accountEmail?: string | null
+  accountEmail?: string | null,
+  mailboxSmtp?: string | null
 ): Promise<GraphCalendarEventDetail> {
   const client = await getClientFor(accountId)
-  const path = graphEventInstancePath(graphEventId, graphCalendarId)
+  const path = graphEventInstancePath(graphEventId, graphCalendarId, mailboxSmtp)
   const sel = encodeURIComponent(
     'id,subject,body,attendees,isOnlineMeeting,onlineMeeting,onlineMeetingProvider,start,end,isAllDay,location,organizer,isReminderOn,reminderMinutesBeforeStart,webLink,isOrganizer,type,seriesMasterId,showAs,sensitivity,hideAttendees,responseRequested,recurrence,responseStatus,originalStartTimeZone,originalEndTimeZone'
   )
@@ -1271,7 +1334,7 @@ export async function graphGetCalendarEvent(
     (eventType === 'occurrence' || eventType === 'exception')
   ) {
     try {
-      const masterPath = graphEventInstancePath(seriesMasterId, graphCalendarId)
+      const masterPath = graphEventInstancePath(seriesMasterId, graphCalendarId, mailboxSmtp)
       const master = (await client
         .api(`${masterPath}?$select=recurrence`)
         .get()) as { recurrence?: unknown }
@@ -1428,8 +1491,11 @@ export async function graphCreateSimpleCalendarEvent(
   applyGraphReminderToPayload(payload, input.reminderMinutesBeforeStart)
   await applyGraphRecurrenceToPayload(payload, input)
   applyGraphShowAsSensitivityToPayload(payload, input)
-  const created = (await client.api(eventPostPath(input.graphCalendarId)).post(payload)) as GraphEvent
-  const eventPath = graphEventInstancePath(created.id, input.graphCalendarId)
+  const mailboxSmtp = input.mailboxSmtp?.trim() || null
+  const created = (await client
+    .api(eventPostPath(input.graphCalendarId, mailboxSmtp))
+    .post(payload)) as GraphEvent
+  const eventPath = graphEventInstancePath(created.id, input.graphCalendarId, mailboxSmtp)
   if (input.recurrence) {
     await assertGraphEventIsSeriesMaster(client, eventPath)
   }
@@ -1469,7 +1535,11 @@ export async function graphUpdateCalendarEvent(
 ): Promise<void> {
   const client = await getClientFor(accountId)
   const core = await eventWritePayload(input)
-  const path = graphEventInstancePath(graphEventId, input.graphCalendarId)
+  const path = graphEventInstancePath(
+    graphEventId,
+    input.graphCalendarId,
+    input.mailboxSmtp?.trim() || null
+  )
 
   const wantTeams = !!input.teamsMeeting && !core.isAllDay
   let meetingMeta = await fetchGraphEventMeetingMetaWithBlobRetries(client, path, {
@@ -1727,8 +1797,11 @@ export async function graphCreateTeamsCalendarEvent(
   }
   applyGraphMeetingInviteToPayload(payload, input.attendeeEmails)
 
-  const created = (await client.api(eventPostPath(input.graphCalendarId)).post(payload)) as GraphEvent
-  const eventPath = graphEventInstancePath(created.id, input.graphCalendarId)
+  const mailboxSmtp = input.mailboxSmtp?.trim() || null
+  const created = (await client
+    .api(eventPostPath(input.graphCalendarId, mailboxSmtp))
+    .post(payload)) as GraphEvent
+  const eventPath = graphEventInstancePath(created.id, input.graphCalendarId, mailboxSmtp)
   const joinUrl = await resolveGraphEventJoinUrlAfterWrite(client, eventPath, created, true)
   return {
     id: created.id,

@@ -48,6 +48,7 @@ import type {
   ConnectedAccount,
   MailListItem,
   NotionWebinarImportResult,
+  EventsOsWebinarImportResult,
   TodoDueKindOpen,
   UserNoteListItem
 } from '@shared/types'
@@ -116,6 +117,9 @@ import { useCalendarShellRightPanels } from '@/app/calendar/use-calendar-shell-r
 import { useCalendarShellKeyboard } from '@/app/calendar/use-calendar-shell-keyboard'
 import { CalendarShellModals } from '@/app/calendar/CalendarShellModals'
 import { NotionWebinarImportDialog } from '@/components/NotionWebinarImportDialog'
+import { EventsOsWebinarImportDialog } from '@/components/EventsOsWebinarImportDialog'
+import { useEventsOsWebinarLaunchStore } from '@/stores/events-os-webinar-launch'
+import type { ChronellWebinarLaunch } from '@shared/chronell-protocol'
 import { CalendarShellLeftSidebar } from '@/app/calendar/CalendarShellLeftSidebar'
 import type { CalendarShellEventDialogState } from '@/app/calendar/calendar-shell-event-dialog-state'
 import { useCalendarShellSchedulingActions } from '@/app/calendar/use-calendar-shell-scheduling'
@@ -532,6 +536,7 @@ export function CalendarShell(): JSX.Element {
   }, [canCreateCalendarEntry, msAccounts, t])
 
   const [notionWebinarImportOpen, setNotionWebinarImportOpen] = useState(false)
+  const [eventsOsWebinarImportOpen, setEventsOsWebinarImportOpen] = useState(false)
 
   const openCreateWebinarFromNotion = useCallback((): void => {
     if (!canCreateCalendarEntry) return
@@ -581,6 +586,74 @@ export function CalendarShell(): JSX.Element {
     },
     [msAccounts, t]
   )
+
+  const openCreateWebinarFromEventsOs = useCallback((): void => {
+    if (!canCreateCalendarEntry) return
+    const msAccountId = msAccounts[0]?.id
+    if (!msAccountId) {
+      setError(t('topbar.create.noMicrosoftAccount'))
+      return
+    }
+    setError(null)
+    setEventsOsWebinarImportOpen(true)
+  }, [canCreateCalendarEntry, msAccounts, t])
+
+  const applyEventsOsWebinarImport = useCallback(
+    (result: EventsOsWebinarImportResult, action: ChronellWebinarLaunch['action'] = 'invite'): void => {
+      const msAccountId = msAccounts[0]?.id
+      if (!msAccountId) {
+        setError(t('topbar.create.noMicrosoftAccount'))
+        return
+      }
+      let range: { start: Date; end: Date; allDay: boolean } | null = null
+      if (result.startIso) {
+        const start = new Date(result.startIso)
+        const end = result.endIso
+          ? new Date(result.endIso)
+          : new Date(start.getTime() + 60 * 60 * 1000)
+        if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime())) {
+          range = { start, end, allDay: result.isAllDay }
+        }
+      }
+      const title = result.title?.trim() || ''
+      const subject =
+        action === 'remind' && title ? `Erinnerung: ${title}` : title
+      setPreviewCloudTask(null)
+      setPreviewCloudTaskPlannedFromTimeline(null)
+      setPreviewCalendarEvent(null)
+      setEventDialog({
+        mode: 'create',
+        range,
+        createAccountId: msAccountId,
+        createPrefill: {
+          webinarMode: true,
+          teamsMeeting: true,
+          subject,
+          webinarHeroImageSrc: result.heroImageDataUrl,
+          webinarWebsiteUrl: result.websiteUrl ?? undefined,
+          webinarSupplementHtml: result.descriptionHtml || undefined,
+          notionPageId: result.notionPageId ?? undefined,
+          eventsOsEventId: result.eventId
+        }
+      })
+    },
+    [msAccounts, t]
+  )
+
+  const pendingEventsOsLaunch = useEventsOsWebinarLaunchStore((s) => s.pending)
+  useEffect(() => {
+    if (!pendingEventsOsLaunch) return
+    const launch = useEventsOsWebinarLaunchStore.getState().consume()
+    if (!launch) return
+    void (async (): Promise<void> => {
+      try {
+        const result = await window.mailClient.eventsOs.importWebinar(launch.eventId)
+        applyEventsOsWebinarImport(result, launch.action)
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e))
+      }
+    })()
+  }, [applyEventsOsWebinarImport, pendingEventsOsLaunch])
 
   const openCalendarAccountContextMenu = useCallback(
     (clientX: number, clientY: number, account: ConnectedAccount): void => {
@@ -1476,6 +1549,9 @@ export function CalendarShell(): JSX.Element {
                   onNewWebinarFromNotionClick={
                     msAccounts.length > 0 ? openCreateWebinarFromNotion : undefined
                   }
+                  onNewWebinarFromEventsOsClick={
+                    msAccounts.length > 0 ? openCreateWebinarFromEventsOs : undefined
+                  }
                   newEventDisabled={!canCreateCalendarEntry}
                   onImportIcsClick={(): void => {
                     void useCalendarIcsImportStore.getState().openFromPicker()
@@ -1665,6 +1741,12 @@ export function CalendarShell(): JSX.Element {
         open={notionWebinarImportOpen}
         onClose={(): void => setNotionWebinarImportOpen(false)}
         onImported={handleNotionWebinarImported}
+      />
+
+      <EventsOsWebinarImportDialog
+        open={eventsOsWebinarImportOpen}
+        onClose={(): void => setEventsOsWebinarImportOpen(false)}
+        onImported={(result): void => applyEventsOsWebinarImport(result, 'invite')}
       />
 
       <CalendarShellModals

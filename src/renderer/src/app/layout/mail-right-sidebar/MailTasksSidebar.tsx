@@ -19,6 +19,7 @@ import { taskListFilterCounts, flattenVisibleTaskItems, type TaskListArrangeCont
 import { confirmDeleteCloudTasks } from '@/app/tasks/confirm-delete-cloud-task'
 import { buildTasksListContextMenuItems } from '@/app/tasks/tasks-list-context-menu'
 import type { MailContextHandlers } from '@/lib/mail-context-menu'
+import { createMailSendToOneNoteHandler } from '@/lib/onenote-ui'
 import { accountSupportsCloudTasks } from '@/lib/cloud-task-accounts'
 import { openWorkItemInCalendar } from '@/app/work-items/work-item-calendar-nav'
 import type { WorkItemContextHandlers } from '@/app/work-items/work-item-context-menu'
@@ -586,7 +587,8 @@ export function MailTasksSidebar(): JSX.Element {
       refreshNow: async (): Promise<void> => {
         await refreshNow()
         void loadMailTodos()
-      }
+      },
+      sendToOneNote: createMailSendToOneNoteHandler()
     }),
     [
       openReply,

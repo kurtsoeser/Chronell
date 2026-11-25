@@ -21,6 +21,8 @@ export type CalendarShellEventDialogState =
         webinarSupplementHtml?: string
         /** Notion-Seiten-ID (#kurtrocks Events) fuer Link-Writeback. */
         notionPageId?: string
+        /** Events-OS-EventId — Meeting/Forms zurück in die Akte. */
+        eventsOsEventId?: string
       }
       createAccountId?: string
       createKind?: CalendarCreateQuickDraft['createKind']

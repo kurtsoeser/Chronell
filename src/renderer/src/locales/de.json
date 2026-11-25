@@ -164,6 +164,91 @@
   "mailBodyIndex": {
     "progressLabel": "Suche: {{done}} von {{total}} Mails vorbereitet ({{pending}} ausstehend)"
   },
+  "eventsOs": {
+    "title": "Events OS",
+    "contextSend": "An Events OS senden…",
+    "contextCreateFromCalendar": "In Events OS übernehmen",
+    "calendarCreated": "Eventakte angelegt: {{title}}\n\nDer Termin ist als Entwurf in Events OS, noch nicht auf der Website.",
+    "calendarUpdated": "Eventakte aktualisiert: {{title}}\n\nDerselbe Kalendertermin war schon übernommen.",
+    "calendarMissingId": "Dieser Termin hat keine Kalender-ID und kann nicht übernommen werden.",
+    "pickerTitle": "An Eventakte senden…",
+    "pickerHint": "Event suchen — Mail landet in der Lifecycle-Ablage (Abmeldungen auch unter Teilnehmende).",
+    "pickerEmpty": "Keine Events gefunden. Studio starten und Events einmal laden.",
+    "searchPlaceholder": "Titel, Code (z. B. 27F6B0B004), Datum…",
+    "kindLabel": "Art",
+    "groupLabel": "Gruppieren",
+    "group": {
+      "zeitraum": "Zeitraum",
+      "monat": "Monat",
+      "organisation": "Organisation"
+    },
+    "kind": {
+      "sonstiges": "Automatisch erkennen",
+      "email_abmeldung": "Abmeldung (Mail)",
+      "email_anmeldung": "Anmeldung (Mail)",
+      "email_anfrage": "Anfrage (Mail)",
+      "honorar": "Honorarnote",
+      "anwesenheit": "Anwesenheit",
+      "angebot": "Angebot",
+      "note": "Notiz"
+    },
+    "sendSuccess": "Mail in der Eventakte gespeichert.",
+    "sendFailed": "Senden an Events OS fehlgeschlagen:\n\n{{message}}",
+    "personLine": "Person: {{name}} <{{email}}>",
+    "attachmentsLine": "Anhänge in der Ablage: {{count}}",
+    "attachmentsSkippedLine": "Teilweise übersprungen: {{detail}}",
+    "openAkte": "Akte öffnen",
+    "openAblage": "Ablage öffnen"
+  },
+  "oneNote": {
+    "title": "OneNote",
+    "contextSend": "An OneNote senden…",
+    "pickerTitle": "An OneNote senden…",
+    "pickerHint": "Neue Seite im gewählten Notizbuch. Notizbuch anklicken nutzt den passenden Abschnitt, der Pfeil zeigt alle Abschnitte.",
+    "pickerEmpty": "Keine Notizbücher gefunden.",
+    "pickerNoResults": "Nichts gefunden.",
+    "searchPlaceholder": "Notizbuch oder Abschnitt suchen…",
+    "refresh": "Aktualisieren",
+    "kindLabel": "Art",
+    "groupLabel": "Gruppieren",
+    "accountLine": "Microsoft-Konto: {{email}}",
+    "kind": {
+      "alle": "Alle",
+      "notebooks": "Notizbücher",
+      "sections": "Abschnitte"
+    },
+    "group": {
+      "used": "Zuletzt verwendet",
+      "opened": "Zuletzt geöffnet",
+      "modified": "Zuletzt bearbeitet",
+      "notebook": "Notizbuch"
+    },
+    "bucket": {
+      "used": "Zuletzt verwendet",
+      "rest": "Weitere",
+      "opened": "Zuletzt geöffnet",
+      "today": "Heute bearbeitet",
+      "week": "Letzte 7 Tage",
+      "older": "Älter",
+      "none": "Ohne Datum",
+      "notebooks": "Notizbücher"
+    },
+    "defaultAction": "In Standard-Notizbuch",
+    "lastUsedAction": "In letztes Ziel",
+    "badgeDefault": "Standard",
+    "badgeShared": "Geteilt",
+    "sectionCount": "{{count}} Abschnitte",
+    "sectionLine": "Abschnitt: {{name}}",
+    "newSectionLine": "Neuer Abschnitt „Chronell“",
+    "expandSections": "Abschnitte anzeigen",
+    "collapseSections": "Abschnitte ausblenden",
+    "footerHint": "Zuletzt verwendet merkt sich Chronell. Zuletzt geöffnet kommt von Microsoft, zuletzt bearbeitet von OneNote.",
+    "sendSuccess": "Seite in {{notebook}} › {{section}} angelegt.",
+    "sendSuccessAttachments": "Anhänge bleiben in der Mail und werden nicht mitkopiert.",
+    "sendFailed": "Senden an OneNote fehlgeschlagen:\n\n{{message}}",
+    "openWeb": "Im Browser öffnen",
+    "openApp": "In OneNote öffnen"
+  },
   "notion": {
     "contextSend": "An Notion-Seite senden…",
     "contextSendAsNewPage": "Als neue Notion-Seite…",
@@ -3226,6 +3311,9 @@
     "webinarInvitation": {
       "title": "Webinar-Einladung (HTML-Vorlage)",
       "intro": "Bearbeite die komplette #kurtrocks-Einladung visuell — wie beim Webinar-Termin. Gelb umrandete Bereiche (Titel, Termin, Teams, Links) werden pro Termin automatisch befüllt.",
+      "defaultFromMailbox": "Absender (Organizer)",
+      "defaultFromMailboxHint": "Microsoft 365: Webinar-Einladungen kommen von diesem Postfach (Alias oder freigegebene Mailbox), z. B. events@kurtrocks.com. Dein Konto braucht SendAs-/Kalenderzugriff.",
+      "defaultFromMailboxPlaceholder": "events@kurtrocks.com",
       "defaultThemeHeading": "Standard-Vorlage (Farbe & Hell/Dunkel)",
       "defaultThemeHint": "Wird vorausgewählt, wenn du im Termin „Vorlage laden…“ öffnest. Hier siehst du die Wahl sofort in der Vorschau — du kannst dort trotzdem eine andere Variante wählen.",
       "defaultLayoutMode": "Hintergrund",
@@ -3434,7 +3522,8 @@
       "removeTodoOnlyBulk": "To-Do-Einträge entfernen ({{count}})",
       "aiConnections": "Verbindungen mit KI prüfen",
       "createSenderContact": "Absender als Kontakt speichern",
-      "openSenderContact": "Kontakt öffnen"
+      "openSenderContact": "Kontakt öffnen",
+      "openInWindow": "In eigenem Fenster öffnen"
     },
     "move": {
       "menu": "Verschieben",
@@ -3506,7 +3595,7 @@
       "folderJunk": "Junk-E-Mail",
       "noRecipient": "(Ohne Empfänger)",
       "rowReplyTitle": "Antworten (R)",
-      "rowPopoutTitle": "Als Pop-up öffnen (Umschalt+Klick: eigenes Fenster)",
+      "rowPopoutTitle": "Als Pop-up öffnen (eigenes Fenster). Umschalt+Klick: schwebend nur innerhalb Chronell.",
       "rowForwardTitle": "Weiterleiten",
       "rowSnoozeTitle": "Schlummern",
       "rowTodoTitle": "ToDo heute",
@@ -3575,7 +3664,7 @@
       "quickStepPlaceholder": "QuickStep …",
       "undockPreviewTitle": "Vorschau als Fenster lösen (abdocken)",
       "popoutTitle": "Als Pop-up öffnen (eigenes Fenster auf dem Bildschirm, bleibt beim Modulwechsel sichtbar). Umschalt+Klick: schwebend nur innerhalb Chronell.",
-      "previewPopOutTitle": "Vorschau als eigenes Fenster auf dem Bildschirm. Umschalt+Klick: schwebend nur innerhalb Chronell.",
+      "previewPopOutTitle": "Zusätzliches Fenster öffnen (Vorschau bleibt). Umschalt+Klick: schwebend nur innerhalb Chronell.",
       "previewPopOutTitleShort": "Vorschau ausklappen (schwebendes Fenster)",
       "previewDockBackTitle": "Vorschau wieder andocken",
       "contextSplitterAria": "Höhe von Notiz und Kontext anpassen",
@@ -3739,6 +3828,7 @@
     "conversationPreview": {
       "collapsedAria": "{{from}}, {{date}} — zum Aufklappen anklicken",
       "collapsedNoSnippet": "(Keine Vorschau)",
+      "hasAttachments": "Hat Anhänge",
       "folderSent": "Gesendete Elemente",
       "folderDrafts": "Entwürfe",
       "folderArchive": "Archiv",
@@ -3873,6 +3963,7 @@
       "contactHistoryYou": "Sie",
       "contactHistoryLoading": "Verlauf wird geladen …",
       "contactHistoryEmpty": "Noch keine Mails mit dieser Adresse in diesem Konto.",
+      "contactHistoryHasAttachments": "Hat Anhänge",
       "contactHistoryLoadMore": "Weitere {{count}} laden",
       "contactHistoryCount": "{{shown}} von {{total}} Mails",
       "contactSettingsTitle": "Verlauf-Optionen",
@@ -4634,6 +4725,7 @@
       "newEvent": "Neuer Termin",
       "newWebinar": "Webinar",
       "newWebinarFromNotion": "Aus Notion",
+      "newWebinarFromEventsOs": "Aus Events OS",
       "colorReadonlyExplanation": "Farbe: Kalender ist schreibgeschützt (z. B. nur freigegeben).",
       "contextHideFromSidebar": "Aus Seitenleiste entfernen …",
       "colorMicrosoftLabel": "Kalenderfarbe (Microsoft 365)",
@@ -4660,6 +4752,13 @@
       "searchPlaceholder": "In #kurtrocks Events suchen …",
       "loading": "Lade Events …",
       "empty": "Keine Events gefunden. Ist die Datenbank für die Notion-Integration freigegeben?"
+    },
+    "eventsOsWebinarImport": {
+      "title": "Webinar aus Events OS",
+      "subtitle": "Event aus #kurtrocks Events OS wählen — Titel, Datum, Cover, Beschreibung und die Veranstaltungsseite werden in dieselbe Webinar-Vorlage übernommen.",
+      "searchPlaceholder": "In Events OS suchen …",
+      "loading": "Lade Events …",
+      "empty": "Keine Events gefunden. Läuft das Studio (Events OS)?"
     },
     "msFormsPicker": {
       "title": "Microsoft Form wählen",
@@ -5230,6 +5329,7 @@
       "teamsProvisionFailed": "Teams-Besprechung konnte nicht angelegt werden.",
       "webinarModeToggle": "Webinar-Assistent",
       "webinarSinglePageHint": "Termin, Einladung und Teilnehmer auf einer Seite. Vorlage nur bei Bedarf laden — der Editor-Text wird so gespeichert.",
+      "webinarFromMailboxHint": "Einladungen werden als {{email}} versendet (Organizer).",
       "webinarLoadTemplate": "Vorlage laden…",
       "webinarLoadTemplateTitle": "Webinar-Vorlage laden",
       "webinarLayoutThemeLabel": "Design-Vorlage",
@@ -5252,6 +5352,7 @@
       "webinarImagesLoading": "Inline-Bilder werden geladen …",
       "webinarLayoutRestoredToast": "Vorlage im Editor wiederhergestellt — bitte jetzt Speichern klicken.",
       "notionLinksWrittenToast": "Forms- und/oder Teams-Link nach Notion geschrieben.",
+      "eventsOsLinksWrittenToast": "Forms- und/oder Teams-Link in die Event-Akte geschrieben.",
       "notionLinksMissingPropsToast": "Notion: Property „Umfrage-Link“ oder „Meeting Link“ fehlt in der Datenbank.",
       "notionLinksWriteFailedToast": "Links konnten nicht nach Notion geschrieben werden.",
       "webinarStepsAria": "Webinar-Schritte",

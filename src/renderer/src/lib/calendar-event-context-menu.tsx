@@ -7,6 +7,7 @@ import {
   Copy,
   ExternalLink,
   Files,
+  FolderInput,
   HelpCircle,
   Lock,
   Pencil,
@@ -62,6 +63,7 @@ export interface CalendarEventContextHandlers {
   onOpenNote: () => void
   onSendToNotion?: () => void
   onSendToNotionAsNewPage?: () => void
+  onSendToEventsOs?: () => void
   onCopyDetails: () => void
   onCopyWebLink: () => void
   onCopyJoinUrl: () => void
@@ -368,6 +370,17 @@ export function buildCalendarEventContextItems(
       disabled: !ev.graphEventId?.trim(),
       onSelect: h.onOpenNote
     },
+    ...(h.onSendToEventsOs
+      ? [
+          {
+            id: 'events-os',
+            label: t('eventsOs.contextCreateFromCalendar'),
+            icon: FolderInput,
+            disabled: !ev.graphEventId?.trim(),
+            onSelect: h.onSendToEventsOs
+          }
+        ]
+      : []),
     ...(h.onSendToNotion || h.onSendToNotionAsNewPage
       ? [
           ...(h.onSendToNotion

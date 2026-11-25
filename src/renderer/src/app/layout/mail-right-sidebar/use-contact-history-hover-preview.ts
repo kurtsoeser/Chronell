@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { isRealMailAttachment } from '@shared/mail-attachment-filter'
 import type { MailCorrespondenceItem } from '@shared/types'
 import {
   getContactHistoryPreviewCached,
@@ -78,11 +79,7 @@ async function fetchPreviewPayload(
   if (signal.aborted) throw new DOMException('Aborted', 'AbortError')
   if (!message) throw new Error('Message not found')
 
-  const visible = attachments.filter((a) => {
-    if (a.isInline) return false
-    if ((a.size ?? 0) > 0 && (a.size ?? 0) < 200) return false
-    return true
-  })
+  const visible = attachments.filter((a) => isRealMailAttachment(a))
 
   let inlineImages: Record<string, string> = {}
   const needsInline =

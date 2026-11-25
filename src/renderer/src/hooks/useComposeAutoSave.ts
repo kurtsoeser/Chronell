@@ -6,7 +6,7 @@ import {
   hasComposeDraftContent
 } from '@/lib/compose-draft-save'
 import { flushComposeEditor } from '@/lib/compose-editor-flush'
-import { useComposeStore, type ComposeDraft } from '@/stores/compose'
+import { isComposeDraftDiscarded, useComposeStore, type ComposeDraft } from '@/stores/compose'
 
 /** Speichert den Entwurf nach kurzer Inaktivität im Server-Ordner «Entwürfe». */
 export function useComposeAutoSave(draftId: string, enabled = true): void {
@@ -37,7 +37,7 @@ export function useComposeAutoSave(draftId: string, enabled = true): void {
     if (!hasComposeDraftContent(draft)) return
 
     const timer = window.setTimeout(() => {
-      if (initialSaveDone.current) return
+      if (initialSaveDone.current || isComposeDraftDiscarded(draftId)) return
       const current = useComposeStore.getState().drafts.find((d) => d.id === draftId)
       if (!current || current.busy || current.savedRemoteDraftId) return
       if (!hasComposeDraftContent(current)) return
@@ -59,6 +59,7 @@ export function useComposeAutoSave(draftId: string, enabled = true): void {
     if (!enabled || !draft || !fingerprint || draft.busy || !hasComposeDraftContent(draft)) return
 
     const timer = window.setTimeout(() => {
+      if (isComposeDraftDiscarded(draftId)) return
       flushComposeEditor(draftId)
       const current = useComposeStore.getState().drafts.find((d) => d.id === draftId)
       if (!current || current.busy || !hasComposeDraftContent(current)) return
@@ -88,7 +89,7 @@ export function useComposeAutoSaveOnHide(
   const wasVisible = useRef(visible)
 
   useEffect(() => {
-    if (wasVisible.current && !visible && enabled) {
+    if (wasVisible.current && !visible && enabled && !isComposeDraftDiscarded(draftId)) {
       flushComposeEditor(draftId)
       const current = useComposeStore.getState().drafts.find((d) => d.id === draftId)
       if (current && hasComposeDraftContent(current)) {

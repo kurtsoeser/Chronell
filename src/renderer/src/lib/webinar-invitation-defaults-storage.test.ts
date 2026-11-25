@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { DEFAULT_WEBINAR_FROM_MAILBOX } from '@shared/webinar-from-mailbox'
 import {
   readWebinarInvitationDefaults,
   saveWebinarInvitationDefaults,
@@ -70,7 +71,8 @@ describe('webinar invitation defaults + layout catalog', () => {
       layoutTemplateVersion: 1,
       defaultLayoutTemplateId: WEBINAR_BUILTIN_LAYOUT_TEMPLATE_ID,
       defaultLayoutColor: 'blue',
-      defaultLayoutMode: 'light'
+      defaultLayoutMode: 'light',
+      defaultFromMailbox: 'Events@Kurtrocks.com'
     }
     saveWebinarInvitationDefaults(next)
     const stored = JSON.parse(localStorage.getItem(DEFAULTS_KEY)!) as WebinarInvitationDefaults
@@ -78,10 +80,18 @@ describe('webinar invitation defaults + layout catalog', () => {
     expect(stored.defaultLayoutColor).toBe('blue')
     expect(stored.defaultLayoutMode).toBe('light')
     expect(stored.layoutHtmlTemplate).toBeNull()
+    expect(stored.defaultFromMailbox).toBe('events@kurtrocks.com')
 
     const read = readWebinarInvitationDefaults()
     expect(read.defaultLayoutTemplateId).toBe(WEBINAR_BUILTIN_LAYOUT_TEMPLATE_ID)
     expect(read.defaultLayoutColor).toBe('blue')
+    expect(read.defaultFromMailbox).toBe(DEFAULT_WEBINAR_FROM_MAILBOX)
+  })
+
+  it('defaults missing from-mailbox to events@kurtrocks.com', () => {
+    localStorage.setItem(DEFAULTS_KEY, JSON.stringify({ defaultLayoutColor: 'gold' }))
+    const read = readWebinarInvitationDefaults()
+    expect(read.defaultFromMailbox).toBe(DEFAULT_WEBINAR_FROM_MAILBOX)
   })
 
   it('migrates legacy single layoutHtmlTemplate into catalog', () => {

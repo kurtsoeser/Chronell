@@ -16,6 +16,7 @@ export function useCalendarEventAttachments(opts: {
   account: ConnectedAccount | undefined
   graphEventId?: string | null
   graphCalendarId?: string | null
+  mailboxSmtp?: string | null
   enabled?: boolean
 }): {
   newFiles: ComposeAttachment[]
@@ -40,7 +41,7 @@ export function useCalendarEventAttachments(opts: {
   }
 } {
   const { t } = useTranslation()
-  const { account, graphEventId, graphCalendarId, enabled = true } = opts
+  const { account, graphEventId, graphCalendarId, mailboxSmtp, enabled = true } = opts
   const provider = account?.provider
 
   const [newFiles, setNewFiles] = useState<ComposeAttachment[]>([])
@@ -72,7 +73,8 @@ export function useCalendarEventAttachments(opts: {
       const list = await window.mailClient.calendar.listEventAttachments({
         accountId,
         graphEventId: eventId,
-        graphCalendarId: graphCalendarId ?? null
+        graphCalendarId: graphCalendarId ?? null,
+        mailboxSmtp: mailboxSmtp ?? null
       })
       setExisting(list.filter((a) => !a.isInline))
     } catch (e) {
@@ -86,6 +88,7 @@ export function useCalendarEventAttachments(opts: {
     enabled,
     graphCalendarId,
     graphEventId,
+    mailboxSmtp,
     supportsFileAttachments
   ])
 

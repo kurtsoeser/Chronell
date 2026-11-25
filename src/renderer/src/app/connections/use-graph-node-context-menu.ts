@@ -13,6 +13,8 @@ import {
   createMailSendAsNewNotionPageHandler,
   createMailSendToNotionHandler
 } from '@/lib/notion-ui'
+import { createMailSendToEventsOsHandler } from '@/lib/events-os-ui'
+import { createMailSendToOneNoteHandler } from '@/lib/onenote-ui'
 import { openEntityRef } from '@/lib/entity-link-nav'
 import type { MailContextHandlers } from '@/lib/mail-context-menu'
 import { useAccountsStore } from '@/stores/accounts'
@@ -74,7 +76,9 @@ export function useGraphNodeContextMenu(refreshGraph: () => void | Promise<void>
       openSnoozePicker,
       refreshNow: refreshGraph,
       sendToNotion: createMailSendToNotionHandler(),
-      sendToNotionAsNewPage: createMailSendAsNewNotionPageHandler()
+      sendToNotionAsNewPage: createMailSendAsNewNotionPageHandler(),
+      sendToEventsOs: createMailSendToEventsOsHandler(),
+      sendToOneNote: createMailSendToOneNoteHandler()
     }),
     [
       openReply,

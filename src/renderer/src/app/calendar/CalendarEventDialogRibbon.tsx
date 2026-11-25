@@ -1,4 +1,14 @@
-import { memo, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react'
+import {
+  memo,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode
+} from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import {
   Bell,
@@ -261,8 +271,15 @@ export const CalendarEventDialogRibbon = memo(function CalendarEventDialogRibbon
   const locked = disabled || eventFieldsLocked
   const [templatesOpen, setTemplatesOpen] = useState(false)
   const [categoriesOpen, setCategoriesOpen] = useState(false)
+  const [categoriesPos, setCategoriesPos] = useState<{
+    top: number
+    left: number
+    width: number
+  } | null>(null)
   const templatesWrapRef = useRef<HTMLDivElement | null>(null)
   const categoriesWrapRef = useRef<HTMLDivElement | null>(null)
+  const categoriesBtnRef = useRef<HTMLButtonElement | null>(null)
+  const categoriesPopoverRef = useRef<HTMLDivElement | null>(null)
   const templateList = templates ?? []
   const showApplyTemplates = Boolean(onApplyTemplate && templateList.length > 0)
   const showCategories = Boolean(onCategoryPick)
@@ -313,20 +330,52 @@ export const CalendarEventDialogRibbon = memo(function CalendarEventDialogRibbon
     return (): void => document.removeEventListener('mousedown', onDocDown)
   }, [templatesOpen])
 
+  function placeCategoriesPopover(): void {
+    const el = categoriesBtnRef.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    const width = Math.min(280, window.innerWidth - 16)
+    let left = r.left
+    if (left + width > window.innerWidth - 8) left = window.innerWidth - 8 - width
+    if (left < 8) left = 8
+    setCategoriesPos({ top: r.bottom + 4, left, width })
+  }
+
+  useLayoutEffect(() => {
+    if (!categoriesOpen) return
+    placeCategoriesPopover()
+    const update = (): void => placeCategoriesPopover()
+    window.addEventListener('resize', update)
+    window.addEventListener('scroll', update, true)
+    return (): void => {
+      window.removeEventListener('resize', update)
+      window.removeEventListener('scroll', update, true)
+    }
+  }, [categoriesOpen])
+
   useEffect(() => {
     if (!categoriesOpen) return
     function onDocDown(e: MouseEvent): void {
-      const el = categoriesWrapRef.current
-      if (el && e.target instanceof Node && el.contains(e.target)) return
+      const target = e.target
+      if (!(target instanceof Node)) return
+      if (categoriesBtnRef.current?.contains(target)) return
+      if (categoriesPopoverRef.current?.contains(target)) return
+      if (categoriesWrapRef.current?.contains(target)) return
       setCategoriesOpen(false)
     }
     function onKey(e: KeyboardEvent): void {
       if (e.key === 'Escape') setCategoriesOpen(false)
     }
-    document.addEventListener('mousedown', onDocDown)
+    // Nach dem oeffnenden Klick anbinden — sonst schliesst derselbe mousedown sofort wieder.
+    const timer = window.setTimeout(() => {
+      document.addEventListener('mousedown', onDocDown)
+      document.addEventListener('pointerdown', onDocDown)
+    }, 0)
     document.addEventListener('keydown', onKey)
     return (): void => {
+      window.clearTimeout(timer)
       document.removeEventListener('mousedown', onDocDown)
+      document.removeEventListener('pointerdown', onDocDown)
       document.removeEventListener('keydown', onKey)
     }
   }, [categoriesOpen])
@@ -425,22 +474,34 @@ export const CalendarEventDialogRibbon = memo(function CalendarEventDialogRibbon
       {showCategories ? (
         <div className="relative" ref={categoriesWrapRef}>
           <button
+            ref={categoriesBtnRef}
             type="button"
             disabled={locked}
             title={categoriesTitle}
             aria-label={categoriesTitle}
             aria-expanded={categoriesOpen}
             aria-haspopup="listbox"
-            onClick={(): void => {
+            onPointerDown={(e): void => {
+              // Nicht vom Dialog-Overlay / Floating-Panel abfangen lassen.
+              e.stopPropagation()
+            }}
+            onClick={(e): void => {
+              e.preventDefault()
+              e.stopPropagation()
               setTemplatesOpen(false)
-              setCategoriesOpen((p) => !p)
+              if (categoriesOpen) {
+                setCategoriesOpen(false)
+                return
+              }
+              placeCategoriesPopover()
+              setCategoriesOpen(true)
             }}
             className={cn(
-              'relative inline-flex items-center justify-center rounded-md border p-1.5 transition-colors',
+              'relative z-10 inline-flex items-center justify-center rounded-md border p-1.5 transition-colors',
               selectedCats.length > 0 || categoriesOpen
                 ? 'border-primary/40 bg-primary/10 text-foreground'
                 : 'border-transparent text-muted-foreground hover:border-border hover:bg-secondary/60 hover:text-foreground',
-              locked && 'pointer-events-none opacity-50'
+              locked && 'cursor-not-allowed opacity-50'
             )}
           >
             {categoriesLoading ? (
@@ -454,64 +515,78 @@ export const CalendarEventDialogRibbon = memo(function CalendarEventDialogRibbon
               </span>
             ) : null}
           </button>
-          {categoriesOpen ? (
-            <div
-              role="listbox"
-              aria-multiselectable
-              aria-label={t('calendar.eventDialog.categories')}
-              className="absolute left-0 top-[calc(100%+4px)] z-40 max-h-72 min-w-[14rem] overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-lg"
-            >
-              {categoriesLoading && catNames.length === 0 ? (
-                <p className="flex items-center gap-2 px-3 py-3 text-xs text-muted-foreground">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  {t('calendar.eventDialog.loadingShort')}
-                </p>
-              ) : catNames.length === 0 ? (
-                <p className="px-3 py-3 text-xs text-muted-foreground">
-                  {t('calendar.eventDialog.categoriesEmptyOutlook')}
-                </p>
-              ) : (
-                <div className="max-h-56 overflow-y-auto py-1">
-                  {catNames.map((name) => {
-                    const on = selectedCats.includes(name)
-                    const dotClass = outlookCategoryDotClass(catColors.get(name))
-                    return (
-                      <button
-                        key={name}
-                        type="button"
-                        role="option"
-                        aria-selected={on}
-                        disabled={locked}
-                        onClick={(e): void => {
-                          const multi = e.ctrlKey || e.metaKey
-                          onCategoryPick?.(name, multi)
-                        }}
-                        className={cn(
-                          'flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs transition-colors',
-                          on
-                            ? 'bg-primary/15 font-medium text-foreground'
-                            : 'text-foreground hover:bg-secondary'
-                        )}
-                      >
-                        <Check
-                          className={cn(
-                            'h-3.5 w-3.5 shrink-0',
-                            on ? 'text-primary opacity-100' : 'opacity-0'
-                          )}
-                          aria-hidden
-                        />
-                        <span className={cn('h-2 w-2 shrink-0 rounded-full', dotClass)} aria-hidden />
-                        <span className="min-w-0 flex-1 truncate">{name}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
-              <p className="border-t border-border px-3 py-1.5 text-2xs text-muted-foreground">
-                {t('calendar.eventDialog.ribbonCategoriesMultiHint')}
-              </p>
-            </div>
-          ) : null}
+          {categoriesOpen
+            ? createPortal(
+                <div
+                  ref={categoriesPopoverRef}
+                  role="listbox"
+                  aria-multiselectable
+                  aria-label={t('calendar.eventDialog.categories')}
+                  className="chronell-acrylic-popover fixed z-[500] max-h-72 overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-lg"
+                  style={{
+                    top: categoriesPos?.top ?? 80,
+                    left: categoriesPos?.left ?? 80,
+                    width: categoriesPos?.width ?? 280
+                  }}
+                  onPointerDown={(e): void => e.stopPropagation()}
+                  onMouseDown={(e): void => e.stopPropagation()}
+                >
+                  {categoriesLoading && catNames.length === 0 ? (
+                    <p className="flex items-center gap-2 px-3 py-3 text-xs text-muted-foreground">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      {t('calendar.eventDialog.loadingShort')}
+                    </p>
+                  ) : catNames.length === 0 ? (
+                    <p className="px-3 py-3 text-xs text-muted-foreground">
+                      {t('calendar.eventDialog.categoriesEmptyOutlook')}
+                    </p>
+                  ) : (
+                    <div className="max-h-56 overflow-y-auto py-1">
+                      {catNames.map((name) => {
+                        const on = selectedCats.includes(name)
+                        const dotClass = outlookCategoryDotClass(catColors.get(name))
+                        return (
+                          <button
+                            key={name}
+                            type="button"
+                            role="option"
+                            aria-selected={on}
+                            disabled={locked}
+                            onClick={(e): void => {
+                              const multi = e.ctrlKey || e.metaKey
+                              onCategoryPick?.(name, multi)
+                            }}
+                            className={cn(
+                              'flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs transition-colors',
+                              on
+                                ? 'bg-primary/15 font-medium text-foreground'
+                                : 'text-foreground hover:bg-secondary'
+                            )}
+                          >
+                            <Check
+                              className={cn(
+                                'h-3.5 w-3.5 shrink-0',
+                                on ? 'text-primary opacity-100' : 'opacity-0'
+                              )}
+                              aria-hidden
+                            />
+                            <span
+                              className={cn('h-2 w-2 shrink-0 rounded-full', dotClass)}
+                              aria-hidden
+                            />
+                            <span className="min-w-0 flex-1 truncate">{name}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                  <p className="border-t border-border px-3 py-1.5 text-2xs text-muted-foreground">
+                    {t('calendar.eventDialog.ribbonCategoriesMultiHint')}
+                  </p>
+                </div>,
+                document.body
+              )
+            : null}
         </div>
       ) : null}
 

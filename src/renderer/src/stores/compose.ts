@@ -7,6 +7,7 @@ import type {
   MailFull,
   MailImportance
 } from '@shared/types'
+import { linkifyBareUrlsInHtmlFragment } from '@shared/calendar-event-body-html'
 import {
   buildForwardBody,
   buildReplyBody,
@@ -23,6 +24,7 @@ import { hasComposeDraftContent } from '@/lib/compose-draft-save'
 import { flushComposeEditor } from '@/lib/compose-editor-flush'
 import { buildDefaultComposeBodyHtml } from '@/lib/compose-default-body'
 import { readComposeSettingsPrefs } from '@/lib/compose-settings-prefs'
+import { parsePanelPopoutRoute } from '@/app/panel-popout/panel-popout-route'
 import { shouldUseOsFloatingPanel } from '@/lib/open-panel-popout'
 import { openComposeOsPopout } from '@/lib/open-panel-popout-helpers'
 import { showAppConfirm } from '@/stores/app-dialog'
@@ -166,6 +168,24 @@ export type ConnectionsCanvasMailPlacedPayload = {
 let connectionsCanvasMailPlacedHandler: ((payload: ConnectionsCanvasMailPlacedPayload) => void) | null =
   null
 
+/** Nach bestätigtem Verwerfen: laufende Auto-Saves dürfen den Entwurf nicht neu anlegen. */
+const discardedComposeDraftIds = new Set<string>()
+const composeSaveInflight = new Map<string, Promise<void>>()
+
+export function isComposeDraftDiscarded(id: string): boolean {
+  return discardedComposeDraftIds.has(id)
+}
+
+function closeMatchingComposePopout(draftId: string): void {
+  const route = parsePanelPopoutRoute()
+  if (route?.panel !== 'compose') return
+  if (route.instanceKey && route.instanceKey !== draftId) return
+  void window.mailClient.panelPopout.close({
+    panel: 'compose',
+    instanceKey: route.instanceKey || undefined
+  })
+}
+
 export function setConnectionsCanvasMailPlacedHandler(
   handler: ((payload: ConnectionsCanvasMailPlacedPayload) => void) | null
 ): void {
@@ -231,7 +251,11 @@ function buildComposeOutgoingBundle(draft: ComposeDraft): ComposeOutgoingBundle 
   const sigRaw = draft.signatureRichHtml.trim()
   const sigHtml = sigRaw ? prepareComposeOutgoingHtmlFragment(sigRaw) : ''
   const sigBlock = sigHtml ? `<p></p>${sigHtml}` : ''
-  const rawBodyHtml = userHtml + sigBlock + draft.quotedHtml
+  // Zitat nicht voll sanitizen (Outlook-Markup), aber nackte URLs + relative hrefs fixen.
+  const quotedPrepared = draft.quotedHtml.trim()
+    ? linkifyBareUrlsInHtmlFragment(draft.quotedHtml)
+    : ''
+  const rawBodyHtml = userHtml + sigBlock + quotedPrepared
 
   const inline: ComposeAttachment[] = []
   const bodyHtml = rawBodyHtml.replace(
@@ -398,6 +422,28 @@ export const useComposeStore = create<ComposeState>((set, get) => ({
   },
 
   openNewTo(accountId: string, to: string): void {
+    if (shouldUseOsFloatingPanel()) {
+      const draft: ComposeDraft = {
+        id: newId(),
+        accountId,
+        mode: 'new',
+        to: to.trim(),
+        cc: '',
+        bcc: '',
+        showCcBcc: false,
+        subject: '',
+        prependRichHtml: buildDefaultComposeBodyHtml(),
+        prependPlain: '',
+        quotedHtml: '',
+        attachments: [],
+        expectReply: false,
+        expectReplyDays: 7,
+        linkedMessageId: null,
+        ...defaultComposeFields(accountId)
+      }
+      void openComposeOsPopout(draft)
+      return
+    }
     openReadingPaneDraft(get, set, { accountId, to: to.trim() })
     useMailStore.getState().clearSelectedMessage()
   },
@@ -561,43 +607,57 @@ export const useComposeStore = create<ComposeState>((set, get) => ({
   },
 
   async saveRemoteDraft(id: string): Promise<void> {
-    flushComposeEditor(id)
-    const draft = get().drafts.find((d) => d.id === id)
-    if (!draft) return
+    const run = async (): Promise<void> => {
+      if (discardedComposeDraftIds.has(id)) return
+      flushComposeEditor(id)
+      const draft = get().drafts.find((d) => d.id === id)
+      if (!draft || discardedComposeDraftIds.has(id)) return
 
-    const bundle = buildComposeOutgoingBundle(draft)
+      const bundle = buildComposeOutgoingBundle(draft)
 
-    const acc = useAccountsStore.getState().accounts.find((a) => a.id === draft.accountId)
-    if (acc?.provider === 'google' && (draft.referenceAttachments?.length ?? 0) > 0) {
-      get().update(id, {
-        error: 'Cloud-Anhaenge (OneDrive) sind nur fuer Microsoft 365 verfuegbar.'
-      })
-      return
+      const acc = useAccountsStore.getState().accounts.find((a) => a.id === draft.accountId)
+      if (acc?.provider === 'google' && (draft.referenceAttachments?.length ?? 0) > 0) {
+        get().update(id, {
+          error: 'Cloud-Anhaenge (OneDrive) sind nur fuer Microsoft 365 verfuegbar.'
+        })
+        return
+      }
+
+      get().update(id, { busy: true, error: null })
+      try {
+        const result = await window.mailClient.compose.saveDraft({
+          accountId: draft.accountId,
+          sendFromEmail: draft.sendFromEmail ?? undefined,
+          subject: draft.subject || '(Kein Betreff)',
+          bodyHtml: bundle.bodyHtml,
+          to: bundle.to,
+          cc: bundle.cc.length ? bundle.cc : undefined,
+          bcc: bundle.bcc.length ? bundle.bcc : undefined,
+          attachments: bundle.allAttachments.length ? bundle.allAttachments : undefined,
+          referenceAttachments: bundle.referenceAttachments,
+          replyToRemoteId: draft.replyToRemoteId,
+          replyMode: draft.mode === 'new' ? undefined : draft.mode,
+          remoteDraftId: draft.savedRemoteDraftId ?? undefined,
+          importance: draft.importance,
+          isDeliveryReceiptRequested: draft.isDeliveryReceiptRequested,
+          isReadReceiptRequested: draft.isReadReceiptRequested
+        })
+        if (!get().drafts.some((d) => d.id === id)) return
+        get().update(id, { busy: false, savedRemoteDraftId: result.remoteDraftId, error: null })
+      } catch (e) {
+        if (!get().drafts.some((d) => d.id === id)) return
+        const msg = e instanceof Error ? e.message : String(e)
+        get().update(id, { busy: false, error: msg })
+      }
     }
 
-    get().update(id, { busy: true, error: null })
+    const prev = composeSaveInflight.get(id) ?? Promise.resolve()
+    const next = prev.then(run, run)
+    composeSaveInflight.set(id, next)
     try {
-      const result = await window.mailClient.compose.saveDraft({
-        accountId: draft.accountId,
-        sendFromEmail: draft.sendFromEmail ?? undefined,
-        subject: draft.subject || '(Kein Betreff)',
-        bodyHtml: bundle.bodyHtml,
-        to: bundle.to,
-        cc: bundle.cc.length ? bundle.cc : undefined,
-        bcc: bundle.bcc.length ? bundle.bcc : undefined,
-        attachments: bundle.allAttachments.length ? bundle.allAttachments : undefined,
-        referenceAttachments: bundle.referenceAttachments,
-        replyToRemoteId: draft.replyToRemoteId,
-        replyMode: draft.mode === 'new' ? undefined : draft.mode,
-        remoteDraftId: draft.savedRemoteDraftId ?? undefined,
-        importance: draft.importance,
-        isDeliveryReceiptRequested: draft.isDeliveryReceiptRequested,
-        isReadReceiptRequested: draft.isReadReceiptRequested
-      })
-      get().update(id, { busy: false, savedRemoteDraftId: result.remoteDraftId, error: null })
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e)
-      get().update(id, { busy: false, error: msg })
+      await next
+    } finally {
+      if (composeSaveInflight.get(id) === next) composeSaveInflight.delete(id)
     }
   },
 
@@ -620,16 +680,33 @@ export const useComposeStore = create<ComposeState>((set, get) => ({
       }
     )
     if (!ok) return false
+    if (!get().drafts.some((d) => d.id === id)) return false
 
-    if (hasRemote) {
+    discardedComposeDraftIds.add(id)
+    const pendingSave = composeSaveInflight.get(id)
+    if (pendingSave) {
+      try {
+        await pendingSave
+      } catch {
+        /* saveRemoteDraft meldet Fehler am Entwurf */
+      }
+    }
+
+    const current = get().drafts.find((d) => d.id === id) ?? draft
+    const remoteDraftId = current.savedRemoteDraftId?.trim() || undefined
+    const linkedMessageId = current.linkedMessageId ?? undefined
+    const hasRemoteNow = Boolean(remoteDraftId) || linkedMessageId != null
+
+    if (hasRemoteNow) {
       get().update(id, { busy: true, error: null })
       try {
         await window.mailClient.compose.disposeDraft({
-          accountId: draft.accountId,
-          remoteDraftId: draft.savedRemoteDraftId ?? undefined,
-          linkedMessageId: draft.linkedMessageId ?? undefined
+          accountId: current.accountId,
+          remoteDraftId,
+          linkedMessageId
         })
       } catch (e) {
+        discardedComposeDraftIds.delete(id)
         const msg = e instanceof Error ? e.message : String(e)
         get().update(id, { busy: false, error: msg })
         return false
@@ -637,6 +714,7 @@ export const useComposeStore = create<ComposeState>((set, get) => ({
     }
 
     get().close(id)
+    closeMatchingComposePopout(id)
     return true
   },
 

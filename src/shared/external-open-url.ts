@@ -9,6 +9,7 @@ export function normalizeExternalOpenUrl(url: string): string | null {
 
   if (/^https?:\/\//i.test(raw)) return raw
   if (/^notion:\/\//i.test(raw)) return raw
+  if (/^onenote:/i.test(raw)) return raw
   if (/^mailto:/i.test(raw)) return raw
   if (/^tel:/i.test(raw)) return raw
   if (/^(msteams|ms-teams):\/\//i.test(raw)) return raw

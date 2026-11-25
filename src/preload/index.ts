@@ -10,6 +10,8 @@ import { localDataApi } from './api/local-data'
 import { weatherApi } from './api/weather'
 import { locationApi } from './api/location'
 import { notionApi } from './api/notion'
+import { eventsOsApi } from './api/events-os'
+import { onenoteApi } from './api/onenote'
 import { authApi } from './api/auth'
 import { graphApi } from './api/graph'
 import { teamsChatPopoutApi } from './api/teams-chat-popout'
@@ -47,6 +49,8 @@ const api = {
   weather: weatherApi,
   location: locationApi,
   notion: notionApi,
+  eventsOs: eventsOsApi,
+  onenote: onenoteApi,
   auth: authApi,
   graph: graphApi,
   teamsChatPopout: teamsChatPopoutApi,

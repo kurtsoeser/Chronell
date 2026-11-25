@@ -16,8 +16,12 @@ export function htmlToReadablePlainText(html: string): string {
     )) {
       block.appendChild(doc.createTextNode('\n'))
     }
-    for (const a of Array.from(doc.querySelectorAll('a[href]'))) {
-      const href = (a.getAttribute('href') || '').trim()
+    for (const a of Array.from(doc.querySelectorAll('a[href], a[data-mail-external]'))) {
+      const external = (a.getAttribute('data-mail-external') || '').trim()
+      const hrefRaw = (a.getAttribute('href') || '').trim()
+      const href =
+        external ||
+        (hrefRaw && hrefRaw !== '#' && !hrefRaw.startsWith('#') ? hrefRaw : '')
       const label = (a.textContent || '').trim()
       if (href && label && href !== label && !label.includes(href)) {
         a.replaceWith(doc.createTextNode(`${label} <${href}>`))

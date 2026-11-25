@@ -3,6 +3,7 @@ import { loadConfig } from '../config'
 import {
   upsertFolders,
   reconcileAllFolderUnreadForAccount,
+  deleteFoldersMissingFromRemote,
   findFolderByRemoteId,
   findFolderByWellKnown,
   setFolderMailboxCountsLocal,
@@ -22,6 +23,7 @@ import {
   getFolderSyncState,
   upsertFolderSyncState
 } from '../db/sync-state-repo'
+import { clearWorkflowFolderPrefsIfRemoteFolderRemoved } from '../db/workflow-folders-repo'
 
 interface GraphFolder {
   id: string
@@ -200,6 +202,13 @@ export async function syncFolders(accountId: string): Promise<number> {
     totalCount: g.totalItemCount ?? 0
   }))
   upsertFolders(batch)
+  const removedRemoteIds = deleteFoldersMissingFromRemote(
+    accountId,
+    new Set(batch.map((f) => f.remoteId))
+  )
+  for (const remoteId of removedRemoteIds) {
+    clearWorkflowFolderPrefsIfRemoteFolderRemoved(accountId, remoteId)
+  }
   reconcileAllFolderUnreadForAccount(accountId)
 
   return batch.length

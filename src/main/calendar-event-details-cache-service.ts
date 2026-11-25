@@ -19,7 +19,8 @@ function eventDetailsKey(accountId: string, graphEventId: string): string {
 function fetchCalendarEventDetails(
   accountId: string,
   graphEventId: string,
-  graphCalendarId: string | null
+  graphCalendarId: string | null,
+  mailboxSmtp?: string | null
 ): Promise<CalendarGetEventResult> {
   const key = eventDetailsKey(accountId, graphEventId)
   const existing = inflightByEventKey.get(key)
@@ -28,7 +29,8 @@ function fetchCalendarEventDetails(
   const pending = getCalendarEventForAccount({
     accountId,
     graphEventId,
-    graphCalendarId
+    graphCalendarId,
+    mailboxSmtp
   })
     .then((detail) => {
       upsertCalendarEventDetails(accountId, graphEventId, graphCalendarId, detail)
@@ -51,6 +53,7 @@ export async function getCalendarEventCached(
   const accountId = input.accountId.trim()
   const graphEventId = input.graphEventId.trim()
   const graphCalendarId = input.graphCalendarId?.trim() || null
+  const mailboxSmtp = input.mailboxSmtp?.trim() || null
   const force = opts?.forceRefresh === true
 
   const cached = getCalendarEventDetailsFromCache(accountId, graphEventId)
@@ -60,7 +63,12 @@ export async function getCalendarEventCached(
     // Auch bei „frischem“ Cache im Hintergrund gegen Graph/Google abgleichen —
     // sonst bleiben z. B. in Outlook ergaenzte Teilnehmer bis zu 24h unsichtbar.
     if (isAppOnline()) {
-      void fetchCalendarEventDetails(accountId, graphEventId, graphCalendarId).catch((e) =>
+      void fetchCalendarEventDetails(
+        accountId,
+        graphEventId,
+        graphCalendarId,
+        mailboxSmtp
+      ).catch((e) =>
         console.warn('[calendar-event-details] Hintergrund-Refresh:', graphEventId, e)
       )
     }
@@ -68,7 +76,12 @@ export async function getCalendarEventCached(
   }
 
   if (!force && cached && !fresh && isAppOnline()) {
-    void fetchCalendarEventDetails(accountId, graphEventId, graphCalendarId).catch((e) =>
+    void fetchCalendarEventDetails(
+      accountId,
+      graphEventId,
+      graphCalendarId,
+      mailboxSmtp
+    ).catch((e) =>
       console.warn('[calendar-event-details] Hintergrund-Refresh:', graphEventId, e)
     )
     return cached
@@ -78,7 +91,7 @@ export async function getCalendarEventCached(
     return cached
   }
 
-  return fetchCalendarEventDetails(accountId, graphEventId, graphCalendarId)
+  return fetchCalendarEventDetails(accountId, graphEventId, graphCalendarId, mailboxSmtp)
 }
 
 export { deleteCalendarEventDetails }

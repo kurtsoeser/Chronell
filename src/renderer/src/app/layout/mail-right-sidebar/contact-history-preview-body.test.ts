@@ -3,7 +3,8 @@ import { describe, expect, it, vi } from 'vitest'
 vi.mock('@/lib/sanitize', () => ({
   replaceInlineCidImages: (html: string): string => html,
   stripUnresolvedCidUrls: (html: string): string => html,
-  sanitizeMailHtml: (html: string): string => html
+  sanitizeMailHtml: (html: string): string => html,
+  prepareMailHtmlForDisplay: (html: string): string => html
 }))
 
 import { buildContactHistoryPreviewBodyHtml } from './contact-history-preview-body'

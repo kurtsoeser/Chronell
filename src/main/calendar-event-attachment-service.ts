@@ -39,7 +39,12 @@ export async function listCalendarEventAttachments(
     return []
   }
   return runGraphMailboxRequest(input.accountId, 'listEventAttachments', () =>
-    listGraphEventAttachments(input.accountId, graphEventId, graphCalendarId)
+    listGraphEventAttachments(
+      input.accountId,
+      graphEventId,
+      graphCalendarId,
+      input.mailboxSmtp?.trim() || null
+    )
   )
 }
 
@@ -54,7 +59,8 @@ export async function fetchCalendarEventInlineImages(
     fetchGraphEventInlineImages(
       input.accountId,
       input.graphEventId.trim(),
-      input.graphCalendarId?.trim() || null
+      input.graphCalendarId?.trim() || null,
+      input.mailboxSmtp?.trim() || null
     )
   )
 }
@@ -66,7 +72,8 @@ export async function addCalendarEventAttachments(
   input: {
     files?: ComposeAttachment[] | null
     references?: ComposeReferenceAttachment[] | null
-  }
+  },
+  mailboxSmtp?: string | null
 ): Promise<void> {
   const accounts = await listAccounts()
   const acc = accounts.find((a) => a.id === accountId)
@@ -85,7 +92,13 @@ export async function addCalendarEventAttachments(
     return
   }
   if (acc.provider === 'microsoft') {
-    await graphAddEventAttachments(accountId, graphEventId, { files, references }, graphCalendarId)
+    await graphAddEventAttachments(
+      accountId,
+      graphEventId,
+      { files, references },
+      graphCalendarId,
+      mailboxSmtp
+    )
   }
 }
 

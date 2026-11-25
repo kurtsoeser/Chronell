@@ -32,9 +32,18 @@ describe('prepareComposeOutgoingHtmlFragment', () => {
     expect(out).toContain('href="https://example.com"')
   })
 
-  it('laesst bestehende Anker unveraendert', () => {
+  it('behaelt bestehende Anker-hrefs', () => {
     const html = '<p>Web: <a href="https://example.com">Beispiel</a></p>'
-    expect(prepareComposeOutgoingHtmlFragment(html)).toBe(html)
+    expect(prepareComposeOutgoingHtmlFragment(html)).toContain('href="https://example.com"')
+    expect(prepareComposeOutgoingHtmlFragment(html)).toContain('Beispiel')
+  })
+
+  it('entfernt target=_blank beim Versand', () => {
+    const out = prepareComposeOutgoingHtmlFragment(
+      '<p><a href="https://example.com" target="_blank" rel="noopener noreferrer">go</a></p>'
+    )
+    expect(out).toContain('href="https://example.com"')
+    expect(out).not.toMatch(/\btarget\s*=/i)
   })
 
   it('wandelt eingebettete Forms-iframes in Links um', () => {

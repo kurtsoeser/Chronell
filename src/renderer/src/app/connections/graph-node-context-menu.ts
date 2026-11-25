@@ -32,6 +32,7 @@ import {
   formatCalendarEventClipboardText
 } from '@/lib/calendar-event-context-menu'
 import { respondToCalendarEventInvitation } from '@/lib/calendar-event-rsvp'
+import { sendCalendarEventToEventsOs } from '@/lib/events-os-ui'
 import { deleteCalendarEventIpc } from '@/lib/calendar-ipc'
 import { accountSupportsCloudTasks } from '@/lib/cloud-task-accounts'
 import {
@@ -306,6 +307,9 @@ async function buildCalendarMenuItems(
           accountId: ev.accountId,
           graphEventId
         })
+      },
+      onSendToEventsOs: (): void => {
+        void sendCalendarEventToEventsOs(ev)
       },
       onCopyDetails: (): void => {
         void h.onCopyText(

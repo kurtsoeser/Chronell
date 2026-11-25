@@ -130,6 +130,7 @@ export function registerMailFoldersIpc(): void {
         return
       }
 
+      // graphDeleteFolder liefert 'already-gone' bei 404 — lokal trotzdem entfernen.
       await graphDeleteFolder(folder.accountId, folder.remoteId)
       clearWorkflowFolderPrefsIfRemoteFolderRemoved(folder.accountId, folder.remoteId)
       deleteFolderLocal(folderId)

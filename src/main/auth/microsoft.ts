@@ -30,6 +30,8 @@ export const MICROSOFT_SCOPES = [
   'Calendars.Read.Shared',
   /** Microsoft To Do / Planner-Aufgabenlisten (`/me/todo/lists`, Aufgaben lesen/schreiben). */
   'Tasks.ReadWrite',
+  /** OneNote: Notizbücher und Abschnitte lesen, Seiten aus Mails anlegen. */
+  'Notes.ReadWrite',
   /** Microsoft-365-Gruppenmitgliedschaften (`GET /me/transitiveMemberOf`). */
   'GroupMember.Read.All',
   /** Microsoft-365-Gruppenkalender lesen/schreiben (`/groups/{id}/calendar`, `/groups/{id}/events`). */

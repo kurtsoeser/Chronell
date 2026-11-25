@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Chronell — Manage your time, not your inbox",
-    "description": "Chronell 1.3.3: Custom views with layout wizard, mail & calendar workspace — desktop work hub for Windows 11 with Microsoft 365 and Google."
+    "description": "Chronell 1.4.0: OneNote, Events OS, and webinars — desktop work hub for Windows 11 with Microsoft 365 and Google."
   },
   "nav": {
     "method": "The Method",
@@ -22,7 +22,7 @@
     "note": "Current release for Windows 11."
   },
   "hero": {
-    "badge": "Version 1.3 · Windows 11 · built in Austria",
+    "badge": "Version 1.4 · Windows 11 · built in Austria",
     "taglineLine1": "Manage your time —",
     "taglineLine2Prefix": "not your ",
     "taglineLine2Accent": "inbox",
@@ -188,8 +188,15 @@
     "eyebrow": "Release overview",
     "title": "What shipped in recent updates",
     "lead": "From the new Fluent look to the connection graph and profile sync — Chronell moves fast without putting your mail in the cloud.",
-    "v133": {
+    "v140": {
       "badge": "Current",
+      "date": "November 2026",
+      "title": "OneNote, Events OS, and webinars",
+      "b1": "OneNote: Send mail into a Microsoft notebook — the last section and recently opened notebooks stay suggested",
+      "b2": "Events OS: Send mail including attachments to an event; start a webinar invitation or reminder via chronell:// from the studio",
+      "b3": "Calendar: Clearer event attachments, categories, and the event dialog; webinar layouts can be repaired and sent as the organizer",
+      "b4": "Homepage: Release notes, homepage timeline, and download for 1.4.0"
+    },"v133": {
       "date": "Oktober 2026",
       "title": "Calendar and Mail",
       "b1": "Calendar: Calendar and events: dialog, preview, categories, and shell",
@@ -367,9 +374,9 @@
     }
   },
   "highlights": {
-    "eyebrow": "Version 1.2",
+    "eyebrow": "Version 1.4",
     "title": "Four pillars of the desktop work hub",
-    "lead": "With version 1.3.1, Chronell becomes a complete work hub: a dedicated notes module, refined mail and calendar workspaces, and visible connections in the graph — locally on Windows 11.",
+    "lead": "With version 1.4.0, Chronell files mail into OneNote, sends it to Events OS, and opens webinar invitations straight from the studio — plus event attachments and a sharper calendar, locally on Windows 11.",
     "compose": {
       "title": "Notes",
       "desc": "Notes module with sections, TipTap editor, ink, embeds, and links to mail, events, and contacts.",
@@ -589,12 +596,12 @@
     "privacy": "Privacy"
   },
   "whatsNew": {
-    "label": "Version 1.3.1",
-    "tagline": "Notes · mail · calendar · connection graph"
+    "label": "Version 1.4.0",
+    "tagline": "OneNote · Events OS · webinars · calendar"
   },
   "cta": {
     "title": "Ready for the new Chronell?",
-    "body": "Download version 1.3.1 for Windows 11 — custom views with layout wizard, floating panels, refined mail and calendar workspace, and optional cloud sync. Updates replace your version without losing data.",
+    "body": "Download version 1.4.0 for Windows 11 — mail to OneNote and Events OS, webinar invitations from the studio, and the refined calendar. Updates replace your version without losing data.",
     "button": "Download now"
   }
 }

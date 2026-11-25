@@ -60,6 +60,11 @@ fileAssociations:
     description: iCalendar-Termin (.ics)
     role: Editor
 
+protocols:
+  - name: Chronell
+    schemes:
+      - chronell
+
 win:
   icon: icon.ico
   publisherName: Kurt Soeser

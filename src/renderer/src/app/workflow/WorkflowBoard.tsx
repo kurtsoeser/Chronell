@@ -53,6 +53,7 @@ import {
   createMailSendToExistingNoteHandler,
   createMailSendToNewNoteHandler
 } from '@/lib/mail-to-note'
+import { createMailSendToOneNoteHandler } from '@/lib/onenote-ui'
 import { ContextMenu, type ContextMenuItem } from '@/components/ContextMenu'
 import { ObjectNoteDialog, type ObjectNoteTarget } from '@/components/ObjectNoteEditor'
 import { ReadingPane } from '@/app/layout/ReadingPane'
@@ -406,7 +407,8 @@ export function WorkflowBoard(): JSX.Element {
       setWaitingForMessage,
       clearWaitingForMessage,
       openSnoozePicker,
-      refreshNow
+      refreshNow,
+      sendToOneNote: createMailSendToOneNoteHandler()
     }),
     [
       openReply,

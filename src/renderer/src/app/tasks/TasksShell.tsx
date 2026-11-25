@@ -50,6 +50,7 @@ import type { CloudTaskCalendarDateMode } from '@/app/calendar/cloud-task-calend
 import { confirmDeleteCloudTasks } from '@/app/tasks/confirm-delete-cloud-task'
 import { buildTasksListContextMenuItems } from '@/app/tasks/tasks-list-context-menu'
 import type { MailContextHandlers } from '@/lib/mail-context-menu'
+import { createMailSendToOneNoteHandler } from '@/lib/onenote-ui'
 import { accountSupportsCloudTasks } from '@/lib/cloud-task-accounts'
 import { openWorkItemInCalendar } from '@/app/work-items/work-item-calendar-nav'
 import type { WorkItemContextHandlers } from '@/app/work-items/work-item-context-menu'
@@ -1305,7 +1306,8 @@ export function TasksShell(): JSX.Element {
       refreshNow: async (): Promise<void> => {
         await refreshNow()
         if (isUnified && tasksSettings.includeMailTodosInList) void loadMailTodos()
-      }
+      },
+      sendToOneNote: createMailSendToOneNoteHandler()
     }),
     [
       openReply,

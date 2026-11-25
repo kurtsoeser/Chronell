@@ -45,6 +45,7 @@ import {
 } from '@/app/work-items/work-list-view-storage'
 import { workItemsToViews } from '@/app/work-items/work-item-mapper'
 import type { MailContextHandlers } from '@/lib/mail-context-menu'
+import { createMailSendToOneNoteHandler } from '@/lib/onenote-ui'
 import { accountSupportsCloudTasks } from '@/lib/cloud-task-accounts'
 import { useCreateCloudTaskUiStore } from '@/stores/create-cloud-task-ui'
 import { nextCheckedListSelection } from '@/lib/id-bulk-selection'
@@ -364,7 +365,8 @@ export function WorkShell(): JSX.Element {
       refreshNow: async (): Promise<void> => {
         await refreshNow()
         await reload()
-      }
+      },
+      sendToOneNote: createMailSendToOneNoteHandler()
     }),
     [
       openReply,

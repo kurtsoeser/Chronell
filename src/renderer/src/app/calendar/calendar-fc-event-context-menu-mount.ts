@@ -15,6 +15,7 @@ import {
   runNotionSendWithErrorHandling
 } from '@/lib/notion-ui'
 import { respondToCalendarEventInvitation } from '@/lib/calendar-event-rsvp'
+import { sendCalendarEventToEventsOs } from '@/lib/events-os-ui'
 import { openExternalUrl } from '@/lib/open-external'
 import { showAppConfirm } from '@/stores/app-dialog'
 import type { CalendarOverlayContextMenuOptions } from '@/app/calendar/calendar-overlay-context-menu'
@@ -176,6 +177,9 @@ export function attachGraphCalendarEventContextMenu(
               eventTitleSnapshot: calEv.title,
               eventStartIsoSnapshot: calEv.startIso
             })
+          },
+          onSendToEventsOs: (): void => {
+            void sendCalendarEventToEventsOs(calEv)
           },
           onSendToNotion: (): void => {
             void runNotionSendWithErrorHandling(() =>

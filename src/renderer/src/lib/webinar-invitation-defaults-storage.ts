@@ -1,5 +1,9 @@
 import type { WebinarInvitationFields } from '@/lib/build-webinar-invitation-html'
 import {
+  DEFAULT_WEBINAR_FROM_MAILBOX,
+  normalizeWebinarFromMailbox
+} from '@shared/webinar-from-mailbox'
+import {
   normalizeWebinarLayoutTemplateSlots,
   WEBINAR_INVITATION_LAYOUT_TEMPLATE_VERSION
 } from '@/lib/webinar-invitation-layout-template'
@@ -40,6 +44,11 @@ export type WebinarInvitationDefaults = Pick<
   defaultLayoutTemplateId?: string
   defaultLayoutColor?: WebinarLayoutColorId
   defaultLayoutMode?: WebinarLayoutModeId
+  /**
+   * Microsoft 365: Absender/Organizer für Webinar-Einladungen (SMTP),
+   * z. B. events@kurtrocks.com (Alias/Shared Mailbox).
+   */
+  defaultFromMailbox?: string
 }
 
 export const DEFAULT_WEBINAR_INVITATION_DEFAULTS: WebinarInvitationDefaults = {
@@ -56,7 +65,8 @@ export const DEFAULT_WEBINAR_INVITATION_DEFAULTS: WebinarInvitationDefaults = {
   layoutTemplateVersion: WEBINAR_INVITATION_LAYOUT_TEMPLATE_VERSION,
   defaultLayoutTemplateId: WEBINAR_BUILTIN_LAYOUT_TEMPLATE_ID,
   defaultLayoutColor: 'gold',
-  defaultLayoutMode: 'dark'
+  defaultLayoutMode: 'dark',
+  defaultFromMailbox: DEFAULT_WEBINAR_FROM_MAILBOX
 }
 
 export function resolveDefaultWebinarLayoutTheme(
@@ -148,6 +158,8 @@ function migrateWebinarInvitationDefaults(
     merged.defaultLayoutTemplateId = WEBINAR_BUILTIN_LAYOUT_TEMPLATE_ID
   }
 
+  merged.defaultFromMailbox = normalizeWebinarFromMailbox(merged.defaultFromMailbox)
+
   return merged
 }
 
@@ -200,6 +212,7 @@ export function saveWebinarInvitationDefaults(next: WebinarInvitationDefaults): 
     defaultLayoutMode: isWebinarLayoutModeId(next.defaultLayoutMode)
       ? next.defaultLayoutMode
       : 'dark',
+    defaultFromMailbox: normalizeWebinarFromMailbox(next.defaultFromMailbox),
     layoutTemplateVersion: WEBINAR_INVITATION_LAYOUT_TEMPLATE_VERSION
   }
   localStorage.setItem(STORAGE_KEY, JSON.stringify(toStore))

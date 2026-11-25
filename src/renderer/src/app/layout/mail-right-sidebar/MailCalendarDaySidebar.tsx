@@ -39,6 +39,7 @@ import { useAccountsStore } from '@/stores/accounts'
 import { focusContextPreviewMailMessage } from '@/lib/focus-context-preview'
 import { useInboxCalendarAgendaCacheStore } from '@/stores/inbox-calendar-agenda-cache'
 import { buildCalendarIncludeCalendars } from '@/lib/build-calendar-include-calendars'
+import { deduplicateCalendarEventsByGraphEventId } from '@/app/calendar/calendar-graph-events'
 import {
   CALENDAR_KIND_MAIL_TODO,
   mailTodoItemsToFullCalendarEvents
@@ -110,6 +111,21 @@ function sidebarFcViewId(mode: SidebarViewMode): string {
   return 'timeGridDay'
 }
 
+function filterEventsOverlappingRange(
+  events: readonly CalendarEventView[],
+  rangeStart: Date,
+  rangeEndExcl: Date
+): CalendarEventView[] {
+  const startMs = rangeStart.getTime()
+  const endMs = rangeEndExcl.getTime()
+  return events.filter((ev) => {
+    const s = Date.parse(ev.startIso)
+    const e = Date.parse(ev.endIso)
+    if (!Number.isFinite(s) || !Number.isFinite(e)) return false
+    return e > startMs && s < endMs
+  })
+}
+
 export type MailCalendarDaySidebarProps = {
   viewMode?: SidebarViewMode
   onViewModeChange?: (mode: SidebarViewMode) => void
@@ -165,9 +181,13 @@ export function MailCalendarDaySidebar({
   }, [accounts])
 
   const previewRangeEvents = useInboxCalendarAgendaCacheStore((s) => s.previewRangeEvents)
-  const inFlight = useInboxCalendarAgendaCacheStore((s) => s.inFlight)
+  const agendaInFlight = useInboxCalendarAgendaCacheStore((s) => s.inFlight)
   const calError = useInboxCalendarAgendaCacheStore((s) => s.error)
   const loadAgendaFromCache = useInboxCalendarAgendaCacheStore((s) => s.loadAgenda)
+  /** Sichtbarer Tag/Woche/Monat — unabhängig vom 56-Tage-Agenda-Vorschau-Cache. */
+  const [refreshedRangeEvents, setRefreshedRangeEvents] = useState<CalendarEventView[] | null>(null)
+  const [rangeInFlight, setRangeInFlight] = useState(false)
+  const rangeFetchSeqRef = useRef(0)
 
   const selectedMessage = useMailStore((s) => s.selectedMessage)
 
@@ -284,6 +304,11 @@ export function MailCalendarDaySidebar({
 
   const dayStart = rangeStart
   const dayEndExcl = rangeEndExcl
+  const rangeKey = `${dayStart.toISOString()}\u001f${dayEndExcl.toISOString()}`
+
+  useEffect(() => {
+    setRefreshedRangeEvents(null)
+  }, [rangeKey])
 
   useEffect(() => {
     let cancelled = false
@@ -314,20 +339,35 @@ export function MailCalendarDaySidebar({
   }, [dayStart, dayEndExcl])
 
   const ensureEventRangeInCache = useCallback(async (): Promise<void> => {
-    if (calendarLinkedAccounts.length === 0) return
+    if (calendarLinkedAccounts.length === 0) {
+      setRefreshedRangeEvents([])
+      setRangeInFlight(false)
+      return
+    }
+    const seq = ++rangeFetchSeqRef.current
+    setRangeInFlight(true)
     try {
       const includeCalendars = await buildCalendarIncludeCalendars(calendarLinkedAccounts)
-      await window.mailClient.calendar.listEvents({
+      if (includeCalendars.length === 0) {
+        // Kein listEvents mit leerer Include-Liste — auf Agenda-Cache zurückfallen.
+        if (rangeFetchSeqRef.current === seq) setRefreshedRangeEvents(null)
+        return
+      }
+      const events = await window.mailClient.calendar.listEvents({
         startIso: dayStart.toISOString(),
         endIso: dayEndExcl.toISOString(),
         focusCalendar: null,
         includeCalendars
       })
-      await loadAgendaFromCache(calendarLinkedAccounts, { force: true })
+      if (rangeFetchSeqRef.current !== seq) return
+      setRefreshedRangeEvents(filterEventsOverlappingRange(events, dayStart, dayEndExcl))
     } catch {
-      // ignore; UI shows existing cache + error state from store
+      // Fallback auf Agenda-Vorschau (nur nahes Fenster); UI behält ggf. alten Fehlerzustand.
+      if (rangeFetchSeqRef.current === seq) setRefreshedRangeEvents(null)
+    } finally {
+      if (rangeFetchSeqRef.current === seq) setRangeInFlight(false)
     }
-  }, [calendarLinkedAccounts, dayStart, dayEndExcl, loadAgendaFromCache])
+  }, [calendarLinkedAccounts, dayStart, dayEndExcl])
 
   useEffect(() => {
     void ensureEventRangeInCache()
@@ -367,15 +407,14 @@ export function MailCalendarDaySidebar({
     }
   }, [])
 
+  const visibleGraphEvents = useMemo((): CalendarEventView[] => {
+    if (refreshedRangeEvents != null) return refreshedRangeEvents
+    return filterEventsOverlappingRange(previewRangeEvents, dayStart, dayEndExcl)
+  }, [refreshedRangeEvents, previewRangeEvents, dayStart, dayEndExcl])
+
   const graphFcEvents = useMemo((): EventInput[] => {
-    const startMs = dayStart.getTime()
-    const endMs = dayEndExcl.getTime()
     const out: EventInput[] = []
-    for (const ev of previewRangeEvents) {
-      const s = Date.parse(ev.startIso)
-      const e = Date.parse(ev.endIso)
-      if (!Number.isFinite(s) || !Number.isFinite(e)) continue
-      if (s >= endMs || e <= startMs) continue
+    for (const ev of visibleGraphEvents) {
       const resolvedDisplayHex = resolveGraphEventDisplayHex(
         ev,
         defaultGraphCalendarIdByAccount,
@@ -397,13 +436,7 @@ export function MailCalendarDaySidebar({
       })
     }
     return out
-  }, [
-    previewRangeEvents,
-    dayStart,
-    dayEndExcl,
-    defaultGraphCalendarIdByAccount,
-    calendarDisplayHexByKey
-  ])
+  }, [visibleGraphEvents, defaultGraphCalendarIdByAccount, calendarDisplayHexByKey])
 
   const mailTodoFcEvents = useMemo(
     () => mailTodoItemsToFullCalendarEvents(mailTodos, accountColorById),
@@ -425,6 +458,14 @@ export function MailCalendarDaySidebar({
   const reloadDayData = useCallback((created?: CalendarEventView): void => {
     if (created) {
       useInboxCalendarAgendaCacheStore.getState().upsertPreviewCalendarEvent(created)
+      setRefreshedRangeEvents((prev) => {
+        if (prev == null) return prev
+        return filterEventsOverlappingRange(
+          deduplicateCalendarEventsByGraphEventId([...prev, created]),
+          dayStart,
+          dayEndExcl
+        )
+      })
       return
     }
     void ensureEventRangeInCache()
@@ -620,10 +661,14 @@ export function MailCalendarDaySidebar({
         ) : null}
 
         <div className="relative flex h-full min-h-0 flex-col">
-          {(inFlight && previewRangeEvents.length === 0) || mailTodosLoading ? (
+          {(rangeInFlight && visibleGraphEvents.length === 0) ||
+          (agendaInFlight && previewRangeEvents.length === 0 && refreshedRangeEvents == null) ||
+          mailTodosLoading ? (
             <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-center justify-center gap-2 bg-background/70 py-2 text-xs text-muted-foreground">
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              {inFlight ? t('mail.inboxCal.loading') : t('mail.rightSidebar.tasksLoading')}
+              {rangeInFlight || agendaInFlight
+                ? t('mail.inboxCal.loading')
+                : t('mail.rightSidebar.tasksLoading')}
             </div>
           ) : null}
           <div

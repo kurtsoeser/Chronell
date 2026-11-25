@@ -1,4 +1,5 @@
 import DOMPurify from 'dompurify'
+import { linkifyBareUrlsInHtmlFragment } from '@shared/calendar-event-body-html'
 import { NOTE_INK_HTML_SOURCE_ATTR } from '@shared/note-ink-document'
 import { NOTE_CLOUD_TASK_HTML_ATTRS } from '@shared/note-cloud-task'
 import { normalizeExternalOpenUrl } from '@shared/external-open-url'
@@ -217,6 +218,19 @@ export function sanitizeMailHtml(html: string, options: { loadImages?: boolean }
   )
 }
 
+/**
+ * Mail-Body fuer die Leseansicht: nackte URLs zu `<a>` machen, dann sanitize
+ * (inkl. `data-mail-external` fuer sicheres Oeffnen im Systembrowser).
+ */
+export function prepareMailHtmlForDisplay(
+  html: string,
+  options: { loadImages?: boolean } = {}
+): string {
+  const trimmed = html.trim()
+  if (!trimmed) return ''
+  return sanitizeMailHtml(linkifyBareUrlsInHtmlFragment(trimmed), options)
+}
+
 import { DARK_PALETTE_SURFACES } from '@/lib/dark-palette-presets'
 import { normalizeHex } from '@/lib/theme-color-utils'
 
@@ -287,7 +301,16 @@ function buildMailShadowLightThemeCss(contentPadding: string): string {
       color: #1f1f23;
       forced-color-adjust: none;
     }
-    a { color: #0b66c2; cursor: pointer; }
+    a, a:link, a:visited {
+      color: #0b66c2 !important;
+      text-decoration: underline !important;
+      text-decoration-color: rgba(11, 102, 194, 0.45) !important;
+      cursor: pointer !important;
+    }
+    a:hover {
+      color: #084a8f !important;
+      text-decoration-color: rgba(8, 74, 143, 0.65) !important;
+    }
     img { max-width: 100%; height: auto; }
     blockquote { border-left: 3px solid #d6d6db; margin: 0 0 0 4px; padding: 4px 12px;
       color: #555; }
@@ -393,8 +416,9 @@ function buildMailDarkHtmlShellCss(
     .mail-html-invert-layer a:link,
     .mail-html-invert-layer a:visited {
       color: #915700 !important;
+      text-decoration: underline !important;
       text-decoration-color: #915700 !important;
-      cursor: pointer;
+      cursor: pointer !important;
     }
     img { max-width: 100%; height: auto; }
     table { max-width: 100%; }
@@ -458,7 +482,16 @@ const calendarDescriptionLightThemeCss = `
       word-wrap: break-word;
       overflow: hidden;
     }
-    a { color: #0b66c2; cursor: pointer; }
+    a, a:link, a:visited {
+      color: #0b66c2 !important;
+      text-decoration: underline !important;
+      text-decoration-color: rgba(11, 102, 194, 0.45) !important;
+      cursor: pointer !important;
+    }
+    a:hover {
+      color: #084a8f !important;
+      text-decoration-color: rgba(8, 74, 143, 0.65) !important;
+    }
     img { max-width: 100%; height: auto; }
     blockquote { border-left: 3px solid #d6d6db; margin: 0 0 0 4px; padding: 4px 12px; color: #555; }
     table { max-width: 100%; }

@@ -24,7 +24,8 @@ import {
   Unlink,
   SquareArrowOutUpRight,
   PanelRightClose,
-  Sparkles
+  Sparkles,
+  Tag
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -55,9 +56,9 @@ import { useUndoStore } from '@/stores/undo'
 import { showAppAlert } from '@/stores/app-dialog'
 import {
   buildMailShadowRootInnerHtml,
+  prepareMailHtmlForDisplay,
   replaceInlineCidImages,
   stripUnresolvedCidUrls,
-  sanitizeMailHtml,
   type MailViewerTheme
 } from '@/lib/sanitize'
 import { loadUseOsFloatingPanelsDefault } from '@/lib/floating-panels-prefs'
@@ -115,6 +116,7 @@ import { listCopilotEngineOptions } from '@/lib/copilot-engine-options'
 import { useAiConnectionsSettings } from '@/lib/use-ai-connections-settings'
 import { looksLikeMeetingInvitationMail } from '@shared/meeting-invitation-detect'
 import { isMeetingCalendarAttachment } from '@shared/meeting-invitation-attachment'
+import { isRealMailAttachment } from '@shared/mail-attachment-filter'
 import { useCreateCloudTaskUiStore } from '@/stores/create-cloud-task-ui'
 import { openScheduleMeetingFromMail } from '@/lib/mail-schedule-meeting-action'
 import { accountSupportsCloudTasks } from '@/lib/cloud-task-accounts'
@@ -1042,15 +1044,13 @@ function MailReader({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [message.id])
 
-  // Nur echte Anhaenge in der Leiste; Inline-Bilder werden im Mail-Body
-  // per cid:-Ersetzung dargestellt (wie vom Absender eingebettet).
+  // Nur echte Anhaenge in der Leiste; Inline-Bilder bleiben im Body (cid:).
+  // Dokumente, die Graph fälschlich als inline markiert, bleiben sichtbar.
   const visibleAttachments = useMemo(
     () =>
       attachments.filter((a) => {
         if (isMeetingCalendarAttachment(a)) return false
-        if (a.isInline) return false
-        if ((a.size ?? 0) > 0 && (a.size ?? 0) < 200) return false
-        return true
+        return isRealMailAttachment(a)
       }),
     [attachments]
   )
@@ -1115,7 +1115,11 @@ function MailReader({
     const renderPlain = (plain: string): string => {
       const escaped = escapeHtml(plain).replace(/\n/g, '<br>')
       // Dunkel: invert()-Filter im Shadow-Root — dunkle Vorschlagsfarbe wird hell dargestellt.
-      return `<pre style="white-space:pre-wrap;font-family:inherit;font-size:${fontPx}px;color:${color};">${escaped}</pre>`
+      // Nackte URLs zu klickbaren Links (wie HTML-Mails); Sanitize setzt data-mail-external.
+      return prepareMailHtmlForDisplay(
+        `<pre style="white-space:pre-wrap;font-family:inherit;font-size:${fontPx}px;color:${color};">${escaped}</pre>`,
+        { loadImages: true }
+      )
     }
 
     const hasBody = Boolean(message.bodyHtml?.trim() || message.bodyText?.trim())
@@ -1131,7 +1135,7 @@ function MailReader({
 
     if (message.bodyHtml) {
       const withInline = replaceInlineCidImages(message.bodyHtml, inlineImages)
-      return sanitizeMailHtml(stripUnresolvedCidUrls(withInline), { loadImages })
+      return prepareMailHtmlForDisplay(stripUnresolvedCidUrls(withInline), { loadImages })
     }
     if (message.bodyText) {
       return renderPlain(message.bodyText)
@@ -1305,6 +1309,13 @@ function MailReader({
                 hoverClassName="hover:bg-emerald-500/15 hover:text-emerald-400"
               />
             </div>
+            <IconButton
+              icon={Tag}
+              label={t('mail.readingPane.categories')}
+              onClick={openCategoryPicker}
+              iconClassName={categories.length > 0 ? 'text-amber-500' : 'text-muted-foreground'}
+              hoverClassName="hover:bg-amber-500/15 hover:text-amber-400"
+            />
             {message.openTodoId != null && account && accountSupportsCloudTasks(account) ? (
               <button
                 type="button"
@@ -1338,6 +1349,7 @@ function MailReader({
 
         <MailReadingPreviewMetaRow
           messageId={message.id}
+          accountId={message.accountId}
           ctx={previewMetaCtx}
           accountEnabled={Boolean(account)}
           onOpenCategories={openCategoryPicker}

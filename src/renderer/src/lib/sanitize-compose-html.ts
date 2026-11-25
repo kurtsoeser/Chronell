@@ -146,9 +146,14 @@ export function prepareComposeOutgoingHtmlFragment(html: string): string {
   const prepared = linkifyBareUrlsInHtmlFragment(
     sanitizeComposeHtmlFragment(promoteIframeSourcesToLinksInHtml(trimmed))
   )
+  // target=_blank ist in E-Mails unnoetig und wird von manchen Clients entfernt/umgeschrieben.
+  const withoutBlankTargets = prepared.replace(
+    /<a\b([^>]*)\btarget\s*=\s*(["'])[^"']*\2/gi,
+    '<a$1'
+  )
   const lightColor =
     readComposeSettingsPrefs().defaultTextColor?.trim() || COMPOSE_DEFAULT_TEXT_COLOR
-  return neutralizeComposeEditorDarkTextColorsInHtml(prepared, lightColor)
+  return neutralizeComposeEditorDarkTextColorsInHtml(withoutBlankTargets, lightColor)
 }
 
 /** HTML fuer Notizen-Editor inkl. eingebetteter Medien bereinigen. */

@@ -9,6 +9,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Library,
   Plus,
   Search,
   Video,
@@ -69,6 +70,8 @@ export interface CalendarShellHeaderProps {
   onNewWebinarClick?: () => void
   /** Webinar aus Notion (#kurtrocks Events). */
   onNewWebinarFromNotionClick?: () => void
+  /** Webinar aus #kurtrocks Events OS. */
+  onNewWebinarFromEventsOsClick?: () => void
   newEventDisabled?: boolean
   /** .ics-Datei importieren (Dateidialog). */
   onImportIcsClick?: () => void
@@ -102,6 +105,7 @@ export function CalendarShellHeader(props: CalendarShellHeaderProps): JSX.Elemen
     onNewEventClick,
     onNewWebinarClick,
     onNewWebinarFromNotionClick,
+    onNewWebinarFromEventsOsClick,
     newEventDisabled,
     onImportIcsClick,
     eventSearchQuery,
@@ -513,6 +517,28 @@ export function CalendarShellHeader(props: CalendarShellHeaderProps): JSX.Elemen
             )}
           >
             <BookMarked className={cn(moduleColumnHeaderIconGlyphClass, 'shrink-0 text-amber-500')} />
+          </button>
+        ) : null}
+        {onNewWebinarFromEventsOsClick != null ? (
+          <button
+            type="button"
+            disabled={Boolean(newEventDisabled)}
+            title={
+              newEventDisabled
+                ? t('calendar.shell.noLinkedAccount')
+                : t('calendar.shell.newWebinarFromEventsOs')
+            }
+            aria-label={t('calendar.shell.newWebinarFromEventsOs')}
+            onClick={(): void => {
+              if (newEventDisabled) return
+              onNewWebinarFromEventsOsClick()
+            }}
+            className={cn(
+              'flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-background text-foreground hover:bg-secondary',
+              newEventDisabled && 'cursor-not-allowed opacity-45'
+            )}
+          >
+            <Library className={cn(moduleColumnHeaderIconGlyphClass, 'shrink-0 text-emerald-600')} />
           </button>
         ) : null}
 

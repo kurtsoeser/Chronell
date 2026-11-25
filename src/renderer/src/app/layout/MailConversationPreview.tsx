@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { Paperclip } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Avatar } from '@/components/Avatar'
 import { useSenderAvatarSources } from '@/lib/use-sender-avatar-sources'
@@ -63,7 +64,18 @@ function MailConversationCollapsed({
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
             <span className="truncate text-sm font-medium text-foreground">{from}</span>
-            <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">{dateLabel}</span>
+            <span className="inline-flex shrink-0 items-center gap-1.5 text-[11px] text-muted-foreground">
+              {message.hasAttachments ? (
+                <span
+                  className="inline-flex items-center gap-0.5 text-status-flagged"
+                  title={t('mail.conversationPreview.hasAttachments')}
+                  aria-label={t('mail.conversationPreview.hasAttachments')}
+                >
+                  <Paperclip className="h-3 w-3" aria-hidden />
+                </span>
+              ) : null}
+              <span className="tabular-nums">{dateLabel}</span>
+            </span>
           </div>
           {folderLabel ? (
             <span className="inline-flex max-w-full truncate rounded-md bg-muted/80 px-1.5 py-px text-[10px] font-medium text-muted-foreground">

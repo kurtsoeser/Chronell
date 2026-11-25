@@ -61,15 +61,16 @@ describe('webinar invitation layout template', () => {
     ).toContain('missingTeamsSlot')
   })
 
-  it('ergaenzt fehlenden greetingBlock vor titleBlock', () => {
-    expect(ensureWebinarLayoutGreetingSlot('<div>{{titleBlock}}</div>')).toContain(
-      '{{greetingBlock}}'
-    )
-  })
-
-  it('ergaenzt fehlende titleBlock und scheduleBlock', () => {
-    const fixed = ensureWebinarLayoutCoreSlots('<div>{{greetingBlock}}{{teamsBlock}}</div>')
+  it('ergaenzt fehlende titleBlock und scheduleBlock (nicht Fliesstext)', () => {
+    const fixed = ensureWebinarLayoutCoreSlots('<div>{{teamsBlock}}</div>')
     expect(fixed).toContain('{{titleBlock}}')
     expect(fixed).toContain('{{scheduleBlock}}')
+    // Begruessung ist editierbarer Layout-Text, kein Pflicht-Platzhalter mehr
+    expect(fixed).not.toContain('{{greetingBlock}}')
+  })
+
+  it('ensureWebinarLayoutGreetingSlot bleibt Alias fuer Core-Slots', () => {
+    const fixed = ensureWebinarLayoutGreetingSlot('<div>{{teamsBlock}}</div>')
+    expect(fixed).toContain('{{titleBlock}}')
   })
 })

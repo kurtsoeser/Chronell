@@ -159,4 +159,28 @@ describe('buildReplyBody / buildForwardBody', () => {
     expect(fwd).toContain('Von:')
     expect(fwd).toContain('Betreff:')
   })
+
+  it('linkifiziert nackte URLs im Plain-Text-Zitat', () => {
+    const m = fullMsg({
+      id: 1,
+      accountId: 'a',
+      remoteId: 'r',
+      bodyHtml: null,
+      bodyText: 'Bitte oeffnen: https://example.com/invite'
+    })
+    const reply = buildReplyBody(m)
+    expect(reply).toContain('<a href="https://example.com/invite">https://example.com/invite</a>')
+  })
+
+  it('linkifiziert nackte URLs in HTML-Bodies beim Zitieren', () => {
+    const m = fullMsg({
+      id: 1,
+      accountId: 'a',
+      remoteId: 'r',
+      bodyHtml: '<p>Mehr unter https://example.com/docs</p>',
+      bodyText: null
+    })
+    const reply = buildReplyBody(m)
+    expect(reply).toContain('<a href="https://example.com/docs">https://example.com/docs</a>')
+  })
 })

@@ -1,5 +1,6 @@
 import { createGraphClient } from './client'
 import { loadConfig } from '../config'
+import { isGraphItemNotFound } from './graph-request-errors'
 
 async function getClientFor(accountId: string): Promise<ReturnType<typeof createGraphClient>> {
   const config = await loadConfig()
@@ -66,11 +67,20 @@ function graphDeleteFolderErrorMessage(e: unknown): string {
   return 'Unbekannter Fehler beim Loeschen des Ordners auf dem Server.'
 }
 
-export async function deleteFolder(accountId: string, remoteId: string): Promise<void> {
+/**
+ * Loescht den Ordner auf dem Server.
+ * `@returns` `'already-gone'` wenn Graph 404 liefert (lokal trotzdem bereinigen).
+ */
+export async function deleteFolder(
+  accountId: string,
+  remoteId: string
+): Promise<'deleted' | 'already-gone'> {
   const client = await getClientFor(accountId)
   try {
     await client.api(`/me/mailFolders/${remoteId}`).delete()
+    return 'deleted'
   } catch (e) {
+    if (isGraphItemNotFound(e)) return 'already-gone'
     throw new Error(graphDeleteFolderErrorMessage(e))
   }
 }

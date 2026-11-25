@@ -20,6 +20,7 @@ import {
   createMailSendToExistingNoteHandler,
   createMailSendToNewNoteHandler
 } from '@/lib/mail-to-note'
+import { createMailSendToOneNoteHandler } from '@/lib/onenote-ui'
 import type { ObjectNoteTarget } from '@/components/ObjectNoteEditor'
 
 export function useCalendarShellMailActions(args: {
@@ -144,7 +145,8 @@ export function useCalendarShellMailActions(args: {
       refreshNow: async (): Promise<void> => {
         await refreshNow()
         bumpTodoOverlayAndSideList()
-      }
+      },
+      sendToOneNote: createMailSendToOneNoteHandler()
     }),
     [
       openReply,

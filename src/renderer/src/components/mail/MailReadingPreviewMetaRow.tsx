@@ -18,6 +18,7 @@ import { CalendarDays, Check, GripVertical, Pencil, Star } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { NotesCategoryBadges } from '@/components/NotesCategoryBadges'
 import { PreviewMetaDot } from '@/components/preview-meta-chrome'
+import { useAccountMasterCategoryColors } from '@/hooks/use-account-master-category-colors'
 import { useMailReadingPreviewMetaPrefs } from '@/hooks/use-mail-reading-preview-meta-prefs'
 import {
   applyMailReadingPreviewMetaFieldPrefs,
@@ -40,7 +41,11 @@ function MetaSegment({
 }): JSX.Element {
   return (
     <span
-      className={cn('inline-flex min-w-0 max-w-full items-center gap-1', editing && 'rounded-sm ring-1 ring-border/60', className)}
+      className={cn(
+        'inline-flex min-w-0 max-w-full items-center gap-1',
+        editing && 'rounded-sm ring-1 ring-border/60',
+        className
+      )}
       onContextMenu={onContextMenu}
     >
       {children}
@@ -95,12 +100,14 @@ function SortableMetaSegment({
 
 export function MailReadingPreviewMetaRow({
   messageId,
+  accountId,
   ctx,
   accountEnabled,
   onOpenCategories,
   onFromContextMenu
 }: {
   messageId: number
+  accountId?: string | null
   ctx: MailReadingPreviewMetaFieldContext
   accountEnabled: boolean
   onOpenCategories: (e: React.MouseEvent | React.KeyboardEvent) => void
@@ -108,6 +115,7 @@ export function MailReadingPreviewMetaRow({
 }): JSX.Element | null {
   const { t } = useTranslation()
   const prefs = useMailReadingPreviewMetaPrefs()
+  const categoryColorByName = useAccountMasterCategoryColors(accountId)
   const [editing, setEditing] = useState(false)
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
 
@@ -139,7 +147,10 @@ export function MailReadingPreviewMetaRow({
 
   if (visibleIds.length === 0) return null
 
-  const renderField = (id: MailReadingPreviewMetaFieldId, interactive: boolean): React.ReactNode => {
+  const renderField = (
+    id: MailReadingPreviewMetaFieldId,
+    interactive: boolean
+  ): React.ReactNode => {
     switch (id) {
       case 'dateTime':
         return (
@@ -205,16 +216,10 @@ export function MailReadingPreviewMetaRow({
                 title={t('mail.readingPane.categoriesTitle')}
                 onClick={onOpenCategories}
               >
-                {ctx.categories.length > 0 ? (
-                  <NotesCategoryBadges names={ctx.categories} colorByName={new Map()} />
-                ) : (
-                  <span className="text-muted-foreground">{t('mail.readingPane.categoriesEmpty')}</span>
-                )}
+                <NotesCategoryBadges names={ctx.categories} colorByName={categoryColorByName} />
               </button>
-            ) : ctx.categories.length > 0 ? (
-              <NotesCategoryBadges names={ctx.categories} colorByName={new Map()} />
             ) : (
-              <span className="text-muted-foreground">{t('mail.readingPane.categoriesEmpty')}</span>
+              <NotesCategoryBadges names={ctx.categories} colorByName={categoryColorByName} />
             )}
           </>
         )
@@ -287,7 +292,9 @@ export function MailReadingPreviewMetaRow({
               : 'border-border text-muted-foreground hover:bg-secondary/60 hover:text-foreground'
           )}
           title={editing ? t('mail.readingPane.metaEditDoneTitle') : t('mail.readingPane.metaEditTitle')}
-          aria-label={editing ? t('mail.readingPane.metaEditDoneTitle') : t('mail.readingPane.metaEditTitle')}
+          aria-label={
+            editing ? t('mail.readingPane.metaEditDoneTitle') : t('mail.readingPane.metaEditTitle')
+          }
           aria-pressed={editing}
         >
           {editing ? (

@@ -31,6 +31,8 @@ import { ProfileSyncBridge } from './components/ProfileSyncBridge'
 import { useSnoozeUiStore } from './stores/snooze-ui'
 import { useCreateCloudTaskUiStore } from './stores/create-cloud-task-ui'
 import { useNotionDestinationPickerStore } from './stores/notion-destination-picker'
+import { useEventsOsDestinationPickerStore } from './stores/events-os-destination-picker'
+import { useOneNoteDestinationPickerStore } from './stores/onenote-destination-picker'
 import { installHomepageCaptureBridge } from './lib/homepage-capture-bridge'
 
 const Topbar = lazy(async () => {
@@ -57,6 +59,14 @@ const NotionDestinationPickerDialog = lazy(async () => {
   const m = await import('./components/NotionDestinationPickerDialog')
   return { default: m.NotionDestinationPickerDialog }
 })
+const EventsOsDestinationPickerDialog = lazy(async () => {
+  const m = await import('./components/EventsOsDestinationPickerDialog')
+  return { default: m.EventsOsDestinationPickerDialog }
+})
+const OneNoteDestinationPickerDialog = lazy(async () => {
+  const m = await import('./components/OneNoteDestinationPickerDialog')
+  return { default: m.OneNoteDestinationPickerDialog }
+})
 const SnoozePickerHost = lazy(async () => {
   const m = await import('./components/SnoozePickerHost')
   return { default: m.SnoozePickerHost }
@@ -72,6 +82,10 @@ const CreateCloudTaskFromMailDialogHost = lazy(async () => {
 const CalendarIcsImportDialogHost = lazy(async () => {
   const m = await import('./components/CalendarIcsImportDialogHost')
   return { default: m.CalendarIcsImportDialogHost }
+})
+const EventsOsWebinarLaunchHost = lazy(async () => {
+  const m = await import('./components/EventsOsWebinarLaunchHost')
+  return { default: m.EventsOsWebinarLaunchHost }
 })
 const MailCreateContactHost = lazy(async () => {
   const m = await import('./app/layout/MailCreateContactHost')
@@ -202,6 +216,8 @@ export function App(): JSX.Element {
   const snoozePickerOpen = useSnoozeUiStore((s) => s.pendingMessageId != null)
   const cloudTaskDialogOpen = useCreateCloudTaskUiStore((s) => s.pendingMessage != null)
   const notionPickerOpen = useNotionDestinationPickerStore((s) => s.open)
+  const eventsOsPickerOpen = useEventsOsDestinationPickerStore((s) => s.open)
+  const oneNotePickerOpen = useOneNoteDestinationPickerStore((s) => s.open)
 
   const workflowMailTriageAccounts = useMemo(
     () => accounts.filter((a) => a.provider === 'microsoft' || a.provider === 'google'),
@@ -428,9 +444,22 @@ export function App(): JSX.Element {
       <Suspense fallback={null}>
         <CalendarIcsImportDialogHost />
       </Suspense>
+      <Suspense fallback={null}>
+        <EventsOsWebinarLaunchHost />
+      </Suspense>
       {notionPickerOpen ? (
         <Suspense fallback={null}>
           <NotionDestinationPickerDialog />
+        </Suspense>
+      ) : null}
+      {eventsOsPickerOpen ? (
+        <Suspense fallback={null}>
+          <EventsOsDestinationPickerDialog />
+        </Suspense>
+      ) : null}
+      {oneNotePickerOpen ? (
+        <Suspense fallback={null}>
+          <OneNoteDestinationPickerDialog />
         </Suspense>
       ) : null}
       <Suspense fallback={null}>

@@ -16,10 +16,12 @@ import {
   graphPatchEventCategories,
   graphPatchEventStatus,
   graphGetCalendarEvent,
+  graphResolveCalendarIdOwnedByMailbox,
   type GraphCalendarEventRow,
   type CreateTeamsCalendarEventInput,
   type CreateTeamsCalendarEventResult
 } from './graph/calendar-graph'
+import { DEFAULT_WEBINAR_FROM_MAILBOX, normalizeWebinarFromMailbox } from '@shared/webinar-from-mailbox'
 import {
   graphCreateOnlineMeetingWithTemplate,
   type CreateOnlineMeetingWithTemplateResult
@@ -406,10 +408,47 @@ export async function getCalendarEventForAccount(input: CalendarGetEventInput): 
     throw new Error('Kalender-Termin-Details werden fuer dieses Konto nicht unterstuetzt.')
   } else {
     detail = await runGraphMailboxRequest(input.accountId, 'getCalendarEvent', () =>
-      graphGetCalendarEvent(input.accountId, graphEventId, graphCalendarId, acc.email)
+      graphGetCalendarEvent(
+        input.accountId,
+        graphEventId,
+        graphCalendarId,
+        acc.email,
+        input.mailboxSmtp?.trim() || null
+      )
     )
   }
   return detail
+}
+
+/**
+ * Webinar-Absender: freigegebenen Kalender unter /me (Owner = SMTP) bevorzugen,
+ * sonst direkt `/users/{smtp}/events`.
+ */
+async function resolveMicrosoftOrganizerTarget(
+  accountId: string,
+  input: Pick<CalendarSaveEventInput, 'mailboxSmtp' | 'graphCalendarId' | 'chronellWebinarInvitation'>,
+  opts?: { /** true = Webinar-Neuanlage immer über events@ (o.Ä.) */
+    forceWebinarFrom?: boolean }
+): Promise<{ graphCalendarId: string | null; mailboxSmtp: string | null }> {
+  const explicitSmtp = input.mailboxSmtp?.trim() || null
+  const force =
+    Boolean(opts?.forceWebinarFrom) && Boolean(input.chronellWebinarInvitation)
+  if (!explicitSmtp && !force) {
+    return {
+      graphCalendarId: input.graphCalendarId?.trim() || null,
+      mailboxSmtp: null
+    }
+  }
+  const smtp = normalizeWebinarFromMailbox(explicitSmtp || DEFAULT_WEBINAR_FROM_MAILBOX)
+  try {
+    const ownedCal = await graphResolveCalendarIdOwnedByMailbox(accountId, smtp)
+    if (ownedCal) {
+      return { graphCalendarId: ownedCal, mailboxSmtp: null }
+    }
+  } catch (e) {
+    console.warn('[calendar] Webinar-Kalender Owner-Lookup:', e)
+  }
+  return { graphCalendarId: null, mailboxSmtp: smtp }
 }
 
 export async function createSimpleCalendarEventForAccount(
@@ -441,6 +480,9 @@ export async function createSimpleCalendarEventForAccount(
     }
     return { id: r.id, webLink: r.webLink }
   }
+  const target = await resolveMicrosoftOrganizerTarget(input.accountId, input, {
+    forceWebinarFrom: true
+  })
   const r = await graphCreateSimpleCalendarEvent(input.accountId, {
     subject: input.subject,
     startIso: input.startIso,
@@ -448,7 +490,8 @@ export async function createSimpleCalendarEventForAccount(
     isAllDay: input.isAllDay,
     location: input.location,
     bodyHtml: input.bodyHtml,
-    graphCalendarId: input.graphCalendarId ?? null,
+    graphCalendarId: target.graphCalendarId,
+    mailboxSmtp: target.mailboxSmtp,
     categories: input.categories,
     attendeeEmails: input.attendeeEmails,
     teamsMeeting: input.teamsMeeting,
@@ -466,12 +509,24 @@ export async function createSimpleCalendarEventForAccount(
     notifyAttendeeScope: input.notifyAttendeeScope ?? null
   })
   if (input.attachments?.length || input.referenceAttachments?.length) {
-    await addCalendarEventAttachments(input.accountId, r.id, input.graphCalendarId ?? null, {
-      files: input.attachments,
-      references: input.referenceAttachments
-    })
+    await addCalendarEventAttachments(
+      input.accountId,
+      r.id,
+      target.graphCalendarId,
+      {
+        files: input.attachments,
+        references: input.referenceAttachments
+      },
+      target.mailboxSmtp
+    )
   }
-  return { id: r.id, webLink: r.webLink, joinUrl: r.joinUrl ?? null }
+  return {
+    id: r.id,
+    webLink: r.webLink,
+    joinUrl: r.joinUrl ?? null,
+    graphCalendarId: target.graphCalendarId,
+    mailboxSmtp: target.mailboxSmtp
+  }
 }
 
 function sleepMs(ms: number): Promise<void> {
@@ -481,14 +536,27 @@ function sleepMs(ms: number): Promise<void> {
 export async function refreshMicrosoftCalendarEventMeetingFields(
   accountId: string,
   graphEventId: string,
-  graphCalendarId?: string | null
+  graphCalendarId?: string | null,
+  mailboxSmtp?: string | null
 ): Promise<{ joinUrl: string | null; isOnlineMeeting: boolean }> {
-  let detail = await graphGetCalendarEvent(accountId, graphEventId, graphCalendarId ?? null)
+  let detail = await graphGetCalendarEvent(
+    accountId,
+    graphEventId,
+    graphCalendarId ?? null,
+    null,
+    mailboxSmtp
+  )
   // Join-URL kommt bei frisch aktivierter Teams-Besprechung oft erst nach kurzer Verzoegerung.
   if (detail.isOnlineMeeting && !detail.joinUrl?.trim()) {
     for (let attempt = 0; attempt < 3; attempt++) {
       await sleepMs(attempt === 0 ? 400 : 800)
-      detail = await graphGetCalendarEvent(accountId, graphEventId, graphCalendarId ?? null)
+      detail = await graphGetCalendarEvent(
+        accountId,
+        graphEventId,
+        graphCalendarId ?? null,
+        null,
+        mailboxSmtp
+      )
       if (detail.joinUrl?.trim()) break
     }
   }
@@ -535,11 +603,21 @@ export async function updateCalendarEventForAccount(input: CalendarUpdateEventIn
   const regularAttachments = rest.attachments?.filter((a) => !a.isInline) ?? []
   const referenceAttachments = rest.referenceAttachments
 
+  // Update: nur umleiten wenn mailboxSmtp explizit gesetzt (neue Webinare).
+  const target = await resolveMicrosoftOrganizerTarget(accountId, rest, {
+    forceWebinarFrom: false
+  })
+  const targetCalId = target.graphCalendarId ?? rest.graphCalendarId ?? null
+
   // Inline-Bilder (cid:) vor Body-PATCH — sonst fehlen Hero-Bilder in der Einladung.
   if (inlineAttachments.length > 0) {
-    await addCalendarEventAttachments(accountId, graphEventId, rest.graphCalendarId ?? null, {
-      files: inlineAttachments
-    })
+    await addCalendarEventAttachments(
+      accountId,
+      graphEventId,
+      targetCalId,
+      { files: inlineAttachments },
+      target.mailboxSmtp
+    )
   }
 
   await graphUpdateCalendarEvent(accountId, graphEventId, {
@@ -549,7 +627,8 @@ export async function updateCalendarEventForAccount(input: CalendarUpdateEventIn
     isAllDay: rest.isAllDay,
     location: rest.location,
     bodyHtml: rest.bodyHtml,
-    graphCalendarId: rest.graphCalendarId ?? null,
+    graphCalendarId: targetCalId,
+    mailboxSmtp: target.mailboxSmtp,
     categories: rest.categories,
     attendeeEmails: rest.attendeeEmails,
     teamsMeeting: rest.teamsMeeting,
@@ -567,16 +646,23 @@ export async function updateCalendarEventForAccount(input: CalendarUpdateEventIn
     notifyAttendeeScope: rest.notifyAttendeeScope ?? null
   })
   if (regularAttachments.length > 0 || referenceAttachments?.length) {
-    await addCalendarEventAttachments(accountId, graphEventId, rest.graphCalendarId ?? null, {
-      files: regularAttachments,
-      references: referenceAttachments
-    })
+    await addCalendarEventAttachments(
+      accountId,
+      graphEventId,
+      targetCalId,
+      {
+        files: regularAttachments,
+        references: referenceAttachments
+      },
+      target.mailboxSmtp
+    )
   }
   if (acc?.provider === 'microsoft' && typeof input.teamsMeeting === 'boolean' && !input.isAllDay) {
     await refreshMicrosoftCalendarEventMeetingFields(
       accountId,
       graphEventId,
-      input.graphCalendarId ?? null
+      targetCalId,
+      target.mailboxSmtp
     )
   }
 }

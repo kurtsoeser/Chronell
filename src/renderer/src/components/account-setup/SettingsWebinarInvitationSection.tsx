@@ -178,6 +178,21 @@ export function SettingsWebinarInvitationSection(): JSX.Element {
       </div>
       <p className="text-xs text-muted-foreground">{t('settings.webinarInvitation.intro')}</p>
 
+      <label className={labelClass}>
+        <span className="font-medium text-foreground">
+          {t('settings.webinarInvitation.defaultFromMailbox')}
+        </span>
+        <p className={hintClass}>{t('settings.webinarInvitation.defaultFromMailboxHint')}</p>
+        <input
+          type="email"
+          value={draft.defaultFromMailbox ?? ''}
+          onChange={(e): void => patch({ defaultFromMailbox: e.target.value })}
+          className={inputClass}
+          placeholder={t('settings.webinarInvitation.defaultFromMailboxPlaceholder')}
+          autoComplete="off"
+        />
+      </label>
+
       <div className="space-y-2 rounded-md border border-border/60 bg-secondary/10 px-3 py-3">
         <p className="text-xs font-medium text-foreground">
           {t('settings.webinarInvitation.defaultThemeHeading')}

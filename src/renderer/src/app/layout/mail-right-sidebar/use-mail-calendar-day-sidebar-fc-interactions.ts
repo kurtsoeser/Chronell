@@ -31,6 +31,7 @@ import { useAppModeStore } from '@/stores/app-mode'
 import { useComposeStore } from '@/stores/compose'
 import { useSnoozeUiStore } from '@/stores/snooze-ui'
 import type { MailContextHandlers } from '@/lib/mail-context-menu'
+import { createMailSendToOneNoteHandler } from '@/lib/onenote-ui'
 import type { WorkItemContextHandlers } from '@/app/work-items/work-item-context-menu'
 import { accountSupportsCloudTasks } from '@/lib/cloud-task-accounts'
 import { confirmDeleteCloudTasks } from '@/app/tasks/confirm-delete-cloud-task'
@@ -176,7 +177,8 @@ export function useMailCalendarDaySidebarFcInteractions(opts: {
       refreshNow: async (): Promise<void> => {
         await refreshNow()
         refreshMailTodos()
-      }
+      },
+      sendToOneNote: createMailSendToOneNoteHandler()
     }),
     [
       openReply,

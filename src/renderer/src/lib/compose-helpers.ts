@@ -1,3 +1,4 @@
+import { linkifyBareUrlsInHtmlFragment } from '@shared/calendar-event-body-html'
 import type { MailFull } from '@shared/types'
 
 export interface ParsedRecipient {
@@ -156,9 +157,12 @@ function escapeHtml(s: string): string {
 }
 
 function plainBodyOfMessage(message: MailFull): string {
-  if (message.bodyHtml) return message.bodyHtml
+  if (message.bodyHtml) {
+    // Bestehende <a>-Tags behalten; nackte URLs im HTML-Text klickbar machen.
+    return linkifyBareUrlsInHtmlFragment(message.bodyHtml)
+  }
   if (message.bodyText) {
-    return escapeHtml(message.bodyText).replace(/\n/g, '<br>')
+    return plainToHtml(message.bodyText)
   }
   return ''
 }
@@ -209,8 +213,6 @@ export function withForwardPrefix(subject: string | null): string {
   const s = subject ?? ''
   return /^fwd?:/i.test(s) ? s : `Fwd: ${s}`
 }
-
-import { linkifyBareUrlsInHtmlFragment } from '@shared/calendar-event-body-html'
 
 /**
  * Wandelt einen Plain-Text-Body in einfaches HTML (mit Zeilenumbruch),

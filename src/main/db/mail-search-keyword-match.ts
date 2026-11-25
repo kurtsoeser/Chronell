@@ -80,15 +80,8 @@ export function buildMailKeywordMatchSql(
         'IFNULL(m.cc_addrs, \'\')',
         'IFNULL(m.bcc_addrs, \'\')'
       ]
-      const variants = germanSearchTokenVariants(tok)
-      const likes = variants.length > 0 ? variants : [tok]
-      const colOrs: string[] = []
-      for (const v of likes) {
-        params.push(`%${escapeSqlLikePattern(v)}%`)
-        for (const col of cols) {
-          colOrs.push(`LOWER(${col}) LIKE LOWER(?) ESCAPE '\\'`)
-        }
-      }
+      // Pro Spalte eigene LIKE-Klausel inkl. Param — sonst mehr ? als Bindings.
+      const colOrs = cols.map((col) => tokenLikeOrClause(col, tok, params))
       return `(${colOrs.join(' OR ')})`
     })
     branches.push(`(${addressParts.join(' AND ')})`)

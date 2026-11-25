@@ -1,4 +1,7 @@
+import type { ReactNode } from 'react'
 import { parsePanelPopoutRoute } from '@/app/panel-popout/panel-popout-route'
+import { AppDialogHost } from '@/components/AppDialogHost'
+import { ToastStack } from '@/components/ToastStack'
 import { CalendarEventPopoutShell } from '@/app/panel-popout/shells/CalendarEventPopoutShell'
 import { CalendarPreviewPopoutShell } from '@/app/panel-popout/shells/CalendarPreviewPopoutShell'
 import { CalendarZeitlistePopoutShell } from '@/app/panel-popout/shells/CalendarZeitlistePopoutShell'
@@ -7,28 +10,53 @@ import { ConnectionsPreviewPopoutShell } from '@/app/panel-popout/shells/Connect
 import { CustomViewZonePopoutShell } from '@/app/panel-popout/shells/CustomViewZonePopoutShell'
 import { MailCalendarSidebarPopoutShell } from '@/app/panel-popout/shells/MailCalendarSidebarPopoutShell'
 
+function PanelPopoutFrame({ children }: { children: ReactNode }): JSX.Element {
+  return (
+    <>
+      {children}
+      <ToastStack />
+      <AppDialogHost />
+    </>
+  )
+}
+
 export function PanelPopoutShell(): JSX.Element {
   const route = parsePanelPopoutRoute()
   if (!route) {
-    return <div className="p-4 text-sm text-muted-foreground">Ungültiges Panel-Fenster.</div>
+    return (
+      <PanelPopoutFrame>
+        <div className="p-4 text-sm text-muted-foreground">Ungültiges Panel-Fenster.</div>
+      </PanelPopoutFrame>
+    )
   }
 
+  let body: JSX.Element
   switch (route.panel) {
     case 'mail-calendar':
-      return <MailCalendarSidebarPopoutShell />
+      body = <MailCalendarSidebarPopoutShell />
+      break
     case 'calendar-zeitliste':
-      return <CalendarZeitlistePopoutShell />
+      body = <CalendarZeitlistePopoutShell />
+      break
     case 'calendar-preview':
-      return <CalendarPreviewPopoutShell />
+      body = <CalendarPreviewPopoutShell />
+      break
     case 'calendar-event':
-      return <CalendarEventPopoutShell />
+      body = <CalendarEventPopoutShell />
+      break
     case 'connections-preview':
-      return <ConnectionsPreviewPopoutShell />
+      body = <ConnectionsPreviewPopoutShell />
+      break
     case 'compose':
-      return <ComposePopoutShell />
+      body = <ComposePopoutShell />
+      break
     case 'custom-view-zone':
-      return <CustomViewZonePopoutShell />
+      body = <CustomViewZonePopoutShell />
+      break
     default:
-      return <div className="p-4 text-sm text-muted-foreground">Unbekanntes Panel.</div>
+      body = <div className="p-4 text-sm text-muted-foreground">Unbekanntes Panel.</div>
+      break
   }
+
+  return <PanelPopoutFrame>{body}</PanelPopoutFrame>
 }

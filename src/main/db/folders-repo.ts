@@ -152,9 +152,36 @@ export function deleteFolderLocal(id: number): void {
   const db = getDb()
   const tx = db.transaction(() => {
     db.prepare('DELETE FROM messages WHERE folder_id = ?').run(id)
+    db.prepare('DELETE FROM sync_state WHERE folder_id = ?').run(id)
     db.prepare('DELETE FROM folders WHERE id = ?').run(id)
   })
   tx()
+}
+
+/**
+ * Entfernt lokale Ordner, deren remote_id beim letzten Server-Abgleich
+ * nicht mehr geliefert wurde (Ghost-Ordner nach Loeschen/ID-Wechsel).
+ * Bei leerer remoteIds-Menge wird nichts geloescht (Schutz vor Fehl-Sync).
+ * @returns remote_ids der entfernten Ghost-Ordner
+ */
+export function deleteFoldersMissingFromRemote(
+  accountId: string,
+  remoteIds: ReadonlySet<string>
+): string[] {
+  if (remoteIds.size === 0) return []
+  const db = getDb()
+  const rows = db
+    .prepare<[string], { id: number; remote_id: string }>(
+      'SELECT id, remote_id FROM folders WHERE account_id = ?'
+    )
+    .all(accountId)
+  const stale = rows.filter((r) => !remoteIds.has(r.remote_id))
+  if (stale.length === 0) return []
+  const tx = db.transaction(() => {
+    for (const r of stale) deleteFolderLocal(r.id)
+  })
+  tx()
+  return stale.map((r) => r.remote_id)
 }
 
 export function updateFolderParentLocal(id: number, parentRemoteId: string | null): void {

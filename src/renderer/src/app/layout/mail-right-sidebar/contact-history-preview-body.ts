@@ -1,7 +1,7 @@
 import type { MailFull } from '@shared/types'
 import {
+  prepareMailHtmlForDisplay,
   replaceInlineCidImages,
-  sanitizeMailHtml,
   stripUnresolvedCidUrls
 } from '@/lib/sanitize'
 
@@ -23,21 +23,30 @@ export function buildContactHistoryPreviewBodyHtml(
 ): string {
   if (message.bodyHtml?.trim()) {
     const withInline = replaceInlineCidImages(message.bodyHtml, inlineImages)
-    return sanitizeMailHtml(stripUnresolvedCidUrls(withInline), { loadImages: false })
+    return prepareMailHtmlForDisplay(stripUnresolvedCidUrls(withInline), { loadImages: false })
   }
   if (message.bodyText?.trim()) {
     const text =
       message.bodyText.length > MAX_PLAIN_CHARS
         ? `${message.bodyText.slice(0, MAX_PLAIN_CHARS)}…`
         : message.bodyText
-    return `<div class="contact-history-preview-plain">${escapeHtml(text).replace(/\n/g, '<br>')}</div>`
+    return prepareMailHtmlForDisplay(
+      `<div class="contact-history-preview-plain">${escapeHtml(text).replace(/\n/g, '<br>')}</div>`,
+      { loadImages: true }
+    )
   }
   if (snippet?.trim()) {
-    return `<div class="contact-history-preview-plain">${escapeHtml(snippet.trim())}</div>`
+    return prepareMailHtmlForDisplay(
+      `<div class="contact-history-preview-plain">${escapeHtml(snippet.trim())}</div>`,
+      { loadImages: true }
+    )
   }
   return ''
 }
 
 export function buildContactHistoryPreviewSnippetHtml(snippet: string): string {
-  return `<div class="contact-history-preview-plain">${escapeHtml(snippet.trim())}</div>`
+  return prepareMailHtmlForDisplay(
+    `<div class="contact-history-preview-plain">${escapeHtml(snippet.trim())}</div>`,
+    { loadImages: true }
+  )
 }

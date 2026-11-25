@@ -160,7 +160,8 @@ export function mailReadingPreviewMetaFieldHasData(
     case 'cc':
       return Boolean(ctx.ccAddrs?.trim())
     case 'categories':
-      return true
+      // Leer: steuern über Tag-Button in der Toolbar, kein leerer Meta-Platzhalter
+      return ctx.categories.length > 0
     case 'account':
       return Boolean(ctx.accountLabel?.trim())
     case 'flagged':

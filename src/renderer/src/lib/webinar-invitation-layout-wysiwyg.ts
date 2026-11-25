@@ -14,11 +14,26 @@ import {
 } from '@/lib/webinar-invitation-layout-template'
 import { WEBINAR_HERO_PLACEHOLDER_SLOT_ID } from '@/lib/webinar-invitation-layout-template'
 
+/** Editierbare Fliesstext-Slots (Begruessung, Tipps, Gruss, Signatur, Supplement). */
+export const WEBINAR_LAYOUT_EDITABLE_PLACEHOLDERS = [
+  'greetingBlock',
+  'supplementBlock',
+  'tipsBlock',
+  'signOffBlock',
+  'signature'
+] as const
+
+/**
+ * Nur Termin-/Link-Slots bleiben gelb geschuetzt.
+ * Fliesstext nutzt data-chronell-layout-slot ohne Protection (siehe Expand).
+ */
 export const WEBINAR_LAYOUT_WYSIWYG_PROTECTED_SELECTORS = [
   '#chronell-webinar-teams-slot',
   `#${WEBINAR_HERO_PLACEHOLDER_SLOT_ID}`,
-  '[data-chronell-layout-slot]'
+  '[data-chronell-layout-protected="true"]'
 ] as const
+
+const DYNAMIC_SLOT_SET = new Set<string>(WEBINAR_INVITATION_DYNAMIC_PLACEHOLDERS)
 
 const SAMPLE_TITLE = 'Beispiel-Webinar'
 const SAMPLE_SCHEDULE = 'Freitag, 1. Januar 2027 | 18:00 – 19:00'
@@ -122,11 +137,27 @@ export function insertWebinarLayoutSlotIntoEditorHtml(
 
 function wrapProtectedLayoutSlot(slot: string, innerHtml: string): string {
   return [
-    `<div data-chronell-layout-slot="${slot}" contenteditable="false" data-wysiwyg-protected="true"`,
-    `style="display:block;outline:1px dashed rgba(201,169,98,0.35);outline-offset:3px">`,
+    `<div data-chronell-layout-slot="${slot}" data-chronell-layout-protected="true"`,
+    ` contenteditable="false" data-wysiwyg-protected="true"`,
+    ` style="display:block;outline:1px dashed rgba(201,169,98,0.35);outline-offset:3px">`,
     innerHtml,
     '</div>'
   ].join('')
+}
+
+function wrapEditableLayoutSlot(slot: string, innerHtml: string): string {
+  return [
+    `<div data-chronell-layout-slot="${slot}" data-chronell-layout-editable="true"`,
+    ` style="display:block">`,
+    innerHtml,
+    '</div>'
+  ].join('')
+}
+
+function wrapLayoutSlotForEditor(slot: string, innerHtml: string): string {
+  return DYNAMIC_SLOT_SET.has(slot)
+    ? wrapProtectedLayoutSlot(slot, innerHtml)
+    : wrapEditableLayoutSlot(slot, innerHtml)
 }
 
 /** Vollstaendiges TN-HTML fuer den Einstellungs-WYSIWYG (Beispieldaten, geschuetzte Termin-Slots). */
@@ -140,10 +171,20 @@ export function expandWebinarLayoutTemplateForSettingsEditor(
   for (const key of WEBINAR_INVITATION_LAYOUT_PLACEHOLDERS) {
     working = working.replace(
       new RegExp(`\\{\\{${key}\\}\\}`, 'g'),
-      wrapProtectedLayoutSlot(key, context[key] ?? '')
+      wrapLayoutSlotForEditor(key, context[key] ?? '')
     )
   }
   return working
+}
+
+function unwrapLayoutSlotNode(node: Element, doc: Document, keepAsPlaceholder: string | null): void {
+  if (keepAsPlaceholder) {
+    node.replaceWith(doc.createTextNode(`{{${keepAsPlaceholder}}}`))
+    return
+  }
+  const frag = doc.createDocumentFragment()
+  while (node.firstChild) frag.appendChild(node.firstChild)
+  node.replaceWith(frag)
 }
 
 /** WYSIWYG-HTML zurueck in Layout-Vorlage mit {{teamsBlock}} usw. */
@@ -155,9 +196,15 @@ export function collapseWebinarLayoutEditorHtmlToTemplate(html: string): string 
     const doc = new DOMParser().parseFromString(`<div id="chronell-layout-root">${trimmed}</div>`, 'text/html')
     const root = doc.getElementById('chronell-layout-root')
     if (root) {
-      for (const key of WEBINAR_INVITATION_LAYOUT_PLACEHOLDERS) {
+      for (const key of WEBINAR_INVITATION_DYNAMIC_PLACEHOLDERS) {
         root.querySelectorAll(`[data-chronell-layout-slot="${key}"]`).forEach((node) => {
-          node.replaceWith(doc.createTextNode(`{{${key}}}`))
+          unwrapLayoutSlotNode(node, doc, key)
+        })
+      }
+      for (const key of WEBINAR_LAYOUT_EDITABLE_PLACEHOLDERS) {
+        root.querySelectorAll(`[data-chronell-layout-slot="${key}"]`).forEach((node) => {
+          // Fliesstext einbacken — Aenderungen bleiben in der Vorlage erhalten
+          unwrapLayoutSlotNode(node, doc, null)
         })
       }
       const heroCell = root.querySelector(`#${WEBINAR_HERO_PLACEHOLDER_SLOT_ID}`)
@@ -169,6 +216,8 @@ export function collapseWebinarLayoutEditorHtmlToTemplate(html: string): string 
         node.removeAttribute('contenteditable')
         node.removeAttribute('data-wysiwyg-protected')
         node.removeAttribute('data-chronell-layout-slot')
+        node.removeAttribute('data-chronell-layout-protected')
+        node.removeAttribute('data-chronell-layout-editable')
         node.removeAttribute('style')
       })
       return root.innerHTML.trim()
@@ -176,20 +225,30 @@ export function collapseWebinarLayoutEditorHtmlToTemplate(html: string): string 
   }
 
   let template = trimmed
-  for (const key of WEBINAR_INVITATION_LAYOUT_PLACEHOLDERS) {
-    template = replaceProtectedLayoutSlotByDepth(template, key)
+  for (const key of WEBINAR_INVITATION_DYNAMIC_PLACEHOLDERS) {
+    template = replaceLayoutSlotByDepth(template, key, 'placeholder')
+  }
+  for (const key of WEBINAR_LAYOUT_EDITABLE_PLACEHOLDERS) {
+    template = replaceLayoutSlotByDepth(template, key, 'bake')
   }
   return normalizeWebinarLayoutTemplateSlots(
     template
       .replace(/\scontenteditable="false"/gi, '')
       .replace(/\sdata-wysiwyg-protected="true"/gi, '')
+      .replace(/\sdata-chronell-layout-protected="true"/gi, '')
+      .replace(/\sdata-chronell-layout-editable="true"/gi, '')
       .replace(/\sdata-chronell-layout-slot="[^"]*"/gi, '')
       .replace(/\sstyle="display:block;outline:1px dashed rgba\(201,169,98,0\.35\);outline-offset:3px"/gi, '')
+      .replace(/\sstyle="display:block"/gi, '')
       .trim()
   )
 }
 
-function replaceProtectedLayoutSlotByDepth(html: string, key: string): string {
+function replaceLayoutSlotByDepth(
+  html: string,
+  key: string,
+  mode: 'placeholder' | 'bake'
+): string {
   const openRe = new RegExp(`<div[^>]*data-chronell-layout-slot="${key}"[^>]*>`, 'i')
   const match = openRe.exec(html)
   if (!match) return html
@@ -208,7 +267,9 @@ function replaceProtectedLayoutSlotByDepth(html: string, key: string): string {
     }
     depth -= 1
     if (depth === 0) {
-      return `${html.slice(0, start)}{{${key}}}${html.slice(nextClose + 6)}`
+      const replacement =
+        mode === 'placeholder' ? `{{${key}}}` : html.slice(contentStart, nextClose)
+      return `${html.slice(0, start)}${replacement}${html.slice(nextClose + 6)}`
     }
     i = nextClose + 6
   }

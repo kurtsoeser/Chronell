@@ -34,7 +34,8 @@ export function normalizeWebinarLayoutTemplateSlots(template: string): string {
   return html
 }
 
-const WEBINAR_CORE_LAYOUT_SLOTS = ['greetingBlock', 'titleBlock', 'scheduleBlock'] as const
+/** Event-gebundene Slots — muessen als Platzhalter bleiben (nicht als Fliesstext einbacken). */
+const WEBINAR_CORE_LAYOUT_SLOTS = ['titleBlock', 'scheduleBlock'] as const
 
 const WEBINAR_CORE_SLOT_INSERT_AFTER: Partial<
   Record<(typeof WEBINAR_CORE_LAYOUT_SLOTS)[number], string>
@@ -43,7 +44,7 @@ const WEBINAR_CORE_SLOT_INSERT_AFTER: Partial<
   scheduleBlock: '{{titleBlock}}'
 }
 
-/** Fehlende Kern-Slots (Begruessung, Titel, Termin) in aelteren Vorlagen ergaenzen. */
+/** Fehlende Termin-Slots (Titel, Terminzeit) in aelteren Vorlagen ergaenzen. */
 export function ensureWebinarLayoutCoreSlots(template: string): string {
   let html = template.trim()
   if (!html) return html

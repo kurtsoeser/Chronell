@@ -67,6 +67,12 @@ import {
   notifyRendererOfPendingIcsFiles
 } from './ics-open-queue'
 import {
+  enqueueChronellWebinarLaunchesFromArgv,
+  notifyChronellWebinarLaunchesAvailable,
+  registerChronellProtocolClient
+} from './chronell-protocol-queue'
+import { parseChronellWebinarArg } from '@shared/chronell-protocol'
+import {
   registerNoteAttachmentMediaProtocol,
   registerNoteAttachmentMediaScheme
 } from './note-attachment-media-protocol'
@@ -81,6 +87,7 @@ import {
 import { configureDefaultSessionSpellChecker } from './chromium-spellchecker'
 
 configureChronellAppPaths()
+registerChronellProtocolClient()
 
 registerNoteAttachmentMediaScheme()
 registerNoteM365VideoScheme()
@@ -88,6 +95,7 @@ registerNoteM365VideoScheme()
 for (const icsPath of extractIcsPathsFromArgv(process.argv)) {
   enqueueIcsFilePath(icsPath)
 }
+enqueueChronellWebinarLaunchesFromArgv(process.argv)
 
 const gotSingleInstanceLock = app.requestSingleInstanceLock()
 if (!gotSingleInstanceLock) {
@@ -97,11 +105,26 @@ if (!gotSingleInstanceLock) {
     for (const icsPath of extractIcsPathsFromArgv(argv)) {
       enqueueIcsFilePath(icsPath)
     }
+    enqueueChronellWebinarLaunchesFromArgv(argv)
     if (mainWindow && !mainWindow.isDestroyed()) {
       if (mainWindow.isMinimized()) mainWindow.restore()
       mainWindow.show()
       mainWindow.focus()
       notifyRendererOfPendingIcsFiles(mainWindow)
+      notifyChronellWebinarLaunchesAvailable(mainWindow)
+    }
+  })
+
+  app.on('open-url', (event, url) => {
+    const launch = parseChronellWebinarArg(url)
+    if (!launch) return
+    event.preventDefault()
+    enqueueChronellWebinarLaunchesFromArgv([url])
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      if (mainWindow.isMinimized()) mainWindow.restore()
+      mainWindow.show()
+      mainWindow.focus()
+      notifyChronellWebinarLaunchesAvailable(mainWindow)
     }
   })
 
@@ -261,6 +284,7 @@ function createMainWindow(): void {
 
   mainWindow.webContents.once('did-finish-load', () => {
     notifyRendererOfPendingIcsFiles(mainWindow)
+    notifyChronellWebinarLaunchesAvailable(mainWindow)
     if (isHomepageCaptureRequested() && mainWindow) {
       void runHomepageScreenshotCapture(mainWindow).catch((e) => {
         console.error('[capture] fehlgeschlagen:', e)

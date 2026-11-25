@@ -53,7 +53,7 @@ export function ComposeMessageOptionsDialog({
   return (
     <ModalRoot open zIndex={200} onBackdropClick={onClose}>
       <ModalPanel
-        className="flex w-full max-w-[22rem] flex-col gap-4 p-4"
+        className="flex w-full max-w-[22rem] flex-col gap-4 rounded-xl border border-border bg-card p-4 text-foreground shadow-2xl"
         aria-labelledby="compose-message-options-title"
         onClick={(e): void => e.stopPropagation()}
       >

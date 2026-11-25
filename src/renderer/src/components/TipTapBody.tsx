@@ -332,7 +332,11 @@ export function TipTapBody({
           !isNoteWikiLinkHref(url) &&
           !isNoteEntityMentionHref(url) &&
           !(enableTaskList && isEmbeddableNoteUrl(url)),
-        HTMLAttributes: { rel: 'noopener noreferrer', target: '_blank' }
+        // Mail: kein target=_blank (manche Clients strippen sonst den Anker).
+        // Notizen: _blank fuer externe Ziele im Editor.
+        HTMLAttributes: enableTaskList
+          ? { rel: 'noopener noreferrer', target: '_blank' }
+          : { rel: 'noopener noreferrer' }
       }),
       Placeholder.configure({ placeholder: placeholder ?? 'Nachricht schreiben…' }),
       ComposeImage,

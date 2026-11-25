@@ -145,13 +145,10 @@ export function MailWorkspace(props: { onOpenAccountDialog: () => void }): JSX.E
 
   const requestReadingGlobalPopout = useCallback(
     (opts?: { osWindow?: boolean; inAppFloat?: boolean }): void => {
+      // Zusätzliches Fenster: Vorschau bleibt, damit weitere Mails parallel geöffnet werden können.
       openReadingPopout(opts)
-      if (useOsFloatingPanels && !opts?.inAppFloat) {
-        setReadingOpen(false)
-        setReadingPlacement('dock')
-      }
     },
-    [openReadingPopout, useOsFloatingPanels, setReadingOpen, setReadingPlacement]
+    [openReadingPopout]
   )
   const requestCalendarUndock = useCallback((): void => {
     if (useOsFloatingPanels) {

@@ -29,12 +29,30 @@ describe('webinar invitation layout wysiwyg', () => {
       context
     )
     expect(html).toContain('data-chronell-layout-slot="titleBlock"')
+    expect(html).toContain('data-chronell-layout-protected="true"')
     expect(html).toContain('Beispiel-Webinar')
     expect(html).toContain('chronell-webinar-teams-slot')
     expect(html).not.toContain('{{titleBlock}}')
   })
 
-  it('roundtrip expand → collapse behaelt teamsBlock-Platzhalter', () => {
+  it('laesst Fliesstext-Slots editierbar (ohne contenteditable=false)', () => {
+    const context = buildWebinarInvitationRenderContext(
+      buildWebinarSettingsSampleFields(DEFAULT_WEBINAR_INVITATION_DEFAULTS)
+    )
+    const html = expandWebinarLayoutTemplateForSettingsEditor(
+      getDefaultWebinarInvitationLayoutTemplate(),
+      context
+    )
+    expect(html).toContain('data-chronell-layout-editable="true"')
+    expect(html).toMatch(/data-chronell-layout-slot="greetingBlock"[^>]*data-chronell-layout-editable/)
+    expect(html).not.toMatch(
+      /data-chronell-layout-slot="greetingBlock"[^>]*contenteditable="false"/
+    )
+    expect(html).toMatch(/data-chronell-layout-slot="titleBlock"[^>]*contenteditable="false"/)
+    expect(html).toMatch(/data-chronell-layout-slot="signature"[^>]*data-chronell-layout-editable/)
+  })
+
+  it('roundtrip expand → collapse behaelt teamsBlock-Platzhalter und backt Fliesstext ein', () => {
     const context = buildWebinarInvitationRenderContext(
       buildWebinarSettingsSampleFields(DEFAULT_WEBINAR_INVITATION_DEFAULTS)
     )
@@ -45,9 +63,24 @@ describe('webinar invitation layout wysiwyg', () => {
     const collapsed = collapseWebinarLayoutEditorHtmlToTemplate(expanded)
     expect(collapsed).toContain('{{teamsBlock}}')
     expect(collapsed).toContain('{{titleBlock}}')
-    expect(collapsed).toContain('{{greetingBlock}}')
+    expect(collapsed).not.toContain('{{greetingBlock}}')
+    expect(collapsed).toContain('Webinarteilnehmerin')
     expect(renderWebinarInvitationLayoutTemplate(collapsed, context)).toContain('Beispiel-Webinar')
     expect(renderWebinarInvitationLayoutTemplate(collapsed, context)).toContain('Webinarteilnehmerin')
+  })
+
+  it('behaelt editierte Fliesstexte nach collapse', () => {
+    const context = buildWebinarInvitationRenderContext(
+      buildWebinarSettingsSampleFields(DEFAULT_WEBINAR_INVITATION_DEFAULTS)
+    )
+    const expanded = expandWebinarLayoutTemplateForSettingsEditor(
+      getDefaultWebinarInvitationLayoutTemplate(),
+      context
+    )
+    const edited = expanded.replace('Webinarteilnehmerin', 'Liebe Teilnehmerin (editiert)')
+    const collapsed = collapseWebinarLayoutEditorHtmlToTemplate(edited)
+    expect(collapsed).toContain('Liebe Teilnehmerin (editiert)')
+    expect(collapsed).not.toContain('{{greetingBlock}}')
   })
 
   it('baut Einstellungs-Editor-HTML aus gespeicherten Defaults', () => {
@@ -59,6 +92,7 @@ describe('webinar invitation layout wysiwyg', () => {
     expect(html).toContain('#kurtrocks')
     expect(html).toContain('Webinarteilnehmerin')
     expect(html).toContain('data-chronell-layout-slot="greetingBlock"')
+    expect(html).toContain('data-chronell-layout-editable="true"')
     expect(html).toContain('data-chronell-layout-slot="heroImageBlock"')
   })
 

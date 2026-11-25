@@ -3,6 +3,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   replaceInlineCidImages,
+  prepareMailHtmlForDisplay,
   sanitizeMailHtml,
   buildMailShadowRootInnerHtml,
   softenLightEmailBackgroundsForDarkViewer,
@@ -83,6 +84,31 @@ describe('sanitizeMailHtml', () => {
     expect(clean).toContain('data-mail-external="https://example.com/path"')
     expect(clean).toMatch(/href\s*=\s*["']#["']/i)
     expect(clean).not.toMatch(/\btarget\s*=/i)
+  })
+})
+
+describe('prepareMailHtmlForDisplay', () => {
+  it('linkifiziert nackte https-URLs und neutralisiert sie fuer die Leseansicht', () => {
+    const out = prepareMailHtmlForDisplay('<p>Siehe https://example.com/docs</p>', {
+      loadImages: true
+    })
+    expect(out).toContain('data-mail-external="https://example.com/docs"')
+    expect(out).toMatch(/href\s*=\s*["']#["']/i)
+    expect(out).toContain('https://example.com/docs')
+  })
+
+  it('linkifiziert www.-URLs zu absoluten https-Links', () => {
+    const out = prepareMailHtmlForDisplay('<p>www.example.com</p>', { loadImages: true })
+    expect(out).toContain('data-mail-external="https://www.example.com/"')
+  })
+
+  it('behaelt bestehende Anker als klickbare Links', () => {
+    const out = prepareMailHtmlForDisplay(
+      '<p><a href="https://example.com">Beispiel</a></p>',
+      { loadImages: true }
+    )
+    expect(out).toContain('data-mail-external="https://example.com"')
+    expect(out).toContain('Beispiel')
   })
 })
 

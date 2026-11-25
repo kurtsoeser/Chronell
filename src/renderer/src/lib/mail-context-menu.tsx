@@ -34,6 +34,7 @@ import {
 
   Tag,
   StickyNote,
+  Notebook,
   SquareArrowOutUpRight,
   ListTodo,
   Sparkles,
@@ -42,6 +43,7 @@ import {
 
 } from 'lucide-react'
 import { openConnectionsGraphWithAiScan } from '@/lib/open-connections-graph'
+import { openMailReadingPopout } from '@/lib/open-mail-reading-popout'
 
 import type { TFunction } from 'i18next'
 import { useCreateCloudTaskUiStore } from '@/stores/create-cloud-task-ui'
@@ -79,6 +81,12 @@ export interface MailContextHandlers {
   sendToNotion?: (message: MailListItem) => void | Promise<void>
 
   sendToNotionAsNewPage?: (message: MailListItem) => void | Promise<void>
+
+  /** Mail an #kurtrocks Events OS Lifecycle-Akte senden */
+  sendToEventsOs?: (message: MailListItem) => void | Promise<void>
+
+  /** Mail als neue Seite in ein Microsoft-OneNote-Notizbuch legen */
+  sendToOneNote?: (message: MailListItem) => void | Promise<void>
 
   setMessageRead: (messageId: number, isRead: boolean) => void | Promise<void>
 
@@ -627,6 +635,15 @@ export function buildMailContextItems(
     },
 
     {
+      id: 'openInWindow',
+      label: tr ? tr('mail.contextMenu.openInWindow') : 'In eigenem Fenster öffnen',
+      icon: SquareArrowOutUpRight,
+      onSelect: (): void => {
+        openMailReadingPopout(msg.id)
+      }
+    },
+
+    {
 
       id: 'scheduleMeeting',
 
@@ -707,7 +724,7 @@ export function buildMailContextItems(
         openConnectionsGraphWithAiScan(listed.length > 0 ? listed : [msg], { maxMessages: 10 })
       }
     },
-    ...(h.sendToNotion || h.sendToNotionAsNewPage
+    ...(h.sendToNotion || h.sendToNotionAsNewPage || h.sendToEventsOs || h.sendToOneNote
       ? [
           ...(h.sendToNotion
             ? [
@@ -729,6 +746,30 @@ export function buildMailContextItems(
                   icon: SquareArrowOutUpRight,
                   onSelect: (): void => {
                     void h.sendToNotionAsNewPage?.(msg)
+                  }
+                }
+              ]
+            : []),
+          ...(h.sendToEventsOs
+            ? [
+                {
+                  id: 'events-os',
+                  label: tr ? tr('eventsOs.contextSend') : 'An Events OS senden…',
+                  icon: SquareArrowOutUpRight,
+                  onSelect: (): void => {
+                    void h.sendToEventsOs?.(msg)
+                  }
+                }
+              ]
+            : []),
+          ...(h.sendToOneNote
+            ? [
+                {
+                  id: 'onenote',
+                  label: tr ? tr('oneNote.contextSend') : 'An OneNote senden…',
+                  icon: Notebook,
+                  onSelect: (): void => {
+                    void h.sendToOneNote?.(msg)
                   }
                 }
               ]
