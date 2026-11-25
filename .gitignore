@@ -26,6 +26,7 @@ Thumbs.db
 # Vite / tooling caches
 .cache/
 .vite/
+electron.vite.config.*.mjs
 
 # Test artifacts
 coverage/

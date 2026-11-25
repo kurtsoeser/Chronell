@@ -69,7 +69,8 @@ export default [
       'docs/**',
       'coverage/**',
       'scripts/**',
-      '**/*.d.ts'
+      '**/*.d.ts',
+      'electron.vite.config.*.mjs'
     ]
   },
   js.configs.recommended,
