@@ -14,6 +14,7 @@ describe('splitSearchTokens', () => {
   it('filters short tokens and normalizes', () => {
     expect(splitSearchTokens('a HAK Steyr')).toEqual(['HAK', 'Steyr'])
     expect(splitSearchTokens('foo-bar')).toEqual(['foobar'])
+    expect(splitSearchTokens('monika.schmidt')).toEqual(['monika.schmidt'])
   })
 })
 

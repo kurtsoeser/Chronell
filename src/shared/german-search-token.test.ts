@@ -12,4 +12,10 @@ describe('germanSearchTokenVariants', () => {
     expect(q).toBeTruthy()
     expect(q).toContain('OR')
   })
+
+  it('verknuepft mehrere Token mit AND', () => {
+    const q = normalizeGermanFtsMatchQuery('Vertrag Monika')
+    expect(q).toContain(' AND ')
+    expect(q).not.toMatch(/\)\s+\(/)
+  })
 })

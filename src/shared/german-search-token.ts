@@ -63,5 +63,6 @@ export function normalizeGermanFtsMatchQuery(raw: string): string | null {
   if (tokens.length === 0) return null
   const groups = tokens.map((t) => germanFtsPrefixGroup(t)).filter((g): g is string => Boolean(g))
   if (groups.length === 0) return null
-  return groups.join(' ')
+  // FTS5 lehnt implizites AND zwischen Klammergruppen ab: "(a*) (b*)" -> syntax error near "(".
+  return groups.join(' AND ')
 }

@@ -3,14 +3,15 @@ export const SEARCH_TOKEN_MIN_LEN = 2
 
 /**
  * Zerlegt eine Suchanfrage in normalisierte Tokens (Woerter >= 2 Zeichen).
- * Sonderzeichen in Tokens werden entfernt (Umlaute bleiben).
+ * Bindestriche fallen weg (foo-bar -> foobar). Punkte bleiben, damit E-Mail-Teile
+ * wie monika.schmidt als Teilstring gefunden werden.
  */
 export function splitSearchTokens(raw: string): string[] {
   return raw
     .trim()
     .replace(/["()]/g, ' ')
     .split(/\s+/)
-    .map((t) => t.replace(/[^\w\u00C0-\u017F]/g, ''))
+    .map((t) => t.replace(/[^\w\u00C0-\u017F.]+/g, ''))
     .filter((t) => t.length >= SEARCH_TOKEN_MIN_LEN)
 }
 
