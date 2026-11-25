@@ -4,7 +4,6 @@ import type { CalendarEventAttachmentMeta, ComposeAttachment } from '@shared/typ
 import { getGoogleCredentials } from './google-credentials-store'
 import {
   GOOGLE_DRIVE_FILE_SCOPE_URL,
-  parseStoredScopeParts,
   storedGoogleScopeIncludesDriveFile
 } from '../auth/google-scopes'
 import { getGoogleApis } from './google-auth-client'

@@ -1,7 +1,7 @@
 import { loadConfig } from '../config'
 import { listAccounts } from '../accounts'
 import { acquireEwsAccessToken } from '../auth/microsoft-ews'
-import { postEwsSoap, escapeXmlText, itemIdXml, EwsRequestError } from './ews-soap'
+import { postEwsSoap, itemIdXml, EwsRequestError } from './ews-soap'
 import { translateRestIdToEwsId } from './translate-exchange-ids'
 import { decodeXmlEntities } from './xml-decode'
 

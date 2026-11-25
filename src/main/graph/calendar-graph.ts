@@ -949,13 +949,6 @@ function applyGraphAttendeeWritePlanToPayload(
   }
 }
 
-function applyGraphAllowForwardingToPayload(
-  payload: Record<string, unknown>,
-  allowForwarding: boolean | null | undefined
-): void {
-  applyGraphExtendedPropertiesToPayload(payload, { allowForwarding })
-}
-
 export type GraphCalendarEventType =
   | 'singleInstance'
   | 'occurrence'

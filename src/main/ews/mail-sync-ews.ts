@@ -2,7 +2,6 @@ import { loadConfig } from '../config'
 import { listAccounts } from '../accounts'
 import {
   findFolderByRemoteId,
-  findFolderByWellKnown,
   listFoldersByAccount,
   setFolderMailboxCountsLocal
 } from '../db/folders-repo'

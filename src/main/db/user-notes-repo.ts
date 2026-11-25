@@ -99,13 +99,6 @@ const NOTE_SELECT = `
   icon_id, icon_color, parent_note_id, is_pinned
 `
 
-const NOTE_SELECT_N = `
-  n.id, n.kind, n.message_id, n.account_id, n.calendar_source, n.calendar_remote_id, n.event_remote_id,
-  n.title, n.body, n.body_fts_text, n.created_at, n.updated_at, n.event_title_snapshot, n.event_start_iso_snapshot,
-  n.scheduled_start_iso, n.scheduled_end_iso, n.scheduled_all_day, n.section_id, n.sort_order,
-  n.icon_id, n.icon_color, n.parent_note_id, n.is_pinned
-`
-
 function noteListBodyColumns(omitBody: boolean): string {
   return omitBody ? `'' AS body, n.body_fts_text` : `n.body, n.body_fts_text`
 }

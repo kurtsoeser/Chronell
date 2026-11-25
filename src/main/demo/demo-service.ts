@@ -3,11 +3,7 @@ import { existsSync } from 'node:fs'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import {
-  DEMO_PACK_MANIFEST_NAME,
-  DEMO_PACK_ZIP_NAME,
-  DEMO_PROFILE_MARKER_FILE
-} from '@shared/demo'
+import { DEMO_PACK_MANIFEST_NAME, DEMO_PACK_ZIP_NAME } from '@shared/demo'
 import type { DemoStatus } from '@shared/types'
 import {
   clearUserDataForReplace,

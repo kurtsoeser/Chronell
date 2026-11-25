@@ -93,11 +93,6 @@ function normalizeBookingBusinessId(businessId: string): string {
   return id
 }
 
-function bookingBusinessPath(businessId: string, suffix: string): string {
-  const id = normalizeBookingBusinessId(businessId)
-  return `/solutions/bookingBusinesses/${id}/${suffix}`
-}
-
 function graphCalendarViewRangeParams(startIso: string, endIso: string): string {
   const start = encodeURIComponent(startIso)
   const end = encodeURIComponent(endIso)

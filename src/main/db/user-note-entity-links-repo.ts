@@ -1,7 +1,6 @@
 import { getDb } from './index'
 import type {
   NoteEntityLinkTarget,
-  NoteEntityLinkTargetKind,
   NoteEntityLinkedItem,
   NoteLinksBundle
 } from '@shared/note-entity-links'
@@ -15,157 +14,8 @@ import {
   removeEntityLinkIfMatches
 } from './entity-links-repo'
 
-interface EntityLinkRow {
-  id: number
-  from_note_id: number
-  target_kind: NoteEntityLinkTargetKind
-  to_note_id: number | null
-  mail_message_id: number | null
-  calendar_account_id: string | null
-  calendar_graph_event_id: string | null
-  task_account_id: string | null
-  task_list_id: string | null
-  task_id: string | null
-  people_contact_id: number | null
-  created_at: string
-}
-
 function assertPositiveId(id: number, label: string): void {
   if (!Number.isFinite(id) || id <= 0) throw new Error(`${label} fehlt.`)
-}
-
-function rowToTarget(row: EntityLinkRow): NoteEntityLinkTarget {
-  switch (row.target_kind) {
-    case 'note':
-      return { kind: 'note', noteId: row.to_note_id! }
-    case 'mail':
-      return { kind: 'mail', messageId: row.mail_message_id! }
-    case 'calendar_event':
-      return {
-        kind: 'calendar_event',
-        accountId: row.calendar_account_id!,
-        graphEventId: row.calendar_graph_event_id!
-      }
-    case 'cloud_task':
-      return {
-        kind: 'cloud_task',
-        accountId: row.task_account_id!,
-        listId: row.task_list_id!,
-        taskId: row.task_id!
-      }
-    case 'people_contact':
-      return { kind: 'people_contact', contactId: row.people_contact_id! }
-    default:
-      throw new Error(`Unbekannter Verknuepfungstyp: ${row.target_kind}`)
-  }
-}
-
-function resolveTitleSubtitle(
-  row: EntityLinkRow
-): { title: string; subtitle: string | null } {
-  const db = getDb()
-  switch (row.target_kind) {
-    case 'note': {
-      const n = db
-        .prepare('SELECT title, kind FROM user_notes WHERE id = ?')
-        .get(row.to_note_id!) as { title: string | null; kind: string } | undefined
-      return {
-        title: n?.title?.trim() || 'Ohne Titel',
-        subtitle: n?.kind ?? 'standalone'
-      }
-    }
-    case 'mail': {
-      const m = db
-        .prepare('SELECT subject, from_name, from_addr FROM messages WHERE id = ?')
-        .get(row.mail_message_id!) as
-        | { subject: string | null; from_name: string | null; from_addr: string | null }
-        | undefined
-      return {
-        title: m?.subject?.trim() || '(Kein Betreff)',
-        subtitle: m?.from_name?.trim() || m?.from_addr?.trim() || null
-      }
-    }
-    case 'calendar_event': {
-      const ev = db
-        .prepare(
-          `SELECT title, start_iso FROM calendar_events
-           WHERE account_id = ? AND graph_event_id = ?`
-        )
-        .get(row.calendar_account_id!, row.calendar_graph_event_id!) as
-        | { title: string | null; start_iso: string | null }
-        | undefined
-      return {
-        title: ev?.title?.trim() || 'Termin',
-        subtitle: ev?.start_iso?.slice(0, 16) ?? null
-      }
-    }
-    case 'cloud_task': {
-      const t = db
-        .prepare(
-          `SELECT title, due_iso FROM cloud_tasks
-           WHERE account_id = ? AND list_id = ? AND task_id = ?`
-        )
-        .get(row.task_account_id!, row.task_list_id!, row.task_id!) as
-        | { title: string; due_iso: string | null }
-        | undefined
-      return {
-        title: t?.title?.trim() || 'Aufgabe',
-        subtitle: t?.due_iso?.slice(0, 10) ?? null
-      }
-    }
-    case 'people_contact': {
-      const c = db
-        .prepare(
-          `SELECT display_name, given_name, surname, primary_email, company
-           FROM people_contacts WHERE id = ?`
-        )
-        .get(row.people_contact_id!) as
-        | {
-            display_name: string | null
-            given_name: string | null
-            surname: string | null
-            primary_email: string | null
-            company: string | null
-          }
-        | undefined
-      const name =
-        c?.display_name?.trim() ||
-        [c?.given_name, c?.surname].filter(Boolean).join(' ').trim() ||
-        c?.primary_email?.trim() ||
-        'Kontakt'
-      return {
-        title: name,
-        subtitle: c?.company?.trim() || c?.primary_email?.trim() || null
-      }
-    }
-    default:
-      return { title: '—', subtitle: null }
-  }
-}
-
-function mapRow(row: EntityLinkRow): NoteEntityLinkedItem {
-  const { title, subtitle } = resolveTitleSubtitle(row)
-  return {
-    linkId: row.id,
-    target: rowToTarget(row),
-    title,
-    subtitle,
-    createdAt: row.created_at
-  }
-}
-
-function mapIncomingNoteRow(row: EntityLinkRow): NoteEntityLinkedItem {
-  const db = getDb()
-  const n = db
-    .prepare('SELECT title, kind FROM user_notes WHERE id = ?')
-    .get(row.from_note_id) as { title: string | null; kind: string } | undefined
-  return {
-    linkId: row.id,
-    target: { kind: 'note', noteId: row.from_note_id },
-    title: n?.title?.trim() || 'Ohne Titel',
-    subtitle: n?.kind ?? 'standalone',
-    createdAt: row.created_at
-  }
 }
 
 export function listNoteLinksBundle(fromNoteId: number): NoteLinksBundle {
@@ -205,57 +55,6 @@ export function listNoteLinksBundle(fromNoteId: number): NoteLinksBundle {
   }
 
   return { outgoing, incoming: [] }
-}
-
-function assertTargetExists(target: NoteEntityLinkTarget): void {
-  const db = getDb()
-  switch (target.kind) {
-    case 'note': {
-      assertPositiveId(target.noteId, 'Ziel-Notiz-ID')
-      const row = db.prepare('SELECT 1 FROM user_notes WHERE id = ?').get(target.noteId)
-      if (!row) throw new Error('Notiz nicht gefunden.')
-      break
-    }
-    case 'mail': {
-      assertPositiveId(target.messageId, 'Mail-ID')
-      const row = db.prepare('SELECT 1 FROM messages WHERE id = ?').get(target.messageId)
-      if (!row) throw new Error('E-Mail nicht gefunden.')
-      break
-    }
-    case 'calendar_event': {
-      const accountId = target.accountId?.trim()
-      const graphEventId = target.graphEventId?.trim()
-      if (!accountId || !graphEventId) throw new Error('Termin-Referenz unvollstaendig.')
-      const row = db
-        .prepare(
-          `SELECT 1 FROM calendar_events WHERE account_id = ? AND graph_event_id = ?`
-        )
-        .get(accountId, graphEventId)
-      if (!row) throw new Error('Termin nicht im Cache.')
-      break
-    }
-    case 'cloud_task': {
-      const accountId = target.accountId?.trim()
-      const listId = target.listId?.trim()
-      const taskId = target.taskId?.trim()
-      if (!accountId || !listId || !taskId) throw new Error('Aufgaben-Referenz unvollstaendig.')
-      const row = db
-        .prepare(
-          `SELECT 1 FROM cloud_tasks WHERE account_id = ? AND list_id = ? AND task_id = ?`
-        )
-        .get(accountId, listId, taskId)
-      if (!row) throw new Error('Aufgabe nicht im Cache.')
-      break
-    }
-    case 'people_contact': {
-      assertPositiveId(target.contactId, 'Kontakt-ID')
-      const row = db.prepare('SELECT 1 FROM people_contacts WHERE id = ?').get(target.contactId)
-      if (!row) throw new Error('Kontakt nicht gefunden.')
-      break
-    }
-    default:
-      throw new Error('Unbekannter Verknuepfungstyp.')
-  }
 }
 
 export function addNoteEntityLink(fromNoteId: number, target: NoteEntityLinkTarget): number {
