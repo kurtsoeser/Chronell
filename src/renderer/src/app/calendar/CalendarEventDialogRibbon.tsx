@@ -59,6 +59,30 @@ type RibbonMenuOption = {
   label: string
 }
 
+type RibbonPopoverPos = {
+  top: number
+  left: number
+  width: number
+  maxHeight: number
+}
+
+function placeRibbonPopover(
+  anchor: HTMLElement,
+  preferredWidth: number
+): RibbonPopoverPos {
+  const r = anchor.getBoundingClientRect()
+  const width = Math.min(preferredWidth, window.innerWidth - 16)
+  let left = r.left
+  if (left + width > window.innerWidth - 8) left = window.innerWidth - 8 - width
+  if (left < 8) left = 8
+  const spaceBelow = window.innerHeight - r.bottom - 12
+  const spaceAbove = r.top - 12
+  const openUp = spaceBelow < 160 && spaceAbove > spaceBelow
+  const maxHeight = Math.max(120, openUp ? spaceAbove : spaceBelow)
+  const top = openUp ? Math.max(8, r.top - 4 - maxHeight) : r.bottom + 4
+  return { top, left, width, maxHeight }
+}
+
 function RibbonSep(): JSX.Element {
   return <span className="mx-0.5 h-5 w-px shrink-0 bg-border" aria-hidden />
 }
@@ -83,34 +107,63 @@ function RibbonMenu({
   active?: boolean
 }): JSX.Element {
   const [open, setOpen] = useState(false)
-  const wrapRef = useRef<HTMLDivElement | null>(null)
+  const [pos, setPos] = useState<RibbonPopoverPos | null>(null)
+  const btnRef = useRef<HTMLButtonElement | null>(null)
+  const listRef = useRef<HTMLDivElement | null>(null)
   const listId = useId()
   const selected = useMemo(
     () => options.find((o) => o.value === value) ?? options[0],
     [options, value]
   )
 
+  function updatePos(): void {
+    const el = btnRef.current
+    if (!el) return
+    setPos(placeRibbonPopover(el, 192))
+  }
+
+  useLayoutEffect(() => {
+    if (!open) return
+    updatePos()
+    const onWin = (): void => updatePos()
+    window.addEventListener('resize', onWin)
+    window.addEventListener('scroll', onWin, true)
+    return (): void => {
+      window.removeEventListener('resize', onWin)
+      window.removeEventListener('scroll', onWin, true)
+    }
+  }, [open])
+
   useEffect(() => {
     if (!open) return
     function onDocDown(e: MouseEvent): void {
-      const el = wrapRef.current
-      if (el && e.target instanceof Node && el.contains(e.target)) return
+      const target = e.target
+      if (!(target instanceof Node)) return
+      if (btnRef.current?.contains(target)) return
+      if (listRef.current?.contains(target)) return
       setOpen(false)
     }
     function onKey(e: KeyboardEvent): void {
       if (e.key === 'Escape') setOpen(false)
     }
-    document.addEventListener('mousedown', onDocDown)
+    // Nach dem oeffnenden Klick anbinden — sonst schliesst derselbe mousedown sofort wieder.
+    const timer = window.setTimeout(() => {
+      document.addEventListener('mousedown', onDocDown)
+      document.addEventListener('pointerdown', onDocDown)
+    }, 0)
     document.addEventListener('keydown', onKey)
     return (): void => {
+      window.clearTimeout(timer)
       document.removeEventListener('mousedown', onDocDown)
+      document.removeEventListener('pointerdown', onDocDown)
       document.removeEventListener('keydown', onKey)
     }
   }, [open])
 
   return (
-    <div className="relative" ref={wrapRef}>
+    <div className="relative">
       <button
+        ref={btnRef}
         type="button"
         disabled={disabled}
         title={selected ? `${title ?? ariaLabel}: ${selected.label}` : title ?? ariaLabel}
@@ -120,9 +173,22 @@ function RibbonMenu({
         aria-expanded={open}
         aria-haspopup="listbox"
         aria-controls={open ? listId : undefined}
-        onClick={(): void => setOpen((p) => !p)}
+        onPointerDown={(e): void => {
+          // Nicht vom Dialog-Overlay / Floating-Panel abfangen lassen.
+          e.stopPropagation()
+        }}
+        onClick={(e): void => {
+          e.preventDefault()
+          e.stopPropagation()
+          if (open) {
+            setOpen(false)
+            return
+          }
+          updatePos()
+          setOpen(true)
+        }}
         className={cn(
-          'inline-flex items-center justify-center rounded-md border p-1.5 transition-colors',
+          'relative z-10 inline-flex items-center justify-center rounded-md border p-1.5 transition-colors',
           active || open
             ? 'border-primary/40 bg-primary/10 text-foreground'
             : 'border-transparent text-muted-foreground hover:border-border hover:bg-secondary/60 hover:text-foreground',
@@ -131,45 +197,57 @@ function RibbonMenu({
       >
         <span className="shrink-0">{icon}</span>
       </button>
-      {open ? (
-        <div
-          id={listId}
-          role="listbox"
-          aria-label={ariaLabel}
-          className="absolute left-0 top-[calc(100%+4px)] z-40 max-h-64 min-w-[12rem] overflow-y-auto rounded-md border border-border bg-popover py-1 text-popover-foreground shadow-lg"
-        >
-          {options.map((opt) => {
-            const isSelected = opt.value === value
-            return (
-              <button
-                key={opt.value}
-                type="button"
-                role="option"
-                aria-selected={isSelected}
-                onClick={(): void => {
-                  onChange(opt.value)
-                  setOpen(false)
-                }}
-                className={cn(
-                  'flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs transition-colors',
-                  isSelected
-                    ? 'bg-primary/15 font-medium text-foreground'
-                    : 'text-foreground hover:bg-secondary'
-                )}
-              >
-                <Check
-                  className={cn(
-                    'h-3.5 w-3.5 shrink-0',
-                    isSelected ? 'text-primary opacity-100' : 'opacity-0'
-                  )}
-                  aria-hidden
-                />
-                <span className="min-w-0 flex-1 truncate">{opt.label}</span>
-              </button>
-            )
-          })}
-        </div>
-      ) : null}
+      {open
+        ? createPortal(
+            <div
+              ref={listRef}
+              id={listId}
+              role="listbox"
+              aria-label={ariaLabel}
+              className="chronell-acrylic-popover fixed z-[500] overflow-y-auto rounded-md border border-border bg-popover py-1 text-popover-foreground shadow-lg"
+              style={{
+                top: pos?.top ?? 80,
+                left: pos?.left ?? 80,
+                width: pos?.width ?? 192,
+                maxHeight: pos?.maxHeight ?? 256
+              }}
+              onPointerDown={(e): void => e.stopPropagation()}
+              onMouseDown={(e): void => e.stopPropagation()}
+            >
+              {options.map((opt) => {
+                const isSelected = opt.value === value
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    role="option"
+                    aria-selected={isSelected}
+                    onClick={(): void => {
+                      onChange(opt.value)
+                      setOpen(false)
+                    }}
+                    className={cn(
+                      'flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs transition-colors',
+                      isSelected
+                        ? 'bg-primary/15 font-medium text-foreground'
+                        : 'text-foreground hover:bg-secondary'
+                    )}
+                  >
+                    <Check
+                      className={cn(
+                        'h-3.5 w-3.5 shrink-0',
+                        isSelected ? 'text-primary opacity-100' : 'opacity-0'
+                      )}
+                      aria-hidden
+                    />
+                    <span className="min-w-0 flex-1 truncate">{opt.label}</span>
+                  </button>
+                )
+              })}
+            </div>,
+            document.body
+          )
+        : null}
     </div>
   )
 }
@@ -270,6 +348,7 @@ export const CalendarEventDialogRibbon = memo(function CalendarEventDialogRibbon
   const { t } = useTranslation()
   const locked = disabled || eventFieldsLocked
   const [templatesOpen, setTemplatesOpen] = useState(false)
+  const [templatesPos, setTemplatesPos] = useState<RibbonPopoverPos | null>(null)
   const [categoriesOpen, setCategoriesOpen] = useState(false)
   const [categoriesPos, setCategoriesPos] = useState<{
     top: number
@@ -277,6 +356,8 @@ export const CalendarEventDialogRibbon = memo(function CalendarEventDialogRibbon
     width: number
   } | null>(null)
   const templatesWrapRef = useRef<HTMLDivElement | null>(null)
+  const templatesBtnRef = useRef<HTMLButtonElement | null>(null)
+  const templatesPopoverRef = useRef<HTMLDivElement | null>(null)
   const categoriesWrapRef = useRef<HTMLDivElement | null>(null)
   const categoriesBtnRef = useRef<HTMLButtonElement | null>(null)
   const categoriesPopoverRef = useRef<HTMLDivElement | null>(null)
@@ -319,15 +400,43 @@ export const CalendarEventDialogRibbon = memo(function CalendarEventDialogRibbon
     [t]
   )
 
+  function placeTemplatesPopover(): void {
+    const el = templatesBtnRef.current
+    if (!el) return
+    setTemplatesPos(placeRibbonPopover(el, 220))
+  }
+
+  useLayoutEffect(() => {
+    if (!templatesOpen) return
+    placeTemplatesPopover()
+    const update = (): void => placeTemplatesPopover()
+    window.addEventListener('resize', update)
+    window.addEventListener('scroll', update, true)
+    return (): void => {
+      window.removeEventListener('resize', update)
+      window.removeEventListener('scroll', update, true)
+    }
+  }, [templatesOpen])
+
   useEffect(() => {
     if (!templatesOpen) return
     function onDocDown(e: MouseEvent): void {
-      const el = templatesWrapRef.current
-      if (el && e.target instanceof Node && el.contains(e.target)) return
+      const target = e.target
+      if (!(target instanceof Node)) return
+      if (templatesBtnRef.current?.contains(target)) return
+      if (templatesPopoverRef.current?.contains(target)) return
+      if (templatesWrapRef.current?.contains(target)) return
       setTemplatesOpen(false)
     }
-    document.addEventListener('mousedown', onDocDown)
-    return (): void => document.removeEventListener('mousedown', onDocDown)
+    const timer = window.setTimeout(() => {
+      document.addEventListener('mousedown', onDocDown)
+      document.addEventListener('pointerdown', onDocDown)
+    }, 0)
+    return (): void => {
+      window.clearTimeout(timer)
+      document.removeEventListener('mousedown', onDocDown)
+      document.removeEventListener('pointerdown', onDocDown)
+    }
   }, [templatesOpen])
 
   function placeCategoriesPopover(): void {
@@ -595,20 +704,28 @@ export const CalendarEventDialogRibbon = memo(function CalendarEventDialogRibbon
       {showApplyTemplates || onSaveAsTemplate ? (
         <div className="relative" ref={templatesWrapRef}>
           <button
+            ref={templatesBtnRef}
             type="button"
             disabled={locked}
             title={t('calendar.eventDialog.ribbonTemplates')}
             aria-label={t('calendar.eventDialog.ribbonTemplates')}
             aria-expanded={templatesOpen}
             aria-haspopup="menu"
-            onClick={(): void => {
+            onPointerDown={(e): void => e.stopPropagation()}
+            onClick={(e): void => {
+              e.preventDefault()
+              e.stopPropagation()
               setCategoriesOpen(false)
-              const next = !templatesOpen
-              if (next) onTemplatesMenuOpen?.()
-              setTemplatesOpen(next)
+              if (templatesOpen) {
+                setTemplatesOpen(false)
+                return
+              }
+              onTemplatesMenuOpen?.()
+              placeTemplatesPopover()
+              setTemplatesOpen(true)
             }}
             className={cn(
-              'inline-flex items-center justify-center rounded-md border p-1.5 transition-colors',
+              'relative z-10 inline-flex items-center justify-center rounded-md border p-1.5 transition-colors',
               templatesOpen
                 ? 'border-primary/40 bg-primary/10 text-foreground'
                 : 'border-transparent text-muted-foreground hover:border-border hover:bg-secondary/60 hover:text-foreground',
@@ -617,63 +734,80 @@ export const CalendarEventDialogRibbon = memo(function CalendarEventDialogRibbon
           >
             <LayoutTemplate className="h-3.5 w-3.5" />
           </button>
-          {templatesOpen ? (
-            <div
-              role="menu"
-              className="absolute left-0 top-[calc(100%+4px)] z-40 min-w-[220px] overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-lg"
-            >
-              {showApplyTemplates ? (
-                <>
-                  <p className="px-3 py-1.5 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    {t('calendar.eventDialog.applyTemplateTitle')}
-                  </p>
-                  <div className="max-h-56 overflow-y-auto">
-                    {templateList.map((tpl) => (
+          {templatesOpen
+            ? createPortal(
+                <div
+                  ref={templatesPopoverRef}
+                  role="menu"
+                  className="chronell-acrylic-popover fixed z-[500] overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-lg"
+                  style={{
+                    top: templatesPos?.top ?? 80,
+                    left: templatesPos?.left ?? 80,
+                    width: templatesPos?.width ?? 220,
+                    maxHeight: templatesPos?.maxHeight ?? 320
+                  }}
+                  onPointerDown={(e): void => e.stopPropagation()}
+                  onMouseDown={(e): void => e.stopPropagation()}
+                >
+                  {showApplyTemplates ? (
+                    <>
+                      <p className="px-3 py-1.5 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        {t('calendar.eventDialog.applyTemplateTitle')}
+                      </p>
+                      <div
+                        className="overflow-y-auto"
+                        style={{ maxHeight: Math.max(80, (templatesPos?.maxHeight ?? 320) - 80) }}
+                      >
+                        {templateList.map((tpl) => (
+                          <button
+                            key={tpl.id}
+                            type="button"
+                            role="menuitem"
+                            onClick={(): void => {
+                              onApplyTemplate?.(tpl.id)
+                              setTemplatesOpen(false)
+                            }}
+                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-secondary"
+                          >
+                            <span className="shrink-0 text-base leading-none">
+                              {tpl.emoji || '📅'}
+                            </span>
+                            <span className="min-w-0 flex-1 truncate">{tpl.name}</span>
+                            {tpl.teamsMeeting ? (
+                              <Video className="h-3.5 w-3.5 shrink-0 text-blue-500" aria-hidden />
+                            ) : null}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <p className="px-3 py-2 text-xs text-muted-foreground">
+                      {t('calendar.eventDialog.ribbonTemplatesEmpty')}
+                    </p>
+                  )}
+                  {onSaveAsTemplate ? (
+                    <div className={cn(showApplyTemplates && 'border-t border-border')}>
                       <button
-                        key={tpl.id}
                         type="button"
                         role="menuitem"
+                        disabled={locked}
                         onClick={(): void => {
-                          onApplyTemplate?.(tpl.id)
                           setTemplatesOpen(false)
+                          onSaveAsTemplate()
                         }}
-                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-secondary"
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-secondary disabled:opacity-50"
                       >
-                        <span className="shrink-0 text-base leading-none">{tpl.emoji || '📅'}</span>
-                        <span className="min-w-0 flex-1 truncate">{tpl.name}</span>
-                        {tpl.teamsMeeting ? (
-                          <Video className="h-3.5 w-3.5 shrink-0 text-blue-500" aria-hidden />
-                        ) : null}
+                        <Plus className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                        <span className="min-w-0 flex-1 truncate">
+                          {t('calendar.eventDialog.saveAsTemplateBtn')}
+                        </span>
                       </button>
-                    ))}
-                  </div>
-                </>
-              ) : (
-                <p className="px-3 py-2 text-xs text-muted-foreground">
-                  {t('calendar.eventDialog.ribbonTemplatesEmpty')}
-                </p>
-              )}
-              {onSaveAsTemplate ? (
-                <div className={cn(showApplyTemplates && 'border-t border-border')}>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    disabled={locked}
-                    onClick={(): void => {
-                      setTemplatesOpen(false)
-                      onSaveAsTemplate()
-                    }}
-                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-secondary disabled:opacity-50"
-                  >
-                    <Plus className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                    <span className="min-w-0 flex-1 truncate">
-                      {t('calendar.eventDialog.saveAsTemplateBtn')}
-                    </span>
-                  </button>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
+                    </div>
+                  ) : null}
+                </div>,
+                document.body
+              )
+            : null}
         </div>
       ) : null}
 

@@ -4022,7 +4022,7 @@ export function CalendarEventDialog({
 
   const panelInner = (
     <div ref={panelRef as React.RefObject<HTMLDivElement>} className={panelShellClass}>
-        <header className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-1.5">
+        <header className="relative z-30 flex shrink-0 items-center gap-2 border-b border-border px-3 py-1.5">
           <div className="flex min-w-0 flex-1 items-center gap-2">
             {mode === 'create' && taskAccounts.length > 0 ? (
               <div className="flex shrink-0 items-center gap-2">
